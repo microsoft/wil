@@ -1719,7 +1719,7 @@ namespace wil
                 // All successful status codes have only one hresult equivalent, S_OK
                 return S_OK;
             }
-            if (status == STATUS_NO_MEMORY)
+            if (status == static_cast<NTSTATUS>(STATUS_NO_MEMORY))
             {
                 // RtlNtStatusToDosErrorNoTeb maps STATUS_NO_MEMORY to the less popular of two Win32 no memory error codes resulting in an unexpected mapping
                 return E_OUTOFMEMORY;
@@ -1843,9 +1843,7 @@ namespace wil
         }
 #pragma warning(pop)
 
-        #pragma warning(push)
-        #pragma warning(disable : 4100) // Unused parameter (pszDest)
-        _Post_satisfies_(cchDest > 0 && cchDest <= cchMax) static STRSAFEAPI WilStringValidateDestA(_In_reads_opt_(cchDest) STRSAFE_PCNZCH pszDest, _In_ size_t cchDest, _In_ const size_t cchMax)
+        _Post_satisfies_(cchDest > 0 && cchDest <= cchMax) static STRSAFEAPI WilStringValidateDestA(_In_reads_opt_(cchDest) STRSAFE_PCNZCH /*pszDest*/, _In_ size_t cchDest, _In_ const size_t cchMax)
         {
             HRESULT hr = S_OK;
             if ((cchDest == 0) || (cchDest > cchMax))
@@ -1854,7 +1852,6 @@ namespace wil
             }
             return hr;
         }
-        #pragma warning(pop)
 
         static STRSAFEAPI WilStringVPrintfWorkerA(_Out_writes_(cchDest) _Always_(_Post_z_) STRSAFE_LPSTR pszDest, _In_ _In_range_(1, STRSAFE_MAX_CCH) size_t cchDest, _Always_(_Out_opt_ _Deref_out_range_(<=, cchDest - 1)) size_t* pcchNewDestLength, _In_ _Printf_format_string_ STRSAFE_LPCSTR pszFormat, _In_ va_list argList)
         {
