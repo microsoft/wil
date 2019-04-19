@@ -5,7 +5,7 @@
 
 #include "common.h"
 
-TEST_CASE("Out param helpers", "[common]")
+TEST_CASE("CommonTests::OutParamHelpers", "[common]")
 {
     int i = 2;
     int *pOutTest = &i;
@@ -40,7 +40,7 @@ TEST_CASE("Out param helpers", "[common]")
     }
 }
 
-TEST_CASE("Type validation", "[common]")
+TEST_CASE("CommonTests::TypeValidation", "[common]")
 {
     std::unique_ptr<BYTE> boolCastClass;
     std::vector<int> noBoolCastClass;
@@ -169,7 +169,7 @@ enum ERawTest
 };
 DEFINE_ENUM_FLAG_OPERATORS(ERawTest);
 
-TEST_CASE("Flags macros", "[common]")
+TEST_CASE("CommonTests::FlagsMacros", "[common]")
 {
     SECTION("Integral types")
     {
@@ -188,7 +188,7 @@ TEST_CASE("Flags macros", "[common]")
         FlagsMacrosNonStatic<ERawTest>(ER_None, ER_One, ER_Two, ER_Three, ER_Four);
     }
 
-    SECTION("enum class")
+    SECTION("Enum class")
     {
         FlagsMacrosNonStatic<EClassTest>(EClassTest::None, EClassTest::One, EClassTest::Two, EClassTest::Three, EClassTest::Four);
 

@@ -477,7 +477,7 @@ namespace wil
         struct folder_change_reader_state
         {
             folder_change_reader_state(bool isRecursive, FolderChangeEvents filter, wistd::function<void(FolderChangeEvent, PCWSTR)> &&callback)
-                : m_isRecursive(isRecursive), m_filter(filter), m_callback(wistd::move(callback))
+                : m_callback(wistd::move(callback)), m_isRecursive(isRecursive), m_filter(filter)
             {
             }
 
@@ -525,7 +525,7 @@ namespace wil
                 {
                     // This operation does not have the usual semantic of returning
                     // ERROR_IO_PENDING.
-                    // NT_ASSERT(hr != HRESULT_FROM_WIN32(ERROR_IO_PENDING));
+                    // WI_ASSERT(hr != HRESULT_FROM_WIN32(ERROR_IO_PENDING));
 
                     // If the operation failed for whatever reason, ensure the TP
                     // ref counts are accurate.
@@ -585,7 +585,7 @@ namespace wil
             ULONG result, ULONG_PTR /* BytesTransferred */, TP_IO * /* Io */)
         {
             auto readerState = static_cast<details::folder_change_reader_state *>(context);
-            // NT_ASSERT(overlapped == &readerState->m_overlapped);
+            // WI_ASSERT(overlapped == &readerState->m_overlapped);
 
             bool requeue = true;
             if (result == ERROR_SUCCESS)

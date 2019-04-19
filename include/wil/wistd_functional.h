@@ -128,7 +128,7 @@ namespace wistd     // ("Windows Implementation" std)
     __WI_LIBCPP_NORETURN inline __WI_LIBCPP_INLINE_VISIBILITY
     void __throw_bad_function_call()
     {
-        __fastfail(FAST_FAIL_FATAL_APP_EXIT);
+        __fastfail(7); // FAST_FAIL_FATAL_APP_EXIT
     }
 
     template<class _Fp> class __WI_LIBCPP_TEMPLATE_VIS function; // undefined
@@ -191,7 +191,7 @@ namespace wistd     // ("Windows Implementation" std)
             __WI_LIBCPP_INLINE_VISIBILITY __base() {}
             __WI_LIBCPP_INLINE_VISIBILITY virtual ~__base() {}
             virtual void __clone(__base*) const = 0;
-            virtual void __move(__base*) WI_NOEXCEPT = 0;
+            virtual void __move(__base*) = 0;
             virtual void destroy() WI_NOEXCEPT = 0;
             virtual _Rp operator()(_ArgTypes&& ...) = 0;
         };
@@ -213,7 +213,7 @@ namespace wistd     // ("Windows Implementation" std)
                 : __f_(__f) {}
 
             virtual void __clone(__base<_Rp(_ArgTypes...)>*) const;
-            virtual void __move(__base<_Rp(_ArgTypes...)>*) WI_NOEXCEPT;
+            virtual void __move(__base<_Rp(_ArgTypes...)>*);
             virtual void destroy() WI_NOEXCEPT;
             virtual _Rp operator()(_ArgTypes&& ... __arg);
         };
@@ -227,7 +227,7 @@ namespace wistd     // ("Windows Implementation" std)
 
         template<class _Fp, class _Rp, class ..._ArgTypes>
         void
-        __func<_Fp, _Rp(_ArgTypes...)>::__move(__base<_Rp(_ArgTypes...)>* __p) WI_NOEXCEPT
+        __func<_Fp, _Rp(_ArgTypes...)>::__move(__base<_Rp(_ArgTypes...)>* __p)
         {
             ::new (__p) __func(wistd::move(__f_));
         }
@@ -301,12 +301,12 @@ namespace wistd     // ("Windows Implementation" std)
         __WI_LIBCPP_INLINE_VISIBILITY
         function(nullptr_t) WI_NOEXCEPT : __f_(0) {}
         function(const function&);
-        function(function&&) WI_NOEXCEPT;
+        function(function&&);
         template<class _Fp, class = _EnableIfCallable<_Fp>>
         function(_Fp);
 
         function& operator=(const function&);
-        function& operator=(function&&) WI_NOEXCEPT;
+        function& operator=(function&&);
         function& operator=(nullptr_t) WI_NOEXCEPT;
         template<class _Fp, class = _EnableIfCallable<_Fp>>
         function& operator=(_Fp&&);
@@ -314,7 +314,7 @@ namespace wistd     // ("Windows Implementation" std)
         ~function();
 
         // function modifiers:
-        void swap(function&) WI_NOEXCEPT;
+        void swap(function&);
 
         // function capacity:
         __WI_LIBCPP_INLINE_VISIBILITY
@@ -346,7 +346,7 @@ namespace wistd     // ("Windows Implementation" std)
     }
 
     template<class _Rp, class ..._ArgTypes>
-    function<_Rp(_ArgTypes...)>::function(function&& __f) WI_NOEXCEPT
+    function<_Rp(_ArgTypes...)>::function(function&& __f)
     {
         if (__f.__f_ == 0)
             __f_ = 0;
@@ -388,7 +388,7 @@ namespace wistd     // ("Windows Implementation" std)
 
     template<class _Rp, class ..._ArgTypes>
     function<_Rp(_ArgTypes...)>&
-    function<_Rp(_ArgTypes...)>::operator=(function&& __f) WI_NOEXCEPT
+    function<_Rp(_ArgTypes...)>::operator=(function&& __f)
     {
         *this = nullptr;
         if (__f.__f_)
@@ -438,7 +438,7 @@ namespace wistd     // ("Windows Implementation" std)
 
     template<class _Rp, class ..._ArgTypes>
     void
-    function<_Rp(_ArgTypes...)>::swap(function& __f) WI_NOEXCEPT
+    function<_Rp(_ArgTypes...)>::swap(function& __f)
     {
         if (wistd::addressof(__f) == this)
           return;

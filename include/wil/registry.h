@@ -54,7 +54,7 @@ namespace wil
         struct registry_watcher_state
         {
             registry_watcher_state(unique_hkey &&keyToWatch, bool isRecursive, wistd::function<void(RegistryChangeKind)> &&callback)
-                : m_keyToWatch(wistd::move(keyToWatch)), m_callback(wistd::move(callback)), m_isRecursive(isRecursive)
+                : m_callback(wistd::move(callback)), m_keyToWatch(wistd::move(keyToWatch)), m_isRecursive(isRecursive)
             {
             }
             wistd::function<void(RegistryChangeKind)> m_callback;

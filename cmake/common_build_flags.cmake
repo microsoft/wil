@@ -39,6 +39,9 @@ if (${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
     append_cxx_flag("-Wno-switch")
     append_cxx_flag("-Wno-invalid-noreturn")
     append_cxx_flag("-Wno-c++17-compat-mangling")
+
+    # For tests, we want to be able to test self assignment, so disable this warning
+    append_cxx_flag("-Wno-self-assign-overloaded")
 else()
     # Flags that are either ignored or unrecognized by clang-cl
     # TODO: Disabled for now due to some outstanding issues

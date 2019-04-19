@@ -88,5 +88,11 @@ set BUILD_DIR=%BUILD_ROOT%\%COMPILER_ID%%BUILD_ARCH%%BUILD_TYPE%
 mkdir %BUILD_DIR% > NUL 2>&1
 
 pushd %BUILD_DIR%
+echo Using compiler....... %COMPILER_ID%
+echo Using architecture... %Platform%
+echo Using build type..... %BUILD_TYPE%
+echo Using build root..... %CD%
+echo.
+
 cmake %CMAKE_ARGS% ..\..
 popd

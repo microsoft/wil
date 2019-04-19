@@ -461,7 +461,7 @@ namespace wil
             }
 
             lambda_call_log(lambda_call_log&& other) WI_NOEXCEPT :
-            m_info(other.m_info), m_address(other.m_address), m_lambda(wistd::move(other.m_lambda)), m_call(other.m_call)
+            m_address(other.m_address), m_info(other.m_info), m_lambda(wistd::move(other.m_lambda)), m_call(other.m_call)
             {
                 other.m_call = false;
             }
