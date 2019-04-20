@@ -188,30 +188,34 @@ namespace witest
     bool DoesCodeCrash(Lambda&& callOp)
     {
         // See above; we don't want to actually fail fast, so make sure we raise a different exception instead
-        auto restore = wil::details::g_pfnRaiseFailFastException;
-        wil::details::g_pfnRaiseFailFastException = TranslateFailFastException;
+        auto restoreHandler = AssignTemporaryValue(&wil::details::g_pfnRaiseFailFastException, TranslateFailFastException);
 
         // This is a MAJOR hack. Catch2 registers a vectored exception handler - which gets run before our handler below -
         // that interprets a set of exception codes as fatal. We don't want this behavior since we may be expecting such
         // crashes, so instead translate all exception codes to something not fatal
+        constexpr DWORD msvc_exception_code = 0xE06D7363; // Let C++ exceptions through
         auto handler = AddVectoredExceptionHandler(1, [](PEXCEPTION_POINTERS info) -> LONG
         {
-            info->ExceptionRecord->ExceptionCode = STATUS_STACK_BUFFER_OVERRUN;
+            if (info->ExceptionRecord->ExceptionCode != msvc_exception_code)
+            {
+                info->ExceptionRecord->ExceptionCode = STATUS_STACK_BUFFER_OVERRUN;
+            }
+
             return EXCEPTION_CONTINUE_SEARCH;
         });
+        auto removeVectoredHandler = wil::scope_exit([&] { RemoveVectoredExceptionHandler(handler); });
 
         bool result = false;
         __try
         {
             callOp();
         }
-        __except (EXCEPTION_EXECUTE_HANDLER)
+        // Let C++ exceptions pass through
+        __except ((::GetExceptionCode() != msvc_exception_code) ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
         {
             result = true;
         }
 
-        RemoveVectoredExceptionHandler(handler);
-        wil::details::g_pfnRaiseFailFastException = restore;
         return result;
     }
 

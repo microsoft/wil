@@ -544,23 +544,23 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 #endif
 // end-of-repeated fail-fast handling macros
 // Helpers for return macros
-#define __RETURN_HR_MSG(hr, str, fmt, ...)                   do { HRESULT __hr = (hr); if (FAILED(__hr)) { __R_FN(Return_HrMsg)(__R_INFO(str) __hr, fmt, __VA_ARGS__); } return __hr; } while (0, 0)
-#define __RETURN_HR_MSG_FAIL(hr, str, fmt, ...)              do { HRESULT __hr = (hr); __R_FN(Return_HrMsg)(__R_INFO(str) __hr, fmt, __VA_ARGS__); return __hr; } while (0, 0)
-#define __RETURN_WIN32_MSG(err, str, fmt, ...)               do { DWORD __err = (err); if (FAILED_WIN32(__err)) { return __R_FN(Return_Win32Msg)(__R_INFO(str) __err, fmt, __VA_ARGS__); } return S_OK; } while (0, 0)
-#define __RETURN_WIN32_MSG_FAIL(err, str, fmt, ...)          do { DWORD __err = (err); return __R_FN(Return_Win32Msg)(__R_INFO(str) __err, fmt, __VA_ARGS__); } while (0, 0)
+#define __RETURN_HR_MSG(hr, str, fmt, ...)                   do { HRESULT __hr = (hr); if (FAILED(__hr)) { __R_FN(Return_HrMsg)(__R_INFO(str) __hr, fmt, __VA_ARGS__); } return __hr; } while ((void)0, 0)
+#define __RETURN_HR_MSG_FAIL(hr, str, fmt, ...)              do { HRESULT __hr = (hr); __R_FN(Return_HrMsg)(__R_INFO(str) __hr, fmt, __VA_ARGS__); return __hr; } while ((void)0, 0)
+#define __RETURN_WIN32_MSG(err, str, fmt, ...)               do { DWORD __err = (err); if (FAILED_WIN32(__err)) { return __R_FN(Return_Win32Msg)(__R_INFO(str) __err, fmt, __VA_ARGS__); } return S_OK; } while ((void)0, 0)
+#define __RETURN_WIN32_MSG_FAIL(err, str, fmt, ...)          do { DWORD __err = (err); return __R_FN(Return_Win32Msg)(__R_INFO(str) __err, fmt, __VA_ARGS__); } while ((void)0, 0)
 #define __RETURN_GLE_MSG_FAIL(str, fmt, ...)                 return __R_FN(Return_GetLastErrorMsg)(__R_INFO(str) fmt, __VA_ARGS__)
-#define __RETURN_NTSTATUS_MSG(status, str, fmt, ...)         do { NTSTATUS __status = (status); if(FAILED_NTSTATUS(__status)) { return __R_FN(Return_NtStatusMsg)(__R_INFO(str) __status, fmt, __VA_ARGS__); } return S_OK; } while (0, 0)
-#define __RETURN_NTSTATUS_MSG_FAIL(status, str, fmt, ...)    do { NTSTATUS __status = (status); return __R_FN(Return_NtStatusMsg)(__R_INFO(str) __status, fmt, __VA_ARGS__); } while (0, 0)
-#define __RETURN_HR(hr, str)                                 do { HRESULT __hr = (hr); if (FAILED(__hr)) { __R_FN(Return_Hr)(__R_INFO(str) __hr); } return __hr; } while (0, 0)
-#define __RETURN_HR_NOFILE(hr, str)                          do { HRESULT __hr = (hr); if (FAILED(__hr)) { __R_FN(Return_Hr)(__R_INFO_NOFILE(str) __hr); } return __hr; } while (0, 0)
-#define __RETURN_HR_FAIL(hr, str)                            do { HRESULT __hr = (hr); __R_FN(Return_Hr)(__R_INFO(str) __hr); return __hr; } while (0, 0)
-#define __RETURN_HR_FAIL_NOFILE(hr, str)                     do { HRESULT __hr = (hr); __R_FN(Return_Hr)(__R_INFO_NOFILE(str) __hr); return __hr; } while (0, 0)
-#define __RETURN_WIN32(err, str)                             do { DWORD __err = (err); if (FAILED_WIN32(__err)) { return __R_FN(Return_Win32)(__R_INFO(str) __err); } return S_OK; } while (0, 0)
-#define __RETURN_WIN32_FAIL(err, str)                        do { DWORD __err = (err); return __R_FN(Return_Win32)(__R_INFO(str) __err); } while (0, 0)
+#define __RETURN_NTSTATUS_MSG(status, str, fmt, ...)         do { NTSTATUS __status = (status); if(FAILED_NTSTATUS(__status)) { return __R_FN(Return_NtStatusMsg)(__R_INFO(str) __status, fmt, __VA_ARGS__); } return S_OK; } while ((void)0, 0)
+#define __RETURN_NTSTATUS_MSG_FAIL(status, str, fmt, ...)    do { NTSTATUS __status = (status); return __R_FN(Return_NtStatusMsg)(__R_INFO(str) __status, fmt, __VA_ARGS__); } while ((void)0, 0)
+#define __RETURN_HR(hr, str)                                 do { HRESULT __hr = (hr); if (FAILED(__hr)) { __R_FN(Return_Hr)(__R_INFO(str) __hr); } return __hr; } while ((void)0, 0)
+#define __RETURN_HR_NOFILE(hr, str)                          do { HRESULT __hr = (hr); if (FAILED(__hr)) { __R_FN(Return_Hr)(__R_INFO_NOFILE(str) __hr); } return __hr; } while ((void)0, 0)
+#define __RETURN_HR_FAIL(hr, str)                            do { HRESULT __hr = (hr); __R_FN(Return_Hr)(__R_INFO(str) __hr); return __hr; } while ((void)0, 0)
+#define __RETURN_HR_FAIL_NOFILE(hr, str)                     do { HRESULT __hr = (hr); __R_FN(Return_Hr)(__R_INFO_NOFILE(str) __hr); return __hr; } while ((void)0, 0)
+#define __RETURN_WIN32(err, str)                             do { DWORD __err = (err); if (FAILED_WIN32(__err)) { return __R_FN(Return_Win32)(__R_INFO(str) __err); } return S_OK; } while ((void)0, 0)
+#define __RETURN_WIN32_FAIL(err, str)                        do { DWORD __err = (err); return __R_FN(Return_Win32)(__R_INFO(str) __err); } while ((void)0, 0)
 #define __RETURN_GLE_FAIL(str)                               return __R_FN(Return_GetLastError)(__R_INFO_ONLY(str))
 #define __RETURN_GLE_FAIL_NOFILE(str)                        return __R_FN(Return_GetLastError)(__R_INFO_NOFILE_ONLY(str))
-#define __RETURN_NTSTATUS(status, str)                       do { NTSTATUS __status = (status); if(FAILED_NTSTATUS(__status)) { return __R_FN(Return_NtStatus)(__R_INFO(str) __status); } return S_OK; } while (0, 0)
-#define __RETURN_NTSTATUS_FAIL(status, str)                  do { NTSTATUS __status = (status); return __R_FN(Return_NtStatus)(__R_INFO(str) __status); } while (0, 0)
+#define __RETURN_NTSTATUS(status, str)                       do { NTSTATUS __status = (status); if(FAILED_NTSTATUS(__status)) { return __R_FN(Return_NtStatus)(__R_INFO(str) __status); } return S_OK; } while ((void)0, 0)
+#define __RETURN_NTSTATUS_FAIL(status, str)                  do { NTSTATUS __status = (status); return __R_FN(Return_NtStatus)(__R_INFO(str) __status); } while ((void)0, 0)
 /// @endcond
 
 //*****************************************************************************
@@ -574,15 +574,15 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 #define RETURN_NTSTATUS(status)                                 __RETURN_NTSTATUS(status, #status)
 
 // Conditionally returns failures (HRESULT) - always logs failures
-#define RETURN_IF_FAILED(hr)                                    do { HRESULT __hrRet = wil::verify_hresult(hr); if (FAILED(__hrRet)) { __RETURN_HR_FAIL(__hrRet, #hr); }} while (0, 0)
-#define RETURN_IF_WIN32_BOOL_FALSE(win32BOOL)                   do { BOOL __boolRet = wil::verify_BOOL(win32BOOL); if (!__boolRet) { __RETURN_GLE_FAIL(#win32BOOL); }} while (0, 0)
-#define RETURN_IF_WIN32_ERROR(win32err)                         do { DWORD __errRet = (win32err); if (FAILED_WIN32(__errRet)) { __RETURN_WIN32_FAIL(__errRet, #win32err); }} while (0, 0)
-#define RETURN_IF_NULL_ALLOC(ptr)                               do { if ((ptr) == nullptr) { __RETURN_HR_FAIL(E_OUTOFMEMORY, #ptr); }} while (0, 0)
-#define RETURN_HR_IF(hr, condition)                             do { if (wil::verify_bool(condition)) { __RETURN_HR(wil::verify_hresult(hr), #condition); }} while (0, 0)
-#define RETURN_HR_IF_NULL(hr, ptr)                              do { if ((ptr) == nullptr) { __RETURN_HR(wil::verify_hresult(hr), #ptr); }} while (0, 0)
-#define RETURN_LAST_ERROR_IF(condition)                         do { if (wil::verify_bool(condition)) { __RETURN_GLE_FAIL(#condition); }} while (0, 0)
-#define RETURN_LAST_ERROR_IF_NULL(ptr)                          do { if ((ptr) == nullptr) { __RETURN_GLE_FAIL(#ptr); }} while (0, 0)
-#define RETURN_IF_NTSTATUS_FAILED(status)                       do { NTSTATUS __statusRet = (status); if (FAILED_NTSTATUS(__statusRet)) { __RETURN_NTSTATUS_FAIL(__statusRet, #status); }} while (0, 0)
+#define RETURN_IF_FAILED(hr)                                    do { HRESULT __hrRet = wil::verify_hresult(hr); if (FAILED(__hrRet)) { __RETURN_HR_FAIL(__hrRet, #hr); }} while ((void)0, 0)
+#define RETURN_IF_WIN32_BOOL_FALSE(win32BOOL)                   do { BOOL __boolRet = wil::verify_BOOL(win32BOOL); if (!__boolRet) { __RETURN_GLE_FAIL(#win32BOOL); }} while ((void)0, 0)
+#define RETURN_IF_WIN32_ERROR(win32err)                         do { DWORD __errRet = (win32err); if (FAILED_WIN32(__errRet)) { __RETURN_WIN32_FAIL(__errRet, #win32err); }} while ((void)0, 0)
+#define RETURN_IF_NULL_ALLOC(ptr)                               do { if ((ptr) == nullptr) { __RETURN_HR_FAIL(E_OUTOFMEMORY, #ptr); }} while ((void)0, 0)
+#define RETURN_HR_IF(hr, condition)                             do { if (wil::verify_bool(condition)) { __RETURN_HR(wil::verify_hresult(hr), #condition); }} while ((void)0, 0)
+#define RETURN_HR_IF_NULL(hr, ptr)                              do { if ((ptr) == nullptr) { __RETURN_HR(wil::verify_hresult(hr), #ptr); }} while ((void)0, 0)
+#define RETURN_LAST_ERROR_IF(condition)                         do { if (wil::verify_bool(condition)) { __RETURN_GLE_FAIL(#condition); }} while ((void)0, 0)
+#define RETURN_LAST_ERROR_IF_NULL(ptr)                          do { if ((ptr) == nullptr) { __RETURN_GLE_FAIL(#ptr); }} while ((void)0, 0)
+#define RETURN_IF_NTSTATUS_FAILED(status)                       do { NTSTATUS __statusRet = (status); if (FAILED_NTSTATUS(__statusRet)) { __RETURN_NTSTATUS_FAIL(__statusRet, #status); }} while ((void)0, 0)
 
 // Always returns a known failure (HRESULT) - always logs a var-arg message on failure
 #define RETURN_HR_MSG(hr, fmt, ...)                             __RETURN_HR_MSG(wil::verify_hresult(hr), #hr, fmt, __VA_ARGS__)
@@ -591,26 +591,26 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 #define RETURN_NTSTATUS_MSG(status, fmt, ...)                   __RETURN_NTSTATUS_MSG(status, #status, fmt, __VA_ARGS__)
 
 // Conditionally returns failures (HRESULT) - always logs a var-arg message on failure
-#define RETURN_IF_FAILED_MSG(hr, fmt, ...)                      do { auto __hrRet = wil::verify_hresult(hr); if (FAILED(__hrRet)) { __RETURN_HR_MSG_FAIL(__hrRet, #hr, fmt, __VA_ARGS__); }} while (0, 0)
-#define RETURN_IF_WIN32_BOOL_FALSE_MSG(win32BOOL, fmt, ...)     do { if (!wil::verify_BOOL(win32BOOL)) { __RETURN_GLE_MSG_FAIL(#win32BOOL, fmt, __VA_ARGS__); }} while (0, 0)
-#define RETURN_IF_WIN32_ERROR_MSG(win32err, fmt, ...)           do { auto __errRet = (win32err); if (FAILED_WIN32(__errRet)) { __RETURN_WIN32_MSG_FAIL(__errRet, #win32err, fmt, __VA_ARGS__); }} while (0, 0)
-#define RETURN_IF_NULL_ALLOC_MSG(ptr, fmt, ...)                 do { if ((ptr) == nullptr) { __RETURN_HR_MSG_FAIL(E_OUTOFMEMORY, #ptr, fmt, __VA_ARGS__); }} while (0, 0)
-#define RETURN_HR_IF_MSG(hr, condition, fmt, ...)               do { if (wil::verify_bool(condition)) { __RETURN_HR_MSG(wil::verify_hresult(hr), #condition, fmt, __VA_ARGS__); }} while (0, 0)
-#define RETURN_HR_IF_NULL_MSG(hr, ptr, fmt, ...)                do { if ((ptr) == nullptr) { __RETURN_HR_MSG(wil::verify_hresult(hr), #ptr, fmt, __VA_ARGS__); }} while (0, 0)
-#define RETURN_LAST_ERROR_IF_MSG(condition, fmt, ...)           do { if (wil::verify_bool(condition)) { __RETURN_GLE_MSG_FAIL(#condition, fmt, __VA_ARGS__); }} while (0, 0)
-#define RETURN_LAST_ERROR_IF_NULL_MSG(ptr, fmt, ...)            do { if ((ptr) == nullptr) { __RETURN_GLE_MSG_FAIL(#ptr, fmt, __VA_ARGS__); }} while (0, 0)
-#define RETURN_IF_NTSTATUS_FAILED_MSG(status, fmt, ...)         do { NTSTATUS __statusRet = (status); if (FAILED_NTSTATUS(__statusRet)) { __RETURN_NTSTATUS_MSG_FAIL(__statusRet, #status, fmt, __VA_ARGS__); }} while (0, 0)
+#define RETURN_IF_FAILED_MSG(hr, fmt, ...)                      do { auto __hrRet = wil::verify_hresult(hr); if (FAILED(__hrRet)) { __RETURN_HR_MSG_FAIL(__hrRet, #hr, fmt, __VA_ARGS__); }} while ((void)0, 0)
+#define RETURN_IF_WIN32_BOOL_FALSE_MSG(win32BOOL, fmt, ...)     do { if (!wil::verify_BOOL(win32BOOL)) { __RETURN_GLE_MSG_FAIL(#win32BOOL, fmt, __VA_ARGS__); }} while ((void)0, 0)
+#define RETURN_IF_WIN32_ERROR_MSG(win32err, fmt, ...)           do { auto __errRet = (win32err); if (FAILED_WIN32(__errRet)) { __RETURN_WIN32_MSG_FAIL(__errRet, #win32err, fmt, __VA_ARGS__); }} while ((void)0, 0)
+#define RETURN_IF_NULL_ALLOC_MSG(ptr, fmt, ...)                 do { if ((ptr) == nullptr) { __RETURN_HR_MSG_FAIL(E_OUTOFMEMORY, #ptr, fmt, __VA_ARGS__); }} while ((void)0, 0)
+#define RETURN_HR_IF_MSG(hr, condition, fmt, ...)               do { if (wil::verify_bool(condition)) { __RETURN_HR_MSG(wil::verify_hresult(hr), #condition, fmt, __VA_ARGS__); }} while ((void)0, 0)
+#define RETURN_HR_IF_NULL_MSG(hr, ptr, fmt, ...)                do { if ((ptr) == nullptr) { __RETURN_HR_MSG(wil::verify_hresult(hr), #ptr, fmt, __VA_ARGS__); }} while ((void)0, 0)
+#define RETURN_LAST_ERROR_IF_MSG(condition, fmt, ...)           do { if (wil::verify_bool(condition)) { __RETURN_GLE_MSG_FAIL(#condition, fmt, __VA_ARGS__); }} while ((void)0, 0)
+#define RETURN_LAST_ERROR_IF_NULL_MSG(ptr, fmt, ...)            do { if ((ptr) == nullptr) { __RETURN_GLE_MSG_FAIL(#ptr, fmt, __VA_ARGS__); }} while ((void)0, 0)
+#define RETURN_IF_NTSTATUS_FAILED_MSG(status, fmt, ...)         do { NTSTATUS __statusRet = (status); if (FAILED_NTSTATUS(__statusRet)) { __RETURN_NTSTATUS_MSG_FAIL(__statusRet, #status, fmt, __VA_ARGS__); }} while ((void)0, 0)
 
 // Conditionally returns failures (HRESULT) - use for failures that are expected in common use - failures are not logged - macros are only for control flow pattern
-#define RETURN_IF_FAILED_EXPECTED(hr)                           do { auto __hrRet = wil::verify_hresult(hr); if (FAILED(__hrRet)) { return __hrRet; }} while (0, 0)
-#define RETURN_IF_WIN32_BOOL_FALSE_EXPECTED(win32BOOL)          do { if (!wil::verify_BOOL(win32BOOL)) { return wil::details::GetLastErrorFailHr(); }} while (0, 0)
-#define RETURN_IF_WIN32_ERROR_EXPECTED(win32err)                do { auto __errRet = (win32err); if (FAILED_WIN32(__errRet)) { return HRESULT_FROM_WIN32(__errRet); }} while (0, 0)
-#define RETURN_IF_NULL_ALLOC_EXPECTED(ptr)                      do { if ((ptr) == nullptr) { return E_OUTOFMEMORY; }} while (0, 0)
-#define RETURN_HR_IF_EXPECTED(hr, condition)                    do { if (wil::verify_bool(condition)) { return wil::verify_hresult(hr); }} while (0, 0)
-#define RETURN_HR_IF_NULL_EXPECTED(hr, ptr)                     do { if ((ptr) == nullptr) { return wil::verify_hresult(hr); }} while (0, 0)
-#define RETURN_LAST_ERROR_IF_EXPECTED(condition)                do { if (wil::verify_bool(condition)) { return wil::details::GetLastErrorFailHr(); }} while (0, 0)
-#define RETURN_LAST_ERROR_IF_NULL_EXPECTED(ptr)                 do { if ((ptr) == nullptr) { return wil::details::GetLastErrorFailHr(); }} while (0, 0)
-#define RETURN_IF_NTSTATUS_FAILED_EXPECTED(status)              do { auto __statusRet = (status); if (FAILED_NTSTATUS(__statusRet)) { return wil::details::NtStatusToHr(__statusRet); }} while (0, 0)
+#define RETURN_IF_FAILED_EXPECTED(hr)                           do { auto __hrRet = wil::verify_hresult(hr); if (FAILED(__hrRet)) { return __hrRet; }} while ((void)0, 0)
+#define RETURN_IF_WIN32_BOOL_FALSE_EXPECTED(win32BOOL)          do { if (!wil::verify_BOOL(win32BOOL)) { return wil::details::GetLastErrorFailHr(); }} while ((void)0, 0)
+#define RETURN_IF_WIN32_ERROR_EXPECTED(win32err)                do { auto __errRet = (win32err); if (FAILED_WIN32(__errRet)) { return HRESULT_FROM_WIN32(__errRet); }} while ((void)0, 0)
+#define RETURN_IF_NULL_ALLOC_EXPECTED(ptr)                      do { if ((ptr) == nullptr) { return E_OUTOFMEMORY; }} while ((void)0, 0)
+#define RETURN_HR_IF_EXPECTED(hr, condition)                    do { if (wil::verify_bool(condition)) { return wil::verify_hresult(hr); }} while ((void)0, 0)
+#define RETURN_HR_IF_NULL_EXPECTED(hr, ptr)                     do { if ((ptr) == nullptr) { return wil::verify_hresult(hr); }} while ((void)0, 0)
+#define RETURN_LAST_ERROR_IF_EXPECTED(condition)                do { if (wil::verify_bool(condition)) { return wil::details::GetLastErrorFailHr(); }} while ((void)0, 0)
+#define RETURN_LAST_ERROR_IF_NULL_EXPECTED(ptr)                 do { if ((ptr) == nullptr) { return wil::details::GetLastErrorFailHr(); }} while ((void)0, 0)
+#define RETURN_IF_NTSTATUS_FAILED_EXPECTED(status)              do { auto __statusRet = (status); if (FAILED_NTSTATUS(__statusRet)) { return wil::details::NtStatusToHr(__statusRet); }} while ((void)0, 0)
 
 #define __WI_OR_IS_EXPECTED_HRESULT(e) || (__hrRet == wil::verify_hresult(e))
 #define RETURN_IF_FAILED_WITH_EXPECTED(hr, hrExpected, ...) \
@@ -626,7 +626,7 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
             __RETURN_HR_FAIL(__hrRet, #hr); \
         } \
     } \
-    while (0, 0)
+    while ((void)0, 0)
 
 //*****************************************************************************
 // Macros for logging failures (ignore or pass-through)
@@ -744,7 +744,7 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 #define FAIL_FAST_IMMEDIATE_IF_NTSTATUS_FAILED(status)          __RFF_FN(FailFastImmediate_IfNtStatusFailed)(status)
 
 // Specializations
-#define FAIL_FAST_IMMEDIATE_IF_IN_LOADER_CALLOUT()              do { if (wil::details::g_pfnFailFastInLoaderCallout != nullptr) { wil::details::g_pfnFailFastInLoaderCallout(); } } while (0, 0)
+#define FAIL_FAST_IMMEDIATE_IF_IN_LOADER_CALLOUT()              do { if (wil::details::g_pfnFailFastInLoaderCallout != nullptr) { wil::details::g_pfnFailFastInLoaderCallout(); } } while ((void)0, 0)
 
 
 //*****************************************************************************
@@ -837,14 +837,14 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 #define WI_USAGE_ASSERT_STOP(condition)                     WI_ASSERT(condition)
 #endif
 #ifdef RESULT_DEBUG
-#define WI_USAGE_ERROR(msg, ...)                            do { LOG_HR_MSG(HRESULT_FROM_WIN32(ERROR_ASSERTION_FAILURE), msg, __VA_ARGS__); WI_USAGE_ASSERT_STOP(false); } while (0, 0)
-#define WI_USAGE_ERROR_FORWARD(msg, ...)                    do { ReportFailure_ReplaceMsg(__R_FN_CALL_FULL, FailureType::Log, HRESULT_FROM_WIN32(ERROR_ASSERTION_FAILURE), msg, __VA_ARGS__); WI_USAGE_ASSERT_STOP(false); } while (0, 0)
+#define WI_USAGE_ERROR(msg, ...)                            do { LOG_HR_MSG(HRESULT_FROM_WIN32(ERROR_ASSERTION_FAILURE), msg, __VA_ARGS__); WI_USAGE_ASSERT_STOP(false); } while ((void)0, 0)
+#define WI_USAGE_ERROR_FORWARD(msg, ...)                    do { ReportFailure_ReplaceMsg(__R_FN_CALL_FULL, FailureType::Log, HRESULT_FROM_WIN32(ERROR_ASSERTION_FAILURE), msg, __VA_ARGS__); WI_USAGE_ASSERT_STOP(false); } while ((void)0, 0)
 #else
-#define WI_USAGE_ERROR(msg, ...)                            do { LOG_HR(HRESULT_FROM_WIN32(ERROR_ASSERTION_FAILURE)); WI_USAGE_ASSERT_STOP(false); } while (0, 0)
-#define WI_USAGE_ERROR_FORWARD(msg, ...)                    do { ReportFailure_Hr(__R_FN_CALL_FULL, FailureType::Log, HRESULT_FROM_WIN32(ERROR_ASSERTION_FAILURE)); WI_USAGE_ASSERT_STOP(false); } while (0, 0)
+#define WI_USAGE_ERROR(msg, ...)                            do { LOG_HR(HRESULT_FROM_WIN32(ERROR_ASSERTION_FAILURE)); WI_USAGE_ASSERT_STOP(false); } while ((void)0, 0)
+#define WI_USAGE_ERROR_FORWARD(msg, ...)                    do { ReportFailure_Hr(__R_FN_CALL_FULL, FailureType::Log, HRESULT_FROM_WIN32(ERROR_ASSERTION_FAILURE)); WI_USAGE_ASSERT_STOP(false); } while ((void)0, 0)
 #endif
-#define WI_USAGE_VERIFY(condition, msg, ...)                do { auto __passed = wil::verify_bool(condition); if (!__passed) { WI_USAGE_ERROR(msg, __VA_ARGS__); }} while (0, 0)
-#define WI_USAGE_VERIFY_FORWARD(condition, msg, ...)        do { auto __passed = wil::verify_bool(condition); if (!__passed) { WI_USAGE_ERROR_FORWARD(msg, __VA_ARGS__); }} while (0, 0)
+#define WI_USAGE_VERIFY(condition, msg, ...)                do { auto __passed = wil::verify_bool(condition); if (!__passed) { WI_USAGE_ERROR(msg, __VA_ARGS__); }} while ((void)0, 0)
+#define WI_USAGE_VERIFY_FORWARD(condition, msg, ...)        do { auto __passed = wil::verify_bool(condition); if (!__passed) { WI_USAGE_ERROR_FORWARD(msg, __VA_ARGS__); }} while ((void)0, 0)
 #ifdef RESULT_DEBUG
 #define WI_USAGE_ASSERT(condition, msg, ...)                WI_USAGE_VERIFY(condition, msg, __VA_ARGS__)
 #else
@@ -866,12 +866,12 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 #define __WIL_PRIVATE_FAIL_FAST_HR(hr)                       FAIL_FAST_HR(hr)
 #define __WIL_PRIVATE_LOG_HR(hr)                             LOG_HR(hr)
 #else
-#define __WIL_PRIVATE_RETURN_IF_FAILED(hr)                   do { HRESULT __hrRet = wil::verify_hresult(hr); if (FAILED(__hrRet)) { __RETURN_HR_FAIL_NOFILE(__hrRet, #hr); }} while (0, 0)
-#define __WIL_PRIVATE_RETURN_HR_IF(hr, cond)                 do { if (wil::verify_bool(cond)) { __RETURN_HR_NOFILE(wil::verify_hresult(hr), #cond); }} while (0, 0)
-#define __WIL_PRIVATE_RETURN_LAST_ERROR_IF(cond)             do { if (wil::verify_bool(cond)) { __RETURN_GLE_FAIL_NOFILE(#cond); }} while (0, 0)
-#define __WIL_PRIVATE_RETURN_IF_WIN32_BOOL_FALSE(win32BOOL)  do { BOOL __boolRet = wil::verify_BOOL(win32BOOL); if (!__boolRet) { __RETURN_GLE_FAIL_NOFILE(#win32BOOL); }} while (0, 0)
-#define __WIL_PRIVATE_RETURN_LAST_ERROR_IF_NULL(ptr)         do { if ((ptr) == nullptr) { __RETURN_GLE_FAIL_NOFILE(#ptr); }} while (0, 0)
-#define __WIL_PRIVATE_RETURN_IF_NULL_ALLOC(ptr)              do { if ((ptr) == nullptr) { __RETURN_HR_FAIL_NOFILE(E_OUTOFMEMORY, #ptr); }} while (0, 0)
+#define __WIL_PRIVATE_RETURN_IF_FAILED(hr)                   do { HRESULT __hrRet = wil::verify_hresult(hr); if (FAILED(__hrRet)) { __RETURN_HR_FAIL_NOFILE(__hrRet, #hr); }} while ((void)0, 0)
+#define __WIL_PRIVATE_RETURN_HR_IF(hr, cond)                 do { if (wil::verify_bool(cond)) { __RETURN_HR_NOFILE(wil::verify_hresult(hr), #cond); }} while ((void)0, 0)
+#define __WIL_PRIVATE_RETURN_LAST_ERROR_IF(cond)             do { if (wil::verify_bool(cond)) { __RETURN_GLE_FAIL_NOFILE(#cond); }} while ((void)0, 0)
+#define __WIL_PRIVATE_RETURN_IF_WIN32_BOOL_FALSE(win32BOOL)  do { BOOL __boolRet = wil::verify_BOOL(win32BOOL); if (!__boolRet) { __RETURN_GLE_FAIL_NOFILE(#win32BOOL); }} while ((void)0, 0)
+#define __WIL_PRIVATE_RETURN_LAST_ERROR_IF_NULL(ptr)         do { if ((ptr) == nullptr) { __RETURN_GLE_FAIL_NOFILE(#ptr); }} while ((void)0, 0)
+#define __WIL_PRIVATE_RETURN_IF_NULL_ALLOC(ptr)              do { if ((ptr) == nullptr) { __RETURN_HR_FAIL_NOFILE(E_OUTOFMEMORY, #ptr); }} while ((void)0, 0)
 #define __WIL_PRIVATE_RETURN_LAST_ERROR()                    __RETURN_GLE_FAIL_NOFILE(nullptr)
 #define __WIL_PRIVATE_FAIL_FAST_HR_IF(hr, condition)         __RFF_FN(FailFast_HrIf)(__RFF_INFO_NOFILE(#condition) wil::verify_hresult(hr), wil::verify_bool(condition))
 #define __WIL_PRIVATE_FAIL_FAST_HR(hr)                       __RFF_FN(FailFast_Hr)(__RFF_INFO_NOFILE(#hr) wil::verify_hresult(hr))
@@ -1316,8 +1316,8 @@ namespace wil
         //*****************************************************************************
 
         /// @cond
-        #define __FAIL_FAST_ASSERT__(condition)                         do { if (!(condition)) { __RFF_FN(FailFast_Unexpected)(__RFF_INFO_ONLY(#condition)); } } while (0, 0)
-        #define __FAIL_FAST_IMMEDIATE_ASSERT__(condition)               do { if (!(condition)) { wil::FailureInfo failure {}; wil::details::WilFailFast(failure); } } while (0, 0)
+        #define __FAIL_FAST_ASSERT__(condition)                         do { if (!(condition)) { __RFF_FN(FailFast_Unexpected)(__RFF_INFO_ONLY(#condition)); } } while ((void)0, 0)
+        #define __FAIL_FAST_IMMEDIATE_ASSERT__(condition)               do { if (!(condition)) { wil::FailureInfo failure {}; wil::details::WilFailFast(failure); } } while ((void)0, 0)
         #define __FAIL_FAST_ASSERT_WIN32_BOOL_FALSE__(condition)        __RFF_FN(FailFast_IfWin32BoolFalse)(__RFF_INFO(#condition) wil::verify_BOOL(condition))
 
         // A simple ref-counted buffer class.  The interface is very similar to shared_ptr<>, only it manages

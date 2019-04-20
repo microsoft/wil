@@ -372,14 +372,14 @@ Three exception modes are available:
 //! Set a single compile-time constant `flag` in the variable `var`.
 #define WI_SetFlag(var, flag)                               WI_SetAllFlags(var, WI_StaticAssertSingleBitSet(flag))
 //! Conditionally sets a single compile-time constant `flag` in the variable `var` only if `condition` is true.
-#define WI_SetFlagIf(var, flag, condition)                  do { if (wil::verify_bool(condition)) { WI_SetFlag(var, flag); } } while (0, 0)
+#define WI_SetFlagIf(var, flag, condition)                  do { if (wil::verify_bool(condition)) { WI_SetFlag(var, flag); } } while ((void)0, 0)
 
 //! Clear zero or more bitflags specified by `flags` from the variable `var`.
 #define WI_ClearAllFlags(var, flags)                        ((var) &= ~(flags))
 //! Clear a single compile-time constant `flag` from the variable `var`.
 #define WI_ClearFlag(var, flag)                             WI_ClearAllFlags(var, WI_StaticAssertSingleBitSet(flag))
 //! Conditionally clear a single compile-time constant `flag` in the variable `var` only if `condition` is true.
-#define WI_ClearFlagIf(var, flag, condition)                do { if (wil::verify_bool(condition)) { WI_ClearFlag(var, flag); } } while (0, 0)
+#define WI_ClearFlagIf(var, flag, condition)                do { if (wil::verify_bool(condition)) { WI_ClearFlag(var, flag); } } while ((void)0, 0)
 
 //! Changes a single compile-time constant `flag` in the variable `var` to be set if `isFlagSet` is true or cleared if `isFlagSet` is false.
 #define WI_UpdateFlag(var, flag, isFlagSet)                 (wil::verify_bool(isFlagSet) ? WI_SetFlag(var, flag) : WI_ClearFlag(var, flag))
