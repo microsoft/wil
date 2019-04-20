@@ -3365,80 +3365,8 @@ TEST_CASE("WindowsInternalTests::SlimEventTests", "[resource][slim_event]")
 }
 #endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 // A quick sanity check of the 'wil::condition_variable' type.
-TEST_CASE("WindowsInternalTests::ConditionVariableTests")
+TEST_CASE("WindowsInternalTests::ConditionVariableTests", "[resource][condition_variable]")
 {
     // Test 'wil::condition_variable' with 'wil::critical_section'.
     {
@@ -3520,7 +3448,7 @@ TEST_CASE("WindowsInternalTests::ConditionVariableTests")
     }
 }
 
-TEST_CASE("WindowsInternalTests::ReturnWithExpectedTests")
+TEST_CASE("WindowsInternalTests::ReturnWithExpectedTests", "[result_macros]")
 {
     wil::g_pfnResultLoggingCallback = ResultMacrosLoggingCallback;
 
@@ -3529,18 +3457,14 @@ TEST_CASE("WindowsInternalTests::ReturnWithExpectedTests")
 
     // Expected
     REQUIRE_RETURNS_EXPECTED(E_FAIL, [] { RETURN_IF_FAILED_WITH_EXPECTED(E_FAIL, E_FAIL); return S_OK; });
-#ifndef __clang__ // Disabled on Clang due to https://github.com/Microsoft/wil/issues/6
     REQUIRE_RETURNS_EXPECTED(E_UNEXPECTED, [] { RETURN_IF_FAILED_WITH_EXPECTED(E_UNEXPECTED, E_FAIL, E_UNEXPECTED, E_POINTER, E_INVALIDARG); return S_OK; });
-#endif
 
     // Unexpected
     REQUIRE_RETURNS_EXPECTED(E_FAIL, [] { RETURN_IF_FAILED_WITH_EXPECTED(E_FAIL, E_UNEXPECTED); return S_OK; });
-#ifndef __clang__ // Disabled on Clang due to https://github.com/Microsoft/wil/issues/6
     REQUIRE_RETURNS_EXPECTED(E_FAIL, [] { RETURN_IF_FAILED_WITH_EXPECTED(E_FAIL, E_UNEXPECTED, E_POINTER, E_INVALIDARG); return S_OK; });
-#endif
 }
 
-TEST_CASE("WindowsInternalTests::LogWithExpectedTests")
+TEST_CASE("WindowsInternalTests::LogWithExpectedTests", "[result_macros]")
 {
     wil::g_pfnResultLoggingCallback = ResultMacrosLoggingCallback;
 
@@ -3549,15 +3473,11 @@ TEST_CASE("WindowsInternalTests::LogWithExpectedTests")
 
     // Expected
     REQUIRE_LOG(S_OK, [] { REQUIRE(E_UNEXPECTED == LOG_IF_FAILED_WITH_EXPECTED(E_UNEXPECTED, E_UNEXPECTED, E_INVALIDARG)); });
-#ifndef __clang__ // Disabled on Clang due to https://github.com/Microsoft/wil/issues/6
     REQUIRE_LOG(S_OK, [] { REQUIRE(E_UNEXPECTED == LOG_IF_FAILED_WITH_EXPECTED(E_UNEXPECTED, E_FAIL, E_UNEXPECTED, E_POINTER, E_INVALIDARG)); });
-#endif
 
     // Unexpected
     REQUIRE_LOG(E_FAIL, [] { REQUIRE(E_FAIL == LOG_IF_FAILED_WITH_EXPECTED(E_FAIL, E_UNEXPECTED)); });
-#ifndef __clang__ // Disabled on Clang due to https://github.com/Microsoft/wil/issues/6
     REQUIRE_LOG(E_FAIL, [] { REQUIRE(E_FAIL == LOG_IF_FAILED_WITH_EXPECTED(E_FAIL, E_UNEXPECTED, E_POINTER, E_INVALIDARG)); });
-#endif
 }
 
 // Verifies that the shutdown-aware objects respect the alignment
@@ -3588,10 +3508,9 @@ void VerifyAlignment()
     REQUIRE(reinterpret_cast<uintptr_t>(std::addressof(possibly_misaligned.wrapper.get())) % alignof(alignment_sensitive_struct) == 0);
 }
 
-TEST_CASE("WindowsInternalTests::ShutdownAwareObjectAlignmentTests")
+TEST_CASE("WindowsInternalTests::ShutdownAwareObjectAlignmentTests", "[result_macros]")
 {
     VerifyAlignment<wil::manually_managed_shutdown_aware_object>();
     VerifyAlignment<wil::shutdown_aware_object>();
     VerifyAlignment<wil::object_without_destructor_on_shutdown>();
 }
-#endif
