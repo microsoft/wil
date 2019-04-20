@@ -1,4 +1,13 @@
-
+//*********************************************************
+//
+//    Copyright (c) Microsoft. All rights reserved.
+//    This code is licensed under the MIT License.
+//    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+//    ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+//    TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+//    PARTICULAR PURPOSE AND NONINFRINGEMENT.
+//
+//*********************************************************
 #ifndef __WIL_COMMON_INCLUDED
 #define __WIL_COMMON_INCLUDED
 
@@ -165,25 +174,6 @@ Three exception modes are available:
 //! This macro is for use in other macros to paste two tokens together, such as a constant and the __LINE__ macro.
 #define WI_PASTE(a, b)                      __WI_PASTE_imp(a, b)
 
-//! This macro is used to invoke another function-like macro with the specified argument list. This is primarily useful
-//! when the invocation does not begin with a '(' character, e.g. when using the `WI_FLATTEN` macro. For example:
-//! ~~~
-//! #define CALL_WITH_BAR_SUFFIX(prefix, ...) WI_PASTE(prefix, Bar) WI_FLATTEN((__VA_ARGS__))
-//!
-//! // The macro invocation gets expanded to 'FooBar(x)' and does not get processed any further
-//! #define FooBar(x) foo_bar(x)
-//! CALL_WITH_BAR_SUFFIX(Foo, x);
-//! ~~~
-//! Instead, you should do:
-//! ~~~
-//! #define CALL_WITH_BAR_SUFFIX(prefix, ...) WI_MACRO_INVOKE(WI_PASTE(prefix, Bar), WI_FLATTEN((__VA_ARGS__)))
-//!
-//! // The macro invocation gets expanded to 'foo_bar(x)'
-//! #define FooBar(x) foo_bar(x)
-//! CALL_WITH_BAR_SUFFIX(Foo, x);
-//! ~~~
-#define WI_MACRO_INVOKE(fn, argsList) fn argsList
-
 /// @cond
 #define __WI_ARGS_COUNT1(A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21, A22, A23, A24, A25, A26, A27, A28, A29, \
                          A30, A31, A32, A33, A34, A35, A36, A37, A38, A39, A40, A41, A42, A43, A44, A45, A46, A47, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, \
@@ -200,108 +190,108 @@ Three exception modes are available:
 
 /// @cond
 #define __WI_FOR_imp0( fn)
-#define __WI_FOR_imp1( fn, arg, ...) __WI_FOR_impN( 0, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp2( fn, arg, ...) __WI_FOR_impN( 1, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp3( fn, arg, ...) __WI_FOR_impN( 2, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp4( fn, arg, ...) __WI_FOR_impN( 3, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp5( fn, arg, ...) __WI_FOR_impN( 4, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp6( fn, arg, ...) __WI_FOR_impN( 5, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp7( fn, arg, ...) __WI_FOR_impN( 6, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp8( fn, arg, ...) __WI_FOR_impN( 7, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp9( fn, arg, ...) __WI_FOR_impN( 8, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp10(fn, arg, ...) __WI_FOR_impN( 9, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp11(fn, arg, ...) __WI_FOR_impN(10, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp12(fn, arg, ...) __WI_FOR_impN(11, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp13(fn, arg, ...) __WI_FOR_impN(12, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp14(fn, arg, ...) __WI_FOR_impN(13, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp15(fn, arg, ...) __WI_FOR_impN(14, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp16(fn, arg, ...) __WI_FOR_impN(15, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp17(fn, arg, ...) __WI_FOR_impN(16, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp18(fn, arg, ...) __WI_FOR_impN(17, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp19(fn, arg, ...) __WI_FOR_impN(18, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp20(fn, arg, ...) __WI_FOR_impN(19, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp21(fn, arg, ...) __WI_FOR_impN(20, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp22(fn, arg, ...) __WI_FOR_impN(21, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp23(fn, arg, ...) __WI_FOR_impN(22, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp24(fn, arg, ...) __WI_FOR_impN(23, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp25(fn, arg, ...) __WI_FOR_impN(24, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp26(fn, arg, ...) __WI_FOR_impN(25, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp27(fn, arg, ...) __WI_FOR_impN(26, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp28(fn, arg, ...) __WI_FOR_impN(27, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp29(fn, arg, ...) __WI_FOR_impN(28, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp30(fn, arg, ...) __WI_FOR_impN(29, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp31(fn, arg, ...) __WI_FOR_impN(30, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp32(fn, arg, ...) __WI_FOR_impN(31, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp33(fn, arg, ...) __WI_FOR_impN(32, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp34(fn, arg, ...) __WI_FOR_impN(33, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp35(fn, arg, ...) __WI_FOR_impN(34, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp36(fn, arg, ...) __WI_FOR_impN(35, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp37(fn, arg, ...) __WI_FOR_impN(36, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp38(fn, arg, ...) __WI_FOR_impN(37, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp39(fn, arg, ...) __WI_FOR_impN(38, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp40(fn, arg, ...) __WI_FOR_impN(39, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp41(fn, arg, ...) __WI_FOR_impN(40, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp42(fn, arg, ...) __WI_FOR_impN(41, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp43(fn, arg, ...) __WI_FOR_impN(42, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp44(fn, arg, ...) __WI_FOR_impN(43, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp45(fn, arg, ...) __WI_FOR_impN(44, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp46(fn, arg, ...) __WI_FOR_impN(45, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp47(fn, arg, ...) __WI_FOR_impN(46, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp48(fn, arg, ...) __WI_FOR_impN(47, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp49(fn, arg, ...) __WI_FOR_impN(48, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp50(fn, arg, ...) __WI_FOR_impN(49, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp51(fn, arg, ...) __WI_FOR_impN(50, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp52(fn, arg, ...) __WI_FOR_impN(51, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp53(fn, arg, ...) __WI_FOR_impN(52, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp54(fn, arg, ...) __WI_FOR_impN(53, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp55(fn, arg, ...) __WI_FOR_impN(54, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp56(fn, arg, ...) __WI_FOR_impN(55, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp57(fn, arg, ...) __WI_FOR_impN(56, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp58(fn, arg, ...) __WI_FOR_impN(57, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp59(fn, arg, ...) __WI_FOR_impN(58, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp60(fn, arg, ...) __WI_FOR_impN(59, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp61(fn, arg, ...) __WI_FOR_impN(60, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp62(fn, arg, ...) __WI_FOR_impN(61, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp63(fn, arg, ...) __WI_FOR_impN(62, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp64(fn, arg, ...) __WI_FOR_impN(63, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp65(fn, arg, ...) __WI_FOR_impN(64, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp66(fn, arg, ...) __WI_FOR_impN(65, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp67(fn, arg, ...) __WI_FOR_impN(66, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp68(fn, arg, ...) __WI_FOR_impN(67, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp69(fn, arg, ...) __WI_FOR_impN(68, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp70(fn, arg, ...) __WI_FOR_impN(69, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp71(fn, arg, ...) __WI_FOR_impN(70, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp72(fn, arg, ...) __WI_FOR_impN(71, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp73(fn, arg, ...) __WI_FOR_impN(72, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp74(fn, arg, ...) __WI_FOR_impN(73, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp75(fn, arg, ...) __WI_FOR_impN(74, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp76(fn, arg, ...) __WI_FOR_impN(75, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp77(fn, arg, ...) __WI_FOR_impN(76, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp78(fn, arg, ...) __WI_FOR_impN(77, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp79(fn, arg, ...) __WI_FOR_impN(78, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp80(fn, arg, ...) __WI_FOR_impN(79, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp81(fn, arg, ...) __WI_FOR_impN(80, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp82(fn, arg, ...) __WI_FOR_impN(81, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp83(fn, arg, ...) __WI_FOR_impN(82, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp84(fn, arg, ...) __WI_FOR_impN(83, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp85(fn, arg, ...) __WI_FOR_impN(84, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp86(fn, arg, ...) __WI_FOR_impN(85, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp87(fn, arg, ...) __WI_FOR_impN(86, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp88(fn, arg, ...) __WI_FOR_impN(87, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp89(fn, arg, ...) __WI_FOR_impN(88, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp90(fn, arg, ...) __WI_FOR_impN(89, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp91(fn, arg, ...) __WI_FOR_impN(90, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp92(fn, arg, ...) __WI_FOR_impN(91, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp93(fn, arg, ...) __WI_FOR_impN(92, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp94(fn, arg, ...) __WI_FOR_impN(93, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp95(fn, arg, ...) __WI_FOR_impN(94, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp96(fn, arg, ...) __WI_FOR_impN(95, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp97(fn, arg, ...) __WI_FOR_impN(96, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp98(fn, arg, ...) __WI_FOR_impN(97, fn, arg, fn, ##__VA_ARGS__)
-#define __WI_FOR_imp99(fn, arg, ...) __WI_FOR_impN(98, fn, arg, fn, ##__VA_ARGS__)
+#define __WI_FOR_imp1( fn, arg, ...) __WI_FOR_impN( 0, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp2( fn, arg, ...) __WI_FOR_impN( 1, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp3( fn, arg, ...) __WI_FOR_impN( 2, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp4( fn, arg, ...) __WI_FOR_impN( 3, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp5( fn, arg, ...) __WI_FOR_impN( 4, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp6( fn, arg, ...) __WI_FOR_impN( 5, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp7( fn, arg, ...) __WI_FOR_impN( 6, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp8( fn, arg, ...) __WI_FOR_impN( 7, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp9( fn, arg, ...) __WI_FOR_impN( 8, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp10(fn, arg, ...) __WI_FOR_impN( 9, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp11(fn, arg, ...) __WI_FOR_impN(10, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp12(fn, arg, ...) __WI_FOR_impN(11, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp13(fn, arg, ...) __WI_FOR_impN(12, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp14(fn, arg, ...) __WI_FOR_impN(13, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp15(fn, arg, ...) __WI_FOR_impN(14, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp16(fn, arg, ...) __WI_FOR_impN(15, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp17(fn, arg, ...) __WI_FOR_impN(16, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp18(fn, arg, ...) __WI_FOR_impN(17, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp19(fn, arg, ...) __WI_FOR_impN(18, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp20(fn, arg, ...) __WI_FOR_impN(19, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp21(fn, arg, ...) __WI_FOR_impN(20, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp22(fn, arg, ...) __WI_FOR_impN(21, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp23(fn, arg, ...) __WI_FOR_impN(22, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp24(fn, arg, ...) __WI_FOR_impN(23, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp25(fn, arg, ...) __WI_FOR_impN(24, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp26(fn, arg, ...) __WI_FOR_impN(25, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp27(fn, arg, ...) __WI_FOR_impN(26, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp28(fn, arg, ...) __WI_FOR_impN(27, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp29(fn, arg, ...) __WI_FOR_impN(28, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp30(fn, arg, ...) __WI_FOR_impN(29, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp31(fn, arg, ...) __WI_FOR_impN(30, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp32(fn, arg, ...) __WI_FOR_impN(31, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp33(fn, arg, ...) __WI_FOR_impN(32, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp34(fn, arg, ...) __WI_FOR_impN(33, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp35(fn, arg, ...) __WI_FOR_impN(34, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp36(fn, arg, ...) __WI_FOR_impN(35, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp37(fn, arg, ...) __WI_FOR_impN(36, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp38(fn, arg, ...) __WI_FOR_impN(37, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp39(fn, arg, ...) __WI_FOR_impN(38, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp40(fn, arg, ...) __WI_FOR_impN(39, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp41(fn, arg, ...) __WI_FOR_impN(40, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp42(fn, arg, ...) __WI_FOR_impN(41, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp43(fn, arg, ...) __WI_FOR_impN(42, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp44(fn, arg, ...) __WI_FOR_impN(43, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp45(fn, arg, ...) __WI_FOR_impN(44, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp46(fn, arg, ...) __WI_FOR_impN(45, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp47(fn, arg, ...) __WI_FOR_impN(46, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp48(fn, arg, ...) __WI_FOR_impN(47, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp49(fn, arg, ...) __WI_FOR_impN(48, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp50(fn, arg, ...) __WI_FOR_impN(49, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp51(fn, arg, ...) __WI_FOR_impN(50, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp52(fn, arg, ...) __WI_FOR_impN(51, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp53(fn, arg, ...) __WI_FOR_impN(52, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp54(fn, arg, ...) __WI_FOR_impN(53, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp55(fn, arg, ...) __WI_FOR_impN(54, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp56(fn, arg, ...) __WI_FOR_impN(55, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp57(fn, arg, ...) __WI_FOR_impN(56, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp58(fn, arg, ...) __WI_FOR_impN(57, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp59(fn, arg, ...) __WI_FOR_impN(58, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp60(fn, arg, ...) __WI_FOR_impN(59, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp61(fn, arg, ...) __WI_FOR_impN(60, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp62(fn, arg, ...) __WI_FOR_impN(61, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp63(fn, arg, ...) __WI_FOR_impN(62, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp64(fn, arg, ...) __WI_FOR_impN(63, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp65(fn, arg, ...) __WI_FOR_impN(64, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp66(fn, arg, ...) __WI_FOR_impN(65, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp67(fn, arg, ...) __WI_FOR_impN(66, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp68(fn, arg, ...) __WI_FOR_impN(67, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp69(fn, arg, ...) __WI_FOR_impN(68, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp70(fn, arg, ...) __WI_FOR_impN(69, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp71(fn, arg, ...) __WI_FOR_impN(70, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp72(fn, arg, ...) __WI_FOR_impN(71, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp73(fn, arg, ...) __WI_FOR_impN(72, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp74(fn, arg, ...) __WI_FOR_impN(73, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp75(fn, arg, ...) __WI_FOR_impN(74, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp76(fn, arg, ...) __WI_FOR_impN(75, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp77(fn, arg, ...) __WI_FOR_impN(76, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp78(fn, arg, ...) __WI_FOR_impN(77, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp79(fn, arg, ...) __WI_FOR_impN(78, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp80(fn, arg, ...) __WI_FOR_impN(79, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp81(fn, arg, ...) __WI_FOR_impN(80, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp82(fn, arg, ...) __WI_FOR_impN(81, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp83(fn, arg, ...) __WI_FOR_impN(82, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp84(fn, arg, ...) __WI_FOR_impN(83, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp85(fn, arg, ...) __WI_FOR_impN(84, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp86(fn, arg, ...) __WI_FOR_impN(85, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp87(fn, arg, ...) __WI_FOR_impN(86, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp88(fn, arg, ...) __WI_FOR_impN(87, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp89(fn, arg, ...) __WI_FOR_impN(88, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp90(fn, arg, ...) __WI_FOR_impN(89, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp91(fn, arg, ...) __WI_FOR_impN(90, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp92(fn, arg, ...) __WI_FOR_impN(91, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp93(fn, arg, ...) __WI_FOR_impN(92, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp94(fn, arg, ...) __WI_FOR_impN(93, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp95(fn, arg, ...) __WI_FOR_impN(94, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp96(fn, arg, ...) __WI_FOR_impN(95, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp97(fn, arg, ...) __WI_FOR_impN(96, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp98(fn, arg, ...) __WI_FOR_impN(97, fn, arg, fn, __VA_ARGS__)
+#define __WI_FOR_imp99(fn, arg, ...) __WI_FOR_impN(98, fn, arg, fn, __VA_ARGS__)
 #define __WI_FOR_impN(n, fn, arg, ...) \
     fn(arg) \
-    WI_MACRO_INVOKE(WI_PASTE(__WI_FOR_imp, n), WI_FLATTEN((__VA_ARGS__)))
+    WI_PASTE(__WI_FOR_imp, n) WI_FLATTEN((__VA_ARGS__))
 #define __WI_FOR_imp(n, fnAndArgs)  WI_PASTE(__WI_FOR_imp, n) fnAndArgs
 /// @endcond
 
@@ -435,7 +425,6 @@ WI_HEADER_INITITALIZATION_FUNCTION(InitializeDesktopFamilyApis, []
 {
     g_pfnGetModuleName              = GetCurrentModuleName;
     g_pfnFailFastInLoaderCallout    = FailFastInLoaderCallout;
-    g_pfnRtlNtStatusToDosErrorNoTeb = RtlNtStatusToDosErrorNoTeb;
     return 1;
 });
 #endif
@@ -457,7 +446,7 @@ doing it with global function pointers and header initialization allows a runtim
 #endif
 
 
-/** All Windows Internal Library classes and functions are located within the "wil" namespace.
+/** All Windows Implementation Library classes and functions are located within the "wil" namespace.
 The 'wil' namespace is an intentionally short name as the intent is for code to be able to reference
 the namespace directly (example: `wil::srwlock lock;`) without a using statement.  Resist adding a using
 statement for wil to avoid introducing potential name collisions between wil and other namespaces. */

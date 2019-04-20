@@ -1,4 +1,13 @@
-
+//*********************************************************
+//
+//    Copyright (c) Microsoft. All rights reserved.
+//    This code is licensed under the MIT License.
+//    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+//    ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+//    TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+//    PARTICULAR PURPOSE AND NONINFRINGEMENT.
+//
+//*********************************************************
 #ifndef __WIL_RESULTMACROS_INCLUDED
 #define __WIL_RESULTMACROS_INCLUDED
 
@@ -1153,17 +1162,20 @@ namespace wil
         // Desktop/System Only:  Retrieve address offset and modulename
         __declspec(selectany) bool(__stdcall *g_pfnGetModuleInformation)(void* address, _Out_opt_ unsigned int* addressOffset, _Out_writes_bytes_opt_(size) char* name, size_t size) WI_NOEXCEPT = nullptr;
 
-        // Desktop/System Only:  Private module load fail fast function (automatically setup)
+        // Called with the expectation that the program will terminate when called inside of a loader callout.
+        // Desktop/System Only: Automatically setup when building Windows (BUILD_WINDOWS defined)
         __declspec(selectany) void(__stdcall *g_pfnFailFastInLoaderCallout)() WI_NOEXCEPT = nullptr;
 
-        // Desktop/System Only:  Private module load convert NtStatus to HResult (automatically setup)
+        // Called to translate an NTSTATUS value to a Win32 error code
+        // Desktop/System Only: Automatically setup when building Windows (BUILD_WINDOWS defined)
         __declspec(selectany) ULONG(__stdcall *g_pfnRtlNtStatusToDosErrorNoTeb)(NTSTATUS) WI_NOEXCEPT = nullptr;
 
-        // Desktop/System Only: Private module load to call debug break
+        // Desktop/System Only: Call to DebugBreak
         __declspec(selectany) void(__stdcall *g_pfnDebugBreak)() WI_NOEXCEPT = nullptr;
 
-        // Private API to determine whether or not termination is happening
-        __declspec(selectany) BOOLEAN(__stdcall *g_pfnRtlDllShutdownInProgress)() WI_NOEXCEPT = nullptr;
+        // Called to determine whether or not termination is happening
+        // Desktop/System Only: Automatically setup when building Windows (BUILD_WINDOWS defined)
+        __declspec(selectany) BOOLEAN(__stdcall *g_pfnDllShutdownInProgress)() WI_NOEXCEPT = nullptr;
         __declspec(selectany) bool g_processShutdownInProgress = false;
 
         // On Desktop/System WINAPI family: dynalink RaiseFailFastException because we may encounter modules
@@ -1202,7 +1214,7 @@ namespace wil
             TFunctor&& functor;
             functor_wrapper_void(TFunctor&& functor_) : functor(wistd::forward<TFunctor>(functor_)) { }
             #pragma warning(push)
-            #pragma warning(disable:4702) /* https://microsoft.visualstudio.com/OS/_workitems?id=15917057&fullScreen=false&_a=edit */
+            #pragma warning(disable:4702) // https://github.com/Microsoft/wil/issues/2
             HRESULT Run() override
             {
                 functor();
@@ -1229,7 +1241,7 @@ namespace wil
             TReturn& retVal;
             functor_wrapper_other(TFunctor& functor_, TReturn& retval_) : functor(wistd::forward<TFunctor>(functor_)), retVal(retval_) { }
             #pragma warning(push)
-            #pragma warning(disable:4702) /* https://microsoft.visualstudio.com/OS/_workitems?id=15917057&fullScreen=false&_a=edit */
+            #pragma warning(disable:4702) // https://github.com/Microsoft/wil/issues/2
             HRESULT Run() override
             {
                 retVal = functor();
@@ -2027,7 +2039,7 @@ namespace wil
     //! Call this method to determine if process shutdown is in progress (allows avoiding work during dll unload).
     inline bool ProcessShutdownInProgress()
     {
-        return (details::g_processShutdownInProgress || (details::g_pfnRtlDllShutdownInProgress ? details::g_pfnRtlDllShutdownInProgress() : false));
+        return (details::g_processShutdownInProgress || (details::g_pfnDllShutdownInProgress ? details::g_pfnDllShutdownInProgress() : false));
     }
 
     /** Use this object to wrap an object that wants to prevent its destructor from being run when the process is shutting down,
@@ -2064,7 +2076,7 @@ namespace wil
         }
 
     private:
-        unsigned char m_raw[sizeof(T)];
+        alignas(T) unsigned char m_raw[sizeof(T)];
     };
 
     /** Use this object to wrap an object that wants to prevent its destructor from being run when the process is shutting down.
@@ -2120,11 +2132,11 @@ namespace wil
         }
 
     private:
-        unsigned char m_raw[sizeof(T)];
+        alignas(T) unsigned char m_raw[sizeof(T)];
     };
 
     /** Forward your DLLMain to this function so that WIL can have visibility into whether a DLL unload is because
-    of termination or normal unload.  Note that when private API usage is enabled, WIL attempts to make this
+    of termination or normal unload.  Note that when g_pfnDllShutdownInProgress is set, WIL attempts to make this
     determination on its own without this callback.  Suppressing private APIs requires use of this. */
     inline void DLLMain(HINSTANCE, DWORD reason, _In_opt_ LPVOID reserved)
     {
@@ -3140,8 +3152,7 @@ namespace wil
         // Returns true if a debugger should be considered to be connected.
         // Modules can force this on through setting g_fIsDebuggerPresent explicitly (useful for live debugging),
         // they can provide a callback function by setting g_pfnIsDebuggerPresent (useful for kernel debbugging),
-        // and finally the user-mode check (IsDebuggerPrsent) is checked. IsDebuggerPresent is a fast call as it
-        // returns NtCurrentPeb()->BeingDebugged.
+        // and finally the user-mode check (IsDebuggerPrsent) is checked. IsDebuggerPresent is a fast call
         inline bool IsDebuggerPresent()
         {
             return g_fIsDebuggerPresent || ((g_pfnIsDebuggerPresent != nullptr) ? g_pfnIsDebuggerPresent() : (::IsDebuggerPresent() != FALSE));
@@ -3296,7 +3307,6 @@ namespace wil
             er.ExceptionInformation[0] = FAST_FAIL_FATAL_APP_EXIT; // see winnt.h, generated from minkernel\published\base\ntrtl_x.w
             if (failure.returnAddress == 0)                     // FailureInfo does not have _ReturnAddress, have RaiseFailFastException generate it
             {
-                // http://osgvsowi/17364039 - confirm with !analyze team that this is the best we can do in this case
                 // passing ExceptionCode 0xC0000409 and one param with FAST_FAIL_APP_EXIT will use existing
                 // !analyze functionality to crawl the stack looking for the HRESULT
                 // don't pass a 0 HRESULT in param 1 because that will result in worse bucketing.

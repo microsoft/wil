@@ -1,3 +1,13 @@
+// -*- C++ -*-
+//===--------------------------- __config ---------------------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is dual licensed under the MIT and the University of Illinois Open
+// Source Licenses. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
 // STL common functionality
 //
 // Some aspects of STL are core language concepts that should be used from all C++ code, regardless

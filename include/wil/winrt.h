@@ -1,4 +1,13 @@
-
+//*********************************************************
+//
+//    Copyright (c) Microsoft. All rights reserved.
+//    This code is licensed under the MIT License.
+//    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+//    ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+//    TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+//    PARTICULAR PURPOSE AND NONINFRINGEMENT.
+//
+//*********************************************************
 #ifndef __WIL_WINRT_INCLUDED
 #define __WIL_WINRT_INCLUDED
 
@@ -426,7 +435,7 @@ namespace wil
         template<typename T, typename Enable = void> struct MapToSmartType
         {
             #pragma warning(push)
-            #pragma warning(disable:4702) /* https://microsoft.visualstudio.com/OS/_workitems?id=15917057&fullScreen=false&_a=edit */
+            #pragma warning(disable:4702) // https://github.com/Microsoft/wil/issues/2
             struct type // T holder
             {
                 type() {};

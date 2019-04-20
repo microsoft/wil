@@ -1,3 +1,14 @@
+//*********************************************************
+//
+//    Copyright (c) Microsoft. All rights reserved.
+//    This code is licensed under the MIT License.
+//    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+//    ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+//    TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+//    PARTICULAR PURPOSE AND NONINFRINGEMENT.
+//
+//*********************************************************
+
 // Note: When origination is enabled by including this file, origination is done as part of the RETURN_* and THROW_* macros.  Before originating
 // a new error we will observe whether there is already an error payload associated with the current thread.  If there is, and the HRESULTs match,
 // then a new error will not be originated.  Otherwise we will overwrite it with a new origination.  The ABI boundary for WinRT APIs will check the

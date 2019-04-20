@@ -1,4 +1,13 @@
-
+//*********************************************************
+//
+//    Copyright (c) Microsoft. All rights reserved.
+//    This code is licensed under the MIT License.
+//    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+//    ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+//    TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+//    PARTICULAR PURPOSE AND NONINFRINGEMENT.
+//
+//*********************************************************
 #include "result_macros.h"
 #include "wistd_functional.h"
 #include "wistd_memory.h"
@@ -2660,11 +2669,9 @@ namespace wil
     class slim_event_t
     {
     public:
-        slim_event_t()
-        {
-        }
+        slim_event_t() WI_NOEXCEPT = default;
 
-        slim_event_t(bool isSignaled) :
+        slim_event_t(bool isSignaled) WI_NOEXCEPT :
             m_isSignaled(isSignaled ? TRUE : FALSE)
         {
         }
@@ -3465,7 +3472,6 @@ namespace wil
             unique_event_nothrow m_event;
             // The thread pool must be last to ensure that the other members are valid
             // when it is destructed as it will reference them.
-            // See http://osgvsowi/2224623
             unique_threadpool_wait m_threadPoolWait;
         };
 
