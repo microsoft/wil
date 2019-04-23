@@ -66,6 +66,11 @@ if [%1] NEQ [] (
 if %COMPILER_ID%==clang (
     set CC=clang-cl
     set CXX=clang-cl
+
+    if "%Platform%"=="x86" (
+        set CFLAGS=-m32
+        set CXXFLAGS=-m32
+    )
 ) else (
     set CC=cl
     set CXX=cl

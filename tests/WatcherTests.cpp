@@ -156,7 +156,7 @@ TEST_CASE("RegistryWatcherTests::Construction", "[registry][registry_watcher]")
     SECTION("Create unique_registry_watcher_nothrow with unique_hkey")
     {
         wil::unique_hkey keyToMove;
-        THROW_IF_FAILED(HRESULT_FROM_WIN32(RegCreateKeyExW(ROOT_KEY_PAIR, 0, nullptr, 0, KEY_NOTIFY, nullptr, &keyToMove, nullptr)));
+        REQUIRE_SUCCEEDED(HRESULT_FROM_WIN32(RegCreateKeyExW(ROOT_KEY_PAIR, 0, nullptr, 0, KEY_NOTIFY, nullptr, &keyToMove, nullptr)));
 
         auto watcher = wil::make_registry_watcher_nothrow(wistd::move(keyToMove), true, [&](wil::RegistryChangeKind){});
         REQUIRE(watcher);
@@ -167,7 +167,7 @@ TEST_CASE("RegistryWatcherTests::Construction", "[registry][registry_watcher]")
     {
         // construct with just an open registry key
         wil::unique_hkey rootKey;
-        THROW_IF_FAILED(HRESULT_FROM_WIN32(RegCreateKeyExW(ROOT_KEY_PAIR, 0, nullptr, 0, KEY_NOTIFY, nullptr, &rootKey, nullptr)));
+        REQUIRE_SUCCEEDED(HRESULT_FROM_WIN32(RegCreateKeyExW(ROOT_KEY_PAIR, 0, nullptr, 0, KEY_NOTIFY, nullptr, &rootKey, nullptr)));
 
         auto watcher = wil::make_registry_watcher_nothrow(rootKey.get(), L"", true, [&](wil::RegistryChangeKind){});
         REQUIRE(watcher);
@@ -280,16 +280,17 @@ TEST_CASE("RegistryWatcherTests::VerifyLastChangeObserved", "[registry][registry
 
 TEST_CASE("RegistryWatcherTests::VerifyDeleteBehavior", "[registry][registry_watcher]")
 {
-    wil::unique_event notificationReceived(wil::EventOptions::None);
+    auto notificationReceived = make_event();
 
     int volatile countObserved = 0;
     auto volatile observedChangeType = wil::RegistryChangeKind::Modify;
-    wil::unique_registry_watcher watcher = wil::make_registry_watcher(ROOT_KEY_PAIR, true, [&](wil::RegistryChangeKind changeType)
+    auto watcher = wil::make_registry_watcher_nothrow(ROOT_KEY_PAIR, true, [&](wil::RegistryChangeKind changeType)
     {
         countObserved++;
         observedChangeType = changeType;
         notificationReceived.SetEvent();
     });
+    REQUIRE(watcher);
 
     RegDeleteTreeW(ROOT_KEY_PAIR); // delete the key to signal the watcher with the special error case
     REQUIRE(notificationReceived.wait(5000));
@@ -301,13 +302,14 @@ TEST_CASE("RegistryWatcherTests::VerifyResetInCallback", "[registry][registry_wa
 {
     auto notificationReceived = make_event();
 
-    wil::unique_registry_watcher watcher = wil::make_registry_watcher(ROOT_KEY_PAIR, TRUE, [&](wil::RegistryChangeKind)
+    wil::unique_registry_watcher_nothrow watcher = wil::make_registry_watcher_nothrow(ROOT_KEY_PAIR, TRUE, [&](wil::RegistryChangeKind)
     {
         watcher.reset();
         DWORD value = 2;
         SetRegistryValue(ROOT_KEY_PAIR, L"value", REG_DWORD, &value, sizeof(value));
         notificationReceived.SetEvent();
     });
+    REQUIRE(watcher);
 
     DWORD value = 1;
     SetRegistryValue(ROOT_KEY_PAIR, L"value", REG_DWORD, &value, sizeof(value));
@@ -320,9 +322,9 @@ TEST_CASE("RegistryWatcherTests::VerifyResetInCallbackStress", "[!hide][registry
     for (DWORD value = 0; value < 10000; ++value)
     {
         wil::srwlock lock;
-        wil::unique_event notificationReceived(wil::EventOptions::None);
+        auto notificationReceived = make_event();
 
-        wil::unique_registry_watcher watcher = wil::make_registry_watcher(ROOT_KEY_PAIR, TRUE, [&](wil::RegistryChangeKind)
+        wil::unique_registry_watcher_nothrow watcher = wil::make_registry_watcher_nothrow(ROOT_KEY_PAIR, TRUE, [&](wil::RegistryChangeKind)
         {
             {
                 auto al = lock.lock_exclusive();
@@ -332,6 +334,7 @@ TEST_CASE("RegistryWatcherTests::VerifyResetInCallbackStress", "[!hide][registry
             SetRegistryValue(ROOT_KEY_PAIR, L"value", REG_DWORD, &value, sizeof(value));
             notificationReceived.SetEvent();
         });
+        REQUIRE(watcher);
 
         SetRegistryValue(ROOT_KEY_PAIR, L"value", REG_DWORD, &value, sizeof(value));
         notificationReceived.wait();
@@ -349,18 +352,20 @@ TEST_CASE("RegistryWatcherTests::VerifyResetAfterDelete", "[registry][registry_w
 
     int volatile countObserved = 0;
     auto volatile observedChangeType = wil::RegistryChangeKind::Modify;
-    wil::unique_registry_watcher watcher = wil::make_registry_watcher(ROOT_KEY_PAIR, true, [&](wil::RegistryChangeKind changeType)
+    wil::unique_registry_watcher_nothrow watcher = wil::make_registry_watcher_nothrow(ROOT_KEY_PAIR, true, [&](wil::RegistryChangeKind changeType)
     {
         countObserved++;
         observedChangeType = changeType;
         notificationReceived.SetEvent();
-        watcher = wil::make_registry_watcher(ROOT_KEY_PAIR, true, [&](wil::RegistryChangeKind changeType)
+        watcher = wil::make_registry_watcher_nothrow(ROOT_KEY_PAIR, true, [&](wil::RegistryChangeKind changeType)
         {
             countObserved++;
             observedChangeType = changeType;
             notificationReceived.SetEvent();
         });
+        REQUIRE(watcher);
     });
+    REQUIRE(watcher);
 
     RegDeleteTreeW(ROOT_KEY_PAIR); // delete the key to signal the watcher with the special error case
     notificationReceived.wait();
@@ -379,11 +384,11 @@ TEST_CASE("RegistryWatcherTests::VerifyResetAfterDelete", "[registry][registry_w
 
 TEST_CASE("RegistryWatcherTests::VerifyCallbackFinishesBeforeFreed", "[registry][registry_watcher]")
 {
-    wil::unique_event notificationReceived(wil::EventOptions::None);
-    wil::unique_event deleteNotification(wil::EventOptions::None);
+    auto notificationReceived = make_event();
+    auto deleteNotification = make_event();
 
     int volatile deleteObserved = 0;
-    auto watcher = wil::make_registry_watcher(ROOT_KEY_PAIR, true, [&](wil::RegistryChangeKind)
+    auto watcher = wil::make_registry_watcher_nothrow(ROOT_KEY_PAIR, true, [&](wil::RegistryChangeKind)
     {
         notificationReceived.SetEvent();
         // ensure that the callback is still being executed while the watcher is reset().
@@ -393,11 +398,11 @@ TEST_CASE("RegistryWatcherTests::VerifyCallbackFinishesBeforeFreed", "[registry]
     });
 
     RegDeleteTreeW(ROOT_KEY_PAIR); // delete the key to signal the watcher with the special error case
-    notificationReceived.wait();
+    REQUIRE(notificationReceived.wait(5000));
 
     watcher.reset();
     deleteNotification.SetEvent();
-    notificationReceived.wait();
+    REQUIRE(notificationReceived.wait(5000));
     REQUIRE(deleteObserved == 1);
 }
 

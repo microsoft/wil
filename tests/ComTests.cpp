@@ -77,34 +77,34 @@ TEST_CASE("ComTests::Test_Constructors", "[com][com_ptr]")
 
     SECTION("Null/default construction")
     {
-        wil::com_ptr<IUnknown> ptr; //default constructor
+        wil::com_ptr_nothrow<IUnknown> ptr; //default constructor
         REQUIRE(ptr.get() == nullptr);
 
-        wil::com_ptr<IUnknown> ptr2(nullptr); //default explicit null constructor
+        wil::com_ptr_nothrow<IUnknown> ptr2(nullptr); //default explicit null constructor
         REQUIRE(ptr2.get() == nullptr);
 
         IUnknown* nullPtr = nullptr;
-        wil::com_ptr<IUnknown> ptr3(nullPtr);
+        wil::com_ptr_nothrow<IUnknown> ptr3(nullPtr);
         REQUIRE(ptr3.get() == nullptr);
     }
 
     SECTION("Valid pointer construction")
     {
-        wil::com_ptr<IUnknown> ptr(&helper); // explicit
+        wil::com_ptr_nothrow<IUnknown> ptr(&helper); // explicit
         REQUIRE(IUnknownFake::GetAddRef() == 1);
         REQUIRE(ptr.get() == &helper);
     }
 
     SECTION("Copy construction")
     {
-        wil::com_ptr<IUnknown> ptr(&helper);
-        wil::com_ptr<IUnknown> ptrCopy(ptr); // assign the same pointer
+        wil::com_ptr_nothrow<IUnknown> ptr(&helper);
+        wil::com_ptr_nothrow<IUnknown> ptrCopy(ptr); // assign the same pointer
         REQUIRE(IUnknownFake::GetAddRef() == 2);
         REQUIRE(ptrCopy.get() == ptr.get());
 
         IUnknownFake2 helper2;
-        wil::com_ptr<IUnknownFake2> ptr2(&helper2);
-        wil::com_ptr<IUnknownFake> ptrCopy2(ptr2);
+        wil::com_ptr_nothrow<IUnknownFake2> ptr2(&helper2);
+        wil::com_ptr_nothrow<IUnknownFake> ptrCopy2(ptr2);
         REQUIRE(IUnknownFake::GetAddRef() == 2);
         REQUIRE(ptrCopy2.get() == &helper2);
     }
@@ -112,15 +112,15 @@ TEST_CASE("ComTests::Test_Constructors", "[com][com_ptr]")
     SECTION("Move construction")
     {
         IUnknownFake helper3;
-        wil::com_ptr<IUnknownFake> ptr(&helper3);
-        wil::com_ptr<IUnknownFake> ptrMove(reinterpret_cast<wil::com_ptr<IUnknownFake>&&>(ptr));
+        wil::com_ptr_nothrow<IUnknownFake> ptr(&helper3);
+        wil::com_ptr_nothrow<IUnknownFake> ptrMove(reinterpret_cast<wil::com_ptr_nothrow<IUnknownFake>&&>(ptr));
         REQUIRE(IUnknownFake::GetAddRef() == 1);
         REQUIRE(ptrMove.get() == &helper3);
         REQUIRE(ptr.get() == nullptr);
 
         IUnknownFake2 helper4;
-        wil::com_ptr<IUnknownFake2> ptr2(&helper4);
-        wil::com_ptr<IUnknownFake> ptrMove2(reinterpret_cast<wil::com_ptr<IUnknownFake2>&&>(ptr2));
+        wil::com_ptr_nothrow<IUnknownFake2> ptr2(&helper4);
+        wil::com_ptr_nothrow<IUnknownFake> ptrMove2(reinterpret_cast<wil::com_ptr_nothrow<IUnknownFake2>&&>(ptr2));
         REQUIRE(IUnknownFake::GetAddRef() == 1);
         REQUIRE(ptrMove2.get() == &helper4);
         REQUIRE(ptr2.get() == nullptr);
@@ -132,7 +132,7 @@ TEST_CASE("ComTests::Test_Assign", "[com][com_ptr]")
     IUnknownFake::Clear();
     IUnknownFake helper;
 
-    wil::com_ptr<IUnknownFake> ptr(&helper);
+    wil::com_ptr_nothrow<IUnknownFake> ptr(&helper);
 
     SECTION("Null pointer assignment")
     {
@@ -146,10 +146,10 @@ TEST_CASE("ComTests::Test_Assign", "[com][com_ptr]")
 
     SECTION("Different pointer assignment")
     {
-        wil::com_ptr<IUnknownFake> ptr(&helper);
-        wil::com_ptr<IUnknownFake> ptr2(&helper2);
+        wil::com_ptr_nothrow<IUnknownFake> ptr(&helper);
+        wil::com_ptr_nothrow<IUnknownFake> ptr2(&helper2);
 
-        ptr = static_cast<const wil::com_ptr<IUnknownFake>&>(ptr2);
+        ptr = static_cast<const wil::com_ptr_nothrow<IUnknownFake>&>(ptr2);
 
         REQUIRE(ptr.get() == &helper2);
         REQUIRE(ptr2.get() == &helper2);
@@ -159,7 +159,7 @@ TEST_CASE("ComTests::Test_Assign", "[com][com_ptr]")
 
     SECTION("Self assignment")
     {
-        wil::com_ptr<IUnknownFake> ptr(&helper);
+        wil::com_ptr_nothrow<IUnknownFake> ptr(&helper);
 
         IUnknownFake::Clear();
         ptr = ptr;
@@ -175,11 +175,11 @@ TEST_CASE("ComTests::Test_Assign", "[com][com_ptr]")
 
     SECTION("Assign pointer with different interface")
     {
-        wil::com_ptr<IUnknownFake> ptr(&helper);
-        wil::com_ptr<IUnknownFake2> ptr2(&helper3);
+        wil::com_ptr_nothrow<IUnknownFake> ptr(&helper);
+        wil::com_ptr_nothrow<IUnknownFake2> ptr2(&helper3);
 
         IUnknownFake::Clear();
-        ptr = static_cast<const wil::com_ptr<IUnknownFake2>&>(ptr2);
+        ptr = static_cast<const wil::com_ptr_nothrow<IUnknownFake2>&>(ptr2);
 
         REQUIRE(ptr.get() == &helper3);
         REQUIRE(ptr2.get() == &helper3);
@@ -189,11 +189,11 @@ TEST_CASE("ComTests::Test_Assign", "[com][com_ptr]")
 
     SECTION("Move assignment")
     {
-        wil::com_ptr<IUnknownFake> ptr(&helper);
-        wil::com_ptr<IUnknownFake> ptr2(&helper2);
+        wil::com_ptr_nothrow<IUnknownFake> ptr(&helper);
+        wil::com_ptr_nothrow<IUnknownFake> ptr2(&helper2);
 
         IUnknownFake::Clear();
-        ptr = static_cast<wil::com_ptr<IUnknownFake>&&>(ptr2);
+        ptr = static_cast<wil::com_ptr_nothrow<IUnknownFake>&&>(ptr2);
 
         REQUIRE(ptr.get() == &helper2);
         REQUIRE(ptr2.get() == nullptr);
@@ -203,11 +203,11 @@ TEST_CASE("ComTests::Test_Assign", "[com][com_ptr]")
 
     SECTION("Move assign with different interface")
     {
-        wil::com_ptr<IUnknownFake> ptr(&helper);
-        wil::com_ptr<IUnknownFake2> ptr2(&helper3);
+        wil::com_ptr_nothrow<IUnknownFake> ptr(&helper);
+        wil::com_ptr_nothrow<IUnknownFake2> ptr2(&helper3);
 
         IUnknownFake::Clear();
-        ptr = static_cast<wil::com_ptr<IUnknownFake2>&&>(ptr2);
+        ptr = static_cast<wil::com_ptr_nothrow<IUnknownFake2>&&>(ptr2);
 
         REQUIRE(ptr.get() == &helper3);
         REQUIRE(ptr2.get() == nullptr);
@@ -223,10 +223,10 @@ TEST_CASE("ComTests::Test_Operators", "[com][com_ptr]")
     IUnknownFake helper2;
     IUnknownFake2 helper3;
 
-    wil::com_ptr<IUnknownFake> ptrNULL; //NULL one
-    wil::com_ptr<IUnknownFake> ptrLT(&helper);
-    wil::com_ptr<IUnknownFake> ptrGT(&helper2);
-    wil::com_ptr<IUnknownFake2> ptrDiff(&helper3);
+    wil::com_ptr_nothrow<IUnknownFake> ptrNULL; //NULL one
+    wil::com_ptr_nothrow<IUnknownFake> ptrLT(&helper);
+    wil::com_ptr_nothrow<IUnknownFake> ptrGT(&helper2);
+    wil::com_ptr_nothrow<IUnknownFake2> ptrDiff(&helper3);
 
     SECTION("equal operator")
     {
@@ -261,11 +261,6 @@ TEST_CASE("ComTests::Test_Operators", "[com][com_ptr]")
             REQUIRE(ptrGT < ptrLT);
         }
     }
-
-    SECTION("")
-    {
-
-    }
 }
 
 TEST_CASE("ComTests::Test_Conversion", "[com][com_ptr]")
@@ -273,8 +268,8 @@ TEST_CASE("ComTests::Test_Conversion", "[com][com_ptr]")
     IUnknownFake::Clear();
     IUnknownFake helper;
 
-    wil::com_ptr<IUnknownFake> nullPtr;
-    wil::com_ptr<IUnknownFake> ptr(&helper);
+    wil::com_ptr_nothrow<IUnknownFake> nullPtr;
+    wil::com_ptr_nothrow<IUnknownFake> ptr(&helper);
 
     REQUIRE_FALSE(nullPtr);
     REQUIRE(ptr);
@@ -288,7 +283,7 @@ TEST_CASE("ComTests::Test_Address", "[com][com_ptr]")
     IUnknownFake** pFakePtr;
     SECTION("addressof")
     {
-        wil::com_ptr<IUnknownFake> ptr(&helper);
+        wil::com_ptr_nothrow<IUnknownFake> ptr(&helper);
 
         IUnknownFake::Clear();
         pFakePtr = ptr.addressof();
@@ -299,7 +294,7 @@ TEST_CASE("ComTests::Test_Address", "[com][com_ptr]")
 
     SECTION("Address operator")
     {
-        wil::com_ptr<IUnknownFake> ptr(&helper);
+        wil::com_ptr_nothrow<IUnknownFake> ptr(&helper);
         IUnknownFake::Clear();
 
         pFakePtr = &ptr;
@@ -316,7 +311,7 @@ TEST_CASE("ComTests::Test_Helpers", "[com][com_ptr]")
     IUnknownFake helper;
     IUnknownFake helper2;
     IUnknownFake *ptrHelper;
-    wil::com_ptr<IUnknownFake> ptr(&helper);
+    wil::com_ptr_nothrow<IUnknownFake> ptr(&helper);
 
     SECTION("detach")
     {
@@ -330,7 +325,7 @@ TEST_CASE("ComTests::Test_Helpers", "[com][com_ptr]")
     SECTION("attach")
     {
         ptrHelper = &helper;
-        wil::com_ptr<IUnknownFake> ptr2(&helper2); //have some non null pointer
+        wil::com_ptr_nothrow<IUnknownFake> ptr2(&helper2); //have some non null pointer
 
         IUnknownFake::Clear(); //clear addref counter
         ptr2.attach(ptrHelper);
@@ -341,18 +336,18 @@ TEST_CASE("ComTests::Test_Helpers", "[com][com_ptr]")
 
     SECTION("get")
     {
-        wil::com_ptr<IUnknown> ptr2;
+        wil::com_ptr_nothrow<IUnknown> ptr2;
         REQUIRE(ptr2.get() == nullptr);
 
         IUnknownFake helper3;
-        wil::com_ptr<IUnknownFake> ptr4(&helper3);
+        wil::com_ptr_nothrow<IUnknownFake> ptr4(&helper3);
         REQUIRE(ptr4.get() == &helper3);
     }
 
     SECTION("l-value swap")
     {
-        wil::com_ptr<IUnknownFake> ptr2(&helper);
-        wil::com_ptr<IUnknownFake> ptr3(&helper2);
+        wil::com_ptr_nothrow<IUnknownFake> ptr2(&helper);
+        wil::com_ptr_nothrow<IUnknownFake> ptr3(&helper2);
 
         ptr2.swap(ptr3);
         REQUIRE(ptr2.get() == &helper2);
@@ -361,8 +356,8 @@ TEST_CASE("ComTests::Test_Helpers", "[com][com_ptr]")
 
     SECTION("r-value swap")
     {
-        wil::com_ptr<IUnknownFake> ptr2(&helper);
-        wil::com_ptr<IUnknownFake> ptr3(&helper2);
+        wil::com_ptr_nothrow<IUnknownFake> ptr2(&helper);
+        wil::com_ptr_nothrow<IUnknownFake> ptr3(&helper2);
 
         ptr2.swap(wistd::move(ptr3));
         REQUIRE(ptr2.get() == &helper2);
@@ -379,7 +374,7 @@ TEST_CASE("ComTests::Test_As", "[com][com_ptr]")
 
     SECTION("query by IID")
     {
-        wil::com_ptr<IUnknown> ptr2;
+        wil::com_ptr_nothrow<IUnknown> ptr2;
         // REQUIRE(S_OK == ptr.AsIID(__uuidof(IUnknown), &ptr2));
         REQUIRE(S_OK == ptr.query_to(__uuidof(IUnknown), reinterpret_cast<void**>(&ptr2)));
         REQUIRE(ptr2 != nullptr);
@@ -387,7 +382,7 @@ TEST_CASE("ComTests::Test_As", "[com][com_ptr]")
 
     SECTION("query by invalid IID")
     {
-        wil::com_ptr<IUnknown> ptr2;
+        wil::com_ptr_nothrow<IUnknown> ptr2;
         // REQUIRE(S_OK != ptr.AsIID(__uuidof(IDispatch), &ptr2));
         REQUIRE(S_OK != ptr.query_to(__uuidof(IDispatch), reinterpret_cast<void**>(&ptr2)));
         REQUIRE(ptr2 == nullptr);
@@ -398,7 +393,7 @@ TEST_CASE("ComTests::Test_As", "[com][com_ptr]")
         // wil::com_ptr optimizes same-type assignment to just call AddRef
         IUnknownFake2 helper2;
         wil::com_ptr_nothrow<IUnknownFake2> ptr2(&helper2);
-        wil::com_ptr<IUnknownFake2> ptr3;
+        wil::com_ptr_nothrow<IUnknownFake2> ptr3;
         REQUIRE(S_OK == ptr2.query_to<IUnknownFake2>(&ptr3));
         REQUIRE(ptr3 != nullptr);
     }
@@ -407,7 +402,7 @@ TEST_CASE("ComTests::Test_As", "[com][com_ptr]")
     {
         IUnknownFake2 helper2;
         wil::com_ptr_nothrow<IUnknownFake2> ptr2(&helper2);
-        wil::com_ptr<IUnknown> ptr3;
+        wil::com_ptr_nothrow<IUnknown> ptr3;
         REQUIRE(S_OK == ptr2.query_to<IUnknown>(&ptr3));
         REQUIRE(ptr3 != nullptr);
     }
@@ -423,14 +418,14 @@ TEST_CASE("ComTests::Test_CopyTo", "[com][com_ptr]")
 
     SECTION("copy by IID")
     {
-        wil::com_ptr<IUnknown> ptr2;
+        wil::com_ptr_nothrow<IUnknown> ptr2;
         REQUIRE(S_OK == ptr.copy_to(__uuidof(IUnknown), reinterpret_cast<void **>(&ptr2)));
         REQUIRE(ptr2 != nullptr);
     }
 
     SECTION("copy by invalid IID")
     {
-        wil::com_ptr<IUnknown> ptr2;
+        wil::com_ptr_nothrow<IUnknown> ptr2;
         REQUIRE(S_OK != ptr.copy_to(__uuidof(IDispatch), reinterpret_cast<void **>(&ptr2)));
         REQUIRE(ptr2 == nullptr);
     }
@@ -438,7 +433,7 @@ TEST_CASE("ComTests::Test_CopyTo", "[com][com_ptr]")
     SECTION("same interface copy")
     {
         wil::com_ptr_nothrow<IUnknownFake2> ptr2(&helper2);
-        wil::com_ptr<IUnknownFake2> ptr3;
+        wil::com_ptr_nothrow<IUnknownFake2> ptr3;
         REQUIRE(S_OK == ptr2.copy_to(&ptr3));
         REQUIRE(ptr3 != nullptr);
     }
@@ -446,7 +441,7 @@ TEST_CASE("ComTests::Test_CopyTo", "[com][com_ptr]")
     SECTION("base interface copy")
     {
         wil::com_ptr_nothrow<IUnknownFake2> ptr2(&helper2);
-        wil::com_ptr<IUnknown> ptr3;
+        wil::com_ptr_nothrow<IUnknown> ptr3;
         REQUIRE(S_OK == ptr2.copy_to(ptr3.addressof()));
         REQUIRE(ptr3 != nullptr);
     }
@@ -465,7 +460,7 @@ void IID_PPV_ARGS_Test_Helper(REFIID iid, void** pv)
 
 TEST_CASE("ComTests::Test_IID_PPV_ARGS", "[com][com_ptr]")
 {
-    wil::com_ptr<IUnknown> unk;
+    wil::com_ptr_nothrow<IUnknown> unk;
     IID_PPV_ARGS_Test_Helper(IID_PPV_ARGS(&unk));
     //Test if we got the correct check value back
     REQUIRE(unk.get() == reinterpret_cast<void*>(0x01));
@@ -498,8 +493,8 @@ TEST_CASE("ComTests::Test_ConstPointer", "[com][com_ptr]")
     IUnknownFake helper;
 
     const wil::com_ptr_nothrow<IUnknown> spUnk(&helper);
-    wil::com_ptr<IUnknown> spUnkHelper;
-    wil::com_ptr<IInspectable> spInspectable;
+    wil::com_ptr_nothrow<IUnknown> spUnkHelper;
+    wil::com_ptr_nothrow<IInspectable> spInspectable;
 
     REQUIRE(spUnk.get() != nullptr);
     REQUIRE(spUnk);
@@ -513,7 +508,7 @@ TEST_CASE("ComTests::Test_ConstPointer", "[com][com_ptr]")
     spUnk.query_to(__uuidof(IUnknown), reinterpret_cast<void**>(&spUnkHelper));
 
     const ExtensionHelper extHelper;
-    wil::com_ptr<const ExtensionHelper> spExt(&extHelper);
+    wil::com_ptr_nothrow<const ExtensionHelper> spExt(&extHelper);
     REQUIRE(spExt->Extend() == S_OK);
 }
 
@@ -522,7 +517,7 @@ TEST_CASE("ComTests::Test_ComPtrWithForwardDeclaration", "[com][com_ptr]")
 {
     class MyClass;
 
-    wil::com_ptr<MyClass> spClass;
+    wil::com_ptr_nothrow<MyClass> spClass;
 
     class MyClass : public IUnknown
     {
@@ -661,7 +656,7 @@ NoCom* make_object<NoCom, NoCom>()
 template <typename Ptr>
 void TestSmartPointer(const Ptr& ptr1, const Ptr& ptr2)
 {
-    // swap (method and global)
+    SECTION("swap (method and global)")
     {
         auto p1 = ptr1;
         auto p2 = ptr2;
@@ -673,7 +668,7 @@ void TestSmartPointer(const Ptr& ptr1, const Ptr& ptr2)
         REQUIRE(((p1 == ptr2) && (p2 == ptr1)));
     }
 
-    // WRL swap (method and global)
+    SECTION("WRL swap (method and global)")
     {
         auto p1 = ptr1;
         Microsoft::WRL::ComPtr<typename Ptr::element_type> p2 = ptr2.get();
@@ -687,7 +682,7 @@ void TestSmartPointer(const Ptr& ptr1, const Ptr& ptr2)
         REQUIRE(((p1 == ptr1) && (p2 == ptr2)));
     }
 
-    // reset
+    SECTION("reset")
     {
         auto p = ptr1;
         p.reset();
@@ -697,7 +692,7 @@ void TestSmartPointer(const Ptr& ptr1, const Ptr& ptr2)
         REQUIRE_FALSE(p);
     }
 
-    // attach / detach
+    SECTION("attach / detach")
     {
         auto p1 = ptr1;
         auto p2 = ptr2;
@@ -705,7 +700,7 @@ void TestSmartPointer(const Ptr& ptr1, const Ptr& ptr2)
         REQUIRE(((p1.get() == ptr2.get()) && !p2));
     }
 
-    // addressof
+    SECTION("addressof")
     {
         auto p1 = ptr1;
         auto p2 = ptr2;
@@ -716,7 +711,7 @@ void TestSmartPointer(const Ptr& ptr1, const Ptr& ptr2)
         REQUIRE(p1.get() == ptr2.get());
     }
 
-    // operator&
+    SECTION("operator&")
     {
         auto p1 = ptr1;
         auto p2 = ptr2;
@@ -726,7 +721,7 @@ void TestSmartPointer(const Ptr& ptr1, const Ptr& ptr2)
         REQUIRE(p1.get() == ptr2.get());
     }
 
-    // exercise const methods on the const param (ensure const)
+    SECTION("exercise const methods on the const param (ensure const)")
     {
         auto address = ptr1.addressof();
         REQUIRE(*address == ptr1.get());
@@ -745,7 +740,9 @@ void TestSmartPointer(const Ptr& ptr1, const Ptr& ptr2)
 template <typename IFace>
 static void TestPointerCombination(IFace* p1, IFace* p2)
 {
+#ifdef WIL_ENABLE_EXCEPTIONS
     TestSmartPointer(wil::com_ptr<IFace>(p1), wil::com_ptr<IFace>(p2));
+#endif
     TestSmartPointer(wil::com_ptr_failfast<IFace>(p1), wil::com_ptr_failfast<IFace>(p2));
     TestSmartPointer(wil::com_ptr_nothrow<IFace>(p1), wil::com_ptr_nothrow<IFace>(p2));
 }
@@ -799,7 +796,7 @@ static void TestSmartPointerConversion(const Ptr1& ptr1, const Ptr2& ptr2)
     const Microsoft::WRL::ComPtr<typename Ptr1::element_type> wrl1 = ptr1.get();
     const Microsoft::WRL::ComPtr<typename Ptr1::element_type> wrl2 = ptr2.get();
 
-    // global comparison operators
+    SECTION("global comparison operators")
     {
         auto p1 = ptr1.get();
         auto p2 = ptr2.get();
@@ -843,21 +840,21 @@ static void TestSmartPointerConversion(const Ptr1& ptr1, const Ptr2& ptr2)
         REQUIRE((p1 >= ptr2) == (p1 >= p2));
     }
 
-    // construct from raw pointer
+    SECTION("construct from raw pointer")
     {
         Ptr1 p1(ptr2.get());
         Ptr1 p2 = ptr2.get();
         REQUIRE(((p1 == ptr2) && (p2 == ptr2)));
     }
 
-    // construct from com_ptr ref<>
+    SECTION("construct from com_ptr ref<>")
     {
         Ptr1 p1(ptr2);
         Ptr1 p2 = (ptr2);
         REQUIRE(((p1 == ptr2) && (p2 == ptr2)));
     }
 
-    // r-value construct from com_ptr ref<>
+    SECTION("r-value construct from com_ptr ref<>")
     {
         auto move1 = ptr2;
         auto move2 = ptr2;
@@ -866,35 +863,35 @@ static void TestSmartPointerConversion(const Ptr1& ptr1, const Ptr2& ptr2)
         REQUIRE(((p1 == ptr2) && (p2 == ptr2)));
     }
 
-    // assign from raw pointer
+    SECTION("assign from raw pointer")
     {
         Ptr1 p = ptr1;
         p = (ptr2.get());
         REQUIRE(p == ptr2);
     }
 
-    // assign from com_ptr ref<>
+    SECTION("assign from com_ptr ref<>")
     {
         Ptr1 p = ptr1;
         p = ptr2;
         REQUIRE(p == ptr2);
     }
 
-    // r-value assign from com_ptr ref<>
+    SECTION("r-value assign from com_ptr ref<>")
     {
         Ptr1 p = ptr1;
         p = Ptr2(ptr2);
         REQUIRE(p == ptr2);
     }
 
-    // construct from ComPtr ref<>
+    SECTION("construct from ComPtr ref<>")
     {
         Ptr1 p1(wrl2);
         Ptr1 p2 = (wrl2);
         REQUIRE(((p1 == wrl2) && (p2 == wrl2)));
     }
 
-    // r-value construct from ComPtr ref<>
+    SECTION("r-value construct from ComPtr ref<>")
     {
         auto move1 = wrl2;
         auto move2 = wrl2;
@@ -903,14 +900,14 @@ static void TestSmartPointerConversion(const Ptr1& ptr1, const Ptr2& ptr2)
         REQUIRE(((p1 == wrl2) && (p2 == wrl2)));
     }
 
-    // assign from ComPtr ref<>
+    SECTION("assign from ComPtr ref<>")
     {
         Ptr1 p = ptr1;
         p = wrl2;
         REQUIRE(p == wrl2);
     }
 
-    // r-value assign from ComPtr ref<>
+    SECTION("r-value assign from ComPtr ref<>")
     {
         Ptr1 p = ptr1;
         p = decltype(wrl2)(wrl2);
@@ -921,15 +918,21 @@ static void TestSmartPointerConversion(const Ptr1& ptr1, const Ptr2& ptr2)
 template <typename IFace1, typename IFace2>
 static void TestPointerConversionCombination(IFace1* p1, IFace2* p2)
 {
+#ifdef WIL_ENABLE_EXCEPTIONS
     TestSmartPointerConversion(wil::com_ptr<IFace1>(p1), wil::com_ptr<IFace2>(p2));
     TestSmartPointerConversion(wil::com_ptr<IFace1>(p1), wil::com_ptr_failfast<IFace2>(p2));
     TestSmartPointerConversion(wil::com_ptr<IFace1>(p1), wil::com_ptr_nothrow<IFace2>(p2));
+#endif
 
+#ifdef WIL_ENABLE_EXCEPTIONS
     TestSmartPointerConversion(wil::com_ptr_failfast<IFace1>(p1), wil::com_ptr<IFace2>(p2));
+#endif
     TestSmartPointerConversion(wil::com_ptr_failfast<IFace1>(p1), wil::com_ptr_failfast<IFace2>(p2));
     TestSmartPointerConversion(wil::com_ptr_failfast<IFace1>(p1), wil::com_ptr_nothrow<IFace2>(p2));
 
+#ifdef WIL_ENABLE_EXCEPTIONS
     TestSmartPointerConversion(wil::com_ptr_nothrow<IFace1>(p1), wil::com_ptr<IFace2>(p2));
+#endif
     TestSmartPointerConversion(wil::com_ptr_nothrow<IFace1>(p1), wil::com_ptr_failfast<IFace2>(p2));
     TestSmartPointerConversion(wil::com_ptr_nothrow<IFace1>(p1), wil::com_ptr_nothrow<IFace2>(p2));
 }
@@ -994,83 +997,109 @@ TEST_CASE("ComTests::Test_PointerConversion", "[com][com_ptr]")
 template <typename TargetIFace, typename Ptr>
 void TestGlobalQueryIidPpv(wistd::true_type, const Ptr& source)     // interface
 {
-    using DestPtr = wil::com_ptr<TargetIFace>;
-    wil::com_ptr<INever> never;
+    using DestPtr = wil::com_ptr_nothrow<TargetIFace>;
+    wil::com_ptr_nothrow<INever> never;
 
-    // com_query_to(iid, ppv)
-    if (source)
+    SECTION("com_query_to(iid, ppv)")
     {
-        DestPtr dest1, dest2, dest3;
-        wil::com_query_to(source, IID_PPV_ARGS(&dest1));
-        REQUIRE_ERROR(wil::com_query_to(source, IID_PPV_ARGS(&never)));
-        wil::com_query_to_failfast(source, IID_PPV_ARGS(&dest2));
-        REQUIRE_ERROR(wil::com_query_to_failfast(source, IID_PPV_ARGS(&never)));
-        wil::com_query_to_nothrow(source, IID_PPV_ARGS(&dest3));
-        REQUIRE_ERROR(wil::com_query_to_nothrow(source, IID_PPV_ARGS(&never)));
-        REQUIRE((dest1 && dest2 && dest3 && !never));
-    }
-    else
-    {
-        DestPtr dest1, dest2, dest3;
-        REQUIRE_CRASH(wil::com_query_to(source, IID_PPV_ARGS(&dest1)));
-        REQUIRE_CRASH(wil::com_query_to(source, IID_PPV_ARGS(&never)));
-        REQUIRE_CRASH(wil::com_query_to_failfast(source, IID_PPV_ARGS(&dest2)));
-        REQUIRE_CRASH(wil::com_query_to_failfast(source, IID_PPV_ARGS(&never)));
-        REQUIRE_CRASH(wil::com_query_to_nothrow(source, IID_PPV_ARGS(&dest3)));
-        REQUIRE_CRASH(wil::com_query_to_nothrow(source, IID_PPV_ARGS(&never)));
-    }
+        if (source)
+        {
+#ifdef WIL_ENABLE_EXCEPTIONS
+            DestPtr dest1;
+            wil::com_query_to(source, IID_PPV_ARGS(&dest1));
+            REQUIRE_ERROR(wil::com_query_to(source, IID_PPV_ARGS(&never)));
+            REQUIRE((dest1 && !never));
+#endif
 
-    // try_com_query_to(iid, ppv)
-    if (source)
-    {
-        DestPtr dest1;
-        REQUIRE(wil::try_com_query_to(source, IID_PPV_ARGS(&dest1)));
-        REQUIRE_FALSE(wil::try_com_query_to(source, IID_PPV_ARGS(&never)));
-        REQUIRE((dest1 && !never));
-    }
-    else
-    {
-        DestPtr dest1;
-        REQUIRE_CRASH(wil::try_com_query_to(source, IID_PPV_ARGS(&dest1)));
-        REQUIRE_CRASH(wil::try_com_query_to(source, IID_PPV_ARGS(&never)));
+            DestPtr dest2, dest3;
+            wil::com_query_to_failfast(source, IID_PPV_ARGS(&dest2));
+            REQUIRE_ERROR(wil::com_query_to_failfast(source, IID_PPV_ARGS(&never)));
+            wil::com_query_to_nothrow(source, IID_PPV_ARGS(&dest3));
+            REQUIRE_ERROR(wil::com_query_to_nothrow(source, IID_PPV_ARGS(&never)));
+            REQUIRE((dest2 && dest3 && !never));
+        }
+        else
+        {
+#ifdef WIL_ENABLE_EXCEPTIONS
+            DestPtr dest1;
+            REQUIRE_CRASH(wil::com_query_to(source, IID_PPV_ARGS(&dest1)));
+            REQUIRE_CRASH(wil::com_query_to(source, IID_PPV_ARGS(&never)));
+#endif
+
+            DestPtr dest2, dest3;
+            REQUIRE_CRASH(wil::com_query_to_failfast(source, IID_PPV_ARGS(&dest2)));
+            REQUIRE_CRASH(wil::com_query_to_failfast(source, IID_PPV_ARGS(&never)));
+            REQUIRE_CRASH(wil::com_query_to_nothrow(source, IID_PPV_ARGS(&dest3)));
+            REQUIRE_CRASH(wil::com_query_to_nothrow(source, IID_PPV_ARGS(&never)));
+        }
     }
 
-    // com_copy_to(iid, ppv)
-    if (source)
+    SECTION("try_com_query_to(iid, ppv)")
     {
-        DestPtr dest1, dest2, dest3;
-        wil::com_copy_to(source, IID_PPV_ARGS(&dest1));
-        REQUIRE_ERROR(wil::com_copy_to(source, IID_PPV_ARGS(&never)));
-        wil::com_copy_to_failfast(source, IID_PPV_ARGS(&dest2));
-        REQUIRE_ERROR(wil::com_copy_to_failfast(source, IID_PPV_ARGS(&never)));
-        wil::com_copy_to_nothrow(source, IID_PPV_ARGS(&dest3));
-        REQUIRE_ERROR(wil::com_copy_to_nothrow(source, IID_PPV_ARGS(&never)));
-        REQUIRE((dest1 && dest2 && dest3 && !never));
-    }
-    else
-    {
-        DestPtr dest1, dest2, dest3;
-        wil::com_copy_to(source, IID_PPV_ARGS(&dest1));
-        wil::com_copy_to(source, IID_PPV_ARGS(&never));
-        wil::com_copy_to_failfast(source, IID_PPV_ARGS(&dest2));
-        wil::com_copy_to_failfast(source, IID_PPV_ARGS(&never));
-        wil::com_copy_to_nothrow(source, IID_PPV_ARGS(&dest3));
-        wil::com_copy_to_nothrow(source, IID_PPV_ARGS(&never));
+        if (source)
+        {
+            DestPtr dest1;
+            REQUIRE(wil::try_com_query_to(source, IID_PPV_ARGS(&dest1)));
+            REQUIRE_FALSE(wil::try_com_query_to(source, IID_PPV_ARGS(&never)));
+            REQUIRE((dest1 && !never));
+        }
+        else
+        {
+            DestPtr dest1;
+            REQUIRE_CRASH(wil::try_com_query_to(source, IID_PPV_ARGS(&dest1)));
+            REQUIRE_CRASH(wil::try_com_query_to(source, IID_PPV_ARGS(&never)));
+        }
     }
 
-    // try_com_copy_to(iid, ppv)
+    SECTION("com_copy_to(iid, ppv)")
+    {
     if (source)
     {
-        DestPtr dest1;
-        REQUIRE(wil::try_com_copy_to(source, IID_PPV_ARGS(&dest1)));
-        REQUIRE_FALSE(wil::try_com_copy_to(source, IID_PPV_ARGS(&never)));
-        REQUIRE((dest1 && !never));
+#ifdef WIL_ENABLE_EXCEPTIONS
+            DestPtr dest1;
+            wil::com_copy_to(source, IID_PPV_ARGS(&dest1));
+            REQUIRE_ERROR(wil::com_copy_to(source, IID_PPV_ARGS(&never)));
+            REQUIRE((dest1 && !never));
+#endif
+
+            DestPtr dest2, dest3;
+            wil::com_copy_to_failfast(source, IID_PPV_ARGS(&dest2));
+            REQUIRE_ERROR(wil::com_copy_to_failfast(source, IID_PPV_ARGS(&never)));
+            wil::com_copy_to_nothrow(source, IID_PPV_ARGS(&dest3));
+            REQUIRE_ERROR(wil::com_copy_to_nothrow(source, IID_PPV_ARGS(&never)));
+            REQUIRE((dest2 && dest3 && !never));
+        }
+        else
+        {
+#ifdef WIL_ENABLE_EXCEPTIONS
+            DestPtr dest1;
+            wil::com_copy_to(source, IID_PPV_ARGS(&dest1));
+            wil::com_copy_to(source, IID_PPV_ARGS(&never));
+#endif
+
+            DestPtr dest2, dest3;
+            wil::com_copy_to_failfast(source, IID_PPV_ARGS(&dest2));
+            wil::com_copy_to_failfast(source, IID_PPV_ARGS(&never));
+            wil::com_copy_to_nothrow(source, IID_PPV_ARGS(&dest3));
+            wil::com_copy_to_nothrow(source, IID_PPV_ARGS(&never));
+        }
     }
-    else
+
+    SECTION("try_com_copy_to(iid, ppv)")
     {
-        DestPtr dest1;
-        REQUIRE_FALSE(wil::try_com_copy_to(source, IID_PPV_ARGS(&dest1)));
-        REQUIRE_FALSE(wil::try_com_copy_to(source, IID_PPV_ARGS(&never)));
+        if (source)
+        {
+            DestPtr dest1;
+            REQUIRE(wil::try_com_copy_to(source, IID_PPV_ARGS(&dest1)));
+            REQUIRE_FALSE(wil::try_com_copy_to(source, IID_PPV_ARGS(&never)));
+            REQUIRE((dest1 && !never));
+        }
+        else
+        {
+            DestPtr dest1;
+            REQUIRE_FALSE(wil::try_com_copy_to(source, IID_PPV_ARGS(&dest1)));
+            REQUIRE_FALSE(wil::try_com_copy_to(source, IID_PPV_ARGS(&never)));
+        }
     }
 }
 
@@ -1083,155 +1112,211 @@ void TestGlobalQueryIidPpv(wistd::false_type, const Ptr&)     // class
 template <typename TargetIFace, typename Ptr>
 static void TestGlobalQuery(const Ptr& source)
 {
-    using DestPtr = wil::com_ptr<TargetIFace>;
-    wil::com_ptr<INever> never;
+    using DestPtr = wil::com_ptr_nothrow<TargetIFace>;
+    wil::com_ptr_nothrow<INever> never;
 
-    // com_query
-    if (source)
+    SECTION("com_query")
     {
-        REQUIRE(wil::com_query<TargetIFace>(source));
-        REQUIRE_ERROR(wil::com_query<INever>(source));
-        REQUIRE(wil::com_query_failfast<TargetIFace>(source));
-        REQUIRE_ERROR(wil::com_query_failfast<INever>(source));
-    }
-    else
-    {
-        REQUIRE_CRASH(wil::com_query<TargetIFace>(source));
-        REQUIRE_CRASH(wil::com_query<INever>(source));
-        REQUIRE_CRASH(wil::com_query_failfast<TargetIFace>(source));
-        REQUIRE_CRASH(wil::com_query_failfast<INever>(source));
-    }
+        if (source)
+        {
+#ifdef WIL_ENABLE_EXCEPTIONS
+            REQUIRE(wil::com_query<TargetIFace>(source));
+            REQUIRE_ERROR(wil::com_query<INever>(source));
+#endif
 
-    // com_query_to(U**)
-    if (source)
-    {
-        DestPtr dest1, dest2, dest3;
-        wil::com_query_to(source, &dest1);
-        REQUIRE_ERROR(wil::com_query_to(source, &never));
-        wil::com_query_to_failfast(source, &dest2);
-        REQUIRE_ERROR(wil::com_query_to_failfast(source, &never));
-        wil::com_query_to_nothrow(source, &dest3);
-        REQUIRE_ERROR(wil::com_query_to_nothrow(source, &never));
-        REQUIRE((dest1 && dest2 && dest3 && !never));
-    }
-    else
-    {
-        DestPtr dest1, dest2, dest3;
-        REQUIRE_CRASH(wil::com_query_to(source, &dest1));
-        REQUIRE_CRASH(wil::com_query_to(source, &never));
-        REQUIRE_CRASH(wil::com_query_to_failfast(source, &dest2));
-        REQUIRE_CRASH(wil::com_query_to_failfast(source, &never));
-        REQUIRE_CRASH(wil::com_query_to_nothrow(source, &dest3));
-        REQUIRE_CRASH(wil::com_query_to_nothrow(source, &never));
+            REQUIRE(wil::com_query_failfast<TargetIFace>(source));
+            REQUIRE_ERROR(wil::com_query_failfast<INever>(source));
+        }
+        else
+        {
+#ifdef WIL_ENABLE_EXCEPTIONS
+            REQUIRE_CRASH(wil::com_query<TargetIFace>(source));
+            REQUIRE_CRASH(wil::com_query<INever>(source));
+#endif
+
+            REQUIRE_CRASH(wil::com_query_failfast<TargetIFace>(source));
+            REQUIRE_CRASH(wil::com_query_failfast<INever>(source));
+        }
     }
 
-    // try_com_query
-    if (source)
+    SECTION("com_query_to(U**)")
     {
-        REQUIRE(wil::try_com_query<TargetIFace>(source));
-        REQUIRE_FALSE(wil::try_com_query<INever>(source));
-        REQUIRE(wil::try_com_query_failfast<TargetIFace>(source));
-        REQUIRE_FALSE(wil::try_com_query_failfast<INever>(source));
-        REQUIRE(wil::try_com_query_nothrow<TargetIFace>(source));
-        REQUIRE_FALSE(wil::try_com_query_nothrow<INever>(source));
-    }
-    else
-    {
-        REQUIRE_CRASH(wil::try_com_query<TargetIFace>(source));
-        REQUIRE_CRASH(wil::try_com_query<INever>(source));
-        REQUIRE_CRASH(wil::try_com_query_failfast<TargetIFace>(source));
-        REQUIRE_CRASH(wil::try_com_query_failfast<INever>(source));
-        REQUIRE_CRASH(wil::try_com_query_nothrow<TargetIFace>(source));
-        REQUIRE_CRASH(wil::try_com_query_nothrow<INever>(source));
+        if (source)
+        {
+#ifdef WIL_ENABLE_EXCEPTIONS
+            DestPtr dest1;
+            wil::com_query_to(source, &dest1);
+            REQUIRE_ERROR(wil::com_query_to(source, &never));
+            REQUIRE((dest1 && !never));
+#endif
+
+            DestPtr dest2, dest3;
+            wil::com_query_to_failfast(source, &dest2);
+            REQUIRE_ERROR(wil::com_query_to_failfast(source, &never));
+            wil::com_query_to_nothrow(source, &dest3);
+            REQUIRE_ERROR(wil::com_query_to_nothrow(source, &never));
+            REQUIRE((dest2 && dest3 && !never));
+        }
+        else
+        {
+#ifdef WIL_ENABLE_EXCEPTIONS
+            DestPtr dest1;
+            REQUIRE_CRASH(wil::com_query_to(source, &dest1));
+            REQUIRE_CRASH(wil::com_query_to(source, &never));
+#endif
+
+            DestPtr dest2, dest3;
+            REQUIRE_CRASH(wil::com_query_to_failfast(source, &dest2));
+            REQUIRE_CRASH(wil::com_query_to_failfast(source, &never));
+            REQUIRE_CRASH(wil::com_query_to_nothrow(source, &dest3));
+            REQUIRE_CRASH(wil::com_query_to_nothrow(source, &never));
+        }
     }
 
-    // try_com_query_to(U**)
-    if (source)
+    SECTION("try_com_query")
     {
-        DestPtr dest1;
-        REQUIRE(wil::try_com_query_to(source, &dest1));
-        REQUIRE_FALSE(wil::try_com_query_to(source, &never));
-        REQUIRE((dest1 && !never));
-    }
-    else
-    {
-        DestPtr dest1, dest2, dest3;
-        REQUIRE_CRASH(wil::try_com_query_to(source, &dest1));
-        REQUIRE_CRASH(wil::try_com_query_to(source, &never));
+        if (source)
+        {
+#ifdef WIL_ENABLE_EXCEPTIONS
+            REQUIRE(wil::try_com_query<TargetIFace>(source));
+            REQUIRE_FALSE(wil::try_com_query<INever>(source));
+#endif
+
+            REQUIRE(wil::try_com_query_failfast<TargetIFace>(source));
+            REQUIRE_FALSE(wil::try_com_query_failfast<INever>(source));
+            REQUIRE(wil::try_com_query_nothrow<TargetIFace>(source));
+            REQUIRE_FALSE(wil::try_com_query_nothrow<INever>(source));
+        }
+        else
+        {
+#ifdef WIL_ENABLE_EXCEPTIONS
+            REQUIRE_CRASH(wil::try_com_query<TargetIFace>(source));
+            REQUIRE_CRASH(wil::try_com_query<INever>(source));
+#endif
+
+            REQUIRE_CRASH(wil::try_com_query_failfast<TargetIFace>(source));
+            REQUIRE_CRASH(wil::try_com_query_failfast<INever>(source));
+            REQUIRE_CRASH(wil::try_com_query_nothrow<TargetIFace>(source));
+            REQUIRE_CRASH(wil::try_com_query_nothrow<INever>(source));
+        }
     }
 
-    // com_copy
-    if (source)
+    SECTION("try_com_query_to(U**)")
     {
-        REQUIRE(wil::com_copy<TargetIFace>(source));
-        REQUIRE_ERROR(wil::com_copy<INever>(source));
-        REQUIRE(wil::com_copy_failfast<TargetIFace>(source));
-        REQUIRE_ERROR(wil::com_copy_failfast<INever>(source));
-    }
-    else
-    {
-        REQUIRE_FALSE(wil::com_copy<TargetIFace>(source));
-        REQUIRE_FALSE(wil::com_copy<INever>(source));
-        REQUIRE_FALSE(wil::com_copy_failfast<TargetIFace>(source));
-        REQUIRE_FALSE(wil::com_copy_failfast<INever>(source));
-    }
-
-    // com_copy_to(U**)
-    if (source)
-    {
-        DestPtr dest1, dest2, dest3;
-        wil::com_copy_to(source, &dest1);
-        REQUIRE_ERROR(wil::com_copy_to(source, &never));
-        wil::com_copy_to_failfast(source, &dest2);
-        REQUIRE_ERROR(wil::com_copy_to_failfast(source, &never));
-        wil::com_copy_to_nothrow(source, &dest3);
-        REQUIRE_ERROR(wil::com_copy_to_nothrow(source, &never));
-        REQUIRE((dest1 && dest2 && dest3 && !never));
-    }
-    else
-    {
-        DestPtr dest1, dest2, dest3;
-        wil::com_copy_to(source, &dest1);
-        wil::com_copy_to(source, &never);
-        wil::com_copy_to_failfast(source, &dest2);
-        wil::com_copy_to_failfast(source, &never);
-        wil::com_copy_to_nothrow(source, &dest3);
-        wil::com_copy_to_nothrow(source, &never);
+        if (source)
+        {
+            DestPtr dest1;
+            REQUIRE(wil::try_com_query_to(source, &dest1));
+            REQUIRE_FALSE(wil::try_com_query_to(source, &never));
+            REQUIRE((dest1 && !never));
+        }
+        else
+        {
+            DestPtr dest1;
+            REQUIRE_CRASH(wil::try_com_query_to(source, &dest1));
+            REQUIRE_CRASH(wil::try_com_query_to(source, &never));
+        }
     }
 
-    // try_com_copy
-    if (source)
+    SECTION("com_copy")
     {
-        REQUIRE(wil::try_com_copy<TargetIFace>(source));
-        REQUIRE_FALSE(wil::try_com_copy<INever>(source));
-        REQUIRE(wil::try_com_copy_failfast<TargetIFace>(source));
-        REQUIRE_FALSE(wil::try_com_copy_failfast<INever>(source));
-        REQUIRE(wil::try_com_copy_nothrow<TargetIFace>(source));
-        REQUIRE_FALSE(wil::try_com_copy_nothrow<INever>(source));
-    }
-    else
-    {
-        REQUIRE_FALSE(wil::try_com_copy<TargetIFace>(source));
-        REQUIRE_FALSE(wil::try_com_copy<INever>(source));
-        REQUIRE_FALSE(wil::try_com_copy_failfast<TargetIFace>(source));
-        REQUIRE_FALSE(wil::try_com_copy_failfast<INever>(source));
-        REQUIRE_FALSE(wil::try_com_copy_nothrow<TargetIFace>(source));
-        REQUIRE_FALSE(wil::try_com_copy_nothrow<INever>(source));
+        if (source)
+        {
+#ifdef WIL_ENABLE_EXCEPTIONS
+            REQUIRE(wil::com_copy<TargetIFace>(source));
+            REQUIRE_ERROR(wil::com_copy<INever>(source));
+#endif
+
+            REQUIRE(wil::com_copy_failfast<TargetIFace>(source));
+            REQUIRE_ERROR(wil::com_copy_failfast<INever>(source));
+        }
+        else
+        {
+#ifdef WIL_ENABLE_EXCEPTIONS
+            REQUIRE_FALSE(wil::com_copy<TargetIFace>(source));
+            REQUIRE_FALSE(wil::com_copy<INever>(source));
+#endif
+
+            REQUIRE_FALSE(wil::com_copy_failfast<TargetIFace>(source));
+            REQUIRE_FALSE(wil::com_copy_failfast<INever>(source));
+        }
     }
 
-    // try_com_copy_to(U**)
-    if (source)
+    SECTION("com_copy_to(U**)")
     {
-        DestPtr dest1;
-        REQUIRE(wil::try_com_copy_to(source, &dest1));
-        REQUIRE_FALSE(wil::try_com_copy_to(source, &never));
-        REQUIRE((dest1 && !never));
+        if (source)
+        {
+#ifdef WIL_ENABLE_EXCEPTIONS
+            DestPtr dest1;
+            wil::com_copy_to(source, &dest1);
+            REQUIRE_ERROR(wil::com_copy_to(source, &never));
+            REQUIRE((dest1 && !never));
+#endif
+
+            DestPtr dest2, dest3;
+            wil::com_copy_to_failfast(source, &dest2);
+            REQUIRE_ERROR(wil::com_copy_to_failfast(source, &never));
+            wil::com_copy_to_nothrow(source, &dest3);
+            REQUIRE_ERROR(wil::com_copy_to_nothrow(source, &never));
+            REQUIRE((dest2 && dest3 && !never));
+        }
+        else
+        {
+#ifdef WIL_ENABLE_EXCEPTIONS
+            DestPtr dest1;
+            wil::com_copy_to(source, &dest1);
+            wil::com_copy_to(source, &never);
+#endif
+
+            DestPtr dest2, dest3;
+            wil::com_copy_to_failfast(source, &dest2);
+            wil::com_copy_to_failfast(source, &never);
+            wil::com_copy_to_nothrow(source, &dest3);
+            wil::com_copy_to_nothrow(source, &never);
+        }
     }
-    else
+
+    SECTION("try_com_copy")
     {
-        DestPtr dest1, dest2, dest3;
-        REQUIRE_FALSE(wil::try_com_copy_to(source, &dest1));
-        REQUIRE_FALSE(wil::try_com_copy_to(source, &never));
+        if (source)
+        {
+#ifdef WIL_ENABLE_EXCEPTIONS
+            REQUIRE(wil::try_com_copy<TargetIFace>(source));
+            REQUIRE_FALSE(wil::try_com_copy<INever>(source));
+#endif
+            REQUIRE(wil::try_com_copy_failfast<TargetIFace>(source));
+            REQUIRE_FALSE(wil::try_com_copy_failfast<INever>(source));
+            REQUIRE(wil::try_com_copy_nothrow<TargetIFace>(source));
+            REQUIRE_FALSE(wil::try_com_copy_nothrow<INever>(source));
+        }
+        else
+        {
+#ifdef WIL_ENABLE_EXCEPTIONS
+            REQUIRE_FALSE(wil::try_com_copy<TargetIFace>(source));
+            REQUIRE_FALSE(wil::try_com_copy<INever>(source));
+#endif
+            REQUIRE_FALSE(wil::try_com_copy_failfast<TargetIFace>(source));
+            REQUIRE_FALSE(wil::try_com_copy_failfast<INever>(source));
+            REQUIRE_FALSE(wil::try_com_copy_nothrow<TargetIFace>(source));
+            REQUIRE_FALSE(wil::try_com_copy_nothrow<INever>(source));
+        }
+    }
+
+    SECTION("try_com_copy_to(U**)")
+    {
+        if (source)
+        {
+            DestPtr dest1;
+            REQUIRE(wil::try_com_copy_to(source, &dest1));
+            REQUIRE_FALSE(wil::try_com_copy_to(source, &never));
+            REQUIRE((dest1 && !never));
+        }
+        else
+        {
+            DestPtr dest1;
+            REQUIRE_FALSE(wil::try_com_copy_to(source, &dest1));
+            REQUIRE_FALSE(wil::try_com_copy_to(source, &never));
+        }
     }
 
     TestGlobalQueryIidPpv<TargetIFace, Ptr>(typename wistd::is_abstract<TargetIFace>::type(), source);
@@ -1243,28 +1328,32 @@ void TestSmartPointerQueryFluent(wistd::true_type, const Ptr& source)     // voi
 {
     using element_type = typename DestPtr::element_type;
 
-    // query
-    if (source)
+    SECTION("query")
     {
-        REQUIRE(source.template query<element_type>());
-        REQUIRE_ERROR(source.template query<INever>());
-    }
-    else
-    {
-        REQUIRE_CRASH(source.template query<element_type>());
-        REQUIRE_CRASH(source.template query<INever>());
+        if (source)
+        {
+            REQUIRE(source.template query<element_type>());
+            REQUIRE_ERROR(source.template query<INever>());
+        }
+        else
+        {
+            REQUIRE_CRASH(source.template query<element_type>());
+            REQUIRE_CRASH(source.template query<INever>());
+        }
     }
 
-    // copy
-    if (source)
+    SECTION("copy")
     {
-        REQUIRE(source.template copy<element_type>());
-        REQUIRE_ERROR(source.template copy<INever>());
-    }
-    else
-    {
-        REQUIRE_FALSE(source.template copy<element_type>());
-        REQUIRE_FALSE(source.template copy<INever>());
+        if (source)
+        {
+            REQUIRE(source.template copy<element_type>());
+            REQUIRE_ERROR(source.template copy<INever>());
+        }
+        else
+        {
+            REQUIRE_FALSE(source.template copy<element_type>());
+            REQUIRE_FALSE(source.template copy<INever>());
+        }
     }
 }
 
@@ -1279,70 +1368,78 @@ void TestSmartPointerQueryFluent(wistd::false_type, const Ptr& source)     // er
 template <typename DestPtr, typename Ptr>
 void TestSmartPointerQueryIidPpv(wistd::true_type, const Ptr& source)       // interface
 {
-    wil::com_ptr<INever> never;
+    wil::com_ptr_nothrow<INever> never;
 
-    // query_to(iid, ppv)
-    if (source)
+    SECTION("query_to(iid, ppv)")
     {
-        DestPtr dest;
-        source.query_to(IID_PPV_ARGS(&dest));
-        REQUIRE_ERROR(source.query_to(IID_PPV_ARGS(&never)));
-        REQUIRE((dest && !never));
-    }
-    else
-    {
-        DestPtr dest;
-        REQUIRE_CRASH(source.query_to(IID_PPV_ARGS(&dest)));
-        REQUIRE_CRASH(source.query_to(IID_PPV_ARGS(&never)));
-        REQUIRE((!dest && !never));
-    }
-
-    // try_query_to(iid, ppv)
-    if (source)
-    {
-        DestPtr dest;
-        REQUIRE(source.try_query_to(IID_PPV_ARGS(&dest)));
-        REQUIRE(!source.try_query_to(IID_PPV_ARGS(&never)));
-        REQUIRE((dest && !never));
-    }
-    else
-    {
-        DestPtr dest;
-        REQUIRE_CRASH(source.try_query_to(IID_PPV_ARGS(&dest)));
-        REQUIRE_CRASH(source.try_query_to(IID_PPV_ARGS(&never)));
-        REQUIRE((!dest && !never));
+        if (source)
+        {
+            DestPtr dest;
+            source.query_to(IID_PPV_ARGS(&dest));
+            REQUIRE_ERROR(source.query_to(IID_PPV_ARGS(&never)));
+            REQUIRE((dest && !never));
+        }
+        else
+        {
+            DestPtr dest;
+            REQUIRE_CRASH(source.query_to(IID_PPV_ARGS(&dest)));
+            REQUIRE_CRASH(source.query_to(IID_PPV_ARGS(&never)));
+            REQUIRE((!dest && !never));
+        }
     }
 
-    // copy_to(iid, ppv)
-    if (source)
+    SECTION("try_query_to(iid, ppv)")
     {
-        DestPtr dest;
-        source.copy_to(IID_PPV_ARGS(&dest));
-        REQUIRE_ERROR(source.copy_to(IID_PPV_ARGS(&never)));
-        REQUIRE((dest && !never));
-    }
-    else
-    {
-        DestPtr dest;
-        source.copy_to(IID_PPV_ARGS(&dest));
-        source.copy_to(IID_PPV_ARGS(&never));
-        REQUIRE((!dest && !never));
+        if (source)
+        {
+            DestPtr dest;
+            REQUIRE(source.try_query_to(IID_PPV_ARGS(&dest)));
+            REQUIRE(!source.try_query_to(IID_PPV_ARGS(&never)));
+            REQUIRE((dest && !never));
+        }
+        else
+        {
+            DestPtr dest;
+            REQUIRE_CRASH(source.try_query_to(IID_PPV_ARGS(&dest)));
+            REQUIRE_CRASH(source.try_query_to(IID_PPV_ARGS(&never)));
+            REQUIRE((!dest && !never));
+        }
     }
 
-    // try_copy_to(iid, ppv)
-    if (source)
+    SECTION("copy_to(iid, ppv)")
     {
-        DestPtr dest;
-        REQUIRE(source.try_copy_to(IID_PPV_ARGS(&dest)));
-        REQUIRE(!source.try_copy_to(IID_PPV_ARGS(&never)));
-        REQUIRE((dest && !never));
+        if (source)
+        {
+            DestPtr dest;
+            source.copy_to(IID_PPV_ARGS(&dest));
+            REQUIRE_ERROR(source.copy_to(IID_PPV_ARGS(&never)));
+            REQUIRE((dest && !never));
+        }
+        else
+        {
+            DestPtr dest;
+            source.copy_to(IID_PPV_ARGS(&dest));
+            source.copy_to(IID_PPV_ARGS(&never));
+            REQUIRE((!dest && !never));
+        }
     }
-    else
+
+    SECTION("try_copy_to(iid, ppv)")
     {
-        DestPtr dest;
-        REQUIRE(!source.try_copy_to(IID_PPV_ARGS(&dest)));
-        REQUIRE(!source.try_copy_to(IID_PPV_ARGS(&never)));
-        REQUIRE((!dest && !never));
+        if (source)
+        {
+            DestPtr dest;
+            REQUIRE(source.try_copy_to(IID_PPV_ARGS(&dest)));
+            REQUIRE(!source.try_copy_to(IID_PPV_ARGS(&never)));
+            REQUIRE((dest && !never));
+        }
+        else
+        {
+            DestPtr dest;
+            REQUIRE(!source.try_copy_to(IID_PPV_ARGS(&dest)));
+            REQUIRE(!source.try_copy_to(IID_PPV_ARGS(&never)));
+            REQUIRE((!dest && !never));
+        }
     }
 }
 
@@ -1357,95 +1454,107 @@ void TestSmartPointerQueryIidPpv(wistd::false_type, const Ptr& source)      // c
 template <typename DestPtr, typename Ptr>
 void TestSmartPointerQuery(const Ptr& source)
 {
-    wil::com_ptr<INever> never;
+    wil::com_ptr_nothrow<INever> never;
     using element_type = typename DestPtr::element_type;
 
-    // query_to(U**)
-    if (source)
+    SECTION("query_to(U**)")
     {
-        DestPtr dest;
-        source.query_to(&dest);
-        REQUIRE_ERROR(source.query_to(&never));
-        REQUIRE((dest && !never));
-    }
-    else
-    {
-        DestPtr dest;
-        REQUIRE_CRASH(source.query_to(&dest));
-        REQUIRE_CRASH(source.query_to(&never));
-        REQUIRE((!dest && !never));
-    }
-
-    // try_query
-    if (source)
-    {
-        REQUIRE(source.template try_query<element_type>());
-        REQUIRE_FALSE(source.template try_query<INever>());
-    }
-    else
-    {
-        REQUIRE_CRASH(source.template try_query<element_type>());
-        REQUIRE_CRASH(source.template try_query<INever>());
+        if (source)
+        {
+            DestPtr dest;
+            source.query_to(&dest);
+            REQUIRE_ERROR(source.query_to(&never));
+            REQUIRE((dest && !never));
+        }
+        else
+        {
+            DestPtr dest;
+            REQUIRE_CRASH(source.query_to(&dest));
+            REQUIRE_CRASH(source.query_to(&never));
+            REQUIRE((!dest && !never));
+        }
     }
 
-    // try_query_to(U**)
-    if (source)
+    SECTION("try_query")
     {
-        DestPtr dest;
-        REQUIRE(source.try_query_to(&dest));
-        REQUIRE_FALSE(source.try_query_to(&never));
-        REQUIRE((dest && !never));
-    }
-    else
-    {
-        DestPtr dest;
-        REQUIRE_CRASH(source.try_query_to(&dest));
-        REQUIRE_CRASH(source.try_query_to(&never));
-        REQUIRE((!dest && !never));
+        if (source)
+        {
+            REQUIRE(source.template try_query<element_type>());
+            REQUIRE_FALSE(source.template try_query<INever>());
+        }
+        else
+        {
+            REQUIRE_CRASH(source.template try_query<element_type>());
+            REQUIRE_CRASH(source.template try_query<INever>());
+        }
     }
 
-    // copy_to(U**)
-    if (source)
+    SECTION("try_query_to(U**)")
     {
-        DestPtr dest;
-        source.copy_to(&dest);
-        REQUIRE_ERROR(source.copy_to(&never));
-        REQUIRE((dest && !never));
-    }
-    else
-    {
-        DestPtr dest;
-        source.copy_to(&dest);
-        source.copy_to(&never);
-        REQUIRE((!dest && !never));
-    }
-
-    // try_copy
-    if (source)
-    {
-        REQUIRE(source.template try_copy<element_type>());
-        REQUIRE_FALSE(source.template try_copy<INever>());
-    }
-    else
-    {
-        REQUIRE_FALSE(source.template try_copy<element_type>());
-        REQUIRE_FALSE(source.template try_copy<INever>());
+        if (source)
+        {
+            DestPtr dest;
+            REQUIRE(source.try_query_to(&dest));
+            REQUIRE_FALSE(source.try_query_to(&never));
+            REQUIRE((dest && !never));
+        }
+        else
+        {
+            DestPtr dest;
+            REQUIRE_CRASH(source.try_query_to(&dest));
+            REQUIRE_CRASH(source.try_query_to(&never));
+            REQUIRE((!dest && !never));
+        }
     }
 
-    // try_copy_to(U**)
-    if (source)
+    SECTION("copy_to(U**)")
     {
-        DestPtr dest;
-        REQUIRE(source.template try_copy_to(&dest));
-        REQUIRE_FALSE(source.template try_copy_to(&never));
-        REQUIRE((dest && !never));
+        if (source)
+        {
+            DestPtr dest;
+            source.copy_to(&dest);
+            REQUIRE_ERROR(source.copy_to(&never));
+            REQUIRE((dest && !never));
+        }
+        else
+        {
+            DestPtr dest;
+            source.copy_to(&dest);
+            source.copy_to(&never);
+            REQUIRE((!dest && !never));
+        }
     }
-    else
+
+    SECTION("try_copy")
     {
-        DestPtr dest;
-        REQUIRE_FALSE(source.template try_copy_to(&dest));
-        REQUIRE_FALSE(source.template try_copy_to(&never));
-        REQUIRE((!dest && !never));
+        if (source)
+        {
+            REQUIRE(source.template try_copy<element_type>());
+            REQUIRE_FALSE(source.template try_copy<INever>());
+        }
+        else
+        {
+            REQUIRE_FALSE(source.template try_copy<element_type>());
+            REQUIRE_FALSE(source.template try_copy<INever>());
+        }
+    }
+
+    SECTION("try_copy_to(U**)")
+    {
+        if (source)
+        {
+            DestPtr dest;
+            REQUIRE(source.template try_copy_to(&dest));
+            REQUIRE_FALSE(source.template try_copy_to(&never));
+            REQUIRE((dest && !never));
+        }
+        else
+        {
+            DestPtr dest;
+            REQUIRE_FALSE(source.template try_copy_to(&dest));
+            REQUIRE_FALSE(source.template try_copy_to(&never));
+            REQUIRE((!dest && !never));
+        }
     }
 
     TestSmartPointerQueryFluent<DestPtr, Ptr>(typename wistd::is_same<void, typename Ptr::result>::type(), source);
@@ -1457,20 +1566,26 @@ template <typename TargetIFace, typename IFace>
 static void TestQueryCombination(IFace* ptr)
 {
     TestGlobalQuery<TargetIFace>(ptr);
+#ifdef WIL_ENABLE_EXCEPTIONS
     TestGlobalQuery<TargetIFace>(wil::com_ptr<IFace>(ptr));
+#endif
     TestGlobalQuery<TargetIFace>(wil::com_ptr_failfast<IFace>(ptr));
     TestGlobalQuery<TargetIFace>(wil::com_ptr_nothrow<IFace>(ptr));
     TestGlobalQuery<TargetIFace>(Microsoft::WRL::ComPtr<IFace>(ptr));
 
+#ifdef WIL_ENABLE_EXCEPTIONS
     TestSmartPointerQuery<wil::com_ptr<TargetIFace>>(wil::com_ptr<IFace>(ptr));
     TestSmartPointerQuery<wil::com_ptr<TargetIFace>>(wil::com_ptr_failfast<IFace>(ptr));
     TestSmartPointerQuery<wil::com_ptr<TargetIFace>>(wil::com_ptr_nothrow<IFace>(ptr));
 
     TestSmartPointerQuery<wil::com_ptr_failfast<TargetIFace>>(wil::com_ptr<IFace>(ptr));
+#endif
     TestSmartPointerQuery<wil::com_ptr_failfast<TargetIFace>>(wil::com_ptr_failfast<IFace>(ptr));
     TestSmartPointerQuery<wil::com_ptr_failfast<TargetIFace>>(wil::com_ptr_nothrow<IFace>(ptr));
 
+#ifdef WIL_ENABLE_EXCEPTIONS
     TestSmartPointerQuery<wil::com_ptr_nothrow<TargetIFace>>(wil::com_ptr<IFace>(ptr));
+#endif
     TestSmartPointerQuery<wil::com_ptr_nothrow<TargetIFace>>(wil::com_ptr_failfast<IFace>(ptr));
     TestSmartPointerQuery<wil::com_ptr_nothrow<TargetIFace>>(wil::com_ptr_nothrow<IFace>(ptr));
 }
@@ -1593,25 +1708,35 @@ void TestAgile(const Ptr& source)
 
     if (source)
     {
+#ifdef WIL_ENABLE_EXCEPTIONS
         auto agile1 = wil::com_agile_query(source);
+        REQUIRE(agile1);
+#endif
+
         auto agile2 = wil::com_agile_query_failfast(source);
         wil::com_agile_ref_nothrow agile3;
         REQUIRE_SUCCEEDED(wil::com_agile_query_nothrow(source, &agile3));
-        REQUIRE((agile1 && agile2 && agile3));
+        REQUIRE((agile2 && agile3));
     }
     else
     {
+#ifdef WIL_ENABLE_EXCEPTIONS
         REQUIRE_CRASH(wil::com_agile_query(source));
+#endif
+
         REQUIRE_CRASH(wil::com_agile_query_failfast(source));
         wil::com_agile_ref_nothrow agile3;
         REQUIRE_CRASH(wil::com_agile_query_nothrow(source, &agile3));
     }
 
+#ifdef WIL_ENABLE_EXCEPTIONS
     auto agile1 = wil::com_agile_copy(source);
+    REQUIRE(static_cast<bool>(agile1) == source_valid);
+#endif
+
     auto agile2 = wil::com_agile_copy_failfast(source);
     wil::com_agile_ref_nothrow agile3;
     REQUIRE_SUCCEEDED(wil::com_agile_copy_nothrow(source, &agile3));
-    REQUIRE(static_cast<bool>(agile1) == source_valid);
     REQUIRE(static_cast<bool>(agile2) == source_valid);
     REQUIRE(static_cast<bool>(agile3) == source_valid);
 }
@@ -1621,14 +1746,14 @@ void TestAgileCombinations()
 {
     auto ptr = make_object<IFace, WinRtObject>();
 
-    THROW_IF_FAILED(::CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED));
+    REQUIRE_SUCCEEDED(::CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED));
     auto exit = wil::scope_exit([] { ::CoUninitialize(); });
 
     TestAgile(ptr);
-    TestAgile(wil::com_ptr<IFace>(ptr));
+    TestAgile(wil::com_ptr_nothrow<IFace>(ptr));
     TestAgile(Microsoft::WRL::ComPtr<IFace>(ptr));
 
-    auto agilePtr = wil::com_agile_query(ptr);
+    auto agilePtr = wil::com_agile_query_failfast(ptr);
     TestQuery<IUnknown>(agilePtr.get());
     TestQuery<IInspectable>(agilePtr.get());
     TestQuery<ITest>(agilePtr.get());
@@ -1662,46 +1787,66 @@ TEST_CASE("ComTests::Test_Agile", "[com][com_agile_ref]")
 template <typename Ptr>
 void TestWeak(const Ptr& source)
 {
-    bool supports_weak = (source && (wil::try_com_query<IInspectable>(source)));
+    bool supports_weak = (source && (wil::try_com_query_nothrow<IInspectable>(source)));
 
     if (supports_weak && source)
     {
+#ifdef WIL_ENABLE_EXCEPTIONS
         auto weak1 = wil::com_weak_query(source);
+        REQUIRE(weak1);
+#endif
+
         auto weak2 = wil::com_weak_query_failfast(source);
         wil::com_weak_ref_nothrow weak3;
         REQUIRE_SUCCEEDED(wil::com_weak_query_nothrow(source, &weak3));
-        REQUIRE((weak1 && weak2 && weak3));
+        REQUIRE((weak2 && weak3));
 
+#ifdef WIL_ENABLE_EXCEPTIONS
         auto weak1copy = wil::com_weak_copy(source);
+        REQUIRE(weak1copy);
+#endif
         auto weak2copy = wil::com_weak_copy_failfast(source);
         wil::com_weak_ref_nothrow weak3copy;
         REQUIRE_SUCCEEDED(wil::com_weak_copy_nothrow(source, &weak3copy));
-        REQUIRE((weak1copy && weak2copy && weak3copy));
+        REQUIRE((weak2copy && weak3copy));
     }
     else if (source)
     {
+#ifdef WIL_ENABLE_EXCEPTIONS
         REQUIRE_ERROR(wil::com_weak_query(source));
+#endif
+
         REQUIRE_ERROR(wil::com_weak_query_failfast(source));
         wil::com_weak_ref_nothrow weak3err;
         REQUIRE_ERROR(wil::com_weak_query_nothrow(source, &weak3err));
 
+#ifdef WIL_ENABLE_EXCEPTIONS
         REQUIRE_ERROR(wil::com_weak_copy(source));
+#endif
+
         REQUIRE_ERROR(wil::com_weak_copy_failfast(source));
         wil::com_weak_ref_nothrow weak3;
         REQUIRE_ERROR(wil::com_weak_copy_nothrow(source, &weak3));
     }
     else // !source
     {
+#ifdef WIL_ENABLE_EXCEPTIONS
         REQUIRE_CRASH(wil::com_weak_query(source));
+#endif
+
         REQUIRE_CRASH(wil::com_weak_query_failfast(source));
         wil::com_weak_ref_nothrow weak3crash;
         REQUIRE_CRASH(wil::com_weak_query_nothrow(source, &weak3crash));
 
+#ifdef WIL_ENABLE_EXCEPTIONS
         auto weak1 = wil::com_weak_copy(source);
+        REQUIRE(!weak1);
+#endif
+
         auto weak2 = wil::com_weak_copy_failfast(source);
         wil::com_weak_ref_nothrow weak3;
         REQUIRE_SUCCEEDED(wil::com_weak_copy_nothrow(source, &weak3));
-        REQUIRE((!weak1 && !weak2 && !weak3));
+        REQUIRE((!weak2 && !weak3));
     }
 }
 
@@ -1710,53 +1855,79 @@ void TestGlobalQueryWithFailedResolve(const Ptr& source)
 {
     // No need to test the null source and wrong interface query
     // since that's covered in the TestGlobalQuery.
-    using DestPtr = wil::com_ptr<TargetIFace>;
+    using DestPtr = wil::com_ptr_nothrow<TargetIFace>;
 
-    // com_query
-    REQUIRE_ERROR(wil::com_query<TargetIFace>(source));
-    REQUIRE_ERROR(wil::com_query_failfast<TargetIFace>(source));
-
-    // com_query_to(U**)
+    SECTION("com_query")
     {
-        DestPtr dest1, dest2, dest3;
-        REQUIRE_ERROR(wil::com_query_to(source, &dest1));
-        REQUIRE_ERROR(wil::com_query_to_failfast(source, &dest2));
-        REQUIRE_ERROR(wil::com_query_to_nothrow(source, &dest3));
-        REQUIRE((!dest1 && !dest2 && !dest3));
+#ifdef WIL_ENABLE_EXCEPTIONS
+        REQUIRE_ERROR(wil::com_query<TargetIFace>(source));
+#endif
+        REQUIRE_ERROR(wil::com_query_failfast<TargetIFace>(source));
     }
 
-    // try_com_query
-    REQUIRE(!wil::try_com_query<TargetIFace>(source));
-    REQUIRE(!wil::try_com_query_failfast<TargetIFace>(source));
-    REQUIRE(!wil::try_com_query_nothrow<TargetIFace>(source));
+    SECTION("com_query_to(U**)")
+    {
+#ifdef WIL_ENABLE_EXCEPTIONS
+        DestPtr dest1;
+        REQUIRE_ERROR(wil::com_query_to(source, &dest1));
+        REQUIRE(!dest1);
+#endif
 
-    // try_com_query_to(U**)
+        DestPtr dest2, dest3;
+        REQUIRE_ERROR(wil::com_query_to_failfast(source, &dest2));
+        REQUIRE_ERROR(wil::com_query_to_nothrow(source, &dest3));
+        REQUIRE((!dest2 && !dest3));
+    }
+
+    SECTION("try_com_query")
+    {
+#ifdef WIL_ENABLE_EXCEPTIONS
+        REQUIRE(!wil::try_com_query<TargetIFace>(source));
+#endif
+        REQUIRE(!wil::try_com_query_failfast<TargetIFace>(source));
+        REQUIRE(!wil::try_com_query_nothrow<TargetIFace>(source));
+    }
+
+    SECTION("try_com_query_to(U**)")
     {
         DestPtr dest1;
         REQUIRE(!wil::try_com_query_to(source, &dest1));
         REQUIRE(!dest1);
     }
 
-    // com_copy
-    REQUIRE_ERROR(wil::com_copy<TargetIFace>(source));
-    REQUIRE_ERROR(wil::com_copy_failfast<TargetIFace>(source));
-
-    // com_copy_to(U**)
+    SECTION("com_copy")
     {
-        DestPtr dest1, dest2, dest3;
+#ifdef WIL_ENABLE_EXCEPTIONS
+        REQUIRE_ERROR(wil::com_copy<TargetIFace>(source));
+#endif
+        REQUIRE_ERROR(wil::com_copy_failfast<TargetIFace>(source));
+    }
+
+    SECTION("com_copy_to(U**)")
+    {
+#ifdef WIL_ENABLE_EXCEPTIONS
+        DestPtr dest1;
         REQUIRE_ERROR(wil::com_copy_to(source, &dest1));
+        REQUIRE(!dest1);
+#endif
+
+        DestPtr dest2, dest3;
         REQUIRE_ERROR(wil::com_copy_to_failfast(source, &dest2));
         REQUIRE_ERROR(wil::com_copy_to_nothrow(source, &dest3));
-        REQUIRE((!dest1 && !dest2 && !dest3));
+        REQUIRE((!dest2 && !dest3));
     }
 
 
-    // try_com_copy
-    REQUIRE(!wil::try_com_copy<TargetIFace>(source));
-    REQUIRE(!wil::try_com_copy_failfast<TargetIFace>(source));
-    REQUIRE(!wil::try_com_copy_nothrow<TargetIFace>(source));
+    SECTION("try_com_copy")
+    {
+#ifdef WIL_ENABLE_EXCEPTIONS
+        REQUIRE(!wil::try_com_copy<TargetIFace>(source));
+#endif
+        REQUIRE(!wil::try_com_copy_failfast<TargetIFace>(source));
+        REQUIRE(!wil::try_com_copy_nothrow<TargetIFace>(source));
+    }
 
-    // try_com_copy_to(U**)
+    SECTION("try_com_copy_to(U**)")
     {
         DestPtr dest1;
         REQUIRE(!wil::try_com_copy_to(source, &dest1));
@@ -1765,31 +1936,42 @@ void TestGlobalQueryWithFailedResolve(const Ptr& source)
 
     if (wistd::is_abstract<TargetIFace>::value)
     {
+        SECTION("com_query_to(iid, ppv)")
         {
-            DestPtr dest1, dest2, dest3;
+#ifdef WIL_ENABLE_EXCEPTIONS
+            DestPtr dest1;
             REQUIRE_ERROR(wil::com_query_to(source, IID_PPV_ARGS(&dest1)));
+            REQUIRE(!dest1);
+#endif
+
+            DestPtr dest2, dest3;
             REQUIRE_ERROR(wil::com_query_to_failfast(source, IID_PPV_ARGS(&dest2)));
             REQUIRE_ERROR(wil::com_query_to_nothrow(source, IID_PPV_ARGS(&dest3)));
-            REQUIRE((!dest1 && !dest2 && !dest3));
+            REQUIRE((!dest2 && !dest3));
         }
 
-        // try_com_query_to(iid, ppv)
+        SECTION("try_com_query_to(iid, ppv)")
         {
             DestPtr dest1;
             REQUIRE(!wil::try_com_query_to(source, IID_PPV_ARGS(&dest1)));
             REQUIRE(!dest1);
         }
 
-        // com_copy_to(iid, ppv)
+        SECTION("com_copy_to(iid, ppv)")
         {
-            DestPtr dest1, dest2, dest3;
+#ifdef WIL_ENABLE_EXCEPTIONS
+            DestPtr dest1;
             REQUIRE_ERROR(wil::com_copy_to(source, IID_PPV_ARGS(&dest1)));
+            REQUIRE(!dest1);
+#endif
+
+            DestPtr dest2, dest3;
             REQUIRE_ERROR(wil::com_copy_to_failfast(source, IID_PPV_ARGS(&dest2)));
             REQUIRE_ERROR(wil::com_copy_to_nothrow(source, IID_PPV_ARGS(&dest3)));
-            REQUIRE((!dest1 && !dest2 && !dest3));
+            REQUIRE((!dest2 && !dest3));
         }
 
-        // try_com_copy_to(iid, ppv)
+        SECTION("try_com_copy_to(iid, ppv)")
         {
             DestPtr dest1;
             REQUIRE(!wil::try_com_copy_to(source, IID_PPV_ARGS(&dest1)));
@@ -1817,34 +1999,38 @@ void TestSmartPointerQueryWithFailedResolve(const Ptr source)
 {
     using element_type = typename TargetIFace::element_type;
 
-    // query_to(U**)
+    SECTION("query_to(U**)")
     {
         TargetIFace dest;
         REQUIRE_ERROR(source.query_to(&dest));
         REQUIRE(!dest);
     }
 
-    // try_query
-    REQUIRE(!source.template try_query<element_type>());
+    SECTION("try_query")
+    {
+        REQUIRE(!source.template try_query<element_type>());
+    }
 
-    // try_query_to(U**)
+    SECTION("try_query_to(U**)")
     {
         TargetIFace dest;
         REQUIRE(!source.try_query_to(&dest));
         REQUIRE(!dest);
     }
 
-    // copy_to(U**)
+    SECTION("copy_to(U**)")
     {
         TargetIFace dest;
         REQUIRE_ERROR(source.copy_to(&dest));
         REQUIRE(!dest);
     }
 
-    // try_copy
-    REQUIRE(!source.template try_copy<element_type>());
+    SECTION("try_copy")
+    {
+        REQUIRE(!source.template try_copy<element_type>());
+    }
 
-    // try_copy_to(U**)
+    SECTION("try_copy_to(U**)")
     {
         TargetIFace dest;
         REQUIRE(!source.try_copy_to(&dest));
@@ -1855,28 +2041,28 @@ void TestSmartPointerQueryWithFailedResolve(const Ptr source)
 
     if (wistd::is_abstract<element_type>::value)
     {
-        // query_to(iid, ppv)
+        SECTION("query_to(iid, ppv)")
         {
             TargetIFace dest;
             REQUIRE_ERROR(source.query_to(IID_PPV_ARGS(&dest)));
             REQUIRE(!dest);
         }
 
-        // try_query_to(iid, ppv)
+        SECTION("try_query_to(iid, ppv)")
         {
             TargetIFace dest;
             REQUIRE(!source.try_query_to(IID_PPV_ARGS(&dest)));
             REQUIRE(!dest);
         }
 
-        // copy_to(iid, ppv)
+        SECTION("copy_to(iid, ppv)")
         {
             TargetIFace dest;
             REQUIRE_ERROR(source.copy_to(IID_PPV_ARGS(&dest)));
             REQUIRE(!dest);
         }
 
-        // try_copy_to(iid, ppv)
+        SECTION("try_copy_to(iid, ppv)")
         {
             TargetIFace dest;
             REQUIRE(!source.try_copy_to(IID_PPV_ARGS(&dest)));
@@ -1889,20 +2075,26 @@ template <typename TargetIFace, typename IFace>
 void TestQueryWithFailedResolve(IFace* ptr)
 {
     TestGlobalQueryWithFailedResolve<TargetIFace>(ptr);
+#ifdef WIL_ENABLE_EXCEPTIONS
     TestGlobalQueryWithFailedResolve<TargetIFace>(wil::com_ptr<IFace>(ptr));
+#endif
     TestGlobalQueryWithFailedResolve<TargetIFace>(wil::com_ptr_failfast<IFace>(ptr));
     TestGlobalQueryWithFailedResolve<TargetIFace>(wil::com_ptr_nothrow<IFace>(ptr));
     TestGlobalQueryWithFailedResolve<TargetIFace>(Microsoft::WRL::ComPtr<IFace>(ptr));
 
+#ifdef WIL_ENABLE_EXCEPTIONS
     TestSmartPointerQueryWithFailedResolve<wil::com_ptr<TargetIFace>>(wil::com_ptr<IFace>(ptr));
     TestSmartPointerQueryWithFailedResolve<wil::com_ptr<TargetIFace>>(wil::com_ptr_failfast<IFace>(ptr));
     TestSmartPointerQueryWithFailedResolve<wil::com_ptr<TargetIFace>>(wil::com_ptr_nothrow<IFace>(ptr));
 
     TestSmartPointerQueryWithFailedResolve<wil::com_ptr_failfast<TargetIFace>>(wil::com_ptr<IFace>(ptr));
+#endif
     TestSmartPointerQueryWithFailedResolve<wil::com_ptr_failfast<TargetIFace>>(wil::com_ptr_failfast<IFace>(ptr));
     TestSmartPointerQueryWithFailedResolve<wil::com_ptr_failfast<TargetIFace>>(wil::com_ptr_nothrow<IFace>(ptr));
 
+#ifdef WIL_ENABLE_EXCEPTIONS
     TestSmartPointerQueryWithFailedResolve<wil::com_ptr_nothrow<TargetIFace>>(wil::com_ptr<IFace>(ptr));
+#endif
     TestSmartPointerQueryWithFailedResolve<wil::com_ptr_nothrow<TargetIFace>>(wil::com_ptr_failfast<IFace>(ptr));
     TestSmartPointerQueryWithFailedResolve<wil::com_ptr_nothrow<TargetIFace>>(wil::com_ptr_nothrow<IFace>(ptr));
 }
@@ -1913,10 +2105,12 @@ void TestWeakCombinations()
     auto ptr = make_object<IFace, WinRtObject>();
 
     TestWeak(ptr);
+#ifdef WIL_ENABLE_EXCEPTIONS
     TestWeak(wil::com_ptr<IFace>(ptr));
+#endif
     TestWeak(Microsoft::WRL::ComPtr<IFace>(ptr));
 
-    auto weakPtr = wil::com_weak_query(ptr);
+    auto weakPtr = wil::com_weak_query_failfast(ptr);
     TestQuery<IUnknown>(weakPtr.get());
     TestQuery<IInspectable>(weakPtr.get());
     TestQuery<ITest>(weakPtr.get());
@@ -1956,7 +2150,9 @@ TEST_CASE("ComTests::VerifyCoCreate", "[com][CoCreateInstance]")
     auto init = wil::CoInitializeEx_failfast();
 
     // success cases
+#ifdef WIL_ENABLE_EXCEPTIONS
     auto link1 = wil::CoCreateInstance<ShellLink>();
+#endif
     auto link2 = wil::CoCreateInstanceFailFast<ShellLink>();
     auto link3 = wil::CoCreateInstanceNoThrow<ShellLink>();
 
@@ -1975,7 +2171,9 @@ TEST_CASE("ComTests::VerifyCoGetClassObject", "[com][CoGetClassObject]")
     auto init = wil::CoInitializeEx_failfast();
 
     // success cases
+#ifdef WIL_ENABLE_EXCEPTIONS
     auto linkFactory1 = wil::CoGetClassObject<ShellLink>();
+#endif
     auto linkFactory2 = wil::CoGetClassObjectFailFast<ShellLink>();
     auto linkFactory3 = wil::CoGetClassObjectNoThrow<ShellLink>();
 
@@ -2047,7 +2245,7 @@ TEST_CASE("ComTests::VerifyComSetSite", "[com][com_set_site]")
     {
         auto cleanupSite = wil::com_set_site(objWithSite.Get(), serviceObj2.Get());
 
-        wil::com_ptr<IUnknown> site;
+        wil::com_ptr_nothrow<IUnknown> site;
         REQUIRE_SUCCEEDED(objWithSite->GetSite(IID_PPV_ARGS(&site)));
         REQUIRE(static_cast<bool>(site));
 
@@ -2059,7 +2257,7 @@ TEST_CASE("ComTests::VerifyComSetSite", "[com][com_set_site]")
         REQUIRE(siteCount == 2);
     }
 
-    wil::com_ptr<IUnknown> site;
+    wil::com_ptr_nothrow<IUnknown> site;
     REQUIRE_SUCCEEDED(objWithSite->GetSite(IID_PPV_ARGS(&site)));
     REQUIRE_FALSE(static_cast<bool>(site));
 }

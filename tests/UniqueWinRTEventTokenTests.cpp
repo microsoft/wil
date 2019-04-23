@@ -239,16 +239,28 @@ TEST_CASE("UniqueWinRTEventTokenTests::AbiUniqueWinrtEventTokenPolicyVariants", 
     REQUIRE(timesInvoked == 0);
 
     {
+#ifdef WIL_ENABLE_EXCEPTIONS
         auto exceptionPolicyToken = WI_MakeUniqueWinRtEventToken(Closed, testEventSender.Get(), handler.Get());
-        auto failFastPolicyToken = WI_MakeUniqueWinRtEventTokenFailFast(Closed, testEventSender.Get(), handler.Get());
-
         REQUIRE(static_cast<bool>(exceptionPolicyToken));
+#endif
+
+        auto failFastPolicyToken = WI_MakeUniqueWinRtEventTokenFailFast(Closed, testEventSender.Get(), handler.Get());
         REQUIRE(static_cast<bool>(failFastPolicyToken));
 
         REQUIRE_SUCCEEDED(closable->Close());
+
+#ifdef WIL_ENABLE_EXCEPTIONS
         REQUIRE(timesInvoked == 2);
+#else
+        REQUIRE(timesInvoked == 1);
+#endif
     }
 
     REQUIRE_SUCCEEDED(closable->Close());
+
+#ifdef WIL_ENABLE_EXCEPTIONS
     REQUIRE(timesInvoked == 2);
+#else
+    REQUIRE(timesInvoked == 1);
+#endif
 }

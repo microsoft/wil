@@ -21,17 +21,16 @@ macro(append_cxx_flag text)
 endmacro()
 
 # Fixup default compiler settings
-if (MSVC)
-    # Be as strict as reasonably possible, since we want to support consumers using strict warning levels
-    replace_cxx_flag("/W[0-4]" "/W4")
-    append_cxx_flag("/WX")
 
-    # We want to be as conformant as possible, so tell MSVC to not be permissive
-    append_cxx_flag("/permissive-")
+# Be as strict as reasonably possible, since we want to support consumers using strict warning levels
+replace_cxx_flag("/W[0-4]" "/W4")
+append_cxx_flag("/WX")
 
-    # wistd::function has padding due to alignment. This is expected
-    append_cxx_flag("/wd4324")
-endif()
+# We want to be as conformant as possible, so tell MSVC to not be permissive
+append_cxx_flag("/permissive-")
+
+# wistd::function has padding due to alignment. This is expected
+append_cxx_flag("/wd4324")
 
 if (${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
     # Ignore a few Clang warnings

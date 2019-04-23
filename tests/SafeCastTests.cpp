@@ -3,6 +3,7 @@
 
 #include <wil/safecast.h>
 
+#ifdef WIL_ENABLE_EXCEPTIONS
 TEST_CASE("SafeCastTests::SafeCastThrowsTemplateCheck", "[safecast]")
 {
     // In all cases, a value of '1' should be cast-able to any signed or unsigned integral type without error
@@ -380,6 +381,7 @@ TEST_CASE("SafeCastTests::SafeCastThrowsTemplateCheck", "[safecast]")
         wil::safe_cast<wchar_t>           (orig);
     }
 }
+#endif
 
 TEST_CASE("SafeCastTests::SafeCastFailFastSyntaxCheck", "[safecast]")
 {
@@ -530,7 +532,7 @@ TEST_CASE("SafeCastTests::SafeCastNoFailures", "[safecast]")
     SECTION("SIZE_T -> UINT")
     {
         SIZE_T st = SIZE_T_MAX;
-        UINT ui = wil::safe_cast<UINT>(st);
+        UINT ui = wil::safe_cast_nothrow<UINT>(st);
         REQUIRE(ui == SIZE_T_MAX);
     }
 #endif
@@ -558,10 +560,12 @@ TEST_CASE("SafeCastTests::SafeCastExpectFailFast", "[safecast]")
         REQUIRE(failures.size() == 1);
     }
 
+#ifdef WIL_ENABLE_EXCEPTIONS
     failures.clear();
     {
         size_t st = SIZE_T_MAX;
         REQUIRE_THROWS(wil::safe_cast<short>(st));
         REQUIRE(failures.size() == 1);
     }
+#endif
 }

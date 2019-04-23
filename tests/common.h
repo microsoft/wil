@@ -184,25 +184,28 @@ namespace witest
         ::RaiseException(rec->ExceptionCode, rec->ExceptionFlags, rec->NumberParameters, rec->ExceptionInformation);
     }
 
+    constexpr DWORD msvc_exception_code = 0xE06D7363;
+
+    // This is a MAJOR hack. Catch2 registers a vectored exception handler - which gets run before our handler below -
+    // that interprets a set of exception codes as fatal. We don't want this behavior since we may be expecting such
+    // crashes, so instead translate all exception codes to something not fatal
+    inline LONG WINAPI TranslateExceptionCodeHandler(PEXCEPTION_POINTERS info)
+    {
+        if (info->ExceptionRecord->ExceptionCode != witest::msvc_exception_code)
+        {
+            info->ExceptionRecord->ExceptionCode = STATUS_STACK_BUFFER_OVERRUN;
+        }
+
+        return EXCEPTION_CONTINUE_SEARCH;
+    }
+
     template <typename Lambda>
     bool DoesCodeCrash(Lambda&& callOp)
     {
         // See above; we don't want to actually fail fast, so make sure we raise a different exception instead
         auto restoreHandler = AssignTemporaryValue(&wil::details::g_pfnRaiseFailFastException, TranslateFailFastException);
 
-        // This is a MAJOR hack. Catch2 registers a vectored exception handler - which gets run before our handler below -
-        // that interprets a set of exception codes as fatal. We don't want this behavior since we may be expecting such
-        // crashes, so instead translate all exception codes to something not fatal
-        constexpr DWORD msvc_exception_code = 0xE06D7363; // Let C++ exceptions through
-        auto handler = AddVectoredExceptionHandler(1, [](PEXCEPTION_POINTERS info) -> LONG
-        {
-            if (info->ExceptionRecord->ExceptionCode != msvc_exception_code)
-            {
-                info->ExceptionRecord->ExceptionCode = STATUS_STACK_BUFFER_OVERRUN;
-            }
-
-            return EXCEPTION_CONTINUE_SEARCH;
-        });
+        auto handler = AddVectoredExceptionHandler(1, TranslateExceptionCodeHandler);
         auto removeVectoredHandler = wil::scope_exit([&] { RemoveVectoredExceptionHandler(handler); });
 
         bool result = false;

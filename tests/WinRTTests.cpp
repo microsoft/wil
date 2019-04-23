@@ -479,6 +479,7 @@ TEST_CASE("WinRTTests::HStringCaseInsensitiveMapTest", "[winrt][hstring_compare]
 #endif
 
 // This is not a test method, nor should it be called. This is a compilation-only test.
+#ifdef WIL_ENABLE_EXCEPTIONS
 void RunWhenCompleteCompilationTest()
 {
     {
@@ -493,6 +494,7 @@ void RunWhenCompleteCompilationTest()
         auto result = wil::wait_for_completion(stringOpWithProgress.Get());
     }
 }
+#endif
 
 TEST_CASE("WinRTTests::RunWhenCompleteMoveOnlyTest", "[winrt][run_when_complete]")
 {
@@ -506,6 +508,7 @@ TEST_CASE("WinRTTests::RunWhenCompleteMoveOnlyTest", "[winrt][run_when_complete]
         REQUIRE_SUCCEEDED(hr);
         REQUIRE(result == 42);
         gotEvent = true;
+        return S_OK;
     });
     REQUIRE_SUCCEEDED(hr);
 

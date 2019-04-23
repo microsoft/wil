@@ -3,6 +3,10 @@
 
 #include "common.h"
 
+#ifndef WIL_ENABLE_EXCEPTIONS
+#error STL tests require exceptions
+#endif
+
 struct dummy
 {
     char value;
