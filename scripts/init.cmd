@@ -25,7 +25,7 @@ if "%1"=="msbuild" (
     :: MSBUILD is the default
     if [%COMPILER_ID%]==[clang] (
         echo ERROR: Use of msbuild is not compatible with using Clang as the compiler
-        goto :eof
+        exit /B 1
     )
     set COMPILER_ID=msvc
     shift
@@ -59,7 +59,7 @@ if "%1"=="release" (
 
 if [%1] NEQ [] (
     echo ERROR: Unrecognized argument %1
-    goto :eof
+    exit /B 1
 )
 
 :: Let CMake know about the compiler we are using
@@ -83,10 +83,10 @@ if "%Platform%"=="x64" (
     set BUILD_ARCH=32
 ) else if [%Platform%]==[] (
     echo ERROR: This script must be run from a Visual Studio command window
-    goto :eof
+    exit /B 1
 ) else (
     echo ERROR: Unrecognized platform %Platform%
-    goto :eof
+    exit /B 1
 )
 
 set BUILD_DIR=%BUILD_ROOT%\%COMPILER_ID%%BUILD_ARCH%%BUILD_TYPE%

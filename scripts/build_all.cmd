@@ -9,10 +9,10 @@ if "%Platform%"=="x64" (
     set BUILD_ARCH=32
 ) else if [%Platform%]==[] (
     echo ERROR: This script must be run from a Visual Studio command window
-    goto :eof
+    exit /B 1
 ) else (
     echo ERROR: Unrecognized platform %Platform%
-    goto :eof
+    exit /B 1
 )
 
 call :build clang debug
