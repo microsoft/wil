@@ -100,6 +100,15 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "1")
 #else
 WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 #endif
+
+// It would appear as though the C++17 "noexcept is part of the type system" update in MSVC has "infected" the behavior
+// when compiling with C++14 (the default...), however the updated behavior for decltype understanding noexcept is _not_
+// present... So, work around it
+#if __WI_LIBCPP_STD_VER >= 17
+#define WI_PFN_NOEXCEPT WI_NOEXCEPT
+#else
+#define WI_PFN_NOEXCEPT
+#endif
 /// @endcond
 
 #if defined(__cplusplus) && !defined(__WIL_MIN_KERNEL) && !defined(WIL_KERNEL_MODE)
@@ -980,7 +989,7 @@ namespace wil
     // [optionally] Plug in error logging
     // Note:  This callback is deprecated.  Please use SetResultTelemetryFallback for telemetry or
     // SetResultLoggingCallback for observation.
-    extern "C" __declspec(selectany) void(__stdcall *g_pfnResultLoggingCallback)(_Inout_ wil::FailureInfo *pFailure, _Inout_updates_opt_z_(cchDebugMessage) PWSTR pszDebugMessage, _Pre_satisfies_(cchDebugMessage > 0) size_t cchDebugMessage) WI_NOEXCEPT = nullptr;
+    extern "C" __declspec(selectany) void(__stdcall *g_pfnResultLoggingCallback)(_Inout_ wil::FailureInfo *pFailure, _Inout_updates_opt_z_(cchDebugMessage) PWSTR pszDebugMessage, _Pre_satisfies_(cchDebugMessage > 0) size_t cchDebugMessage) WI_PFN_NOEXCEPT = nullptr;
 
     // [optional]
     // This can be explicitly set to control whether or not error messages will be output to OutputDebugString.  It can also
@@ -990,13 +999,13 @@ namespace wil
     // [optionally] Allows application to specify a debugger to detect whether a debugger is present.
     // Useful for processes that can only be debugged under kernel debuggers where IsDebuggerPresent returns
     // false.
-    __declspec(selectany) bool(__stdcall *g_pfnIsDebuggerPresent)() WI_NOEXCEPT = nullptr;
+    __declspec(selectany) bool(__stdcall *g_pfnIsDebuggerPresent)() WI_PFN_NOEXCEPT = nullptr;
 
     // [optionally] Allows forcing WIL to believe a debugger is present. Useful for when a kernel debugger is attached and ::IsDebuggerPresent returns false
     __declspec(selectany) bool g_fIsDebuggerPresent = false;
 
     // [optionally] Plug in additional exception-type support (return S_OK when *unable* to remap the exception)
-    __declspec(selectany) HRESULT(__stdcall *g_pfnResultFromCaughtException)() WI_NOEXCEPT = nullptr;
+    __declspec(selectany) HRESULT(__stdcall *g_pfnResultFromCaughtException)() WI_PFN_NOEXCEPT = nullptr;
 
     // [optionally] Use to configure fast fail of unknown exceptions (turn them off).
     __declspec(selectany) bool g_fResultFailFastUnknownExceptions = true;
@@ -1011,7 +1020,7 @@ namespace wil
     __declspec(selectany) bool g_fBreakOnFailure = false;
 
     // [optionally] customize failfast behavior
-    __declspec(selectany) bool(__stdcall *g_pfnWilFailFast)(const wil::FailureInfo& info) WI_NOEXCEPT = nullptr;
+    __declspec(selectany) bool(__stdcall *g_pfnWilFailFast)(const wil::FailureInfo& info) WI_PFN_NOEXCEPT = nullptr;
 
     /// @cond
     namespace details
@@ -1148,34 +1157,34 @@ namespace wil
         };
 
         // Fallback telemetry provider callback (set with wil::SetResultTelemetryFallback)
-        __declspec(selectany) void(__stdcall *g_pfnTelemetryCallback)(bool alreadyReported, wil::FailureInfo const &failure) WI_NOEXCEPT = nullptr;
+        __declspec(selectany) void(__stdcall *g_pfnTelemetryCallback)(bool alreadyReported, wil::FailureInfo const &failure) WI_PFN_NOEXCEPT = nullptr;
 
         // Result.h plug-in (WIL use only)
-        __declspec(selectany) void(__stdcall *g_pfnGetContextAndNotifyFailure)(_Inout_ FailureInfo *pFailure, _Out_writes_(callContextStringLength) _Post_z_ PSTR callContextString, _Pre_satisfies_(callContextStringLength > 0) size_t callContextStringLength) WI_NOEXCEPT = nullptr;
+        __declspec(selectany) void(__stdcall *g_pfnGetContextAndNotifyFailure)(_Inout_ FailureInfo *pFailure, _Out_writes_(callContextStringLength) _Post_z_ PSTR callContextString, _Pre_satisfies_(callContextStringLength > 0) size_t callContextStringLength) WI_PFN_NOEXCEPT = nullptr;
 
         // Observe all errors flowing through the system with this callback (set with wil::SetResultLoggingCallback); use with custom logging
-        __declspec(selectany) void(__stdcall *g_pfnLoggingCallback)(wil::FailureInfo const &failure) WI_NOEXCEPT = nullptr;
+        __declspec(selectany) void(__stdcall *g_pfnLoggingCallback)(wil::FailureInfo const &failure) WI_PFN_NOEXCEPT = nullptr;
 
         // Desktop/System Only:  Module fetch function (automatically setup)
-        __declspec(selectany) PCSTR(__stdcall *g_pfnGetModuleName)() WI_NOEXCEPT = nullptr;
+        __declspec(selectany) PCSTR(__stdcall *g_pfnGetModuleName)() WI_PFN_NOEXCEPT = nullptr;
 
         // Desktop/System Only:  Retrieve address offset and modulename
-        __declspec(selectany) bool(__stdcall *g_pfnGetModuleInformation)(void* address, _Out_opt_ unsigned int* addressOffset, _Out_writes_bytes_opt_(size) char* name, size_t size) WI_NOEXCEPT = nullptr;
+        __declspec(selectany) bool(__stdcall *g_pfnGetModuleInformation)(void* address, _Out_opt_ unsigned int* addressOffset, _Out_writes_bytes_opt_(size) char* name, size_t size) WI_PFN_NOEXCEPT = nullptr;
 
         // Called with the expectation that the program will terminate when called inside of a loader callout.
         // Desktop/System Only: Automatically setup when building Windows (BUILD_WINDOWS defined)
-        __declspec(selectany) void(__stdcall *g_pfnFailFastInLoaderCallout)() WI_NOEXCEPT = nullptr;
+        __declspec(selectany) void(__stdcall *g_pfnFailFastInLoaderCallout)() WI_PFN_NOEXCEPT = nullptr;
 
         // Called to translate an NTSTATUS value to a Win32 error code
         // Desktop/System Only: Automatically setup when building Windows (BUILD_WINDOWS defined)
-        __declspec(selectany) ULONG(__stdcall *g_pfnRtlNtStatusToDosErrorNoTeb)(NTSTATUS) WI_NOEXCEPT = nullptr;
+        __declspec(selectany) ULONG(__stdcall *g_pfnRtlNtStatusToDosErrorNoTeb)(NTSTATUS) WI_PFN_NOEXCEPT = nullptr;
 
         // Desktop/System Only: Call to DebugBreak
-        __declspec(selectany) void(__stdcall *g_pfnDebugBreak)() WI_NOEXCEPT = nullptr;
+        __declspec(selectany) void(__stdcall *g_pfnDebugBreak)() WI_PFN_NOEXCEPT = nullptr;
 
         // Called to determine whether or not termination is happening
         // Desktop/System Only: Automatically setup when building Windows (BUILD_WINDOWS defined)
-        __declspec(selectany) BOOLEAN(__stdcall *g_pfnDllShutdownInProgress)() WI_NOEXCEPT = nullptr;
+        __declspec(selectany) BOOLEAN(__stdcall *g_pfnDllShutdownInProgress)() WI_PFN_NOEXCEPT = nullptr;
         __declspec(selectany) bool g_processShutdownInProgress = false;
 
         // On Desktop/System WINAPI family: dynalink RaiseFailFastException because we may encounter modules
@@ -1186,15 +1195,15 @@ namespace wil
         __declspec(selectany) HRESULT(__stdcall *g_pfnRunFunctorWithExceptionFilter)(IFunctor& functor, IFunctorHost& host, void* returnAddress) = nullptr;
         __declspec(selectany) void(__stdcall *g_pfnRethrow)() = nullptr;
         __declspec(selectany) void(__stdcall *g_pfnThrowResultException)(const FailureInfo& failure) = nullptr;
-        extern "C" __declspec(selectany) HRESULT(__stdcall *g_pfnResultFromCaughtExceptionInternal)(_Out_writes_opt_(debugStringChars) PWSTR debugString, _When_(debugString != nullptr, _Pre_satisfies_(debugStringChars > 0)) size_t debugStringChars, _Out_ bool* isNormalized) WI_NOEXCEPT = nullptr;
+        extern "C" __declspec(selectany) HRESULT(__stdcall *g_pfnResultFromCaughtExceptionInternal)(_Out_writes_opt_(debugStringChars) PWSTR debugString, _When_(debugString != nullptr, _Pre_satisfies_(debugStringChars > 0)) size_t debugStringChars, _Out_ bool* isNormalized) WI_PFN_NOEXCEPT = nullptr;
 
         // C++/cx compiled additions
         extern "C" __declspec(selectany) void(__stdcall *g_pfnThrowPlatformException)(FailureInfo const &failure, PCWSTR debugString) = nullptr;
-        extern "C" __declspec(selectany) _Always_(_Post_satisfies_(return < 0)) HRESULT(__stdcall *g_pfnResultFromCaughtException_WinRt)(_Inout_updates_opt_(debugStringChars) PWSTR debugString, _When_(debugString != nullptr, _Pre_satisfies_(debugStringChars > 0)) size_t debugStringChars, _Out_ bool* isNormalized) WI_NOEXCEPT = nullptr;
+        extern "C" __declspec(selectany) _Always_(_Post_satisfies_(return < 0)) HRESULT(__stdcall *g_pfnResultFromCaughtException_WinRt)(_Inout_updates_opt_(debugStringChars) PWSTR debugString, _When_(debugString != nullptr, _Pre_satisfies_(debugStringChars > 0)) size_t debugStringChars, _Out_ bool* isNormalized) WI_PFN_NOEXCEPT = nullptr;
         __declspec(selectany) _Always_(_Post_satisfies_(return < 0)) HRESULT(__stdcall *g_pfnResultFromKnownExceptions_WinRt)(const DiagnosticsInfo& diagnostics, void* returnAddress, SupportedExceptions supported, IFunctor& functor) = nullptr;
 
         // Plugin to call RoOriginateError (WIL use only)
-        __declspec(selectany) void(__stdcall *g_pfnOriginateCallback)(wil::FailureInfo const& failure) WI_NOEXCEPT = nullptr;
+        __declspec(selectany) void(__stdcall *g_pfnOriginateCallback)(wil::FailureInfo const& failure) WI_PFN_NOEXCEPT = nullptr;
 
         enum class ReportFailureOptions
         {

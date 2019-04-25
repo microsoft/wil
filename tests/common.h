@@ -33,6 +33,23 @@
 // will verify that the parameters are not evaluated more than once.
 #define MDEC(PARAM) (witest::details::MacroDoubleEvaluationCheck(__LINE__, #PARAM), PARAM)
 
+// There's some functionality that we need for testing that's not available for the app partition. Since those tests are
+// primarily compilation tests, declare what's needed here
+extern "C" {
+
+#if !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM | WINAPI_PARTITION_GAMES)
+WINBASEAPI _Ret_maybenull_
+PVOID WINAPI AddVectoredExceptionHandler(_In_ ULONG First, _In_ PVECTORED_EXCEPTION_HANDLER Handler);
+
+WINBASEAPI
+ULONG WINAPI RemoveVectoredExceptionHandler(_In_ PVOID Handle);
+#endif
+
+}
+
+#pragma warning(push)
+#pragma warning(disable: 4702) // Unreachable code
+
 namespace witest
 {
     namespace details
@@ -199,8 +216,25 @@ namespace witest
         return EXCEPTION_CONTINUE_SEARCH;
     }
 
-    template <typename Lambda>
-    bool DoesCodeCrash(Lambda&& callOp)
+    namespace details
+    {
+        inline bool DoesCodeCrash(wistd::function<void()>& callOp)
+        {
+            bool result = false;
+            __try
+            {
+                callOp();
+            }
+            // Let C++ exceptions pass through
+            __except ((::GetExceptionCode() != msvc_exception_code) ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
+            {
+                result = true;
+            }
+            return result;
+        }
+    }
+
+    inline bool DoesCodeCrash(wistd::function<void()> callOp)
     {
         // See above; we don't want to actually fail fast, so make sure we raise a different exception instead
         auto restoreHandler = AssignTemporaryValue(&wil::details::g_pfnRaiseFailFastException, TranslateFailFastException);
@@ -208,18 +242,7 @@ namespace witest
         auto handler = AddVectoredExceptionHandler(1, TranslateExceptionCodeHandler);
         auto removeVectoredHandler = wil::scope_exit([&] { RemoveVectoredExceptionHandler(handler); });
 
-        bool result = false;
-        __try
-        {
-            callOp();
-        }
-        // Let C++ exceptions pass through
-        __except ((::GetExceptionCode() != msvc_exception_code) ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
-        {
-            result = true;
-        }
-
-        return result;
+        return details::DoesCodeCrash(callOp);
     }
 
     template <typename Lambda>
@@ -240,6 +263,7 @@ namespace witest
         return FAILED(callOp());
     }
 
+#ifdef WIL_ENABLE_EXCEPTIONS
     class TestFailureCache final :
         public wil::details::IFailureCallback
     {
@@ -280,6 +304,15 @@ namespace witest
         std::vector<wil::StoredFailureInfo> m_failures;
         wil::details::ThreadFailureCallbackHolder m_callbackHolder;
     };
+#endif
+
+    inline HRESULT GetTempFileName(wchar_t (&result)[MAX_PATH])
+    {
+        wchar_t dir[MAX_PATH];
+        RETURN_LAST_ERROR_IF(::GetTempPathW(MAX_PATH, dir) == 0);
+        RETURN_LAST_ERROR_IF(::GetTempFileNameW(dir, L"wil", 0, result) == 0);
+        return S_OK;
+    }
 
     inline HRESULT CreateUniqueFolderPath(wchar_t (&buffer)[MAX_PATH], PCWSTR root = nullptr)
     {
@@ -298,6 +331,8 @@ namespace witest
         PathCchRemoveExtension(buffer, ARRAYSIZE(buffer));
         return S_OK;
     }
+
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 
     struct TestFolder
     {
@@ -465,4 +500,8 @@ namespace witest
         bool m_deleteDir = false;
         wchar_t m_path[MAX_PATH] = L"";
     };
+
+#endif
 }
+
+#pragma warning(pop)

@@ -1,4 +1,6 @@
 
+#include "WrlPermissiveMinus.h"
+
 #include <time.h>
 #include <wil/winrt.h>
 
@@ -59,6 +61,7 @@ void DoHStringComparisonTest(LhsT&& lhs, RhsT&& rhs, int relation)
 
     // We wish to test with both const and non-const values. We can do this for free here so long as the type is
     // not an array since changing the const-ness of an array may change the expected results
+#pragma warning(suppress: 4127)
     if (!wistd::is_array<wistd::remove_reference_t<LhsT>>::value &&
         !wistd::is_const<wistd::remove_reference_t<LhsT>>::value)
     {
@@ -66,6 +69,7 @@ void DoHStringComparisonTest(LhsT&& lhs, RhsT&& rhs, int relation)
         DoHStringComparisonTest<InhibitArrayReferences, IgnoreCase>(constLhs, rhs, relation);
     }
 
+#pragma warning(suppress: 4127)
     if (!wistd::is_array<wistd::remove_reference_t<RhsT>>::value &&
         !wistd::is_const<wistd::remove_reference_t<RhsT>>::value)
     {
@@ -530,6 +534,8 @@ TEST_CASE("WinRTTests::WaitForCompletionTimeout", "[winrt][wait_for_completion]"
 }
 
 // This is not a test method, nor should it be called. This is a compilation-only test.
+#pragma warning(push)
+#pragma warning(disable: 4702) // Unreachable code
 void WaitForCompletionCompilationTest()
 {
     // Ensure the wait_for_completion variants compile
@@ -601,6 +607,7 @@ void WaitForCompletionCompilationTest()
     result = wil::wait_for_completion(operationWithResult.Get(), COWAIT_DEFAULT);
 #endif
 }
+#pragma warning(pop)
 
 TEST_CASE("WinRTTests::TimeTTests", "[winrt][time_t]")
 {

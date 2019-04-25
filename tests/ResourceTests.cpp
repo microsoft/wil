@@ -457,8 +457,8 @@ static void TestStringMaker(VerifyContents&& verifyContents)
 
         {
             // no promote, ensure no leaks (not tested here, inspect in the debugger)
-            wil::details::string_maker<StringType> maker;
-            THROW_IF_FAILED(maker.make(value, valueLength));
+            wil::details::string_maker<StringType> maker2;
+            THROW_IF_FAILED(maker2.make(value, valueLength));
         }
     }
 }

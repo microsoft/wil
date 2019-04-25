@@ -1,4 +1,6 @@
 
+#include "WrlPermissiveMinus.h"
+
 #include <wil/winrt.h>
 #include <wrl/implements.h>
 

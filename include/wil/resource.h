@@ -1640,9 +1640,30 @@ namespace wil
     // Overloads in this file support any string that is implicitly convertible to a PCWSTR, HSTRING, and any unique_any_t
     // that points to any other supported type (this covers unique_hstring, unique_cotaskmem_string, and similar).
     // An overload for std::wstring is available in stl.h.
+    /// @cond
+    namespace details
+    {
+        // Overloads defined after a function's use are not considered for overload resolution. The solution to this
+        // problem is template specialization
+        template <typename T>
+        struct str_raw_ptr_t;
+    }
+    /// @endcond
+
     inline PCWSTR str_raw_ptr(PCWSTR str)
     {
         return str;
+    }
+
+    inline PCWSTR str_raw_ptr(PWSTR str)
+    {
+        return str;
+    }
+
+    template <typename T>
+    PCWSTR str_raw_ptr(const T& str)
+    {
+        return details::str_raw_ptr_t<wistd::remove_cv_t<T>>::get(str);
     }
 
     template <typename T>
@@ -1916,11 +1937,6 @@ namespace wil {
             long int use_count() const WI_NOEXCEPT
             {
                 return m_ptr.use_count();
-            }
-
-            bool unique() const WI_NOEXCEPT
-            {
-                return m_ptr.unique();
             }
 
         private:
@@ -4401,9 +4417,16 @@ namespace wil
 
     // str_raw_ptr is an overloaded function that retrieves a const pointer to the first character in a string's buffer.
     // This is the overload for HSTRING.  Other overloads available above.
-    inline PCWSTR str_raw_ptr(HSTRING str)
+    namespace details
     {
-        return WindowsGetStringRawBuffer(str, nullptr);
+        template <>
+        struct str_raw_ptr_t<HSTRING>
+        {
+            static PCWSTR get(HSTRING str)
+            {
+                return WindowsGetStringRawBuffer(str, nullptr);
+            }
+        };
     }
 
 #endif // __WIL__WINSTRING_H_

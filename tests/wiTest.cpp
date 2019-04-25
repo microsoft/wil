@@ -29,6 +29,9 @@
 #include "MallocSpy.h"
 #include "test_objects.h"
 
+#pragma warning(push)
+#pragma warning(disable: 4702) // Unreachable code
+
 TEST_CASE("WindowsInternalTests::CommonHelpers", "[resource]")
 {
     {
@@ -304,6 +307,7 @@ bool VerifyResult(unsigned int lineNumber, EType type, HRESULT hr, TLambda&& lam
     return succeeded;
 }
 
+#ifdef WIL_ENABLE_EXCEPTIONS
 template <typename TLambda>
 HRESULT TranslateException(TLambda&& lambda)
 {
@@ -327,26 +331,22 @@ HRESULT TranslateException(TLambda&& lambda)
     }
     return S_OK;
 }
+#endif
 
 #define REQUIRE_RETURNS(hr, lambda)             REQUIRE(VerifyResult(__LINE__, EType::None, hr, lambda))
 #define REQUIRE_RETURNS_MSG(hr, lambda)         REQUIRE(VerifyResult(__LINE__, EType::Msg, hr, lambda))
 #define REQUIRE_RETURNS_EXPECTED(hr, lambda)    REQUIRE(VerifyResult(__LINE__, EType::Expected, hr, lambda))
-#define REQUIRE_RETURNS_OK_FAILFAST(lambda)     REQUIRE(VerifyResult(__LINE__, EType::FailFast, S_OK, lambda))
 
 #ifdef WIL_ENABLE_EXCEPTIONS
 #define REQUIRE_THROWS_RESULT(hr, lambda)       REQUIRE(VerifyResult(__LINE__, EType::None, hr, [&] { return TranslateException(lambda); }))
 #define REQUIRE_THROWS_MSG(hr, lambda)          REQUIRE(VerifyResult(__LINE__, EType::Msg, hr, [&] { return TranslateException(lambda); }))
-// Trying to throw with S_OK causes __fastfail to get directly invoked, which we can't catch, so these tests are disabled for now
-#define REQUIRE_THROWS_OK_FAILFAST(lambda)      // REQUIRE(VerifyResult(__LINE__, EType::FailFast, S_OK, [&] { return TranslateException(lambda); }))
 #else
 #define REQUIRE_THROWS_RESULT(hr, lambda)
 #define REQUIRE_THROWS_MSG(hr, lambda)
-#define REQUIRE_THROWS_OK_FAILFAST(lambda)
 #endif
 
 #define REQUIRE_LOG(hr, lambda)                 REQUIRE(VerifyResult(__LINE__, EType::None, hr, [&] { auto fn = (lambda); fn(); return hr; }))
 #define REQUIRE_LOG_MSG(hr, lambda)             REQUIRE(VerifyResult(__LINE__, EType::Msg, hr, [&] { auto fn = (lambda); fn(); return hr; }))
-#define REQUIRE_LOG_OK_FAILFAST(lambda)         REQUIRE(VerifyResult(__LINE__, EType::FailFast, S_OK, [&] { auto fn = (lambda); fn(); return S_OK; }))
 
 #define REQUIRE_FAILFAST(hr, lambda)            REQUIRE(VerifyResult(__LINE__, EType::FailFastMacro, hr, [&] { auto fn = (lambda); fn(); return hr; }))
 #define REQUIRE_FAILFAST_MSG(hr, lambda)        REQUIRE(VerifyResult(__LINE__, EType::FailFastMacro | EType::Msg, hr, [&] { auto fn = (lambda); fn(); return hr; }))
@@ -361,10 +361,6 @@ TEST_CASE("WindowsInternalTests::ResultMacros", "[result_macros]")
 
     REQUIRE_RETURNS(S_OK, [] { RETURN_HR(MDEC(hrOKRef())); });
     REQUIRE_RETURNS_MSG(S_OK, [] { RETURN_HR_MSG(MDEC(hrOKRef()), "msg: %d", __LINE__); });
-    // REQUIRE_THROWS_OK_FAILFAST([] { THROW_HR(MDEC(hrOKRef())); });
-    // REQUIRE_THROWS_OK_FAILFAST([] { THROW_HR_MSG(MDEC(hrOKRef()), "msg: %d", __LINE__); });
-    REQUIRE_LOG_OK_FAILFAST([] { LOG_HR(MDEC(hrOKRef())); });
-    REQUIRE_LOG_OK_FAILFAST([] { LOG_HR_MSG(MDEC(hrOKRef()), "msg: %d", __LINE__); });
     REQUIRE_FAILFAST_UNSPECIFIED([] { FAIL_FAST_HR(MDEC(hrOKRef())); });
     REQUIRE_FAILFAST_UNSPECIFIED([] { FAIL_FAST_HR_MSG(MDEC(hrOKRef()), "msg: %d", __LINE__); });
 
@@ -377,12 +373,6 @@ TEST_CASE("WindowsInternalTests::ResultMacros", "[result_macros]")
     REQUIRE_FAILFAST(E_FAIL, [] { FAIL_FAST_HR(E_FAIL); });
     REQUIRE_FAILFAST_MSG(E_FAIL, [] { FAIL_FAST_HR_MSG(E_FAIL, "msg: %d", __LINE__); });
 
-    REQUIRE_RETURNS_OK_FAILFAST([] { ::SetLastError(0); RETURN_LAST_ERROR(); });
-    REQUIRE_RETURNS_OK_FAILFAST([] { ::SetLastError(0); RETURN_LAST_ERROR_MSG("msg: %d", __LINE__); });
-    // REQUIRE_THROWS_OK_FAILFAST([] { THROW_LAST_ERROR(); });
-    // REQUIRE_THROWS_OK_FAILFAST([] { THROW_LAST_ERROR_MSG("msg: %d", __LINE__); });
-    REQUIRE_LOG_OK_FAILFAST([] { ::SetLastError(0); LOG_LAST_ERROR(); });
-    REQUIRE_LOG_OK_FAILFAST([] { ::SetLastError(0); LOG_LAST_ERROR_MSG("msg: %d", __LINE__); });
     REQUIRE_FAILFAST_UNSPECIFIED([] { ::SetLastError(0); FAIL_FAST_LAST_ERROR(); });
     REQUIRE_FAILFAST_UNSPECIFIED([] { ::SetLastError(0); FAIL_FAST_LAST_ERROR_MSG("msg: %d", __LINE__); });
 
@@ -397,10 +387,6 @@ TEST_CASE("WindowsInternalTests::ResultMacros", "[result_macros]")
 
     REQUIRE_RETURNS(S_OK, [] { RETURN_WIN32(MDEC(errSuccessRef())); });
     REQUIRE_RETURNS_MSG(S_OK, [] { RETURN_WIN32_MSG(MDEC(errSuccessRef()), "msg: %d", __LINE__); });
-    // REQUIRE_THROWS_OK_FAILFAST([] { THROW_WIN32(MDEC(errSuccessRef())); });
-    // REQUIRE_THROWS_OK_FAILFAST([] { THROW_WIN32_MSG(MDEC(errSuccessRef()), "msg: %d", __LINE__); });
-    REQUIRE_LOG_OK_FAILFAST([] { LOG_WIN32(MDEC(errSuccessRef())); });
-    REQUIRE_LOG_OK_FAILFAST([] { LOG_WIN32_MSG(MDEC(errSuccessRef()), "msg: %d", __LINE__); });
     REQUIRE_FAILFAST_UNSPECIFIED([] { FAIL_FAST_WIN32(MDEC(errSuccessRef())); });
     REQUIRE_FAILFAST_UNSPECIFIED([] { FAIL_FAST_WIN32_MSG(MDEC(errSuccessRef()), "msg: %d", __LINE__); });
 
@@ -475,10 +461,6 @@ TEST_CASE("WindowsInternalTests::ResultMacros", "[result_macros]")
 
     REQUIRE_RETURNS(S_hrNtOkay, [] { RETURN_NTSTATUS(MDEC(ntOKRef())); });
     REQUIRE_RETURNS_MSG(S_hrNtOkay, [] { RETURN_NTSTATUS_MSG(MDEC(ntOKRef()), "msg: %d", __LINE__); });
-    // REQUIRE_THROWS_OK_FAILFAST([] { THROW_NTSTATUS(MDEC(ntOKRef())); });
-    // REQUIRE_THROWS_OK_FAILFAST([] { THROW_NTSTATUS_MSG(MDEC(ntOKRef()), "msg: %d", __LINE__); });
-    REQUIRE_LOG_OK_FAILFAST([] { LOG_NTSTATUS(MDEC(ntOKRef())); });
-    REQUIRE_LOG_OK_FAILFAST([] { LOG_NTSTATUS_MSG(MDEC(ntOKRef()), "msg: %d", __LINE__); });
     REQUIRE_FAILFAST_UNSPECIFIED([] { FAIL_FAST_NTSTATUS(MDEC(ntOKRef())); });
     REQUIRE_FAILFAST_UNSPECIFIED([] { FAIL_FAST_NTSTATUS_MSG(MDEC(ntOKRef()), "msg: %d", __LINE__); });
 
@@ -543,10 +525,6 @@ TEST_CASE("WindowsInternalTests::ResultMacros", "[result_macros]")
     REQUIRE_RETURNS(S_OK, [] { RETURN_HR_IF(MDEC(S_OK), MDEC(fTrueRef())); return S_OK; });
     REQUIRE_RETURNS_MSG(S_OK, [] { RETURN_HR_IF_MSG(MDEC(S_OK), MDEC(fTrueRef()), "msg: %d", __LINE__); return S_OK; });
     REQUIRE_RETURNS_EXPECTED(S_OK, [] { RETURN_HR_IF_EXPECTED(MDEC(S_OK), MDEC(fTrueRef())); return S_OK; });
-    // REQUIRE_THROWS_OK_FAILFAST([] { THROW_HR_IF(MDEC(S_OK), MDEC(fTrueRef())); });
-    // REQUIRE_THROWS_OK_FAILFAST([] { THROW_HR_IF_MSG(MDEC(S_OK), MDEC(fTrueRef()), "msg: %d", __LINE__); });
-    REQUIRE_LOG_OK_FAILFAST([] { LOG_HR_IF(MDEC(S_OK), MDEC(fTrueRef())); });
-    REQUIRE_LOG_OK_FAILFAST([] { LOG_HR_IF_MSG(MDEC(S_OK), MDEC(fTrueRef()), "msg: %d", __LINE__); });
     REQUIRE_FAILFAST_UNSPECIFIED([] { FAIL_FAST_HR_IF(MDEC(S_OK), MDEC(fTrueRef())); });
     REQUIRE_FAILFAST_UNSPECIFIED([] { FAIL_FAST_HR_IF_MSG(MDEC(S_OK), MDEC(fTrueRef()), "msg: %d", __LINE__); });
     REQUIRE_RETURNS(E_FAIL, [] { RETURN_HR_IF(E_FAIL, fTrue); return S_OK; });
@@ -562,10 +540,6 @@ TEST_CASE("WindowsInternalTests::ResultMacros", "[result_macros]")
     REQUIRE_RETURNS(S_OK, [] { RETURN_HR_IF(MDEC(S_OK), MDEC(fTrueRef())); return S_OK; });
     REQUIRE_RETURNS_MSG(S_OK, [] { RETURN_HR_IF_MSG(MDEC(S_OK), MDEC(fTrueRef()), "msg: %d", __LINE__); return S_OK; });
     REQUIRE_RETURNS_EXPECTED(S_OK, [] { RETURN_HR_IF_EXPECTED(MDEC(S_OK), MDEC(fTrueRef())); return S_OK; });
-    // REQUIRE_THROWS_OK_FAILFAST([] { THROW_HR_IF(MDEC(S_OK), MDEC(fTrueRef())); });
-    // REQUIRE_THROWS_OK_FAILFAST([] { THROW_HR_IF_MSG(MDEC(S_OK), MDEC(fTrueRef()), "msg: %d", __LINE__); });
-    REQUIRE_LOG_OK_FAILFAST([] { LOG_HR_IF(MDEC(S_OK), MDEC(fTrueRef())); });
-    REQUIRE_LOG_OK_FAILFAST([] { LOG_HR_IF_MSG(MDEC(S_OK), MDEC(fTrueRef()), "msg: %d", __LINE__); });
     REQUIRE_FAILFAST_UNSPECIFIED([] { FAIL_FAST_HR_IF(MDEC(S_OK), MDEC(fTrueRef())); });
     REQUIRE_FAILFAST_UNSPECIFIED([] { FAIL_FAST_HR_IF_MSG(MDEC(S_OK), MDEC(fTrueRef()), "msg: %d", __LINE__); });
     REQUIRE_RETURNS(E_FAIL, [] { RETURN_HR_IF(E_FAIL, fTrue); return S_OK; });
@@ -619,10 +593,6 @@ TEST_CASE("WindowsInternalTests::ResultMacros", "[result_macros]")
     REQUIRE_RETURNS(S_OK, [] { RETURN_HR_IF_NULL(S_OK, pNull); return S_OK; });
     REQUIRE_RETURNS_MSG(S_OK, [] { RETURN_HR_IF_NULL_MSG(S_OK, pNull, "msg: %d", __LINE__); return S_OK; });
     REQUIRE_RETURNS_EXPECTED(S_OK, [] { RETURN_HR_IF_NULL_EXPECTED(S_OK, pNull); return S_OK; });
-    // REQUIRE_THROWS_OK_FAILFAST([] { THROW_HR_IF_NULL(S_OK, pNull); });
-    // REQUIRE_THROWS_OK_FAILFAST([] { THROW_HR_IF_NULL_MSG(S_OK, pNull, "msg: %d", __LINE__); });
-    REQUIRE_LOG_OK_FAILFAST([] { LOG_HR_IF_NULL(S_OK, pNull); });
-    REQUIRE_LOG_OK_FAILFAST([] { LOG_HR_IF_NULL_MSG(S_OK, pNull, "msg: %d", __LINE__); });
     REQUIRE_FAILFAST_UNSPECIFIED([] { FAIL_FAST_HR_IF_NULL(S_OK, pNull); });
     REQUIRE_FAILFAST_UNSPECIFIED([] { FAIL_FAST_HR_IF_NULL_MSG(S_OK, pNull, "msg: %d", __LINE__); });
     REQUIRE_RETURNS(E_FAIL, [] { RETURN_HR_IF_NULL(E_FAIL, pNull); return S_OK; });
@@ -654,13 +624,6 @@ TEST_CASE("WindowsInternalTests::ResultMacros", "[result_macros]")
     REQUIRE_FAILFAST(S_OK, [] { REQUIRE(pValid == FAIL_FAST_HR_IF_NULL(E_FAIL, MDEC(pValidRef()))); });
     REQUIRE_FAILFAST_MSG(S_OK, [] { REQUIRE(pValid == FAIL_FAST_HR_IF_NULL_MSG(E_FAIL, MDEC(pValidRef()), "msg: %d", __LINE__)); });
 
-    REQUIRE_RETURNS_OK_FAILFAST([] { ::SetLastError(0); RETURN_LAST_ERROR_IF(fTrue); return S_OK; });
-    REQUIRE_RETURNS_OK_FAILFAST([] { ::SetLastError(0); RETURN_LAST_ERROR_IF_MSG(fTrue, "msg: %d", __LINE__); return S_OK; });
-    REQUIRE_RETURNS_OK_FAILFAST([] { ::SetLastError(0); RETURN_LAST_ERROR_IF_EXPECTED(fTrue); return S_OK; });
-    // REQUIRE_THROWS_OK_FAILFAST([] { THROW_LAST_ERROR_IF(fTrue); });
-    // REQUIRE_THROWS_OK_FAILFAST([] { THROW_LAST_ERROR_IF_MSG(fTrue, "msg: %d", __LINE__); });
-    REQUIRE_LOG_OK_FAILFAST([] { ::SetLastError(0); LOG_LAST_ERROR_IF(fTrue); });
-    REQUIRE_LOG_OK_FAILFAST([] { ::SetLastError(0); LOG_LAST_ERROR_IF_MSG(fTrue, "msg: %d", __LINE__); });
     REQUIRE_FAILFAST_UNSPECIFIED([] { ::SetLastError(0); FAIL_FAST_LAST_ERROR_IF(fTrue); });
     REQUIRE_FAILFAST_UNSPECIFIED([] { ::SetLastError(0); FAIL_FAST_LAST_ERROR_IF_MSG(fTrue, "msg: %d", __LINE__); });
     REQUIRE_RETURNS(E_AD, [] { SetAD(); RETURN_LAST_ERROR_IF(fTrue); return S_OK; });
@@ -683,13 +646,6 @@ TEST_CASE("WindowsInternalTests::ResultMacros", "[result_macros]")
     REQUIRE_FAILFAST(S_OK, [] { REQUIRE(fFalse == FAIL_FAST_LAST_ERROR_IF(MDEC(fFalseRef()))); });
     REQUIRE_FAILFAST_MSG(S_OK, [] { REQUIRE(fFalse == FAIL_FAST_LAST_ERROR_IF_MSG(MDEC(fFalseRef()), "msg: %d", __LINE__)); });
 
-    REQUIRE_RETURNS_OK_FAILFAST([] { ::SetLastError(0); RETURN_LAST_ERROR_IF_NULL(pNull); return S_OK; });
-    REQUIRE_RETURNS_OK_FAILFAST([] { ::SetLastError(0); RETURN_LAST_ERROR_IF_NULL_MSG(pNull, "msg: %d", __LINE__); return S_OK; });
-    REQUIRE_RETURNS_OK_FAILFAST([] { ::SetLastError(0); RETURN_LAST_ERROR_IF_NULL_EXPECTED(pNull); return S_OK; });
-    // REQUIRE_THROWS_OK_FAILFAST([] { THROW_LAST_ERROR_IF_NULL(pNull); });
-    // REQUIRE_THROWS_OK_FAILFAST([] { THROW_LAST_ERROR_IF_NULL_MSG(pNull, "msg: %d", __LINE__); });
-    REQUIRE_LOG_OK_FAILFAST([] { ::SetLastError(0); LOG_LAST_ERROR_IF_NULL(pNull); });
-    REQUIRE_LOG_OK_FAILFAST([] { ::SetLastError(0); LOG_LAST_ERROR_IF_NULL_MSG(pNull, "msg: %d", __LINE__); });
     REQUIRE_FAILFAST_UNSPECIFIED([] { ::SetLastError(0); FAIL_FAST_LAST_ERROR_IF_NULL(pNull); });
     REQUIRE_FAILFAST_UNSPECIFIED([] { ::SetLastError(0); FAIL_FAST_LAST_ERROR_IF_NULL_MSG(pNull, "msg: %d", __LINE__); });
     REQUIRE_RETURNS(E_AD, [] { SetAD(); RETURN_LAST_ERROR_IF_NULL(pNull); return S_OK; });
@@ -757,15 +713,8 @@ TEST_CASE("WindowsInternalTests::ResultMacros", "[result_macros]")
     REQUIRE_THROWS_RESULT(E_FAIL, [] { try { THROW_IF_FAILED(hrFAIL); } CATCH_THROW_NORMALIZED(); });
     REQUIRE_THROWS_MSG(E_FAIL, [] { try { THROW_IF_FAILED(hrFAIL); } CATCH_THROW_NORMALIZED_MSG("msg: %d", __LINE__); });
 
-    REQUIRE_RETURNS_OK_FAILFAST([] { try { if (FAILED(hrFAIL)) { throw E_FAIL; } } CATCH_RETURN(); return S_OK; });
-    REQUIRE_RETURNS_OK_FAILFAST([] { try { if (FAILED(hrFAIL)) { throw E_FAIL; } } CATCH_RETURN_MSG("msg: %d", __LINE__); return S_OK; });
-    REQUIRE_RETURNS_OK_FAILFAST([] { try { if (FAILED(hrFAIL)) { throw E_FAIL; } } CATCH_RETURN_EXPECTED(); return S_OK; });
-    REQUIRE_LOG_OK_FAILFAST([] { try { if (FAILED(hrFAIL)) { throw E_FAIL; } } CATCH_LOG(); });
-    REQUIRE_LOG_OK_FAILFAST([] { try { if (FAILED(hrFAIL)) { throw E_FAIL; } } CATCH_LOG_MSG("msg: %d", __LINE__); });
     REQUIRE_FAILFAST_UNSPECIFIED([] { try { if (FAILED(hrFAIL)) { throw E_FAIL; } } CATCH_FAIL_FAST(); });
     REQUIRE_FAILFAST_UNSPECIFIED([] { try { if (FAILED(hrFAIL)) { throw E_FAIL; } } CATCH_FAIL_FAST_MSG("msg: %d", __LINE__); });
-    // REQUIRE_THROWS_OK_FAILFAST([] { try { if (FAILED(hrFAIL)) { throw E_FAIL; } } CATCH_THROW_NORMALIZED(); });
-    // REQUIRE_THROWS_OK_FAILFAST([] { try { if (FAILED(hrFAIL)) { throw E_FAIL; } } CATCH_THROW_NORMALIZED_MSG("msg: %d", __LINE__); });
 
     REQUIRE_THROWS_RESULT(E_AD, [] { THROW_EXCEPTION(MDEC(DerivedAccessDeniedException())); });
     REQUIRE_THROWS_MSG(E_AD, [] { THROW_EXCEPTION_MSG(MDEC(DerivedAccessDeniedException()), "msg: %d", __LINE__); });
@@ -776,9 +725,7 @@ TEST_CASE("WindowsInternalTests::ResultMacros", "[result_macros]")
     REQUIRE_RETURNS(S_OK, [] { return wil::ResultFromException([] { THROW_IF_FAILED(hrOK); }); });
     REQUIRE_RETURNS(E_FAIL, [] { return wil::ResultFromException([] { THROW_IF_FAILED(hrFAIL); }); });
     REQUIRE(E_AD == wil::ResultFromException([] { throw AlternateAccessDeniedException(); }));
-    REQUIRE_RETURNS_OK_FAILFAST([] { return wil::ResultFromException([] { throw E_FAIL; }); });
 
-    REQUIRE_LOG_OK_FAILFAST([] { try { throw E_FAIL; } catch (...) { wil::ResultFromCaughtException(); }});
     try { THROW_HR(E_FAIL); }
     catch (...) { REQUIRE(E_FAIL == wil::ResultFromCaughtException()); };
 #endif
@@ -1064,17 +1011,14 @@ TEST_CASE("WindowsInternalTests::UniqueHandle", "[resource][unique_any]")
         REQUIRE(spInvalidHandle.get() == INVALID_HANDLE_VALUE);
 
         // valid handle creation
-        witest::TestFolder dir;
-        REQUIRE(dir);
-
-        witest::TestFile file(dir.Path(), L"file1.txt");
-        REQUIRE(file);
+        wchar_t tempFileName[MAX_PATH];
+        REQUIRE_SUCCEEDED(witest::GetTempFileName(tempFileName));
 
         CREATEFILE2_EXTENDED_PARAMETERS params = { sizeof(params) };
         params.dwFileAttributes = FILE_ATTRIBUTE_TEMPORARY;
-        wil::unique_hfile spValidHandle(::CreateFile2(file.Path(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_DELETE, CREATE_ALWAYS, &params));
+        wil::unique_hfile spValidHandle(::CreateFile2(tempFileName, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_DELETE, CREATE_ALWAYS, &params));
 
-        ::DeleteFileW(file.Path());
+        ::DeleteFileW(tempFileName);
         REQUIRE(spValidHandle.get() != INVALID_HANDLE_VALUE);
         auto const handleValue = spValidHandle.get();
 
@@ -1124,14 +1068,14 @@ TEST_CASE("WindowsInternalTests::UniqueHandle", "[resource][unique_any]")
         REQUIRE(*spMoveHandle.addressof() == handleValue);
         REQUIRE(*(&spMoveHandle) == INVALID_HANDLE_VALUE);
 
-        witest::TestFile file2(dir.Path(), L"file2.txt");
-        REQUIRE(file2);
+        wchar_t tempFileName2[MAX_PATH];
+        REQUIRE_SUCCEEDED(witest::GetTempFileName(tempFileName2));
 
         CREATEFILE2_EXTENDED_PARAMETERS params2 = { sizeof(params2) };
         params2.dwFileAttributes = FILE_ATTRIBUTE_TEMPORARY;
-        *(&spMoveHandle) = ::CreateFile2(file2.Path(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_DELETE, CREATE_ALWAYS, &params2);
+        *(&spMoveHandle) = ::CreateFile2(tempFileName2, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_DELETE, CREATE_ALWAYS, &params2);
 
-        ::DeleteFileW(file2.Path());
+        ::DeleteFileW(tempFileName2);
         REQUIRE(spMoveHandle);
 
         // ensure that mistaken nullptr usage is not valid...
@@ -1222,7 +1166,6 @@ TEST_CASE("WindowsInternalTests::SharedHandle", "[resource][shared_any]")
     REQUIRE(spAssign.get() != ptr);
 
     // ref-count checks
-    REQUIRE(spAssign.unique());
     REQUIRE(spAssign.use_count() == 1);
 
     // bool operator
@@ -2099,11 +2042,9 @@ void SharedRaiiTests(lambda_t const &fnCreate)
     REQUIRE(var8);
     REQUIRE_FALSE(unique2);
 
-    // unique() and use_count()
-    REQUIRE(var8.unique());
+    // use_count()
     REQUIRE(var8.use_count() == 1);
     auto var9 = var8;
-    REQUIRE_FALSE(var8.unique());
     REQUIRE(var8.use_count() == 2);
 }
 
@@ -2179,7 +2120,7 @@ void AddressRaiiTests(lambda_t const &fnCreate)
 template <typename test_t, typename lambda_t>
 void BasicRaiiTests(lambda_t const &fnCreate)
 {
-    auto hInvalid = test_t::policy::invalid_value();
+    auto invalidHandle = test_t::policy::invalid_value();
 
     // no-constructor construction
     test_t var1;
@@ -2188,7 +2129,7 @@ void BasicRaiiTests(lambda_t const &fnCreate)
     // construct from a given resource
     test_t var2(fnCreate());    // r-value
     REQUIRE(var2);
-    test_t var3(hInvalid);      // l-value
+    test_t var3(invalidHandle);      // l-value
     REQUIRE_FALSE(var3);
 
     // r-value construct from the same type
@@ -2218,7 +2159,7 @@ void BasicRaiiTests(lambda_t const &fnCreate)
     REQUIRE_FALSE(var4);
     var4.reset(fnCreate());     // r-value
     REQUIRE(var4);
-    var4.reset(hInvalid);       // l-value
+    var4.reset(invalidHandle);       // l-value
     REQUIRE_FALSE(var4);
 }
 
@@ -3095,31 +3036,31 @@ TEST_CASE("WindowsInternalTests::HStringTests", "[resource][unique_any]")
 #endif
 }
 
+struct ThreadPoolWaitTestContext
+{
+    volatile LONG Counter = 0;
+    wil::unique_event_nothrow Event;
+};
+
+static void __stdcall ThreadPoolWaitTestCallback(
+    _Inout_ PTP_CALLBACK_INSTANCE /*instance*/,
+    _Inout_opt_ void* context,
+    _Inout_ PTP_WAIT wait,
+    _In_ TP_WAIT_RESULT /*waitResult*/)
+{
+    ThreadPoolWaitTestContext& myContext = *reinterpret_cast<ThreadPoolWaitTestContext*>(context);
+    SetThreadpoolWait(wait, myContext.Event.get(), nullptr);
+    ::InterlockedIncrement(&myContext.Counter);
+}
+
 template <typename WaitResourceT>
 void ThreadPoolWaitTestHelper(bool requireExactCallbackCount)
 {
-    struct Context
-    {
-        volatile LONG Counter = 0;
-        wil::unique_event_nothrow Event;
-    };
-
-    Context myContext;
+    ThreadPoolWaitTestContext myContext;
     REQUIRE_SUCCEEDED(myContext.Event.create());
 
-    auto callback = [] (
-        _Inout_ PTP_CALLBACK_INSTANCE /*instance*/,
-        _Inout_opt_ void* context,
-        _Inout_ PTP_WAIT wait,
-        _In_ TP_WAIT_RESULT /*waitResult*/)
-    {
-        Context& myContext = *reinterpret_cast<Context*>(context);
-        SetThreadpoolWait(wait, myContext.Event.get(), nullptr);
-        ::InterlockedIncrement(&myContext.Counter);
-    };
-
     WaitResourceT wait;
-    wait.reset(CreateThreadpoolWait(callback, &myContext, NULL));
+    wait.reset(CreateThreadpoolWait(ThreadPoolWaitTestCallback, &myContext, NULL));
     REQUIRE(wait);
 
     SetThreadpoolWait(wait.get(), myContext.Event.get(), nullptr);
@@ -3164,27 +3105,27 @@ TEST_CASE("WindowsInternalTests::ThreadPoolWaitTest", "[resource][unique_threadp
     ThreadPoolWaitTestHelper<wil::unique_threadpool_wait_nocancel>(true);
 }
 
+struct ThreadPoolWaitWorkContext
+{
+    volatile LONG Counter = 0;
+};
+
+static void __stdcall ThreadPoolWaitWorkCallback(
+    _Inout_ PTP_CALLBACK_INSTANCE /*instance*/,
+    _Inout_opt_ void* context,
+    _Inout_ PTP_WORK /*work*/)
+{
+    ThreadPoolWaitWorkContext& myContext = *reinterpret_cast<ThreadPoolWaitWorkContext*>(context);
+    ::InterlockedIncrement(&myContext.Counter);
+}
+
 template <typename WaitResourceT>
 void ThreadPoolWaitWorkHelper(bool requireExactCallbackCount)
 {
-    struct Context
-    {
-        volatile LONG Counter = 0;
-    };
-
-    Context myContext;
-
-    auto callback = [] (
-        _Inout_ PTP_CALLBACK_INSTANCE /*instance*/,
-        _Inout_opt_ void* context,
-        _Inout_ PTP_WORK /*work*/)
-    {
-        Context& myContext = *reinterpret_cast<Context*>(context);
-        ::InterlockedIncrement(&myContext.Counter);
-    };
+    ThreadPoolWaitWorkContext myContext;
 
     WaitResourceT work;
-    work.reset(CreateThreadpoolWork(callback, &myContext, NULL));
+    work.reset(CreateThreadpoolWork(ThreadPoolWaitWorkCallback, &myContext, NULL));
     REQUIRE(work);
 
     const int loopCount = 5;
@@ -3211,30 +3152,30 @@ TEST_CASE("WindowsInternalTests::ThreadPoolWorkTest", "[resource][unique_threadp
     ThreadPoolWaitWorkHelper<wil::unique_threadpool_work_nocancel>(true);
 }
 
+struct ThreadPoolTimerWorkContext
+{
+    volatile LONG Counter = 0;
+    wil::unique_event_nothrow Event;
+};
+
+static void __stdcall ThreadPoolTimerWorkCallback(
+    _Inout_ PTP_CALLBACK_INSTANCE /*instance*/,
+    _Inout_opt_ void* context,
+    _Inout_ PTP_TIMER /*timer*/)
+{
+    ThreadPoolTimerWorkContext& myContext = *reinterpret_cast<ThreadPoolTimerWorkContext*>(context);
+    myContext.Event.SetEvent();
+    ::InterlockedIncrement(&myContext.Counter);
+}
+
 template <typename TimerResourceT, typename DueTimeT, typename SetThreadpoolTimerT>
 void ThreadPoolTimerWorkHelper(SetThreadpoolTimerT const &setThreadpoolTimerFn, bool requireExactCallbackCount)
 {
-    struct Context
-    {
-        volatile LONG Counter = 0;
-        wil::unique_event_nothrow Event;
-    };
-
-    Context myContext;
+    ThreadPoolTimerWorkContext myContext;
     REQUIRE_SUCCEEDED(myContext.Event.create());
 
-    auto callback = [](
-        _Inout_ PTP_CALLBACK_INSTANCE /*instance*/,
-        _Inout_opt_ void* context,
-        _Inout_ PTP_TIMER /*timer*/)
-    {
-        Context& myContext = *reinterpret_cast<Context*>(context);
-        myContext.Event.SetEvent();
-        ::InterlockedIncrement(&myContext.Counter);
-    };
-
     TimerResourceT timer;
-    timer.reset(CreateThreadpoolTimer(callback, &myContext, nullptr));
+    timer.reset(CreateThreadpoolTimer(ThreadPoolTimerWorkCallback, &myContext, nullptr));
     REQUIRE(timer);
 
     const int loopCount = 5;
@@ -3292,6 +3233,27 @@ TEST_CASE("WindowsInternalTests::ThreadPoolTimerTest", "[resource][unique_thread
 }
 
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+static void __stdcall SlimEventTrollCallback(
+    _Inout_ PTP_CALLBACK_INSTANCE /*instance*/,
+    _Inout_opt_ void* context,
+    _Inout_ PTP_TIMER /*timer*/)
+{
+    auto event = reinterpret_cast<wil::slim_event*>(context);
+
+    // Wake up the thread without setting the event.
+    // Note: This relies on the fact that the 'wil::slim_event' class only has a single member variable.
+    WakeByAddressAll(event);
+}
+
+static void __stdcall SlimEventFriendlyCallback(
+    _Inout_ PTP_CALLBACK_INSTANCE /*instance*/,
+    _Inout_opt_ void* context,
+    _Inout_ PTP_TIMER /*timer*/)
+{
+    auto event = reinterpret_cast<wil::slim_event*>(context);
+    event->SetEvent();
+}
+
 TEST_CASE("WindowsInternalTests::SlimEventTests", "[resource][slim_event]")
 {
     {
@@ -3301,19 +3263,7 @@ TEST_CASE("WindowsInternalTests::SlimEventTests", "[resource][slim_event]")
         REQUIRE_FALSE(event.wait(/*timeout(ms)*/ 0));
         REQUIRE_FALSE(event.wait(/*timeout(ms)*/ 10));
 
-        auto trollCallback = [] (
-            _Inout_ PTP_CALLBACK_INSTANCE /*instance*/,
-            _Inout_opt_ void* context,
-            _Inout_ PTP_TIMER /*timer*/)
-        {
-            auto event = reinterpret_cast<wil::slim_event*>(context);
-
-            // Wake up the thread without setting the event.
-            // Note: This relies on the fact that the 'wil::slim_event' class only has a single member variable.
-            WakeByAddressAll(event);
-        };
-
-        wil::unique_threadpool_timer trollTimer(CreateThreadpoolTimer(trollCallback, &event, nullptr));
+        wil::unique_threadpool_timer trollTimer(CreateThreadpoolTimer(SlimEventTrollCallback, &event, nullptr));
         REQUIRE(trollTimer);
 
         FILETIME trollDueTime = wil::filetime::from_int64(0);
@@ -3322,16 +3272,7 @@ TEST_CASE("WindowsInternalTests::SlimEventTests", "[resource][slim_event]")
         // Ensure we timeout in spite of being constantly woken up unnecessarily.
         REQUIRE_FALSE(event.wait(/*timeout(ms)*/ 100));
 
-        auto friendlyCallback = [] (
-            _Inout_ PTP_CALLBACK_INSTANCE /*instance*/,
-            _Inout_opt_ void* context,
-            _Inout_ PTP_TIMER /*timer*/)
-        {
-            auto event = reinterpret_cast<wil::slim_event*>(context);
-            event->SetEvent();
-        };
-
-        wil::unique_threadpool_timer friendlyTimer(CreateThreadpoolTimer(friendlyCallback, &event, nullptr));
+        wil::unique_threadpool_timer friendlyTimer(CreateThreadpoolTimer(SlimEventFriendlyCallback, &event, nullptr));
         REQUIRE(friendlyTimer);
 
         FILETIME friendlyDueTime = wil::filetime::from_int64(UINT64(-100 * wil::filetime_duration::one_millisecond)); // 100ms (relative to now)
@@ -3365,71 +3306,60 @@ TEST_CASE("WindowsInternalTests::SlimEventTests", "[resource][slim_event]")
 }
 #endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 
+struct ConditionVariableCSCallbackContext
+{
+    wil::condition_variable event;
+    wil::critical_section lock;
+    auto acquire() { return lock.lock(); }
+};
+
+struct ConditionVariableSRWCallbackContext
+{
+    wil::condition_variable event;
+    wil::srwlock lock;
+    auto acquire() { return lock.lock_exclusive(); }
+};
+
+template <typename T>
+static void __stdcall ConditionVariableCallback(
+    _Inout_ PTP_CALLBACK_INSTANCE /*Instance*/,
+    _Inout_opt_ void* Context)
+{
+    auto callbackContext = reinterpret_cast<T*>(Context);
+
+    // Acquire the lock to ensure we don't notify the condition variable before the other thread has
+    // gone to sleep.
+    auto gate = callbackContext->acquire();
+
+    // Signal the condition variable.
+    callbackContext->event.notify_all();
+}
+
 // A quick sanity check of the 'wil::condition_variable' type.
 TEST_CASE("WindowsInternalTests::ConditionVariableTests", "[resource][condition_variable]")
 {
-    // Test 'wil::condition_variable' with 'wil::critical_section'.
+    SECTION("Test 'wil::condition_variable' with 'wil::critical_section'")
     {
-        struct CallbackContext
-        {
-            wil::condition_variable event;
-            wil::critical_section lock;
-        };
-
-        auto callback = [] (
-            _Inout_ PTP_CALLBACK_INSTANCE /*Instance*/,
-            _Inout_opt_ void* Context)
-        {
-            auto callbackContext = reinterpret_cast<CallbackContext*>(Context);
-
-            // Acquire the lock to ensure we don't notify the condition variable before the other thread has
-            // gone to sleep.
-            auto gate = callbackContext->lock.lock();
-
-            // Signal the condition variable.
-            callbackContext->event.notify_all();
-        };
-
-        CallbackContext callbackContext;
+        ConditionVariableCSCallbackContext callbackContext;
         auto gate = callbackContext.lock.lock();
 
         // Schedule the thread that will wake up this thread.
-        REQUIRE(TrySubmitThreadpoolCallback(callback, &callbackContext, nullptr));
+        REQUIRE(TrySubmitThreadpoolCallback(ConditionVariableCallback<ConditionVariableCSCallbackContext>, &callbackContext, nullptr));
 
         // Wait on the condition variable.
         REQUIRE(callbackContext.event.wait_for(gate, /*timeout(ms)*/ 500));
     }
 
-    // Test 'wil::condition_variable' with 'wil::srwlock'.
+    SECTION("Test 'wil::condition_variable' with 'wil::srwlock'")
     {
-        struct CallbackContext
-        {
-            wil::condition_variable event;
-            wil::srwlock lock;
-        };
-
-        auto callback = [] (
-            _Inout_ PTP_CALLBACK_INSTANCE /*instance*/,
-            _Inout_opt_ void* context)
-        {
-            auto callbackContext = reinterpret_cast<CallbackContext*>(context);
-
-            // Acquire the lock to ensure we don't notify the condition variable before the other thread has
-            // gone to sleep.
-            auto gate = callbackContext->lock.lock_exclusive();
-
-            // Signal the condition variable.
-            callbackContext->event.notify_all();
-        };
-
-        CallbackContext callbackContext;
+        ConditionVariableSRWCallbackContext callbackContext;
 
         // Test exclusive lock.
         {
             auto gate = callbackContext.lock.lock_exclusive();
 
             // Schedule the thread that will wake up this thread.
-            REQUIRE(TrySubmitThreadpoolCallback(callback, &callbackContext, nullptr));
+            REQUIRE(TrySubmitThreadpoolCallback(ConditionVariableCallback<ConditionVariableSRWCallbackContext>, &callbackContext, nullptr));
 
             // Wait on the condition variable.
             REQUIRE(callbackContext.event.wait_for(gate, /*timeout(ms)*/ 500));
@@ -3440,7 +3370,7 @@ TEST_CASE("WindowsInternalTests::ConditionVariableTests", "[resource][condition_
             auto gate = callbackContext.lock.lock_shared();
 
             // Schedule the thread that will wake up this thread.
-            REQUIRE(TrySubmitThreadpoolCallback(callback, &callbackContext, nullptr));
+            REQUIRE(TrySubmitThreadpoolCallback(ConditionVariableCallback<ConditionVariableSRWCallbackContext>, &callbackContext, nullptr));
 
             // Wait on the condition variable.
             REQUIRE(callbackContext.event.wait_for(gate, /*timeout(ms)*/ 500));
@@ -3514,3 +3444,5 @@ TEST_CASE("WindowsInternalTests::ShutdownAwareObjectAlignmentTests", "[result_ma
     VerifyAlignment<wil::shutdown_aware_object>();
     VerifyAlignment<wil::object_without_destructor_on_shutdown>();
 }
+
+#pragma warning(pop)

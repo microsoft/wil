@@ -5,6 +5,8 @@
 #include <wil/wistd_functional.h>
 #include <wrl/implements.h>
 
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
+
 // IMallocSpy requires you to implement all methods, but we often only want one or two...
 struct MallocSpy : Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>, IMallocSpy>
 {
@@ -139,3 +141,5 @@ Microsoft::WRL::ComPtr<MallocSpy> MakeSecureDeleterMallocSpy()
 
     return result;
 }
+
+#endif

@@ -1,11 +1,15 @@
 
-#include <shobjidl.h>
+#include <ocidl.h> // Bring in IObjectWithSite
+
 #include <wil/com.h>
 #include <wrl/implements.h>
 
 #include "common.h"
 
 using namespace Microsoft::WRL;
+
+// avoid including #include <shobjidl.h>, it fails to compile in noprivateapis
+class DECLSPEC_UUID("00021401-0000-0000-C000-000000000046") ShellLink;
 
 // Uncomment this line to do a more exhaustive test of the concepts covered by this file.  By
 // default we don't fully compile every combination of tests as this test can substantially impact
@@ -132,10 +136,9 @@ TEST_CASE("ComTests::Test_Assign", "[com][com_ptr]")
     IUnknownFake::Clear();
     IUnknownFake helper;
 
-    wil::com_ptr_nothrow<IUnknownFake> ptr(&helper);
-
     SECTION("Null pointer assignment")
     {
+        wil::com_ptr_nothrow<IUnknownFake> ptr(&helper);
         ptr = nullptr;
         REQUIRE(ptr.get() == nullptr);
         REQUIRE(IUnknownFake::GetRelease() == 1);
@@ -1359,7 +1362,7 @@ void TestSmartPointerQueryFluent(wistd::true_type, const Ptr& source)     // voi
 
 // "Test" fluent query functions for error-based types (by doing nothing)
 template <typename DestPtr, typename Ptr>
-void TestSmartPointerQueryFluent(wistd::false_type, const Ptr& source)     // error-code based return
+void TestSmartPointerQueryFluent(wistd::false_type, const Ptr& /*source*/)     // error-code based return
 {
     // error code based code cannot call the fluent error methods
 }
@@ -1445,7 +1448,7 @@ void TestSmartPointerQueryIidPpv(wistd::true_type, const Ptr& source)       // i
 
 // "Test" iid, ppv queries for types that support them for a class (unsupported same (interfaces yes, classes no)
 template <typename DestPtr, typename Ptr>
-void TestSmartPointerQueryIidPpv(wistd::false_type, const Ptr& source)      // class
+void TestSmartPointerQueryIidPpv(wistd::false_type, const Ptr& /*source*/)      // class
 {
     // we can't compile against iid, ppv with a class
 }
@@ -1544,15 +1547,15 @@ void TestSmartPointerQuery(const Ptr& source)
         if (source)
         {
             DestPtr dest;
-            REQUIRE(source.template try_copy_to(&dest));
-            REQUIRE_FALSE(source.template try_copy_to(&never));
+            REQUIRE(source.try_copy_to(&dest));
+            REQUIRE_FALSE(source.try_copy_to(&never));
             REQUIRE((dest && !never));
         }
         else
         {
             DestPtr dest;
-            REQUIRE_FALSE(source.template try_copy_to(&dest));
-            REQUIRE_FALSE(source.template try_copy_to(&never));
+            REQUIRE_FALSE(source.try_copy_to(&dest));
+            REQUIRE_FALSE(source.try_copy_to(&never));
             REQUIRE((!dest && !never));
         }
     }
@@ -1981,7 +1984,7 @@ void TestGlobalQueryWithFailedResolve(const Ptr& source)
 }
 
 template <typename TargetIFace, typename Ptr>
-void TestSmartPointerQueryFluentWithFailedResolve(wistd::false_type, const Ptr& source)
+void TestSmartPointerQueryFluentWithFailedResolve(wistd::false_type, const Ptr& /*source*/)
 {
 }
 
@@ -2145,6 +2148,7 @@ TEST_CASE("ComTests::Test_Weak", "[com][com_weak_ref]")
     REQUIRE_FALSE(witest::g_objectCount.Leaked());
 }
 
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 TEST_CASE("ComTests::VerifyCoCreate", "[com][CoCreateInstance]")
 {
     auto init = wil::CoInitializeEx_failfast();
@@ -2165,7 +2169,6 @@ TEST_CASE("ComTests::VerifyCoCreate", "[com][CoCreateInstance]")
     REQUIRE_FALSE(static_cast<bool>(wil::CoCreateInstanceNoThrow<ShellLink, IStream>().get()));
 }
 
-#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 TEST_CASE("ComTests::VerifyCoGetClassObject", "[com][CoGetClassObject]")
 {
     auto init = wil::CoInitializeEx_failfast();
@@ -2187,6 +2190,7 @@ TEST_CASE("ComTests::VerifyCoGetClassObject", "[com][CoGetClassObject]")
 }
 #endif
 
+#ifdef __IObjectWithSite_INTERFACE_DEFINED__
 TEST_CASE("ComTests::VerifyComSetSiteNullIsMoveOnly", "[com][com_set_site]")
 {
     wil::unique_set_site_null_call call1;
@@ -2205,9 +2209,9 @@ TEST_CASE("ComTests::VerifyComSetSite", "[com][com_set_site]")
     class ObjectWithSite WrlFinal : public RuntimeClass<RuntimeClassFlags<ClassicCom>, IObjectWithSite>
     {
     public:
-        STDMETHODIMP SetSite(IUnknown* value) noexcept override
+        STDMETHODIMP SetSite(IUnknown* val) noexcept override
         {
-            m_site = value;
+            m_site = val;
             return S_OK;
         }
 
@@ -2261,6 +2265,7 @@ TEST_CASE("ComTests::VerifyComSetSite", "[com][com_set_site]")
     REQUIRE_SUCCEEDED(objWithSite->GetSite(IID_PPV_ARGS(&site)));
     REQUIRE_FALSE(static_cast<bool>(site));
 }
+#endif
 
 class FakeStream : public IStream
 {

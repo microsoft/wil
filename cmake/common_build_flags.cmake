@@ -52,5 +52,5 @@ else()
 
     # TODO: This is working around a bug...
     # append_cxx_flag("/std:c++17")
-    # append_cxx_flag("/bigobj")
+    append_cxx_flag("/bigobj")
 endif()

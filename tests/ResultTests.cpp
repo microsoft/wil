@@ -94,6 +94,8 @@ TEST_CASE("ResultTests::ProcessLocalStorage", "[result]")
 }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
+#pragma warning(push)
+#pragma warning(disable: 4702) // Unreachable code
 TEST_CASE("ResultTests::ExceptionHandling", "[result]")
 {
     witest::TestFailureCache failures;
@@ -450,6 +452,7 @@ void ExceptionHandlingCompilationTest()
     {
     });
 }
+#pragma warning(pop)
 #endif
 
 TEST_CASE("ResultTests::ErrorMacros", "[result]")
@@ -551,7 +554,7 @@ TEST_CASE("ResultTests::AutomaticOriginationOnFailure", "[result]")
 #endif // WIL_ENABLE_EXCEPTIONS
 
     // Returning an error code should originate.
-    constexpr HRESULT returnedErrorCode = REGDB_E_CLASSNOTREG;
+    static constexpr HRESULT returnedErrorCode = REGDB_E_CLASSNOTREG;
     []()
     {
         RETURN_HR(returnedErrorCode);
@@ -560,7 +563,7 @@ TEST_CASE("ResultTests::AutomaticOriginationOnFailure", "[result]")
     validateOriginatedError(returnedErrorCode);
 
     // _EXPECTED errors should NOT originate.
-    constexpr HRESULT expectedErrorCode = E_ACCESSDENIED;
+    static constexpr HRESULT expectedErrorCode = E_ACCESSDENIED;
     []()
     {
         RETURN_IF_FAILED_EXPECTED(expectedErrorCode);

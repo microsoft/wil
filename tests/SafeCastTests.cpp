@@ -548,6 +548,7 @@ TEST_CASE("SafeCastTests::SafeCastNoThrowFail", "[safecast]")
     }
 }
 
+#ifdef WIL_ENABLE_EXCEPTIONS
 TEST_CASE("SafeCastTests::SafeCastExpectFailFast", "[safecast]")
 {
     // Template for safe_cast fail fast tests, fill out more instances needed
@@ -560,12 +561,11 @@ TEST_CASE("SafeCastTests::SafeCastExpectFailFast", "[safecast]")
         REQUIRE(failures.size() == 1);
     }
 
-#ifdef WIL_ENABLE_EXCEPTIONS
     failures.clear();
     {
         size_t st = SIZE_T_MAX;
         REQUIRE_THROWS(wil::safe_cast<short>(st));
         REQUIRE(failures.size() == 1);
     }
-#endif
 }
+#endif

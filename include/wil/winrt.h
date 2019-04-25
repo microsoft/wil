@@ -1254,6 +1254,7 @@ namespace details
         return wistd::forward<TFunc>(func)(wistd::forward<Args>(args)...);
     }
 
+#ifdef WIL_ENABLE_EXCEPTIONS
     template <typename TResult, typename TFunc, typename ...Args,
         typename wistd::enable_if<wistd::is_same<void, TResult>::value, int>::type = 0>
         HRESULT CallAndHandleErrorsWithReturnType(TFunc&& func, Args&&... args)
@@ -1265,6 +1266,7 @@ namespace details
         CATCH_RETURN();
         return S_OK;
     }
+#endif
 
     template <typename TFunc, typename ...Args>
     HRESULT CallAndHandleErrors(TFunc&& func, Args&&... args)
