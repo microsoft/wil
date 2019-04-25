@@ -1,6 +1,4 @@
 
-#include "WrlPermissiveMinus.h"
-
 #include <time.h>
 #include <wil/winrt.h>
 
