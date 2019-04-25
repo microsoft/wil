@@ -1640,16 +1640,6 @@ namespace wil
     // Overloads in this file support any string that is implicitly convertible to a PCWSTR, HSTRING, and any unique_any_t
     // that points to any other supported type (this covers unique_hstring, unique_cotaskmem_string, and similar).
     // An overload for std::wstring is available in stl.h.
-    /// @cond
-    namespace details
-    {
-        // Overloads defined after a function's use are not considered for overload resolution. The solution to this
-        // problem is template specialization
-        template <typename T>
-        struct str_raw_ptr_t;
-    }
-    /// @endcond
-
     inline PCWSTR str_raw_ptr(PCWSTR str)
     {
         return str;
@@ -1659,6 +1649,16 @@ namespace wil
     {
         return str;
     }
+
+    /// @cond
+    namespace details
+    {
+        // Overloads defined after a function's use are not considered for overload resolution. The solution to this
+        // problem is template specialization
+        template <typename T>
+        struct str_raw_ptr_t;
+    }
+    /// @endcond
 
     template <typename T>
     PCWSTR str_raw_ptr(const T& str)
