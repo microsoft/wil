@@ -10,6 +10,7 @@ add_executable(witest.cpplatest)
 
 target_sources(witest.cpplatest PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/../main.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../CppWinRTTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../CommonTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../ComTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../FileSystemTests.cpp

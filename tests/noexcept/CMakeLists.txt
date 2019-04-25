@@ -8,7 +8,8 @@ add_executable(witest.noexcept)
 replace_cxx_flag("/EHsc" "")
 add_definitions(-DCATCH_CONFIG_DISABLE_EXCEPTIONS)
 
-# TODO???
+# Catch2 has a no exceptions mode (configured above), however still includes STL headers which contain try...catch
+# statements... Thankfully MSVC just gives us a warning that we can disable
 append_cxx_flag("/wd4530")
 
 target_sources(witest.noexcept PUBLIC
