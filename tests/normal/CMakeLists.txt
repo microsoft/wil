@@ -1,6 +1,4 @@
 
-include(${CMAKE_SOURCE_DIR}/cmake/common_build_flags.cmake)
-
 project(witest)
 add_executable(witest)
 

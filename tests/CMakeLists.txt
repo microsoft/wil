@@ -1,6 +1,12 @@
 
+include(${CMAKE_SOURCE_DIR}/cmake/common_build_flags.cmake)
+
 # All projects need to reference the WIL headers
 include_directories(${CMAKE_SOURCE_DIR}/include)
+
+# The build pipelines have limitations that local development environments do not, so turn a few knobs
+replace_cxx_flag("/GR" "/GR-") # Disable RTTI
+add_definitions(-DCATCH_CONFIG_FAST_COMPILE)
 
 add_subdirectory(app)
 add_subdirectory(cpplatest)

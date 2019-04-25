@@ -1,6 +1,4 @@
 
-include(${CMAKE_SOURCE_DIR}/cmake/common_build_flags.cmake)
-
 # Compilers often don't use the latest C++ standard as the default. Periodically update this value (possibly conditioned
 # on compiler) as new standards are ratified/support is available
 set(CMAKE_CXX_STANDARD 17)

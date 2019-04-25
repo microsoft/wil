@@ -26,7 +26,7 @@ endmacro()
 replace_cxx_flag("/W[0-4]" "/W4")
 append_cxx_flag("/WX")
 
-# We want to be as conformant as possible, so tell MSVC to not be permissive
+# We want to be as conformant as possible, so tell MSVC to not be permissive (note that this has no effect on clang-cl)
 append_cxx_flag("/permissive-")
 
 # wistd::function has padding due to alignment. This is expected
@@ -50,7 +50,5 @@ else()
     # CRT headers are not yet /experimental:preprocessor clean, so work around the known issues
     # append_cxx_flag("/Wv:18")
 
-    # TODO: This is working around a bug...
-    # append_cxx_flag("/std:c++17")
     append_cxx_flag("/bigobj")
 endif()
