@@ -10,7 +10,7 @@
     <description>The Windows Implementation Libraries (wil) were created to improve productivity and solve problems commonly seen by Windows developers.</description>
     <tags>windows utility wil native</tags>
     <copyright>© Microsoft Corporation. All rights reserved.</copyright>
-    <licenseUrl>https://github.com/Microsoft/wil/blob/master/LICENSE</licenseUrl>
+    <license type="file">LICENSE</license>
     <projectUrl>https://github.com/Microsoft/wil</projectUrl>
   </metadata>
   <files>
