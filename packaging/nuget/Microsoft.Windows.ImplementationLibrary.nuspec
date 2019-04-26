@@ -5,7 +5,6 @@
     <version>0.0.0</version>
     <title>Windows Implementation Library</title>
     <authors>Microsoft</authors>
-    <owners>Microsoft</owners>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>The Windows Implementation Libraries (wil) were created to improve productivity and solve problems commonly seen by Windows developers.</description>
     <tags>windows utility wil native</tags>
