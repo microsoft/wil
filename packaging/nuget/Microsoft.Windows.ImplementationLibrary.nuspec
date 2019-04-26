@@ -17,5 +17,6 @@
     <file src="..\..\LICENSE"/>
     <file src="..\..\ThirdPartyNotices.txt"/>
     <file src="..\..\include\**" target="include\" />
+    <file src="Microsoft.Windows.ImplementationLibrary.targets" target="build\native\" />
   </files>
 </package>
