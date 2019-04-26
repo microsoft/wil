@@ -49,9 +49,13 @@ if not exist %BUILD_DIR% ( goto :eof )
 pushd %BUILD_DIR%
 echo Running tests from %CD%
 call :execute_test app witest.app.exe
+if %ERRORLEVEL% NEQ 0 ( popd && goto :eof )
 call :execute_test cpplatest witest.cpplatest.exe
+if %ERRORLEVEL% NEQ 0 ( popd && goto :eof )
 call :execute_test noexcept witest.noexcept.exe
+if %ERRORLEVEL% NEQ 0 ( popd && goto :eof )
 call :execute_test normal witest.exe
+if %ERRORLEVEL% NEQ 0 ( popd && goto :eof )
 popd
 
 goto :eof
