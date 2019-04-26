@@ -80,15 +80,15 @@ TEST_CASE("TokenHelpersTests::VerifyGetTokenInformation", "[token_helpers]")
 }
 #endif
 
-TEST_CASE("TokenHelpersTests::VerifyLinkedToken", "[token_helpers]")
-{
-    wil::unique_token_linked_token theToken;
-    REQUIRE_SUCCEEDED(wil::get_token_information_nothrow(theToken, nullptr));
+// TEST_CASE("TokenHelpersTests::VerifyLinkedToken", "[token_helpers]")
+// {
+//     wil::unique_token_linked_token theToken;
+//     REQUIRE_SUCCEEDED(wil::get_token_information_nothrow(theToken, nullptr));
 
-#ifdef WIL_ENABLE_EXCEPTIONS
-    REQUIRE_NOTHROW(wil::get_linked_token_information());
-#endif
-}
+// #ifdef WIL_ENABLE_EXCEPTIONS
+//     REQUIRE_NOTHROW(wil::get_linked_token_information());
+// #endif
+// }
 
 bool IsImpersonating()
 {
