@@ -24,18 +24,18 @@ goto :init
     set FAST_BUILD=0
 
 :parse
-    if "%~1"=="" goto :execute
+    if /I "%~1"=="" goto :execute
 
-    if "%~1"=="--help" call :usage & goto :eof
+    if /I "%~1"=="--help" call :usage & goto :eof
 
     set COMPILER_SET=0
-    if "%~1"=="-c" set COMPILER_SET=1
-    if "%~1"=="--compiler" set COMPILER_SET=1
+    if /I "%~1"=="-c" set COMPILER_SET=1
+    if /I "%~1"=="--compiler" set COMPILER_SET=1
     if %COMPILER_SET%==1 (
         if "%COMPILER%" NEQ "" echo ERROR: Compiler already specified & exit /B 1
 
-        if "%~2"=="clang" set COMPILER=clang
-        if "%~2"=="msvc" set COMPILER=msvc
+        if /I "%~2"=="clang" set COMPILER=clang
+        if /I "%~2"=="msvc" set COMPILER=msvc
         if "!COMPILER!"=="" echo ERROR: Unrecognized/missing compiler %~2 & exit /B 1
 
         shift
@@ -44,13 +44,13 @@ goto :init
     )
 
     set GENERATOR_SET=0
-    if "%~1"=="-g" set GENERATOR_SET=1
-    if "%~1"=="--generator" set GENERATOR_SET=1
+    if /I "%~1"=="-g" set GENERATOR_SET=1
+    if /I "%~1"=="--generator" set GENERATOR_SET=1
     if %GENERATOR_SET%==1 (
         if "%GENERATOR%" NEQ "" echo ERROR: Generator already specified & exit /B 1
 
-        if "%~2"=="ninja" set GENERATOR=ninja
-        if "%~2"=="msbuild" set GENERATOR=msbuild
+        if /I "%~2"=="ninja" set GENERATOR=ninja
+        if /I "%~2"=="msbuild" set GENERATOR=msbuild
         if "!GENERATOR!"=="" echo ERROR: Unrecognized/missing generator %~2 & exit /B 1
 
         shift
@@ -59,15 +59,15 @@ goto :init
     )
 
     set BUILD_TYPE_SET=0
-    if "%~1"=="-b" set BUILD_TYPE_SET=1
-    if "%~1"=="--build-type" set BUILD_TYPE_SET=1
+    if /I "%~1"=="-b" set BUILD_TYPE_SET=1
+    if /I "%~1"=="--build-type" set BUILD_TYPE_SET=1
     if %BUILD_TYPE_SET%==1 (
         if "%BUILD_TYPE%" NEQ "" echo ERROR: Build type already specified & exit /B 1
 
-        if "%~2"=="debug" set BUILD_TYPE=debug
-        if "%~2"=="release" set BUILD_TYPE=release
-        if "%~2"=="relwithdebinfo" set BUILD_TYPE=relwithdebinfo
-        if "%~2"=="minsizerel" set BUILD_TYPE=minsizerel
+        if /I "%~2"=="debug" set BUILD_TYPE=debug
+        if /I "%~2"=="release" set BUILD_TYPE=release
+        if /I "%~2"=="relwithdebinfo" set BUILD_TYPE=relwithdebinfo
+        if /I "%~2"=="minsizerel" set BUILD_TYPE=minsizerel
         if "!BUILD_TYPE!"=="" echo ERROR: Unrecognized/missing build type %~2 & exit /B 1
 
         shift
@@ -76,11 +76,11 @@ goto :init
     )
 
     set VERSION_SET=0
-    if "%~1"=="-v" set VERSION_SET=1
-    if "%~1"=="--version" set VERSION_SET=1
+    if /I "%~1"=="-v" set VERSION_SET=1
+    if /I "%~1"=="--version" set VERSION_SET=1
     if %VERSION_SET%==1 (
         if "%VERSION%" NEQ "" echo ERROR: Version alread specified & exit /B 1
-        if "%~2"=="" echo ERROR: Version string missing & exit /B 1
+        if /I "%~2"=="" echo ERROR: Version string missing & exit /B 1
 
         set VERSION=%~2
 
@@ -89,7 +89,7 @@ goto :init
         goto :parse
     )
 
-    if "%~1"=="--fast" (
+    if /I "%~1"=="--fast" (
         if %FAST_BUILD% NEQ 0 echo ERROR: Fast build already specified
         set FAST_BUILD=1
         set CMAKE_ARGS=%CMAKE_ARGS% -DFAST_BUILD=ON
