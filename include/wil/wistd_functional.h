@@ -507,13 +507,13 @@ namespace wistd     // ("Windows Implementation" std)
     template <class _Rp, class... _ArgTypes>
     inline __WI_LIBCPP_INLINE_VISIBILITY
     void
-    swap(function<_Rp(_ArgTypes...)>& __x, function<_Rp(_ArgTypes...)>& __y) WI_NOEXCEPT
+    swap(function<_Rp(_ArgTypes...)>& __x, function<_Rp(_ArgTypes...)>& __y)
     {return __x.swap(__y);}
 
     template <class _Rp, class... _ArgTypes>
     inline __WI_LIBCPP_INLINE_VISIBILITY
     void
-    swap_wil(function<_Rp(_ArgTypes...)>& __x, function<_Rp(_ArgTypes...)>& __y) WI_NOEXCEPT
+    swap_wil(function<_Rp(_ArgTypes...)>& __x, function<_Rp(_ArgTypes...)>& __y)
     {return __x.swap(__y);}
 
 #else // __WI_LIBCPP_CXX03_LANG
