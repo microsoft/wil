@@ -10,7 +10,7 @@ file(DOWNLOAD https://dist.nuget.org/win-x86-commandline/latest/nuget.exe ${nuge
 file(GLOB_RECURSE wil_headers ${CMAKE_SOURCE_DIR}/include/*.h)
 
 add_custom_command(OUTPUT ${wil_nupkg}
-    COMMAND ${nuget_exe} pack ${CMAKE_CURRENT_SOURCE_DIR}/Microsoft.Windows.ImplementationLibrary.nuspec -OutputDirectory ${nupkg_dir} -NonInteractive
+    COMMAND ${nuget_exe} pack ${CMAKE_CURRENT_SOURCE_DIR}/Microsoft.Windows.ImplementationLibrary.nuspec -OutputDirectory ${nupkg_dir} -Version ${WIL_BUILD_VERSION} -NonInteractive
     DEPENDS
         ${CMAKE_CURRENT_SOURCE_DIR}/Microsoft.Windows.ImplementationLibrary.nuspec
         ${CMAKE_CURRENT_SOURCE_DIR}/Microsoft.Windows.ImplementationLibrary.targets

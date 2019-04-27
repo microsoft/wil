@@ -81,7 +81,7 @@ TEST_CASE("TokenHelpersTests::VerifyGetTokenInformation", "[token_helpers]")
 #endif
 
 // This fails with 'ERROR_NO_SUCH_LOGON_SESSION' on the CI machines, so disable
-#ifndef WIL_CI_BUILD
+#ifndef WIL_FAST_BUILD
 TEST_CASE("TokenHelpersTests::VerifyLinkedToken", "[token_helpers]")
 {
     wil::unique_token_linked_token theToken;

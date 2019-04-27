@@ -8,9 +8,9 @@ include_directories(${CMAKE_SOURCE_DIR}/include)
 include_directories(BEFORE SYSTEM ./workarounds/wrl)
 
 # The build pipelines have limitations that local development environments do not, so turn a few knobs
-if (${WIL_CI_BUILD})
+if (${FAST_BUILD})
     replace_cxx_flag("/GR" "/GR-") # Disables RTTI
-    add_definitions(-DCATCH_CONFIG_FAST_COMPILE -DWIL_CI_BUILD)
+    add_definitions(-DCATCH_CONFIG_FAST_COMPILE -DWIL_FAST_BUILD)
 endif()
 
 add_subdirectory(app)
