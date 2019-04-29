@@ -18,4 +18,4 @@ add_custom_command(OUTPUT ${wil_nupkg}
         ${CMAKE_SOURCE_DIR}/LICENSE
         ${CMAKE_SOURCE_DIR}/ThirdPartyNotices.txt)
 
-add_custom_target(make_wil_nupkg ALL DEPENDS ${wil_nupkg})
+add_custom_target(make_wil_nupkg DEPENDS ${wil_nupkg})
