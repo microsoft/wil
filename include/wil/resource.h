@@ -1645,27 +1645,6 @@ namespace wil
         return str;
     }
 
-    inline PCWSTR str_raw_ptr(PWSTR str)
-    {
-        return str;
-    }
-
-    /// @cond
-    namespace details
-    {
-        // Overloads defined after a function's use are not considered for overload resolution. The solution to this
-        // problem is template specialization
-        template <typename T>
-        struct str_raw_ptr_t;
-    }
-    /// @endcond
-
-    template <typename T>
-    PCWSTR str_raw_ptr(const T& str)
-    {
-        return details::str_raw_ptr_t<wistd::remove_cv_t<T>>::get(str);
-    }
-
     template <typename T>
     PCWSTR str_raw_ptr(const unique_any_t<T>& ua)
     {
@@ -4417,16 +4396,9 @@ namespace wil
 
     // str_raw_ptr is an overloaded function that retrieves a const pointer to the first character in a string's buffer.
     // This is the overload for HSTRING.  Other overloads available above.
-    namespace details
+    inline PCWSTR str_raw_ptr(HSTRING str)
     {
-        template <>
-        struct str_raw_ptr_t<HSTRING>
-        {
-            static PCWSTR get(HSTRING str)
-            {
-                return WindowsGetStringRawBuffer(str, nullptr);
-            }
-        };
+        return WindowsGetStringRawBuffer(str, nullptr);
     }
 
 #endif // __WIL__WINSTRING_H_

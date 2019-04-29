@@ -107,19 +107,15 @@ namespace wil
         private:
             std::wstring m_value;
         };
-
-        // str_raw_ptr is an overloaded function that retrieves a const pointer to the first character in a string's buffer.
-        // This is the specialization for std::wstring.  Other overloads available in resource.h.
-        template <>
-        struct str_raw_ptr_t<std::wstring>
-        {
-            static PCWSTR get(const std::wstring& str)
-            {
-                return str.c_str();
-            }
-        };
     }
     /// @endcond
+
+    // str_raw_ptr is an overloaded function that retrieves a const pointer to the first character in a string's buffer.
+    // This is the overload for std::wstring.  Other overloads available in resource.h.
+    inline PCWSTR str_raw_ptr(const std::wstring& str)
+    {
+        return str.c_str();
+    }
 
 } // namespace wil
 
