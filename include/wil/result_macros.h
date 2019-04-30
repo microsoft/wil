@@ -1,4 +1,13 @@
-
+//*********************************************************
+//
+//    Copyright (c) Microsoft. All rights reserved.
+//    This code is licensed under the MIT License.
+//    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+//    ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+//    TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+//    PARTICULAR PURPOSE AND NONINFRINGEMENT.
+//
+//*********************************************************
 #ifndef __WIL_RESULTMACROS_INCLUDED
 #define __WIL_RESULTMACROS_INCLUDED
 
@@ -90,6 +99,15 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "1")
 #endif
 #else
 WI_ODR_PRAGMA("WIL_FreeMemory", "0")
+#endif
+
+// It would appear as though the C++17 "noexcept is part of the type system" update in MSVC has "infected" the behavior
+// when compiling with C++14 (the default...), however the updated behavior for decltype understanding noexcept is _not_
+// present... So, work around it
+#if __WI_LIBCPP_STD_VER >= 17
+#define WI_PFN_NOEXCEPT WI_NOEXCEPT
+#else
+#define WI_PFN_NOEXCEPT
 #endif
 /// @endcond
 
@@ -544,23 +562,23 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 #endif
 // end-of-repeated fail-fast handling macros
 // Helpers for return macros
-#define __RETURN_HR_MSG(hr, str, fmt, ...)                   do { HRESULT __hr = (hr); if (FAILED(__hr)) { __R_FN(Return_HrMsg)(__R_INFO(str) __hr, fmt, __VA_ARGS__); } return __hr; } while (0, 0)
-#define __RETURN_HR_MSG_FAIL(hr, str, fmt, ...)              do { HRESULT __hr = (hr); __R_FN(Return_HrMsg)(__R_INFO(str) __hr, fmt, __VA_ARGS__); return __hr; } while (0, 0)
-#define __RETURN_WIN32_MSG(err, str, fmt, ...)               do { DWORD __err = (err); if (FAILED_WIN32(__err)) { return __R_FN(Return_Win32Msg)(__R_INFO(str) __err, fmt, __VA_ARGS__); } return S_OK; } while (0, 0)
-#define __RETURN_WIN32_MSG_FAIL(err, str, fmt, ...)          do { DWORD __err = (err); return __R_FN(Return_Win32Msg)(__R_INFO(str) __err, fmt, __VA_ARGS__); } while (0, 0)
+#define __RETURN_HR_MSG(hr, str, fmt, ...)                   do { HRESULT __hr = (hr); if (FAILED(__hr)) { __R_FN(Return_HrMsg)(__R_INFO(str) __hr, fmt, __VA_ARGS__); } return __hr; } while ((void)0, 0)
+#define __RETURN_HR_MSG_FAIL(hr, str, fmt, ...)              do { HRESULT __hr = (hr); __R_FN(Return_HrMsg)(__R_INFO(str) __hr, fmt, __VA_ARGS__); return __hr; } while ((void)0, 0)
+#define __RETURN_WIN32_MSG(err, str, fmt, ...)               do { DWORD __err = (err); if (FAILED_WIN32(__err)) { return __R_FN(Return_Win32Msg)(__R_INFO(str) __err, fmt, __VA_ARGS__); } return S_OK; } while ((void)0, 0)
+#define __RETURN_WIN32_MSG_FAIL(err, str, fmt, ...)          do { DWORD __err = (err); return __R_FN(Return_Win32Msg)(__R_INFO(str) __err, fmt, __VA_ARGS__); } while ((void)0, 0)
 #define __RETURN_GLE_MSG_FAIL(str, fmt, ...)                 return __R_FN(Return_GetLastErrorMsg)(__R_INFO(str) fmt, __VA_ARGS__)
-#define __RETURN_NTSTATUS_MSG(status, str, fmt, ...)         do { NTSTATUS __status = (status); if(FAILED_NTSTATUS(__status)) { return __R_FN(Return_NtStatusMsg)(__R_INFO(str) __status, fmt, __VA_ARGS__); } return S_OK; } while (0, 0)
-#define __RETURN_NTSTATUS_MSG_FAIL(status, str, fmt, ...)    do { NTSTATUS __status = (status); return __R_FN(Return_NtStatusMsg)(__R_INFO(str) __status, fmt, __VA_ARGS__); } while (0, 0)
-#define __RETURN_HR(hr, str)                                 do { HRESULT __hr = (hr); if (FAILED(__hr)) { __R_FN(Return_Hr)(__R_INFO(str) __hr); } return __hr; } while (0, 0)
-#define __RETURN_HR_NOFILE(hr, str)                          do { HRESULT __hr = (hr); if (FAILED(__hr)) { __R_FN(Return_Hr)(__R_INFO_NOFILE(str) __hr); } return __hr; } while (0, 0)
-#define __RETURN_HR_FAIL(hr, str)                            do { HRESULT __hr = (hr); __R_FN(Return_Hr)(__R_INFO(str) __hr); return __hr; } while (0, 0)
-#define __RETURN_HR_FAIL_NOFILE(hr, str)                     do { HRESULT __hr = (hr); __R_FN(Return_Hr)(__R_INFO_NOFILE(str) __hr); return __hr; } while (0, 0)
-#define __RETURN_WIN32(err, str)                             do { DWORD __err = (err); if (FAILED_WIN32(__err)) { return __R_FN(Return_Win32)(__R_INFO(str) __err); } return S_OK; } while (0, 0)
-#define __RETURN_WIN32_FAIL(err, str)                        do { DWORD __err = (err); return __R_FN(Return_Win32)(__R_INFO(str) __err); } while (0, 0)
+#define __RETURN_NTSTATUS_MSG(status, str, fmt, ...)         do { NTSTATUS __status = (status); if(FAILED_NTSTATUS(__status)) { return __R_FN(Return_NtStatusMsg)(__R_INFO(str) __status, fmt, __VA_ARGS__); } return S_OK; } while ((void)0, 0)
+#define __RETURN_NTSTATUS_MSG_FAIL(status, str, fmt, ...)    do { NTSTATUS __status = (status); return __R_FN(Return_NtStatusMsg)(__R_INFO(str) __status, fmt, __VA_ARGS__); } while ((void)0, 0)
+#define __RETURN_HR(hr, str)                                 do { HRESULT __hr = (hr); if (FAILED(__hr)) { __R_FN(Return_Hr)(__R_INFO(str) __hr); } return __hr; } while ((void)0, 0)
+#define __RETURN_HR_NOFILE(hr, str)                          do { HRESULT __hr = (hr); if (FAILED(__hr)) { __R_FN(Return_Hr)(__R_INFO_NOFILE(str) __hr); } return __hr; } while ((void)0, 0)
+#define __RETURN_HR_FAIL(hr, str)                            do { HRESULT __hr = (hr); __R_FN(Return_Hr)(__R_INFO(str) __hr); return __hr; } while ((void)0, 0)
+#define __RETURN_HR_FAIL_NOFILE(hr, str)                     do { HRESULT __hr = (hr); __R_FN(Return_Hr)(__R_INFO_NOFILE(str) __hr); return __hr; } while ((void)0, 0)
+#define __RETURN_WIN32(err, str)                             do { DWORD __err = (err); if (FAILED_WIN32(__err)) { return __R_FN(Return_Win32)(__R_INFO(str) __err); } return S_OK; } while ((void)0, 0)
+#define __RETURN_WIN32_FAIL(err, str)                        do { DWORD __err = (err); return __R_FN(Return_Win32)(__R_INFO(str) __err); } while ((void)0, 0)
 #define __RETURN_GLE_FAIL(str)                               return __R_FN(Return_GetLastError)(__R_INFO_ONLY(str))
 #define __RETURN_GLE_FAIL_NOFILE(str)                        return __R_FN(Return_GetLastError)(__R_INFO_NOFILE_ONLY(str))
-#define __RETURN_NTSTATUS(status, str)                       do { NTSTATUS __status = (status); if(FAILED_NTSTATUS(__status)) { return __R_FN(Return_NtStatus)(__R_INFO(str) __status); } return S_OK; } while (0, 0)
-#define __RETURN_NTSTATUS_FAIL(status, str)                  do { NTSTATUS __status = (status); return __R_FN(Return_NtStatus)(__R_INFO(str) __status); } while (0, 0)
+#define __RETURN_NTSTATUS(status, str)                       do { NTSTATUS __status = (status); if(FAILED_NTSTATUS(__status)) { return __R_FN(Return_NtStatus)(__R_INFO(str) __status); } return S_OK; } while ((void)0, 0)
+#define __RETURN_NTSTATUS_FAIL(status, str)                  do { NTSTATUS __status = (status); return __R_FN(Return_NtStatus)(__R_INFO(str) __status); } while ((void)0, 0)
 /// @endcond
 
 //*****************************************************************************
@@ -574,15 +592,15 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 #define RETURN_NTSTATUS(status)                                 __RETURN_NTSTATUS(status, #status)
 
 // Conditionally returns failures (HRESULT) - always logs failures
-#define RETURN_IF_FAILED(hr)                                    do { HRESULT __hrRet = wil::verify_hresult(hr); if (FAILED(__hrRet)) { __RETURN_HR_FAIL(__hrRet, #hr); }} while (0, 0)
-#define RETURN_IF_WIN32_BOOL_FALSE(win32BOOL)                   do { BOOL __boolRet = wil::verify_BOOL(win32BOOL); if (!__boolRet) { __RETURN_GLE_FAIL(#win32BOOL); }} while (0, 0)
-#define RETURN_IF_WIN32_ERROR(win32err)                         do { DWORD __errRet = (win32err); if (FAILED_WIN32(__errRet)) { __RETURN_WIN32_FAIL(__errRet, #win32err); }} while (0, 0)
-#define RETURN_IF_NULL_ALLOC(ptr)                               do { if ((ptr) == nullptr) { __RETURN_HR_FAIL(E_OUTOFMEMORY, #ptr); }} while (0, 0)
-#define RETURN_HR_IF(hr, condition)                             do { if (wil::verify_bool(condition)) { __RETURN_HR(wil::verify_hresult(hr), #condition); }} while (0, 0)
-#define RETURN_HR_IF_NULL(hr, ptr)                              do { if ((ptr) == nullptr) { __RETURN_HR(wil::verify_hresult(hr), #ptr); }} while (0, 0)
-#define RETURN_LAST_ERROR_IF(condition)                         do { if (wil::verify_bool(condition)) { __RETURN_GLE_FAIL(#condition); }} while (0, 0)
-#define RETURN_LAST_ERROR_IF_NULL(ptr)                          do { if ((ptr) == nullptr) { __RETURN_GLE_FAIL(#ptr); }} while (0, 0)
-#define RETURN_IF_NTSTATUS_FAILED(status)                       do { NTSTATUS __statusRet = (status); if (FAILED_NTSTATUS(__statusRet)) { __RETURN_NTSTATUS_FAIL(__statusRet, #status); }} while (0, 0)
+#define RETURN_IF_FAILED(hr)                                    do { HRESULT __hrRet = wil::verify_hresult(hr); if (FAILED(__hrRet)) { __RETURN_HR_FAIL(__hrRet, #hr); }} while ((void)0, 0)
+#define RETURN_IF_WIN32_BOOL_FALSE(win32BOOL)                   do { BOOL __boolRet = wil::verify_BOOL(win32BOOL); if (!__boolRet) { __RETURN_GLE_FAIL(#win32BOOL); }} while ((void)0, 0)
+#define RETURN_IF_WIN32_ERROR(win32err)                         do { DWORD __errRet = (win32err); if (FAILED_WIN32(__errRet)) { __RETURN_WIN32_FAIL(__errRet, #win32err); }} while ((void)0, 0)
+#define RETURN_IF_NULL_ALLOC(ptr)                               do { if ((ptr) == nullptr) { __RETURN_HR_FAIL(E_OUTOFMEMORY, #ptr); }} while ((void)0, 0)
+#define RETURN_HR_IF(hr, condition)                             do { if (wil::verify_bool(condition)) { __RETURN_HR(wil::verify_hresult(hr), #condition); }} while ((void)0, 0)
+#define RETURN_HR_IF_NULL(hr, ptr)                              do { if ((ptr) == nullptr) { __RETURN_HR(wil::verify_hresult(hr), #ptr); }} while ((void)0, 0)
+#define RETURN_LAST_ERROR_IF(condition)                         do { if (wil::verify_bool(condition)) { __RETURN_GLE_FAIL(#condition); }} while ((void)0, 0)
+#define RETURN_LAST_ERROR_IF_NULL(ptr)                          do { if ((ptr) == nullptr) { __RETURN_GLE_FAIL(#ptr); }} while ((void)0, 0)
+#define RETURN_IF_NTSTATUS_FAILED(status)                       do { NTSTATUS __statusRet = (status); if (FAILED_NTSTATUS(__statusRet)) { __RETURN_NTSTATUS_FAIL(__statusRet, #status); }} while ((void)0, 0)
 
 // Always returns a known failure (HRESULT) - always logs a var-arg message on failure
 #define RETURN_HR_MSG(hr, fmt, ...)                             __RETURN_HR_MSG(wil::verify_hresult(hr), #hr, fmt, __VA_ARGS__)
@@ -591,26 +609,26 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 #define RETURN_NTSTATUS_MSG(status, fmt, ...)                   __RETURN_NTSTATUS_MSG(status, #status, fmt, __VA_ARGS__)
 
 // Conditionally returns failures (HRESULT) - always logs a var-arg message on failure
-#define RETURN_IF_FAILED_MSG(hr, fmt, ...)                      do { auto __hrRet = wil::verify_hresult(hr); if (FAILED(__hrRet)) { __RETURN_HR_MSG_FAIL(__hrRet, #hr, fmt, __VA_ARGS__); }} while (0, 0)
-#define RETURN_IF_WIN32_BOOL_FALSE_MSG(win32BOOL, fmt, ...)     do { if (!wil::verify_BOOL(win32BOOL)) { __RETURN_GLE_MSG_FAIL(#win32BOOL, fmt, __VA_ARGS__); }} while (0, 0)
-#define RETURN_IF_WIN32_ERROR_MSG(win32err, fmt, ...)           do { auto __errRet = (win32err); if (FAILED_WIN32(__errRet)) { __RETURN_WIN32_MSG_FAIL(__errRet, #win32err, fmt, __VA_ARGS__); }} while (0, 0)
-#define RETURN_IF_NULL_ALLOC_MSG(ptr, fmt, ...)                 do { if ((ptr) == nullptr) { __RETURN_HR_MSG_FAIL(E_OUTOFMEMORY, #ptr, fmt, __VA_ARGS__); }} while (0, 0)
-#define RETURN_HR_IF_MSG(hr, condition, fmt, ...)               do { if (wil::verify_bool(condition)) { __RETURN_HR_MSG(wil::verify_hresult(hr), #condition, fmt, __VA_ARGS__); }} while (0, 0)
-#define RETURN_HR_IF_NULL_MSG(hr, ptr, fmt, ...)                do { if ((ptr) == nullptr) { __RETURN_HR_MSG(wil::verify_hresult(hr), #ptr, fmt, __VA_ARGS__); }} while (0, 0)
-#define RETURN_LAST_ERROR_IF_MSG(condition, fmt, ...)           do { if (wil::verify_bool(condition)) { __RETURN_GLE_MSG_FAIL(#condition, fmt, __VA_ARGS__); }} while (0, 0)
-#define RETURN_LAST_ERROR_IF_NULL_MSG(ptr, fmt, ...)            do { if ((ptr) == nullptr) { __RETURN_GLE_MSG_FAIL(#ptr, fmt, __VA_ARGS__); }} while (0, 0)
-#define RETURN_IF_NTSTATUS_FAILED_MSG(status, fmt, ...)         do { NTSTATUS __statusRet = (status); if (FAILED_NTSTATUS(__statusRet)) { __RETURN_NTSTATUS_MSG_FAIL(__statusRet, #status, fmt, __VA_ARGS__); }} while (0, 0)
+#define RETURN_IF_FAILED_MSG(hr, fmt, ...)                      do { auto __hrRet = wil::verify_hresult(hr); if (FAILED(__hrRet)) { __RETURN_HR_MSG_FAIL(__hrRet, #hr, fmt, __VA_ARGS__); }} while ((void)0, 0)
+#define RETURN_IF_WIN32_BOOL_FALSE_MSG(win32BOOL, fmt, ...)     do { if (!wil::verify_BOOL(win32BOOL)) { __RETURN_GLE_MSG_FAIL(#win32BOOL, fmt, __VA_ARGS__); }} while ((void)0, 0)
+#define RETURN_IF_WIN32_ERROR_MSG(win32err, fmt, ...)           do { auto __errRet = (win32err); if (FAILED_WIN32(__errRet)) { __RETURN_WIN32_MSG_FAIL(__errRet, #win32err, fmt, __VA_ARGS__); }} while ((void)0, 0)
+#define RETURN_IF_NULL_ALLOC_MSG(ptr, fmt, ...)                 do { if ((ptr) == nullptr) { __RETURN_HR_MSG_FAIL(E_OUTOFMEMORY, #ptr, fmt, __VA_ARGS__); }} while ((void)0, 0)
+#define RETURN_HR_IF_MSG(hr, condition, fmt, ...)               do { if (wil::verify_bool(condition)) { __RETURN_HR_MSG(wil::verify_hresult(hr), #condition, fmt, __VA_ARGS__); }} while ((void)0, 0)
+#define RETURN_HR_IF_NULL_MSG(hr, ptr, fmt, ...)                do { if ((ptr) == nullptr) { __RETURN_HR_MSG(wil::verify_hresult(hr), #ptr, fmt, __VA_ARGS__); }} while ((void)0, 0)
+#define RETURN_LAST_ERROR_IF_MSG(condition, fmt, ...)           do { if (wil::verify_bool(condition)) { __RETURN_GLE_MSG_FAIL(#condition, fmt, __VA_ARGS__); }} while ((void)0, 0)
+#define RETURN_LAST_ERROR_IF_NULL_MSG(ptr, fmt, ...)            do { if ((ptr) == nullptr) { __RETURN_GLE_MSG_FAIL(#ptr, fmt, __VA_ARGS__); }} while ((void)0, 0)
+#define RETURN_IF_NTSTATUS_FAILED_MSG(status, fmt, ...)         do { NTSTATUS __statusRet = (status); if (FAILED_NTSTATUS(__statusRet)) { __RETURN_NTSTATUS_MSG_FAIL(__statusRet, #status, fmt, __VA_ARGS__); }} while ((void)0, 0)
 
 // Conditionally returns failures (HRESULT) - use for failures that are expected in common use - failures are not logged - macros are only for control flow pattern
-#define RETURN_IF_FAILED_EXPECTED(hr)                           do { auto __hrRet = wil::verify_hresult(hr); if (FAILED(__hrRet)) { return __hrRet; }} while (0, 0)
-#define RETURN_IF_WIN32_BOOL_FALSE_EXPECTED(win32BOOL)          do { if (!wil::verify_BOOL(win32BOOL)) { return wil::details::GetLastErrorFailHr(); }} while (0, 0)
-#define RETURN_IF_WIN32_ERROR_EXPECTED(win32err)                do { auto __errRet = (win32err); if (FAILED_WIN32(__errRet)) { return HRESULT_FROM_WIN32(__errRet); }} while (0, 0)
-#define RETURN_IF_NULL_ALLOC_EXPECTED(ptr)                      do { if ((ptr) == nullptr) { return E_OUTOFMEMORY; }} while (0, 0)
-#define RETURN_HR_IF_EXPECTED(hr, condition)                    do { if (wil::verify_bool(condition)) { return wil::verify_hresult(hr); }} while (0, 0)
-#define RETURN_HR_IF_NULL_EXPECTED(hr, ptr)                     do { if ((ptr) == nullptr) { return wil::verify_hresult(hr); }} while (0, 0)
-#define RETURN_LAST_ERROR_IF_EXPECTED(condition)                do { if (wil::verify_bool(condition)) { return wil::details::GetLastErrorFailHr(); }} while (0, 0)
-#define RETURN_LAST_ERROR_IF_NULL_EXPECTED(ptr)                 do { if ((ptr) == nullptr) { return wil::details::GetLastErrorFailHr(); }} while (0, 0)
-#define RETURN_IF_NTSTATUS_FAILED_EXPECTED(status)              do { auto __statusRet = (status); if (FAILED_NTSTATUS(__statusRet)) { return wil::details::NtStatusToHr(__statusRet); }} while (0, 0)
+#define RETURN_IF_FAILED_EXPECTED(hr)                           do { auto __hrRet = wil::verify_hresult(hr); if (FAILED(__hrRet)) { return __hrRet; }} while ((void)0, 0)
+#define RETURN_IF_WIN32_BOOL_FALSE_EXPECTED(win32BOOL)          do { if (!wil::verify_BOOL(win32BOOL)) { return wil::details::GetLastErrorFailHr(); }} while ((void)0, 0)
+#define RETURN_IF_WIN32_ERROR_EXPECTED(win32err)                do { auto __errRet = (win32err); if (FAILED_WIN32(__errRet)) { return HRESULT_FROM_WIN32(__errRet); }} while ((void)0, 0)
+#define RETURN_IF_NULL_ALLOC_EXPECTED(ptr)                      do { if ((ptr) == nullptr) { return E_OUTOFMEMORY; }} while ((void)0, 0)
+#define RETURN_HR_IF_EXPECTED(hr, condition)                    do { if (wil::verify_bool(condition)) { return wil::verify_hresult(hr); }} while ((void)0, 0)
+#define RETURN_HR_IF_NULL_EXPECTED(hr, ptr)                     do { if ((ptr) == nullptr) { return wil::verify_hresult(hr); }} while ((void)0, 0)
+#define RETURN_LAST_ERROR_IF_EXPECTED(condition)                do { if (wil::verify_bool(condition)) { return wil::details::GetLastErrorFailHr(); }} while ((void)0, 0)
+#define RETURN_LAST_ERROR_IF_NULL_EXPECTED(ptr)                 do { if ((ptr) == nullptr) { return wil::details::GetLastErrorFailHr(); }} while ((void)0, 0)
+#define RETURN_IF_NTSTATUS_FAILED_EXPECTED(status)              do { auto __statusRet = (status); if (FAILED_NTSTATUS(__statusRet)) { return wil::details::NtStatusToHr(__statusRet); }} while ((void)0, 0)
 
 #define __WI_OR_IS_EXPECTED_HRESULT(e) || (__hrRet == wil::verify_hresult(e))
 #define RETURN_IF_FAILED_WITH_EXPECTED(hr, hrExpected, ...) \
@@ -626,7 +644,7 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
             __RETURN_HR_FAIL(__hrRet, #hr); \
         } \
     } \
-    while (0, 0)
+    while ((void)0, 0)
 
 //*****************************************************************************
 // Macros for logging failures (ignore or pass-through)
@@ -744,7 +762,7 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 #define FAIL_FAST_IMMEDIATE_IF_NTSTATUS_FAILED(status)          __RFF_FN(FailFastImmediate_IfNtStatusFailed)(status)
 
 // Specializations
-#define FAIL_FAST_IMMEDIATE_IF_IN_LOADER_CALLOUT()              do { if (wil::details::g_pfnFailFastInLoaderCallout != nullptr) { wil::details::g_pfnFailFastInLoaderCallout(); } } while (0, 0)
+#define FAIL_FAST_IMMEDIATE_IF_IN_LOADER_CALLOUT()              do { if (wil::details::g_pfnFailFastInLoaderCallout != nullptr) { wil::details::g_pfnFailFastInLoaderCallout(); } } while ((void)0, 0)
 
 
 //*****************************************************************************
@@ -837,14 +855,14 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 #define WI_USAGE_ASSERT_STOP(condition)                     WI_ASSERT(condition)
 #endif
 #ifdef RESULT_DEBUG
-#define WI_USAGE_ERROR(msg, ...)                            do { LOG_HR_MSG(HRESULT_FROM_WIN32(ERROR_ASSERTION_FAILURE), msg, __VA_ARGS__); WI_USAGE_ASSERT_STOP(false); } while (0, 0)
-#define WI_USAGE_ERROR_FORWARD(msg, ...)                    do { ReportFailure_ReplaceMsg(__R_FN_CALL_FULL, FailureType::Log, HRESULT_FROM_WIN32(ERROR_ASSERTION_FAILURE), msg, __VA_ARGS__); WI_USAGE_ASSERT_STOP(false); } while (0, 0)
+#define WI_USAGE_ERROR(msg, ...)                            do { LOG_HR_MSG(HRESULT_FROM_WIN32(ERROR_ASSERTION_FAILURE), msg, __VA_ARGS__); WI_USAGE_ASSERT_STOP(false); } while ((void)0, 0)
+#define WI_USAGE_ERROR_FORWARD(msg, ...)                    do { ReportFailure_ReplaceMsg(__R_FN_CALL_FULL, FailureType::Log, HRESULT_FROM_WIN32(ERROR_ASSERTION_FAILURE), msg, __VA_ARGS__); WI_USAGE_ASSERT_STOP(false); } while ((void)0, 0)
 #else
-#define WI_USAGE_ERROR(msg, ...)                            do { LOG_HR(HRESULT_FROM_WIN32(ERROR_ASSERTION_FAILURE)); WI_USAGE_ASSERT_STOP(false); } while (0, 0)
-#define WI_USAGE_ERROR_FORWARD(msg, ...)                    do { ReportFailure_Hr(__R_FN_CALL_FULL, FailureType::Log, HRESULT_FROM_WIN32(ERROR_ASSERTION_FAILURE)); WI_USAGE_ASSERT_STOP(false); } while (0, 0)
+#define WI_USAGE_ERROR(msg, ...)                            do { LOG_HR(HRESULT_FROM_WIN32(ERROR_ASSERTION_FAILURE)); WI_USAGE_ASSERT_STOP(false); } while ((void)0, 0)
+#define WI_USAGE_ERROR_FORWARD(msg, ...)                    do { ReportFailure_Hr(__R_FN_CALL_FULL, FailureType::Log, HRESULT_FROM_WIN32(ERROR_ASSERTION_FAILURE)); WI_USAGE_ASSERT_STOP(false); } while ((void)0, 0)
 #endif
-#define WI_USAGE_VERIFY(condition, msg, ...)                do { auto __passed = wil::verify_bool(condition); if (!__passed) { WI_USAGE_ERROR(msg, __VA_ARGS__); }} while (0, 0)
-#define WI_USAGE_VERIFY_FORWARD(condition, msg, ...)        do { auto __passed = wil::verify_bool(condition); if (!__passed) { WI_USAGE_ERROR_FORWARD(msg, __VA_ARGS__); }} while (0, 0)
+#define WI_USAGE_VERIFY(condition, msg, ...)                do { auto __passed = wil::verify_bool(condition); if (!__passed) { WI_USAGE_ERROR(msg, __VA_ARGS__); }} while ((void)0, 0)
+#define WI_USAGE_VERIFY_FORWARD(condition, msg, ...)        do { auto __passed = wil::verify_bool(condition); if (!__passed) { WI_USAGE_ERROR_FORWARD(msg, __VA_ARGS__); }} while ((void)0, 0)
 #ifdef RESULT_DEBUG
 #define WI_USAGE_ASSERT(condition, msg, ...)                WI_USAGE_VERIFY(condition, msg, __VA_ARGS__)
 #else
@@ -866,12 +884,12 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 #define __WIL_PRIVATE_FAIL_FAST_HR(hr)                       FAIL_FAST_HR(hr)
 #define __WIL_PRIVATE_LOG_HR(hr)                             LOG_HR(hr)
 #else
-#define __WIL_PRIVATE_RETURN_IF_FAILED(hr)                   do { HRESULT __hrRet = wil::verify_hresult(hr); if (FAILED(__hrRet)) { __RETURN_HR_FAIL_NOFILE(__hrRet, #hr); }} while (0, 0)
-#define __WIL_PRIVATE_RETURN_HR_IF(hr, cond)                 do { if (wil::verify_bool(cond)) { __RETURN_HR_NOFILE(wil::verify_hresult(hr), #cond); }} while (0, 0)
-#define __WIL_PRIVATE_RETURN_LAST_ERROR_IF(cond)             do { if (wil::verify_bool(cond)) { __RETURN_GLE_FAIL_NOFILE(#cond); }} while (0, 0)
-#define __WIL_PRIVATE_RETURN_IF_WIN32_BOOL_FALSE(win32BOOL)  do { BOOL __boolRet = wil::verify_BOOL(win32BOOL); if (!__boolRet) { __RETURN_GLE_FAIL_NOFILE(#win32BOOL); }} while (0, 0)
-#define __WIL_PRIVATE_RETURN_LAST_ERROR_IF_NULL(ptr)         do { if ((ptr) == nullptr) { __RETURN_GLE_FAIL_NOFILE(#ptr); }} while (0, 0)
-#define __WIL_PRIVATE_RETURN_IF_NULL_ALLOC(ptr)              do { if ((ptr) == nullptr) { __RETURN_HR_FAIL_NOFILE(E_OUTOFMEMORY, #ptr); }} while (0, 0)
+#define __WIL_PRIVATE_RETURN_IF_FAILED(hr)                   do { HRESULT __hrRet = wil::verify_hresult(hr); if (FAILED(__hrRet)) { __RETURN_HR_FAIL_NOFILE(__hrRet, #hr); }} while ((void)0, 0)
+#define __WIL_PRIVATE_RETURN_HR_IF(hr, cond)                 do { if (wil::verify_bool(cond)) { __RETURN_HR_NOFILE(wil::verify_hresult(hr), #cond); }} while ((void)0, 0)
+#define __WIL_PRIVATE_RETURN_LAST_ERROR_IF(cond)             do { if (wil::verify_bool(cond)) { __RETURN_GLE_FAIL_NOFILE(#cond); }} while ((void)0, 0)
+#define __WIL_PRIVATE_RETURN_IF_WIN32_BOOL_FALSE(win32BOOL)  do { BOOL __boolRet = wil::verify_BOOL(win32BOOL); if (!__boolRet) { __RETURN_GLE_FAIL_NOFILE(#win32BOOL); }} while ((void)0, 0)
+#define __WIL_PRIVATE_RETURN_LAST_ERROR_IF_NULL(ptr)         do { if ((ptr) == nullptr) { __RETURN_GLE_FAIL_NOFILE(#ptr); }} while ((void)0, 0)
+#define __WIL_PRIVATE_RETURN_IF_NULL_ALLOC(ptr)              do { if ((ptr) == nullptr) { __RETURN_HR_FAIL_NOFILE(E_OUTOFMEMORY, #ptr); }} while ((void)0, 0)
 #define __WIL_PRIVATE_RETURN_LAST_ERROR()                    __RETURN_GLE_FAIL_NOFILE(nullptr)
 #define __WIL_PRIVATE_FAIL_FAST_HR_IF(hr, condition)         __RFF_FN(FailFast_HrIf)(__RFF_INFO_NOFILE(#condition) wil::verify_hresult(hr), wil::verify_bool(condition))
 #define __WIL_PRIVATE_FAIL_FAST_HR(hr)                       __RFF_FN(FailFast_Hr)(__RFF_INFO_NOFILE(#hr) wil::verify_hresult(hr))
@@ -971,7 +989,7 @@ namespace wil
     // [optionally] Plug in error logging
     // Note:  This callback is deprecated.  Please use SetResultTelemetryFallback for telemetry or
     // SetResultLoggingCallback for observation.
-    extern "C" __declspec(selectany) void(__stdcall *g_pfnResultLoggingCallback)(_Inout_ wil::FailureInfo *pFailure, _Inout_updates_opt_z_(cchDebugMessage) PWSTR pszDebugMessage, _Pre_satisfies_(cchDebugMessage > 0) size_t cchDebugMessage) WI_NOEXCEPT = nullptr;
+    extern "C" __declspec(selectany) void(__stdcall *g_pfnResultLoggingCallback)(_Inout_ wil::FailureInfo *pFailure, _Inout_updates_opt_z_(cchDebugMessage) PWSTR pszDebugMessage, _Pre_satisfies_(cchDebugMessage > 0) size_t cchDebugMessage) WI_PFN_NOEXCEPT = nullptr;
 
     // [optional]
     // This can be explicitly set to control whether or not error messages will be output to OutputDebugString.  It can also
@@ -981,13 +999,13 @@ namespace wil
     // [optionally] Allows application to specify a debugger to detect whether a debugger is present.
     // Useful for processes that can only be debugged under kernel debuggers where IsDebuggerPresent returns
     // false.
-    __declspec(selectany) bool(__stdcall *g_pfnIsDebuggerPresent)() WI_NOEXCEPT = nullptr;
+    __declspec(selectany) bool(__stdcall *g_pfnIsDebuggerPresent)() WI_PFN_NOEXCEPT = nullptr;
 
     // [optionally] Allows forcing WIL to believe a debugger is present. Useful for when a kernel debugger is attached and ::IsDebuggerPresent returns false
     __declspec(selectany) bool g_fIsDebuggerPresent = false;
 
     // [optionally] Plug in additional exception-type support (return S_OK when *unable* to remap the exception)
-    __declspec(selectany) HRESULT(__stdcall *g_pfnResultFromCaughtException)() WI_NOEXCEPT = nullptr;
+    __declspec(selectany) HRESULT(__stdcall *g_pfnResultFromCaughtException)() WI_PFN_NOEXCEPT = nullptr;
 
     // [optionally] Use to configure fast fail of unknown exceptions (turn them off).
     __declspec(selectany) bool g_fResultFailFastUnknownExceptions = true;
@@ -1002,7 +1020,7 @@ namespace wil
     __declspec(selectany) bool g_fBreakOnFailure = false;
 
     // [optionally] customize failfast behavior
-    __declspec(selectany) bool(__stdcall *g_pfnWilFailFast)(const wil::FailureInfo& info) WI_NOEXCEPT = nullptr;
+    __declspec(selectany) bool(__stdcall *g_pfnWilFailFast)(const wil::FailureInfo& info) WI_PFN_NOEXCEPT = nullptr;
 
     /// @cond
     namespace details
@@ -1139,31 +1157,34 @@ namespace wil
         };
 
         // Fallback telemetry provider callback (set with wil::SetResultTelemetryFallback)
-        __declspec(selectany) void(__stdcall *g_pfnTelemetryCallback)(bool alreadyReported, wil::FailureInfo const &failure) WI_NOEXCEPT = nullptr;
+        __declspec(selectany) void(__stdcall *g_pfnTelemetryCallback)(bool alreadyReported, wil::FailureInfo const &failure) WI_PFN_NOEXCEPT = nullptr;
 
         // Result.h plug-in (WIL use only)
-        __declspec(selectany) void(__stdcall *g_pfnGetContextAndNotifyFailure)(_Inout_ FailureInfo *pFailure, _Out_writes_(callContextStringLength) _Post_z_ PSTR callContextString, _Pre_satisfies_(callContextStringLength > 0) size_t callContextStringLength) WI_NOEXCEPT = nullptr;
+        __declspec(selectany) void(__stdcall *g_pfnGetContextAndNotifyFailure)(_Inout_ FailureInfo *pFailure, _Out_writes_(callContextStringLength) _Post_z_ PSTR callContextString, _Pre_satisfies_(callContextStringLength > 0) size_t callContextStringLength) WI_PFN_NOEXCEPT = nullptr;
 
         // Observe all errors flowing through the system with this callback (set with wil::SetResultLoggingCallback); use with custom logging
-        __declspec(selectany) void(__stdcall *g_pfnLoggingCallback)(wil::FailureInfo const &failure) WI_NOEXCEPT = nullptr;
+        __declspec(selectany) void(__stdcall *g_pfnLoggingCallback)(wil::FailureInfo const &failure) WI_PFN_NOEXCEPT = nullptr;
 
         // Desktop/System Only:  Module fetch function (automatically setup)
-        __declspec(selectany) PCSTR(__stdcall *g_pfnGetModuleName)() WI_NOEXCEPT = nullptr;
+        __declspec(selectany) PCSTR(__stdcall *g_pfnGetModuleName)() WI_PFN_NOEXCEPT = nullptr;
 
         // Desktop/System Only:  Retrieve address offset and modulename
-        __declspec(selectany) bool(__stdcall *g_pfnGetModuleInformation)(void* address, _Out_opt_ unsigned int* addressOffset, _Out_writes_bytes_opt_(size) char* name, size_t size) WI_NOEXCEPT = nullptr;
+        __declspec(selectany) bool(__stdcall *g_pfnGetModuleInformation)(void* address, _Out_opt_ unsigned int* addressOffset, _Out_writes_bytes_opt_(size) char* name, size_t size) WI_PFN_NOEXCEPT = nullptr;
 
-        // Desktop/System Only:  Private module load fail fast function (automatically setup)
-        __declspec(selectany) void(__stdcall *g_pfnFailFastInLoaderCallout)() WI_NOEXCEPT = nullptr;
+        // Called with the expectation that the program will terminate when called inside of a loader callout.
+        // Desktop/System Only: Automatically setup when building Windows (BUILD_WINDOWS defined)
+        __declspec(selectany) void(__stdcall *g_pfnFailFastInLoaderCallout)() WI_PFN_NOEXCEPT = nullptr;
 
-        // Desktop/System Only:  Private module load convert NtStatus to HResult (automatically setup)
-        __declspec(selectany) ULONG(__stdcall *g_pfnRtlNtStatusToDosErrorNoTeb)(NTSTATUS) WI_NOEXCEPT = nullptr;
+        // Called to translate an NTSTATUS value to a Win32 error code
+        // Desktop/System Only: Automatically setup when building Windows (BUILD_WINDOWS defined)
+        __declspec(selectany) ULONG(__stdcall *g_pfnRtlNtStatusToDosErrorNoTeb)(NTSTATUS) WI_PFN_NOEXCEPT = nullptr;
 
-        // Desktop/System Only: Private module load to call debug break
-        __declspec(selectany) void(__stdcall *g_pfnDebugBreak)() WI_NOEXCEPT = nullptr;
+        // Desktop/System Only: Call to DebugBreak
+        __declspec(selectany) void(__stdcall *g_pfnDebugBreak)() WI_PFN_NOEXCEPT = nullptr;
 
-        // Private API to determine whether or not termination is happening
-        __declspec(selectany) BOOLEAN(__stdcall *g_pfnRtlDllShutdownInProgress)() WI_NOEXCEPT = nullptr;
+        // Called to determine whether or not termination is happening
+        // Desktop/System Only: Automatically setup when building Windows (BUILD_WINDOWS defined)
+        __declspec(selectany) BOOLEAN(__stdcall *g_pfnDllShutdownInProgress)() WI_PFN_NOEXCEPT = nullptr;
         __declspec(selectany) bool g_processShutdownInProgress = false;
 
         // On Desktop/System WINAPI family: dynalink RaiseFailFastException because we may encounter modules
@@ -1174,15 +1195,15 @@ namespace wil
         __declspec(selectany) HRESULT(__stdcall *g_pfnRunFunctorWithExceptionFilter)(IFunctor& functor, IFunctorHost& host, void* returnAddress) = nullptr;
         __declspec(selectany) void(__stdcall *g_pfnRethrow)() = nullptr;
         __declspec(selectany) void(__stdcall *g_pfnThrowResultException)(const FailureInfo& failure) = nullptr;
-        extern "C" __declspec(selectany) HRESULT(__stdcall *g_pfnResultFromCaughtExceptionInternal)(_Out_writes_opt_(debugStringChars) PWSTR debugString, _When_(debugString != nullptr, _Pre_satisfies_(debugStringChars > 0)) size_t debugStringChars, _Out_ bool* isNormalized) WI_NOEXCEPT = nullptr;
+        extern "C" __declspec(selectany) HRESULT(__stdcall *g_pfnResultFromCaughtExceptionInternal)(_Out_writes_opt_(debugStringChars) PWSTR debugString, _When_(debugString != nullptr, _Pre_satisfies_(debugStringChars > 0)) size_t debugStringChars, _Out_ bool* isNormalized) WI_PFN_NOEXCEPT = nullptr;
 
         // C++/cx compiled additions
         extern "C" __declspec(selectany) void(__stdcall *g_pfnThrowPlatformException)(FailureInfo const &failure, PCWSTR debugString) = nullptr;
-        extern "C" __declspec(selectany) _Always_(_Post_satisfies_(return < 0)) HRESULT(__stdcall *g_pfnResultFromCaughtException_WinRt)(_Inout_updates_opt_(debugStringChars) PWSTR debugString, _When_(debugString != nullptr, _Pre_satisfies_(debugStringChars > 0)) size_t debugStringChars, _Out_ bool* isNormalized) WI_NOEXCEPT = nullptr;
+        extern "C" __declspec(selectany) _Always_(_Post_satisfies_(return < 0)) HRESULT(__stdcall *g_pfnResultFromCaughtException_WinRt)(_Inout_updates_opt_(debugStringChars) PWSTR debugString, _When_(debugString != nullptr, _Pre_satisfies_(debugStringChars > 0)) size_t debugStringChars, _Out_ bool* isNormalized) WI_PFN_NOEXCEPT = nullptr;
         __declspec(selectany) _Always_(_Post_satisfies_(return < 0)) HRESULT(__stdcall *g_pfnResultFromKnownExceptions_WinRt)(const DiagnosticsInfo& diagnostics, void* returnAddress, SupportedExceptions supported, IFunctor& functor) = nullptr;
 
         // Plugin to call RoOriginateError (WIL use only)
-        __declspec(selectany) void(__stdcall *g_pfnOriginateCallback)(wil::FailureInfo const& failure) WI_NOEXCEPT = nullptr;
+        __declspec(selectany) void(__stdcall *g_pfnOriginateCallback)(wil::FailureInfo const& failure) WI_PFN_NOEXCEPT = nullptr;
 
         enum class ReportFailureOptions
         {
@@ -1202,7 +1223,7 @@ namespace wil
             TFunctor&& functor;
             functor_wrapper_void(TFunctor&& functor_) : functor(wistd::forward<TFunctor>(functor_)) { }
             #pragma warning(push)
-            #pragma warning(disable:4702) /* https://microsoft.visualstudio.com/OS/_workitems?id=15917057&fullScreen=false&_a=edit */
+            #pragma warning(disable:4702) // https://github.com/Microsoft/wil/issues/2
             HRESULT Run() override
             {
                 functor();
@@ -1229,7 +1250,7 @@ namespace wil
             TReturn& retVal;
             functor_wrapper_other(TFunctor& functor_, TReturn& retval_) : functor(wistd::forward<TFunctor>(functor_)), retVal(retval_) { }
             #pragma warning(push)
-            #pragma warning(disable:4702) /* https://microsoft.visualstudio.com/OS/_workitems?id=15917057&fullScreen=false&_a=edit */
+            #pragma warning(disable:4702) // https://github.com/Microsoft/wil/issues/2
             HRESULT Run() override
             {
                 retVal = functor();
@@ -1316,8 +1337,8 @@ namespace wil
         //*****************************************************************************
 
         /// @cond
-        #define __FAIL_FAST_ASSERT__(condition)                         do { if (!(condition)) { __RFF_FN(FailFast_Unexpected)(__RFF_INFO_ONLY(#condition)); } } while (0, 0)
-        #define __FAIL_FAST_IMMEDIATE_ASSERT__(condition)               do { if (!(condition)) { wil::FailureInfo failure {}; wil::details::WilFailFast(failure); } } while (0, 0)
+        #define __FAIL_FAST_ASSERT__(condition)                         do { if (!(condition)) { __RFF_FN(FailFast_Unexpected)(__RFF_INFO_ONLY(#condition)); } } while ((void)0, 0)
+        #define __FAIL_FAST_IMMEDIATE_ASSERT__(condition)               do { if (!(condition)) { wil::FailureInfo failure {}; wil::details::WilFailFast(failure); } } while ((void)0, 0)
         #define __FAIL_FAST_ASSERT_WIN32_BOOL_FALSE__(condition)        __RFF_FN(FailFast_IfWin32BoolFalse)(__RFF_INFO(#condition) wil::verify_BOOL(condition))
 
         // A simple ref-counted buffer class.  The interface is very similar to shared_ptr<>, only it manages
@@ -1719,7 +1740,7 @@ namespace wil
                 // All successful status codes have only one hresult equivalent, S_OK
                 return S_OK;
             }
-            if (status == STATUS_NO_MEMORY)
+            if (status == static_cast<NTSTATUS>(STATUS_NO_MEMORY))
             {
                 // RtlNtStatusToDosErrorNoTeb maps STATUS_NO_MEMORY to the less popular of two Win32 no memory error codes resulting in an unexpected mapping
                 return E_OUTOFMEMORY;
@@ -1843,9 +1864,7 @@ namespace wil
         }
 #pragma warning(pop)
 
-        #pragma warning(push)
-        #pragma warning(disable : 4100) // Unused parameter (pszDest)
-        _Post_satisfies_(cchDest > 0 && cchDest <= cchMax) static STRSAFEAPI WilStringValidateDestA(_In_reads_opt_(cchDest) STRSAFE_PCNZCH pszDest, _In_ size_t cchDest, _In_ const size_t cchMax)
+        _Post_satisfies_(cchDest > 0 && cchDest <= cchMax) static STRSAFEAPI WilStringValidateDestA(_In_reads_opt_(cchDest) STRSAFE_PCNZCH /*pszDest*/, _In_ size_t cchDest, _In_ const size_t cchMax)
         {
             HRESULT hr = S_OK;
             if ((cchDest == 0) || (cchDest > cchMax))
@@ -1854,7 +1873,6 @@ namespace wil
             }
             return hr;
         }
-        #pragma warning(pop)
 
         static STRSAFEAPI WilStringVPrintfWorkerA(_Out_writes_(cchDest) _Always_(_Post_z_) STRSAFE_LPSTR pszDest, _In_ _In_range_(1, STRSAFE_MAX_CCH) size_t cchDest, _Always_(_Out_opt_ _Deref_out_range_(<=, cchDest - 1)) size_t* pcchNewDestLength, _In_ _Printf_format_string_ STRSAFE_LPCSTR pszFormat, _In_ va_list argList)
         {
@@ -1909,7 +1927,7 @@ namespace wil
             return hr;
         }
 
-        STRSAFEAPI StringCchPrintfA( _Out_writes_(cchDest) _Always_(_Post_z_) STRSAFE_LPSTR pszDest, _In_ size_t cchDest, _In_ _Printf_format_string_ STRSAFE_LPCSTR pszFormat, ...)
+        __inline HRESULT StringCchPrintfA( _Out_writes_(cchDest) _Always_(_Post_z_) STRSAFE_LPSTR pszDest, _In_ size_t cchDest, _In_ _Printf_format_string_ STRSAFE_LPCSTR pszFormat, ...)
         {
             HRESULT hr;
             hr = wil::details::WilStringValidateDestA(pszDest, cchDest, STRSAFE_MAX_CCH);
@@ -2030,7 +2048,7 @@ namespace wil
     //! Call this method to determine if process shutdown is in progress (allows avoiding work during dll unload).
     inline bool ProcessShutdownInProgress()
     {
-        return (details::g_processShutdownInProgress || (details::g_pfnRtlDllShutdownInProgress ? details::g_pfnRtlDllShutdownInProgress() : false));
+        return (details::g_processShutdownInProgress || (details::g_pfnDllShutdownInProgress ? details::g_pfnDllShutdownInProgress() : false));
     }
 
     /** Use this object to wrap an object that wants to prevent its destructor from being run when the process is shutting down,
@@ -2067,7 +2085,7 @@ namespace wil
         }
 
     private:
-        unsigned char m_raw[sizeof(T)];
+        alignas(T) unsigned char m_raw[sizeof(T)];
     };
 
     /** Use this object to wrap an object that wants to prevent its destructor from being run when the process is shutting down.
@@ -2123,11 +2141,11 @@ namespace wil
         }
 
     private:
-        unsigned char m_raw[sizeof(T)];
+        alignas(T) unsigned char m_raw[sizeof(T)];
     };
 
     /** Forward your DLLMain to this function so that WIL can have visibility into whether a DLL unload is because
-    of termination or normal unload.  Note that when private API usage is enabled, WIL attempts to make this
+    of termination or normal unload.  Note that when g_pfnDllShutdownInProgress is set, WIL attempts to make this
     determination on its own without this callback.  Suppressing private APIs requires use of this. */
     inline void DLLMain(HINSTANCE, DWORD reason, _In_opt_ LPVOID reserved)
     {
@@ -3143,8 +3161,7 @@ namespace wil
         // Returns true if a debugger should be considered to be connected.
         // Modules can force this on through setting g_fIsDebuggerPresent explicitly (useful for live debugging),
         // they can provide a callback function by setting g_pfnIsDebuggerPresent (useful for kernel debbugging),
-        // and finally the user-mode check (IsDebuggerPrsent) is checked. IsDebuggerPresent is a fast call as it
-        // returns NtCurrentPeb()->BeingDebugged.
+        // and finally the user-mode check (IsDebuggerPrsent) is checked. IsDebuggerPresent is a fast call
         inline bool IsDebuggerPresent()
         {
             return g_fIsDebuggerPresent || ((g_pfnIsDebuggerPresent != nullptr) ? g_pfnIsDebuggerPresent() : (::IsDebuggerPresent() != FALSE));
@@ -3299,7 +3316,6 @@ namespace wil
             er.ExceptionInformation[0] = FAST_FAIL_FATAL_APP_EXIT; // see winnt.h, generated from minkernel\published\base\ntrtl_x.w
             if (failure.returnAddress == 0)                     // FailureInfo does not have _ReturnAddress, have RaiseFailFastException generate it
             {
-                // http://osgvsowi/17364039 - confirm with !analyze team that this is the best we can do in this case
                 // passing ExceptionCode 0xC0000409 and one param with FAST_FAIL_APP_EXIT will use existing
                 // !analyze functionality to crawl the stack looking for the HRESULT
                 // don't pass a 0 HRESULT in param 1 because that will result in worse bucketing.

@@ -1,4 +1,13 @@
-
+//*********************************************************
+//
+//    Copyright (c) Microsoft. All rights reserved.
+//    This code is licensed under the MIT License.
+//    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+//    ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+//    TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+//    PARTICULAR PURPOSE AND NONINFRINGEMENT.
+//
+//*********************************************************
 #include "result_macros.h"
 #include "wistd_functional.h"
 #include "wistd_memory.h"
@@ -461,7 +470,7 @@ namespace wil
             }
 
             lambda_call_log(lambda_call_log&& other) WI_NOEXCEPT :
-            m_info(other.m_info), m_address(other.m_address), m_lambda(wistd::move(other.m_lambda)), m_call(other.m_call)
+            m_address(other.m_address), m_info(other.m_info), m_lambda(wistd::move(other.m_lambda)), m_call(other.m_call)
             {
                 other.m_call = false;
             }
@@ -1783,7 +1792,7 @@ namespace std
     {
         size_t operator()(wil::unique_any_t<storage_t> const &val) const
         {
-            return (hash<wil::unique_any_t<storage_t>::pointer>()(val.get()));
+            return (hash<typename wil::unique_any_t<storage_t>::pointer>()(val.get()));
         }
     };
 }
@@ -1884,7 +1893,7 @@ namespace wil {
 
             void reset(wistd::nullptr_t) WI_NOEXCEPT
             {
-                static_assert(wistd::is_same<policy::pointer_invalid, wistd::nullptr_t>::value, "reset(nullptr): valid only for handle types using nullptr as the invalid value");
+                static_assert(wistd::is_same<typename policy::pointer_invalid, wistd::nullptr_t>::value, "reset(nullptr): valid only for handle types using nullptr as the invalid value");
                 reset();
             }
 
@@ -1909,14 +1918,9 @@ namespace wil {
                 return m_ptr.use_count();
             }
 
-            bool unique() const WI_NOEXCEPT
-            {
-                return m_ptr.unique();
-            }
-
         private:
             template <typename storage_t>
-            friend class weak_any;
+            friend class ::wil::weak_any;
 
             std::shared_ptr<unique_t> m_ptr;
         };
@@ -1945,7 +1949,7 @@ namespace wil {
 
         shared_any_t(wistd::nullptr_t) WI_NOEXCEPT
         {
-            static_assert(wistd::is_same<policy::pointer_invalid, wistd::nullptr_t>::value, "nullptr constructor: valid only for handle types using nullptr as the invalid value");
+            static_assert(wistd::is_same<typename policy::pointer_invalid, wistd::nullptr_t>::value, "nullptr constructor: valid only for handle types using nullptr as the invalid value");
         }
 
         shared_any_t(shared_any_t &&other) WI_NOEXCEPT :
@@ -1986,7 +1990,7 @@ namespace wil {
 
         shared_any_t& operator=(wistd::nullptr_t) WI_NOEXCEPT
         {
-            static_assert(wistd::is_same<policy::pointer_invalid, wistd::nullptr_t>::value, "nullptr assignment: valid only for handle types using nullptr as the invalid value");
+            static_assert(wistd::is_same<typename policy::pointer_invalid, wistd::nullptr_t>::value, "nullptr assignment: valid only for handle types using nullptr as the invalid value");
             storage_t::reset();
             return (*this);
         }
@@ -2005,14 +2009,14 @@ namespace wil {
 
         pointer_storage *operator&()
         {
-            static_assert(wistd::is_same<policy::pointer_access, details::pointer_access_all>::value, "operator & is not available for this handle");
+            static_assert(wistd::is_same<typename policy::pointer_access, details::pointer_access_all>::value, "operator & is not available for this handle");
             storage_t::reset();
             return storage_t::addressof();
         }
 
         pointer get() const WI_NOEXCEPT
         {
-            static_assert(!wistd::is_same<policy::pointer_access, details::pointer_access_none>::value, "get(): the raw handle value is not available for this resource class");
+            static_assert(!wistd::is_same<typename policy::pointer_access, details::pointer_access_none>::value, "get(): the raw handle value is not available for this resource class");
             return storage_t::get();
         }
 
@@ -2038,14 +2042,14 @@ namespace wil {
     template <typename unique_t>
     bool operator==(const shared_any_t<unique_t>& left, wistd::nullptr_t) WI_NOEXCEPT
     {
-        static_assert(wistd::is_same<shared_any_t<unique_t>::policy::pointer_invalid, wistd::nullptr_t>::value, "the resource class does not use nullptr as an invalid value");
+        static_assert(wistd::is_same<typename shared_any_t<unique_t>::policy::pointer_invalid, wistd::nullptr_t>::value, "the resource class does not use nullptr as an invalid value");
         return !left;
     }
 
     template <typename unique_t>
     bool operator==(wistd::nullptr_t, const shared_any_t<unique_t>& right) WI_NOEXCEPT
     {
-        static_assert(wistd::is_same<shared_any_t<unique_t>::policy::pointer_invalid, wistd::nullptr_t>::value, "the resource class does not use nullptr as an invalid value");
+        static_assert(wistd::is_same<typename shared_any_t<unique_t>::policy::pointer_invalid, wistd::nullptr_t>::value, "the resource class does not use nullptr as an invalid value");
         return !right;
     }
 
@@ -2058,14 +2062,14 @@ namespace wil {
     template <typename unique_t>
     bool operator!=(const shared_any_t<unique_t>& left, wistd::nullptr_t) WI_NOEXCEPT
     {
-        static_assert(wistd::is_same<shared_any_t<unique_t>::policy::pointer_invalid, wistd::nullptr_t>::value, "the resource class does not use nullptr as an invalid value");
+        static_assert(wistd::is_same<typename shared_any_t<unique_t>::policy::pointer_invalid, wistd::nullptr_t>::value, "the resource class does not use nullptr as an invalid value");
         return !!left;
     }
 
     template <typename unique_t>
     bool operator!=(wistd::nullptr_t, const shared_any_t<unique_t>& right) WI_NOEXCEPT
     {
-        static_assert(wistd::is_same<shared_any_t<unique_t>::policy::pointer_invalid, wistd::nullptr_t>::value, "the resource class does not use nullptr as an invalid value");
+        static_assert(wistd::is_same<typename shared_any_t<unique_t>::policy::pointer_invalid, wistd::nullptr_t>::value, "the resource class does not use nullptr as an invalid value");
         return !!right;
     }
 
@@ -2108,7 +2112,7 @@ namespace wil {
         }
 
         weak_any(const shared_t &other) WI_NOEXCEPT :
-        m_weakPtr(other.m_ptr)
+            m_weakPtr(other.m_ptr)
         {
         }
 
@@ -2175,7 +2179,7 @@ namespace std
     {
         size_t operator()(wil::shared_any_t<storage_t> const &val) const
         {
-            return (hash<wil::shared_any_t<storage_t>::pointer>()(val.get()));
+            return (hash<typename wil::shared_any_t<storage_t>::pointer>()(val.get()));
         }
     };
 }
@@ -2660,11 +2664,9 @@ namespace wil
     class slim_event_t
     {
     public:
-        slim_event_t()
-        {
-        }
+        slim_event_t() WI_NOEXCEPT = default;
 
-        slim_event_t(bool isSignaled) :
+        slim_event_t(bool isSignaled) WI_NOEXCEPT :
             m_isSignaled(isSignaled ? TRUE : FALSE)
         {
         }
@@ -3465,7 +3467,6 @@ namespace wil
             unique_event_nothrow m_event;
             // The thread pool must be last to ensure that the other members are valid
             // when it is destructed as it will reference them.
-            // See http://osgvsowi/2224623
             unique_threadpool_wait m_threadPoolWait;
         };
 

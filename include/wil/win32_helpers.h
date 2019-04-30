@@ -1,4 +1,13 @@
-
+//*********************************************************
+//
+//    Copyright (c) Microsoft. All rights reserved.
+//    This code is licensed under the MIT License.
+//    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+//    ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+//    TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+//    PARTICULAR PURPOSE AND NONINFRINGEMENT.
+//
+//*********************************************************
 #ifndef __WIL_WIN32_HELPERS_INCLUDED
 #define __WIL_WIN32_HELPERS_INCLUDED
 
@@ -158,7 +167,7 @@ namespace wil
 
     // This function does not work beyond the default stack buffer size (255).
     // Needs to to retry in a loop similar to wil::GetModuleFileNameExW
-    // These updates and unit tests are tracked by //osgvsowi/14483919
+    // These updates and unit tests are tracked by https://github.com/Microsoft/wil/issues/3
     template <typename string_type, size_t stackBufferLength = 256>
     HRESULT QueryFullProcessImageNameW(HANDLE processHandle, _In_ DWORD flags, string_type& result) WI_NOEXCEPT
     {
@@ -401,7 +410,7 @@ namespace wil
             }
 
             #pragma warning(push)
-            #pragma warning(disable:4702) /* https://microsoft.visualstudio.com/OS/_workitems?id=15917057&fullScreen=false&_a=edit */
+            #pragma warning(disable:4702) // https://github.com/Microsoft/wil/issues/2
             void success()
             {
                 m_flags = 0;

@@ -1,4 +1,13 @@
-
+//*********************************************************
+//
+//    Copyright (c) Microsoft. All rights reserved.
+//    This code is licensed under the MIT License.
+//    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+//    ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+//    TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+//    PARTICULAR PURPOSE AND NONINFRINGEMENT.
+//
+//*********************************************************
 #ifndef __WIL_SAFECAST_INCLUDED
 #define __WIL_SAFECAST_INCLUDED
 
@@ -291,9 +300,9 @@ namespace wil
         typename OldT,
         wistd::enable_if_t<details::is_supported_unsafe_cast_v<NewT, OldT>, int> = 0
     >
-    NewT safe_cast_nothrow(const OldT var)
+    NewT safe_cast_nothrow(const OldT /*var*/)
     {
-        static_assert(false, "This cast has the potential to fail, use the two parameter safe_cast_nothrow instead");
+        static_assert(!wistd::is_same_v<NewT, NewT>, "This cast has the potential to fail, use the two parameter safe_cast_nothrow instead");
     }
 
     // This conversion is always safe, therefore a static_cast is fine.

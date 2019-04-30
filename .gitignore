@@ -331,3 +331,6 @@ ASALocalRun/
 
 # Visual Studio Code directory
 .vscode/
+
+# CMake/Build output
+build/

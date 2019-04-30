@@ -1,4 +1,13 @@
-
+//*********************************************************
+//
+//    Copyright (c) Microsoft. All rights reserved.
+//    This code is licensed under the MIT License.
+//    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+//    ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+//    TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+//    PARTICULAR PURPOSE AND NONINFRINGEMENT.
+//
+//*********************************************************
 #ifndef __WIL_CPPWINRT_INCLUDED
 #define __WIL_CPPWINRT_INCLUDED
 
@@ -28,7 +37,7 @@
 #define WINRT_EXTERNAL_CATCH_CLAUSE                                             \
     catch (const wil::ResultException& e)                                       \
     {                                                                           \
-        return hresult_error(e.GetErrorCode(), to_hstring(e.what())).to_abi();  \
+        return winrt::hresult_error(e.GetErrorCode(), winrt::to_hstring(e.what())).to_abi();  \
     }
 
 namespace wil::details

@@ -1,4 +1,13 @@
-
+//*********************************************************
+//
+//    Copyright (c) Microsoft. All rights reserved.
+//    This code is licensed under the MIT License.
+//    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+//    ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+//    TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+//    PARTICULAR PURPOSE AND NONINFRINGEMENT.
+//
+//*********************************************************
 #ifndef __WIL_REGISTRY_INCLUDED
 #define __WIL_REGISTRY_INCLUDED
 
@@ -54,7 +63,7 @@ namespace wil
         struct registry_watcher_state
         {
             registry_watcher_state(unique_hkey &&keyToWatch, bool isRecursive, wistd::function<void(RegistryChangeKind)> &&callback)
-                : m_keyToWatch(wistd::move(keyToWatch)), m_callback(wistd::move(callback)), m_isRecursive(isRecursive)
+                : m_callback(wistd::move(callback)), m_keyToWatch(wistd::move(keyToWatch)), m_isRecursive(isRecursive)
             {
             }
             wistd::function<void(RegistryChangeKind)> m_callback;

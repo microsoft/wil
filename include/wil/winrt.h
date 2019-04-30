@@ -1,4 +1,13 @@
-
+//*********************************************************
+//
+//    Copyright (c) Microsoft. All rights reserved.
+//    This code is licensed under the MIT License.
+//    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+//    ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+//    TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+//    PARTICULAR PURPOSE AND NONINFRINGEMENT.
+//
+//*********************************************************
 #ifndef __WIL_WINRT_INCLUDED
 #define __WIL_WINRT_INCLUDED
 
@@ -75,68 +84,6 @@ namespace wil
         template <bool InhibitStringArrays, bool IgnoreCase>
         struct hstring_compare
         {
-            template <typename LhsT, typename RhsT>
-            static auto compare(LhsT&& lhs, RhsT&& rhs) ->
-                decltype(get_buffer(lhs, wistd::declval<UINT32*>()), get_buffer(rhs, wistd::declval<UINT32*>()), int())
-            {
-                UINT32 lhsLength;
-                UINT32 rhsLength;
-                auto lhsBuffer = get_buffer(wistd::forward<LhsT>(lhs), &lhsLength);
-                auto rhsBuffer = get_buffer(wistd::forward<RhsT>(rhs), &rhsLength);
-
-                const auto result = ::CompareStringOrdinal(
-                    lhsBuffer,
-                    lhsLength,
-                    rhsBuffer,
-                    rhsLength,
-                    IgnoreCase ? TRUE : FALSE);
-                NT_ASSERT(result != 0);
-
-                return result;
-            }
-
-            template <typename LhsT, typename RhsT>
-            static auto equals(LhsT&& lhs, RhsT&& rhs) WI_NOEXCEPT ->
-                decltype(compare(wistd::forward<LhsT>(lhs), wistd::forward<RhsT>(rhs)), bool())
-            {
-                return compare(wistd::forward<LhsT>(lhs), wistd::forward<RhsT>(rhs)) == CSTR_EQUAL;
-            }
-
-            template <typename LhsT, typename RhsT>
-            static auto not_equals(LhsT&& lhs, RhsT&& rhs) WI_NOEXCEPT ->
-                decltype(compare(wistd::forward<LhsT>(lhs), wistd::forward<RhsT>(rhs)), bool())
-            {
-                return compare(wistd::forward<LhsT>(lhs), wistd::forward<RhsT>(rhs)) != CSTR_EQUAL;
-            }
-
-            template <typename LhsT, typename RhsT>
-            static auto less(LhsT&& lhs, RhsT&& rhs) WI_NOEXCEPT ->
-                decltype(compare(wistd::forward<LhsT>(lhs), wistd::forward<RhsT>(rhs)), bool())
-            {
-                return compare(wistd::forward<LhsT>(lhs), wistd::forward<RhsT>(rhs)) == CSTR_LESS_THAN;
-            }
-
-            template <typename LhsT, typename RhsT>
-            static auto less_equals(LhsT&& lhs, RhsT&& rhs) WI_NOEXCEPT ->
-                decltype(compare(wistd::forward<LhsT>(lhs), wistd::forward<RhsT>(rhs)), bool())
-            {
-                return compare(wistd::forward<LhsT>(lhs), wistd::forward<RhsT>(rhs)) != CSTR_GREATER_THAN;
-            }
-
-            template <typename LhsT, typename RhsT>
-            static auto greater(LhsT&& lhs, RhsT&& rhs) WI_NOEXCEPT ->
-                decltype(compare(wistd::forward<LhsT>(lhs), wistd::forward<RhsT>(rhs)), bool())
-            {
-                return compare(wistd::forward<LhsT>(lhs), wistd::forward<RhsT>(rhs)) == CSTR_GREATER_THAN;
-            }
-
-            template <typename LhsT, typename RhsT>
-            static auto greater_equals(LhsT&& lhs, RhsT&& rhs) WI_NOEXCEPT ->
-                decltype(compare(wistd::forward<LhsT>(lhs), wistd::forward<RhsT>(rhs)), bool())
-            {
-                return compare(wistd::forward<LhsT>(lhs), wistd::forward<RhsT>(rhs)) != CSTR_LESS_THAN;
-            }
-
             // get_buffer returns the string buffer and length for the supported string types
             static const wchar_t* get_buffer(HSTRING hstr, UINT32* length) WI_NOEXCEPT
             {
@@ -208,6 +155,68 @@ namespace wil
                 return str.c_str();
             }
 #endif
+
+            template <typename LhsT, typename RhsT>
+            static auto compare(LhsT&& lhs, RhsT&& rhs) ->
+                decltype(get_buffer(lhs, wistd::declval<UINT32*>()), get_buffer(rhs, wistd::declval<UINT32*>()), int())
+            {
+                UINT32 lhsLength;
+                UINT32 rhsLength;
+                auto lhsBuffer = get_buffer(wistd::forward<LhsT>(lhs), &lhsLength);
+                auto rhsBuffer = get_buffer(wistd::forward<RhsT>(rhs), &rhsLength);
+
+                const auto result = ::CompareStringOrdinal(
+                    lhsBuffer,
+                    lhsLength,
+                    rhsBuffer,
+                    rhsLength,
+                    IgnoreCase ? TRUE : FALSE);
+                WI_ASSERT(result != 0);
+
+                return result;
+            }
+
+            template <typename LhsT, typename RhsT>
+            static auto equals(LhsT&& lhs, RhsT&& rhs) WI_NOEXCEPT ->
+                decltype(compare(wistd::forward<LhsT>(lhs), wistd::forward<RhsT>(rhs)), bool())
+            {
+                return compare(wistd::forward<LhsT>(lhs), wistd::forward<RhsT>(rhs)) == CSTR_EQUAL;
+            }
+
+            template <typename LhsT, typename RhsT>
+            static auto not_equals(LhsT&& lhs, RhsT&& rhs) WI_NOEXCEPT ->
+                decltype(compare(wistd::forward<LhsT>(lhs), wistd::forward<RhsT>(rhs)), bool())
+            {
+                return compare(wistd::forward<LhsT>(lhs), wistd::forward<RhsT>(rhs)) != CSTR_EQUAL;
+            }
+
+            template <typename LhsT, typename RhsT>
+            static auto less(LhsT&& lhs, RhsT&& rhs) WI_NOEXCEPT ->
+                decltype(compare(wistd::forward<LhsT>(lhs), wistd::forward<RhsT>(rhs)), bool())
+            {
+                return compare(wistd::forward<LhsT>(lhs), wistd::forward<RhsT>(rhs)) == CSTR_LESS_THAN;
+            }
+
+            template <typename LhsT, typename RhsT>
+            static auto less_equals(LhsT&& lhs, RhsT&& rhs) WI_NOEXCEPT ->
+                decltype(compare(wistd::forward<LhsT>(lhs), wistd::forward<RhsT>(rhs)), bool())
+            {
+                return compare(wistd::forward<LhsT>(lhs), wistd::forward<RhsT>(rhs)) != CSTR_GREATER_THAN;
+            }
+
+            template <typename LhsT, typename RhsT>
+            static auto greater(LhsT&& lhs, RhsT&& rhs) WI_NOEXCEPT ->
+                decltype(compare(wistd::forward<LhsT>(lhs), wistd::forward<RhsT>(rhs)), bool())
+            {
+                return compare(wistd::forward<LhsT>(lhs), wistd::forward<RhsT>(rhs)) == CSTR_GREATER_THAN;
+            }
+
+            template <typename LhsT, typename RhsT>
+            static auto greater_equals(LhsT&& lhs, RhsT&& rhs) WI_NOEXCEPT ->
+                decltype(compare(wistd::forward<LhsT>(lhs), wistd::forward<RhsT>(rhs)), bool())
+            {
+                return compare(wistd::forward<LhsT>(lhs), wistd::forward<RhsT>(rhs)) != CSTR_LESS_THAN;
+            }
         };
     }
     /// @endcond
@@ -426,7 +435,7 @@ namespace wil
         template<typename T, typename Enable = void> struct MapToSmartType
         {
             #pragma warning(push)
-            #pragma warning(disable:4702) /* https://microsoft.visualstudio.com/OS/_workitems?id=15917057&fullScreen=false&_a=edit */
+            #pragma warning(disable:4702) // https://github.com/Microsoft/wil/issues/2
             struct type // T holder
             {
                 type() {};
@@ -439,6 +448,7 @@ namespace wil
                 // In case of absense of T::operator=(T&&) a call to T::operator=(const T&) will happen
                 T&& Get()          { return wistd::move(m_value); }
 
+                HRESULT CopyTo(T* result) const { *result = m_value; return S_OK; }
                 T* GetAddressOf()  { return &m_value; }
                 T* ReleaseAndGetAddressOf() { return &m_value; }
                 T* operator&()     { return &m_value; }
@@ -727,8 +737,8 @@ namespace wil
         vector_range_nothrow& operator=(const vector_range_nothrow&) = delete;
 
         vector_range_nothrow(vector_range_nothrow&& other) :
-            m_v(other.m_v), m_result(other.m_result), m_resultStorage(other.m_resultStorage),
-            m_size(other.m_size), m_currentElement(wistd::move(other.m_currentElement))
+            m_v(other.m_v), m_size(other.m_size), m_result(other.m_result), m_resultStorage(other.m_resultStorage),
+            m_currentElement(wistd::move(other.m_currentElement))
         {
         }
 
@@ -897,7 +907,7 @@ namespace wil
             }
 
             // for end()
-            iterable_iterator(int currentIndex) : m_i(-1)
+            iterable_iterator(int /*currentIndex*/) : m_i(-1)
             {
             }
 
@@ -1244,6 +1254,7 @@ namespace details
         return wistd::forward<TFunc>(func)(wistd::forward<Args>(args)...);
     }
 
+#ifdef WIL_ENABLE_EXCEPTIONS
     template <typename TResult, typename TFunc, typename ...Args,
         typename wistd::enable_if<wistd::is_same<void, TResult>::value, int>::type = 0>
         HRESULT CallAndHandleErrorsWithReturnType(TFunc&& func, Args&&... args)
@@ -1255,6 +1266,7 @@ namespace details
         CATCH_RETURN();
         return S_OK;
     }
+#endif
 
     template <typename TFunc, typename ...Args>
     HRESULT CallAndHandleErrors(TFunc&& func, Args&&... args)
@@ -2041,8 +2053,8 @@ namespace details
 #define WI_MakeUniqueWinRtEventToken(_event, _object, _handler) \
     wil::details::make_unique_winrt_event_token<wil::err_exception_policy>( \
         _object, \
-        &wistd::remove_pointer<decltype(##_object##)>::type::add_##_event, \
-        &wistd::remove_pointer<decltype(##_object##)>::type::remove_##_event, \
+        &wistd::remove_pointer<decltype(_object)>::type::add_##_event, \
+        &wistd::remove_pointer<decltype(_object)>::type::remove_##_event, \
         _handler)
 
 #endif // WIL_ENABLE_EXCEPTIONS
@@ -2050,16 +2062,16 @@ namespace details
 #define WI_MakeUniqueWinRtEventTokenNoThrow(_event, _object, _handler, _token_reference) \
     wil::details::make_unique_winrt_event_token( \
         _object, \
-        &wistd::remove_pointer<decltype(##_object##)>::type::add_##_event, \
-        &wistd::remove_pointer<decltype(##_object##)>::type::remove_##_event, \
+        &wistd::remove_pointer<decltype(_object)>::type::add_##_event, \
+        &wistd::remove_pointer<decltype(_object)>::type::remove_##_event, \
         _handler, \
         _token_reference)
 
 #define WI_MakeUniqueWinRtEventTokenFailFast(_event, _object, _handler) \
     wil::details::make_unique_winrt_event_token<wil::err_failfast_policy>( \
         _object, \
-        &wistd::remove_pointer<decltype(##_object##)>::type::add_##_event, \
-        &wistd::remove_pointer<decltype(##_object##)>::type::remove_##_event, \
+        &wistd::remove_pointer<decltype(_object)>::type::add_##_event, \
+        &wistd::remove_pointer<decltype(_object)>::type::remove_##_event, \
         _handler)
 
 #pragma endregion // EventRegistrationToken RAII wrapper
