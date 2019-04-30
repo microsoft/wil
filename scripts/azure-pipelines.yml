@@ -23,7 +23,7 @@ steps:
     call scripts\build_all.cmd
   displayName: 'Build x86'
 
--script: |
+- script: |
     call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvarsx86_amd64.bat"
     if %ERRORLEVEL% NEQ 0 goto :eof
     
