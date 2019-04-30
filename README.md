@@ -1,4 +1,6 @@
 
+[![Build Status](https://dev.azure.com/msft-wil/Windows%20Implementation%20Library/_apis/build/status/Microsoft.wil?branchName=master)](https://dev.azure.com/msft-wil/Windows%20Implementation%20Library/_build/latest?definitionId=1&branchName=master)
+
 # Consuming WIL via NuGet
 You can consume WIL via a NuGet package. To do so, follow the instructions on [nuget.org](https://www.nuget.org/packages/Microsoft.Windows.ImplementationLibrary).
 This package includes the header files under the [include](include) directory as well as a [.targets](packaging/nuget/Microsoft.Windows.ImplementationLibrary.targets)
