@@ -1,7 +1,8 @@
 
 # Consuming WIL via NuGet
 You can consume WIL via a NuGet package. To do so, follow the instructions on [nuget.org](https://www.nuget.org/packages/Microsoft.Windows.ImplementationLibrary).
-This package includes the header files under the [include](include) directory as well as a `.targets` file.
+This package includes the header files under the [include](include) directory as well as a [.targets](packaging/nuget/Microsoft.Windows.ImplementationLibrary.targets)
+file.
 
 # Building/Testing
 To get started testing WIL, first make sure that you have a recent version of Visual Studio installed. If you are doing
@@ -26,12 +27,13 @@ Or, if you want to only build a single test (e.g. for improved compile times):
 C:\wil\build\clang64debug> ninja witest.noexcept
 ```
 If you initialized using MSBuild as the generator, there will be a `.sln` file in the root of the build directory. You
-can either open the solution in Visual Studio or invoke `msbuild` directly to build.
+can either open the solution in Visual Studio or invoke MSBuild directly to build.
 
-The output is a number of test executables that can be run. If you used the initialization script(s) mentioned above, or
-or if you followed the same directory naming convention of those scripts, you can use the `runtests.cmd` script, which
-will execute any test executables that have been built, erroring out - and preserving the exit code - if any test fails.
-If you are at the tail end of of a change, you can execute the following to get a wide range of coverage:
+The output is a number of test executables. If you used the initialization script(s) mentioned above, or if you followed
+the same directory naming convention of those scripts, you can use the [runtests.cmd](scripts/runtests.cmd) script,
+which will execute any test executables that have been built, erroring out - and preserving the exit code - if any test
+fails. Note that MSBuild will modify the output directories, so this script is only compatible with using Ninja as the
+generator. If you are at the tail end of of a change, you can execute the following to get a wide range of coverage:
 ```cmd
 C:\wil> scripts\init_all.cmd
 C:\wil> scripts\build_all.cmd

@@ -17,7 +17,7 @@ steps:
     call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars32.bat"
     if %ERRORLEVEL% NEQ 0 goto :eof
     
-    call scripts\init.cmd -c msvc -g ninja -b debug
+    call scripts\init.cmd -c msvc -g ninja -b debug --fast
     if %ERRORLEVEL% NEQ 0 goto :eof
     
     call scripts\build_all.cmd
@@ -27,9 +27,9 @@ steps:
     call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvarsx86_amd64.bat"
     if %ERRORLEVEL% NEQ 0 goto :eof
     
-    call scripts\init.cmd -c clang -g ninja -b debug
+    call scripts\init.cmd -c clang -g ninja -b debug --fast
     if %ERRORLEVEL% NEQ 0 goto :eof
-    call scripts\init.cmd -c msvc -g ninja -b debug
+    call scripts\init.cmd -c msvc -g ninja -b debug --fast
     if %ERRORLEVEL% NEQ 0 goto :eof
     
     call scripts\build_all.cmd
