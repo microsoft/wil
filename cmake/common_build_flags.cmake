@@ -33,8 +33,7 @@ append_cxx_flag("/permissive-")
 append_cxx_flag("/wd4324")
 
 if (${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
-    # Ignore a few Clang warnings
-    # TODO: Revisit later to see if we want a source level fix!
+    # Ignore a few Clang warnings. We may want to revisit in the future to see if any of these can/should be removed
     append_cxx_flag("-Wno-switch")
     append_cxx_flag("-Wno-invalid-noreturn")
     append_cxx_flag("-Wno-c++17-compat-mangling")
@@ -42,9 +41,18 @@ if (${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
 
     # For tests, we want to be able to test self assignment, so disable this warning
     append_cxx_flag("-Wno-self-assign-overloaded")
+
+    # clang-cl does not understand the /permissive- flag (or at least it opts to ignore it). We can achieve similar
+    # results through the following flags.
+    # TODO: https://github.com/Microsoft/wil/issues/10 - not yet clean enough to have this on by default
+    # append_cxx_flag("-fno-delayed-template-parsing")
+
+    # NOTE: Windows headers not clean enough for us to realistically attempt to start fixing these errors yet. That
+    # said, errors that originate from WIL headers may benefit
+    # append_cxx_flag("-fno-ms-compatibility")
 else()
     # Flags that are either ignored or unrecognized by clang-cl
-    # TODO: Disabled for now due to some outstanding issues
+    # TODO: https://github.com/Microsoft/wil/issues/6
     # append_cxx_flag("/experimental:preprocessor")
 
     # CRT headers are not yet /experimental:preprocessor clean, so work around the known issues

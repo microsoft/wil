@@ -567,7 +567,7 @@ namespace wil
     }
 
     template <typename T, __R_ENABLE_IF_IS_NOT_CLASS(T)>
-    __forceinline bool verify_bool(T val)
+    __forceinline bool verify_bool(T /*val*/)
     {
         static_assert(!wistd::is_same<T, T>::value, "Wrong Type: bool/BOOL/BOOLEAN/boolean expected");
     }

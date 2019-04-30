@@ -6,7 +6,6 @@ file(TO_NATIVE_PATH "${nupkg_dir}/Microsoft.Windows.ImplementationLibrary.${WIL_
 # The build servers don't have an up-to-date version of nuget, so pull it down ourselves...
 file(DOWNLOAD https://dist.nuget.org/win-x86-commandline/latest/nuget.exe ${nuget_exe})
 
-# The nupkg has a dependency on all header files in the
 file(GLOB_RECURSE wil_headers ${CMAKE_SOURCE_DIR}/include/*.h)
 
 add_custom_command(OUTPUT ${wil_nupkg}

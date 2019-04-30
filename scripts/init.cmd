@@ -92,8 +92,6 @@ goto :init
     if /I "%~1"=="--fast" (
         if %FAST_BUILD% NEQ 0 echo ERROR: Fast build already specified
         set FAST_BUILD=1
-        set CMAKE_ARGS=%CMAKE_ARGS% -DFAST_BUILD=ON
-
         shift
         goto :parse
     )
@@ -128,8 +126,10 @@ goto :init
 
     if "%VERSION%" NEQ "" set CMAKE_ARGS=%CMAKE_ARGS% -DWIL_BUILD_VERSION=%VERSION%
 
+    if %FAST_BUILD%==1 set CMAKE_ARGS=%CMAKE_ARGS% -DFAST_BUILD=ON
+
     :: Figure out the platform
-    if "%Platform%"=="" echo ERROR: This script must be run from a Visual Studio command window & exit /B 1
+    if "%Platform%"=="" echo ERROR: The init.cmd script must be run from a Visual Studio command window & exit /B 1
     if "%Platform%"=="x86" (
         set BITNESS=32
         if %COMPILER%==clang set CFLAGS=-m32 & set CXXFLAGS=-m32
@@ -141,6 +141,7 @@ goto :init
     set BUILD_DIR=%BUILD_ROOT%\%COMPILER%%BITNESS%%BUILD_TYPE%
     mkdir %BUILD_DIR% > NUL 2>&1
 
+    :: Run CMake
     pushd %BUILD_DIR%
     echo Using compiler....... %COMPILER%
     echo Using architecture... %Platform%

@@ -508,7 +508,7 @@ public:
     {
         HRESULT hr = S_OK;
         ComPtr< ::ABI::Windows::Foundation::IAsyncInfo > asyncInfo = this;
-        ComPtr<Details::DerefHelper<ProgressTraits::Arg1Type>::DerefType> operationInterface;
+        ComPtr<typename Details::DerefHelper<typename ProgressTraits::Arg1Type>::DerefType> operationInterface;
         if (progressDelegate_)
         {
             hr = asyncInfo.As(&operationInterface);

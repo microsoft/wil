@@ -8,10 +8,10 @@ if "%Platform%"=="x64" (
 ) else if "%Platform%"=="x86" (
     set BUILD_ARCH=32
 ) else if [%Platform%]==[] (
-    echo ERROR: This script must be run from a Visual Studio command window
+    echo ERROR: The build_all.cmd script must be run from a Visual Studio command window
     exit /B 1
 ) else (
-    echo ERROR: Unrecognized platform %Platform%
+    echo ERROR: Unrecognized/unsupported platform %Platform%
     exit /B 1
 )
 

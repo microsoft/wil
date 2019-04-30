@@ -907,7 +907,7 @@ namespace wil
             }
 
             // for end()
-            iterable_iterator(int currentIndex) : m_i(-1)
+            iterable_iterator(int /*currentIndex*/) : m_i(-1)
             {
             }
 

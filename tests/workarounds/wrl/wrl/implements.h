@@ -2552,7 +2552,7 @@ namespace Details
         STDMETHOD(QueryInterface)(REFIID riid, _Outptr_result_nullonfailure_ void **ppvObject) \
         { \
             bool handled = false; \
-            HRESULT hr = RuntimeClassT::CustomQueryInterface(riid, ppvObject, &handled); \
+            HRESULT hr = this->CustomQueryInterface(riid, ppvObject, &handled); \
             if (FAILED(hr) || handled) return hr; \
             return RuntimeClassT::QueryInterface(riid, ppvObject); \
         } \
