@@ -19,7 +19,7 @@
 // caught and re-thrown.
 //
 // For RETURN_ macros we will have to examine the thread-local error storage once per frame as the call stack unwinds.  Because error conditions
-// -should- be uncommon the performance impact of checking TLS should be minimal.  The more expensive part is originating the error becasue it must
+// -should- be uncommon the performance impact of checking TLS should be minimal.  The more expensive part is originating the error because it must
 // capture the entire stack and some additional data.
 
 #ifndef __WIL_RESULT_ORIGINATE_INCLUDED
