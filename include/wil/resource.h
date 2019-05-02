@@ -1683,6 +1683,14 @@ namespace wil
             result = maker.release();
             return S_OK;
         }
+
+        // NOTE: 'Strings' must all be PCWSTR, or convertible to PCWSTR, but C++ doesn't allow us to express that cleanly
+        template <typename string_type, typename... Strings>
+        HRESULT str_build_nothrow(string_type& result, Strings... strings)
+        {
+            PCWSTR localStrings[] = { strings... };
+            return str_build_nothrow(result, localStrings, sizeof...(Strings));
+        }
     }
 
     // Concatenate any number of strings together and store it in an automatically allocated string.  If a string is present
@@ -1691,9 +1699,7 @@ namespace wil
     HRESULT str_concat_nothrow(string_type& buffer, const strings&... str)
     {
         static_assert(sizeof...(str) > 0, "attempting to concatenate no strings");
-        // Strings to concat include whatever is stored in result (if anything), followed by the arguments
-        PCWSTR localStrings[] = { details::string_maker<string_type>::get(buffer), str_raw_ptr(str)... };
-        return details::str_build_nothrow(buffer, localStrings, ARRAYSIZE(localStrings));
+        return details::str_build_nothrow(buffer, details::string_maker<string_type>::get(buffer), str_raw_ptr(str)...);
     }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
