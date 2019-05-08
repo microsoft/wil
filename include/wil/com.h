@@ -380,10 +380,21 @@ namespace wil
         //! apparent, prefer to scope variables as close to use as possible (generally avoiding use of the same com_ptr variable in successive calls to
         //! receive an output interface).
         //! @see addressof
-        pointer* operator&() WI_NOEXCEPT
+        pointer* put() WI_NOEXCEPT
         {
             reset();
             return &m_ptr;
+        }
+
+        //! Returns the address of the internal pointer (releases ownership of the pointer BEFORE returning the address).
+        //! The pointer is explicitly released to prevent accidental leaks of the pointer.  Coding standards generally indicate that
+        //! there is little valid `_Inout_` use of `IInterface**`, making this safe to do under typical use.  Since this behavior is not always immediately
+        //! apparent, prefer to scope variables as close to use as possible (generally avoiding use of the same com_ptr variable in successive calls to
+        //! receive an output interface).
+        //! @see addressof
+        pointer* operator&() WI_NOEXCEPT
+        {
+            return put();
         }
 
         //! Returns the address of the internal pointer (does not release the pointer; should not be used for `_Out_` parameters)
