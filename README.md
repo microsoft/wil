@@ -1,4 +1,4 @@
-# Windows Implemementation Libraries (WIL)
+# Windows Implementation Libraries (WIL)
 
 [![Build Status](https://dev.azure.com/msft-wil/Windows%20Implementation%20Library/_apis/build/status/Microsoft.wil?branchName=master)](https://dev.azure.com/msft-wil/Windows%20Implementation%20Library/_build/latest?definitionId=1&branchName=master)
 
