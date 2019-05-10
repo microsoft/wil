@@ -292,6 +292,11 @@ namespace wil
             return storage_t::is_valid();
         }
 
+        //! ~~~~
+        //! BOOL OpenOrCreateWaffle(PCWSTR name, HWAFFLE* handle);
+        //! wil::unique_any<HWAFFLE, decltype(&::CloseWaffle), ::CloseWaffle> waffle;
+        //! RETURN_IF_WIN32_BOOL_FALSE(OpenOrCreateWaffle(L"tasty.yum", waffle.put()));
+        //! ~~~~
         pointer_storage *put() WI_NOEXCEPT
         {
             static_assert(wistd::is_same<typename policy::pointer_access, details::pointer_access_all>::value, "operator & is not available for this handle");

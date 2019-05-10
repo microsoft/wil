@@ -380,6 +380,11 @@ namespace wil
         //! apparent, prefer to scope variables as close to use as possible (generally avoiding use of the same com_ptr variable in successive calls to
         //! receive an output interface).
         //! @see addressof
+        //! ~~~~
+        //! STDAPI GetMuffin(IMuffin **muffin);
+        //! wil::com_ptr<IMuffin> myMuffin;
+        //! THROW_IF_FAILED(GetMuffin(myMuffin.put()));
+        //! ~~~~
         pointer* put() WI_NOEXCEPT
         {
             reset();
