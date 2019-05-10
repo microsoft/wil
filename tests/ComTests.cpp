@@ -295,6 +295,18 @@ TEST_CASE("ComTests::Test_Address", "[com][com_ptr]")
         REQUIRE((*pFakePtr) == &helper);
     }
 
+    SECTION("put")
+    {
+        wil::com_ptr_nothrow<IUnknownFake> ptr(&helper);
+        IUnknownFake::Clear();
+
+        pFakePtr = ptr.put();
+        REQUIRE(IUnknownFake::GetRelease() == 1);
+        REQUIRE(IUnknownFake::GetAddRef() == 0);
+        REQUIRE((*pFakePtr) == nullptr);
+        REQUIRE(ptr == nullptr);
+    }
+
     SECTION("Address operator")
     {
         wil::com_ptr_nothrow<IUnknownFake> ptr(&helper);
@@ -711,6 +723,16 @@ void TestSmartPointer(const Ptr& ptr1, const Ptr& ptr2)
         REQUIRE(p1.get() == ptr1.get());
         p1.reset();
         *(p1.addressof()) = p2.detach();
+        REQUIRE(p1.get() == ptr2.get());
+    }
+
+    SECTION("put")
+    {
+        auto p1 = ptr1;
+        auto p2 = ptr2;
+        p1.put();
+        REQUIRE_FALSE(p1);
+        *p1.put() = p2.detach();
         REQUIRE(p1.get() == ptr2.get());
     }
 
