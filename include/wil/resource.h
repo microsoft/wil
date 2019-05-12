@@ -292,11 +292,21 @@ namespace wil
             return storage_t::is_valid();
         }
 
-        pointer_storage *operator&() WI_NOEXCEPT
+        //! ~~~~
+        //! BOOL OpenOrCreateWaffle(PCWSTR name, HWAFFLE* handle);
+        //! wil::unique_any<HWAFFLE, decltype(&::CloseWaffle), ::CloseWaffle> waffle;
+        //! RETURN_IF_WIN32_BOOL_FALSE(OpenOrCreateWaffle(L"tasty.yum", waffle.put()));
+        //! ~~~~
+        pointer_storage *put() WI_NOEXCEPT
         {
             static_assert(wistd::is_same<typename policy::pointer_access, details::pointer_access_all>::value, "operator & is not available for this handle");
             storage_t::reset();
             return storage_t::addressof();
+        }
+
+        pointer_storage *operator&() WI_NOEXCEPT
+        {
+            return put();
         }
 
         pointer get() const WI_NOEXCEPT
@@ -1097,10 +1107,15 @@ namespace wil
             return &m_ptr;
         }
 
-        pointer* operator&() WI_NOEXCEPT
+        pointer* put() WI_NOEXCEPT
         {
             reset();
             return addressof();
+        }
+
+        pointer* operator&() WI_NOEXCEPT
+        {
+            return put();
         }
 
         size_type* size_address() WI_NOEXCEPT
@@ -1413,10 +1428,16 @@ namespace wil
         }
 
         //! Releases the held token and allows attaching a new token; associate must be called first
-        token_t* operator&() WI_NOEXCEPT
+        token_t* put() WI_NOEXCEPT
         {
             reset(invalid_token);
             return addressof();
+        }
+
+        //! Releases the held token and allows attaching a new token; associate must be called first
+        token_t* operator&() WI_NOEXCEPT
+        {
+            return put();
         }
 
         //! Retrieves the token
@@ -1533,10 +1554,17 @@ namespace wil
 
         //! Releases the held interface (first performing the interface call if required)
         //! and allows attaching a new interface
-        interface_t** operator&() WI_NOEXCEPT
+        interface_t** put() WI_NOEXCEPT
         {
             reset();
             return addressof();
+        }
+
+        //! Releases the held interface (first performing the interface call if required)
+        //! and allows attaching a new interface
+        interface_t** operator&() WI_NOEXCEPT
+        {
+            return put();
         }
 
         unique_com_call(const unique_com_call&) = delete;
@@ -2013,11 +2041,16 @@ namespace wil {
             return storage_t::is_valid();
         }
 
-        pointer_storage *operator&()
+        pointer_storage *put()
         {
             static_assert(wistd::is_same<typename policy::pointer_access, details::pointer_access_all>::value, "operator & is not available for this handle");
             storage_t::reset();
             return storage_t::addressof();
+        }
+
+        pointer_storage *operator&()
+        {
+            return put();
         }
 
         pointer get() const WI_NOEXCEPT

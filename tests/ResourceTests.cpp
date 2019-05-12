@@ -310,13 +310,21 @@ TEST_CASE("ResourceTests::VerifyUniqueComCall", "[resource][unique_com_call]")
     REQUIRE(*call1.addressof() == nullptr);
 
     call1.reset(&fake1);
-
     fake2.closes = 0;
     fake2.refs = 1;
     *(&call1) = &fake2;
     REQUIRE(!fake1.has_ref());
     REQUIRE(fake1.called());
     REQUIRE(fake2.has_ref());
+
+    call1.reset(&fake1);
+    fake2.closes = 0;
+    fake2.refs = 1;
+    *call1.put() = &fake2;
+    REQUIRE(!fake1.has_ref());
+    REQUIRE(fake1.called());
+    REQUIRE(fake2.has_ref());
+
     call1.reset();
     REQUIRE(!fake2.has_ref());
     REQUIRE(fake2.called());
