@@ -3738,6 +3738,7 @@ namespace wil
     template <typename T>
     using unique_hlocal_ptr = wistd::unique_ptr<T, hlocal_deleter>;
 
+#if defined(__PLACEMENT_NEW_INLINE)
     /** Provides `std::make_unique()` semantics for resources allocated with `LocalAlloc()` in a context that may not throw upon allocation failure.
     Use `wil::make_unique_hlocal_nothrow()` for resources returned from APIs that must satisfy a memory allocation contract that requires the use of `LocalAlloc()` / `LocalFree()`.
     Use `wil::make_unique_nothrow()` when `LocalAlloc()` is not required.
@@ -3800,6 +3801,7 @@ namespace wil
         }
         return sp;
     }
+#endif
 
     /** Provides `std::make_unique()` semantics for resources allocated with `LocalAlloc()` in a context that must fail fast upon allocation failure.
     See the overload of `wil::make_unique_hlocal_nothrow()` for non-array types for more details.
@@ -4756,6 +4758,7 @@ namespace wil
     template <typename T>
     using unique_cotaskmem_array_ptr = unique_array_ptr<T, cotaskmem_deleter>;
 
+#if defined(__PLACEMENT_NEW_INLINE)
     /** Provides `std::make_unique()` semantics for resources allocated with `CoTaskMemAlloc()` in a context that may not throw upon allocation failure.
     Use `wil::make_unique_cotaskmem_nothrow()` for resources returned from APIs that must satisfy a memory allocation contract that requires the use of `CoTaskMemAlloc()` / `CoTaskMemFree()`.
     Use `wil::make_unique_nothrow()` when `CoTaskMemAlloc()` is not required.
@@ -4818,6 +4821,7 @@ namespace wil
         }
         return sp;
     }
+#endif
 
     /** Provides `std::make_unique()` semantics for resources allocated with `CoTaskMemAlloc()` in a context that must fail fast upon allocation failure.
     See the overload of `wil::make_unique_cotaskmem_nothrow()` for non-array types for more details.
