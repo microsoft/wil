@@ -11,6 +11,8 @@
 #ifndef __WIL_RESULT_INCLUDED
 #define __WIL_RESULT_INCLUDED
 
+#include <new> // operator new(size_t, void*)
+
 // Most functionality is picked up from result_macros.h.  This file specifically provides higher level processing of errors when
 // they are encountered by the underlying macros.
 #include "result_macros.h"
