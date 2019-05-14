@@ -8,6 +8,8 @@
 //    PARTICULAR PURPOSE AND NONINFRINGEMENT.
 //
 //*********************************************************
+#include <stdint.h> // SIZE_MAX
+
 #include "result_macros.h"
 #include "wistd_functional.h"
 #include "wistd_memory.h"
