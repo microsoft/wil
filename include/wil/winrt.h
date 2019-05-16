@@ -1447,25 +1447,26 @@ namespace details
 
 /** Set the completion callback for an async operation to run a caller provided function.
 Once complete the function is called with the error code result of the operation
-and the async operation object. That can be used to retrieve the result of the operation
-if there is one.
-The function parameter list must be (HRESULT hr, IResultInterface* operation)
+and the async operation result (if applicable).
+The function parameter list must be (HRESULT hr) for actions,
+(HRESULT hr, IResultInterface* object) for operations that produce interfaces,
+and (HRESULT hr, TResult value) for operations that produce value types.
 ~~~
-run_when_complete<StorageFile*>(getFileOp.Get(), [](HRESULT result, IStorageFile* file) -> void
+run_when_complete(getFileOp.Get(), [](HRESULT hr, IStorageFile* file) -> void
 {
 
 });
 ~~~
 for an agile callback use Microsoft::WRL::FtmBase
 ~~~
-run_when_complete<StorageFile*, FtmBase>(getFileOp.Get(), [](HRESULT result, IStorageFile* file) -> void
+run_when_complete<FtmBase>(getFileOp.Get(), [](HRESULT hr, IStorageFile* file) -> void
 {
 
 });
 ~~~
 Using the non throwing form:
 ~~~
-hr = run_when_complete_nothrow<StorageFile*>(getFileOp.Get(), [](HRESULT result, IStorageFile* file) -> HRESULT
+hr = run_when_complete_nothrow<StorageFile*>(getFileOp.Get(), [](HRESULT hr, IStorageFile* file) -> HRESULT
 {
 
 });
@@ -1738,7 +1739,7 @@ HRESULT make_synchronous_async_operation_nothrow(ABI::Windows::Foundation::IAsyn
     return Microsoft::WRL::MakeAndInitialize<details::SyncAsyncOp<TResult>>(result, value);
 }
 
-//! Creates a WinRT async operation object that implements IAsyncOperation<TResult>. Use mostly for testing and for mocking APIs.
+//! Creates a WinRT async operation object that implements IAsyncAction. Use mostly for testing and for mocking APIs.
 inline HRESULT make_synchronous_async_action_nothrow(ABI::Windows::Foundation::IAsyncAction** result)
 {
     return Microsoft::WRL::MakeAndInitialize<details::SyncAsyncActionOp>(result);
@@ -1753,7 +1754,7 @@ void make_synchronous_async_operation(ABI::Windows::Foundation::IAsyncOperation<
     THROW_IF_FAILED((Microsoft::WRL::MakeAndInitialize<details::SyncAsyncOp<TResult>>(result, value)));
 }
 
-//! Creates a WinRT async operation object that implements IAsyncOperation<TResult>. Use mostly for testing and for mocking APIs.
+//! Creates a WinRT async operation object that implements IAsyncAction. Use mostly for testing and for mocking APIs.
 inline void make_synchronous_async_action(ABI::Windows::Foundation::IAsyncAction** result)
 {
     THROW_IF_FAILED((Microsoft::WRL::MakeAndInitialize<details::SyncAsyncActionOp>(result)));
