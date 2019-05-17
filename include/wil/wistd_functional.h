@@ -516,9 +516,16 @@ namespace wistd     // ("Windows Implementation" std)
     swap_wil(function<_Rp(_ArgTypes...)>& __x, function<_Rp(_ArgTypes...)>& __y)
     {return __x.swap(__y);}
 
+    // std::invoke
+    template <class _Fp, class... _Args>
+    inline __WI_LIBCPP_INLINE_VISIBILITY
+    auto
+    invoke(_Fp &&__f, _Args &&...__args) -> decltype(__invoke(wistd::forward<_Fp>(__f), wistd::forward<_Args>(__args)...))
+    {return __invoke(wistd::forward<_Fp>(__f), wistd::forward<_Args>(__args)...);}
+
 #else // __WI_LIBCPP_CXX03_LANG
 
-#error wistd::function not implemented for pre-C++11
+#error wistd::function and wistd::invoke not implemented for pre-C++11
 
 #endif
 }
