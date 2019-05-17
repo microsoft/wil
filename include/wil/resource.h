@@ -4179,6 +4179,7 @@ namespace wil
     typedef unique_any<HACCEL, decltype(&::DestroyAcceleratorTable), ::DestroyAcceleratorTable> unique_haccel;
     typedef unique_any<HCURSOR, decltype(&::DestroyCursor), ::DestroyCursor> unique_hcursor;
     typedef unique_any<HWND, decltype(&::DestroyWindow), ::DestroyWindow> unique_hwnd;
+    typedef unique_any<HHOOK, decltype(&::UnhookWindowsHookEx), ::UnhookWindowsHookEx> unique_hhook;
 #endif // __WIL__WINUSER_
 
 #if !defined(NOGDI) && !defined(NODESKTOP)
