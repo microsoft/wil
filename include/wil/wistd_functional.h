@@ -517,11 +517,13 @@ namespace wistd     // ("Windows Implementation" std)
     {return __x.swap(__y);}
 
     // std::invoke
-    template <class _Fp, class... _Args>
-    inline __WI_LIBCPP_INLINE_VISIBILITY
-    auto
-    invoke(_Fp &&__f, _Args &&...__args) -> decltype(__invoke(wistd::forward<_Fp>(__f), wistd::forward<_Args>(__args)...))
-    {return __invoke(wistd::forward<_Fp>(__f), wistd::forward<_Args>(__args)...);}
+    template <class _Fn, class ..._Args>
+    typename __invoke_of<_Fn, _Args...>::type
+    invoke(_Fn&& __f, _Args&&... __args)
+        __WI_NOEXCEPT_(__nothrow_invokable<_Fn, _Args...>::value)
+    {
+        return wistd::__invoke(wistd::forward<_Fn>(__f), wistd::forward<_Args>(__args)...);
+    }
 
 #else // __WI_LIBCPP_CXX03_LANG
 
