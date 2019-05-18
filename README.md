@@ -1,5 +1,37 @@
+# Windows Implementation Libraries (WIL)
 
 [![Build Status](https://dev.azure.com/msft-wil/Windows%20Implementation%20Library/_apis/build/status/Microsoft.wil?branchName=master)](https://dev.azure.com/msft-wil/Windows%20Implementation%20Library/_build/latest?definitionId=1&branchName=master)
+
+The Windows Implementation Libraries (WIL) is a header-only C++ library created to make life easier
+for developers on Windows through readable type-safe C++ interfaces for common Windows coding patterns.
+
+Some things that WIL includes to whet your appetite:
+
+- [`include/wil/resource.h`](include/wil/resource.h)
+  ([documentation](https://github.com/Microsoft/wil/wiki/RAII-resource-wrappers)):
+  Smart pointers and auto-releasing resource wrappers to let you manage Windows
+  API HANDLEs, HWNDs, and other resources and resource handles with
+  [RAII](https://en.cppreference.com/w/cpp/language/raii) semantics.
+- [`include/wil/win32_helpers.h`](include/wil/win32_helpers.h): Wrappers for API functions
+  that save you the work of manually specifying buffer sizes, calling a function twice
+  to get the needed buffer size and then allocate and pass the right-size buffer,
+  casting or converting between types, and so on.
+- [`include/wil/registry.h`](include/wil/registry.h): Registry watchers that can
+  call a lambda function or callback you provide whenever a certain tree within
+  the Windows registry changes.
+- [`include/wil/result.h`](include/wil/result.h)
+  ([documentation](https://github.com/Microsoft/wil/wiki/Error-handling-helpers)):
+  Preprocessor macros to help you check for errors from Windows API functions,
+  in many of the myriad ways those errors are reported, and surface them as
+  error codes or C++ exceptions in your code.
+
+WIL can be used by C++ code that uses C++ exceptions as well as code that uses returned
+error codes to report errors. All of WIL can be used from user-space Windows code,
+and some (such as the RAII resource wrappers) can even be used in kernel mode.
+
+# Documentation
+
+This project is documented in [its GitHub wiki](https://github.com/Microsoft/wil/wiki). Feel free to contribute to it!
 
 # Consuming WIL via NuGet
 You can consume WIL via a NuGet package. To do so, follow the instructions on [nuget.org](https://www.nuget.org/packages/Microsoft.Windows.ImplementationLibrary).

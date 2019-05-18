@@ -989,6 +989,9 @@ TEST_CASE("WindowsInternalTests::UniqueHandle", "[resource][unique_any]")
 
         // address
         REQUIRE(*spMoveHandle.addressof() == handleValue);
+        REQUIRE(*spMoveHandle.put() == nullptr);
+        *spMoveHandle.put() = ::CreateEventEx(nullptr, nullptr, CREATE_EVENT_INITIAL_SET, 0);
+        REQUIRE(spMoveHandle);
         REQUIRE(*(&spMoveHandle) == nullptr);
         *(&spMoveHandle) = ::CreateEventEx(nullptr, nullptr, CREATE_EVENT_INITIAL_SET, 0);
         REQUIRE(spMoveHandle);
@@ -1229,6 +1232,17 @@ TEST_CASE("WindowsInternalTests::SharedHandle", "[resource][shared_any]")
     swap(wh1, wh2);
     REQUIRE(wh1.lock().get() == ptr1);
     REQUIRE(wh2.lock().get() == ptr2);
+
+    // put
+    sp1.reset(::CreateEventEx(nullptr, nullptr, CREATE_EVENT_INITIAL_SET, 0));
+    REQUIRE(sp1);
+    sp1.put();   // frees the pointer...
+    REQUIRE_FALSE(sp1);
+    sp2 = sp1;
+    REQUIRE_FALSE(sp2);
+    *sp1.put() = ::CreateEventEx(nullptr, nullptr, CREATE_EVENT_INITIAL_SET, 0);
+    REQUIRE(sp1);
+    REQUIRE_FALSE(sp2);
 
     // address
     sp1.reset(::CreateEventEx(nullptr, nullptr, CREATE_EVENT_INITIAL_SET, 0));
@@ -2113,6 +2127,12 @@ void AddressRaiiTests(lambda_t const &fnCreate)
     *(&var1) = fnCreate();
     REQUIRE(var1);
 
+    var1.put();
+    REQUIRE_FALSE(var1);                              // verify that 'put()' does an auto-release
+
+    *var1.put() = fnCreate();
+    REQUIRE(var1);
+
     REQUIRE(var1.addressof() != nullptr);
     REQUIRE(var1);                               // verify that 'addressof()' does not auto-release
 }
@@ -2818,6 +2838,11 @@ TEST_CASE("WindowsInternalTests::TestUniqueArrayCases", "[resource]")
 
         values = nullptr;
         REQUIRE(!values);
+        GetDWORDArray(values.size_address(), values.put());
+        REQUIRE(!!values);
+
+        values = nullptr;
+        REQUIRE(!values);
         GetDWORDArray(values.size_address(), &values);
         REQUIRE(!!values);
 
@@ -2901,6 +2926,7 @@ TEST_CASE("WindowsInternalTests::TestUniqueArrayCases", "[resource]")
         REQUIRE(!!values);
         REQUIRE(!values.empty());
 
+        REQUIRE(values2.put() == values2.addressof());
         REQUIRE(&values2 == values2.addressof());
     }
 }

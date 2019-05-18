@@ -292,11 +292,21 @@ namespace wil
             return storage_t::is_valid();
         }
 
-        pointer_storage *operator&() WI_NOEXCEPT
+        //! ~~~~
+        //! BOOL OpenOrCreateWaffle(PCWSTR name, HWAFFLE* handle);
+        //! wil::unique_any<HWAFFLE, decltype(&::CloseWaffle), ::CloseWaffle> waffle;
+        //! RETURN_IF_WIN32_BOOL_FALSE(OpenOrCreateWaffle(L"tasty.yum", waffle.put()));
+        //! ~~~~
+        pointer_storage *put() WI_NOEXCEPT
         {
             static_assert(wistd::is_same<typename policy::pointer_access, details::pointer_access_all>::value, "operator & is not available for this handle");
             storage_t::reset();
             return storage_t::addressof();
+        }
+
+        pointer_storage *operator&() WI_NOEXCEPT
+        {
+            return put();
         }
 
         pointer get() const WI_NOEXCEPT
@@ -1097,10 +1107,15 @@ namespace wil
             return &m_ptr;
         }
 
-        pointer* operator&() WI_NOEXCEPT
+        pointer* put() WI_NOEXCEPT
         {
             reset();
             return addressof();
+        }
+
+        pointer* operator&() WI_NOEXCEPT
+        {
+            return put();
         }
 
         size_type* size_address() WI_NOEXCEPT
@@ -1413,10 +1428,16 @@ namespace wil
         }
 
         //! Releases the held token and allows attaching a new token; associate must be called first
-        token_t* operator&() WI_NOEXCEPT
+        token_t* put() WI_NOEXCEPT
         {
             reset(invalid_token);
             return addressof();
+        }
+
+        //! Releases the held token and allows attaching a new token; associate must be called first
+        token_t* operator&() WI_NOEXCEPT
+        {
+            return put();
         }
 
         //! Retrieves the token
@@ -1533,10 +1554,17 @@ namespace wil
 
         //! Releases the held interface (first performing the interface call if required)
         //! and allows attaching a new interface
-        interface_t** operator&() WI_NOEXCEPT
+        interface_t** put() WI_NOEXCEPT
         {
             reset();
             return addressof();
+        }
+
+        //! Releases the held interface (first performing the interface call if required)
+        //! and allows attaching a new interface
+        interface_t** operator&() WI_NOEXCEPT
+        {
+            return put();
         }
 
         unique_com_call(const unique_com_call&) = delete;
@@ -1683,6 +1711,14 @@ namespace wil
             result = maker.release();
             return S_OK;
         }
+
+        // NOTE: 'Strings' must all be PCWSTR, or convertible to PCWSTR, but C++ doesn't allow us to express that cleanly
+        template <typename string_type, typename... Strings>
+        HRESULT str_build_nothrow(string_type& result, Strings... strings)
+        {
+            PCWSTR localStrings[] = { strings... };
+            return str_build_nothrow(result, localStrings, sizeof...(Strings));
+        }
     }
 
     // Concatenate any number of strings together and store it in an automatically allocated string.  If a string is present
@@ -1691,9 +1727,7 @@ namespace wil
     HRESULT str_concat_nothrow(string_type& buffer, const strings&... str)
     {
         static_assert(sizeof...(str) > 0, "attempting to concatenate no strings");
-        // Strings to concat include whatever is stored in result (if anything), followed by the arguments
-        PCWSTR localStrings[] = { details::string_maker<string_type>::get(buffer), str_raw_ptr(str)... };
-        return details::str_build_nothrow(buffer, localStrings, ARRAYSIZE(localStrings));
+        return details::str_build_nothrow(buffer, details::string_maker<string_type>::get(buffer), str_raw_ptr(str)...);
     }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
@@ -2007,11 +2041,16 @@ namespace wil {
             return storage_t::is_valid();
         }
 
-        pointer_storage *operator&()
+        pointer_storage *put()
         {
             static_assert(wistd::is_same<typename policy::pointer_access, details::pointer_access_all>::value, "operator & is not available for this handle");
             storage_t::reset();
             return storage_t::addressof();
+        }
+
+        pointer_storage *operator&()
+        {
+            return put();
         }
 
         pointer get() const WI_NOEXCEPT
@@ -4142,6 +4181,7 @@ namespace wil
     typedef unique_any<HACCEL, decltype(&::DestroyAcceleratorTable), ::DestroyAcceleratorTable> unique_haccel;
     typedef unique_any<HCURSOR, decltype(&::DestroyCursor), ::DestroyCursor> unique_hcursor;
     typedef unique_any<HWND, decltype(&::DestroyWindow), ::DestroyWindow> unique_hwnd;
+    typedef unique_any<HHOOK, decltype(&::UnhookWindowsHookEx), ::UnhookWindowsHookEx> unique_hhook;
 #endif // __WIL__WINUSER_
 
 #if !defined(NOGDI) && !defined(NODESKTOP)

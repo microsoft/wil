@@ -50,8 +50,15 @@
 //*****************************************************************************
 
 #ifdef RESULT_DEBUG
-#define WI_ASSERT(condition)                                (__WI_ANALYSIS_ASSUME(condition), ((!(condition)) ? (__annotation(L"Debug", L"AssertFail", L#condition), DbgRaiseAssertionFailure(), FALSE) : TRUE))
-#define WI_ASSERT_MSG(condition, msg)                       (__WI_ANALYSIS_ASSUME(condition), ((!(condition)) ? (__annotation(L"Debug", L"AssertFail", L##msg), DbgRaiseAssertionFailure(), FALSE) : TRUE))
+#if defined(__clang__) && defined(_WIN32)
+// Clang currently mis-handles '__annotation' for 32-bit - https://bugs.llvm.org/show_bug.cgi?id=41890
+#define __WI_ASSERT_FAIL_ANNOTATION(msg) (void)0
+#else
+#define __WI_ASSERT_FAIL_ANNOTATION(msg) __annotation(L"Debug", L"AssertFail", msg)
+#endif
+
+#define WI_ASSERT(condition)                                (__WI_ANALYSIS_ASSUME(condition), ((!(condition)) ? (__WI_ASSERT_FAIL_ANNOTATION(L"" #condition), DbgRaiseAssertionFailure(), FALSE) : TRUE))
+#define WI_ASSERT_MSG(condition, msg)                       (__WI_ANALYSIS_ASSUME(condition), ((!(condition)) ? (__WI_ASSERT_FAIL_ANNOTATION(L##msg), DbgRaiseAssertionFailure(), FALSE) : TRUE))
 #define WI_ASSERT_NOASSUME                                  WI_ASSERT
 #define WI_ASSERT_MSG_NOASSUME                              WI_ASSERT_MSG
 #define WI_VERIFY                                           WI_ASSERT
