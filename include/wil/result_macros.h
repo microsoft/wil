@@ -845,6 +845,7 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 #define CATCH_FAIL_FAST_MSG(fmt, ...)                           catch (...) { FAIL_FAST_CAUGHT_EXCEPTION_MSG(fmt, __VA_ARGS__); }
 #define CATCH_THROW_NORMALIZED()                                catch (...) { THROW_NORMALIZED_CAUGHT_EXCEPTION(); }
 #define CATCH_THROW_NORMALIZED_MSG(fmt, ...)                    catch (...) { THROW_NORMALIZED_CAUGHT_EXCEPTION_MSG(fmt, __VA_ARGS__); }
+#define CATCH_LOG_RETURN_HR(hr)                                 catch (...) { LOG_CAUGHT_EXCEPTION(); return hr; }
 
 #endif  // WIL_ENABLE_EXCEPTIONS
 
