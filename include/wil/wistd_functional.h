@@ -516,9 +516,18 @@ namespace wistd     // ("Windows Implementation" std)
     swap_wil(function<_Rp(_ArgTypes...)>& __x, function<_Rp(_ArgTypes...)>& __y)
     {return __x.swap(__y);}
 
+    // std::invoke
+    template <class _Fn, class ..._Args>
+    typename __invoke_of<_Fn, _Args...>::type
+    invoke(_Fn&& __f, _Args&&... __args)
+        __WI_NOEXCEPT_((__nothrow_invokable<_Fn, _Args...>::value))
+    {
+        return wistd::__invoke(wistd::forward<_Fn>(__f), wistd::forward<_Args>(__args)...);
+    }
+
 #else // __WI_LIBCPP_CXX03_LANG
 
-#error wistd::function not implemented for pre-C++11
+#error wistd::function and wistd::invoke not implemented for pre-C++11
 
 #endif
 }
