@@ -21,7 +21,7 @@
 // C++/WinRT "2.0" this was accomplished by injecting the WINRT_EXTERNAL_CATCH_CLAUSE macro - that WIL defines below -
 // into its exception handler (winrt::to_hresult). Starting with C++/WinRT "2.0" this mechanism has shifted to a global
 // function pointer - winrt_to_hresult_handler - that WIL sets automatically when this header is included and
-// 'RESULT_SUPPRESS_STATIC_INITIALIZERS' is not defined.
+// 'CPPWINRT_SUPPRESS_STATIC_INITIALIZERS' is not defined.
 
 /// @cond
 namespace wil::details
@@ -77,28 +77,108 @@ extern std::int32_t(__stdcall* winrt_to_hresult_handler)(void*) noexcept;
 /// @cond
 namespace wil::details
 {
-    inline HRESULT __stdcall ResultFromCppWinRTException(
-        _Inout_updates_opt_(debugStringChars) PWSTR debugString,
-        _When_(debugString != nullptr, _Pre_satisfies_(debugStringChars > 0)) size_t debugStringChars) noexcept
+    inline void MaybeGetExceptionString(
+        const winrt::hresult_error& exception,
+        _Out_writes_opt_(debugStringChars) PWSTR debugString,
+        _When_(debugString != nullptr, _Pre_satisfies_(debugStringChars > 0)) size_t debugStringChars)
     {
-        try
+        if (debugString)
         {
-            throw;
+            StringCchPrintfW(debugString, debugStringChars, L"winrt::hresult_error: %ls", exception.message().c_str());
         }
-        catch (const winrt::hresult_error& e)
-        {
-            if (debugString)
-            {
-                StringCchPrintfW(debugString, debugStringChars, L"winrt::hresult_error: %ls", e.message().c_str());
-            }
+    }
 
-            return e.to_abi();
-        }
-        catch (...)
+    inline HRESULT __stdcall ResultFromCaughtException_CppWinRt(
+        _Inout_updates_opt_(debugStringChars) PWSTR debugString,
+        _When_(debugString != nullptr, _Pre_satisfies_(debugStringChars > 0)) size_t debugStringChars,
+        _Inout_ bool* isNormalized) noexcept
+    {
+        if (g_pfnResultFromCaughtException)
         {
-            // Not a C++/WinRT exception; let the caller decide what to do
-            return S_OK;
+            try
+            {
+                throw;
+            }
+            catch (const ResultException& exception)
+            {
+                *isNormalized = true;
+                MaybeGetExceptionString(exception, debugString, debugStringChars);
+                return exception.GetErrorCode();
+            }
+            catch (const winrt::hresult_error& exception)
+            {
+                MaybeGetExceptionString(exception, debugString, debugStringChars);
+                return exception.code().value;
+            }
+            catch (const std::bad_alloc& exception)
+            {
+                MaybeGetExceptionString(exception, debugString, debugStringChars);
+                return E_OUTOFMEMORY;
+            }
+            catch (const std::out_of_range& exception)
+            {
+                MaybeGetExceptionString(exception, debugString, debugStringChars);
+                return E_BOUNDS;
+            }
+            catch (const std::invalid_argument& exception)
+            {
+                MaybeGetExceptionString(exception, debugString, debugStringChars);
+                return E_INVALIDARG;
+            }
+            catch (...)
+            {
+                auto hr = RecognizeCaughtExceptionFromCallback(debugString, debugStringChars);
+                if (FAILED(hr))
+                {
+                    return hr;
+                }
+            }
         }
+        else
+        {
+            try
+            {
+                throw;
+            }
+            catch (const ResultException& exception)
+            {
+                *isNormalized = true;
+                MaybeGetExceptionString(exception, debugString, debugStringChars);
+                return exception.GetErrorCode();
+            }
+            catch (const winrt::hresult_error& exception)
+            {
+                MaybeGetExceptionString(exception, debugString, debugStringChars);
+                return exception.code().value;
+            }
+            catch (const std::bad_alloc& exception)
+            {
+                MaybeGetExceptionString(exception, debugString, debugStringChars);
+                return E_OUTOFMEMORY;
+            }
+            catch (const std::out_of_range& exception)
+            {
+                MaybeGetExceptionString(exception, debugString, debugStringChars);
+                return E_BOUNDS;
+            }
+            catch (const std::invalid_argument& exception)
+            {
+                MaybeGetExceptionString(exception, debugString, debugStringChars);
+                return E_INVALIDARG;
+            }
+            catch (const std::exception& exception)
+            {
+                MaybeGetExceptionString(exception, debugString, debugStringChars);
+                return HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION);
+            }
+            catch (...)
+            {
+                // Fall through to returning 'S_OK' below
+            }
+        }
+
+        // Tell the caller that we were unable to map the exception by succeeding...
+        return S_OK;
     }
 }
 /// @endcond
@@ -114,7 +194,7 @@ namespace wil
 
     inline void WilInitialize_CppWinRT()
     {
-        details::g_pfnResultFromCaughtException_CppWinRt = details::ResultFromCppWinRTException;
+        details::g_pfnResultFromCaughtException_CppWinRt = details::ResultFromCaughtException_CppWinRt;
         if constexpr (details::major_version_from_string(CPPWINRT_VERSION) >= 2)
         {
             WI_ASSERT(winrt_to_hresult_handler == nullptr);
@@ -125,7 +205,7 @@ namespace wil
     /// @cond
     namespace details
     {
-#ifndef RESULT_SUPPRESS_STATIC_INITIALIZERS
+#ifndef CPPWINRT_SUPPRESS_STATIC_INITIALIZERS
         WI_HEADER_INITITALIZATION_FUNCTION(WilInitialize_CppWinRT, []
         {
             ::wil::WilInitialize_CppWinRT();
