@@ -119,4 +119,26 @@ TEST_CASE("CppWinRTTests::CppWinRTConsistencyTest", "[cppwinrt]")
 
     // A non-mapped HRESULT
     test(E_UNEXPECTED);
+
+    // C++/WinRT also maps a few std::* exceptions to various HRESULTs. We should preserve this behavior
+    try
+    {
+        throw std::out_of_range("oopsie");
+    }
+    catch (...)
+    {
+        REQUIRE(winrt::to_hresult() == E_BOUNDS);
+    }
+
+    try
+    {
+        throw std::invalid_argument("daisy");
+    }
+    catch (...)
+    {
+        REQUIRE(winrt::to_hresult() == E_INVALIDARG);
+    }
+
+    // NOTE: C++/WinRT maps other 'std::exception' derived exceptions to E_FAIL, however we preserve the WIL behavior
+    // that such exceptions become HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION)
 }
