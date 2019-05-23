@@ -122,12 +122,12 @@ namespace wil
             typedef pointer_access pointer_access;
             __forceinline static pointer_storage invalid_value() WI_NOEXCEPT { return (pointer)invalid; }
             __forceinline static bool is_valid(pointer_storage value) WI_NOEXCEPT { return (static_cast<pointer>(value) != (pointer)invalid); }
-            __forceinline static void close(pointer_storage value) WI_NOEXCEPT { close_fn(value); }
+            __forceinline static void close(pointer_storage value) WI_NOEXCEPT { wistd::invoke(close_fn, value); }
 
             inline static void close_reset(pointer_storage value) WI_NOEXCEPT
             {
                 auto preserveError = last_error_context();
-                close_fn(value);
+                wistd::invoke(close_fn, value);
             }
         };
 
@@ -806,7 +806,7 @@ namespace wil
         //! Calls the custom close function
         ~unique_struct() WI_NOEXCEPT
         {
-            close_fn(this);
+            wistd::invoke(close_fn, this);
         }
 
         void reset(const unique_struct&) = delete;
@@ -816,7 +816,7 @@ namespace wil
         {
             {
                 auto preserveError = last_error_context();
-                close_fn(this);
+                wistd::invoke(close_fn, this);
             }
             struct_t::operator=(other);
         }
@@ -825,7 +825,7 @@ namespace wil
         //! Then initializes this managed struct using the user-provided initialization function, or ZeroMemory if no function is specified
         void reset() WI_NOEXCEPT
         {
-            close_fn(this);
+            wistd::invoke(close_fn, this);
             call_init(use_default_init_fn());
         }
 
@@ -1208,7 +1208,7 @@ namespace wil
             template <typename T>
             void operator()(_Pre_opt_valid_ _Frees_ptr_opt_ T& p) const
             {
-                close_fn(&p);
+                wistd::invoke(close_fn, &p);
             }
         };
 
@@ -1367,7 +1367,7 @@ namespace wil
             {
                 if ((m_source != source) || (m_token != token))
                 {
-                    close_fn(m_source, m_token);
+                    wistd::invoke(close_fn, m_source, m_token);
                 }
             }
 
@@ -1517,7 +1517,7 @@ namespace wil
                 }
                 if (oldSource)
                 {
-                    close_fn(oldSource);
+                    wistd::invoke(close_fn, oldSource);
                     oldSource->Release();
                 }
             }
@@ -1629,7 +1629,7 @@ namespace wil
             m_call = false;
             if (call)
             {
-                close_fn();
+                wistd::invoke(close_fn);
             }
         }
 
