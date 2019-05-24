@@ -504,4 +504,120 @@ namespace witest
 #endif
 }
 
+static wil::StoredFailureInfo g_log;
+
+static void __stdcall ResultMacrosLoggingCallback(wil::FailureInfo *pFailure, PWSTR, size_t) WI_NOEXCEPT
+{
+    g_log = *pFailure;
+}
+
+enum class EType
+{
+    None = 0x00,
+    Expected = 0x02,
+    Msg = 0x04,
+    FailFast = 0x08,        // overall fail fast (throw exception on successful result code, for example)
+    FailFastMacro = 0x10,   // explicit use of fast fail fast (FAIL_FAST_IF...)
+    NoContext = 0x20        // file and line info can be wrong (throw does not happen in context to code)
+};
+DEFINE_ENUM_FLAG_OPERATORS(EType);
+
+template <typename TLambda>
+bool VerifyResult(unsigned int lineNumber, EType type, HRESULT hr, TLambda&& lambda)
+{
+    bool succeeded = true;
+#ifdef WIL_ENABLE_EXCEPTIONS
+    try
+    {
+#endif
+        HRESULT lambdaResult = E_FAIL;
+        bool didFailFast = true;
+        {
+            didFailFast = witest::DoesCodeCrash([&]()
+            {
+                lambdaResult = lambda();
+            });
+        }
+        if (WI_IsFlagSet(type, EType::FailFast))
+        {
+            REQUIRE(didFailFast);
+        }
+        else
+        {
+            if (WI_IsFlagClear(type, EType::Expected))
+            {
+                if (SUCCEEDED(hr))
+                {
+                    REQUIRE(hr == lambdaResult);
+                    REQUIRE(lineNumber != g_log.GetFailureInfo().uLineNumber);
+                    REQUIRE(!didFailFast);
+                }
+                else
+                {
+                    REQUIRE((WI_IsFlagSet(type, EType::NoContext) || (g_log.GetFailureInfo().uLineNumber == lineNumber)));
+                    REQUIRE(g_log.GetFailureInfo().hr == hr);
+                    REQUIRE((WI_IsFlagClear(type, EType::Msg) || (nullptr != wcsstr(g_log.GetFailureInfo().pszMessage, L"msg"))));
+                    REQUIRE((WI_IsFlagClear(type, EType::FailFastMacro) || (didFailFast)));
+                    REQUIRE((WI_IsFlagSet(type, EType::FailFastMacro) || (!didFailFast)));
+                }
+            }
+        }
+#ifdef WIL_ENABLE_EXCEPTIONS
+    }
+    catch (...)
+    {
+        succeeded = false;
+    }
+#endif
+
+    // Ensure we come out clean...
+    ::SetLastError(ERROR_SUCCESS);
+    return succeeded;
+}
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+template <typename TLambda>
+HRESULT TranslateException(TLambda&& lambda)
+{
+    try
+    {
+        lambda();
+    }
+    catch (wil::ResultException &re)
+    {
+        return re.GetErrorCode();
+    }
+#ifdef __cplusplus_winrt
+    catch (Platform::Exception ^pe)
+    {
+        return wil::details::GetErrorCode(pe);
+    }
+#endif
+    catch (...)
+    {
+        FAIL();
+    }
+    return S_OK;
+}
+#endif
+
+#define REQUIRE_RETURNS(hr, lambda)             REQUIRE(VerifyResult(__LINE__, EType::None, hr, lambda))
+#define REQUIRE_RETURNS_MSG(hr, lambda)         REQUIRE(VerifyResult(__LINE__, EType::Msg, hr, lambda))
+#define REQUIRE_RETURNS_EXPECTED(hr, lambda)    REQUIRE(VerifyResult(__LINE__, EType::Expected, hr, lambda))
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+#define REQUIRE_THROWS_RESULT(hr, lambda)       REQUIRE(VerifyResult(__LINE__, EType::None, hr, [&] { return TranslateException(lambda); }))
+#define REQUIRE_THROWS_MSG(hr, lambda)          REQUIRE(VerifyResult(__LINE__, EType::Msg, hr, [&] { return TranslateException(lambda); }))
+#else
+#define REQUIRE_THROWS_RESULT(hr, lambda)
+#define REQUIRE_THROWS_MSG(hr, lambda)
+#endif
+
+#define REQUIRE_LOG(hr, lambda)                 REQUIRE(VerifyResult(__LINE__, EType::None, hr, [&] { auto fn = (lambda); fn(); return hr; }))
+#define REQUIRE_LOG_MSG(hr, lambda)             REQUIRE(VerifyResult(__LINE__, EType::Msg, hr, [&] { auto fn = (lambda); fn(); return hr; }))
+
+#define REQUIRE_FAILFAST(hr, lambda)            REQUIRE(VerifyResult(__LINE__, EType::FailFastMacro, hr, [&] { auto fn = (lambda); fn(); return hr; }))
+#define REQUIRE_FAILFAST_MSG(hr, lambda)        REQUIRE(VerifyResult(__LINE__, EType::FailFastMacro | EType::Msg, hr, [&] { auto fn = (lambda); fn(); return hr; }))
+#define REQUIRE_FAILFAST_UNSPECIFIED(lambda)    REQUIRE(VerifyResult(__LINE__, EType::FailFast, S_OK, [&] { auto fn = (lambda); fn(); return S_OK; }))
+
 #pragma warning(pop)
