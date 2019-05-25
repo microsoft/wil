@@ -506,6 +506,7 @@ namespace witest
 
 static wil::StoredFailureInfo g_log;
 
+#pragma warning(disable: 4505) 
 static void __stdcall ResultMacrosLoggingCallback(wil::FailureInfo *pFailure, PWSTR, size_t) WI_NOEXCEPT
 {
     g_log = *pFailure;
