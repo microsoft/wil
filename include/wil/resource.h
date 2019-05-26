@@ -4747,6 +4747,40 @@ namespace wil
 #endif // __WIL_BCRYPT_H_STL
 
 
+#if defined(__RPCNDR_H__) && !defined(__WIL__RPCNDR_H__) && !defined(WIL_KERNEL_MODE)
+#define __WIL__RPCNDR_H__
+
+    //! Function deleter for use with pointers allocated by MIDL_user_allocate
+    using midl_deleter = function_deleter<decltype(&::MIDL_user_free), MIDL_user_free>;
+
+    //! Unique-ptr holding a type allocated by MIDL_user_alloc or returned from an RPC invocation
+    template<typename T> using unique_midl_ptr = wistd::unique_ptr<T, midl_deleter>;
+
+    //! Unique-ptr for strings allocated by MIDL_user_alloc
+    using unique_midl_string = unique_midl_ptr<WCHAR>;
+#ifndef WIL_NO_ANSI_STRINGS
+    using unique_midl_ansistring = unique_midl_ptr<CHAR>;
+#endif
+
+    namespace details
+    {
+        struct midl_allocator
+        {
+            static void* allocate(size_t size) WI_NOEXCEPT
+            {
+                return ::MIDL_user_allocate(size);
+            }
+        };
+
+        // Specialization to support construction of unique_midl_string instances
+        template<> struct string_allocator<unique_midl_string> : midl_allocator {};
+
+#ifndef WIL_NO_ANSI_STRINGS
+        template<> struct string_allocator<unique_midl_ansistring> : midl_allocator {};
+#endif
+    }
+#endif // __WIL__RPCNDR_H__
+
 #if defined(_OBJBASE_H_) && !defined(__WIL_OBJBASE_H_) && !defined(WIL_KERNEL_MODE)
 #define __WIL_OBJBASE_H_
     using cotaskmem_deleter = function_deleter<decltype(&::CoTaskMemFree), ::CoTaskMemFree>;
