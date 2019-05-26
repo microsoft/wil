@@ -18,12 +18,13 @@
 
 namespace wil
 {
-    struct default_rpc_policy
-    {
-    };
 
+    /// @cond
     namespace details
     {
+        // This call-adapter template converts a void-returning 'wistd::invoke' into
+        // an HRESULT-returning 'wistd::invoke' that emits S_OK. It can be eliminated
+        // with 'if constexpr' when C++17 is in wide use.
         template<typename TReturnType> struct call_adapter
         {
             template<typename... TArgs> static HRESULT call(TArgs&& ... args)
@@ -41,13 +42,43 @@ namespace wil
             }
         };
 
+        // Some RPC exceptions are already HRESULTs. Others are in the regular Win32
+        // error space. If the incoming exception code isn't an HRESULT, wrap it.
         constexpr static HRESULT map_rpc_exception(DWORD code)
         {
             return IS_ERROR(code) ? code : __HRESULT_FROM_WIN32(code);
         }
-    }
 
-    template<typename... TCall> HRESULT invoke_rpc_nothrow(TCall&&... args)
+    }
+    /// @endcond
+
+    /** Invokes an RPC method, mapping structured exceptions to HRESULTs
+    Failures encountered by the RPC infrastructure (such as server crashes, authentication
+    errors, client parameter issues, etc.) are emitted by raising a structured exception from
+    within the RPC machinery. This method wraps the requested call in the usual RpcTryExcept,
+    RpcTryCatch, and RpcEndExcept sequence then maps the exceptions to HRESULTs for the usual
+    flow control machinery to use.
+
+    Many RPC methods are defined as returning HRESULT themselves, where the HRESULT indicates
+    the result of the _work_. HRESULTs returned by a successful completion of the _call_ are
+    returned as-is.
+
+    RPC methods that have a return type of 'void' are mapped to returning S_OK when the _call_
+    completes successfully.
+
+    For example, consider an RPC interface method defined in idl as:
+    ~~~
+    HRESULT GetKittenState([in, ref, string] const wchar_t* name, [out, retval] KittenState** state);
+    ~~~
+    To call this method, use:
+    ~~~
+    wil::unique_rpc_binding binding = // typically gotten elsewhere;
+    wil::unique_midl_ptr<KittenState> state;
+    HRESULT hr = wil::invoke_rpc_nothrow(GetKittenState, binding.get(), L"fluffy", wil::out_param(state));
+    RETURN_IF_FAILED(hr);
+    ~~~
+    */
+    template<typename... TCall> HRESULT invoke_rpc_nothrow(TCall&&... args) WI_NOEXCEPT
     {
         RpcTryExcept
         {
@@ -64,7 +95,30 @@ namespace wil
         RpcEndExcept
     }
 
-    template<typename TResult, typename... TCall> HRESULT invoke_rpc_result_nothrow(TResult& result, TCall&&... args)
+    /** Invokes an RPC method, mapping structured exceptions to HRESULTs
+    Failures encountered by the RPC infrastructure (such as server crashes, authentication
+    errors, client parameter issues, etc.) are emitted by raising a structured exception from
+    within the RPC machinery. This method wraps the requested call in the usual RpcTryExcept,
+    RpcTryCatch, and RpcEndExcept sequence then maps the exceptions to HRESULTs for the usual
+    flow control machinery to use.
+
+    Some RPC methods return results (such as a state enumeration or other value) directly in
+    their signature. This adapter writes that result into a caller-provided object then
+    returns S_OK.
+
+    For example, consider an RPC interface method defined in idl as:
+    ~~~
+    GUID GetKittenId([in, ref, string] const wchar_t* name);
+    ~~~
+    To call this method, use:
+    ~~~
+    wil::unique_rpc_binding binding = // typically gotten elsewhere;
+    GUID id;
+    HRESULT hr = wil::invoke_rpc_result_nothrow(id, GetKittenState, binding.get(), L"fluffy");
+    RETURN_IF_FAILED(hr);
+    ~~~
+    */
+    template<typename TResult, typename... TCall> HRESULT invoke_rpc_result_nothrow(TResult& result, TCall&&... args) WI_NOEXCEPT
     {
         RpcTryExcept
         {
@@ -79,6 +133,16 @@ namespace wil
     }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
+    /** Invokes an RPC method, mapping structured exceptions to C++ exceptions
+    See `wil::invoke_rpc_result` for additional information.  Failures during the _call_
+    and those returned by the _method_ are thrown as HRESULTs. Using the example RPC
+    method provided above:
+    ~~~
+    wil::unique_midl_ptr<KittenState> state;
+    wil::invoke_rpc(GetKittenState, binding.get(), L"fluffy", wil::out_param(state));
+    // use 'state'
+    ~~~
+    */
     template<typename... TCall> void invoke_rpc(TCall&& ... args)
     {
         THROW_IF_FAILED(invoke_rpc_nothrow(wistd::forward<TCall>(args)...));
