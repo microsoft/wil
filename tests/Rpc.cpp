@@ -50,6 +50,28 @@ TEST_CASE("Rpc::NonThrowing", "[rpc]")
 }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
+
+#include <sstream>
+
+class WilExceptionMatcher : public Catch::MatcherBase<wil::ResultException>
+{
+    HRESULT m_expected;
+public:
+    WilExceptionMatcher(HRESULT ex) : m_expected(ex) { }
+
+    bool match(wil::ResultException const& ex) const override {
+        return ex.GetErrorCode() == m_expected;
+    }
+
+    std::string describe() const override {
+        std::ostringstream ss;
+        ss << "wil::ResultException expects code 0x%08lx" << std::hex << m_expected;
+        return ss.str();
+    }
+};
+
+#define REQUIRE_THROWS_WIL_HR(hr, expr) REQUIRE_THROWS_MATCHES(expr, wil::ResultException, WilExceptionMatcher(hr))
+
 TEST_CASE("Rpc::Throwing", "[rpc]")
 {
     SECTION("Success paths")
@@ -59,13 +81,13 @@ TEST_CASE("Rpc::Throwing", "[rpc]")
 
     SECTION("Failures in the method")
     {
-        REQUIRE_THROWS_RESULT(E_CHANGED_STATE, [] { wil::invoke_rpc(RpcMethodReturnsHResult, E_CHANGED_STATE, 0UL); });
+        REQUIRE_THROWS_WIL_HR(E_CHANGED_STATE, wil::invoke_rpc(RpcMethodReturnsHResult, E_CHANGED_STATE, 0UL));
     }
 
     SECTION("Failures in the fabric")
     {
-        // REQUIRE_THROWS_RESULT(HRESULT_FROM_WIN32(RPC_S_CALL_FAILED), [] { wil::invoke_rpc(RpcMethodReturnsVoid, RPC_S_CALL_FAILED); });
-        // REQUIRE_THROWS_RESULT(HRESULT_FROM_WIN32(RPC_S_CALL_FAILED), [] { wil::invoke_rpc(RpcMethodReturnsHResult, E_CHANGED_STATE, RPC_S_CALL_FAILED); });
+        REQUIRE_THROWS_WIL_HR(HRESULT_FROM_WIN32(RPC_S_CALL_FAILED), wil::invoke_rpc(RpcMethodReturnsVoid, RPC_S_CALL_FAILED));
+        REQUIRE_THROWS_WIL_HR(HRESULT_FROM_WIN32(RPC_S_CALL_FAILED), wil::invoke_rpc(RpcMethodReturnsHResult, E_CHANGED_STATE, RPC_S_CALL_FAILED));
     }
 }
 #endif
