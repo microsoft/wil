@@ -114,7 +114,7 @@ namespace wil
     ~~~
     wil::unique_rpc_binding binding = // typically gotten elsewhere;
     GUID id;
-    HRESULT hr = wil::invoke_rpc_result_nothrow(id, GetKittenState, binding.get(), L"fluffy");
+    HRESULT hr = wil::invoke_rpc_result_nothrow(id, GetKittenId, binding.get(), L"fluffy");
     RETURN_IF_FAILED(hr);
     ~~~
     */
@@ -134,9 +134,9 @@ namespace wil
 
 #ifdef WIL_ENABLE_EXCEPTIONS
     /** Invokes an RPC method, mapping structured exceptions to C++ exceptions
-    See `wil::invoke_rpc_result` for additional information.  Failures during the _call_
-    and those returned by the _method_ are thrown as HRESULTs. Using the example RPC
-    method provided above:
+    See `wil::invoke_rpc_nothrow` for additional information.  Failures during the _call_
+    and those returned by the _method_ are mapped to HRESULTs and thrown inside a
+    wil::ResultException. Using the example RPC method provided above:
     ~~~
     wil::unique_midl_ptr<KittenState> state;
     wil::invoke_rpc(GetKittenState, binding.get(), L"fluffy", wil::out_param(state));
@@ -146,6 +146,23 @@ namespace wil
     template<typename... TCall> void invoke_rpc(TCall&& ... args)
     {
         THROW_IF_FAILED(invoke_rpc_nothrow(wistd::forward<TCall>(args)...));
+    }
+
+    /** Invokes an RPC method, mapping structured exceptions to C++ exceptions
+    See `wil::invoke_rpc_result_nothrow` for additional information. Failures during the
+    _call_ are mapped to HRESULTs and thrown inside a `wil::ResultException`. Using the
+    example RPC method provided above:
+    ~~~
+    GUID id = wil::invoke_rpc_result(GetKittenId, binding.get());
+    // use 'id'
+    ~~~
+    */
+    template<typename... TCall> auto invoke_rpc_result(TCall&& ... args)
+    {
+        using result_t = typename wistd::__invoke_of<TCall...>::type;
+        result_t result{};
+        THROW_IF_FAILED(invoke_rpc_result_nothrow(result, wistd::forward<TCall>(args)...));
+        return result;
     }
 #endif
 }

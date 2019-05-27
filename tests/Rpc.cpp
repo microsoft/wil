@@ -77,6 +77,10 @@ TEST_CASE("Rpc::Throwing", "[rpc]")
     SECTION("Success paths")
     {
         REQUIRE_NOTHROW(wil::invoke_rpc(RpcMethodReturnsVoid, 0UL));
+
+        GUID tmp{};
+        REQUIRE_NOTHROW(tmp = wil::invoke_rpc_result(RpcMethodReturnsGuid, 0UL));
+        REQUIRE(tmp == __uuidof(IUnknown));
     }
 
     SECTION("Failures in the method")
@@ -88,6 +92,10 @@ TEST_CASE("Rpc::Throwing", "[rpc]")
     {
         REQUIRE_THROWS_WIL_HR(HRESULT_FROM_WIN32(RPC_S_CALL_FAILED), wil::invoke_rpc(RpcMethodReturnsVoid, RPC_S_CALL_FAILED));
         REQUIRE_THROWS_WIL_HR(HRESULT_FROM_WIN32(RPC_S_CALL_FAILED), wil::invoke_rpc(RpcMethodReturnsHResult, E_CHANGED_STATE, RPC_S_CALL_FAILED));
+
+        GUID tmp{};
+        REQUIRE_THROWS_WIL_HR(HRESULT_FROM_WIN32(RPC_S_CALL_FAILED), tmp = wil::invoke_rpc_result(RpcMethodReturnsGuid, RPC_S_CALL_FAILED));
+        REQUIRE(tmp == GUID{});
     }
 }
 #endif
