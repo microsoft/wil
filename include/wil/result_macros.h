@@ -1205,6 +1205,9 @@ namespace wil
         __declspec(selectany) void(__stdcall *g_pfnThrowResultException)(const FailureInfo& failure) = nullptr;
         extern "C" __declspec(selectany) HRESULT(__stdcall *g_pfnResultFromCaughtExceptionInternal)(_Out_writes_opt_(debugStringChars) PWSTR debugString, _When_(debugString != nullptr, _Pre_satisfies_(debugStringChars > 0)) size_t debugStringChars, _Out_ bool* isNormalized) WI_PFN_NOEXCEPT = nullptr;
 
+        // C++/WinRT additions
+        extern "C" __declspec(selectany) HRESULT(__stdcall *g_pfnResultFromCaughtException_CppWinRt)(_Out_writes_opt_(debugStringChars) PWSTR debugString, _When_(debugString != nullptr, _Pre_satisfies_(debugStringChars > 0)) size_t debugStringChars, _Out_ bool* isNormalized) WI_PFN_NOEXCEPT = nullptr;
+
         // C++/cx compiled additions
         extern "C" __declspec(selectany) void(__stdcall *g_pfnThrowPlatformException)(FailureInfo const &failure, PCWSTR debugString) = nullptr;
         extern "C" __declspec(selectany) _Always_(_Post_satisfies_(return < 0)) HRESULT(__stdcall *g_pfnResultFromCaughtException_WinRt)(_Inout_updates_opt_(debugStringChars) PWSTR debugString, _When_(debugString != nullptr, _Pre_satisfies_(debugStringChars > 0)) size_t debugStringChars, _Out_ bool* isNormalized) WI_PFN_NOEXCEPT = nullptr;
@@ -2482,6 +2485,25 @@ namespace wil
             return hr;
         }
 
+        inline HRESULT ResultFromKnownException_CppWinRT(const DiagnosticsInfo& diagnostics, void* returnAddress)
+        {
+            if (g_pfnResultFromCaughtException_CppWinRt)
+            {
+                wchar_t message[2048];
+                message[0] = L'\0';
+                bool ignored;
+                auto hr = g_pfnResultFromCaughtException_CppWinRt(message, ARRAYSIZE(message), &ignored);
+                if (FAILED(hr))
+                {
+                    ReportFailure(__R_DIAGNOSTICS_RA(diagnostics, returnAddress), FailureType::Log, hr, message);
+                    return hr;
+                }
+            }
+
+            // Indicate that this either isn't a C++/WinRT exception or a handler isn't configured by returning success
+            return S_OK;
+        }
+
         inline HRESULT RecognizeCaughtExceptionFromCallback(_Inout_updates_opt_(debugStringChars) PWSTR debugString, _When_(debugString != nullptr, _Pre_satisfies_(debugStringChars > 0)) size_t debugStringChars)
         {
             HRESULT hr = g_pfnResultFromCaughtException();
@@ -2587,16 +2609,7 @@ namespace wil
                 }
                 catch (...)
                 {
-                    HRESULT hr;
-#ifdef __WIL_CPPWINRT_INCLUDED
-                    hr = ResultFromCppWinRTException(debugString, debugStringChars);
-                    if (FAILED(hr))
-                    {
-                        return hr;
-                    }
-#endif
-
-                    hr = RecognizeCaughtExceptionFromCallback(debugString, debugStringChars);
+                    auto hr = RecognizeCaughtExceptionFromCallback(debugString, debugStringChars);
                     if (FAILED(hr))
                     {
                         return hr;
@@ -2632,13 +2645,7 @@ namespace wil
                 }
                 catch (...)
                 {
-#ifdef __WIL_CPPWINRT_INCLUDED
-                    auto hr = ResultFromCppWinRTException(debugString, debugStringChars);
-                    if (FAILED(hr))
-                    {
-                        return hr;
-                    }
-#endif
+                    // Fall through to returning 'S_OK' below
                 }
             }
 
@@ -2676,21 +2683,13 @@ namespace wil
                 }
                 catch (...)
                 {
-                    HRESULT hr;
-                    wchar_t message[2048] = L"";
-
-#ifdef __WIL_CPPWINRT_INCLUDED
-                    hr = ResultFromCppWinRTException(message, ARRAYSIZE(message));
+                    auto hr = ResultFromKnownException_CppWinRT(diagnostics, returnAddress);
                     if (FAILED(hr))
                     {
-                        ReportFailure(__R_DIAGNOSTICS_RA(diagnostics, returnAddress), FailureType::Log, hr, message);
                         return hr;
                     }
-#endif
 
                     // Unknown exception
-                    UNREFERENCED_PARAMETER(hr);
-                    UNREFERENCED_PARAMETER(message);
                     throw;
                 }
                 break;
@@ -2768,6 +2767,11 @@ namespace wil
             }
             *isNormalized = false;
 
+            if (details::g_pfnResultFromCaughtException_CppWinRt != nullptr)
+            {
+                RETURN_IF_FAILED_EXPECTED(details::g_pfnResultFromCaughtException_CppWinRt(debugString, debugStringChars, isNormalized));
+            }
+
             if (details::g_pfnResultFromCaughtException_WinRt != nullptr)
             {
                 return details::g_pfnResultFromCaughtException_WinRt(debugString, debugStringChars, isNormalized);
@@ -2792,16 +2796,7 @@ namespace wil
                 }
                 catch (...)
                 {
-                    HRESULT hr;
-#ifdef __WIL_CPPWINRT_INCLUDED
-                    hr = ResultFromCppWinRTException(debugString, debugStringChars);
-                    if (FAILED(hr))
-                    {
-                        return hr;
-                    }
-#endif
-
-                    hr = RecognizeCaughtExceptionFromCallback(debugString, debugStringChars);
+                    auto hr = RecognizeCaughtExceptionFromCallback(debugString, debugStringChars);
                     if (FAILED(hr))
                     {
                         return hr;
@@ -2832,13 +2827,7 @@ namespace wil
                 }
                 catch (...)
                 {
-#ifdef __WIL_CPPWINRT_INCLUDED
-                    auto hr = ResultFromCppWinRTException(debugString, debugStringChars);
-                    if (FAILED(hr))
-                    {
-                        return hr;
-                    }
-#endif
+                    // Fall through to returning 'S_OK' below
                 }
             }
 
@@ -2883,21 +2872,13 @@ namespace wil
                 }
                 catch (...)
                 {
-                    HRESULT hr;
-                    wchar_t message[2048] = L"";
-
-#ifdef __WIL_CPPWINRT_INCLUDED
-                    hr = ResultFromCppWinRTException(message, ARRAYSIZE(message));
+                    auto hr = ResultFromKnownException_CppWinRT(diagnostics, returnAddress);
                     if (FAILED(hr))
                     {
-                        ReportFailure(__R_DIAGNOSTICS_RA(diagnostics, returnAddress), FailureType::Log, hr, message);
                         return hr;
                     }
-#endif
 
                     // Unknown exception
-                    UNREFERENCED_PARAMETER(hr);
-                    UNREFERENCED_PARAMETER(message);
                     throw;
                 }
 
