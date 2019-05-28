@@ -33,10 +33,19 @@ and some (such as the RAII resource wrappers) can even be used in kernel mode.
 
 This project is documented in [its GitHub wiki](https://github.com/Microsoft/wil/wiki). Feel free to contribute to it!
 
-# Consuming WIL via NuGet
-You can consume WIL via a NuGet package. To do so, follow the instructions on [nuget.org](https://www.nuget.org/packages/Microsoft.Windows.ImplementationLibrary).
-This package includes the header files under the [include](include) directory as well as a [.targets](packaging/nuget/Microsoft.Windows.ImplementationLibrary.targets)
-file.
+# Consuming WIL
+WIL follows the "live at head" philosophy, so you should feel free to consume WIL directly from the GitHub repo however you please: as a GIT submodule, symbolic link, download and copy files, etc. and update to the latest version at your own cadence. Alternatively, WIL is available using a few package managers, mentioned below. These packages will be updated periodically, likely to average around once or twice per month.
+
+## Consuming WIL via NuGet
+WIL is available on nuget.org under the name [Microsoft.Windows.ImplementationLibrary](https://www.nuget.org/packages/Microsoft.Windows.ImplementationLibrary/). This package includes the header files under the [include](include) directory as well as a [.targets](packaging/nuget/Microsoft.Windows.ImplementationLibrary.targets) file.
+
+## Consuming WIL via vcpkg
+WIL is also available using [vcpkg](https://github.com/microsoft/vcpkg) under the name [wil](https://github.com/microsoft/vcpkg/blob/master/ports/wil/portfile.cmake). Instructions for installing packages can be found in the [vcpkg GitHub docs](https://github.com/microsoft/vcpkg/blob/master/docs/examples/installing-and-using-packages.md). In general, once vcpkg is set up on the system, you can run:
+```cmd
+C:\vcpkg> vcpkg install wil:x86-windows
+C:\vcpkg> vcpkg install wil:x64-windows
+```
+Note that even though WIL is a header-only library, you still need to install the package for all architectures/platforms you wish to use it with. Otherwise, WIL won't be added to the include path for the missing architectures/platforms. Execute `vcpkg help triplet` for a list of available options.
 
 # Building/Testing
 To get started testing WIL, first make sure that you have a recent version of [Visual Studio](https://visualstudio.microsoft.com/downloads/) and the most recent [Windows SDK](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk) installed. If you are doing
