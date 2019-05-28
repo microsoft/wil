@@ -4757,9 +4757,9 @@ namespace wil
     template<typename T> using unique_midl_ptr = wistd::unique_ptr<T, midl_deleter>;
 
     //! Unique-ptr for strings allocated by MIDL_user_alloc
-    using unique_midl_string = unique_midl_ptr<WCHAR>;
+    using unique_midl_string = unique_midl_ptr<wchar_t>;
 #ifndef WIL_NO_ANSI_STRINGS
-    using unique_midl_ansistring = unique_midl_ptr<CHAR>;
+    using unique_midl_ansistring = unique_midl_ptr<char>;
 #endif
 
     namespace details

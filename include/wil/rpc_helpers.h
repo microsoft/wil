@@ -44,7 +44,7 @@ namespace wil
 
         // Some RPC exceptions are already HRESULTs. Others are in the regular Win32
         // error space. If the incoming exception code isn't an HRESULT, wrap it.
-        constexpr static HRESULT map_rpc_exception(DWORD code)
+        constexpr HRESULT map_rpc_exception(DWORD code)
         {
             return IS_ERROR(code) ? code : __HRESULT_FROM_WIN32(code);
         }
@@ -74,7 +74,7 @@ namespace wil
     ~~~
     wil::unique_rpc_binding binding = // typically gotten elsewhere;
     wil::unique_midl_ptr<KittenState> state;
-    HRESULT hr = wil::invoke_rpc_nothrow(GetKittenState, binding.get(), L"fluffy", wil::out_param(state));
+    HRESULT hr = wil::invoke_rpc_nothrow(GetKittenState, binding.get(), L"fluffy", state.put());
     RETURN_IF_FAILED(hr);
     ~~~
     */
@@ -85,8 +85,8 @@ namespace wil
             // Note: this helper type can be removed with C++17 enabled via
             // 'if constexpr(wistd::is_same_v<void, result_t>)'
             using result_t = typename wistd::__invoke_of<TCall...>::type;
-            HRESULT hr = details::call_adapter<result_t>::call(wistd::forward<TCall>(args)...);
-            RETURN_HR(hr);
+            RETURN_IF_FAILED(details::call_adapter<result_t>::call(wistd::forward<TCall>(args)...));
+            return S_OK;
         }
         RpcExcept(RpcExceptionFilter(RpcExceptionCode()))
         {
@@ -139,7 +139,7 @@ namespace wil
     wil::ResultException. Using the example RPC method provided above:
     ~~~
     wil::unique_midl_ptr<KittenState> state;
-    wil::invoke_rpc(GetKittenState, binding.get(), L"fluffy", wil::out_param(state));
+    wil::invoke_rpc(GetKittenState, binding.get(), L"fluffy", state.put());
     // use 'state'
     ~~~
     */
