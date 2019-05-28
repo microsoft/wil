@@ -6,6 +6,11 @@ set(CMAKE_CXX_STANDARD 17)
 project(witest.cpplatest)
 add_executable(witest.cpplatest)
 
+# Semi-arbitrary insiders SDK version selected that uses C++/WinRT "2.0"
+if ("${WIL_WINDOWS_SDK_VERSION}" VERSION_GREATER_EQUAL "10.0.18878.0")
+    target_sources(witest.cpplatest PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../CppWinRT20Tests.cpp)
+endif()
+
 target_sources(witest.cpplatest PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/../main.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../CppWinRTTests.cpp
