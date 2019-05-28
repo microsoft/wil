@@ -1,8 +1,9 @@
 
-#include <roerrorapi.h>
 #include <wil/com.h>
 #include <wil/result.h>
 #include <wil/result_originate.h>
+
+#include <roerrorapi.h>
 
 #include "common.h"
 

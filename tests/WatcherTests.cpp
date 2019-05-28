@@ -1,8 +1,9 @@
 
-#include <memory> // For shared_event_watcher
-#include <windows.h> // filesystem.h includes PathCch.h which includes winnt.h, which will complain about missing target architecture
 #include <wil/filesystem.h>
 #include <wil/registry.h>
+#include <wil/resource.h>
+
+#include <memory> // For shared_event_watcher
 #include <wil/resource.h>
 
 #include "common.h"

@@ -1,18 +1,16 @@
 
-#include <wil/common.h>
-
-#ifdef WIL_ENABLE_EXCEPTIONS
-#include <memory>
-#include <set>
-#include <unordered_set>
-#endif
-
 #include <wil/result.h>
 #include <wil/resource.h>
 #include <wil/win32_helpers.h>
 #include <wil/filesystem.h>
 #include <wil/wrl.h>
 #include <wil/com.h>
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+#include <memory>
+#include <set>
+#include <unordered_set>
+#endif
 
 // Do not include most headers until after the WIL headers to ensure that we're not inadvertently adding any unnecessary
 // dependencies to STL, WRL, or indirectly retrieved headers

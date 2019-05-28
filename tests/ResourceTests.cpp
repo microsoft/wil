@@ -2,14 +2,15 @@
 // Included first and then again later to ensure that we're able to "light up" new functionality based off new includes
 #include <wil/resource.h>
 
+#include <wil/com.h>
+#include <wil/stl.h>
+
 // Headers to "light up" functionality in resource.h
 #include <memory>
 #include <roapi.h>
 #include <winstring.h>
 
-#include <wil/com.h>
 #include <wil/resource.h>
-#include <wil/stl.h>
 #include <wrl/implements.h>
 
 #include "common.h"

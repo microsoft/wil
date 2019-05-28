@@ -1,12 +1,12 @@
 
-#include "common.h"
-
 // Prior to C++/WinRT 2.0 this would cause issues since we're not including wil/cppwinrt.h in this translation unit.
 // However, since we're going to link into the same executable as 'CppWinRTTests.cpp', the 'winrt_to_hresult_handler'
 // global function pointer should be set, so these should all run successfully
 
 #include <winrt/base.h>
 #include <wil/result.h>
+
+#include "common.h"
 
 TEST_CASE("CppWinRTTests::CppWinRT20Test", "[cppwinrt]")
 {

@@ -1,7 +1,7 @@
 
-#include "common.h"
-
 #include <wil/safecast.h>
+
+#include "common.h"
 
 #ifdef WIL_ENABLE_EXCEPTIONS
 TEST_CASE("SafeCastTests::SafeCastThrowsTemplateCheck", "[safecast]")
