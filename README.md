@@ -48,20 +48,13 @@ C:\vcpkg> vcpkg install wil:x64-windows
 Note that even though WIL is a header-only library, you still need to install the package for all architectures/platforms you wish to use it with. Otherwise, WIL won't be added to the include path for the missing architectures/platforms. Execute `vcpkg help triplet` for a list of available options.
 
 # Building/Testing
-To get started testing WIL, first make sure that you have a recent version of Visual Studio installed. If you are doing
-any non-trivial work, also be sure to have a [recent version of Clang installed](http://releases.llvm.org/download.html). Once everything is installed, open a VS
-native command window (e.g. "x64 Native Tools Command Prompt for VS 2019"). From here, you can either invoke CMake
-directly:
-```cmd
-C:\wil> mkdir build
-C:\wil> cd build
-C:\wil\build> cmake -G Ninja ..
-```
-Or through one of the scripts in the [scripts](scripts) directory:
+To get started testing WIL, first make sure that you have a recent version of [Visual Studio](https://visualstudio.microsoft.com/downloads/) and the most recent [Windows SDK](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk) installed. If you are doing
+any non-trivial work, also be sure to have a recent version of [Clang](http://releases.llvm.org/download.html) installed. Once everything is installed, open a VS
+native command window (e.g. "x64 Native Tools Command Prompt for VS 2019"). If you are familiar with CMake you can get started building normally. Otherwise, or if you prefer to skip all of the boilerplate, you can use one of the scripts in the [scripts](scripts) directory:
 ```cmd
 C:\wil> scripts\init.cmd -c clang -g ninja -b debug
 ```
-If you initialized using Ninja as the generator, you can build the tests like so:
+You can execute `init.cmd --help` for a summary of available options. The scripts use a common directory pattern of `build/$(compiler)$(arch)$(type)` for the build output root. E.g. `build/clang64debug` when using Clang as the compiler, x64 as the architecture, and Debug as the build type. It is this directory where you will want to build from. For example, if you initialized using the command above, you can build the tests like so:
 ```cmd
 C:\wil\build\clang64debug> ninja
 ```
@@ -75,7 +68,7 @@ can either open the solution in Visual Studio or invoke MSBuild directly to buil
 The output is a number of test executables. If you used the initialization script(s) mentioned above, or if you followed
 the same directory naming convention of those scripts, you can use the [runtests.cmd](scripts/runtests.cmd) script,
 which will execute any test executables that have been built, erroring out - and preserving the exit code - if any test
-fails. Note that MSBuild will modify the output directories, so this script is only compatible with using Ninja as the
+fails. Note that MSBuild will modify the output directory names, so this script is only compatible with using Ninja as the
 generator. If you are at the tail end of of a change, you can execute the following to get a wide range of coverage:
 ```cmd
 C:\wil> scripts\init_all.cmd
