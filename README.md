@@ -45,9 +45,7 @@ native command window (e.g. "x64 Native Tools Command Prompt for VS 2019"). If y
 ```cmd
 C:\wil> scripts\init.cmd -c clang -g ninja -b debug
 ```
-Run `init.cmd --help` for a summary of available options. The scripts use a common directory pattern of `build/$(compiler)$(arch)$(type)` - e.g. `clang64debug` when using Clang as the compiler, x64 as the architecture, and Debug as the build type.
-
-If you initialized using Ninja as the generator (`-g ninja`), you can build the tests like so:
+You can execute `init.cmd --help` for a summary of available options. The scripts use a common directory pattern of `build/$(compiler)$(arch)$(type)` for the build output root. E.g. `build/clang64debug` when using Clang as the compiler, x64 as the architecture, and Debug as the build type. It is this directory where you will want to build from. For example, if you initialized using the command above, you can build the tests like so:
 ```cmd
 C:\wil\build\clang64debug> ninja
 ```
