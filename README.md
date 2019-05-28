@@ -40,7 +40,7 @@ file.
 
 # Building/Testing
 To get started testing WIL, first make sure that you have a recent version of Visual Studio installed. If you are doing
-any non-trivial work, also be sure to have a recent version of Clang installed. Once everything is installed, open a VS
+any non-trivial work, also be sure to have a [recent version of Clang installed](http://releases.llvm.org/download.html). Once everything is installed, open a VS
 native command window (e.g. "x64 Native Tools Command Prompt for VS 2019"). From here, you can either invoke CMake
 directly:
 ```cmd
