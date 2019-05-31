@@ -13,8 +13,8 @@ target_sources(witest.app PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/../ResultTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../SafeCastTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../StlTests.cpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/../UniqueWinRTEventTokenTests.cpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/../WinRTTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../UniqueWinRTEventTokenTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../WinRTTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../WistdTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../wiTest.cpp
     )

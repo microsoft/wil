@@ -2274,6 +2274,7 @@ namespace wil
     template <class _Ty, class... _Types>
     typename wistd::enable_if<wistd::extent<_Ty>::value != 0, void>::type make_unique_nothrow(_Types&&...) = delete;
 
+#if !defined(__WIL_MIN_KERNEL) && !defined(WIL_KERNEL_MODE)
     /** Provides `std::make_unique()` semantics for resources allocated in a context that must fail fast upon allocation failure.
     See the overload of `wil::make_unique_nothrow()` for non-array types for more details.
     ~~~
@@ -2309,6 +2310,7 @@ namespace wil
 
     template <class _Ty, class... _Types>
     typename wistd::enable_if<wistd::extent<_Ty>::value != 0, void>::type make_unique_failfast(_Types&&...) = delete;
+#endif // !defined(__WIL_MIN_KERNEL) && !defined(WIL_KERNEL_MODE)
 #endif // __WIL__NOTHROW_T_DEFINED
 
 #if defined(_WINBASE_) && !defined(__WIL_WINBASE_) && !defined(WIL_KERNEL_MODE)
