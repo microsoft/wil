@@ -38,7 +38,8 @@
 #ifndef _WISTD_CONFIG_H_
 #define _WISTD_CONFIG_H_
 
-// DO NOT add *any* includes to this file -- there should be no dependencies from its usage
+// DO NOT add *any* additional includes to this file -- there should be no dependencies from its usage
+#include <stddef.h> // For size_t and other necessary types
 
 /// @cond
 #if defined(_MSC_VER) && !defined(__clang__)

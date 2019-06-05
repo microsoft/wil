@@ -40,6 +40,7 @@ struct value_holder
 // Example real type that is move only is Microsoft::WRL::Wrappers::HString
 struct cannot_copy
 {
+    cannot_copy() = default;
     cannot_copy(const cannot_copy&) = delete;
     cannot_copy& operator=(const cannot_copy&) = delete;
 
