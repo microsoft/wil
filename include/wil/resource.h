@@ -4181,7 +4181,9 @@ namespace wil
     typedef unique_any<HACCEL, decltype(&::DestroyAcceleratorTable), ::DestroyAcceleratorTable> unique_haccel;
     typedef unique_any<HCURSOR, decltype(&::DestroyCursor), ::DestroyCursor> unique_hcursor;
     typedef unique_any<HWND, decltype(&::DestroyWindow), ::DestroyWindow> unique_hwnd;
+#if !defined(NOUSER) && !defined(NOWH)
     typedef unique_any<HHOOK, decltype(&::UnhookWindowsHookEx), ::UnhookWindowsHookEx> unique_hhook;
+#endif
 #endif // __WIL__WINUSER_
 
 #if !defined(NOGDI) && !defined(NODESKTOP)
@@ -5838,6 +5840,13 @@ namespace wil
     using unique_io_workitem = wil::unique_any<PIO_WORKITEM, decltype(&::IoFreeWorkItem), ::IoFreeWorkItem, details::pointer_access_noaddress>;
 
 #endif // __WIL_RESOURCE_WDM
+
+#if defined(WIL_KERNEL_MODE) && (defined(_WDMDDK_) || defined(_ZWAPI_)) && !defined(__WIL_RESOURCE_ZWAPI)
+#define __WIL_RESOURCE_ZWAPI
+
+    using unique_kernel_handle = wil::unique_any<HANDLE, decltype(&::ZwClose), ::ZwClose>;
+
+#endif // __WIL_RESOURCE_ZWAPI
 
 } // namespace wil
 
