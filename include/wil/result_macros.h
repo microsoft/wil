@@ -122,6 +122,7 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 
 #include <strsafe.h>
 #include <intrin.h>     // provides the _ReturnAddress() intrinsic
+#include <new.h>        // provides 'operator new', 'std::nothrow', etc.
 #if defined(WIL_ENABLE_EXCEPTIONS) && !defined(WIL_SUPPRESS_NEW)
 #include <new>          // provides std::bad_alloc in the windows and public CRT headers
 #endif
