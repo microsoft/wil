@@ -4208,7 +4208,9 @@ namespace wil
     typedef shared_any<unique_hwinsta> shared_hwinsta;
 #endif // !defined(NOGDI) && !defined(NODESKTOP)
     typedef shared_any<unique_hwnd> shared_hwnd;
+#if !defined(NOUSER) && !defined(NOWH)
     typedef shared_any<unique_hhook> shared_hhook;
+#endif
 
     typedef weak_any<shared_hheap> weak_hheap;
     typedef weak_any<shared_hlocal> weak_hlocal;
@@ -4222,7 +4224,9 @@ namespace wil
     typedef weak_any<shared_hwinsta> weak_hwinsta;
 #endif // !defined(NOGDI) && !defined(NODESKTOP)
     typedef weak_any<shared_hwnd> weak_hwnd;
+#if !defined(NOUSER) && !defined(NOWH)
     typedef weak_any<shared_hhook> weak_hhook;
+#endif
 #endif // __WIL_WINBASE_DESKTOP_STL
 
 #if defined(_COMBASEAPI_H_) && !defined(__WIL__COMBASEAPI_H_) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM) && (NTDDI_VERSION >= NTDDI_WIN8) && !defined(WIL_KERNEL_MODE)
