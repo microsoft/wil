@@ -249,19 +249,23 @@ namespace wil
 
             void Release()
             {
-                auto lock = m_mutex.acquire();
-                if (--m_refCount == 0)
+                if (ProcessShutdownInProgress())
                 {
-                    // We must explicitly destroy our semaphores while holding the mutex
-                    m_value.Destroy();
-                    lock.reset();
-
-                    if (ProcessShutdownInProgress())
+                    // There are no other threads to contend with.
+                    if (--m_refCount == 0)
                     {
                         m_data.ProcessShutdown();
                     }
-                    else
+                }
+                else
+                {
+                    auto lock = m_mutex.acquire();
+                    if (--m_refCount == 0)
                     {
+                        // We must explicitly destroy our semaphores while holding the mutex
+                        m_value.Destroy();
+                        lock.reset();
+
                         this->~ProcessLocalStorageData();
                         ::HeapFree(::GetProcessHeap(), 0, this);
                     }

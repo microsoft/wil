@@ -2274,6 +2274,7 @@ namespace wil
     template <class _Ty, class... _Types>
     typename wistd::enable_if<wistd::extent<_Ty>::value != 0, void>::type make_unique_nothrow(_Types&&...) = delete;
 
+#if !defined(__WIL_MIN_KERNEL) && !defined(WIL_KERNEL_MODE)
     /** Provides `std::make_unique()` semantics for resources allocated in a context that must fail fast upon allocation failure.
     See the overload of `wil::make_unique_nothrow()` for non-array types for more details.
     ~~~
@@ -2309,6 +2310,7 @@ namespace wil
 
     template <class _Ty, class... _Types>
     typename wistd::enable_if<wistd::extent<_Ty>::value != 0, void>::type make_unique_failfast(_Types&&...) = delete;
+#endif // !defined(__WIL_MIN_KERNEL) && !defined(WIL_KERNEL_MODE)
 #endif // __WIL__NOTHROW_T_DEFINED
 
 #if defined(_WINBASE_) && !defined(__WIL_WINBASE_) && !defined(WIL_KERNEL_MODE)
@@ -4181,7 +4183,9 @@ namespace wil
     typedef unique_any<HACCEL, decltype(&::DestroyAcceleratorTable), ::DestroyAcceleratorTable> unique_haccel;
     typedef unique_any<HCURSOR, decltype(&::DestroyCursor), ::DestroyCursor> unique_hcursor;
     typedef unique_any<HWND, decltype(&::DestroyWindow), ::DestroyWindow> unique_hwnd;
+#if !defined(NOUSER) && !defined(NOWH)
     typedef unique_any<HHOOK, decltype(&::UnhookWindowsHookEx), ::UnhookWindowsHookEx> unique_hhook;
+#endif
 #endif // __WIL__WINUSER_
 
 #if !defined(NOGDI) && !defined(NODESKTOP)
@@ -4204,7 +4208,9 @@ namespace wil
     typedef shared_any<unique_hwinsta> shared_hwinsta;
 #endif // !defined(NOGDI) && !defined(NODESKTOP)
     typedef shared_any<unique_hwnd> shared_hwnd;
+#if !defined(NOUSER) && !defined(NOWH)
     typedef shared_any<unique_hhook> shared_hhook;
+#endif
 
     typedef weak_any<shared_hheap> weak_hheap;
     typedef weak_any<shared_hlocal> weak_hlocal;
@@ -4218,7 +4224,9 @@ namespace wil
     typedef weak_any<shared_hwinsta> weak_hwinsta;
 #endif // !defined(NOGDI) && !defined(NODESKTOP)
     typedef weak_any<shared_hwnd> weak_hwnd;
+#if !defined(NOUSER) && !defined(NOWH)
     typedef weak_any<shared_hhook> weak_hhook;
+#endif
 #endif // __WIL_WINBASE_DESKTOP_STL
 
 #if defined(_COMBASEAPI_H_) && !defined(__WIL__COMBASEAPI_H_) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM) && (NTDDI_VERSION >= NTDDI_WIN8) && !defined(WIL_KERNEL_MODE)
@@ -5874,6 +5882,13 @@ namespace wil
     using unique_io_workitem = wil::unique_any<PIO_WORKITEM, decltype(&::IoFreeWorkItem), ::IoFreeWorkItem, details::pointer_access_noaddress>;
 
 #endif // __WIL_RESOURCE_WDM
+
+#if defined(WIL_KERNEL_MODE) && (defined(_WDMDDK_) || defined(_ZWAPI_)) && !defined(__WIL_RESOURCE_ZWAPI)
+#define __WIL_RESOURCE_ZWAPI
+
+    using unique_kernel_handle = wil::unique_any<HANDLE, decltype(&::ZwClose), ::ZwClose>;
+
+#endif // __WIL_RESOURCE_ZWAPI
 
 } // namespace wil
 
