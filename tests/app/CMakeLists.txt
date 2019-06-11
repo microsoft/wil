@@ -11,6 +11,7 @@ target_sources(witest.app PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/../FileSystemTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../ResourceTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../ResultTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../Rpc.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../SafeCastTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../StlTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../UniqueWinRTEventTokenTests.cpp

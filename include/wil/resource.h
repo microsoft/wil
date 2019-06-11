@@ -4183,7 +4183,9 @@ namespace wil
     typedef unique_any<HACCEL, decltype(&::DestroyAcceleratorTable), ::DestroyAcceleratorTable> unique_haccel;
     typedef unique_any<HCURSOR, decltype(&::DestroyCursor), ::DestroyCursor> unique_hcursor;
     typedef unique_any<HWND, decltype(&::DestroyWindow), ::DestroyWindow> unique_hwnd;
+#if !defined(NOUSER) && !defined(NOWH)
     typedef unique_any<HHOOK, decltype(&::UnhookWindowsHookEx), ::UnhookWindowsHookEx> unique_hhook;
+#endif
 #endif // __WIL__WINUSER_
 
 #if !defined(NOGDI) && !defined(NODESKTOP)
@@ -4206,6 +4208,9 @@ namespace wil
     typedef shared_any<unique_hwinsta> shared_hwinsta;
 #endif // !defined(NOGDI) && !defined(NODESKTOP)
     typedef shared_any<unique_hwnd> shared_hwnd;
+#if !defined(NOUSER) && !defined(NOWH)
+    typedef shared_any<unique_hhook> shared_hhook;
+#endif
 
     typedef weak_any<shared_hheap> weak_hheap;
     typedef weak_any<shared_hlocal> weak_hlocal;
@@ -4219,6 +4224,9 @@ namespace wil
     typedef weak_any<shared_hwinsta> weak_hwinsta;
 #endif // !defined(NOGDI) && !defined(NODESKTOP)
     typedef weak_any<shared_hwnd> weak_hwnd;
+#if !defined(NOUSER) && !defined(NOWH)
+    typedef weak_any<shared_hhook> weak_hhook;
+#endif
 #endif // __WIL_WINBASE_DESKTOP_STL
 
 #if defined(_COMBASEAPI_H_) && !defined(__WIL__COMBASEAPI_H_) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM) && (NTDDI_VERSION >= NTDDI_WIN8) && !defined(WIL_KERNEL_MODE)
@@ -4748,6 +4756,40 @@ namespace wil
     typedef weak_any<shared_bcrypt_secret> weak_bcrypt_secret;
 #endif // __WIL_BCRYPT_H_STL
 
+
+#if defined(__RPCNDR_H__) && !defined(__WIL__RPCNDR_H__) && !defined(WIL_KERNEL_MODE)
+#define __WIL__RPCNDR_H__
+
+    //! Function deleter for use with pointers allocated by MIDL_user_allocate
+    using midl_deleter = function_deleter<decltype(&::MIDL_user_free), MIDL_user_free>;
+
+    //! Unique-ptr holding a type allocated by MIDL_user_alloc or returned from an RPC invocation
+    template<typename T> using unique_midl_ptr = wistd::unique_ptr<T, midl_deleter>;
+
+    //! Unique-ptr for strings allocated by MIDL_user_alloc
+    using unique_midl_string = unique_midl_ptr<wchar_t>;
+#ifndef WIL_NO_ANSI_STRINGS
+    using unique_midl_ansistring = unique_midl_ptr<char>;
+#endif
+
+    namespace details
+    {
+        struct midl_allocator
+        {
+            static void* allocate(size_t size) WI_NOEXCEPT
+            {
+                return ::MIDL_user_allocate(size);
+            }
+        };
+
+        // Specialization to support construction of unique_midl_string instances
+        template<> struct string_allocator<unique_midl_string> : midl_allocator {};
+
+#ifndef WIL_NO_ANSI_STRINGS
+        template<> struct string_allocator<unique_midl_ansistring> : midl_allocator {};
+#endif
+    }
+#endif // __WIL__RPCNDR_H__
 
 #if defined(_OBJBASE_H_) && !defined(__WIL_OBJBASE_H_) && !defined(WIL_KERNEL_MODE)
 #define __WIL_OBJBASE_H_
@@ -5840,6 +5882,13 @@ namespace wil
     using unique_io_workitem = wil::unique_any<PIO_WORKITEM, decltype(&::IoFreeWorkItem), ::IoFreeWorkItem, details::pointer_access_noaddress>;
 
 #endif // __WIL_RESOURCE_WDM
+
+#if defined(WIL_KERNEL_MODE) && (defined(_WDMDDK_) || defined(_ZWAPI_)) && !defined(__WIL_RESOURCE_ZWAPI)
+#define __WIL_RESOURCE_ZWAPI
+
+    using unique_kernel_handle = wil::unique_any<HANDLE, decltype(&::ZwClose), ::ZwClose>;
+
+#endif // __WIL_RESOURCE_ZWAPI
 
 } // namespace wil
 
