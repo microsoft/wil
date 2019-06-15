@@ -158,7 +158,7 @@ namespace wil
     // HRESULT OpenFoo([in] handle_t binding, [out] FOO_CONTEXT*);
     // HRESULT UseFoo([in] FOO_CONTEXT context;
     // void CloseFoo([in, out] PFOO_CONTEXT);
-    using unique_foo_context = wil::unique_context_handle<FOO_CONTEXT, decltype(&CloseFoo), CloseFoo>;
+    using unique_foo_context = wil::unique_rpc_context_handle<FOO_CONTEXT, decltype(&CloseFoo), CloseFoo>;
     unique_foo_context context;
     RETURN_IF_FAILED(wil::invoke_rpc_nothrow(OpenFoo, m_binding.get(), context.put()));
     RETURN_IF_FAILED(wil::invoke_rpc_nothrow(UseFoo, context.get()));
@@ -166,7 +166,7 @@ namespace wil
     ~~~
     */
     template<typename TContext, typename close_fn_t, close_fn_t close_fn>
-    using unique_context_handle = unique_any<TContext, decltype(&details::rpc_closer_t<TContext, close_fn_t, close_fn>::Close), details::rpc_closer_t<TContext, close_fn_t, close_fn>::Close>;
+    using unique_rpc_context_handle = unique_any<TContext, decltype(&details::rpc_closer_t<TContext, close_fn_t, close_fn>::Close), details::rpc_closer_t<TContext, close_fn_t, close_fn>::Close>;
 
 #ifdef WIL_ENABLE_EXCEPTIONS
     /** Invokes an RPC method, mapping structured exceptions to C++ exceptions

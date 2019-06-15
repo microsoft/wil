@@ -69,7 +69,7 @@ TEST_CASE("Rpc::NonThrowing", "[rpc]")
 
     SECTION("Context Handles")
     {
-        using foo_context_t = wil::unique_context_handle<FOO_CONTEXT, decltype(&CloseContextHandle), CloseContextHandle>;
+        using foo_context_t = wil::unique_rpc_context_handle<FOO_CONTEXT, decltype(&CloseContextHandle), CloseContextHandle>;
         foo_context_t ctx;
         auto tempBinding = reinterpret_cast<handle_t>(-5);
         REQUIRE_SUCCEEDED(wil::invoke_rpc_nothrow(AcquireContextHandle, tempBinding, ctx.put()));
@@ -79,7 +79,7 @@ TEST_CASE("Rpc::NonThrowing", "[rpc]")
 
     SECTION("Context Handles Close Raised")
     {
-        using foo_context_t = wil::unique_context_handle<FOO_CONTEXT, decltype(&CloseContextHandleRaise), CloseContextHandleRaise>;
+        using foo_context_t = wil::unique_rpc_context_handle<FOO_CONTEXT, decltype(&CloseContextHandleRaise), CloseContextHandleRaise>;
         foo_context_t ctx{ reinterpret_cast<FOO_CONTEXT>(42) };
         ctx.reset();
     }
