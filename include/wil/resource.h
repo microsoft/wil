@@ -4182,6 +4182,7 @@ namespace wil
     typedef unique_any<HCURSOR, decltype(&::DestroyCursor), ::DestroyCursor> unique_hcursor;
     typedef unique_any<HWND, decltype(&::DestroyWindow), ::DestroyWindow> unique_hwnd;
     typedef unique_any<HHOOK, decltype(&::UnhookWindowsHookEx), ::UnhookWindowsHookEx> unique_hhook;
+    typedef unique_any<HWINEVENTHOOK, decltype(&::UnhookWinEvent), ::UnhookWinEvent> unique_hwineventhook;
 #endif // __WIL__WINUSER_
 
 #if !defined(NOGDI) && !defined(NODESKTOP)
@@ -4205,6 +4206,7 @@ namespace wil
 #endif // !defined(NOGDI) && !defined(NODESKTOP)
     typedef shared_any<unique_hwnd> shared_hwnd;
     typedef shared_any<unique_hhook> shared_hhook;
+    typedef shared_any<unique_hwineventhook> shared_hwineventhook;
 
     typedef weak_any<shared_hheap> weak_hheap;
     typedef weak_any<shared_hlocal> weak_hlocal;
@@ -4219,6 +4221,7 @@ namespace wil
 #endif // !defined(NOGDI) && !defined(NODESKTOP)
     typedef weak_any<shared_hwnd> weak_hwnd;
     typedef weak_any<shared_hhook> weak_hhook;
+    typedef weak_any<shared_hwineventhook> weak_hwineventhook;
 #endif // __WIL_WINBASE_DESKTOP_STL
 
 #if defined(_COMBASEAPI_H_) && !defined(__WIL__COMBASEAPI_H_) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM) && (NTDDI_VERSION >= NTDDI_WIN8) && !defined(WIL_KERNEL_MODE)
