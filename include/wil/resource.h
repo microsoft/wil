@@ -2274,6 +2274,7 @@ namespace wil
     template <class _Ty, class... _Types>
     typename wistd::enable_if<wistd::extent<_Ty>::value != 0, void>::type make_unique_nothrow(_Types&&...) = delete;
 
+#if !defined(__WIL_MIN_KERNEL) && !defined(WIL_KERNEL_MODE)
     /** Provides `std::make_unique()` semantics for resources allocated in a context that must fail fast upon allocation failure.
     See the overload of `wil::make_unique_nothrow()` for non-array types for more details.
     ~~~
@@ -2309,6 +2310,7 @@ namespace wil
 
     template <class _Ty, class... _Types>
     typename wistd::enable_if<wistd::extent<_Ty>::value != 0, void>::type make_unique_failfast(_Types&&...) = delete;
+#endif // !defined(__WIL_MIN_KERNEL) && !defined(WIL_KERNEL_MODE)
 #endif // __WIL__NOTHROW_T_DEFINED
 
 #if defined(_WINBASE_) && !defined(__WIL_WINBASE_) && !defined(WIL_KERNEL_MODE)
@@ -4181,7 +4183,9 @@ namespace wil
     typedef unique_any<HACCEL, decltype(&::DestroyAcceleratorTable), ::DestroyAcceleratorTable> unique_haccel;
     typedef unique_any<HCURSOR, decltype(&::DestroyCursor), ::DestroyCursor> unique_hcursor;
     typedef unique_any<HWND, decltype(&::DestroyWindow), ::DestroyWindow> unique_hwnd;
+#if !defined(NOUSER) && !defined(NOWH)
     typedef unique_any<HHOOK, decltype(&::UnhookWindowsHookEx), ::UnhookWindowsHookEx> unique_hhook;
+#endif
     typedef unique_any<HWINEVENTHOOK, decltype(&::UnhookWinEvent), ::UnhookWinEvent> unique_hwineventhook;
 #endif // __WIL__WINUSER_
 
@@ -4205,7 +4209,9 @@ namespace wil
     typedef shared_any<unique_hwinsta> shared_hwinsta;
 #endif // !defined(NOGDI) && !defined(NODESKTOP)
     typedef shared_any<unique_hwnd> shared_hwnd;
+#if !defined(NOUSER) && !defined(NOWH)
     typedef shared_any<unique_hhook> shared_hhook;
+#endif
     typedef shared_any<unique_hwineventhook> shared_hwineventhook;
 
     typedef weak_any<shared_hheap> weak_hheap;
@@ -4220,13 +4226,17 @@ namespace wil
     typedef weak_any<shared_hwinsta> weak_hwinsta;
 #endif // !defined(NOGDI) && !defined(NODESKTOP)
     typedef weak_any<shared_hwnd> weak_hwnd;
+#if !defined(NOUSER) && !defined(NOWH)
     typedef weak_any<shared_hhook> weak_hhook;
+#endif
     typedef weak_any<shared_hwineventhook> weak_hwineventhook;
 #endif // __WIL_WINBASE_DESKTOP_STL
 
-#if defined(_COMBASEAPI_H_) && !defined(__WIL__COMBASEAPI_H_) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM) && (NTDDI_VERSION >= NTDDI_WIN8) && !defined(WIL_KERNEL_MODE)
+#if defined(_COMBASEAPI_H_) && !defined(__WIL__COMBASEAPI_H_) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM) && !defined(WIL_KERNEL_MODE)
 #define __WIL__COMBASEAPI_H_
+#if (NTDDI_VERSION >= NTDDI_WIN8)
     typedef unique_any<CO_MTA_USAGE_COOKIE, decltype(&::CoDecrementMTAUsage), ::CoDecrementMTAUsage> unique_mta_usage_cookie;
+#endif
 
     typedef unique_any<DWORD, decltype(&::CoRevokeClassObject), ::CoRevokeClassObject> unique_com_class_object_cookie;
 
@@ -4270,7 +4280,7 @@ namespace wil
     typedef weak_any<shared_mta_usage_cookie> weak_mta_usage_cookie;
 #endif // __WIL__COMBASEAPI_H__STL
 
-#if defined(_COMBASEAPI_H_) && !defined(__WIL__COMBASEAPI_H_APP) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_SYSTEM) && (NTDDI_VERSION >= NTDDI_WIN8) && !defined(WIL_KERNEL_MODE)
+#if defined(_COMBASEAPI_H_) && !defined(__WIL__COMBASEAPI_H_APP) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_SYSTEM) && !defined(WIL_KERNEL_MODE)
 #define __WIL__COMBASEAPI_H_APP
     //! A type that calls CoUninitialize on destruction (or reset()).
     using unique_couninitialize_call = unique_call<decltype(&::CoUninitialize), ::CoUninitialize>;
@@ -4751,6 +4761,40 @@ namespace wil
     typedef weak_any<shared_bcrypt_secret> weak_bcrypt_secret;
 #endif // __WIL_BCRYPT_H_STL
 
+
+#if defined(__RPCNDR_H__) && !defined(__WIL__RPCNDR_H__) && !defined(WIL_KERNEL_MODE)
+#define __WIL__RPCNDR_H__
+
+    //! Function deleter for use with pointers allocated by MIDL_user_allocate
+    using midl_deleter = function_deleter<decltype(&::MIDL_user_free), MIDL_user_free>;
+
+    //! Unique-ptr holding a type allocated by MIDL_user_alloc or returned from an RPC invocation
+    template<typename T> using unique_midl_ptr = wistd::unique_ptr<T, midl_deleter>;
+
+    //! Unique-ptr for strings allocated by MIDL_user_alloc
+    using unique_midl_string = unique_midl_ptr<wchar_t>;
+#ifndef WIL_NO_ANSI_STRINGS
+    using unique_midl_ansistring = unique_midl_ptr<char>;
+#endif
+
+    namespace details
+    {
+        struct midl_allocator
+        {
+            static void* allocate(size_t size) WI_NOEXCEPT
+            {
+                return ::MIDL_user_allocate(size);
+            }
+        };
+
+        // Specialization to support construction of unique_midl_string instances
+        template<> struct string_allocator<unique_midl_string> : midl_allocator {};
+
+#ifndef WIL_NO_ANSI_STRINGS
+        template<> struct string_allocator<unique_midl_ansistring> : midl_allocator {};
+#endif
+    }
+#endif // __WIL__RPCNDR_H__
 
 #if defined(_OBJBASE_H_) && !defined(__WIL_OBJBASE_H_) && !defined(WIL_KERNEL_MODE)
 #define __WIL_OBJBASE_H_
@@ -5843,6 +5887,13 @@ namespace wil
     using unique_io_workitem = wil::unique_any<PIO_WORKITEM, decltype(&::IoFreeWorkItem), ::IoFreeWorkItem, details::pointer_access_noaddress>;
 
 #endif // __WIL_RESOURCE_WDM
+
+#if defined(WIL_KERNEL_MODE) && (defined(_WDMDDK_) || defined(_ZWAPI_)) && !defined(__WIL_RESOURCE_ZWAPI)
+#define __WIL_RESOURCE_ZWAPI
+
+    using unique_kernel_handle = wil::unique_any<HANDLE, decltype(&::ZwClose), ::ZwClose>;
+
+#endif // __WIL_RESOURCE_ZWAPI
 
 } // namespace wil
 
