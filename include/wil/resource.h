@@ -122,12 +122,12 @@ namespace wil
             typedef pointer_access pointer_access;
             __forceinline static pointer_storage invalid_value() WI_NOEXCEPT { return (pointer)invalid; }
             __forceinline static bool is_valid(pointer_storage value) WI_NOEXCEPT { return (static_cast<pointer>(value) != (pointer)invalid); }
-            __forceinline static void close(pointer_storage value) WI_NOEXCEPT { close_fn(value); }
+            __forceinline static void close(pointer_storage value) WI_NOEXCEPT { wistd::invoke(close_fn, value); }
 
             inline static void close_reset(pointer_storage value) WI_NOEXCEPT
             {
                 auto preserveError = last_error_context();
-                close_fn(value);
+                wistd::invoke(close_fn, value);
             }
         };
 
@@ -806,7 +806,7 @@ namespace wil
         //! Calls the custom close function
         ~unique_struct() WI_NOEXCEPT
         {
-            close_fn(this);
+            wistd::invoke(close_fn, this);
         }
 
         void reset(const unique_struct&) = delete;
@@ -816,7 +816,7 @@ namespace wil
         {
             {
                 auto preserveError = last_error_context();
-                close_fn(this);
+                wistd::invoke(close_fn, this);
             }
             struct_t::operator=(other);
         }
@@ -825,7 +825,7 @@ namespace wil
         //! Then initializes this managed struct using the user-provided initialization function, or ZeroMemory if no function is specified
         void reset() WI_NOEXCEPT
         {
-            close_fn(this);
+            wistd::invoke(close_fn, this);
             call_init(use_default_init_fn());
         }
 
@@ -1208,7 +1208,7 @@ namespace wil
             template <typename T>
             void operator()(_Pre_opt_valid_ _Frees_ptr_opt_ T& p) const
             {
-                close_fn(&p);
+                wistd::invoke(close_fn, &p);
             }
         };
 
@@ -1367,7 +1367,7 @@ namespace wil
             {
                 if ((m_source != source) || (m_token != token))
                 {
-                    close_fn(m_source, m_token);
+                    wistd::invoke(close_fn, m_source, m_token);
                 }
             }
 
@@ -1517,7 +1517,7 @@ namespace wil
                 }
                 if (oldSource)
                 {
-                    close_fn(oldSource);
+                    wistd::invoke(close_fn, oldSource);
                     oldSource->Release();
                 }
             }
@@ -1629,7 +1629,7 @@ namespace wil
             m_call = false;
             if (call)
             {
-                close_fn();
+                wistd::invoke(close_fn);
             }
         }
 
@@ -2274,6 +2274,7 @@ namespace wil
     template <class _Ty, class... _Types>
     typename wistd::enable_if<wistd::extent<_Ty>::value != 0, void>::type make_unique_nothrow(_Types&&...) = delete;
 
+#if !defined(__WIL_MIN_KERNEL) && !defined(WIL_KERNEL_MODE)
     /** Provides `std::make_unique()` semantics for resources allocated in a context that must fail fast upon allocation failure.
     See the overload of `wil::make_unique_nothrow()` for non-array types for more details.
     ~~~
@@ -2309,6 +2310,7 @@ namespace wil
 
     template <class _Ty, class... _Types>
     typename wistd::enable_if<wistd::extent<_Ty>::value != 0, void>::type make_unique_failfast(_Types&&...) = delete;
+#endif // !defined(__WIL_MIN_KERNEL) && !defined(WIL_KERNEL_MODE)
 #endif // __WIL__NOTHROW_T_DEFINED
 
 #if defined(_WINBASE_) && !defined(__WIL_WINBASE_) && !defined(WIL_KERNEL_MODE)
@@ -2497,7 +2499,10 @@ namespace wil
     typedef unique_any_handle_null_only<decltype(&::CloseHandle), ::CloseHandle> unique_process_handle;
 
     typedef unique_struct<TOKEN_LINKED_TOKEN, decltype(&details::CloseTokenLinkedToken), details::CloseTokenLinkedToken> unique_token_linked_token;
+
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_SYSTEM)
     typedef unique_any<PSID, decltype(&::FreeSid), ::FreeSid> unique_sid;
+#endif
 
     using unique_tool_help_snapshot = unique_hfile;
 
@@ -2722,7 +2727,6 @@ namespace wil
             return !!InterlockedExchange(&m_isSignaled, FALSE);
         }
 
-        // Returns the previous state of the event.
         void SetEvent() WI_NOEXCEPT
         {
             // FYI: 'WakeByAddress*' invokes a full memory barrier.
@@ -4179,6 +4183,9 @@ namespace wil
     typedef unique_any<HACCEL, decltype(&::DestroyAcceleratorTable), ::DestroyAcceleratorTable> unique_haccel;
     typedef unique_any<HCURSOR, decltype(&::DestroyCursor), ::DestroyCursor> unique_hcursor;
     typedef unique_any<HWND, decltype(&::DestroyWindow), ::DestroyWindow> unique_hwnd;
+#if !defined(NOUSER) && !defined(NOWH)
+    typedef unique_any<HHOOK, decltype(&::UnhookWindowsHookEx), ::UnhookWindowsHookEx> unique_hhook;
+#endif
 #endif // __WIL__WINUSER_
 
 #if !defined(NOGDI) && !defined(NODESKTOP)
@@ -4201,6 +4208,9 @@ namespace wil
     typedef shared_any<unique_hwinsta> shared_hwinsta;
 #endif // !defined(NOGDI) && !defined(NODESKTOP)
     typedef shared_any<unique_hwnd> shared_hwnd;
+#if !defined(NOUSER) && !defined(NOWH)
+    typedef shared_any<unique_hhook> shared_hhook;
+#endif
 
     typedef weak_any<shared_hheap> weak_hheap;
     typedef weak_any<shared_hlocal> weak_hlocal;
@@ -4214,11 +4224,16 @@ namespace wil
     typedef weak_any<shared_hwinsta> weak_hwinsta;
 #endif // !defined(NOGDI) && !defined(NODESKTOP)
     typedef weak_any<shared_hwnd> weak_hwnd;
+#if !defined(NOUSER) && !defined(NOWH)
+    typedef weak_any<shared_hhook> weak_hhook;
+#endif
 #endif // __WIL_WINBASE_DESKTOP_STL
 
-#if defined(_COMBASEAPI_H_) && !defined(__WIL__COMBASEAPI_H_) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM) && (NTDDI_VERSION >= NTDDI_WIN8) && !defined(WIL_KERNEL_MODE)
+#if defined(_COMBASEAPI_H_) && !defined(__WIL__COMBASEAPI_H_) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM) && !defined(WIL_KERNEL_MODE)
 #define __WIL__COMBASEAPI_H_
+#if (NTDDI_VERSION >= NTDDI_WIN8)
     typedef unique_any<CO_MTA_USAGE_COOKIE, decltype(&::CoDecrementMTAUsage), ::CoDecrementMTAUsage> unique_mta_usage_cookie;
+#endif
 
     typedef unique_any<DWORD, decltype(&::CoRevokeClassObject), ::CoRevokeClassObject> unique_com_class_object_cookie;
 
@@ -4262,7 +4277,7 @@ namespace wil
     typedef weak_any<shared_mta_usage_cookie> weak_mta_usage_cookie;
 #endif // __WIL__COMBASEAPI_H__STL
 
-#if defined(_COMBASEAPI_H_) && !defined(__WIL__COMBASEAPI_H_APP) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_SYSTEM) && (NTDDI_VERSION >= NTDDI_WIN8) && !defined(WIL_KERNEL_MODE)
+#if defined(_COMBASEAPI_H_) && !defined(__WIL__COMBASEAPI_H_APP) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_SYSTEM) && !defined(WIL_KERNEL_MODE)
 #define __WIL__COMBASEAPI_H_APP
     //! A type that calls CoUninitialize on destruction (or reset()).
     using unique_couninitialize_call = unique_call<decltype(&::CoUninitialize), ::CoUninitialize>;
@@ -4308,7 +4323,7 @@ namespace wil
     }
 #endif
 
-#if defined(__WINSTRING_H_) && !defined(__WIL__WINSTRING_H_)
+#if defined(__WINSTRING_H_) && !defined(__WIL__WINSTRING_H_) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_SYSTEM)
 #define __WIL__WINSTRING_H_
     typedef unique_any<HSTRING, decltype(&::WindowsDeleteString), ::WindowsDeleteString> unique_hstring;
 
@@ -4465,7 +4480,7 @@ namespace wil
     using unique_prop_variant = wil::unique_struct<PROPVARIANT, decltype(&::PropVariantClear), ::PropVariantClear, decltype(&::PropVariantInit), ::PropVariantInit>;
 #endif // _WIL__propidl_h__
 
-#if defined(_OLEAUTO_H_) && !defined(__WIL_OLEAUTO_H_) && !defined(WIL_KERNEL_MODE)
+#if defined(_OLEAUTO_H_) && !defined(__WIL_OLEAUTO_H_) && !defined(WIL_KERNEL_MODE) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_SYSTEM)
 #define __WIL_OLEAUTO_H_
     using unique_variant = wil::unique_struct<VARIANT, decltype(&::VariantClear), ::VariantClear, decltype(&::VariantInit), ::VariantInit>;
     typedef unique_any<BSTR, decltype(&::SysFreeString), ::SysFreeString> unique_bstr;
@@ -4743,6 +4758,40 @@ namespace wil
     typedef weak_any<shared_bcrypt_secret> weak_bcrypt_secret;
 #endif // __WIL_BCRYPT_H_STL
 
+
+#if defined(__RPCNDR_H__) && !defined(__WIL__RPCNDR_H__) && !defined(WIL_KERNEL_MODE)
+#define __WIL__RPCNDR_H__
+
+    //! Function deleter for use with pointers allocated by MIDL_user_allocate
+    using midl_deleter = function_deleter<decltype(&::MIDL_user_free), MIDL_user_free>;
+
+    //! Unique-ptr holding a type allocated by MIDL_user_alloc or returned from an RPC invocation
+    template<typename T> using unique_midl_ptr = wistd::unique_ptr<T, midl_deleter>;
+
+    //! Unique-ptr for strings allocated by MIDL_user_alloc
+    using unique_midl_string = unique_midl_ptr<wchar_t>;
+#ifndef WIL_NO_ANSI_STRINGS
+    using unique_midl_ansistring = unique_midl_ptr<char>;
+#endif
+
+    namespace details
+    {
+        struct midl_allocator
+        {
+            static void* allocate(size_t size) WI_NOEXCEPT
+            {
+                return ::MIDL_user_allocate(size);
+            }
+        };
+
+        // Specialization to support construction of unique_midl_string instances
+        template<> struct string_allocator<unique_midl_string> : midl_allocator {};
+
+#ifndef WIL_NO_ANSI_STRINGS
+        template<> struct string_allocator<unique_midl_ansistring> : midl_allocator {};
+#endif
+    }
+#endif // __WIL__RPCNDR_H__
 
 #if defined(_OBJBASE_H_) && !defined(__WIL_OBJBASE_H_) && !defined(WIL_KERNEL_MODE)
 #define __WIL_OBJBASE_H_
@@ -5401,16 +5450,20 @@ namespace wil
 
 #if defined(WDFAPI) && !defined(__WIL_WDFAPI)
 #define __WIL_WDFAPI
+
+    namespace details
+    {
+        template<typename TWDFOBJECT>
+        using wdf_object_resource_policy = resource_policy<TWDFOBJECT, decltype(&::WdfObjectDelete), &::WdfObjectDelete>;
+    }
+
     template<typename TWDFOBJECT>
-    using unique_wdf_any = unique_any<TWDFOBJECT, decltype(&::WdfObjectDelete), &::WdfObjectDelete>;
+    using unique_wdf_any = unique_any_t<details::unique_storage<details::wdf_object_resource_policy<TWDFOBJECT>>>;
 
     using unique_wdf_object          = unique_wdf_any<WDFOBJECT>;
 
     using unique_wdf_timer           = unique_wdf_any<WDFTIMER>;
     using unique_wdf_work_item       = unique_wdf_any<WDFWORKITEM>;
-
-    using unique_wdf_wait_lock       = unique_wdf_any<WDFWAITLOCK>;
-    using unique_wdf_spin_lock       = unique_wdf_any<WDFSPINLOCK>;
 
     using unique_wdf_memory          = unique_wdf_any<WDFMEMORY>;
 
@@ -5477,6 +5530,121 @@ namespace wil
         ::WdfSpinLockAcquire(lock);
         return wdf_spin_lock_release_scope_exit(lock);
     }
+
+    namespace details
+    {
+        template<typename TWDFLOCK>
+        using unique_wdf_lock_storage = unique_storage<wdf_object_resource_policy<TWDFLOCK>>;
+
+        class unique_wdf_spin_lock_storage : public unique_wdf_lock_storage<WDFSPINLOCK>
+        {
+            using wdf_lock_storage_t = unique_wdf_lock_storage<WDFSPINLOCK>;
+
+        public:
+
+            using pointer = wdf_lock_storage_t::pointer;
+
+            // Forward all base class constructors, but have it be explicit.
+            template <typename... args_t>
+            explicit unique_wdf_spin_lock_storage(args_t&& ... args) WI_NOEXCEPT : wdf_lock_storage_t(wistd::forward<args_t>(args)...) {}
+
+            NTSTATUS create(_In_opt_ WDF_OBJECT_ATTRIBUTES* attributes = WDF_NO_OBJECT_ATTRIBUTES)
+            {
+                return ::WdfSpinLockCreate(attributes, out_param(*this));
+            }
+
+            WI_NODISCARD
+            _IRQL_requires_max_(DISPATCH_LEVEL)
+            _IRQL_raises_(DISPATCH_LEVEL)
+            wdf_spin_lock_release_scope_exit acquire() WI_NOEXCEPT
+            {
+                return wil::acquire_wdf_spin_lock(wdf_lock_storage_t::get());
+            }
+        };
+
+        class unique_wdf_wait_lock_storage : public unique_wdf_lock_storage<WDFWAITLOCK>
+        {
+            using wdf_lock_storage_t = unique_wdf_lock_storage<WDFWAITLOCK>;
+
+        public:
+
+            using pointer = wdf_lock_storage_t::pointer;
+
+            // Forward all base class constructors, but have it be explicit.
+            template <typename... args_t>
+            explicit unique_wdf_wait_lock_storage(args_t&& ... args) WI_NOEXCEPT : wdf_lock_storage_t(wistd::forward<args_t>(args)...) {}
+
+            NTSTATUS create(_In_opt_ WDF_OBJECT_ATTRIBUTES* attributes = WDF_NO_OBJECT_ATTRIBUTES)
+            {
+                return ::WdfWaitLockCreate(attributes, out_param(*this));
+            }
+
+            WI_NODISCARD
+            _IRQL_requires_max_(PASSIVE_LEVEL)
+            wdf_wait_lock_release_scope_exit acquire() WI_NOEXCEPT
+            {
+                return wil::acquire_wdf_wait_lock(wdf_lock_storage_t::get());
+            }
+
+            WI_NODISCARD
+            _IRQL_requires_max_(APC_LEVEL)
+            wdf_wait_lock_release_scope_exit try_acquire() WI_NOEXCEPT
+            {
+                return wil::try_acquire_wdf_wait_lock(wdf_lock_storage_t::get());
+            }
+        };
+    }
+
+    using unique_wdf_wait_lock = unique_any_t<details::unique_wdf_wait_lock_storage>;
+    using unique_wdf_spin_lock = unique_any_t<details::unique_wdf_spin_lock_storage>;
+
+    template<typename TWDFOBJECT>
+    struct wdf_object_reference
+    {
+        TWDFOBJECT wdfObject = WDF_NO_HANDLE;
+        PVOID tag = nullptr;
+
+        wdf_object_reference() WI_NOEXCEPT = default;
+
+        wdf_object_reference(TWDFOBJECT wdfObject, PVOID tag = nullptr) WI_NOEXCEPT
+            : wdfObject(wdfObject), tag(tag)
+        {
+        }
+
+        operator TWDFOBJECT() const WI_NOEXCEPT
+        {
+            return wdfObject;
+        }
+
+        static void close(const wdf_object_reference& wdfObjectReference) WI_NOEXCEPT
+        {
+            // We don't use WdfObjectDereferenceActual because there is no way to provide the
+            // correct __LINE__ and __FILE__, but if you use RAII all the way, you shouldn't have to
+            // worry about where it was released, only where it was acquired.
+            WdfObjectDereferenceWithTag(wdfObjectReference.wdfObject, wdfObjectReference.tag);
+        }
+    };
+
+    template<typename TWDFOBJECT>
+    using unique_wdf_object_reference = unique_any<TWDFOBJECT, decltype(wdf_object_reference<TWDFOBJECT>::close),
+        &wdf_object_reference<TWDFOBJECT>::close, details::pointer_access_noaddress, wdf_object_reference<TWDFOBJECT>>;
+
+    // Increment the ref-count on a WDF object a unique_wdf_object_reference for it. Use
+    // WI_WdfObjectReferenceIncrement to automatically use the call-site source location. Use this
+    // function only if the call-site source location is obtained from elsewhere (i.e., plumbed
+    // through other abstractions).
+    template<typename TWDFOBJECT>
+    inline WI_NODISCARD unique_wdf_object_reference<TWDFOBJECT> wdf_object_reference_increment(
+        TWDFOBJECT wdfObject, PVOID tag, LONG lineNumber, PCSTR fileName) WI_NOEXCEPT
+    {
+        // Parameter is incorrectly marked as non-const, so the const-cast is required.
+        ::WdfObjectReferenceActual(wdfObject, tag, lineNumber, const_cast<char*>(fileName));
+        return unique_wdf_object_reference<TWDFOBJECT>{ wdf_object_reference<TWDFOBJECT>{ wdfObject, tag } };
+    }
+
+// A macro so that we can capture __LINE__ and __FILE__.
+#define WI_WdfObjectReferenceIncrement(wdfObject, tag) \
+    wil::wdf_object_reference_increment(wdfObject, tag, __LINE__, __FILE__)
 
 #endif
 
@@ -5570,6 +5738,126 @@ namespace wil
         return kspin_lock_at_dpc_guard(spinLock);
     }
 
+    class kernel_spin_lock
+    {
+    public:
+
+        kernel_spin_lock() WI_NOEXCEPT
+        {
+            ::KeInitializeSpinLock(&m_kSpinLock);
+        }
+
+        ~kernel_spin_lock() = default;
+
+        // Cannot change memory location.
+        kernel_spin_lock(const kernel_spin_lock&) = delete;
+        kernel_spin_lock& operator=(const kernel_spin_lock&) = delete;
+        kernel_spin_lock(kernel_spin_lock&&) = delete;
+        kernel_spin_lock& operator=(kernel_spin_lock&&) = delete;
+
+        WI_NODISCARD
+        _IRQL_requires_max_(DISPATCH_LEVEL)
+        _IRQL_saves_
+        _IRQL_raises_(DISPATCH_LEVEL)
+        kspin_lock_guard acquire() WI_NOEXCEPT
+        {
+            return acquire_kspin_lock(&m_kSpinLock);
+        }
+
+        WI_NODISCARD
+        _IRQL_requires_min_(DISPATCH_LEVEL)
+        kspin_lock_at_dpc_guard acquire_at_dpc() WI_NOEXCEPT
+        {
+            return acquire_kspin_lock_at_dpc(&m_kSpinLock);
+        }
+
+    private:
+
+        KSPIN_LOCK m_kSpinLock;
+    };
+
+    namespace details
+    {
+        template <EVENT_TYPE eventType>
+        class kernel_event_t
+        {
+        public:
+
+            explicit kernel_event_t(bool isSignaled = false) WI_NOEXCEPT
+            {
+                ::KeInitializeEvent(&m_kernelEvent, static_cast<EVENT_TYPE>(eventType), isSignaled ? TRUE : FALSE);
+            }
+
+            // Cannot change memory location.
+            kernel_event_t(const kernel_event_t&) = delete;
+            kernel_event_t(kernel_event_t&&) = delete;
+            kernel_event_t& operator=(const kernel_event_t&) = delete;
+            kernel_event_t& operator=(kernel_event_t&&) = delete;
+
+            // Get the underlying KEVENT structure for more advanced usages like
+            // KeWaitForMultipleObjects or KeWaitForSingleObject with non-default parameters.
+            PRKEVENT get() WI_NOEXCEPT
+            {
+                return &m_kernelEvent;
+            }
+
+            void clear() WI_NOEXCEPT
+            {
+                // The most common use-case is to clear the event with no interest in its previous
+                // value. Hence, that is the functionality we provide by default. If the previous
+                // value is required, one may .get() the underlying event object and call
+                // ::KeResetEvent().
+                ::KeClearEvent(&m_kernelEvent);
+            }
+
+            // Returns the previous state of the event.
+            bool set(KPRIORITY increment = IO_NO_INCREMENT) WI_NOEXCEPT
+            {
+                return ::KeSetEvent(&m_kernelEvent, increment, FALSE) ? true : false;
+            }
+
+            // Checks if the event is currently signaled. Does not change the state of the event.
+            bool is_signaled() const WI_NOEXCEPT
+            {
+                return ::KeReadStateEvent(const_cast<PRKEVENT>(&m_kernelEvent)) ? true : false;
+            }
+
+            // Return true if the wait was satisfied. Time is specified in 100ns units, relative
+            // (negative) or absolute (positive). For more details, see the documentation of
+            // KeWaitForSingleObject.
+            bool wait(LONGLONG waitTime) WI_NOEXCEPT
+            {
+                LARGE_INTEGER duration;
+                duration.QuadPart = waitTime;
+                return wait_for_single_object(&duration);
+            }
+
+            // Waits indefinitely for the event to be signaled.
+            void wait() WI_NOEXCEPT
+            {
+                wait_for_single_object(nullptr);
+            }
+
+        private:
+
+            bool wait_for_single_object(_In_opt_ LARGE_INTEGER* waitDuration) WI_NOEXCEPT
+            {
+                auto status = ::KeWaitForSingleObject(&m_kernelEvent, Executive, KernelMode, FALSE, waitDuration);
+
+                // We specified Executive and non-alertable, which means some of the return values are
+                // not possible.
+                WI_ASSERT((status == STATUS_SUCCESS) || (status == STATUS_TIMEOUT));
+                return (status == STATUS_SUCCESS);
+            }
+
+            KEVENT m_kernelEvent;
+        };
+    }
+
+    using kernel_event_auto_reset = details::kernel_event_t<SynchronizationEvent>;
+    using kernel_event_manual_reset = details::kernel_event_t<NotificationEvent>;
+    using kernel_event = kernel_event_auto_reset; // For parity with the default for other WIL event types.
+
     namespace details
     {
         // Define a templated type for pool functions in order to satisfy overload resolution below
@@ -5591,7 +5879,18 @@ namespace wil
     template <typename pointer, ULONG tag = 0>
     using unique_tagged_pool_ptr = unique_any<pointer, decltype(details::pool_helpers<pointer, tag>::FreePoolWithTag), &details::pool_helpers<pointer, tag>::FreePoolWithTag>;
 
+    // For use with IRPs that need to be IoFreeIrp'ed when done, typically allocated using IoAllocateIrp.
+    using unique_allocated_irp = wil::unique_any<PIRP, decltype(&::IoFreeIrp), ::IoFreeIrp, details::pointer_access_noaddress>;
+    using unique_io_workitem = wil::unique_any<PIO_WORKITEM, decltype(&::IoFreeWorkItem), ::IoFreeWorkItem, details::pointer_access_noaddress>;
+
 #endif // __WIL_RESOURCE_WDM
+
+#if defined(WIL_KERNEL_MODE) && (defined(_WDMDDK_) || defined(_ZWAPI_)) && !defined(__WIL_RESOURCE_ZWAPI)
+#define __WIL_RESOURCE_ZWAPI
+
+    using unique_kernel_handle = wil::unique_any<HANDLE, decltype(&::ZwClose), ::ZwClose>;
+
+#endif // __WIL_RESOURCE_ZWAPI
 
 } // namespace wil
 
