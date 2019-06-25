@@ -561,34 +561,34 @@ namespace wil
     @return A C++ bool representing the evaluation of `val`. */
     template <typename T, __R_ENABLE_IF_IS_CLASS(T)>
     _Post_satisfies_(return == static_cast<bool>(val))
-    __forceinline bool verify_bool(const T& val)
+    __forceinline constexpr bool verify_bool(const T& val)
     {
         return static_cast<bool>(val);
     }
 
     template <typename T, __R_ENABLE_IF_IS_NOT_CLASS(T)>
-    __forceinline bool verify_bool(T /*val*/)
+    __forceinline constexpr bool verify_bool(T /*val*/)
     {
         static_assert(!wistd::is_same<T, T>::value, "Wrong Type: bool/BOOL/BOOLEAN/boolean expected");
     }
 
     template <>
     _Post_satisfies_(return == val)
-    __forceinline bool verify_bool<bool>(bool val)
+    __forceinline constexpr bool verify_bool<bool>(bool val)
     {
         return val;
     }
 
     template <>
     _Post_satisfies_(return == (val != 0))
-    __forceinline bool verify_bool<int>(int val)
+    __forceinline constexpr bool verify_bool<int>(int val)
     {
         return (val != 0);
     }
 
     template <>
     _Post_satisfies_(return == !!val)
-    __forceinline bool verify_bool<unsigned char>(unsigned char val)
+    __forceinline constexpr bool verify_bool<unsigned char>(unsigned char val)
     {
         return !!val;
     }
@@ -600,7 +600,7 @@ namespace wil
     @return A Win32 BOOL representing the evaluation of `val`. */
     template <typename T>
     _Post_satisfies_(return == val)
-    __forceinline int verify_BOOL(T val)
+    __forceinline constexpr int verify_BOOL(T val)
     {
         // Note: Written in terms of 'int' as BOOL is actually:  typedef int BOOL;
         static_assert((wistd::is_same<T, int>::value), "Wrong Type: BOOL expected");
@@ -630,7 +630,7 @@ namespace wil
     @return An HRESULT representing the evaluation of `val`. */
     template <typename T>
     _Post_satisfies_(return == hr)
-    inline long verify_hresult(T hr)
+    inline constexpr long verify_hresult(T hr)
     {
         // Note: Written in terms of 'int' as HRESULT is actually:  typedef _Return_type_success_(return >= 0) long HRESULT
         static_assert(wistd::is_same<T, long>::value, "Wrong Type: HRESULT expected");
