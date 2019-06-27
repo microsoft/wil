@@ -4229,9 +4229,11 @@ namespace wil
 #endif
 #endif // __WIL_WINBASE_DESKTOP_STL
 
-#if defined(_COMBASEAPI_H_) && !defined(__WIL__COMBASEAPI_H_) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM) && (NTDDI_VERSION >= NTDDI_WIN8) && !defined(WIL_KERNEL_MODE)
+#if defined(_COMBASEAPI_H_) && !defined(__WIL__COMBASEAPI_H_) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM) && !defined(WIL_KERNEL_MODE)
 #define __WIL__COMBASEAPI_H_
+#if (NTDDI_VERSION >= NTDDI_WIN8)
     typedef unique_any<CO_MTA_USAGE_COOKIE, decltype(&::CoDecrementMTAUsage), ::CoDecrementMTAUsage> unique_mta_usage_cookie;
+#endif
 
     typedef unique_any<DWORD, decltype(&::CoRevokeClassObject), ::CoRevokeClassObject> unique_com_class_object_cookie;
 
@@ -4275,7 +4277,7 @@ namespace wil
     typedef weak_any<shared_mta_usage_cookie> weak_mta_usage_cookie;
 #endif // __WIL__COMBASEAPI_H__STL
 
-#if defined(_COMBASEAPI_H_) && !defined(__WIL__COMBASEAPI_H_APP) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_SYSTEM) && (NTDDI_VERSION >= NTDDI_WIN8) && !defined(WIL_KERNEL_MODE)
+#if defined(_COMBASEAPI_H_) && !defined(__WIL__COMBASEAPI_H_APP) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_SYSTEM) && !defined(WIL_KERNEL_MODE)
 #define __WIL__COMBASEAPI_H_APP
     //! A type that calls CoUninitialize on destruction (or reset()).
     using unique_couninitialize_call = unique_call<decltype(&::CoUninitialize), ::CoUninitialize>;
