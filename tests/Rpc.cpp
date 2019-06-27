@@ -10,6 +10,25 @@ void RpcMethodReturnsVoid(ULONG toRaise)
     }
 }
 
+struct FOO_CONTEXT_T {};
+typedef FOO_CONTEXT_T* FOO_CONTEXT;
+typedef FOO_CONTEXT* PFOO_CONTEXT;
+
+void CloseContextHandle(_Inout_ PFOO_CONTEXT)
+{
+}
+
+void CloseContextHandleRaise(_Inout_ PFOO_CONTEXT)
+{
+    return RpcMethodReturnsVoid(RPC_X_BAD_STUB_DATA);
+}
+
+HRESULT AcquireContextHandle(_In_ handle_t binding, _Out_ PFOO_CONTEXT context)
+{
+    *context = reinterpret_cast<FOO_CONTEXT>(binding);
+    return S_OK;
+}
+
 HRESULT RpcMethodReturnsHResult(HRESULT toReturn, ULONG toRaise)
 {
     RpcMethodReturnsVoid(toRaise);
@@ -26,11 +45,11 @@ TEST_CASE("Rpc::NonThrowing", "[rpc]")
 {
     SECTION("Success paths")
     {
-        REQUIRE(wil::invoke_rpc_nothrow(RpcMethodReturnsVoid, 0UL) == S_OK);
-        REQUIRE(wil::invoke_rpc_nothrow(RpcMethodReturnsHResult, S_OK, 0UL) == S_OK);
+        REQUIRE_SUCCEEDED(wil::invoke_rpc_nothrow(RpcMethodReturnsVoid, 0UL));
+        REQUIRE_SUCCEEDED(wil::invoke_rpc_nothrow(RpcMethodReturnsHResult, S_OK, 0UL));
 
         GUID tmp{};
-        REQUIRE(wil::invoke_rpc_result_nothrow(tmp, RpcMethodReturnsGuid, 0UL) == S_OK);
+        REQUIRE_SUCCEEDED(wil::invoke_rpc_result_nothrow(tmp, RpcMethodReturnsGuid, 0UL));
         REQUIRE(tmp == __uuidof(IUnknown));
     }
 
@@ -46,6 +65,23 @@ TEST_CASE("Rpc::NonThrowing", "[rpc]")
 
         GUID tmp{};
         REQUIRE(wil::invoke_rpc_result_nothrow(tmp, RpcMethodReturnsGuid, RPC_S_CALL_FAILED) == HRESULT_FROM_WIN32(RPC_S_CALL_FAILED));
+    }
+
+    SECTION("Context Handles")
+    {
+        using foo_context_t = wil::unique_rpc_context_handle<FOO_CONTEXT, decltype(&CloseContextHandle), CloseContextHandle>;
+        foo_context_t ctx;
+        auto tempBinding = reinterpret_cast<handle_t>(-5);
+        REQUIRE_SUCCEEDED(wil::invoke_rpc_nothrow(AcquireContextHandle, tempBinding, ctx.put()));
+        REQUIRE(ctx.get() == reinterpret_cast<FOO_CONTEXT>(tempBinding));
+        ctx.reset();
+    }
+
+    SECTION("Context Handles Close Raised")
+    {
+        using foo_context_t = wil::unique_rpc_context_handle<FOO_CONTEXT, decltype(&CloseContextHandleRaise), CloseContextHandleRaise>;
+        foo_context_t ctx{ reinterpret_cast<FOO_CONTEXT>(42) };
+        ctx.reset();
     }
 }
 
