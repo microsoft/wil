@@ -3434,6 +3434,15 @@ namespace wil
         }
     };
 
+    struct mapview_deleter
+    {
+        template<typename T>
+        void operator()(_Pre_opt_valid_ _Frees_ptr_opt_ T* p) const
+        {
+            ::UnmapViewOfFile(p);
+        }
+    };
+
     template <typename T>
     using unique_process_heap_ptr = wistd::unique_ptr<T, process_heap_deleter>;
 
@@ -3457,6 +3466,12 @@ namespace wil
     */
     template<typename T>
     using unique_virtualalloc_ptr = wistd::unique_ptr<T, virtualalloc_deleter>;
+
+    /** Manages a typed pointer allocated with MapViewOfFile
+    A specialization of wistd::unique_ptr<> that frees via UnmapViewOfFile(p).
+    */
+    template<typename T>
+    using unique_mapview_ptr = wistd::unique_ptr<T, mapview_deleter>;
 
 #endif // __WIL_WINBASE_
 
