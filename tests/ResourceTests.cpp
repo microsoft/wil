@@ -556,6 +556,16 @@ TEST_CASE("UniqueStringAndStringMakerTests::VerifyStringMakerProcessHeap", "[res
 }
 #endif
 
+TEST_CASE("UniqueStringAndStringMakerTests::VerifyStringMakerMidl", "[resource][string_maker]")
+{
+    VerifyMakeUniqueString<wil::unique_midl_string>();
+    TestStringMaker<wil::unique_midl_string>(
+        [](PCWSTR value, size_t /*valueLength*/, const wil::unique_midl_string& result)
+        {
+            REQUIRE(wcscmp(value, result.get()) == 0);
+        });
+}
+
 TEST_CASE("UniqueStringAndStringMakerTests::VerifyStringMakerHString", "[resource][string_maker]")
 {
     wil::unique_hstring value;
@@ -604,3 +614,21 @@ TEST_CASE("UniqueStringAndStringMakerTests::VerifyLegacySTringMakers", "[resourc
     c = wil::make_cotaskmem_string_failfast(L"value");
 }
 #endif
+
+_Use_decl_annotations_ void* __RPC_USER MIDL_user_allocate(size_t size)
+{
+    return ::HeapAlloc(GetProcessHeap(), 0, size);
+}
+
+_Use_decl_annotations_ void __RPC_USER MIDL_user_free(void* p)
+{
+    ::HeapFree(GetProcessHeap(), 0, p);
+}
+
+TEST_CASE("UniqueMidlStringTests", "[resource][rpc]")
+{
+    wil::unique_midl_ptr<int[]> intArray{ reinterpret_cast<int*>(::MIDL_user_allocate(sizeof(int) * 10)) };
+    intArray[2] = 1;
+
+    wil::unique_midl_ptr<int> intSingle{ reinterpret_cast<int*>(::MIDL_user_allocate(sizeof(int) * 1)) };
+}

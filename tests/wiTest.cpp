@@ -114,7 +114,7 @@ void TestErrorCallbacks()
 
         wil::ThreadFailureCache cacheNested;
 
-        LOG_HR(E_FAIL); unsigned short errorLine = __LINE__;
+        LOG_HR(E_FAIL); unsigned long errorLine = __LINE__;
         LOG_HR(E_FAIL);
         LOG_HR(E_FAIL);
         REQUIRE(cache.GetFailure()->hr == E_FAIL);
