@@ -48,7 +48,6 @@ namespace wil
         {
             return IS_ERROR(code) ? code : __HRESULT_FROM_WIN32(code);
         }
-
     }
     /// @endcond
 
@@ -131,6 +130,43 @@ namespace wil
         }
         RpcEndExcept
     }
+
+    namespace details
+    {
+        // Provides an adapter around calling the context-handle-close method on an
+        // RPC interface, which itself is an RPC call.
+        template<typename TStorage, typename close_fn_t, close_fn_t close_fn>
+        struct rpc_closer_t
+        {
+            static void Close(TStorage arg) WI_NOEXCEPT
+            {
+                LOG_IF_FAILED(invoke_rpc_nothrow(close_fn, &arg));
+            }
+        };
+    }
+
+    /** Manages explicit RPC context handles
+    Explicit RPC context handles are used in many RPC interfaces. Most interfaces with
+    context handles have an explicit `FooClose([in, out] CONTEXT*)` method that lets
+    the server close out the context handle. As the close method itself is an RPC call,
+    it can fail and raise a structured exception.
+
+    This type routes the context-handle-specific `Close` call through the `invoke_rpc_nothrow`
+    helper, ensuring correct cleanup and lifecycle management.
+    ~~~
+    // Assume the interface has two methods:
+    // HRESULT OpenFoo([in] handle_t binding, [out] FOO_CONTEXT*);
+    // HRESULT UseFoo([in] FOO_CONTEXT context;
+    // void CloseFoo([in, out] PFOO_CONTEXT);
+    using unique_foo_context = wil::unique_rpc_context_handle<FOO_CONTEXT, decltype(&CloseFoo), CloseFoo>;
+    unique_foo_context context;
+    RETURN_IF_FAILED(wil::invoke_rpc_nothrow(OpenFoo, m_binding.get(), context.put()));
+    RETURN_IF_FAILED(wil::invoke_rpc_nothrow(UseFoo, context.get()));
+    context.reset();
+    ~~~
+    */
+    template<typename TContext, typename close_fn_t, close_fn_t close_fn>
+    using unique_rpc_context_handle = unique_any<TContext, decltype(&details::rpc_closer_t<TContext, close_fn_t, close_fn>::Close), details::rpc_closer_t<TContext, close_fn_t, close_fn>::Close>;
 
 #ifdef WIL_ENABLE_EXCEPTIONS
     /** Invokes an RPC method, mapping structured exceptions to C++ exceptions
