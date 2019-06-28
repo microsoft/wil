@@ -570,6 +570,7 @@ namespace wil
     __forceinline constexpr bool verify_bool(T /*val*/)
     {
         static_assert(!wistd::is_same<T, T>::value, "Wrong Type: bool/BOOL/BOOLEAN/boolean expected");
+        return false;
     }
 
     template <>

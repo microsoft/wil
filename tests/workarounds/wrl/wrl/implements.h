@@ -2347,7 +2347,7 @@ unsigned long RuntimeClassImpl<RuntimeClassFlagsT, true, true, false, I0, TInter
 }
 
 template <class RuntimeClassFlagsT, typename I0, typename ...TInterfaces>
-HRESULT RuntimeClassImpl<RuntimeClassFlagsT, true, true, false, I0, TInterfaces...>::GetWeakReference(_Outptr_ IWeakReference **weakReference)
+COM_DECLSPEC_NOTHROW HRESULT RuntimeClassImpl<RuntimeClassFlagsT, true, true, false, I0, TInterfaces...>::GetWeakReference(_Outptr_ IWeakReference **weakReference)
 {
     WeakReferenceImpl* weakRef = nullptr;
     INT_PTR encodedWeakRef = 0;
