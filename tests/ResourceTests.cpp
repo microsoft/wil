@@ -632,3 +632,22 @@ TEST_CASE("UniqueMidlStringTests", "[resource][rpc]")
 
     wil::unique_midl_ptr<int> intSingle{ reinterpret_cast<int*>(::MIDL_user_allocate(sizeof(int) * 1)) };
 }
+
+TEST_CASE("UniqueEnvironmentStrings", "[resource][win32]")
+{
+    wil::unique_environstrings_ptr env{ ::GetEnvironmentStringsW() };
+    const wchar_t* nextVar = env.get();
+    while (nextVar &&* nextVar)
+    {
+        // consume 'nextVar'
+        nextVar += wcslen(nextVar) + 1;
+    }
+
+    wil::unique_environansistrings_ptr envAnsi{ ::GetEnvironmentStringsA() };
+    const char* nextVarAnsi = envAnsi.get();
+    while (nextVarAnsi && *nextVarAnsi)
+    {
+        // consume 'nextVar'
+        nextVarAnsi += strlen(nextVarAnsi) + 1;
+    }
+}

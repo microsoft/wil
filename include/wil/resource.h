@@ -5453,6 +5453,27 @@ namespace wil
     using unique_process_information = unique_struct<PROCESS_INFORMATION, decltype(&details::CloseProcessInformation), details::CloseProcessInformation>;
 #endif
 
+#if defined(_PROCESSENV_) && !defined(__WIL__PROCESSENV_) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_SYSTEM)
+#define __WIL__PROCESSENV_
+    /** Manages lifecycle of an environment-strings block
+    ~~~
+    wil::unique_environstrings_ptr env { ::GetEnvironmentStringsW() };
+    const wchar_t *nextVar = env.get();
+    while (nextVar && *nextVar)
+    {
+        // consume 'nextVar'
+        nextVar += wcslen(nextVar) + 1;
+    }
+    ~~~
+    */
+    using unique_environstrings_ptr = wistd::unique_ptr<wchar_t, function_deleter<decltype(&::FreeEnvironmentStringsW), FreeEnvironmentStringsW>>;
+
+#ifndef WIL_NO_ANSI_STRINGS
+    //! ANSI equivalent to unique_environstrings_ptr;
+    using unique_environansistrings_ptr = wistd::unique_ptr<char, function_deleter<decltype(&::FreeEnvironmentStringsA), FreeEnvironmentStringsA>>;
+#endif
+#endif
+
 #if defined(_APPMODEL_H_) && !defined(__WIL_APPMODEL_H_) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 #define __WIL_APPMODEL_H_
     typedef unique_any<PACKAGE_INFO_REFERENCE, decltype(&::ClosePackageInfo), ::ClosePackageInfo> unique_package_info_reference;
