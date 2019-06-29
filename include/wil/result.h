@@ -91,7 +91,7 @@ namespace wil
             }
 
             template <typename T>
-            static HRESULT TryGetValue(PCWSTR name, _Out_ T* value, _Out_ bool *retrieved = nullptr)
+            static HRESULT TryGetValue(PCWSTR name, _Out_ T* value, _Out_opt_ bool *retrieved = nullptr)
             {
                 *value = static_cast<T>(0);
                 unsigned __int64 value64 = 0;
