@@ -852,8 +852,8 @@ namespace wil
 
     private:
         details_abi::ThreadLocalData* m_data;
-        unsigned long m_sequenceIdStart;
-        unsigned long m_sequenceIdLast;
+        unsigned long m_sequenceIdStart{};
+        unsigned long m_sequenceIdLast{};
     };
 
 

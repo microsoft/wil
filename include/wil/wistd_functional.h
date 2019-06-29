@@ -262,7 +262,7 @@ namespace wistd     // ("Windows Implementation" std)
         static constexpr size_t __buffer_size = 13 * sizeof(void*);
 
         typedef __function::__base<_Rp(_ArgTypes...)> __base;
-        typename aligned_storage<__buffer_size>::type __buf_;
+        typename aligned_storage<__buffer_size>::type __buf_{};
         __base* __f_;
 
         __WI_LIBCPP_NO_CFI static __base *__as_base(void *p) {
