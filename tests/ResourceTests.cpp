@@ -663,6 +663,7 @@ TEST_CASE("UniqueVariant", "[resource][com]")
     call(var);
 
     VARIANT weakVar = var;
+    (void)weakVar;
 
     wil::unique_variant var2;
     REQUIRE_SUCCEEDED(VariantChangeType(&var2, &var, 0, VT_UI4));
