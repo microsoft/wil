@@ -251,7 +251,7 @@ namespace witest
         bool doesThrow = false;
         bool doesCrash = DoesCodeCrash([&]()
         {
-            doesThrow = DoesCodeThrow(callOp);
+            doesThrow = DoesCodeThrow(wistd::forward<Lambda>(callOp));
         });
 
         return doesThrow || doesCrash;
