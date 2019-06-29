@@ -3443,7 +3443,7 @@ namespace wil
         }
     };
 
-    template <typename T>
+    template <typename T = void>
     using unique_process_heap_ptr = wistd::unique_ptr<T, process_heap_deleter>;
 
     typedef unique_any<PWSTR, decltype(&details::FreeProcessHeap), details::FreeProcessHeap> unique_process_heap_string;
@@ -3464,7 +3464,7 @@ namespace wil
     /** Manages a typed pointer allocated with VirtualAlloc
     A specialization of wistd::unique_ptr<> that frees via VirtualFree(p, 0, MEM_RELEASE).
     */
-    template<typename T>
+    template<typename T = void>
     using unique_virtualalloc_ptr = wistd::unique_ptr<T, virtualalloc_deleter>;
 
     /** Manages a typed pointer allocated with MapViewOfFile
@@ -3752,7 +3752,7 @@ namespace wil
 
     using hlocal_deleter = function_deleter<decltype(&::LocalFree), LocalFree>;
 
-    template <typename T>
+    template <typename T = void>
     using unique_hlocal_ptr = wistd::unique_ptr<T, hlocal_deleter>;
 
     /** Provides `std::make_unique()` semantics for resources allocated with `LocalAlloc()` in a context that may not throw upon allocation failure.
@@ -3984,7 +3984,7 @@ namespace wil
         }
     };
 
-    template <typename T>
+    template <typename T = void>
     using unique_hlocal_secure_ptr = wistd::unique_ptr<T, hlocal_secure_deleter>;
 
     /** Provides `std::make_unique()` semantics for secure resources allocated with `LocalAlloc()` in a context that may not throw upon allocation failure.
@@ -4140,7 +4140,7 @@ namespace wil
 
     using hglobal_deleter = function_deleter<decltype(&::GlobalFree), ::GlobalFree>;
 
-    template <typename T>
+    template <typename T = void>
     using unique_hglobal_ptr = wistd::unique_ptr<T, hglobal_deleter>;
 
     typedef unique_any<HGLOBAL, decltype(&::GlobalFree), ::GlobalFree> unique_hglobal;
@@ -4781,7 +4781,7 @@ namespace wil
     using midl_deleter = function_deleter<decltype(&::MIDL_user_free), MIDL_user_free>;
 
     //! Unique-ptr holding a type allocated by MIDL_user_alloc or returned from an RPC invocation
-    template<typename T> using unique_midl_ptr = wistd::unique_ptr<T, midl_deleter>;
+    template<typename T = void> using unique_midl_ptr = wistd::unique_ptr<T, midl_deleter>;
 
     //! Unique-ptr for strings allocated by MIDL_user_alloc
     using unique_midl_string = unique_midl_ptr<wchar_t>;
@@ -4812,10 +4812,10 @@ namespace wil
 #define __WIL_OBJBASE_H_
     using cotaskmem_deleter = function_deleter<decltype(&::CoTaskMemFree), ::CoTaskMemFree>;
 
-    template <typename T>
+    template <typename T = void>
     using unique_cotaskmem_ptr = wistd::unique_ptr<T, cotaskmem_deleter>;
 
-    template <typename T>
+    template <typename T = void>
     using unique_cotaskmem_array_ptr = unique_array_ptr<T, cotaskmem_deleter>;
 
     /** Provides `std::make_unique()` semantics for resources allocated with `CoTaskMemAlloc()` in a context that may not throw upon allocation failure.
@@ -5037,7 +5037,7 @@ namespace wil
         }
     };
 
-    template <typename T>
+    template <typename T = void>
     using unique_cotaskmem_secure_ptr = wistd::unique_ptr<T, cotaskmem_secure_deleter>;
 
     /** Provides `std::make_unique()` semantics for secure resources allocated with `CoTaskMemAlloc()` in a context that may not throw upon allocation failure.
