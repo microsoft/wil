@@ -651,3 +651,21 @@ TEST_CASE("UniqueEnvironmentStrings", "[resource][win32]")
         nextVarAnsi += strlen(nextVarAnsi) + 1;
     }
 }
+
+TEST_CASE("UniqueVariant", "[resource][com]")
+{
+    wil::unique_variant var;
+    var.vt = VT_BSTR;
+    var.bstrVal = ::SysAllocString(L"25");
+    REQUIRE(var.bstrVal != nullptr);
+
+    auto call = [](const VARIANT&) {};
+    call(var);
+
+    VARIANT weakVar = var;
+
+    wil::unique_variant var2;
+    REQUIRE_SUCCEEDED(VariantChangeType(&var2, &var, 0, VT_UI4));
+    REQUIRE(var2.vt == VT_UI4);
+    REQUIRE(var2.uiVal == 25);
+}
