@@ -303,12 +303,12 @@ namespace wistd     // ("Windows Implementation" std)
         __WI_LIBCPP_INLINE_VISIBILITY
         function(nullptr_t) WI_NOEXCEPT : __f_(0) {}
         function(const function&);
-        function(function&&);
+        function(function&&) WI_NOEXCEPT;
         template<class _Fp, class = _EnableIfCallable<_Fp>>
         function(_Fp);
 
         function& operator=(const function&);
-        function& operator=(function&&);
+        function& operator=(function&&) WI_NOEXCEPT;
         function& operator=(nullptr_t) WI_NOEXCEPT;
         template<class _Fp, class = _EnableIfCallable<_Fp>>
         function& operator=(_Fp&&);
@@ -348,7 +348,7 @@ namespace wistd     // ("Windows Implementation" std)
     }
 
     template<class _Rp, class ..._ArgTypes>
-    function<_Rp(_ArgTypes...)>::function(function&& __f)
+    function<_Rp(_ArgTypes...)>::function(function&& __f) WI_NOEXCEPT
     {
         if (__f.__f_ == 0)
             __f_ = 0;
@@ -390,7 +390,7 @@ namespace wistd     // ("Windows Implementation" std)
 
     template<class _Rp, class ..._ArgTypes>
     function<_Rp(_ArgTypes...)>&
-    function<_Rp(_ArgTypes...)>::operator=(function&& __f)
+    function<_Rp(_ArgTypes...)>::operator=(function&& __f) WI_NOEXCEPT
     {
         *this = nullptr;
         if (__f.__f_)

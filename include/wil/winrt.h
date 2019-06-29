@@ -439,9 +439,9 @@ namespace wil
             struct type // T holder
             {
                 type() {};
-                type(T&& value) : m_value(wistd::forward<T>(value)) {};
+                type(T&& value) WI_NOEXCEPT : m_value(wistd::forward<T>(value)) {};
                 operator T() const { return m_value; }
-                type& operator=(T&& value) { m_value = wistd::forward<T>(value); return *this; }
+                type& operator=(T&& value) WI_NOEXCEPT { m_value = wistd::forward<T>(value); return *this; }
                 T Get() const { return m_value; }
 
                 // Returning T&& to support move only types

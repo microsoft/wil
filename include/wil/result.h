@@ -64,7 +64,7 @@ namespace wil
             SemaphoreValue(const SemaphoreValue&) = delete;
             SemaphoreValue& operator=(const SemaphoreValue&) = delete;
 
-            SemaphoreValue(SemaphoreValue&& other) :
+            SemaphoreValue(SemaphoreValue&& other) WI_NOEXCEPT :
                 m_semaphore(wistd::move(other.m_semaphore)),
                 m_semaphoreHigh(wistd::move(other.m_semaphoreHigh))
             {
@@ -1225,13 +1225,13 @@ namespace wil
         {
         }
 
-        ThreadFailureCache(ThreadFailureCache && rhs) :
+        ThreadFailureCache(ThreadFailureCache && rhs) WI_NOEXCEPT :
             m_failure(wistd::move(rhs.m_failure)),
             m_callbackHolder(this)
         {
         }
 
-        ThreadFailureCache& operator=(ThreadFailureCache && rhs)
+        ThreadFailureCache& operator=(ThreadFailureCache && rhs) WI_NOEXCEPT
         {
             m_failure = wistd::move(rhs.m_failure);
             return *this;

@@ -355,7 +355,7 @@ namespace witest
         TestFolder(const TestFolder&) = delete;
         TestFolder& operator=(const TestFolder&) = delete;
 
-        TestFolder(TestFolder&& other)
+        TestFolder(TestFolder&& other) WI_NOEXCEPT
         {
             if (other.m_valid)
             {
@@ -365,7 +365,7 @@ namespace witest
             }
         }
 
-        ~TestFolder()
+        ~TestFolder() 
         {
             if (m_valid)
             {
@@ -415,7 +415,7 @@ namespace witest
         TestFile(const TestFile&) = delete;
         TestFile& operator=(const TestFile&) = delete;
 
-        TestFile(TestFile&& other)
+        TestFile(TestFile&& other) WI_NOEXCEPT
         {
             if (other.m_valid)
             {
