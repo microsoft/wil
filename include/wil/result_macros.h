@@ -1983,21 +1983,33 @@ namespace wil
             { return (psz == nullptr) ? sizeof(wchar_t) : (wcslen(psz) + 1) * sizeof(wchar_t); }
 
         template<typename TString>
-        _Ret_range_(pStart, pEnd) inline unsigned char *WriteResultString(_Out_writes_to_ptr_opt_(pEnd) unsigned char *pStart, _Pre_satisfies_(pEnd >= pStart) unsigned char *pEnd, _In_opt_ TString pszString, _Out_opt_ TString *ppszBufferString = nullptr)
+        _Ret_range_(pStart, pEnd) inline unsigned char* WriteResultString(
+            _Pre_satisfies_(pStart <= pEnd)
+            _When_((pStart == pEnd) || (pszString == nullptr) || (pszString[0] == 0), _In_opt_)
+            _When_((pStart != pEnd) && (pszString != nullptr) && (pszString[0] != 0), _Out_writes_bytes_opt_(_String_length_(pszString) * sizeof(pszString[0])))
+            unsigned char* pStart, _Pre_satisfies_(pEnd >= pStart) unsigned char* pEnd, _In_opt_z_ TString pszString, _Outptr_result_maybenull_z_ TString* ppszBufferString)
         {
-            decltype(pszString[0]) const cZero = 0;
-            TString const pszLocal = (pszString == nullptr) ? &cZero : pszString;
-            size_t const cchWant = ResultStringSize(pszLocal) / sizeof(cZero);
-            size_t const cchMax = static_cast<size_t>(pEnd - pStart) / sizeof(cZero);
-            size_t const cchCopy = (cchWant < cchMax) ? cchWant : cchMax;
-            memcpy_s(pStart, cchMax * sizeof(cZero), pszLocal, cchCopy * sizeof(cZero));
-            wil::assign_to_opt_param(ppszBufferString, (cchCopy > 1) ? reinterpret_cast<TString>(pStart) : nullptr);
-            if ((cchCopy < cchWant) && (cchCopy > 0))
+            // No space? Null string? Do nothing.
+            if ((pStart == pEnd) || !pszString || !*pszString)
             {
-                auto pZero = pStart + ((cchCopy - 1) * sizeof(cZero));
-                ::ZeroMemory(pZero, sizeof(cZero));
+                assign_null_to_opt_param(ppszBufferString);
+                return pStart;
             }
-            return (pStart + (cchCopy * sizeof(cZero)));
+
+            // Treats the range pStart--pEnd as a memory buffer into which pszString is copied. A pointer to
+            // the start of the copied string is placed into ppszStringBuffer. If the buffer isn't big enough,
+            // do nothing, and tell the caller nothing was written.
+            size_t const stringSize = ResultStringSize(pszString);
+            size_t const bufferSize = pEnd - pStart;
+            if (bufferSize < stringSize)
+            {
+                assign_null_to_opt_param(ppszBufferString);
+                return pStart;
+            }
+
+            memcpy_s(pStart, bufferSize, pszString, stringSize);
+            assign_to_opt_param(ppszBufferString, reinterpret_cast<TString>(pStart));
+            return pStart + stringSize;
         }
 
         _Ret_range_(0, (cchMax > 0) ? cchMax - 1 : 0) inline size_t UntrustedStringLength(_In_ PCSTR psz, _In_ size_t cchMax)    { size_t cbLength; return SUCCEEDED(wil::details::StringCchLengthA(psz, cchMax, &cbLength)) ? cbLength : 0; }
@@ -2288,16 +2300,20 @@ namespace wil
             unsigned char *pBuffer = static_cast<unsigned char *>(m_spStrings.get(&cbAlloc));
             unsigned char *pBufferEnd = (pBuffer != nullptr) ? pBuffer + cbAlloc : nullptr;
 
-            pBuffer = details::WriteResultString(pBuffer, pBufferEnd, failure.pszMessage, &m_failureInfo.pszMessage);
-            pBuffer = details::WriteResultString(pBuffer, pBufferEnd, failure.pszCode, &m_failureInfo.pszCode);
-            pBuffer = details::WriteResultString(pBuffer, pBufferEnd, failure.pszFunction, &m_failureInfo.pszFunction);
-            pBuffer = details::WriteResultString(pBuffer, pBufferEnd, failure.pszFile, &m_failureInfo.pszFile);
-            pBuffer = details::WriteResultString(pBuffer, pBufferEnd, failure.pszCallContext, &m_failureInfo.pszCallContext);
-            pBuffer = details::WriteResultString(pBuffer, pBufferEnd, failure.pszModule, &m_failureInfo.pszModule);
-            pBuffer = details::WriteResultString(pBuffer, pBufferEnd, failure.callContextCurrent.contextName, &m_failureInfo.callContextCurrent.contextName);
-            pBuffer = details::WriteResultString(pBuffer, pBufferEnd, failure.callContextCurrent.contextMessage, &m_failureInfo.callContextCurrent.contextMessage);
-            pBuffer = details::WriteResultString(pBuffer, pBufferEnd, failure.callContextOriginating.contextName, &m_failureInfo.callContextOriginating.contextName);
-            details::WriteResultString(pBuffer, pBufferEnd, failure.callContextOriginating.contextMessage, &m_failureInfo.callContextOriginating.contextMessage);
+            if (pBuffer)
+            {
+                pBuffer = details::WriteResultString(pBuffer, pBufferEnd, failure.pszMessage, &m_failureInfo.pszMessage);
+                pBuffer = details::WriteResultString(pBuffer, pBufferEnd, failure.pszCode, &m_failureInfo.pszCode);
+                pBuffer = details::WriteResultString(pBuffer, pBufferEnd, failure.pszFunction, &m_failureInfo.pszFunction);
+                pBuffer = details::WriteResultString(pBuffer, pBufferEnd, failure.pszFile, &m_failureInfo.pszFile);
+                pBuffer = details::WriteResultString(pBuffer, pBufferEnd, failure.pszCallContext, &m_failureInfo.pszCallContext);
+                pBuffer = details::WriteResultString(pBuffer, pBufferEnd, failure.pszModule, &m_failureInfo.pszModule);
+                pBuffer = details::WriteResultString(pBuffer, pBufferEnd, failure.callContextCurrent.contextName, &m_failureInfo.callContextCurrent.contextName);
+                pBuffer = details::WriteResultString(pBuffer, pBufferEnd, failure.callContextCurrent.contextMessage, &m_failureInfo.callContextCurrent.contextMessage);
+                pBuffer = details::WriteResultString(pBuffer, pBufferEnd, failure.callContextOriginating.contextName, &m_failureInfo.callContextOriginating.contextName);
+                pBuffer = details::WriteResultString(pBuffer, pBufferEnd, failure.callContextOriginating.contextMessage, &m_failureInfo.callContextOriginating.contextMessage);
+                ZeroMemory(pBuffer, pBufferEnd - pBuffer);
+            }
         }
 
         // Relies upon generated copy constructor and assignment operator

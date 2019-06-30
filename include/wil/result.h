@@ -503,7 +503,8 @@ namespace wil
 
                     pBuffer = details::WriteResultString(pBuffer, pBufferEnd, info.pszFile, &fileName);
                     pBuffer = details::WriteResultString(pBuffer, pBufferEnd, info.pszModule, &modulePath);
-                    details::WriteResultString(pBuffer, pBufferEnd, info.pszMessage, &message);
+                    pBuffer = details::WriteResultString(pBuffer, pBufferEnd, info.pszMessage, &message);
+                    ZeroMemory(pBuffer, pBufferEnd - pBuffer);
                 }
             }
 
