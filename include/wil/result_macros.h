@@ -1684,6 +1684,7 @@ namespace wil
             HMODULE hModule = nullptr;
             if (address && !GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, reinterpret_cast<PCWSTR>(address), &hModule))
             {
+                assign_to_opt_param(addressOffset, 0U);
                 return false;
             }
             if (addressOffset)
@@ -1727,7 +1728,9 @@ namespace wil
 
         inline void __stdcall WilDynamicLoadRaiseFailFastException(_In_ PEXCEPTION_RECORD er, _In_ PCONTEXT cr, _In_ DWORD flags)
         {
-            auto pfnRaiseFailFastException = reinterpret_cast<decltype(WilDynamicLoadRaiseFailFastException)*>(GetProcAddress(GetModuleHandleW(L"kernelbase.dll"), "RaiseFailFastException"));
+            auto k32handle = GetModuleHandleW(L"kernelbase.dll");
+            _Analysis_assume_(k32handle != nullptr);
+            auto pfnRaiseFailFastException = reinterpret_cast<decltype(WilDynamicLoadRaiseFailFastException)*>(GetProcAddress(k32handle, "RaiseFailFastException"));
             if (pfnRaiseFailFastException)
             {
                 pfnRaiseFailFastException(er, cr, flags);
@@ -1825,6 +1828,10 @@ namespace wil
             if (formatString == nullptr)
             {
                 pszDest[0] = L'\0';
+            }
+            else if (argList == nullptr)
+            {
+                StringCchPrintfW(pszDest, cchDest, L"%hs", formatString);
             }
             else
             {

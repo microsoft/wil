@@ -4745,7 +4745,10 @@ namespace wil
     {
         inline void __stdcall BCryptCloseAlgorithmProviderNoFlags(_Pre_opt_valid_ _Frees_ptr_opt_ BCRYPT_ALG_HANDLE hAlgorithm) WI_NOEXCEPT
         {
-            ::BCryptCloseAlgorithmProvider(hAlgorithm, 0);
+            if (hAlgorithm)
+            {
+                ::BCryptCloseAlgorithmProvider(hAlgorithm, 0);
+            }
         }
     }
     /// @endcond
@@ -5023,17 +5026,20 @@ namespace wil
         template <typename T>
         void operator()(_Pre_opt_valid_ _Frees_ptr_opt_ T* p) const
         {
-            IMalloc* malloc;
-            if (SUCCEEDED(::CoGetMalloc(1, &malloc)))
+            if (p)
             {
-                size_t const size = malloc->GetSize(p);
-                if (size != static_cast<size_t>(-1))
+                IMalloc* malloc;
+                if (SUCCEEDED(::CoGetMalloc(1, &malloc)))
                 {
-                    ::SecureZeroMemory(p, size);
+                    size_t const size = malloc->GetSize(p);
+                    if (size != static_cast<size_t>(-1))
+                    {
+                        ::SecureZeroMemory(p, size);
+                    }
+                    malloc->Release();
                 }
-                malloc->Release();
+                ::CoTaskMemFree(p);
             }
-            ::CoTaskMemFree(p);
         }
     };
 
