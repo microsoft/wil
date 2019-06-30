@@ -571,7 +571,7 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 // end-of-repeated fail-fast handling macros
 
 #if defined(_MSVC_LANG)
-#define __WI_SUPPRESS_4127_S __pragma(warning(push)) __pragma(warning(disable:4127))
+#define __WI_SUPPRESS_4127_S __pragma(warning(push)) __pragma(warning(disable:4127)) __pragma(warning(disable:26498))
 #define __WI_SUPPRESS_4127_E __pragma(warning(pop))
 #else
 #define __WI_SUPPRESS_4127_S
