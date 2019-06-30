@@ -638,7 +638,7 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 // Conditionally returns failures (HRESULT) - use for failures that are expected in common use - failures are not logged - macros are only for control flow pattern
 #define RETURN_IF_FAILED_EXPECTED(hr)                           __WI_SUPPRESS_4127_S do { const auto __hrRet = wil::verify_hresult(hr); if (FAILED(__hrRet)) { return __hrRet; }} __WI_SUPPRESS_4127_E while ((void)0, 0)
 #define RETURN_IF_WIN32_BOOL_FALSE_EXPECTED(win32BOOL)          __WI_SUPPRESS_4127_S do { if (!wil::verify_BOOL(win32BOOL)) { return wil::details::GetLastErrorFailHr(); }} __WI_SUPPRESS_4127_E while((void)0, 0)
-#define RETURN_IF_WIN32_ERROR_EXPECTED(win32err)                __WI_SUPPRESS_4127_S do { const DWORD __errRet = (win32err); if (FAILED_WIN32(__errRet)) { return HRESULT_FROM_WIN32(__errRet); }} __WI_SUPPRESS_4127_E while((void)0, 0)
+#define RETURN_IF_WIN32_ERROR_EXPECTED(win32err)                __WI_SUPPRESS_4127_S do { const DWORD __errRet = (win32err); if (FAILED_WIN32(__errRet)) { return __HRESULT_FROM_WIN32(__errRet); }} __WI_SUPPRESS_4127_E while((void)0, 0)
 #define RETURN_IF_NULL_ALLOC_EXPECTED(ptr)                      __WI_SUPPRESS_4127_S do { if ((ptr) == nullptr) { return E_OUTOFMEMORY; }} __WI_SUPPRESS_4127_E while((void)0, 0)
 #define RETURN_HR_IF_EXPECTED(hr, condition)                    __WI_SUPPRESS_4127_S do { if (wil::verify_bool(condition)) { return wil::verify_hresult(hr); }} __WI_SUPPRESS_4127_E while((void)0, 0)
 #define RETURN_HR_IF_NULL_EXPECTED(hr, ptr)                     __WI_SUPPRESS_4127_S do { if ((ptr) == nullptr) { return wil::verify_hresult(hr); }} __WI_SUPPRESS_4127_E while((void)0, 0)
@@ -1778,7 +1778,7 @@ namespace wil
                 // could be added in the future. In these cases, it's better to use HRESULT_FROM_NT rather than returning a meaningless error.
                 if ((err != 0) && (err != ERROR_MR_MID_NOT_FOUND))
                 {
-                    return HRESULT_FROM_WIN32(err);
+                    return __HRESULT_FROM_WIN32(err);
                 }
             }
 
@@ -2412,8 +2412,8 @@ namespace wil
         }
 
         // Caller bug: an unknown exception was thrown
-        __WIL_PRIVATE_FAIL_FAST_HR_IF(HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION), g_fResultFailFastUnknownExceptions);
-        return HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION);
+        __WIL_PRIVATE_FAIL_FAST_HR_IF(__HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION), g_fResultFailFastUnknownExceptions);
+        return __HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION);
     }
 
     //! Identical to 'throw;', but can be called from error-code neutral code to rethrow in code that *may* be running under an exception context
@@ -2498,7 +2498,7 @@ namespace wil
             wchar_t message[2048];
             message[0] = L'\0';
             MaybeGetExceptionString(exception, message, ARRAYSIZE(message));
-            constexpr auto hr = HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION);
+            constexpr auto hr = __HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION);
             wil::details::ReportFailure(__R_DIAGNOSTICS_RA(diagnostics, returnAddress), FailureType::Log, hr, message);
             return hr;
         }
@@ -2540,7 +2540,7 @@ namespace wil
                     MaybeGetExceptionString(exception, debugString, debugStringChars);
                     if (SUCCEEDED(hr))
                     {
-                        hr = HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION);
+                        hr = __HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION);
                     }
                 }
                 catch (...)
@@ -2841,7 +2841,7 @@ namespace wil
                 catch (std::exception& exception)
                 {
                     MaybeGetExceptionString(exception, debugString, debugStringChars);
-                    return HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION);
+                    return __HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION);
                 }
                 catch (...)
                 {
@@ -3207,7 +3207,7 @@ namespace wil
                     //      LOG_IF_FAILED(hr);
 
                     WI_USAGE_ERROR_FORWARD("CALLER BUG: Macro usage error detected.  Do not LOG_XXX success.");
-                    hr = HRESULT_FROM_WIN32(ERROR_ASSERTION_FAILURE);
+                    hr = __HRESULT_FROM_WIN32(ERROR_ASSERTION_FAILURE);
                 }
                 failureCount = RecordLog(hr);
                 break;
@@ -3396,7 +3396,7 @@ namespace wil
             const bool known = (FAILED(hr));
             if (!known)
             {
-                hr = HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION);
+                hr = __HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION);
             }
 
             if ((supported == SupportedExceptions::None) ||
@@ -3445,7 +3445,7 @@ namespace wil
         _Translates_Win32_to_HRESULT_(err)
         __declspec(noinline) inline HRESULT ReportFailure_Win32(__R_FN_PARAMS_FULL, FailureType type, DWORD err)
         {
-            const auto hr = HRESULT_FROM_WIN32(err);
+            const auto hr = __HRESULT_FROM_WIN32(err);
             ReportFailure(__R_FN_CALL_FULL, type, hr);
             return hr;
         }
@@ -3454,7 +3454,7 @@ namespace wil
         __declspec(noinline) inline DWORD ReportFailure_GetLastError(__R_FN_PARAMS_FULL, FailureType type)
         {
             const auto err = GetLastErrorFail(__R_FN_CALL_FULL);
-            const auto hr = HRESULT_FROM_WIN32(err);
+            const auto hr = __HRESULT_FROM_WIN32(err);
             ReportFailure(__R_FN_CALL_FULL, type, hr);
             return err;
         }
@@ -3498,7 +3498,7 @@ namespace wil
         _Translates_Win32_to_HRESULT_(err)
         __declspec(noinline) inline HRESULT ReportFailure_Win32Msg(__R_FN_PARAMS_FULL, FailureType type, DWORD err, _Printf_format_string_ PCSTR formatString, va_list argList)
         {
-            auto hr = HRESULT_FROM_WIN32(err);
+            auto hr = __HRESULT_FROM_WIN32(err);
             ReportFailure_Msg(__R_FN_CALL_FULL, type, hr, formatString, argList);
             return hr;
         }
@@ -3507,7 +3507,7 @@ namespace wil
         __declspec(noinline) inline DWORD ReportFailure_GetLastErrorMsg(__R_FN_PARAMS_FULL, FailureType type, _Printf_format_string_ PCSTR formatString, va_list argList)
         {
             auto err = GetLastErrorFail(__R_FN_CALL_FULL);
-            auto hr = HRESULT_FROM_WIN32(err);
+            auto hr = __HRESULT_FROM_WIN32(err);
             ReportFailure_Msg(__R_FN_CALL_FULL, type, hr, formatString, argList);
             return err;
         }
