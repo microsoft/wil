@@ -3366,7 +3366,11 @@ namespace wil
 
         template<typename string_type> struct string_maker
         {
-            HRESULT make(_In_reads_opt_(length) PCWSTR source, size_t length)
+            HRESULT make(
+                _When_(length != static_cast<size_t>(-1), _In_reads_opt_(length))
+                _When_(length == static_cast<size_t>(-1), _In_ _Null_terminated_)
+                const wchar_t* source,
+                size_t length)
             {
                 m_value = make_unique_string_nothrow<string_type>(source, length);
                 return m_value ? S_OK : E_OUTOFMEMORY;
@@ -3453,7 +3457,7 @@ namespace wil
     {
         template<> struct string_allocator<unique_process_heap_string>
         {
-            static void* allocate(size_t size) WI_NOEXCEPT
+            static _Ret_opt_bytecap_(size) void* allocate(size_t size) WI_NOEXCEPT
             {
                 return ::HeapAlloc(::GetProcessHeap(), HEAP_ZERO_MEMORY, size);
             }
@@ -3897,21 +3901,17 @@ namespace wil
     /// @cond
     namespace details
     {
-        template<> struct string_allocator<unique_hlocal_string>
+        struct localalloc_allocator
         {
-            static void* allocate(size_t size) WI_NOEXCEPT
+            static _Ret_opt_bytecap_(size) void* allocate(size_t size) WI_NOEXCEPT
             {
                 return ::LocalAlloc(LMEM_FIXED, size);
             }
         };
+
+        template<> struct string_allocator<unique_hlocal_string> : localalloc_allocator {};
 #ifndef WIL_NO_ANSI_STRINGS
-        template<> struct string_allocator<unique_hlocal_ansistring>
-        {
-            static void* allocate(size_t size) WI_NOEXCEPT
-            {
-                return ::LocalAlloc(LMEM_FIXED, size);
-            }
-        };
+        template<> struct string_allocator<unique_hlocal_ansistring> : localalloc_allocator {};
 #endif // WIL_NO_ANSI_STRINGS
     }
     /// @endcond
@@ -4154,7 +4154,7 @@ namespace wil
     {
         template<> struct string_allocator<unique_hglobal_string>
         {
-            static void* allocate(size_t size) WI_NOEXCEPT
+            static _Ret_opt_bytecap_(size) void* allocate(size_t size) WI_NOEXCEPT
             {
                 return ::GlobalAlloc(GPTR, size);
             }
@@ -4368,7 +4368,11 @@ namespace wil
                 WindowsDeleteStringBuffer(m_bufferHandle); // ok to call with null
             }
 
-            HRESULT make(_In_reads_opt_(length) PCWSTR source, size_t length)
+            HRESULT make(
+                _When_(length != static_cast<size_t>(-1), _In_reads_opt_(length))
+                _When_(length == static_cast<size_t>(-1), _In_ _Null_terminated_)
+                const wchar_t* source,
+                size_t length)
             {
                 if (source)
                 {
@@ -4447,11 +4451,11 @@ namespace wil
     ~~~
     wil::unique_hstring Type::Make()
     {
-    wchar_t* bufferStorage = nullptr;
-    wil::unique_hstring_buffer theBuffer;
-    THROW_IF_FAILED(::WindowsPreallocateStringBuffer(65, &bufferStorage, &theBuffer));
-    THROW_IF_FAILED(::PathCchCombine(bufferStorage, 65, m_foo, m_bar));
-    return wil::make_hstring_from_buffer(wistd::move(theBuffer));
+        wchar_t* bufferStorage = nullptr;
+        wil::unique_hstring_buffer theBuffer;
+        THROW_IF_FAILED(::WindowsPreallocateStringBuffer(65, &bufferStorage, &theBuffer));
+        THROW_IF_FAILED(::PathCchCombine(bufferStorage, 65, m_foo, m_bar));
+        return wil::make_hstring_from_buffer(wistd::move(theBuffer));
     }
     ~~~
     */
@@ -4796,7 +4800,7 @@ namespace wil
     {
         struct midl_allocator
         {
-            static void* allocate(size_t size) WI_NOEXCEPT
+            static _Ret_opt_bytecap_(size) void* allocate(size_t size) WI_NOEXCEPT
             {
                 return ::MIDL_user_allocate(size);
             }
@@ -4963,22 +4967,18 @@ namespace wil
     /// @cond
     namespace details
     {
-        template<> struct string_allocator<unique_cotaskmem_string>
+        struct cotaskmem_allocator
         {
-            static void* allocate(size_t size) WI_NOEXCEPT
+            static _Ret_opt_bytecap_(size) void* allocate(size_t size) WI_NOEXCEPT
             {
                 return ::CoTaskMemAlloc(size);
             }
         };
 
+        template<> struct string_allocator<unique_cotaskmem_string> : cotaskmem_allocator {};
+
 #ifndef WIL_NO_ANSI_STRINGS
-        template<> struct string_allocator<unique_cotaskmem_ansistring>
-        {
-            static void* allocate(size_t size) WI_NOEXCEPT
-            {
-                return ::CoTaskMemAlloc(size);
-            }
-        };
+        template<> struct string_allocator<unique_cotaskmem_ansistring> : cotaskmem_allocator {};
 #endif // WIL_NO_ANSI_STRINGS
     }
     /// @endcond
