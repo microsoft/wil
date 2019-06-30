@@ -181,7 +181,7 @@ namespace witest
         try
 #endif
         {
-            callOp();
+            (void)callOp();
         }
 #ifdef WIL_ENABLE_EXCEPTIONS
         catch (...)

@@ -96,7 +96,7 @@ namespace wistd     // ("Windows Implementation" std)
 #ifndef __WI_LIBCPP_CXX03_LANG
         template <class ..._Args>
         static void __call(_Args&&... __args) {
-            __invoke(wistd::forward<_Args>(__args)...);
+            (void)__invoke(wistd::forward<_Args>(__args)...);
         }
 #else
         template <class _Fn>
