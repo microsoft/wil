@@ -409,7 +409,7 @@ namespace wil
                     Node *pNew = reinterpret_cast<Node *>(::HeapAlloc(::GetProcessHeap(), 0, sizeof(Node)));
                     if (pNew != nullptr)
                     {
-                        new(pNew)Node(threadId);
+                        new(pNew)Node{ threadId };
 
                         Node *pFirst;
                         do
@@ -428,16 +428,9 @@ namespace wil
 
             struct Node
             {
-                T value;
                 DWORD threadId;
-                Node *pNext;
-
-                Node(DWORD currentThreadId) :
-                    value(),
-                    threadId(currentThreadId),
-                    pNext(nullptr)
-                {
-                }
+                Node* pNext;
+                T value{};
             };
 
             Node * volatile m_hashArray[10]{};
