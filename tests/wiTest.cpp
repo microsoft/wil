@@ -2752,7 +2752,7 @@ public:
     HRESULT RuntimeClassInitialize(UINT n) { m_number = n; return S_OK; };
     STDMETHOD_(void, DoStuff)() {}
 private:
-    UINT m_number;
+    UINT m_number{};
 };
 
 void GetUnknownArray(_Out_ size_t* count, _Outptr_result_buffer_(*count) IFakeObject*** objects)

@@ -452,7 +452,7 @@ namespace wil
                 T* GetAddressOf()  { return &m_value; }
                 T* ReleaseAndGetAddressOf() { return &m_value; }
                 T* operator&()     { return &m_value; }
-                T m_value;
+                T m_value{};
             };
             #pragma warning(pop)
         };
