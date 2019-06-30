@@ -4851,7 +4851,7 @@ namespace Catch {
 
     private:
         T *nullableValue;
-        alignas(alignof(T)) char storage[sizeof(T)];
+        alignas(alignof(T)) char storage[sizeof(T)]{};
     };
 
 } // end namespace Catch
@@ -4917,7 +4917,7 @@ namespace Catch {
                         Totals const& _totals );
 
         AssertionStats( AssertionStats const& )              = default;
-        AssertionStats( AssertionStats && )                  = default;
+        AssertionStats( AssertionStats && ) noexcept         = default;
         AssertionStats& operator = ( AssertionStats const& ) = delete;
         AssertionStats& operator = ( AssertionStats && )     = delete;
         virtual ~AssertionStats();
@@ -6933,7 +6933,7 @@ namespace detail {
         Option, Argument
     };
     struct Token {
-        TokenType type;
+        TokenType type{};
         std::string token;
     };
 
@@ -7698,7 +7698,7 @@ namespace detail {
                 for (auto const &arg : m_args) parseInfos[i++].parser = &arg;
             }
 
-            m_exeName.set( exeName );
+            (void)m_exeName.set( exeName );
 
             auto result = InternalParseResult::ok( ParseState( ParseResultType::NoMatch, tokens ) );
             while( result.value().remainingTokens() ) {
