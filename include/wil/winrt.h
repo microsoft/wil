@@ -239,9 +239,10 @@ namespace wil
     // Validate stream contents, sizes must match, string must be null terminated.
     RETURN_IF_FAILED(stringConstructor.Validate(bytesRead));
 
-    Microsoft::WRL::Wrappers::HString string;
-    string.Attach(stringConstructor.Promote());
+    wil::unique_hstring string { stringConstructor.Promote() };
     ~~~
+
+    See also wil::unique_hstring_buffer.
     */
     struct TwoPhaseHStringConstructor
     {
@@ -249,48 +250,38 @@ namespace wil
         TwoPhaseHStringConstructor(const TwoPhaseHStringConstructor&) = delete;
         void operator=(const TwoPhaseHStringConstructor&) = delete;
 
-        TwoPhaseHStringConstructor(TwoPhaseHStringConstructor&& other)
+        TwoPhaseHStringConstructor(TwoPhaseHStringConstructor&& other) WI_NOEXCEPT
         {
             m_characterLength = other.m_characterLength;
-            m_charBuffer = other.m_charBuffer;
-            m_bufferHandle = other.m_bufferHandle;
-            other.m_bufferHandle = nullptr;
+            other.m_characterLength = 0;
+            m_maker = wistd::move(other.m_maker);
         }
 
         static TwoPhaseHStringConstructor Preallocate(UINT32 characterLength)
         {
-            TwoPhaseHStringConstructor result(characterLength);
-            // Client test for allocation failure by testing the result with .Get()
-            WindowsPreallocateStringBuffer(result.m_characterLength, &result.m_charBuffer, &result.m_bufferHandle);
-            return result;
+            return TwoPhaseHStringConstructor{ characterLength };
         }
 
         //! Returns the HSTRING after it has been populated like Detatch() or release(); be sure to put this in a RAII type to manage its lifetime.
         HSTRING Promote()
         {
-            HSTRING result;
-            const auto hr = WindowsPromoteStringBuffer(m_bufferHandle, &result);
-            FAIL_FAST_IF_FAILED(hr);  // Failure here is only due to invalid input, nul terminator overwritten, a bug in the usage.
-            m_bufferHandle = nullptr; // after promotion must not delete
-            return result;
+            m_characterLength = 0;
+            return m_maker.release().release();
         }
 
-        ~TwoPhaseHStringConstructor()
-        {
-            WindowsDeleteStringBuffer(m_bufferHandle); // ok to call with null
-        }
+        ~TwoPhaseHStringConstructor() = default;
 
         explicit operator PCWSTR() const
         {
             // This is set by WindowsPromoteStringBuffer() which must be called to
             // construct this object via the static method Preallocate().
-            return m_charBuffer;
+            return m_maker.buffer();
         }
 
         //! Returns a pointer for the buffer so it can be populated
-        wchar_t* Get() const { return m_charBuffer; }
+        wchar_t* Get() const { return const_cast<wchar_t*>(m_maker.buffer()); }
         //! Used to validate range of buffer when populating.
-        ULONG ByteSize() const { return m_characterLength * sizeof(*m_charBuffer); }
+        ULONG ByteSize() const { return m_characterLength * sizeof(wchar_t); }
 
         /** Ensure that the size of the data provided is consistent with the pre-allocated buffer.
         It seems that WindowsPreallocateStringBuffer() provides the null terminator in the buffer
@@ -301,18 +292,18 @@ namespace wil
             // Null termination is required for the buffer before calling WindowsPromoteStringBuffer().
             RETURN_HR_IF(HRESULT_FROM_WIN32(ERROR_INVALID_DATA),
                 (bytesRead != ByteSize()) ||
-                (m_charBuffer[m_characterLength] != L'\0'));
+                (Get()[m_characterLength] != L'\0'));
             return S_OK;
         }
 
     private:
         TwoPhaseHStringConstructor(UINT32 characterLength) : m_characterLength(characterLength)
         {
+            (void)m_maker.make(nullptr, characterLength);
         }
 
         UINT32 m_characterLength;
-        wchar_t *m_charBuffer;
-        HSTRING_BUFFER m_bufferHandle = nullptr;
+        details::string_maker<unique_hstring> m_maker;
     };
 
     //! A transparent less-than comparison function object that enables comparison of various string types intended for

@@ -4358,57 +4358,6 @@ namespace wil
         return result;
     }
 
-    /// @cond
-    namespace details
-    {
-        template<> struct string_maker<unique_hstring>
-        {
-            ~string_maker()
-            {
-                WindowsDeleteStringBuffer(m_bufferHandle); // ok to call with null
-            }
-
-            HRESULT make(
-                _When_(length != static_cast<size_t>(-1), _In_reads_opt_(length))
-                _When_(length == static_cast<size_t>(-1), _In_ _Null_terminated_)
-                const wchar_t* source,
-                size_t length)
-            {
-                if (source)
-                {
-                    RETURN_IF_FAILED(WindowsCreateString(source, static_cast<UINT32>(length), &value));
-                }
-                else
-                {
-                    // Need to set it to the empty string to support the empty string case.
-                    value.reset(static_cast<HSTRING>(nullptr));
-                    RETURN_IF_FAILED(WindowsPreallocateStringBuffer(static_cast<UINT32>(length), &m_charBuffer, &m_bufferHandle));
-                }
-                return S_OK;
-            }
-            wchar_t* buffer() { WI_ASSERT(m_charBuffer != nullptr);  return m_charBuffer; }
-
-            unique_hstring release()
-            {
-                if (m_bufferHandle)
-                {
-                    const auto hr = WindowsPromoteStringBuffer(m_bufferHandle, &value);
-                    FAIL_FAST_IF_FAILED(hr);  // Failure here is only due to invalid input, null terminator overwritten, a bug in the usage.
-                    m_bufferHandle = nullptr; // after promotion must not delete
-                }
-                m_charBuffer = nullptr;
-                return wistd::move(value);
-            }
-
-            static PCWSTR get(const wil::unique_hstring& value) { return WindowsGetStringRawBuffer(value.get(), nullptr); }
-
-        private:
-            unique_hstring value;
-            HSTRING_BUFFER m_bufferHandle = nullptr;
-            wchar_t* m_charBuffer = nullptr;
-        };
-    }
-    /// @endcond
     typedef unique_any<HSTRING_BUFFER, decltype(&::WindowsDeleteStringBuffer), ::WindowsDeleteStringBuffer> unique_hstring_buffer;
 
     /** Promotes an hstring_buffer to an HSTRING.
@@ -4417,12 +4366,12 @@ namespace wil
     ~~~
     HRESULT Type::MakePath(_Out_ HSTRING* path)
     {
-    wchar_t* bufferStorage = nullptr;
-    wil::unique_hstring_buffer theBuffer;
-    RETURN_IF_FAILED(::WindowsPreallocateStringBuffer(65, &bufferStorage, &theBuffer));
-    RETURN_IF_FAILED(::PathCchCombine(bufferStorage, 65, m_foo, m_bar));
-    RETURN_IF_FAILED(wil::make_hstring_from_buffer_nothrow(wistd::move(theBuffer), path)));
-    return S_OK;
+        wchar_t* bufferStorage = nullptr;
+        wil::unique_hstring_buffer theBuffer;
+        RETURN_IF_FAILED(::WindowsPreallocateStringBuffer(65, &bufferStorage, &theBuffer));
+        RETURN_IF_FAILED(::PathCchCombine(bufferStorage, 65, m_foo, m_bar));
+        RETURN_IF_FAILED(wil::make_hstring_from_buffer_nothrow(wistd::move(theBuffer), path)));
+        return S_OK;
     }
     ~~~
     */
@@ -4467,11 +4416,75 @@ namespace wil
     }
 #endif
 
+    /// @cond
+    namespace details
+    {
+        template<> struct string_maker<unique_hstring>
+        {
+            string_maker() = default;
+            string_maker(const string_maker&) = delete;
+            void operator=(const string_maker&) = delete;
+            string_maker& operator=(string_maker&& source) WI_NOEXCEPT
+            {
+                m_value = wistd::move(source.m_value);
+                m_bufferHandle = wistd::move(source.m_bufferHandle);
+                m_charBuffer = source.m_charBuffer;
+                source.m_charBuffer = nullptr;
+                return *this;
+            }
+
+            HRESULT make(
+                _When_((source != nullptr) && length != static_cast<size_t>(-1), _In_reads_(length))
+                _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_)
+                const wchar_t* source,
+                size_t length)
+            {
+                if (source)
+                {
+                    RETURN_IF_FAILED(WindowsCreateString(source, static_cast<UINT32>(length), &m_value));
+                }
+                else
+                {
+                    // Need to set it to the empty string to support the empty string case.
+                    m_value.reset();
+                    RETURN_IF_FAILED(WindowsPreallocateStringBuffer(static_cast<UINT32>(length), &m_charBuffer, &m_bufferHandle));
+                }
+                return S_OK;
+            }
+
+            wchar_t* buffer() { WI_ASSERT(m_charBuffer != nullptr);  return m_charBuffer; }
+            const wchar_t* buffer() const { return m_charBuffer; }
+
+            unique_hstring release()
+            {
+                m_charBuffer = nullptr;
+                if (m_bufferHandle)
+                {
+                    return make_hstring_from_buffer_failfast(wistd::move(m_bufferHandle));
+                }
+                return wistd::move(m_value);
+            }
+
+            static PCWSTR get(const wil::unique_hstring& value) { return WindowsGetStringRawBuffer(value.get(), nullptr); }
+
+        private:
+            unique_hstring m_value;
+            unique_hstring_buffer m_bufferHandle;
+            wchar_t* m_charBuffer = nullptr;
+        };
+    }
+    /// @endcond
+
     // str_raw_ptr is an overloaded function that retrieves a const pointer to the first character in a string's buffer.
     // This is the overload for HSTRING.  Other overloads available above.
     inline PCWSTR str_raw_ptr(HSTRING str)
     {
         return WindowsGetStringRawBuffer(str, nullptr);
+    }
+
+    inline PCWSTR str_raw_ptr(const unique_hstring& str)
+    {
+        return str_raw_ptr(str.get());
     }
 
 #endif // __WIL__WINSTRING_H_
