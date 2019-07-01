@@ -3227,8 +3227,8 @@ namespace wil
     ~~~
     */
     template<typename string_type> string_type make_unique_string_nothrow(
-        _When_(length != static_cast<size_t>(-1), _In_reads_opt_(length))
-        _When_(length == static_cast<size_t>(-1), _In_ _Null_terminated_)
+        _When_((source != nullptr) && length != static_cast<size_t>(-1), _In_reads_(length))
+        _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_)
         const wchar_t* source, size_t length = static_cast<size_t>(-1)) WI_NOEXCEPT
     {
         // guard against invalid parameters (null source with -1 length)
@@ -3276,8 +3276,8 @@ namespace wil
     }
 #ifndef WIL_NO_ANSI_STRINGS
     template<typename string_type> string_type make_unique_ansistring_nothrow(
-        _When_(length != static_cast<size_t>(-1), _In_reads_opt_(length))
-        _When_(length == static_cast<size_t>(-1), _In_)
+        _When_((source != nullptr) && length != static_cast<size_t>(-1), _In_reads_(length))
+        _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_)
         PCSTR source, size_t length = static_cast<size_t>(-1)) WI_NOEXCEPT
     {
         // guard against invalid parameters (null source with -1 length)
@@ -3309,8 +3309,8 @@ namespace wil
     The use of variadic templates parameters supports the 2 forms of make_unique_string, see those for more details.
     */
     template<typename string_type> string_type make_unique_string_failfast(
-        _When_(length != static_cast<size_t>(-1), _In_reads_opt_(length))
-        _When_(length == static_cast<size_t>(-1), _In_)
+        _When_((source != nullptr) && length != static_cast<size_t>(-1), _In_reads_(length))
+        _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_)
         PCWSTR source, size_t length = static_cast<size_t>(-1)) WI_NOEXCEPT
     {
         auto result(make_unique_string_nothrow<string_type>(source, length));
@@ -3320,8 +3320,8 @@ namespace wil
 
 #ifndef WIL_NO_ANSI_STRINGS
     template<typename string_type> string_type make_unique_ansistring_failfast(
-        _When_(length != static_cast<size_t>(-1), _In_reads_opt_(length))
-        _When_(length == static_cast<size_t>(-1), _In_)
+        _When_((source != nullptr) && length != static_cast<size_t>(-1), _In_reads_(length))
+        _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_)
         PCSTR source, size_t length = static_cast<size_t>(-1)) WI_NOEXCEPT
     {
         auto result(make_unique_ansistring_nothrow<string_type>(source, length));
@@ -3335,8 +3335,8 @@ namespace wil
     The use of variadic templates parameters supports the 2 forms of make_unique_string, see those for more details.
     */
     template<typename string_type> string_type make_unique_string(
-        _When_(length != static_cast<size_t>(-1), _In_reads_opt_(length))
-        _When_(length == static_cast<size_t>(-1), _In_)
+        _When_((source != nullptr) && length != static_cast<size_t>(-1), _In_reads_(length))
+        _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_)
         PCWSTR source, size_t length = static_cast<size_t>(-1))
     {
         auto result(make_unique_string_nothrow<string_type>(source, length));
@@ -3345,8 +3345,8 @@ namespace wil
     }
 #ifndef WIL_NO_ANSI_STRINGS
     template<typename string_type> string_type make_unique_ansistring(
-        _When_(length != static_cast<size_t>(-1), _In_reads_opt_(length))
-        _When_(length == static_cast<size_t>(-1), _In_)
+        _When_((source != nullptr) && length != static_cast<size_t>(-1), _In_reads_(length))
+        _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_)
         PCSTR source, size_t length = static_cast<size_t>(-1))
     {
         auto result(make_unique_ansistring_nothrow<string_type>(source, length));
@@ -3367,8 +3367,8 @@ namespace wil
         template<typename string_type> struct string_maker
         {
             HRESULT make(
-                _When_(length != static_cast<size_t>(-1), _In_reads_opt_(length))
-                _When_(length == static_cast<size_t>(-1), _In_ _Null_terminated_)
+                _When_((source != nullptr) && length != static_cast<size_t>(-1), _In_reads_(length))
+                _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_)
                 const wchar_t* source,
                 size_t length)
             {
@@ -3917,16 +3917,16 @@ namespace wil
     /// @endcond
 
     inline auto make_hlocal_string_nothrow(
-        _When_(length != static_cast<size_t>(-1), _In_reads_opt_(length))
-        _When_(length == static_cast<size_t>(-1), _In_)
+        _When_((source != nullptr) && length != static_cast<size_t>(-1), _In_reads_(length))
+        _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_)
         PCWSTR source, size_t length = static_cast<size_t>(-1)) WI_NOEXCEPT
     {
         return make_unique_string_nothrow<unique_hlocal_string>(source, length);
     }
 
     inline auto make_hlocal_string_failfast(
-        _When_(length != static_cast<size_t>(-1), _In_reads_opt_(length))
-        _When_(length == static_cast<size_t>(-1), _In_)
+        _When_((source != nullptr) && length != static_cast<size_t>(-1), _In_reads_(length))
+        _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_)
         PCWSTR source, size_t length = static_cast<size_t>(-1)) WI_NOEXCEPT
     {
         return make_unique_string_failfast<unique_hlocal_string>(source, length);
@@ -3934,16 +3934,16 @@ namespace wil
 
 #ifndef WIL_NO_ANSI_STRINGS
     inline auto make_hlocal_ansistring_nothrow(
-        _When_(length != static_cast<size_t>(-1), _In_reads_opt_(length))
-        _When_(length == static_cast<size_t>(-1), _In_)
+        _When_((source != nullptr) && length != static_cast<size_t>(-1), _In_reads_(length))
+        _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_)
         PCSTR source, size_t length = static_cast<size_t>(-1)) WI_NOEXCEPT
     {
         return make_unique_ansistring_nothrow<unique_hlocal_ansistring>(source, length);
     }
 
     inline auto make_hlocal_ansistring_failfast(
-        _When_(length != static_cast<size_t>(-1), _In_reads_opt_(length))
-        _When_(length == static_cast<size_t>(-1), _In_)
+        _When_((source != nullptr) && length != static_cast<size_t>(-1), _In_reads_(length))
+        _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_)
         PCSTR source, size_t length = static_cast<size_t>(-1)) WI_NOEXCEPT
     {
         return make_unique_ansistring_failfast<unique_hlocal_ansistring>(source, length);
@@ -3952,8 +3952,8 @@ namespace wil
 
 #ifdef WIL_ENABLE_EXCEPTIONS
     inline auto make_hlocal_string(
-        _When_(length != static_cast<size_t>(-1), _In_reads_opt_(length))
-        _When_(length == static_cast<size_t>(-1), _In_)
+        _When_((source != nullptr) && length != static_cast<size_t>(-1), _In_reads_(length))
+        _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_)
         PCWSTR source, size_t length = static_cast<size_t>(-1))
     {
         return make_unique_string<unique_hlocal_string>(source, length);
@@ -3961,8 +3961,8 @@ namespace wil
 
 #ifndef WIL_NO_ANSI_STRINGS
     inline auto make_hlocal_ansistring(
-        _When_(length != static_cast<size_t>(-1), _In_reads_opt_(length))
-        _When_(length == static_cast<size_t>(-1), _In_)
+        _When_((source != nullptr) && length != static_cast<size_t>(-1), _In_reads_(length))
+        _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_)
         PCSTR source, size_t length = static_cast<size_t>(-1))
     {
         return make_unique_ansistring<unique_hlocal_ansistring>(source, length);
@@ -4163,16 +4163,16 @@ namespace wil
     /// @endcond
 
     inline auto make_process_heap_string_nothrow(
-        _When_(length != static_cast<size_t>(-1), _In_reads_opt_(length))
-        _When_(length == static_cast<size_t>(-1), _In_)
+        _When_((source != nullptr) && length != static_cast<size_t>(-1), _In_reads_(length))
+        _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_)
         PCWSTR source, size_t length = static_cast<size_t>(-1)) WI_NOEXCEPT
     {
         return make_unique_string_nothrow<unique_process_heap_string>(source, length);
     }
 
     inline auto make_process_heap_string_failfast(
-        _When_(length != static_cast<size_t>(-1), _In_reads_opt_(length))
-        _When_(length == static_cast<size_t>(-1), _In_)
+        _When_((source != nullptr) && length != static_cast<size_t>(-1), _In_reads_(length))
+        _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_)
         PCWSTR source, size_t length = static_cast<size_t>(-1)) WI_NOEXCEPT
     {
         return make_unique_string_failfast<unique_process_heap_string>(source, length);
@@ -4180,8 +4180,8 @@ namespace wil
 
 #ifdef WIL_ENABLE_EXCEPTIONS
     inline auto make_process_heap_string(
-        _When_(length != static_cast<size_t>(-1), _In_reads_opt_(length))
-        _When_(length == static_cast<size_t>(-1), _In_)
+        _When_((source != nullptr) && length != static_cast<size_t>(-1), _In_reads_(length))
+        _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_)
         PCWSTR source, size_t length = static_cast<size_t>(-1))
     {
         return make_unique_string<unique_process_heap_string>(source, length);
@@ -4343,8 +4343,8 @@ namespace wil
     typedef unique_any<HSTRING, decltype(&::WindowsDeleteString), ::WindowsDeleteString> unique_hstring;
 
     template<> inline unique_hstring make_unique_string_nothrow<unique_hstring>(
-        _When_(length != static_cast<size_t>(-1), _In_reads_opt_(length))
-        _When_(length == static_cast<size_t>(-1), _In_)
+        _When_((source != nullptr) && length != static_cast<size_t>(-1), _In_reads_(length))
+        _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_)
         PCWSTR source, size_t length) WI_NOEXCEPT
     {
         WI_ASSERT(source != nullptr); // the HSTRING version of this function does not suport this case
@@ -4984,16 +4984,16 @@ namespace wil
     /// @endcond
 
     inline auto make_cotaskmem_string_nothrow(
-        _When_(length != static_cast<size_t>(-1), _In_reads_opt_(length))
-        _When_(length == static_cast<size_t>(-1), _In_)
+        _When_((source != nullptr) && length != static_cast<size_t>(-1), _In_reads_(length))
+        _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_)
         PCWSTR source, size_t length = static_cast<size_t>(-1)) WI_NOEXCEPT
     {
         return make_unique_string_nothrow<unique_cotaskmem_string>(source, length);
     }
 
     inline auto make_cotaskmem_string_failfast(
-        _When_(length != static_cast<size_t>(-1), _In_reads_opt_(length))
-        _When_(length == static_cast<size_t>(-1), _In_)
+        _When_((source != nullptr) && length != static_cast<size_t>(-1), _In_reads_(length))
+        _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_)
         PCWSTR source, size_t length = static_cast<size_t>(-1)) WI_NOEXCEPT
     {
         return make_unique_string_failfast<unique_cotaskmem_string>(source, length);
@@ -5001,8 +5001,8 @@ namespace wil
 
 #ifdef WIL_ENABLE_EXCEPTIONS
     inline auto make_cotaskmem_string(
-        _When_(length != static_cast<size_t>(-1), _In_reads_opt_(length))
-        _When_(length == static_cast<size_t>(-1), _In_)
+        _When_((source != nullptr) && length != static_cast<size_t>(-1), _In_reads_(length))
+        _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_)
         PCWSTR source, size_t length = static_cast<size_t>(-1))
     {
         return make_unique_string<unique_cotaskmem_string>(source, length);

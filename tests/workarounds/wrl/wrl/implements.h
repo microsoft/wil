@@ -2153,7 +2153,10 @@ class RuntimeClass :
     RuntimeClass(const RuntimeClass&);
     RuntimeClass& operator=(const RuntimeClass&);
 protected:
-    HRESULT CustomQueryInterface(REFIID /*riid*/, _Outptr_result_nullonfailure_ void** /*ppvObject*/, _Out_ bool *handled)
+    HRESULT CustomQueryInterface(
+        REFIID /*riid*/, 
+        _When_(*handled, _Outptr_result_nullonfailure_) void** /*ppvObject*/, 
+        _Out_ bool *handled)
     {
         *handled = false;
         return S_OK;

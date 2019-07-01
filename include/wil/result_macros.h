@@ -573,8 +573,11 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 #if defined(_MSVC_LANG)
 #define __WI_SUPPRESS_4127_S __pragma(warning(push)) __pragma(warning(disable:4127)) __pragma(warning(disable:26498))
 #define __WI_SUPPRESS_4127_E __pragma(warning(pop))
+#define __WI_SUPPRESS_NULLPTR_ANALYSIS __pragma(warning(suppress:28285)) __pragma(warning(suppress:6504))
 #else
 #define __WI_SUPPRESS_4127_S
+#define __WI_SUPPRESS_4127_E
+#define __WI_SUPPRESS_NULLPTR_ANALYSIS
 #endif
 
 // Helpers for return macros
@@ -2182,7 +2185,7 @@ namespace wil
         }
 
     private:
-        alignas(T) unsigned char m_raw[sizeof(T)];
+        alignas(T) unsigned char m_raw[sizeof(T)]{};
     };
 
     /** Forward your DLLMain to this function so that WIL can have visibility into whether a DLL unload is because
@@ -4774,6 +4777,7 @@ namespace wil
             }
 
             template <__RFF_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_NOT_CLASS(PointerT)>
+            __WI_SUPPRESS_NULLPTR_ANALYSIS
             _Post_satisfies_(return == pointer) _When_(pointer == nullptr, _Analysis_noreturn_)
             __RFF_CONDITIONAL_TEMPLATE_METHOD(RESULT_NORETURN_NULL PointerT, FailFast_IfNull)(__RFF_CONDITIONAL_FN_PARAMS _Pre_maybenull_ PointerT pointer) WI_NOEXCEPT
             {
@@ -4785,6 +4789,7 @@ namespace wil
             }
 
             template <__RFF_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_CLASS(PointerT)>
+            __WI_SUPPRESS_NULLPTR_ANALYSIS
             __RFF_CONDITIONAL_TEMPLATE_METHOD(void, FailFast_IfNull)(__RFF_CONDITIONAL_FN_PARAMS _In_opt_ const PointerT& pointer) WI_NOEXCEPT
             {
                 if (pointer == nullptr)
@@ -5304,6 +5309,7 @@ namespace wil
             }
 
             template <__R_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_CLASS(PointerT)>
+            __WI_SUPPRESS_NULLPTR_ANALYSIS
             _When_(pointer == nullptr, _Analysis_noreturn_)
             __R_CONDITIONAL_NOINLINE_TEMPLATE_METHOD(void, Throw_IfNullAllocMsg)(__R_CONDITIONAL_FN_PARAMS const PointerT& pointer, _Printf_format_string_ PCSTR formatString, ...)
             {
@@ -5340,6 +5346,7 @@ namespace wil
             }
 
             template <__R_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_NOT_CLASS(PointerT)>
+            __WI_SUPPRESS_NULLPTR_ANALYSIS
             _Post_satisfies_(return == pointer) _When_(pointer == nullptr, _Analysis_noreturn_)
             __R_CONDITIONAL_NOINLINE_TEMPLATE_METHOD(RESULT_NORETURN_NULL PointerT, Throw_HrIfNullMsg)(__R_CONDITIONAL_FN_PARAMS HRESULT hr, _Pre_maybenull_ PointerT pointer, _Printf_format_string_ PCSTR formatString, ...)
             {
@@ -5353,6 +5360,7 @@ namespace wil
             }
 
             template <__R_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_CLASS(PointerT)>
+            __WI_SUPPRESS_NULLPTR_ANALYSIS
             _When_(pointer == nullptr, _Analysis_noreturn_)
             __R_CONDITIONAL_NOINLINE_TEMPLATE_METHOD(void, Throw_HrIfNullMsg)(__R_CONDITIONAL_FN_PARAMS HRESULT hr, _In_opt_ const PointerT& pointer, _Printf_format_string_ PCSTR formatString, ...)
             {
@@ -5402,6 +5410,7 @@ namespace wil
             }
 
             template <__R_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_CLASS(PointerT)>
+            __WI_SUPPRESS_NULLPTR_ANALYSIS
             _When_(pointer == nullptr, _Analysis_noreturn_)
             __R_CONDITIONAL_NOINLINE_TEMPLATE_METHOD(void, Throw_GetLastErrorIfNullMsg)(__R_CONDITIONAL_FN_PARAMS _In_opt_ const PointerT& pointer, _Printf_format_string_ PCSTR formatString, ...)
             {

@@ -1067,7 +1067,7 @@ namespace wil
         class ThreadFailureCallbackFn final : public IFailureCallback
         {
         public:
-            explicit ThreadFailureCallbackFn(_In_ CallContextInfo *pContext, _Inout_ TLambda &&errorFunction) WI_NOEXCEPT :
+            explicit ThreadFailureCallbackFn(_In_opt_ CallContextInfo *pContext, _Inout_ TLambda &&errorFunction) WI_NOEXCEPT :
                 m_errorFunction(wistd::move(errorFunction)),
                 m_callbackHolder(this, pContext)
             {
