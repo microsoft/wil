@@ -156,6 +156,9 @@
 #  define __WI_LIBCPP_NORETURN __attribute__ ((noreturn))
 #endif
 
+#define __WI_LIBCPP_SUPPRESS_NONINIT_ANALYSIS
+#define __WI_LIBCPP_SUPPRESS_NOEXCEPT_ANALYSIS
+
 // The __WI_LIBCPP_NODISCARD_ATTRIBUTE should only be used to define other
 // NODISCARD macros to the correct attribute.
 #if __has_cpp_attribute(nodiscard)
@@ -263,6 +266,9 @@
 
 #define __WI_LIBCPP_EXPLICIT explicit
 #define __WI_LIBCPP_NORETURN [[noreturn]]
+#define __WI_LIBCPP_SUPPRESS_NONINIT_ANALYSIS __pragma(warning(suppress:26495))
+#define __WI_LIBCPP_SUPPRESS_NOEXCEPT_ANALYSIS __pragma(warning(suppress:26439))
+
 
 #if __WI_LIBCPP_STD_VER > 14
 #define __WI_LIBCPP_NODISCARD_ATTRIBUTE [[nodiscard]]

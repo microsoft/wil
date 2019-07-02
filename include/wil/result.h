@@ -429,7 +429,7 @@ namespace wil
             struct Node
             {
                 DWORD threadId;
-                Node* pNext;
+                Node* pNext = nullptr;
                 T value{};
             };
 

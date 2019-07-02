@@ -262,7 +262,8 @@ namespace wistd     // ("Windows Implementation" std)
         static constexpr size_t __buffer_size = 13 * sizeof(void*);
 
         typedef __function::__base<_Rp(_ArgTypes...)> __base;
-        typename aligned_storage<__buffer_size>::type __buf_{};
+        __WI_LIBCPP_SUPPRESS_NONINIT_ANALYSIS
+        typename aligned_storage<__buffer_size>::type __buf_;
         __base* __f_;
 
         __WI_LIBCPP_NO_CFI static __base *__as_base(void *p) {
@@ -298,17 +299,17 @@ namespace wistd     // ("Windows Implementation" std)
         typedef _Rp result_type;
 
         // construct/copy/destroy:
-        __WI_LIBCPP_INLINE_VISIBILITY
+        __WI_LIBCPP_INLINE_VISIBILITY __WI_LIBCPP_SUPPRESS_NONINIT_ANALYSIS
         function() WI_NOEXCEPT : __f_(0) {}
         __WI_LIBCPP_INLINE_VISIBILITY
         function(nullptr_t) WI_NOEXCEPT : __f_(0) {}
         function(const function&);
-        function(function&&) WI_NOEXCEPT;
+        function(function&&);
         template<class _Fp, class = _EnableIfCallable<_Fp>>
         function(_Fp);
 
         function& operator=(const function&);
-        function& operator=(function&&) WI_NOEXCEPT;
+        function& operator=(function&&);
         function& operator=(nullptr_t) WI_NOEXCEPT;
         template<class _Fp, class = _EnableIfCallable<_Fp>>
         function& operator=(_Fp&&);
@@ -336,6 +337,7 @@ namespace wistd     // ("Windows Implementation" std)
     };
 
     template<class _Rp, class ..._ArgTypes>
+    __WI_LIBCPP_SUPPRESS_NONINIT_ANALYSIS
     function<_Rp(_ArgTypes...)>::function(const function& __f)
     {
         if (__f.__f_ == 0)
@@ -348,7 +350,8 @@ namespace wistd     // ("Windows Implementation" std)
     }
 
     template<class _Rp, class ..._ArgTypes>
-    function<_Rp(_ArgTypes...)>::function(function&& __f) WI_NOEXCEPT
+    __WI_LIBCPP_SUPPRESS_NONINIT_ANALYSIS __WI_LIBCPP_SUPPRESS_NOEXCEPT_ANALYSIS
+    function<_Rp(_ArgTypes...)>::function(function&& __f)
     {
         if (__f.__f_ == 0)
             __f_ = 0;
@@ -363,6 +366,7 @@ namespace wistd     // ("Windows Implementation" std)
 
     template<class _Rp, class ..._ArgTypes>
     template <class _Fp, class>
+    __WI_LIBCPP_SUPPRESS_NONINIT_ANALYSIS
     function<_Rp(_ArgTypes...)>::function(_Fp __f)
         : __f_(0)
     {
@@ -390,7 +394,7 @@ namespace wistd     // ("Windows Implementation" std)
 
     template<class _Rp, class ..._ArgTypes>
     function<_Rp(_ArgTypes...)>&
-    function<_Rp(_ArgTypes...)>::operator=(function&& __f) WI_NOEXCEPT
+    function<_Rp(_ArgTypes...)>::operator=(function&& __f)
     {
         *this = nullptr;
         if (__f.__f_)

@@ -570,16 +570,6 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 #endif
 // end-of-repeated fail-fast handling macros
 
-#if defined(_MSVC_LANG)
-#define __WI_SUPPRESS_4127_S __pragma(warning(push)) __pragma(warning(disable:4127)) __pragma(warning(disable:26498))
-#define __WI_SUPPRESS_4127_E __pragma(warning(pop))
-#define __WI_SUPPRESS_NULLPTR_ANALYSIS __pragma(warning(suppress:28285)) __pragma(warning(suppress:6504))
-#else
-#define __WI_SUPPRESS_4127_S
-#define __WI_SUPPRESS_4127_E
-#define __WI_SUPPRESS_NULLPTR_ANALYSIS
-#endif
-
 // Helpers for return macros
 #define __RETURN_HR_MSG(hr, str, fmt, ...)                   __WI_SUPPRESS_4127_S do { const HRESULT __hr = (hr); if (FAILED(__hr)) { __R_FN(Return_HrMsg)(__R_INFO(str) __hr, fmt, __VA_ARGS__); } return __hr; } __WI_SUPPRESS_4127_E while ((void)0, 0)
 #define __RETURN_HR_MSG_FAIL(hr, str, fmt, ...)              __WI_SUPPRESS_4127_S do { const HRESULT __hr = (hr); __R_FN(Return_HrMsg)(__R_INFO(str) __hr, fmt, __VA_ARGS__); return __hr; } __WI_SUPPRESS_4127_E while ((void)0, 0)

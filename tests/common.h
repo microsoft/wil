@@ -181,7 +181,7 @@ namespace witest
         try
 #endif
         {
-            (void)callOp();
+            callOp();
         }
 #ifdef WIL_ENABLE_EXCEPTIONS
         catch (...)
@@ -251,7 +251,7 @@ namespace witest
         bool doesThrow = false;
         bool doesCrash = DoesCodeCrash([&]()
         {
-            doesThrow = DoesCodeThrow(wistd::forward<Lambda>(callOp));
+            doesThrow = DoesCodeThrow(callOp);
         });
 
         return doesThrow || doesCrash;
@@ -355,7 +355,7 @@ namespace witest
         TestFolder(const TestFolder&) = delete;
         TestFolder& operator=(const TestFolder&) = delete;
 
-        TestFolder(TestFolder&& other) WI_NOEXCEPT
+        TestFolder(TestFolder&& other)
         {
             if (other.m_valid)
             {
@@ -365,7 +365,7 @@ namespace witest
             }
         }
 
-        ~TestFolder() 
+        ~TestFolder()
         {
             if (m_valid)
             {
@@ -415,7 +415,7 @@ namespace witest
         TestFile(const TestFile&) = delete;
         TestFile& operator=(const TestFile&) = delete;
 
-        TestFile(TestFile&& other) WI_NOEXCEPT
+        TestFile(TestFile&& other)
         {
             if (other.m_valid)
             {
