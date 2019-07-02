@@ -670,3 +670,19 @@ TEST_CASE("UniqueVariant", "[resource][com]")
     REQUIRE(var2.vt == VT_UI4);
     REQUIRE(var2.uiVal == 25);
 }
+
+TEST_CASE("DefaultTemplateParamCompiles", "[resource]")
+{
+    wil::unique_process_heap_ptr<> a;
+    wil::unique_virtualalloc_ptr<> b;
+
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+    wil::unique_hlocal_ptr<> c;
+    wil::unique_hlocal_secure_ptr<> d;
+    wil::unique_hglobal_ptr<> e;
+    wil::unique_cotaskmem_secure_ptr<> f;
+#endif
+
+    wil::unique_midl_ptr<> g;
+    wil::unique_cotaskmem_ptr<> h;
+}

@@ -4815,7 +4815,7 @@ namespace wil
     template <typename T = void>
     using unique_cotaskmem_ptr = wistd::unique_ptr<T, cotaskmem_deleter>;
 
-    template <typename T = void>
+    template <typename T>
     using unique_cotaskmem_array_ptr = unique_array_ptr<T, cotaskmem_deleter>;
 
     /** Provides `std::make_unique()` semantics for resources allocated with `CoTaskMemAlloc()` in a context that may not throw upon allocation failure.
