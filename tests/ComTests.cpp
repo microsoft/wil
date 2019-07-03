@@ -2521,7 +2521,7 @@ TEST_CASE("StreamTests::Read", "[com][IStream]")
 TEST_CASE("StreamTests::Write", "[com][IStream]")
 {
     FakeStream stream;
-    BYTE buffer[16];
+    BYTE buffer[16] = { 8, 6, 7, 5, 3, 0, 9 };
 
     stream.MaxWriteSize = sizeof(buffer) + 1;
     REQUIRE_SUCCEEDED(wil::stream_write_nothrow(&stream, buffer, sizeof(buffer)));

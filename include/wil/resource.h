@@ -3227,8 +3227,8 @@ namespace wil
     ~~~
     */
     template<typename string_type> string_type make_unique_string_nothrow(
-        _When_(length != static_cast<size_t>(-1), _In_reads_opt_(length))
-        _When_(length == static_cast<size_t>(-1), _In_ _Null_terminated_)
+        _When_((source != nullptr) && length != static_cast<size_t>(-1), _In_reads_(length))
+        _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_)
         const wchar_t* source, size_t length = static_cast<size_t>(-1)) WI_NOEXCEPT
     {
         // guard against invalid parameters (null source with -1 length)
@@ -3276,8 +3276,8 @@ namespace wil
     }
 #ifndef WIL_NO_ANSI_STRINGS
     template<typename string_type> string_type make_unique_ansistring_nothrow(
-        _When_(length != static_cast<size_t>(-1), _In_reads_opt_(length))
-        _When_(length == static_cast<size_t>(-1), _In_)
+        _When_((source != nullptr) && length != static_cast<size_t>(-1), _In_reads_(length))
+        _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_)
         PCSTR source, size_t length = static_cast<size_t>(-1)) WI_NOEXCEPT
     {
         // guard against invalid parameters (null source with -1 length)
@@ -3309,8 +3309,8 @@ namespace wil
     The use of variadic templates parameters supports the 2 forms of make_unique_string, see those for more details.
     */
     template<typename string_type> string_type make_unique_string_failfast(
-        _When_(length != static_cast<size_t>(-1), _In_reads_opt_(length))
-        _When_(length == static_cast<size_t>(-1), _In_)
+        _When_((source != nullptr) && length != static_cast<size_t>(-1), _In_reads_(length))
+        _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_)
         PCWSTR source, size_t length = static_cast<size_t>(-1)) WI_NOEXCEPT
     {
         auto result(make_unique_string_nothrow<string_type>(source, length));
@@ -3320,8 +3320,8 @@ namespace wil
 
 #ifndef WIL_NO_ANSI_STRINGS
     template<typename string_type> string_type make_unique_ansistring_failfast(
-        _When_(length != static_cast<size_t>(-1), _In_reads_opt_(length))
-        _When_(length == static_cast<size_t>(-1), _In_)
+        _When_((source != nullptr) && length != static_cast<size_t>(-1), _In_reads_(length))
+        _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_)
         PCSTR source, size_t length = static_cast<size_t>(-1)) WI_NOEXCEPT
     {
         auto result(make_unique_ansistring_nothrow<string_type>(source, length));
@@ -3335,8 +3335,8 @@ namespace wil
     The use of variadic templates parameters supports the 2 forms of make_unique_string, see those for more details.
     */
     template<typename string_type> string_type make_unique_string(
-        _When_(length != static_cast<size_t>(-1), _In_reads_opt_(length))
-        _When_(length == static_cast<size_t>(-1), _In_)
+        _When_((source != nullptr) && length != static_cast<size_t>(-1), _In_reads_(length))
+        _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_)
         PCWSTR source, size_t length = static_cast<size_t>(-1))
     {
         auto result(make_unique_string_nothrow<string_type>(source, length));
@@ -3345,8 +3345,8 @@ namespace wil
     }
 #ifndef WIL_NO_ANSI_STRINGS
     template<typename string_type> string_type make_unique_ansistring(
-        _When_(length != static_cast<size_t>(-1), _In_reads_opt_(length))
-        _When_(length == static_cast<size_t>(-1), _In_)
+        _When_((source != nullptr) && length != static_cast<size_t>(-1), _In_reads_(length))
+        _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_)
         PCSTR source, size_t length = static_cast<size_t>(-1))
     {
         auto result(make_unique_ansistring_nothrow<string_type>(source, length));
@@ -3366,7 +3366,11 @@ namespace wil
 
         template<typename string_type> struct string_maker
         {
-            HRESULT make(_In_reads_opt_(length) PCWSTR source, size_t length)
+            HRESULT make(
+                _When_((source != nullptr) && length != static_cast<size_t>(-1), _In_reads_(length))
+                _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_)
+                const wchar_t* source,
+                size_t length)
             {
                 m_value = make_unique_string_nothrow<string_type>(source, length);
                 return m_value ? S_OK : E_OUTOFMEMORY;
@@ -3453,7 +3457,7 @@ namespace wil
     {
         template<> struct string_allocator<unique_process_heap_string>
         {
-            static void* allocate(size_t size) WI_NOEXCEPT
+            static _Ret_opt_bytecap_(size) void* allocate(size_t size) WI_NOEXCEPT
             {
                 return ::HeapAlloc(::GetProcessHeap(), HEAP_ZERO_MEMORY, size);
             }
@@ -3897,36 +3901,32 @@ namespace wil
     /// @cond
     namespace details
     {
-        template<> struct string_allocator<unique_hlocal_string>
+        struct localalloc_allocator
         {
-            static void* allocate(size_t size) WI_NOEXCEPT
+            static _Ret_opt_bytecap_(size) void* allocate(size_t size) WI_NOEXCEPT
             {
                 return ::LocalAlloc(LMEM_FIXED, size);
             }
         };
+
+        template<> struct string_allocator<unique_hlocal_string> : localalloc_allocator {};
 #ifndef WIL_NO_ANSI_STRINGS
-        template<> struct string_allocator<unique_hlocal_ansistring>
-        {
-            static void* allocate(size_t size) WI_NOEXCEPT
-            {
-                return ::LocalAlloc(LMEM_FIXED, size);
-            }
-        };
+        template<> struct string_allocator<unique_hlocal_ansistring> : localalloc_allocator {};
 #endif // WIL_NO_ANSI_STRINGS
     }
     /// @endcond
 
     inline auto make_hlocal_string_nothrow(
-        _When_(length != static_cast<size_t>(-1), _In_reads_opt_(length))
-        _When_(length == static_cast<size_t>(-1), _In_)
+        _When_((source != nullptr) && length != static_cast<size_t>(-1), _In_reads_(length))
+        _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_)
         PCWSTR source, size_t length = static_cast<size_t>(-1)) WI_NOEXCEPT
     {
         return make_unique_string_nothrow<unique_hlocal_string>(source, length);
     }
 
     inline auto make_hlocal_string_failfast(
-        _When_(length != static_cast<size_t>(-1), _In_reads_opt_(length))
-        _When_(length == static_cast<size_t>(-1), _In_)
+        _When_((source != nullptr) && length != static_cast<size_t>(-1), _In_reads_(length))
+        _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_)
         PCWSTR source, size_t length = static_cast<size_t>(-1)) WI_NOEXCEPT
     {
         return make_unique_string_failfast<unique_hlocal_string>(source, length);
@@ -3934,16 +3934,16 @@ namespace wil
 
 #ifndef WIL_NO_ANSI_STRINGS
     inline auto make_hlocal_ansistring_nothrow(
-        _When_(length != static_cast<size_t>(-1), _In_reads_opt_(length))
-        _When_(length == static_cast<size_t>(-1), _In_)
+        _When_((source != nullptr) && length != static_cast<size_t>(-1), _In_reads_(length))
+        _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_)
         PCSTR source, size_t length = static_cast<size_t>(-1)) WI_NOEXCEPT
     {
         return make_unique_ansistring_nothrow<unique_hlocal_ansistring>(source, length);
     }
 
     inline auto make_hlocal_ansistring_failfast(
-        _When_(length != static_cast<size_t>(-1), _In_reads_opt_(length))
-        _When_(length == static_cast<size_t>(-1), _In_)
+        _When_((source != nullptr) && length != static_cast<size_t>(-1), _In_reads_(length))
+        _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_)
         PCSTR source, size_t length = static_cast<size_t>(-1)) WI_NOEXCEPT
     {
         return make_unique_ansistring_failfast<unique_hlocal_ansistring>(source, length);
@@ -3952,8 +3952,8 @@ namespace wil
 
 #ifdef WIL_ENABLE_EXCEPTIONS
     inline auto make_hlocal_string(
-        _When_(length != static_cast<size_t>(-1), _In_reads_opt_(length))
-        _When_(length == static_cast<size_t>(-1), _In_)
+        _When_((source != nullptr) && length != static_cast<size_t>(-1), _In_reads_(length))
+        _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_)
         PCWSTR source, size_t length = static_cast<size_t>(-1))
     {
         return make_unique_string<unique_hlocal_string>(source, length);
@@ -3961,8 +3961,8 @@ namespace wil
 
 #ifndef WIL_NO_ANSI_STRINGS
     inline auto make_hlocal_ansistring(
-        _When_(length != static_cast<size_t>(-1), _In_reads_opt_(length))
-        _When_(length == static_cast<size_t>(-1), _In_)
+        _When_((source != nullptr) && length != static_cast<size_t>(-1), _In_reads_(length))
+        _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_)
         PCSTR source, size_t length = static_cast<size_t>(-1))
     {
         return make_unique_ansistring<unique_hlocal_ansistring>(source, length);
@@ -4154,7 +4154,7 @@ namespace wil
     {
         template<> struct string_allocator<unique_hglobal_string>
         {
-            static void* allocate(size_t size) WI_NOEXCEPT
+            static _Ret_opt_bytecap_(size) void* allocate(size_t size) WI_NOEXCEPT
             {
                 return ::GlobalAlloc(GPTR, size);
             }
@@ -4163,16 +4163,16 @@ namespace wil
     /// @endcond
 
     inline auto make_process_heap_string_nothrow(
-        _When_(length != static_cast<size_t>(-1), _In_reads_opt_(length))
-        _When_(length == static_cast<size_t>(-1), _In_)
+        _When_((source != nullptr) && length != static_cast<size_t>(-1), _In_reads_(length))
+        _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_)
         PCWSTR source, size_t length = static_cast<size_t>(-1)) WI_NOEXCEPT
     {
         return make_unique_string_nothrow<unique_process_heap_string>(source, length);
     }
 
     inline auto make_process_heap_string_failfast(
-        _When_(length != static_cast<size_t>(-1), _In_reads_opt_(length))
-        _When_(length == static_cast<size_t>(-1), _In_)
+        _When_((source != nullptr) && length != static_cast<size_t>(-1), _In_reads_(length))
+        _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_)
         PCWSTR source, size_t length = static_cast<size_t>(-1)) WI_NOEXCEPT
     {
         return make_unique_string_failfast<unique_process_heap_string>(source, length);
@@ -4180,8 +4180,8 @@ namespace wil
 
 #ifdef WIL_ENABLE_EXCEPTIONS
     inline auto make_process_heap_string(
-        _When_(length != static_cast<size_t>(-1), _In_reads_opt_(length))
-        _When_(length == static_cast<size_t>(-1), _In_)
+        _When_((source != nullptr) && length != static_cast<size_t>(-1), _In_reads_(length))
+        _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_)
         PCWSTR source, size_t length = static_cast<size_t>(-1))
     {
         return make_unique_string<unique_process_heap_string>(source, length);
@@ -4352,8 +4352,8 @@ namespace wil
     typedef unique_any<HSTRING, decltype(&::WindowsDeleteString), ::WindowsDeleteString> unique_hstring;
 
     template<> inline unique_hstring make_unique_string_nothrow<unique_hstring>(
-        _When_(length != static_cast<size_t>(-1), _In_reads_opt_(length))
-        _When_(length == static_cast<size_t>(-1), _In_)
+        _When_((source != nullptr) && length != static_cast<size_t>(-1), _In_reads_(length))
+        _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_)
         PCWSTR source, size_t length) WI_NOEXCEPT
     {
         WI_ASSERT(source != nullptr); // the HSTRING version of this function does not suport this case
@@ -4367,53 +4367,6 @@ namespace wil
         return result;
     }
 
-    /// @cond
-    namespace details
-    {
-        template<> struct string_maker<unique_hstring>
-        {
-            ~string_maker()
-            {
-                WindowsDeleteStringBuffer(m_bufferHandle); // ok to call with null
-            }
-
-            HRESULT make(_In_reads_opt_(length) PCWSTR source, size_t length)
-            {
-                if (source)
-                {
-                    RETURN_IF_FAILED(WindowsCreateString(source, static_cast<UINT32>(length), &value));
-                }
-                else
-                {
-                    // Need to set it to the empty string to support the empty string case.
-                    value.reset(static_cast<HSTRING>(nullptr));
-                    RETURN_IF_FAILED(WindowsPreallocateStringBuffer(static_cast<UINT32>(length), &m_charBuffer, &m_bufferHandle));
-                }
-                return S_OK;
-            }
-            wchar_t* buffer() { WI_ASSERT(m_charBuffer != nullptr);  return m_charBuffer; }
-
-            unique_hstring release()
-            {
-                if (m_bufferHandle)
-                {
-                    const auto hr = WindowsPromoteStringBuffer(m_bufferHandle, &value);
-                    FAIL_FAST_IF_FAILED(hr);  // Failure here is only due to invalid input, null terminator overwritten, a bug in the usage.
-                    m_bufferHandle = nullptr; // after promotion must not delete
-                }
-                m_charBuffer = nullptr;
-                return wistd::move(value);
-            }
-
-            static PCWSTR get(const wil::unique_hstring& value) { return WindowsGetStringRawBuffer(value.get(), nullptr); }
-
-        private:
-            unique_hstring value;
-            HSTRING_BUFFER m_bufferHandle = nullptr;
-            wchar_t* m_charBuffer = nullptr;
-        };
-    }
-    /// @endcond
     typedef unique_any<HSTRING_BUFFER, decltype(&::WindowsDeleteStringBuffer), ::WindowsDeleteStringBuffer> unique_hstring_buffer;
 
     /** Promotes an hstring_buffer to an HSTRING.
@@ -4422,12 +4375,12 @@ namespace wil
     ~~~
     HRESULT Type::MakePath(_Out_ HSTRING* path)
     {
-    wchar_t* bufferStorage = nullptr;
-    wil::unique_hstring_buffer theBuffer;
-    RETURN_IF_FAILED(::WindowsPreallocateStringBuffer(65, &bufferStorage, &theBuffer));
-    RETURN_IF_FAILED(::PathCchCombine(bufferStorage, 65, m_foo, m_bar));
-    RETURN_IF_FAILED(wil::make_hstring_from_buffer_nothrow(wistd::move(theBuffer), path)));
-    return S_OK;
+        wchar_t* bufferStorage = nullptr;
+        wil::unique_hstring_buffer theBuffer;
+        RETURN_IF_FAILED(::WindowsPreallocateStringBuffer(65, &bufferStorage, &theBuffer));
+        RETURN_IF_FAILED(::PathCchCombine(bufferStorage, 65, m_foo, m_bar));
+        RETURN_IF_FAILED(wil::make_hstring_from_buffer_nothrow(wistd::move(theBuffer), path)));
+        return S_OK;
     }
     ~~~
     */
@@ -4456,11 +4409,11 @@ namespace wil
     ~~~
     wil::unique_hstring Type::Make()
     {
-    wchar_t* bufferStorage = nullptr;
-    wil::unique_hstring_buffer theBuffer;
-    THROW_IF_FAILED(::WindowsPreallocateStringBuffer(65, &bufferStorage, &theBuffer));
-    THROW_IF_FAILED(::PathCchCombine(bufferStorage, 65, m_foo, m_bar));
-    return wil::make_hstring_from_buffer(wistd::move(theBuffer));
+        wchar_t* bufferStorage = nullptr;
+        wil::unique_hstring_buffer theBuffer;
+        THROW_IF_FAILED(::WindowsPreallocateStringBuffer(65, &bufferStorage, &theBuffer));
+        THROW_IF_FAILED(::PathCchCombine(bufferStorage, 65, m_foo, m_bar));
+        return wil::make_hstring_from_buffer(wistd::move(theBuffer));
     }
     ~~~
     */
@@ -4472,11 +4425,75 @@ namespace wil
     }
 #endif
 
+    /// @cond
+    namespace details
+    {
+        template<> struct string_maker<unique_hstring>
+        {
+            string_maker() = default;
+            string_maker(const string_maker&) = delete;
+            void operator=(const string_maker&) = delete;
+            string_maker& operator=(string_maker&& source) WI_NOEXCEPT
+            {
+                m_value = wistd::move(source.m_value);
+                m_bufferHandle = wistd::move(source.m_bufferHandle);
+                m_charBuffer = source.m_charBuffer;
+                source.m_charBuffer = nullptr;
+                return *this;
+            }
+
+            HRESULT make(
+                _When_((source != nullptr) && length != static_cast<size_t>(-1), _In_reads_(length))
+                _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_)
+                const wchar_t* source,
+                size_t length)
+            {
+                if (source)
+                {
+                    RETURN_IF_FAILED(WindowsCreateString(source, static_cast<UINT32>(length), &m_value));
+                }
+                else
+                {
+                    // Need to set it to the empty string to support the empty string case.
+                    m_value.reset();
+                    RETURN_IF_FAILED(WindowsPreallocateStringBuffer(static_cast<UINT32>(length), &m_charBuffer, &m_bufferHandle));
+                }
+                return S_OK;
+            }
+
+            wchar_t* buffer() { WI_ASSERT(m_charBuffer != nullptr);  return m_charBuffer; }
+            const wchar_t* buffer() const { return m_charBuffer; }
+
+            unique_hstring release()
+            {
+                m_charBuffer = nullptr;
+                if (m_bufferHandle)
+                {
+                    return make_hstring_from_buffer_failfast(wistd::move(m_bufferHandle));
+                }
+                return wistd::move(m_value);
+            }
+
+            static PCWSTR get(const wil::unique_hstring& value) { return WindowsGetStringRawBuffer(value.get(), nullptr); }
+
+        private:
+            unique_hstring m_value;
+            unique_hstring_buffer m_bufferHandle;
+            wchar_t* m_charBuffer = nullptr;
+        };
+    }
+    /// @endcond
+
     // str_raw_ptr is an overloaded function that retrieves a const pointer to the first character in a string's buffer.
     // This is the overload for HSTRING.  Other overloads available above.
     inline PCWSTR str_raw_ptr(HSTRING str)
     {
         return WindowsGetStringRawBuffer(str, nullptr);
+    }
+
+    inline PCWSTR str_raw_ptr(const unique_hstring& str)
+    {
+        return str_raw_ptr(str.get());
     }
 
 #endif // __WIL__WINSTRING_H_
@@ -4754,7 +4771,10 @@ namespace wil
     {
         inline void __stdcall BCryptCloseAlgorithmProviderNoFlags(_Pre_opt_valid_ _Frees_ptr_opt_ BCRYPT_ALG_HANDLE hAlgorithm) WI_NOEXCEPT
         {
-            ::BCryptCloseAlgorithmProvider(hAlgorithm, 0);
+            if (hAlgorithm)
+            {
+                ::BCryptCloseAlgorithmProvider(hAlgorithm, 0);
+            }
         }
     }
     /// @endcond
@@ -4802,7 +4822,7 @@ namespace wil
     {
         struct midl_allocator
         {
-            static void* allocate(size_t size) WI_NOEXCEPT
+            static _Ret_opt_bytecap_(size) void* allocate(size_t size) WI_NOEXCEPT
             {
                 return ::MIDL_user_allocate(size);
             }
@@ -4969,37 +4989,33 @@ namespace wil
     /// @cond
     namespace details
     {
-        template<> struct string_allocator<unique_cotaskmem_string>
+        struct cotaskmem_allocator
         {
-            static void* allocate(size_t size) WI_NOEXCEPT
+            static _Ret_opt_bytecap_(size) void* allocate(size_t size) WI_NOEXCEPT
             {
                 return ::CoTaskMemAlloc(size);
             }
         };
 
+        template<> struct string_allocator<unique_cotaskmem_string> : cotaskmem_allocator {};
+
 #ifndef WIL_NO_ANSI_STRINGS
-        template<> struct string_allocator<unique_cotaskmem_ansistring>
-        {
-            static void* allocate(size_t size) WI_NOEXCEPT
-            {
-                return ::CoTaskMemAlloc(size);
-            }
-        };
+        template<> struct string_allocator<unique_cotaskmem_ansistring> : cotaskmem_allocator {};
 #endif // WIL_NO_ANSI_STRINGS
     }
     /// @endcond
 
     inline auto make_cotaskmem_string_nothrow(
-        _When_(length != static_cast<size_t>(-1), _In_reads_opt_(length))
-        _When_(length == static_cast<size_t>(-1), _In_)
+        _When_((source != nullptr) && length != static_cast<size_t>(-1), _In_reads_(length))
+        _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_)
         PCWSTR source, size_t length = static_cast<size_t>(-1)) WI_NOEXCEPT
     {
         return make_unique_string_nothrow<unique_cotaskmem_string>(source, length);
     }
 
     inline auto make_cotaskmem_string_failfast(
-        _When_(length != static_cast<size_t>(-1), _In_reads_opt_(length))
-        _When_(length == static_cast<size_t>(-1), _In_)
+        _When_((source != nullptr) && length != static_cast<size_t>(-1), _In_reads_(length))
+        _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_)
         PCWSTR source, size_t length = static_cast<size_t>(-1)) WI_NOEXCEPT
     {
         return make_unique_string_failfast<unique_cotaskmem_string>(source, length);
@@ -5007,8 +5023,8 @@ namespace wil
 
 #ifdef WIL_ENABLE_EXCEPTIONS
     inline auto make_cotaskmem_string(
-        _When_(length != static_cast<size_t>(-1), _In_reads_opt_(length))
-        _When_(length == static_cast<size_t>(-1), _In_)
+        _When_((source != nullptr) && length != static_cast<size_t>(-1), _In_reads_(length))
+        _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_)
         PCWSTR source, size_t length = static_cast<size_t>(-1))
     {
         return make_unique_string<unique_cotaskmem_string>(source, length);
@@ -5032,17 +5048,20 @@ namespace wil
         template <typename T>
         void operator()(_Pre_opt_valid_ _Frees_ptr_opt_ T* p) const
         {
-            IMalloc* malloc;
-            if (SUCCEEDED(::CoGetMalloc(1, &malloc)))
+            if (p)
             {
-                size_t const size = malloc->GetSize(p);
-                if (size != static_cast<size_t>(-1))
+                IMalloc* malloc;
+                if (SUCCEEDED(::CoGetMalloc(1, &malloc)))
                 {
-                    ::SecureZeroMemory(p, size);
+                    size_t const size = malloc->GetSize(p);
+                    if (size != static_cast<size_t>(-1))
+                    {
+                        ::SecureZeroMemory(p, size);
+                    }
+                    malloc->Release();
                 }
-                malloc->Release();
+                ::CoTaskMemFree(p);
             }
-            ::CoTaskMemFree(p);
         }
     };
 

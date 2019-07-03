@@ -570,13 +570,6 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 #endif
 // end-of-repeated fail-fast handling macros
 
-#if defined(_MSVC_LANG)
-#define __WI_SUPPRESS_4127_S __pragma(warning(push)) __pragma(warning(disable:4127))
-#define __WI_SUPPRESS_4127_E __pragma(warning(pop))
-#else
-#define __WI_SUPPRESS_4127_S
-#endif
-
 // Helpers for return macros
 #define __RETURN_HR_MSG(hr, str, fmt, ...)                   __WI_SUPPRESS_4127_S do { const HRESULT __hr = (hr); if (FAILED(__hr)) { __R_FN(Return_HrMsg)(__R_INFO(str) __hr, fmt, __VA_ARGS__); } return __hr; } __WI_SUPPRESS_4127_E while ((void)0, 0)
 #define __RETURN_HR_MSG_FAIL(hr, str, fmt, ...)              __WI_SUPPRESS_4127_S do { const HRESULT __hr = (hr); __R_FN(Return_HrMsg)(__R_INFO(str) __hr, fmt, __VA_ARGS__); return __hr; } __WI_SUPPRESS_4127_E while ((void)0, 0)
@@ -638,7 +631,7 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 // Conditionally returns failures (HRESULT) - use for failures that are expected in common use - failures are not logged - macros are only for control flow pattern
 #define RETURN_IF_FAILED_EXPECTED(hr)                           __WI_SUPPRESS_4127_S do { const auto __hrRet = wil::verify_hresult(hr); if (FAILED(__hrRet)) { return __hrRet; }} __WI_SUPPRESS_4127_E while ((void)0, 0)
 #define RETURN_IF_WIN32_BOOL_FALSE_EXPECTED(win32BOOL)          __WI_SUPPRESS_4127_S do { if (!wil::verify_BOOL(win32BOOL)) { return wil::details::GetLastErrorFailHr(); }} __WI_SUPPRESS_4127_E while((void)0, 0)
-#define RETURN_IF_WIN32_ERROR_EXPECTED(win32err)                __WI_SUPPRESS_4127_S do { const DWORD __errRet = (win32err); if (FAILED_WIN32(__errRet)) { return HRESULT_FROM_WIN32(__errRet); }} __WI_SUPPRESS_4127_E while((void)0, 0)
+#define RETURN_IF_WIN32_ERROR_EXPECTED(win32err)                __WI_SUPPRESS_4127_S do { const DWORD __errRet = (win32err); if (FAILED_WIN32(__errRet)) { return __HRESULT_FROM_WIN32(__errRet); }} __WI_SUPPRESS_4127_E while((void)0, 0)
 #define RETURN_IF_NULL_ALLOC_EXPECTED(ptr)                      __WI_SUPPRESS_4127_S do { if ((ptr) == nullptr) { return E_OUTOFMEMORY; }} __WI_SUPPRESS_4127_E while((void)0, 0)
 #define RETURN_HR_IF_EXPECTED(hr, condition)                    __WI_SUPPRESS_4127_S do { if (wil::verify_bool(condition)) { return wil::verify_hresult(hr); }} __WI_SUPPRESS_4127_E while((void)0, 0)
 #define RETURN_HR_IF_NULL_EXPECTED(hr, ptr)                     __WI_SUPPRESS_4127_S do { if ((ptr) == nullptr) { return wil::verify_hresult(hr); }} __WI_SUPPRESS_4127_E while((void)0, 0)
@@ -1329,17 +1322,17 @@ namespace wil
         // Forward declarations to enable use of fail fast and reporting internally...
         namespace __R_NS_NAME
         {
-            __R_DIRECT_METHOD(HRESULT, Log_Hr)(__R_DIRECT_FN_PARAMS HRESULT hr) WI_NOEXCEPT;
-            __R_DIRECT_METHOD(HRESULT, Log_HrMsg)(__R_DIRECT_FN_PARAMS HRESULT hr, _Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT;
-            __R_DIRECT_METHOD(DWORD, Log_Win32Msg)(__R_DIRECT_FN_PARAMS DWORD err, _Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT;
+            _Post_satisfies_(return == hr) __R_DIRECT_METHOD(HRESULT, Log_Hr)(__R_DIRECT_FN_PARAMS HRESULT hr) WI_NOEXCEPT;
+            _Post_satisfies_(return == hr) __R_DIRECT_METHOD(HRESULT, Log_HrMsg)(__R_DIRECT_FN_PARAMS HRESULT hr, _Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT;
+            _Post_satisfies_(return == err) __R_DIRECT_METHOD(DWORD, Log_Win32Msg)(__R_DIRECT_FN_PARAMS DWORD err, _Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT;
         }
         namespace __RFF_NS_NAME
         {
             __RFF_DIRECT_NORET_METHOD(void, FailFast_Unexpected)(__RFF_DIRECT_FN_PARAMS_ONLY) WI_NOEXCEPT;
-            __RFF_CONDITIONAL_METHOD(bool, FailFast_If)(__RFF_CONDITIONAL_FN_PARAMS bool condition) WI_NOEXCEPT;
-            __RFF_CONDITIONAL_METHOD(bool, FailFast_HrIf)(__RFF_CONDITIONAL_FN_PARAMS HRESULT hr, bool condition) WI_NOEXCEPT;
-            __RFF_CONDITIONAL_METHOD(bool, FailFast_IfFalse)(__RFF_CONDITIONAL_FN_PARAMS bool condition) WI_NOEXCEPT;
-            __RFF_CONDITIONAL_METHOD(bool, FailFastImmediate_If)(bool condition) WI_NOEXCEPT;
+            _Post_satisfies_(return == condition) _When_(condition, _Analysis_noreturn_) __RFF_CONDITIONAL_METHOD(bool, FailFast_If)(__RFF_CONDITIONAL_FN_PARAMS bool condition) WI_NOEXCEPT;
+            _Post_satisfies_(return == condition) _When_(condition, _Analysis_noreturn_) __RFF_CONDITIONAL_METHOD(bool, FailFast_HrIf)(__RFF_CONDITIONAL_FN_PARAMS HRESULT hr, bool condition) WI_NOEXCEPT;
+            _Post_satisfies_(return == condition) _When_(!condition, _Analysis_noreturn_) __RFF_CONDITIONAL_METHOD(bool, FailFast_IfFalse)(__RFF_CONDITIONAL_FN_PARAMS bool condition) WI_NOEXCEPT;
+            _Post_satisfies_(return == condition) _When_(condition, _Analysis_noreturn_) __RFF_CONDITIONAL_METHOD(bool, FailFastImmediate_If)(bool condition) WI_NOEXCEPT;
         }
 
         __declspec(noreturn) inline void __stdcall WilFailFast(const FailureInfo& info);
@@ -1347,10 +1340,10 @@ namespace wil
                                bool fWantDebugString, _Out_writes_(debugStringSizeChars) _Post_z_ PWSTR debugString, _Pre_satisfies_(debugStringSizeChars > 0) size_t debugStringSizeChars,
                                _Out_writes_(callContextStringSizeChars) _Post_z_ PSTR callContextString, _Pre_satisfies_(callContextStringSizeChars > 0) size_t callContextStringSizeChars,
                                _Out_ FailureInfo *failure) WI_NOEXCEPT;
-        __declspec(noinline) inline void ReportFailure(__R_FN_PARAMS_FULL, FailureType type, HRESULT hr, _In_opt_ PCWSTR message = nullptr, ReportFailureOptions options = ReportFailureOptions::None);
-        inline void ReportFailure_ReplaceMsg(__R_FN_PARAMS_FULL, FailureType type, HRESULT hr, _Printf_format_string_ PCSTR formatString, ...);
-        __declspec(noinline) inline void ReportFailure_Hr(__R_FN_PARAMS_FULL, FailureType type, HRESULT hr);
-        __declspec(noinline) inline HRESULT ReportFailure_CaughtException(__R_FN_PARAMS_FULL, FailureType type, SupportedExceptions supported = SupportedExceptions::Default);
+        _When_((type == FailureType::Exception) || (type == FailureType::FailFast), _Analysis_noreturn_) __declspec(noinline) inline void ReportFailure(__R_FN_PARAMS_FULL, FailureType type, HRESULT hr, _In_opt_ PCWSTR message = nullptr, ReportFailureOptions options = ReportFailureOptions::None);
+        _When_((type == FailureType::Exception) || (type == FailureType::FailFast), _Analysis_noreturn_) inline void ReportFailure_ReplaceMsg(__R_FN_PARAMS_FULL, FailureType type, HRESULT hr, _Printf_format_string_ PCSTR formatString, ...);
+        _When_((type == FailureType::Exception) || (type == FailureType::FailFast), _Analysis_noreturn_) __declspec(noinline) inline void ReportFailure_Hr(__R_FN_PARAMS_FULL, FailureType type, HRESULT hr);
+        _When_((type == FailureType::Exception) || (type == FailureType::FailFast), _Analysis_noreturn_) __declspec(noinline) inline HRESULT ReportFailure_CaughtException(__R_FN_PARAMS_FULL, FailureType type, SupportedExceptions supported = SupportedExceptions::Default);
 
         //*****************************************************************************
         // Fail fast helpers (for use only internally to WIL)
@@ -1666,7 +1659,7 @@ namespace wil
             return 1;
         }
 
-        inline __declspec(noreturn) void __stdcall WilRaiseFailFastException(_In_ PEXCEPTION_RECORD er, _In_ PCONTEXT cr, _In_ DWORD flags)
+        inline __declspec(noreturn) void __stdcall WilRaiseFailFastException(_In_ PEXCEPTION_RECORD er, _In_opt_ PCONTEXT cr, _In_ DWORD flags)
         {
             // if we managed to load the pointer either through WilDynamicRaiseFailFastException (PARTITION_DESKTOP etc.)
             // or via direct linkage (e.g. UWP apps), then use it.
@@ -1684,6 +1677,7 @@ namespace wil
             HMODULE hModule = nullptr;
             if (address && !GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, reinterpret_cast<PCWSTR>(address), &hModule))
             {
+                assign_to_opt_param(addressOffset, 0U);
                 return false;
             }
             if (addressOffset)
@@ -1727,7 +1721,9 @@ namespace wil
 
         inline void __stdcall WilDynamicLoadRaiseFailFastException(_In_ PEXCEPTION_RECORD er, _In_ PCONTEXT cr, _In_ DWORD flags)
         {
-            auto pfnRaiseFailFastException = reinterpret_cast<decltype(WilDynamicLoadRaiseFailFastException)*>(GetProcAddress(GetModuleHandleW(L"kernelbase.dll"), "RaiseFailFastException"));
+            auto k32handle = GetModuleHandleW(L"kernelbase.dll");
+            _Analysis_assume_(k32handle != nullptr);
+            auto pfnRaiseFailFastException = reinterpret_cast<decltype(WilDynamicLoadRaiseFailFastException)*>(GetProcAddress(k32handle, "RaiseFailFastException"));
             if (pfnRaiseFailFastException)
             {
                 pfnRaiseFailFastException(er, cr, flags);
@@ -1739,7 +1735,7 @@ namespace wil
         {
             if (size > 0)
             {
-                *buffer = '\0';
+                assign_to_opt_param(buffer, '\0');
             }
             if (addressOffset)
             {
@@ -1775,7 +1771,7 @@ namespace wil
                 // could be added in the future. In these cases, it's better to use HRESULT_FROM_NT rather than returning a meaningless error.
                 if ((err != 0) && (err != ERROR_MR_MID_NOT_FOUND))
                 {
-                    return HRESULT_FROM_WIN32(err);
+                    return __HRESULT_FROM_WIN32(err);
                 }
             }
 
@@ -1784,7 +1780,7 @@ namespace wil
 
         // The following set of functions all differ only based upon number of arguments.  They are unified in their handling
         // of data from each of the various error-handling types (fast fail, exceptions, etc.).
-
+        _Post_equals_last_error_
         inline DWORD GetLastErrorFail(__R_FN_PARAMS_FULL) WI_NOEXCEPT
         {
             __R_FN_UNREFERENCED;
@@ -1807,11 +1803,13 @@ namespace wil
             return err;
         }
 
+        _Translates_last_error_to_HRESULT_
         inline HRESULT GetLastErrorFailHr(__R_FN_PARAMS_FULL) WI_NOEXCEPT
         {
             return HRESULT_FROM_WIN32(GetLastErrorFail(__R_FN_CALL_FULL));
         }
 
+        _Translates_last_error_to_HRESULT_
         inline __declspec(noinline) HRESULT GetLastErrorFailHr() WI_NOEXCEPT
         {
             __R_FN_LOCALS_FULL_RA;
@@ -1823,6 +1821,10 @@ namespace wil
             if (formatString == nullptr)
             {
                 pszDest[0] = L'\0';
+            }
+            else if (argList == nullptr)
+            {
+                StringCchPrintfW(pszDest, cchDest, L"%hs", formatString);
             }
             else
             {
@@ -1974,21 +1976,33 @@ namespace wil
             { return (psz == nullptr) ? sizeof(wchar_t) : (wcslen(psz) + 1) * sizeof(wchar_t); }
 
         template<typename TString>
-        _Ret_range_(pStart, pEnd) inline unsigned char *WriteResultString(_Out_writes_to_ptr_opt_(pEnd) unsigned char *pStart, _Pre_satisfies_(pEnd >= pStart) unsigned char *pEnd, _In_opt_ TString pszString, _Out_opt_ TString *ppszBufferString = nullptr)
+        _Ret_range_(pStart, pEnd) inline unsigned char* WriteResultString(
+            _Pre_satisfies_(pStart <= pEnd)
+            _When_((pStart == pEnd) || (pszString == nullptr) || (pszString[0] == 0), _In_opt_)
+            _When_((pStart != pEnd) && (pszString != nullptr) && (pszString[0] != 0), _Out_writes_bytes_opt_(_String_length_(pszString) * sizeof(pszString[0])))
+            unsigned char* pStart, _Pre_satisfies_(pEnd >= pStart) unsigned char* pEnd, _In_opt_z_ TString pszString, _Outptr_result_maybenull_z_ TString* ppszBufferString)
         {
-            decltype(pszString[0]) const cZero = 0;
-            TString const pszLocal = (pszString == nullptr) ? &cZero : pszString;
-            size_t const cchWant = ResultStringSize(pszLocal) / sizeof(cZero);
-            size_t const cchMax = static_cast<size_t>(pEnd - pStart) / sizeof(cZero);
-            size_t const cchCopy = (cchWant < cchMax) ? cchWant : cchMax;
-            memcpy_s(pStart, cchMax * sizeof(cZero), pszLocal, cchCopy * sizeof(cZero));
-            wil::assign_to_opt_param(ppszBufferString, (cchCopy > 1) ? reinterpret_cast<TString>(pStart) : nullptr);
-            if ((cchCopy < cchWant) && (cchCopy > 0))
+            // No space? Null string? Do nothing.
+            if ((pStart == pEnd) || !pszString || !*pszString)
             {
-                auto pZero = pStart + ((cchCopy - 1) * sizeof(cZero));
-                ::ZeroMemory(pZero, sizeof(cZero));
+                assign_null_to_opt_param(ppszBufferString);
+                return pStart;
             }
-            return (pStart + (cchCopy * sizeof(cZero)));
+
+            // Treats the range pStart--pEnd as a memory buffer into which pszString is copied. A pointer to
+            // the start of the copied string is placed into ppszStringBuffer. If the buffer isn't big enough,
+            // do nothing, and tell the caller nothing was written.
+            size_t const stringSize = ResultStringSize(pszString);
+            size_t const bufferSize = pEnd - pStart;
+            if (bufferSize < stringSize)
+            {
+                assign_null_to_opt_param(ppszBufferString);
+                return pStart;
+            }
+
+            memcpy_s(pStart, bufferSize, pszString, stringSize);
+            assign_to_opt_param(ppszBufferString, reinterpret_cast<TString>(pStart));
+            return pStart + stringSize;
         }
 
         _Ret_range_(0, (cchMax > 0) ? cchMax - 1 : 0) inline size_t UntrustedStringLength(_In_ PCSTR psz, _In_ size_t cchMax)    { size_t cbLength; return SUCCEEDED(wil::details::StringCchLengthA(psz, cchMax, &cbLength)) ? cbLength : 0; }
@@ -2161,7 +2175,7 @@ namespace wil
         }
 
     private:
-        alignas(T) unsigned char m_raw[sizeof(T)];
+        alignas(T) unsigned char m_raw[sizeof(T)]{};
     };
 
     /** Forward your DLLMain to this function so that WIL can have visibility into whether a DLL unload is because
@@ -2279,16 +2293,20 @@ namespace wil
             unsigned char *pBuffer = static_cast<unsigned char *>(m_spStrings.get(&cbAlloc));
             unsigned char *pBufferEnd = (pBuffer != nullptr) ? pBuffer + cbAlloc : nullptr;
 
-            pBuffer = details::WriteResultString(pBuffer, pBufferEnd, failure.pszMessage, &m_failureInfo.pszMessage);
-            pBuffer = details::WriteResultString(pBuffer, pBufferEnd, failure.pszCode, &m_failureInfo.pszCode);
-            pBuffer = details::WriteResultString(pBuffer, pBufferEnd, failure.pszFunction, &m_failureInfo.pszFunction);
-            pBuffer = details::WriteResultString(pBuffer, pBufferEnd, failure.pszFile, &m_failureInfo.pszFile);
-            pBuffer = details::WriteResultString(pBuffer, pBufferEnd, failure.pszCallContext, &m_failureInfo.pszCallContext);
-            pBuffer = details::WriteResultString(pBuffer, pBufferEnd, failure.pszModule, &m_failureInfo.pszModule);
-            pBuffer = details::WriteResultString(pBuffer, pBufferEnd, failure.callContextCurrent.contextName, &m_failureInfo.callContextCurrent.contextName);
-            pBuffer = details::WriteResultString(pBuffer, pBufferEnd, failure.callContextCurrent.contextMessage, &m_failureInfo.callContextCurrent.contextMessage);
-            pBuffer = details::WriteResultString(pBuffer, pBufferEnd, failure.callContextOriginating.contextName, &m_failureInfo.callContextOriginating.contextName);
-            details::WriteResultString(pBuffer, pBufferEnd, failure.callContextOriginating.contextMessage, &m_failureInfo.callContextOriginating.contextMessage);
+            if (pBuffer)
+            {
+                pBuffer = details::WriteResultString(pBuffer, pBufferEnd, failure.pszMessage, &m_failureInfo.pszMessage);
+                pBuffer = details::WriteResultString(pBuffer, pBufferEnd, failure.pszCode, &m_failureInfo.pszCode);
+                pBuffer = details::WriteResultString(pBuffer, pBufferEnd, failure.pszFunction, &m_failureInfo.pszFunction);
+                pBuffer = details::WriteResultString(pBuffer, pBufferEnd, failure.pszFile, &m_failureInfo.pszFile);
+                pBuffer = details::WriteResultString(pBuffer, pBufferEnd, failure.pszCallContext, &m_failureInfo.pszCallContext);
+                pBuffer = details::WriteResultString(pBuffer, pBufferEnd, failure.pszModule, &m_failureInfo.pszModule);
+                pBuffer = details::WriteResultString(pBuffer, pBufferEnd, failure.callContextCurrent.contextName, &m_failureInfo.callContextCurrent.contextName);
+                pBuffer = details::WriteResultString(pBuffer, pBufferEnd, failure.callContextCurrent.contextMessage, &m_failureInfo.callContextCurrent.contextMessage);
+                pBuffer = details::WriteResultString(pBuffer, pBufferEnd, failure.callContextOriginating.contextName, &m_failureInfo.callContextOriginating.contextName);
+                pBuffer = details::WriteResultString(pBuffer, pBufferEnd, failure.callContextOriginating.contextMessage, &m_failureInfo.callContextOriginating.contextMessage);
+                ZeroMemory(pBuffer, pBufferEnd - pBuffer);
+            }
         }
 
         // Relies upon generated copy constructor and assignment operator
@@ -2403,8 +2421,8 @@ namespace wil
         }
 
         // Caller bug: an unknown exception was thrown
-        __WIL_PRIVATE_FAIL_FAST_HR_IF(HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION), g_fResultFailFastUnknownExceptions);
-        return HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION);
+        __WIL_PRIVATE_FAIL_FAST_HR_IF(__HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION), g_fResultFailFastUnknownExceptions);
+        return __HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION);
     }
 
     //! Identical to 'throw;', but can be called from error-code neutral code to rethrow in code that *may* be running under an exception context
@@ -2479,7 +2497,7 @@ namespace wil
             wchar_t message[2048];
             message[0] = L'\0';
             MaybeGetExceptionString(exception, message, ARRAYSIZE(message));
-            auto hr = E_OUTOFMEMORY;
+            constexpr auto hr = E_OUTOFMEMORY;
             wil::details::ReportFailure(__R_DIAGNOSTICS_RA(diagnostics, returnAddress), FailureType::Log, hr, message);
             return hr;
         }
@@ -2489,7 +2507,7 @@ namespace wil
             wchar_t message[2048];
             message[0] = L'\0';
             MaybeGetExceptionString(exception, message, ARRAYSIZE(message));
-            auto hr = HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION);
+            constexpr auto hr = __HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION);
             wil::details::ReportFailure(__R_DIAGNOSTICS_RA(diagnostics, returnAddress), FailureType::Log, hr, message);
             return hr;
         }
@@ -2531,7 +2549,7 @@ namespace wil
                     MaybeGetExceptionString(exception, debugString, debugStringChars);
                     if (SUCCEEDED(hr))
                     {
-                        hr = HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION);
+                        hr = __HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION);
                     }
                 }
                 catch (...)
@@ -2832,7 +2850,7 @@ namespace wil
                 catch (std::exception& exception)
                 {
                     MaybeGetExceptionString(exception, debugString, debugStringChars);
-                    return HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION);
+                    return __HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION);
                 }
                 catch (...)
                 {
@@ -3198,7 +3216,7 @@ namespace wil
                     //      LOG_IF_FAILED(hr);
 
                     WI_USAGE_ERROR_FORWARD("CALLER BUG: Macro usage error detected.  Do not LOG_XXX success.");
-                    hr = HRESULT_FROM_WIN32(ERROR_ASSERTION_FAILURE);
+                    hr = __HRESULT_FROM_WIN32(ERROR_ASSERTION_FAILURE);
                 }
                 failureCount = RecordLog(hr);
                 break;
@@ -3332,7 +3350,8 @@ namespace wil
             }
         }
 
-        inline __declspec(noinline) void ReportFailure(__R_FN_PARAMS_FULL, FailureType type, HRESULT hr, _In_opt_ PCWSTR message, ReportFailureOptions options)
+        _Use_decl_annotations_
+        inline __declspec(noinline) void ReportFailure(__R_FN_PARAMS_FULL, FailureType type, HRESULT hr, PCWSTR message, ReportFailureOptions options)
         {
             bool needPlatformException = ((type == FailureType::Exception) &&
                 WI_IsFlagClear(options, ReportFailureOptions::MayRethrow) &&
@@ -3386,7 +3405,7 @@ namespace wil
             const bool known = (FAILED(hr));
             if (!known)
             {
-                hr = HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION);
+                hr = __HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION);
             }
 
             if ((supported == SupportedExceptions::None) ||
@@ -3408,6 +3427,7 @@ namespace wil
             return hr;
         }
 
+        _When_((type == FailureType::Exception) || (type == FailureType::FailFast), _Analysis_noreturn_)
         inline void ReportFailure_Msg(__R_FN_PARAMS_FULL, FailureType type, HRESULT hr, _Printf_format_string_ PCSTR formatString, va_list argList)
         {
             wchar_t message[2048];
@@ -3415,53 +3435,60 @@ namespace wil
             ReportFailure(__R_FN_CALL_FULL, type, hr, message);
         }
 
-        inline void ReportFailure_ReplaceMsg(__R_FN_PARAMS_FULL, FailureType type, HRESULT hr, _Printf_format_string_ PCSTR formatString, ...)
+        _Use_decl_annotations_
+        inline void ReportFailure_ReplaceMsg(__R_FN_PARAMS_FULL, FailureType type, HRESULT hr, PCSTR formatString, ...)
         {
             va_list argList;
             va_start(argList, formatString);
             ReportFailure_Msg(__R_FN_CALL_FULL, type, hr, formatString, argList);
         }
 
+        _Use_decl_annotations_
         __declspec(noinline) inline void ReportFailure_Hr(__R_FN_PARAMS_FULL, FailureType type, HRESULT hr)
         {
             ReportFailure(__R_FN_CALL_FULL, type, hr);
         }
 
         _Success_(true)
+        _When_((type == FailureType::Exception) || (type == FailureType::FailFast), _Analysis_noreturn_)
         _Translates_Win32_to_HRESULT_(err)
         __declspec(noinline) inline HRESULT ReportFailure_Win32(__R_FN_PARAMS_FULL, FailureType type, DWORD err)
         {
-            auto hr = HRESULT_FROM_WIN32(err);
+            const auto hr = __HRESULT_FROM_WIN32(err);
             ReportFailure(__R_FN_CALL_FULL, type, hr);
             return hr;
         }
 
+        _When_((type == FailureType::Exception) || (type == FailureType::FailFast), _Analysis_noreturn_)
         __declspec(noinline) inline DWORD ReportFailure_GetLastError(__R_FN_PARAMS_FULL, FailureType type)
         {
-            auto err = GetLastErrorFail(__R_FN_CALL_FULL);
-            auto hr = HRESULT_FROM_WIN32(err);
+            const auto err = GetLastErrorFail(__R_FN_CALL_FULL);
+            const auto hr = __HRESULT_FROM_WIN32(err);
             ReportFailure(__R_FN_CALL_FULL, type, hr);
             return err;
         }
 
         _Success_(true)
+        _When_((type == FailureType::Exception) || (type == FailureType::FailFast), _Analysis_noreturn_)
         _Translates_last_error_to_HRESULT_
         __declspec(noinline) inline HRESULT ReportFailure_GetLastErrorHr(__R_FN_PARAMS_FULL, FailureType type)
         {
-            auto hr = GetLastErrorFailHr(__R_FN_CALL_FULL);
+            const auto hr = GetLastErrorFailHr(__R_FN_CALL_FULL);
             ReportFailure(__R_FN_CALL_FULL, type, hr);
             return hr;
         }
 
         _Success_(true)
+        _When_((type == FailureType::Exception) || (type == FailureType::FailFast), _Analysis_noreturn_)
         _Translates_NTSTATUS_to_HRESULT_(status)
         __declspec(noinline) inline HRESULT ReportFailure_NtStatus(__R_FN_PARAMS_FULL, FailureType type, NTSTATUS status)
         {
-            auto hr = wil::details::NtStatusToHr(status);
+            const auto hr = wil::details::NtStatusToHr(status);
             ReportFailure(__R_FN_CALL_FULL, type, hr);
             return hr;
         }
 
+        _Use_decl_annotations_
         __declspec(noinline) inline HRESULT ReportFailure_CaughtException(__R_FN_PARAMS_FULL, FailureType type, SupportedExceptions supported)
         {
             wchar_t message[2048];
@@ -3469,29 +3496,33 @@ namespace wil
             return ReportFailure_CaughtExceptionCommon(__R_FN_CALL_FULL, type, message, ARRAYSIZE(message), supported);
         }
 
+        _When_((type == FailureType::Exception) || (type == FailureType::FailFast), _Analysis_noreturn_)
         __declspec(noinline) inline void ReportFailure_HrMsg(__R_FN_PARAMS_FULL, FailureType type, HRESULT hr, _Printf_format_string_ PCSTR formatString, va_list argList)
         {
             ReportFailure_Msg(__R_FN_CALL_FULL, type, hr, formatString, argList);
         }
 
         _Success_(true)
+        _When_((type == FailureType::Exception) || (type == FailureType::FailFast), _Analysis_noreturn_)
         _Translates_Win32_to_HRESULT_(err)
         __declspec(noinline) inline HRESULT ReportFailure_Win32Msg(__R_FN_PARAMS_FULL, FailureType type, DWORD err, _Printf_format_string_ PCSTR formatString, va_list argList)
         {
-            auto hr = HRESULT_FROM_WIN32(err);
+            auto hr = __HRESULT_FROM_WIN32(err);
             ReportFailure_Msg(__R_FN_CALL_FULL, type, hr, formatString, argList);
             return hr;
         }
 
+        _When_((type == FailureType::Exception) || (type == FailureType::FailFast), _Analysis_noreturn_)
         __declspec(noinline) inline DWORD ReportFailure_GetLastErrorMsg(__R_FN_PARAMS_FULL, FailureType type, _Printf_format_string_ PCSTR formatString, va_list argList)
         {
             auto err = GetLastErrorFail(__R_FN_CALL_FULL);
-            auto hr = HRESULT_FROM_WIN32(err);
+            auto hr = __HRESULT_FROM_WIN32(err);
             ReportFailure_Msg(__R_FN_CALL_FULL, type, hr, formatString, argList);
             return err;
         }
 
         _Success_(true)
+        _When_((type == FailureType::Exception) || (type == FailureType::FailFast), _Analysis_noreturn_)
         _Translates_last_error_to_HRESULT_
         __declspec(noinline) inline HRESULT ReportFailure_GetLastErrorHrMsg(__R_FN_PARAMS_FULL, FailureType type, _Printf_format_string_ PCSTR formatString, va_list argList)
         {
@@ -3501,6 +3532,7 @@ namespace wil
         }
 
         _Success_(true)
+        _When_((type == FailureType::Exception) || (type == FailureType::FailFast), _Analysis_noreturn_)
         _Translates_NTSTATUS_to_HRESULT_(status)
         __declspec(noinline) inline HRESULT ReportFailure_NtStatusMsg(__R_FN_PARAMS_FULL, FailureType type, NTSTATUS status, _Printf_format_string_ PCSTR formatString, va_list argList)
         {
@@ -3684,7 +3716,7 @@ namespace wil
             // Log Macros
             //*****************************************************************************
 
-            _Post_satisfies_(return == hr)
+            _Use_decl_annotations_
             __R_DIRECT_METHOD(HRESULT, Log_Hr)(__R_DIRECT_FN_PARAMS HRESULT hr) WI_NOEXCEPT
             {
                 __R_FN_LOCALS;
@@ -3939,8 +3971,8 @@ namespace wil
                 return status;
             }
 
-            _Post_satisfies_(return == hr)
-            __R_DIRECT_METHOD(HRESULT, Log_HrMsg)(__R_DIRECT_FN_PARAMS HRESULT hr, _Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT
+            _Use_decl_annotations_
+            __R_DIRECT_METHOD(HRESULT, Log_HrMsg)(__R_DIRECT_FN_PARAMS HRESULT hr, PCSTR formatString, ...) WI_NOEXCEPT
             {
                 va_list argList;
                 va_start(argList, formatString);
@@ -3949,8 +3981,8 @@ namespace wil
                 return hr;
             }
 
-            _Post_satisfies_(return == err)
-            __R_DIRECT_METHOD(DWORD, Log_Win32Msg)(__R_DIRECT_FN_PARAMS DWORD err, _Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT
+            _Use_decl_annotations_
+            __R_DIRECT_METHOD(DWORD, Log_Win32Msg)(__R_DIRECT_FN_PARAMS DWORD err, PCSTR formatString, ...) WI_NOEXCEPT
             {
                 va_list argList;
                 va_start(argList, formatString);
@@ -4348,7 +4380,7 @@ namespace wil
                 }
             }
 
-            _Post_satisfies_(return == condition) _When_(condition, _Analysis_noreturn_)
+            _Use_decl_annotations_
             __RFF_CONDITIONAL_METHOD(bool, FailFast_HrIf)(__RFF_CONDITIONAL_FN_PARAMS HRESULT hr, bool condition) WI_NOEXCEPT
             {
                 if (condition)
@@ -4714,7 +4746,7 @@ namespace wil
                 wil::details::ReportFailure_Hr(__RFF_INTERNAL_FN_CALL FailureType::FailFast, E_UNEXPECTED);
             }
 
-            _Post_satisfies_(return == condition) _When_(condition, _Analysis_noreturn_)
+            _Use_decl_annotations_
             __RFF_CONDITIONAL_METHOD(bool, FailFast_If)(__RFF_CONDITIONAL_FN_PARAMS bool condition) WI_NOEXCEPT
             {
                 if (condition)
@@ -4724,7 +4756,7 @@ namespace wil
                 return condition;
             }
 
-            _Post_satisfies_(return == condition) _When_(!condition, _Analysis_noreturn_)
+            _Use_decl_annotations_
             __RFF_CONDITIONAL_METHOD(bool, FailFast_IfFalse)(__RFF_CONDITIONAL_FN_PARAMS bool condition) WI_NOEXCEPT
             {
                 if (!condition)
@@ -4735,6 +4767,7 @@ namespace wil
             }
 
             template <__RFF_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_NOT_CLASS(PointerT)>
+            __WI_SUPPRESS_NULLPTR_ANALYSIS
             _Post_satisfies_(return == pointer) _When_(pointer == nullptr, _Analysis_noreturn_)
             __RFF_CONDITIONAL_TEMPLATE_METHOD(RESULT_NORETURN_NULL PointerT, FailFast_IfNull)(__RFF_CONDITIONAL_FN_PARAMS _Pre_maybenull_ PointerT pointer) WI_NOEXCEPT
             {
@@ -4746,6 +4779,7 @@ namespace wil
             }
 
             template <__RFF_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_CLASS(PointerT)>
+            __WI_SUPPRESS_NULLPTR_ANALYSIS
             __RFF_CONDITIONAL_TEMPLATE_METHOD(void, FailFast_IfNull)(__RFF_CONDITIONAL_FN_PARAMS _In_opt_ const PointerT& pointer) WI_NOEXCEPT
             {
                 if (pointer == nullptr)
@@ -4840,7 +4874,7 @@ namespace wil
                 return hr;
             }
 
-            _Post_satisfies_(return == condition) _When_(condition, _Analysis_noreturn_)
+            _Use_decl_annotations_
             __RFF_CONDITIONAL_METHOD(bool, FailFastImmediate_If)(bool condition) WI_NOEXCEPT
             {
                 if (condition)
@@ -5161,31 +5195,31 @@ namespace wil
                 wil::details::ReportFailure_CaughtExceptionMsg(__R_DIRECT_FN_CALL FailureType::Exception, formatString, argList);
             }
 
-            __R_INTERNAL_NOINLINE_METHOD(_Throw_HrMsg)(__R_INTERNAL_NOINLINE_FN_PARAMS HRESULT hr, _Printf_format_string_ PCSTR formatString, va_list argList)
+            __R_INTERNAL_NOINLINE_NORET_METHOD(_Throw_HrMsg)(__R_INTERNAL_NOINLINE_FN_PARAMS HRESULT hr, _Printf_format_string_ PCSTR formatString, va_list argList)
             {
                 __R_FN_LOCALS;
                 wil::details::ReportFailure_HrMsg(__R_INTERNAL_NOINLINE_FN_CALL FailureType::Exception, hr, formatString, argList);
             }
 
-            __R_INTERNAL_NOINLINE_METHOD(_Throw_GetLastErrorMsg)(__R_INTERNAL_NOINLINE_FN_PARAMS _Printf_format_string_ PCSTR formatString, va_list argList)
+            __R_INTERNAL_NOINLINE_NORET_METHOD(_Throw_GetLastErrorMsg)(__R_INTERNAL_NOINLINE_FN_PARAMS _Printf_format_string_ PCSTR formatString, va_list argList)
             {
                 __R_FN_LOCALS;
                 wil::details::ReportFailure_GetLastErrorMsg(__R_INTERNAL_NOINLINE_FN_CALL FailureType::Exception, formatString, argList);
             }
 
-            __R_INTERNAL_NOINLINE_METHOD(_Throw_Win32Msg)(__R_INTERNAL_NOINLINE_FN_PARAMS DWORD err, _Printf_format_string_ PCSTR formatString, va_list argList)
+            __R_INTERNAL_NOINLINE_NORET_METHOD(_Throw_Win32Msg)(__R_INTERNAL_NOINLINE_FN_PARAMS DWORD err, _Printf_format_string_ PCSTR formatString, va_list argList)
             {
                 __R_FN_LOCALS;
                 wil::details::ReportFailure_Win32Msg(__R_INTERNAL_NOINLINE_FN_CALL FailureType::Exception, err, formatString, argList);
             }
 
-            __R_INTERNAL_NOINLINE_METHOD(_Throw_NullAllocMsg)(__R_INTERNAL_NOINLINE_FN_PARAMS _Printf_format_string_ PCSTR formatString, va_list argList)
+            __R_INTERNAL_NOINLINE_NORET_METHOD(_Throw_NullAllocMsg)(__R_INTERNAL_NOINLINE_FN_PARAMS _Printf_format_string_ PCSTR formatString, va_list argList)
             {
                 __R_FN_LOCALS;
                 wil::details::ReportFailure_HrMsg(__R_INTERNAL_NOINLINE_FN_CALL FailureType::Exception, E_OUTOFMEMORY, formatString, argList);
             }
 
-            __R_INTERNAL_NOINLINE_METHOD(_Throw_NtStatusMsg)(__R_INTERNAL_NOINLINE_FN_PARAMS NTSTATUS status, _Printf_format_string_ PCSTR formatString, va_list argList)
+            __R_INTERNAL_NOINLINE_NORET_METHOD(_Throw_NtStatusMsg)(__R_INTERNAL_NOINLINE_FN_PARAMS NTSTATUS status, _Printf_format_string_ PCSTR formatString, va_list argList)
             {
                 __R_FN_LOCALS;
                 wil::details::ReportFailure_NtStatusMsg(__R_INTERNAL_NOINLINE_FN_CALL FailureType::Exception, status, formatString, argList);
@@ -5239,7 +5273,7 @@ namespace wil
                 return handle;
             }
 
-            _Post_satisfies_(return == handle) _When_(handle == nullptr, _Analysis_noreturn_)
+            _Post_satisfies_(return == handle) _When_(handle == 0, _Analysis_noreturn_)
             __R_CONDITIONAL_NOINLINE_METHOD(RESULT_NORETURN_NULL HANDLE, Throw_IfHandleNullMsg)(__R_CONDITIONAL_FN_PARAMS HANDLE handle, _Printf_format_string_ PCSTR formatString, ...)
             {
                 if (handle == nullptr)
@@ -5265,6 +5299,8 @@ namespace wil
             }
 
             template <__R_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_CLASS(PointerT)>
+            __WI_SUPPRESS_NULLPTR_ANALYSIS
+            _When_(pointer == nullptr, _Analysis_noreturn_)
             __R_CONDITIONAL_NOINLINE_TEMPLATE_METHOD(void, Throw_IfNullAllocMsg)(__R_CONDITIONAL_FN_PARAMS const PointerT& pointer, _Printf_format_string_ PCSTR formatString, ...)
             {
                 if (pointer == nullptr)
@@ -5300,6 +5336,7 @@ namespace wil
             }
 
             template <__R_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_NOT_CLASS(PointerT)>
+            __WI_SUPPRESS_NULLPTR_ANALYSIS
             _Post_satisfies_(return == pointer) _When_(pointer == nullptr, _Analysis_noreturn_)
             __R_CONDITIONAL_NOINLINE_TEMPLATE_METHOD(RESULT_NORETURN_NULL PointerT, Throw_HrIfNullMsg)(__R_CONDITIONAL_FN_PARAMS HRESULT hr, _Pre_maybenull_ PointerT pointer, _Printf_format_string_ PCSTR formatString, ...)
             {
@@ -5313,6 +5350,8 @@ namespace wil
             }
 
             template <__R_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_CLASS(PointerT)>
+            __WI_SUPPRESS_NULLPTR_ANALYSIS
+            _When_(pointer == nullptr, _Analysis_noreturn_)
             __R_CONDITIONAL_NOINLINE_TEMPLATE_METHOD(void, Throw_HrIfNullMsg)(__R_CONDITIONAL_FN_PARAMS HRESULT hr, _In_opt_ const PointerT& pointer, _Printf_format_string_ PCSTR formatString, ...)
             {
                 if (pointer == nullptr)
@@ -5361,6 +5400,8 @@ namespace wil
             }
 
             template <__R_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_CLASS(PointerT)>
+            __WI_SUPPRESS_NULLPTR_ANALYSIS
+            _When_(pointer == nullptr, _Analysis_noreturn_)
             __R_CONDITIONAL_NOINLINE_TEMPLATE_METHOD(void, Throw_GetLastErrorIfNullMsg)(__R_CONDITIONAL_FN_PARAMS _In_opt_ const PointerT& pointer, _Printf_format_string_ PCSTR formatString, ...)
             {
                 if (pointer == nullptr)

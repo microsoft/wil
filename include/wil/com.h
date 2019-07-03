@@ -2208,7 +2208,10 @@ namespace wil
     @param source The stream from which to read a string
     @param value Set to point to the allocated result of reading a string from `source`
     */
-    inline HRESULT stream_read_string_nothrow(_In_ ISequentialStream* source, _Outptr_result_z_ wchar_t** value, empty_string_options options = empty_string_options::returns_empty)
+    inline HRESULT stream_read_string_nothrow(
+        _In_ ISequentialStream* source, 
+        _When_(options == empty_string_options::returns_empty, _Outptr_result_z_) _When_(options == empty_string_options::returns_null, _Outptr_result_maybenull_z_) wchar_t** value, 
+        empty_string_options options = empty_string_options::returns_empty)
     {
         unsigned short cch;
         RETURN_IF_FAILED(stream_read_nothrow(source, &cch));
@@ -2219,7 +2222,7 @@ namespace wil
         }
         else
         {
-            auto allocated = make_unique_cotaskmem_nothrow<wchar_t[]>(cch + 1);
+            auto allocated = make_unique_cotaskmem_nothrow<wchar_t[]>(static_cast<size_t>(cch) + 1);
             RETURN_IF_NULL_ALLOC(allocated);
             RETURN_IF_FAILED(stream_read_nothrow(source, allocated.get(), static_cast<unsigned long>(cch) * sizeof(wchar_t)));
             allocated[cch] = 0;
