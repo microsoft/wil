@@ -4201,6 +4201,9 @@ namespace wil
 #if !defined(NOUSER) && !defined(NOWH)
     typedef unique_any<HHOOK, decltype(&::UnhookWindowsHookEx), ::UnhookWindowsHookEx> unique_hhook;
 #endif
+#if !defined(NOWINABLE)
+    typedef unique_any<HWINEVENTHOOK, decltype(&::UnhookWinEvent), ::UnhookWinEvent> unique_hwineventhook;
+#endif
 #endif // __WIL__WINUSER_
 
 #if !defined(NOGDI) && !defined(NODESKTOP)
@@ -4226,6 +4229,9 @@ namespace wil
 #if !defined(NOUSER) && !defined(NOWH)
     typedef shared_any<unique_hhook> shared_hhook;
 #endif
+#if !defined(NOWINABLE)
+    typedef shared_any<unique_hwineventhook> shared_hwineventhook;
+#endif
 
     typedef weak_any<shared_hheap> weak_hheap;
     typedef weak_any<shared_hlocal> weak_hlocal;
@@ -4241,6 +4247,9 @@ namespace wil
     typedef weak_any<shared_hwnd> weak_hwnd;
 #if !defined(NOUSER) && !defined(NOWH)
     typedef weak_any<shared_hhook> weak_hhook;
+#endif
+#if !defined(NOWINABLE)
+    typedef weak_any<shared_hwineventhook> weak_hwineventhook;
 #endif
 #endif // __WIL_WINBASE_DESKTOP_STL
 
