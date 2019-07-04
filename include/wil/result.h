@@ -1128,7 +1128,7 @@ namespace wil
         static unsigned char s_processLocalData[sizeof(*details_abi::g_pProcessLocalData)];
         static unsigned char s_threadFailureCallbacks[sizeof(*details::g_pThreadFailureCallbacks)];
 
-        details::InitGlobalWithStorage(state, s_processLocalData, details_abi::g_pProcessLocalData, "WilError_02");
+        details::InitGlobalWithStorage(state, s_processLocalData, details_abi::g_pProcessLocalData, "WilError_03");
         details::InitGlobalWithStorage(state, s_threadFailureCallbacks, details::g_pThreadFailureCallbacks);
     }
 
@@ -1136,7 +1136,7 @@ namespace wil
     namespace details
     {
 #ifndef RESULT_SUPPRESS_STATIC_INITIALIZERS
-        __declspec(selectany) ::wil::details_abi::ProcessLocalStorage<::wil::details_abi::ProcessLocalData> g_processLocalData("WilError_02");
+        __declspec(selectany) ::wil::details_abi::ProcessLocalStorage<::wil::details_abi::ProcessLocalData> g_processLocalData("WilError_03");
         __declspec(selectany) ::wil::details_abi::ThreadLocalStorage<ThreadFailureCallbackHolder*> g_threadFailureCallbacks;
 
         WI_HEADER_INITITALIZATION_FUNCTION(InitializeResultHeader, []
