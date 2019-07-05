@@ -243,6 +243,12 @@ namespace wil
     {
         return reinterpret_cast<HSTRING*>(winrt::put_abi(object));
     }
+
+    template<const GUID& guid>
+    constexpr winrt::guid const& guid_of() noexcept
+    {
+        return reinterpret_cast<const winrt::guid&>(guid);
+    }
 }
 
 #endif // __WIL_CPPWINRT_INCLUDED
