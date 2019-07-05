@@ -4324,6 +4324,9 @@ namespace wil
 
 #if defined(__ROAPI_H_) && !defined(__WIL__ROAPI_H_APP) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_SYSTEM) && (NTDDI_VERSION >= NTDDI_WIN8)
 #define __WIL__ROAPI_H_APP
+
+    typedef unique_any<RO_REGISTRATION_COOKIE, decltype(&::RoRevokeActivationFactories), ::RoRevokeActivationFactories> unique_ro_registration_cookie;
+
     //! A type that calls RoUninitialize on destruction (or reset()).
     //! Use as a replacement for Windows::Foundation::Uninitialize.
     using unique_rouninitialize_call = unique_call<decltype(&::RoUninitialize), ::RoUninitialize>;
