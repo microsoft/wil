@@ -1103,7 +1103,7 @@ namespace wil
 
             if (failure.pszFile != nullptr)
             {
-                dest = details::LogStringPrintf(dest, destEnd, L"%hs(%d)\\%hs!%p: ", failure.pszFile, failure.uLineNumber, failure.pszModule, failure.returnAddress);
+                dest = details::LogStringPrintf(dest, destEnd, L"%hs(%u)\\%hs!%p: ", failure.pszFile, failure.uLineNumber, failure.pszModule, failure.returnAddress);
             }
             else
             {
@@ -2959,6 +2959,7 @@ namespace wil
             }
             __except (wil::details::TerminateAndReportError(GetExceptionInformation()), EXCEPTION_CONTINUE_SEARCH)
             {
+                WI_ASSERT(false);
             }
         }
 
