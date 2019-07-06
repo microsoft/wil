@@ -3447,7 +3447,7 @@ namespace wil
         }
     };
 
-    template <typename T>
+    template <typename T = void>
     using unique_process_heap_ptr = wistd::unique_ptr<T, process_heap_deleter>;
 
     typedef unique_any<PWSTR, decltype(&details::FreeProcessHeap), details::FreeProcessHeap> unique_process_heap_string;
@@ -3468,7 +3468,7 @@ namespace wil
     /** Manages a typed pointer allocated with VirtualAlloc
     A specialization of wistd::unique_ptr<> that frees via VirtualFree(p, 0, MEM_RELEASE).
     */
-    template<typename T>
+    template<typename T = void>
     using unique_virtualalloc_ptr = wistd::unique_ptr<T, virtualalloc_deleter>;
 
     /** Manages a typed pointer allocated with MapViewOfFile
@@ -3756,7 +3756,7 @@ namespace wil
 
     using hlocal_deleter = function_deleter<decltype(&::LocalFree), LocalFree>;
 
-    template <typename T>
+    template <typename T = void>
     using unique_hlocal_ptr = wistd::unique_ptr<T, hlocal_deleter>;
 
     /** Provides `std::make_unique()` semantics for resources allocated with `LocalAlloc()` in a context that may not throw upon allocation failure.
@@ -3984,7 +3984,7 @@ namespace wil
         }
     };
 
-    template <typename T>
+    template <typename T = void>
     using unique_hlocal_secure_ptr = wistd::unique_ptr<T, hlocal_secure_deleter>;
 
     /** Provides `std::make_unique()` semantics for secure resources allocated with `LocalAlloc()` in a context that may not throw upon allocation failure.
@@ -4140,7 +4140,7 @@ namespace wil
 
     using hglobal_deleter = function_deleter<decltype(&::GlobalFree), ::GlobalFree>;
 
-    template <typename T>
+    template <typename T = void>
     using unique_hglobal_ptr = wistd::unique_ptr<T, hglobal_deleter>;
 
     typedef unique_any<HGLOBAL, decltype(&::GlobalFree), ::GlobalFree> unique_hglobal;
@@ -4810,7 +4810,7 @@ namespace wil
     using midl_deleter = function_deleter<decltype(&::MIDL_user_free), MIDL_user_free>;
 
     //! Unique-ptr holding a type allocated by MIDL_user_alloc or returned from an RPC invocation
-    template<typename T> using unique_midl_ptr = wistd::unique_ptr<T, midl_deleter>;
+    template<typename T = void> using unique_midl_ptr = wistd::unique_ptr<T, midl_deleter>;
 
     //! Unique-ptr for strings allocated by MIDL_user_alloc
     using unique_midl_string = unique_midl_ptr<wchar_t>;
@@ -4841,7 +4841,7 @@ namespace wil
 #define __WIL_OBJBASE_H_
     using cotaskmem_deleter = function_deleter<decltype(&::CoTaskMemFree), ::CoTaskMemFree>;
 
-    template <typename T>
+    template <typename T = void>
     using unique_cotaskmem_ptr = wistd::unique_ptr<T, cotaskmem_deleter>;
 
     template <typename T>
@@ -5065,7 +5065,7 @@ namespace wil
         }
     };
 
-    template <typename T>
+    template <typename T = void>
     using unique_cotaskmem_secure_ptr = wistd::unique_ptr<T, cotaskmem_secure_deleter>;
 
     /** Provides `std::make_unique()` semantics for secure resources allocated with `CoTaskMemAlloc()` in a context that may not throw upon allocation failure.
@@ -5479,6 +5479,27 @@ namespace wil
     ~~~
     */
     using unique_process_information = unique_struct<PROCESS_INFORMATION, decltype(&details::CloseProcessInformation), details::CloseProcessInformation>;
+#endif
+
+#if defined(_PROCESSENV_) && !defined(__WIL__PROCESSENV_) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_SYSTEM)
+#define __WIL__PROCESSENV_
+    /** Manages lifecycle of an environment-strings block
+    ~~~
+    wil::unique_environstrings_ptr env { ::GetEnvironmentStringsW() };
+    const wchar_t *nextVar = env.get();
+    while (nextVar && *nextVar)
+    {
+        // consume 'nextVar'
+        nextVar += wcslen(nextVar) + 1;
+    }
+    ~~~
+    */
+    using unique_environstrings_ptr = wistd::unique_ptr<wchar_t, function_deleter<decltype(&::FreeEnvironmentStringsW), FreeEnvironmentStringsW>>;
+
+#ifndef WIL_NO_ANSI_STRINGS
+    //! ANSI equivalent to unique_environstrings_ptr;
+    using unique_environansistrings_ptr = wistd::unique_ptr<char, function_deleter<decltype(&::FreeEnvironmentStringsA), FreeEnvironmentStringsA>>;
+#endif
 #endif
 
 #if defined(_APPMODEL_H_) && !defined(__WIL_APPMODEL_H_) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
