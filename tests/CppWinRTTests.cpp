@@ -1,7 +1,7 @@
 
-#include "catch.hpp"
-
 #include <wil/cppwinrt.h>
+
+#include "catch.hpp"
 
 // HRESULT values that C++/WinRT throws as something other than winrt::hresult_error - e.g. a type derived from
 // winrt::hresult_error, std::*, etc.

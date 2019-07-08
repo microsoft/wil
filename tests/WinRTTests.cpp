@@ -1,5 +1,5 @@
 
-#include <time.h>
+#include <time.h> // TODO: https://github.com/microsoft/wil/issues/44
 #include <wil/winrt.h>
 
 #ifdef WIL_ENABLE_EXCEPTIONS
@@ -487,13 +487,17 @@ void RunWhenCompleteCompilationTest()
     {
         ComPtr<IAsyncOperation<HSTRING>> stringOp;
         wil::run_when_complete(stringOp.Get(), [](HRESULT /* result */, HSTRING /* value */) {});
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
         auto result = wil::wait_for_completion(stringOp.Get());
+#endif
     }
 
     {
         ComPtr<IAsyncOperationWithProgress<HSTRING, UINT64>> stringOpWithProgress;
         wil::run_when_complete(stringOpWithProgress.Get(), [](HRESULT /* result */, HSTRING /* value */) {});
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
         auto result = wil::wait_for_completion(stringOpWithProgress.Get());
+#endif
     }
 }
 #endif
@@ -518,6 +522,7 @@ TEST_CASE("WinRTTests::RunWhenCompleteMoveOnlyTest", "[winrt][run_when_complete]
     REQUIRE(gotEvent);
 }
 
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
 TEST_CASE("WinRTTests::WaitForCompletionTimeout", "[winrt][wait_for_completion]")
 {
     auto op = Make<FakeAsyncOperation<bool, boolean>>();
@@ -606,6 +611,7 @@ void WaitForCompletionCompilationTest()
 #endif
 }
 #pragma warning(pop)
+#endif
 
 TEST_CASE("WinRTTests::TimeTTests", "[winrt][time_t]")
 {

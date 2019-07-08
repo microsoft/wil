@@ -44,12 +44,16 @@ if (${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
 
     # clang-cl does not understand the /permissive- flag (or at least it opts to ignore it). We can achieve similar
     # results through the following flags.
-    # TODO: https://github.com/Microsoft/wil/issues/10 - not yet clean enough to have this on by default
-    # append_cxx_flag("-fno-delayed-template-parsing")
+    append_cxx_flag("-fno-delayed-template-parsing")
 
     # NOTE: Windows headers not clean enough for us to realistically attempt to start fixing these errors yet. That
     # said, errors that originate from WIL headers may benefit
     # append_cxx_flag("-fno-ms-compatibility")
+    # append_cxx_flag("-ferror-limit=999")
+    # append_cxx_flag("-fmacro-backtrace-limit=0")
+    # -fno-ms-compatibility turns off preprocessor compatability, which currently only works when __VA_OPT__ support is
+    # available (i.e. >= C++20)
+    # append_cxx_flag("-Xclang -std=c++2a")
 else()
     # Flags that are either ignored or unrecognized by clang-cl
     # TODO: https://github.com/Microsoft/wil/issues/6

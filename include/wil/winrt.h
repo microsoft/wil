@@ -1360,6 +1360,7 @@ namespace details
         return operation->put_Completed(callback.Get());
     }
 
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
     template <typename TIOperation>
     HRESULT WaitForCompletion(_In_ TIOperation operation, COWAIT_FLAGS flags, DWORD timeoutValue, _Out_opt_ bool* timedOut) WI_NOEXCEPT
     {
@@ -1433,6 +1434,7 @@ namespace details
         RETURN_IF_FAILED_EXPECTED(details::WaitForCompletion(operation, flags, timeoutValue, timedOut));
         return operation->GetResults(result);
     }
+#endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
 }
 /// @endcond
 
@@ -1516,6 +1518,7 @@ void run_when_complete(_In_ ABI::Windows::Foundation::IAsyncActionWithProgress<T
 }
 #endif
 
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
 /** Wait for an asynchronous operation to complete (or be canceled).
 Use to synchronously wait on async operations on background threads.
 Do not call from UI threads or STA threads as reentrancy will result.
@@ -1616,6 +1619,7 @@ auto call_and_wait_for_completion(I* object, HRESULT(STDMETHODCALLTYPE I::*func)
     return wil::wait_for_completion(op.Get());
 }
 #endif
+#endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
 
 #pragma endregion
 
