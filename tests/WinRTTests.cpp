@@ -846,3 +846,17 @@ TEST_CASE("WinRTTests::VectorRangeLeakTest", "[winrt][vector_range]")
     REQUIRE(GetComObjectRefCount(verifyNotLeaked.Get()) == 1);
 #endif
 }
+
+TEST_CASE("WinRTTests::TwoPhaseConstructor", "[winrt][hstring]")
+{
+    const wchar_t left[] = L"left";
+    const wchar_t right[] = L"right";
+    ULONG needed = ARRAYSIZE(left) + ARRAYSIZE(right) - 1;
+    auto maker = wil::TwoPhaseHStringConstructor::Preallocate(needed);
+    REQUIRE_SUCCEEDED(StringCbCopyW(maker.Get(), maker.ByteSize(), left));
+    REQUIRE_SUCCEEDED(StringCbCatW(maker.Get(), maker.ByteSize(), right));
+    REQUIRE_SUCCEEDED(maker.Validate(needed * sizeof(wchar_t)));
+
+    wil::unique_hstring promoted{ maker.Promote() };
+    REQUIRE(wcscmp(L"leftright", str_raw_ptr(promoted)) == 0);
+}

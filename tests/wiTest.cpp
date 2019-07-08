@@ -2750,7 +2750,7 @@ public:
     HRESULT RuntimeClassInitialize(UINT n) { m_number = n; return S_OK; };
     STDMETHOD_(void, DoStuff)() {}
 private:
-    UINT m_number;
+    UINT m_number{};
 };
 
 void GetUnknownArray(_Out_ size_t* count, _Outptr_result_buffer_(*count) IFakeObject*** objects)
@@ -3347,7 +3347,7 @@ struct ConditionVariableSRWCallbackContext
 template <typename T>
 static void __stdcall ConditionVariableCallback(
     _Inout_ PTP_CALLBACK_INSTANCE /*Instance*/,
-    _Inout_opt_ void* Context)
+    _In_ void* Context)
 {
     auto callbackContext = reinterpret_cast<T*>(Context);
 
@@ -3453,7 +3453,7 @@ void VerifyAlignment()
     {
         char c;
         Wrapper<alignment_sensitive_struct> wrapper;
-    } possibly_misaligned;
+    } possibly_misaligned{};
 
     static_assert(alignof(attempted_misalignment) == alignof(alignment_sensitive_struct), "Wrapper type does not respect alignment");
 

@@ -81,7 +81,7 @@ struct object_counter
         ::InterlockedIncrement(&state->copy_count);
     }
 
-    object_counter(object_counter&& other) :
+    object_counter(object_counter&& other) WI_NOEXCEPT :
         state(other.state)
     {
         ::InterlockedIncrement(&state->constructed_count);
@@ -100,7 +100,7 @@ struct object_counter
         return *this;
     }
 
-    object_counter& operator=(object_counter&&)
+    object_counter& operator=(object_counter&&) WI_NOEXCEPT
     {
         ::InterlockedIncrement(&state->move_count);
         return *this;

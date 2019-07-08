@@ -633,3 +633,57 @@ TEST_CASE("UniqueMidlStringTests", "[resource][rpc]")
 
     wil::unique_midl_ptr<int> intSingle{ reinterpret_cast<int*>(::MIDL_user_allocate(sizeof(int) * 1)) };
 }
+
+TEST_CASE("UniqueEnvironmentStrings", "[resource][win32]")
+{
+    wil::unique_environstrings_ptr env{ ::GetEnvironmentStringsW() };
+    const wchar_t* nextVar = env.get();
+    while (nextVar &&* nextVar)
+    {
+        // consume 'nextVar'
+        nextVar += wcslen(nextVar) + 1;
+    }
+
+    wil::unique_environansistrings_ptr envAnsi{ ::GetEnvironmentStringsA() };
+    const char* nextVarAnsi = envAnsi.get();
+    while (nextVarAnsi && *nextVarAnsi)
+    {
+        // consume 'nextVar'
+        nextVarAnsi += strlen(nextVarAnsi) + 1;
+    }
+}
+
+TEST_CASE("UniqueVariant", "[resource][com]")
+{
+    wil::unique_variant var;
+    var.vt = VT_BSTR;
+    var.bstrVal = ::SysAllocString(L"25");
+    REQUIRE(var.bstrVal != nullptr);
+
+    auto call = [](const VARIANT&) {};
+    call(var);
+
+    VARIANT weakVar = var;
+    (void)weakVar;
+
+    wil::unique_variant var2;
+    REQUIRE_SUCCEEDED(VariantChangeType(&var2, &var, 0, VT_UI4));
+    REQUIRE(var2.vt == VT_UI4);
+    REQUIRE(var2.uiVal == 25);
+}
+
+TEST_CASE("DefaultTemplateParamCompiles", "[resource]")
+{
+    wil::unique_process_heap_ptr<> a;
+    wil::unique_virtualalloc_ptr<> b;
+
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+    wil::unique_hlocal_ptr<> c;
+    wil::unique_hlocal_secure_ptr<> d;
+    wil::unique_hglobal_ptr<> e;
+    wil::unique_cotaskmem_secure_ptr<> f;
+#endif
+
+    wil::unique_midl_ptr<> g;
+    wil::unique_cotaskmem_ptr<> h;
+}

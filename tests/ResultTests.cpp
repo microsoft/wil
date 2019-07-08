@@ -24,7 +24,7 @@ struct SharedObject
     {
     }
 
-    int value;
+    int value{};
 };
 
 TEST_CASE("ResultTests::SemaphoreValue", "[result]")

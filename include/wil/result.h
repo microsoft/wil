@@ -64,7 +64,7 @@ namespace wil
             SemaphoreValue(const SemaphoreValue&) = delete;
             SemaphoreValue& operator=(const SemaphoreValue&) = delete;
 
-            SemaphoreValue(SemaphoreValue&& other) :
+            SemaphoreValue(SemaphoreValue&& other) WI_NOEXCEPT :
                 m_semaphore(wistd::move(other.m_semaphore)),
                 m_semaphoreHigh(wistd::move(other.m_semaphoreHigh))
             {
@@ -91,7 +91,7 @@ namespace wil
             }
 
             template <typename T>
-            static HRESULT TryGetValue(PCWSTR name, _Out_ T* value, _Out_ bool *retrieved = nullptr)
+            static HRESULT TryGetValue(PCWSTR name, _Out_ T* value, _Out_opt_ bool *retrieved = nullptr)
             {
                 *value = static_cast<T>(0);
                 unsigned __int64 value64 = 0;
@@ -409,7 +409,7 @@ namespace wil
                     Node *pNew = reinterpret_cast<Node *>(::HeapAlloc(::GetProcessHeap(), 0, sizeof(Node)));
                     if (pNew != nullptr)
                     {
-                        new(pNew)Node(threadId);
+                        new(pNew)Node{ threadId };
 
                         Node *pFirst;
                         do
@@ -428,16 +428,9 @@ namespace wil
 
             struct Node
             {
-                T value;
                 DWORD threadId;
-                Node *pNext;
-
-                Node(DWORD currentThreadId) :
-                    value(),
-                    threadId(currentThreadId),
-                    pNext(nullptr)
-                {
-                }
+                Node* pNext = nullptr;
+                T value{};
             };
 
             Node * volatile m_hashArray[10]{};
@@ -510,7 +503,8 @@ namespace wil
 
                     pBuffer = details::WriteResultString(pBuffer, pBufferEnd, info.pszFile, &fileName);
                     pBuffer = details::WriteResultString(pBuffer, pBufferEnd, info.pszModule, &modulePath);
-                    details::WriteResultString(pBuffer, pBufferEnd, info.pszMessage, &message);
+                    pBuffer = details::WriteResultString(pBuffer, pBufferEnd, info.pszMessage, &message);
+                    ZeroMemory(pBuffer, pBufferEnd - pBuffer);
                 }
             }
 
@@ -852,8 +846,8 @@ namespace wil
 
     private:
         details_abi::ThreadLocalData* m_data;
-        unsigned long m_sequenceIdStart;
-        unsigned long m_sequenceIdLast;
+        unsigned long m_sequenceIdStart{};
+        unsigned long m_sequenceIdLast{};
     };
 
 
@@ -1073,7 +1067,7 @@ namespace wil
         class ThreadFailureCallbackFn final : public IFailureCallback
         {
         public:
-            explicit ThreadFailureCallbackFn(_In_ CallContextInfo *pContext, _Inout_ TLambda &&errorFunction) WI_NOEXCEPT :
+            explicit ThreadFailureCallbackFn(_In_opt_ CallContextInfo *pContext, _Inout_ TLambda &&errorFunction) WI_NOEXCEPT :
                 m_errorFunction(wistd::move(errorFunction)),
                 m_callbackHolder(this, pContext)
             {
@@ -1225,13 +1219,13 @@ namespace wil
         {
         }
 
-        ThreadFailureCache(ThreadFailureCache && rhs) :
+        ThreadFailureCache(ThreadFailureCache && rhs) WI_NOEXCEPT :
             m_failure(wistd::move(rhs.m_failure)),
             m_callbackHolder(this)
         {
         }
 
-        ThreadFailureCache& operator=(ThreadFailureCache && rhs)
+        ThreadFailureCache& operator=(ThreadFailureCache && rhs) WI_NOEXCEPT
         {
             m_failure = wistd::move(rhs.m_failure);
             return *this;
