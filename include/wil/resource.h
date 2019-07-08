@@ -3511,7 +3511,7 @@ namespace wil
     //     {
     //         currentState = GetGlobalState();
     //     });
-    // RETURN_HR_IF(E_OUTOFMEMORY, !globalStateWatcher);
+    // RETURN_IF_NULL_ALLOC(globalStateWatcher);
     //
     // UpdateGlobalState(value);
     // globalStateWatcher.SetEvent(); // signal observers so they can update
