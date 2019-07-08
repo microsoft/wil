@@ -639,7 +639,7 @@ namespace wil
     When these are encountered in the public SDK, their type should not be changed and you should use a static_cast
     to use this value in a macro that utilizes `verify_hresult`, for example:
     ~~~~
-    RETURN_HR_IF_FALSE(static_cast<HRESULT>(UIA_E_NOTSUPPORTED), (patternId == UIA_DragPatternId));
+    RETURN_HR_IF(static_cast<HRESULT>(UIA_E_NOTSUPPORTED), (patternId != UIA_DragPatternId));
     ~~~~
     @param val The HRESULT returning expression
     @return An HRESULT representing the evaluation of `val`. */

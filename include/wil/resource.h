@@ -3511,7 +3511,7 @@ namespace wil
     //     {
     //         currentState = GetGlobalState();
     //     });
-    // RETURN_HR_IF_FALSE(E_OUTOFMEMORY, globalStateWatcher)
+    // RETURN_HR_IF(E_OUTOFMEMORY, !globalStateWatcher);
     //
     // UpdateGlobalState(value);
     // globalStateWatcher.SetEvent(); // signal observers so they can update
@@ -5475,7 +5475,7 @@ namespace wil
     unique_process_information process;
     CreateProcessW(..., CREATE_SUSPENDED, ..., &process);
     THROW_IF_WIN32_BOOL_FALSE(ResumeThread(process.hThread));
-    THROW_LAST_ERROR_IF_FALSE(WaitForSingleObject(process.hProcess, INFINITE) == WAIT_OBJECT_0);
+    THROW_LAST_ERROR_IF(WaitForSingleObject(process.hProcess, INFINITE) != WAIT_OBJECT_0);
     ~~~
     */
     using unique_process_information = unique_struct<PROCESS_INFORMATION, decltype(&details::CloseProcessInformation), details::CloseProcessInformation>;
