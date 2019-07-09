@@ -16,9 +16,9 @@
 #endif
 
 #include <new>
-#include <PathCch.h>
 #include <combaseapi.h> // Needed for CoTaskMemFree() used in output of some helpers.
 #include <winbase.h> // LocalAlloc
+#include <PathCch.h>
 #include "result.h"
 #include "win32_helpers.h"
 #include "resource.h"
