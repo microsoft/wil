@@ -49,7 +49,7 @@ namespace wil
     //     {
     //         // invalidate cached registry data here
     //     });
-    // RETURN_HR_IF_FALSE(E_OUTOFMEMORY, watcher);
+    // RETURN_IF_NULL_ALLOC(watcher);
 
     enum class RegistryChangeKind
     {

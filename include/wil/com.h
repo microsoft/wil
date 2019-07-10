@@ -2018,7 +2018,7 @@ namespace wil
     IStream* source = // ...
     ULONGLONG size;
     RETURN_IF_FAILED(wil::stream_size_nothrow(source, &size));
-    RETURN_HR_IF_FALSE(E_INVALIDARG, size <= ULONG_MAX);
+    RETURN_HR_IF(E_INVALIDARG, size > ULONG_MAX);
     ~~~~
     @param stream The stream whose size is to be returned in `value`
     @param value The size, in bytes, reported by `stream`
