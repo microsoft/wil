@@ -96,7 +96,7 @@ namespace wistd     // ("Windows Implementation" std)
 #ifndef __WI_LIBCPP_CXX03_LANG
         template <class ..._Args>
         static void __call(_Args&&... __args) {
-            __invoke(wistd::forward<_Args>(__args)...);
+            (void)__invoke(wistd::forward<_Args>(__args)...);
         }
 #else
         template <class _Fn>
@@ -262,6 +262,7 @@ namespace wistd     // ("Windows Implementation" std)
         static constexpr size_t __buffer_size = 13 * sizeof(void*);
 
         typedef __function::__base<_Rp(_ArgTypes...)> __base;
+        __WI_LIBCPP_SUPPRESS_NONINIT_ANALYSIS
         typename aligned_storage<__buffer_size>::type __buf_;
         __base* __f_;
 
@@ -298,7 +299,7 @@ namespace wistd     // ("Windows Implementation" std)
         typedef _Rp result_type;
 
         // construct/copy/destroy:
-        __WI_LIBCPP_INLINE_VISIBILITY
+        __WI_LIBCPP_INLINE_VISIBILITY __WI_LIBCPP_SUPPRESS_NONINIT_ANALYSIS
         function() WI_NOEXCEPT : __f_(0) {}
         __WI_LIBCPP_INLINE_VISIBILITY
         function(nullptr_t) WI_NOEXCEPT : __f_(0) {}
@@ -336,6 +337,7 @@ namespace wistd     // ("Windows Implementation" std)
     };
 
     template<class _Rp, class ..._ArgTypes>
+    __WI_LIBCPP_SUPPRESS_NONINIT_ANALYSIS
     function<_Rp(_ArgTypes...)>::function(const function& __f)
     {
         if (__f.__f_ == 0)
@@ -348,6 +350,7 @@ namespace wistd     // ("Windows Implementation" std)
     }
 
     template<class _Rp, class ..._ArgTypes>
+    __WI_LIBCPP_SUPPRESS_NONINIT_ANALYSIS __WI_LIBCPP_SUPPRESS_NOEXCEPT_ANALYSIS
     function<_Rp(_ArgTypes...)>::function(function&& __f)
     {
         if (__f.__f_ == 0)
@@ -363,6 +366,7 @@ namespace wistd     // ("Windows Implementation" std)
 
     template<class _Rp, class ..._ArgTypes>
     template <class _Fp, class>
+    __WI_LIBCPP_SUPPRESS_NONINIT_ANALYSIS
     function<_Rp(_ArgTypes...)>::function(_Fp __f)
         : __f_(0)
     {

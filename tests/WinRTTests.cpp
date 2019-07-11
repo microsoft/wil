@@ -1,5 +1,5 @@
 
-#include <time.h>
+#include <time.h> // TODO: https://github.com/microsoft/wil/issues/44
 #include <wil/winrt.h>
 
 #ifdef WIL_ENABLE_EXCEPTIONS
@@ -487,13 +487,17 @@ void RunWhenCompleteCompilationTest()
     {
         ComPtr<IAsyncOperation<HSTRING>> stringOp;
         wil::run_when_complete(stringOp.Get(), [](HRESULT /* result */, HSTRING /* value */) {});
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
         auto result = wil::wait_for_completion(stringOp.Get());
+#endif
     }
 
     {
         ComPtr<IAsyncOperationWithProgress<HSTRING, UINT64>> stringOpWithProgress;
         wil::run_when_complete(stringOpWithProgress.Get(), [](HRESULT /* result */, HSTRING /* value */) {});
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
         auto result = wil::wait_for_completion(stringOpWithProgress.Get());
+#endif
     }
 }
 #endif
@@ -518,6 +522,7 @@ TEST_CASE("WinRTTests::RunWhenCompleteMoveOnlyTest", "[winrt][run_when_complete]
     REQUIRE(gotEvent);
 }
 
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
 TEST_CASE("WinRTTests::WaitForCompletionTimeout", "[winrt][wait_for_completion]")
 {
     auto op = Make<FakeAsyncOperation<bool, boolean>>();
@@ -606,6 +611,7 @@ void WaitForCompletionCompilationTest()
 #endif
 }
 #pragma warning(pop)
+#endif
 
 TEST_CASE("WinRTTests::TimeTTests", "[winrt][time_t]")
 {
@@ -839,4 +845,18 @@ TEST_CASE("WinRTTests::VectorRangeLeakTest", "[winrt][vector_range]")
     inspectables = nullptr; // clear all refs to verifyNotLeaked
     REQUIRE(GetComObjectRefCount(verifyNotLeaked.Get()) == 1);
 #endif
+}
+
+TEST_CASE("WinRTTests::TwoPhaseConstructor", "[winrt][hstring]")
+{
+    const wchar_t left[] = L"left";
+    const wchar_t right[] = L"right";
+    ULONG needed = ARRAYSIZE(left) + ARRAYSIZE(right) - 1;
+    auto maker = wil::TwoPhaseHStringConstructor::Preallocate(needed);
+    REQUIRE_SUCCEEDED(StringCbCopyW(maker.Get(), maker.ByteSize(), left));
+    REQUIRE_SUCCEEDED(StringCbCatW(maker.Get(), maker.ByteSize(), right));
+    REQUIRE_SUCCEEDED(maker.Validate(needed * sizeof(wchar_t)));
+
+    wil::unique_hstring promoted{ maker.Promote() };
+    REQUIRE(wcscmp(L"leftright", str_raw_ptr(promoted)) == 0);
 }

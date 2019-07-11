@@ -40,6 +40,7 @@ struct value_holder
 // Example real type that is move only is Microsoft::WRL::Wrappers::HString
 struct cannot_copy
 {
+    cannot_copy() = default;
     cannot_copy(const cannot_copy&) = delete;
     cannot_copy& operator=(const cannot_copy&) = delete;
 
@@ -80,7 +81,7 @@ struct object_counter
         ::InterlockedIncrement(&state->copy_count);
     }
 
-    object_counter(object_counter&& other) :
+    object_counter(object_counter&& other) WI_NOEXCEPT :
         state(other.state)
     {
         ::InterlockedIncrement(&state->constructed_count);
@@ -99,7 +100,7 @@ struct object_counter
         return *this;
     }
 
-    object_counter& operator=(object_counter&&)
+    object_counter& operator=(object_counter&&) WI_NOEXCEPT
     {
         ::InterlockedIncrement(&state->move_count);
         return *this;

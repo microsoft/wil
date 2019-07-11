@@ -16,6 +16,7 @@
 #include <libloaderapi.h> // GetProcAddress
 #include <Psapi.h> // GetModuleFileNameExW (macro), K32GetModuleFileNameExW
 #include <PathCch.h>
+#include <objbase.h>
 
 #include "result.h"
 #include "resource.h"
@@ -137,6 +138,7 @@ namespace wil
         });
     }
 
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM | WINAPI_PARTITION_GAMES)
     /** Searches for a specified file in a specified path using ExpandEnvironmentStringsW(); */
     template <typename string_type, size_t stackBufferLength = 256>
     HRESULT SearchPathW(_In_opt_ PCWSTR path, _In_ PCWSTR fileName, _In_opt_ PCWSTR extension, string_type& result) WI_NOEXCEPT
@@ -197,6 +199,7 @@ namespace wil
 
         return S_OK;
     }
+#endif
 
     /** Looks up the environment variable 'key' and fails if it is not found.
     'key' should not have '%' prefix and suffix.
@@ -342,6 +345,7 @@ namespace wil
         return result;
     }
 
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM | WINAPI_PARTITION_GAMES)
     /** Searches for a specified file in a specified path using SearchPathW*/
     template <typename string_type = wil::unique_cotaskmem_string, size_t stackBufferLength = 256>
     string_type TrySearchPathW(_In_opt_ PCWSTR path, _In_ PCWSTR fileName, PCWSTR _In_opt_ extension)
@@ -351,6 +355,7 @@ namespace wil
         THROW_HR_IF(searchHR, FAILED(searchHR) && (searchHR != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND)));
         return result;
     }
+#endif
 
     /** Looks up the environment variable 'key' and fails if it is not found.
     'key' should not have '%' prefix and suffix.

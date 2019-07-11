@@ -593,9 +593,9 @@ ComObject : witest::AllocatedObject,
     public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::RuntimeClassType::ClassicCom>,
                                         ITest, IDerivedTest, IAlways>{
 public:
-    IFACEMETHODIMP_(void) Test() {}
-    IFACEMETHODIMP_(void) TestDerived() {}
-    IFACEMETHODIMP_(void) Always() {}
+    COM_DECLSPEC_NOTHROW IFACEMETHODIMP_(void) Test() {}
+    COM_DECLSPEC_NOTHROW IFACEMETHODIMP_(void) TestDerived() {}
+    COM_DECLSPEC_NOTHROW IFACEMETHODIMP_(void) Always() {}
 };
 
 class __declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20b01")) // non-implemented to allow QI for the class to be attempted (and fail)
@@ -604,11 +604,11 @@ WinRtObject : witest::AllocatedObject,
                                         ITest, IDerivedTest, ITestInspectable, IDerivedTestInspectable, IAlways, Microsoft::WRL::FtmBase>
 {
 public:
-    IFACEMETHODIMP_(void) Test() {}
-    IFACEMETHODIMP_(void) TestDerived() {}
-    IFACEMETHODIMP_(void) TestInspctable() {}
-    IFACEMETHODIMP_(void) TestInspctableDerived() {}
-    IFACEMETHODIMP_(void) Always() {}
+    COM_DECLSPEC_NOTHROW IFACEMETHODIMP_(void) Test() {}
+    COM_DECLSPEC_NOTHROW IFACEMETHODIMP_(void) TestDerived() {}
+    COM_DECLSPEC_NOTHROW IFACEMETHODIMP_(void) TestInspctable() {}
+    COM_DECLSPEC_NOTHROW IFACEMETHODIMP_(void) TestInspctableDerived() {}
+    COM_DECLSPEC_NOTHROW IFACEMETHODIMP_(void) Always() {}
 };
 
 class NoCom : witest::AllocatedObject
@@ -2521,7 +2521,7 @@ TEST_CASE("StreamTests::Read", "[com][IStream]")
 TEST_CASE("StreamTests::Write", "[com][IStream]")
 {
     FakeStream stream;
-    BYTE buffer[16];
+    BYTE buffer[16] = { 8, 6, 7, 5, 3, 0, 9 };
 
     stream.MaxWriteSize = sizeof(buffer) + 1;
     REQUIRE_SUCCEEDED(wil::stream_write_nothrow(&stream, buffer, sizeof(buffer)));

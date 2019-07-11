@@ -1,18 +1,16 @@
 
-#include <wil/common.h>
-
-#ifdef WIL_ENABLE_EXCEPTIONS
-#include <memory>
-#include <set>
-#include <unordered_set>
-#endif
-
 #include <wil/result.h>
 #include <wil/resource.h>
 #include <wil/win32_helpers.h>
 #include <wil/filesystem.h>
 #include <wil/wrl.h>
 #include <wil/com.h>
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+#include <memory>
+#include <set>
+#include <unordered_set>
+#endif
 
 // Do not include most headers until after the WIL headers to ensure that we're not inadvertently adding any unnecessary
 // dependencies to STL, WRL, or indirectly retrieved headers
@@ -2752,7 +2750,7 @@ public:
     HRESULT RuntimeClassInitialize(UINT n) { m_number = n; return S_OK; };
     STDMETHOD_(void, DoStuff)() {}
 private:
-    UINT m_number;
+    UINT m_number{};
 };
 
 void GetUnknownArray(_Out_ size_t* count, _Outptr_result_buffer_(*count) IFakeObject*** objects)
@@ -3349,7 +3347,7 @@ struct ConditionVariableSRWCallbackContext
 template <typename T>
 static void __stdcall ConditionVariableCallback(
     _Inout_ PTP_CALLBACK_INSTANCE /*Instance*/,
-    _Inout_opt_ void* Context)
+    _In_ void* Context)
 {
     auto callbackContext = reinterpret_cast<T*>(Context);
 
@@ -3455,7 +3453,7 @@ void VerifyAlignment()
     {
         char c;
         Wrapper<alignment_sensitive_struct> wrapper;
-    } possibly_misaligned;
+    } possibly_misaligned{};
 
     static_assert(alignof(attempted_misalignment) == alignof(alignment_sensitive_struct), "Wrapper type does not respect alignment");
 
