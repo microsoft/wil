@@ -438,28 +438,61 @@ namespace wil
     }
 #endif // WIL_ENABLE_EXCEPTIONS
 
-    template<typename... Ts> constexpr auto static_sid(const SID_IDENTIFIER_AUTHORITY& authority, Ts&& ... subAuthorities)
+    namespace details
     {
-        struct FakeSid
+        template<size_t AuthorityCount> struct static_sid_t
         {
             BYTE Revision;
             BYTE SubAuthorityCount;
             SID_IDENTIFIER_AUTHORITY IdentifierAuthority;
-            DWORD SubAuthority[sizeof...(subAuthorities)];
+            DWORD SubAuthority[AuthorityCount];
 
             PSID get()
             {
                 return reinterpret_cast<PSID>(this);
             }
+
+            template<size_t other> static_sid_t& operator=(const static_sid_t<other>& source)
+            {
+                static_assert(other <= AuthorityCount, "Cannot assign from a larger static sid to a smaller one");
+
+                if (&this->Revision != &source.Revision)
+                {
+                    memcpy(this, &source, sizeof(source));
+                }
+
+                return *this;
+            }
         };
+    }
+
+    /** Returns a structure containing a Revision 1 SID initialized with the authorities provided
+    Replaces AllocateAndInitializeSid by constructing a structure laid out like a PSID, but
+    returned like a value. The resulting object is suitable for use with any method taking PSID,
+    passed by "&the_sid" or via "the_sid.get()"
+    ~~~~
+    // Change the owner of the key to administrators
+    auto systemSid = wil::static_sid(SECURITY_NT_AUTHORITY, SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS);
+    RETURN_IF_WIN32_ERROR(SetNamedSecurityInfo(keyPath, SE_REGISTRY_KEY, OWNER_SECURITY_INFORMATION, &systemSid, nullptr, nullptr, nullptr));
+    ~~~~
+    */
+    template<typename... Ts> constexpr auto static_sid(const SID_IDENTIFIER_AUTHORITY& authority, Ts&&... subAuthorities)
+    {
+        using sid_t = details::static_sid_t<sizeof...(subAuthorities)>;
 
         static_assert(sizeof...(subAuthorities) <= SID_MAX_SUB_AUTHORITIES, "too many sub authorities");
-        static_assert(offsetof(FakeSid, Revision) == offsetof(_SID, Revision), "layout mismatch");
-        static_assert(offsetof(FakeSid, SubAuthorityCount) == offsetof(_SID, SubAuthorityCount), "layout mismatch");
-        static_assert(offsetof(FakeSid, IdentifierAuthority) == offsetof(_SID, IdentifierAuthority), "layout mismatch");
-        static_assert(offsetof(FakeSid, SubAuthority) == offsetof(_SID, SubAuthority), "layout mismatch");
+        static_assert(offsetof(sid_t, Revision) == offsetof(_SID, Revision), "layout mismatch");
+        static_assert(offsetof(sid_t, SubAuthorityCount) == offsetof(_SID, SubAuthorityCount), "layout mismatch");
+        static_assert(offsetof(sid_t, IdentifierAuthority) == offsetof(_SID, IdentifierAuthority), "layout mismatch");
+        static_assert(offsetof(sid_t, SubAuthority) == offsetof(_SID, SubAuthority), "layout mismatch");
 
-        return FakeSid{ SID_REVISION, sizeof...(subAuthorities), authority, { static_cast<DWORD>(subAuthorities)... } };
+        return sid_t { SID_REVISION, sizeof...(subAuthorities), authority, { static_cast<DWORD>(subAuthorities)... } };
+    }
+
+    //! Variant of static_sid that defaults to the NT authority
+    template<typename... Ts> constexpr auto static_nt_sid(Ts&& ... subAuthorities)
+    {
+        return static_sid(SECURITY_NT_AUTHORITY, wistd::forward<Ts>(subAuthorities)...);
     }
 
     /** Determines whether a specified security identifier (SID) is enabled in an access token.
@@ -482,12 +515,9 @@ namespace wil
         const SID_IDENTIFIER_AUTHORITY& sidAuthority, Ts&&... subAuthorities)
     {
         *result = false;
-
-        static_assert(sizeof...(subAuthorities) <= SID_MAX_SUB_AUTHORITIES, "The maximum allowed number of sub-authorities is 8 (limitation of AllocateAndInitializeSid)");
-
         auto tempSid = static_sid(sidAuthority, wistd::forward<Ts>(subAuthorities)...);
         BOOL isMember;
-        RETURN_IF_WIN32_BOOL_FALSE(CheckTokenMembership(token, tempSid.get(), &isMember));
+        RETURN_IF_WIN32_BOOL_FALSE(CheckTokenMembership(token, &tempSid, &isMember));
 
         *result = (isMember != FALSE);
 

@@ -252,6 +252,28 @@ TEST_CASE("TokenHelpersTests::VerifyGetTokenInformationSecurityImpersonationLeve
     RevertToSelf();
 }
 
+bool operator==(const SID_IDENTIFIER_AUTHORITY& left, const SID_IDENTIFIER_AUTHORITY& right)
+{
+    return memcmp(&left, &right, sizeof(left)) == 0;
+}
+
+TEST_CASE("TokenHelpersTests::StaticSid", "[token_helpers]")
+{
+    SID_IDENTIFIER_AUTHORITY ntAuthority = SECURITY_NT_AUTHORITY;
+    auto staticSid = wil::static_sid(SECURITY_NT_AUTHORITY, SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_GUESTS);
+    auto largerSid = wil::static_sid(SECURITY_NT_AUTHORITY, SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_GUESTS, DOMAIN_ALIAS_RID_BACKUP_OPS);
+
+    largerSid = staticSid;
+    largerSid = largerSid;
+    // staticSid = largerSid; // Uncommenting this correctly fails to compile.
+
+    REQUIRE(IsValidSid(staticSid.get()));
+    REQUIRE(*GetSidSubAuthorityCount(staticSid.get()) == 2);
+    REQUIRE(*GetSidIdentifierAuthority(staticSid.get()) == ntAuthority);
+    REQUIRE(*GetSidSubAuthority(staticSid.get(), 0) == SECURITY_BUILTIN_DOMAIN_RID);
+    REQUIRE(*GetSidSubAuthority(staticSid.get(), 1) == DOMAIN_ALIAS_RID_GUESTS);
+}
+
 TEST_CASE("TokenHelpersTests::TestMembership", "[token_helpers]")
 {
     bool member;
@@ -260,8 +282,6 @@ TEST_CASE("TokenHelpersTests::TestMembership", "[token_helpers]")
         GetCurrentThreadEffectiveToken(),
         SECURITY_NT_AUTHORITY,
         SECURITY_AUTHENTICATED_USER_RID));
-
-
 }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
