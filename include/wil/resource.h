@@ -8,7 +8,6 @@
 //    PARTICULAR PURPOSE AND NONINFRINGEMENT.
 //
 //*********************************************************
-#include <stdint.h> // SIZE_MAX
 
 #include "result_macros.h"
 #include "wistd_functional.h"
@@ -20,6 +19,14 @@
 
 #ifndef __WIL_RESOURCE
 #define __WIL_RESOURCE
+
+// stdint.h and intsafe.h have conflicting definitions, so it's not safe to include either to pick up our dependencies,
+// so the definitions we need are copied below
+#ifdef _WIN64
+#define __WI_SIZE_MAX   0xffffffffffffffffui64 // UINT64_MAX
+#else /* _WIN64 */
+#define __WI_SIZE_MAX   0xffffffffui32 // UINT32_MAX
+#endif /* _WIN64 */
 
 // Forward declaration
 /// @cond
@@ -3808,7 +3815,7 @@ namespace wil
     {
         typedef typename wistd::remove_extent<T>::type E;
         static_assert(wistd::is_trivially_destructible<E>::value, "E has a destructor that won't be run when used with this function; use make_unique instead");
-        FAIL_FAST_IF((SIZE_MAX / sizeof(E)) < size);
+        FAIL_FAST_IF((__WI_SIZE_MAX / sizeof(E)) < size);
         size_t allocSize = sizeof(E) * size;
         unique_hlocal_ptr<T> sp(static_cast<E*>(::LocalAlloc(LMEM_FIXED, allocSize)));
         if (sp)
@@ -4899,7 +4906,7 @@ namespace wil
     {
         typedef typename wistd::remove_extent<T>::type E;
         static_assert(wistd::is_trivially_destructible<E>::value, "E has a destructor that won't be run when used with this function; use make_unique instead");
-        FAIL_FAST_IF((SIZE_MAX / sizeof(E)) < size);
+        FAIL_FAST_IF((__WI_SIZE_MAX / sizeof(E)) < size);
         size_t allocSize = sizeof(E) * size;
         unique_cotaskmem_ptr<T> sp(static_cast<E*>(::CoTaskMemAlloc(allocSize)));
         if (sp)

@@ -62,7 +62,7 @@
 #endif
 
 #if defined(_MSVC_LANG)
-#define __WI_SUPPRESS_4127_S __pragma(warning(push)) __pragma(warning(disable:4127)) __pragma(warning(disable:26498))
+#define __WI_SUPPRESS_4127_S __pragma(warning(push)) __pragma(warning(disable:4127)) __pragma(warning(disable:26498)) __pragma(warning(disable:4245))
 #define __WI_SUPPRESS_4127_E __pragma(warning(pop))
 #define __WI_SUPPRESS_NULLPTR_ANALYSIS __pragma(warning(suppress:28285)) __pragma(warning(suppress:6504))
 #define __WI_SUPPRESS_NONINIT_ANALYSIS __pragma(warning(suppress:26495))
