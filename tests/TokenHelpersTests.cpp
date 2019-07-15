@@ -252,6 +252,18 @@ TEST_CASE("TokenHelpersTests::VerifyGetTokenInformationSecurityImpersonationLeve
     RevertToSelf();
 }
 
+TEST_CASE("TokenHelpersTests::TestMembership", "[token_helpers]")
+{
+    bool member;
+    REQUIRE_NOTHROW(wil::test_token_membership_nothrow(
+        &member,
+        GetCurrentThreadEffectiveToken(),
+        SECURITY_NT_AUTHORITY,
+        SECURITY_AUTHENTICATED_USER_RID));
+
+
+}
+
 #ifdef WIL_ENABLE_EXCEPTIONS
 
 TEST_CASE("TokenHelpersTests::VerifyGetTokenInfo", "[token_helpers]")

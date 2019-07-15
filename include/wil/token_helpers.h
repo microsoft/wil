@@ -438,6 +438,30 @@ namespace wil
     }
 #endif // WIL_ENABLE_EXCEPTIONS
 
+    template<typename... Ts> constexpr auto static_sid(const SID_IDENTIFIER_AUTHORITY& authority, Ts&& ... subAuthorities)
+    {
+        struct FakeSid
+        {
+            BYTE Revision;
+            BYTE SubAuthorityCount;
+            SID_IDENTIFIER_AUTHORITY IdentifierAuthority;
+            DWORD SubAuthority[sizeof...(subAuthorities)];
+
+            PSID get()
+            {
+                return reinterpret_cast<PSID>(this);
+            }
+        };
+
+        static_assert(sizeof...(subAuthorities) <= SID_MAX_SUB_AUTHORITIES, "too many sub authorities");
+        static_assert(offsetof(FakeSid, Revision) == offsetof(_SID, Revision), "layout mismatch");
+        static_assert(offsetof(FakeSid, SubAuthorityCount) == offsetof(_SID, SubAuthorityCount), "layout mismatch");
+        static_assert(offsetof(FakeSid, IdentifierAuthority) == offsetof(_SID, IdentifierAuthority), "layout mismatch");
+        static_assert(offsetof(FakeSid, SubAuthority) == offsetof(_SID, SubAuthority), "layout mismatch");
+
+        return FakeSid{ SID_REVISION, sizeof...(subAuthorities), authority, { static_cast<DWORD>(subAuthorities)... } };
+    }
+
     /** Determines whether a specified security identifier (SID) is enabled in an access token.
     This function determines whether a security identifier, described by a given set of subauthorities, is enabled
     in the given access token. Note that only up to eight subauthorities can be passed to this function.
@@ -451,22 +475,19 @@ namespace wil
     @param token A handle to an access token. The handle must have TOKEN_QUERY access to the token, and must be an impersonation token. If token is nullptr, test_token_membership
            uses the impersonation token of the calling thread. If the thread is not impersonating, the function duplicates the thread's primary token to create an impersonation token.
     @param sidAuthority A reference to a SID_IDENTIFIER_AUTHORITY structure. This structure provides the top-level identifier authority value to set in the SID.
-    @param subAuthorities Up to eight subauthority values to place in the SID (this is a limit of AllocateAndInitializeSid).
+    @param subAuthorities Up to 15 subauthority values to place in the SID (this is a systemwide limit)
     @return S_OK on success, a FAILED hresult containing the win32 error from creating the SID or querying the token otherwise.
     */
     template<typename... Ts> HRESULT test_token_membership_nothrow(_Out_ bool* result, _In_opt_ HANDLE token,
-        const SID_IDENTIFIER_AUTHORITY& sidAuthority, Ts... subAuthorities)
+        const SID_IDENTIFIER_AUTHORITY& sidAuthority, Ts&&... subAuthorities)
     {
         *result = false;
 
-        static_assert(sizeof...(subAuthorities) <= 8, "The maximum allowed number of sub-authorities is 8 (limitation of AllocateAndInitializeSid)");
+        static_assert(sizeof...(subAuthorities) <= SID_MAX_SUB_AUTHORITIES, "The maximum allowed number of sub-authorities is 8 (limitation of AllocateAndInitializeSid)");
 
-        DWORD subAuthorityArray[8] = { subAuthorities... };
-        unique_any<PSID, decltype(&::FreeSid), ::FreeSid> groupSid;
-        RETURN_IF_WIN32_BOOL_FALSE(AllocateAndInitializeSid(const_cast<PSID_IDENTIFIER_AUTHORITY>(&sidAuthority), static_cast<BYTE>(sizeof...(subAuthorities)), subAuthorityArray[0], subAuthorityArray[1], subAuthorityArray[2], subAuthorityArray[3], subAuthorityArray[4], subAuthorityArray[5], subAuthorityArray[6], subAuthorityArray[7], &groupSid));
-
+        auto tempSid = static_sid(sidAuthority, wistd::forward<Ts>(subAuthorities)...);
         BOOL isMember;
-        RETURN_IF_WIN32_BOOL_FALSE(CheckTokenMembership(token, groupSid.get(), &isMember));
+        RETURN_IF_WIN32_BOOL_FALSE(CheckTokenMembership(token, tempSid.get(), &isMember));
 
         *result = (isMember != FALSE);
 
@@ -527,7 +548,7 @@ namespace wil
         const SID_IDENTIFIER_AUTHORITY& sidAuthority, Ts&&... subAuthorities)
     {
         bool result;
-        FAIL_FAST_IF_FAILED(test_token_membership_nothrow(&result, token, sidAuthority, static_cast<Ts&&>(subAuthorities)...));
+        FAIL_FAST_IF_FAILED(test_token_membership_nothrow(&result, token, sidAuthority, wistd::forward<Ts>(subAuthorities)...));
         return result;
     }
 
@@ -536,7 +557,7 @@ namespace wil
         Ts&&... subAuthorities)
     {
         bool result;
-        THROW_IF_FAILED(test_token_membership_nothrow(&result, token, sidAuthority, static_cast<Ts&&>(subAuthorities)...));
+        THROW_IF_FAILED(test_token_membership_nothrow(&result, token, sidAuthority, wistd::forward<Ts>(subAuthorities)...));
         return result;
     }
 #endif
