@@ -472,11 +472,11 @@ namespace wil
     passed by "&the_sid" or via "the_sid.get()"
     ~~~~
     // Change the owner of the key to administrators
-    auto systemSid = wil::static_sid(SECURITY_NT_AUTHORITY, SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS);
+    auto systemSid = wil::make_static_sid(SECURITY_NT_AUTHORITY, SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS);
     RETURN_IF_WIN32_ERROR(SetNamedSecurityInfo(keyPath, SE_REGISTRY_KEY, OWNER_SECURITY_INFORMATION, &systemSid, nullptr, nullptr, nullptr));
     ~~~~
     */
-    template<typename... Ts> constexpr auto static_sid(const SID_IDENTIFIER_AUTHORITY& authority, Ts&&... subAuthorities)
+    template<typename... Ts> constexpr auto make_static_sid(const SID_IDENTIFIER_AUTHORITY& authority, Ts&&... subAuthorities)
     {
         using sid_t = details::static_sid_t<sizeof...(subAuthorities)>;
 
@@ -490,9 +490,9 @@ namespace wil
     }
 
     //! Variant of static_sid that defaults to the NT authority
-    template<typename... Ts> constexpr auto static_nt_sid(Ts&& ... subAuthorities)
+    template<typename... Ts> constexpr auto make_static_nt_sid(Ts&& ... subAuthorities)
     {
-        return static_sid(SECURITY_NT_AUTHORITY, wistd::forward<Ts>(subAuthorities)...);
+        return make_static_sid(SECURITY_NT_AUTHORITY, wistd::forward<Ts>(subAuthorities)...);
     }
 
     /** Determines whether a specified security identifier (SID) is enabled in an access token.
@@ -515,7 +515,7 @@ namespace wil
         const SID_IDENTIFIER_AUTHORITY& sidAuthority, Ts&&... subAuthorities)
     {
         *result = false;
-        auto tempSid = static_sid(sidAuthority, wistd::forward<Ts>(subAuthorities)...);
+        auto tempSid = make_static_sid(sidAuthority, wistd::forward<Ts>(subAuthorities)...);
         BOOL isMember;
         RETURN_IF_WIN32_BOOL_FALSE(CheckTokenMembership(token, &tempSid, &isMember));
 
