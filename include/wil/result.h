@@ -1130,6 +1130,11 @@ namespace wil
 
         details::InitGlobalWithStorage(state, s_processLocalData, details_abi::g_pProcessLocalData, "WilError_03");
         details::InitGlobalWithStorage(state, s_threadFailureCallbacks, details::g_pThreadFailureCallbacks);
+
+        if (state == WilInitializeCommand::Create)
+        {
+            details::g_pfnGetContextAndNotifyFailure = details::GetContextAndNotifyFailure;
+        }
     }
 
     /// @cond
