@@ -1340,13 +1340,13 @@ namespace wil
                                _Out_writes_(callContextStringSizeChars) _Post_z_ PSTR callContextString, _Pre_satisfies_(callContextStringSizeChars > 0) size_t callContextStringSizeChars,
                                _Out_ FailureInfo *failure) WI_NOEXCEPT;
         template<FailureType, bool = false>                       
-        _When_((type == FailureType::Exception) || (type == FailureType::FailFast), _Analysis_noreturn_) __declspec(noinline) inline void ReportFailure(__R_FN_PARAMS_FULL, HRESULT hr, _In_opt_ PCWSTR message = nullptr, ReportFailureOptions options = ReportFailureOptions::None);
+        __declspec(noinline) inline void ReportFailure(__R_FN_PARAMS_FULL, HRESULT hr, _In_opt_ PCWSTR message = nullptr, ReportFailureOptions options = ReportFailureOptions::None);
         template<FailureType>
-        _When_((type == FailureType::Exception) || (type == FailureType::FailFast), _Analysis_noreturn_) inline void ReportFailure_ReplaceMsg(__R_FN_PARAMS_FULL, HRESULT hr, _Printf_format_string_ PCSTR formatString, ...);
+        inline void ReportFailure_ReplaceMsg(__R_FN_PARAMS_FULL, HRESULT hr, _Printf_format_string_ PCSTR formatString, ...);
         template<FailureType>
-        _When_((type == FailureType::Exception) || (type == FailureType::FailFast), _Analysis_noreturn_) __declspec(noinline) inline void ReportFailure_Hr(__R_FN_PARAMS_FULL, HRESULT hr);
+        __declspec(noinline) inline void ReportFailure_Hr(__R_FN_PARAMS_FULL, HRESULT hr);
         template<FailureType>
-        _When_((type == FailureType::Exception) || (type == FailureType::FailFast), _Analysis_noreturn_) __declspec(noinline) inline HRESULT ReportFailure_CaughtException(__R_FN_PARAMS_FULL, SupportedExceptions supported = SupportedExceptions::Default);
+        __declspec(noinline) inline HRESULT ReportFailure_CaughtException(__R_FN_PARAMS_FULL, SupportedExceptions supported = SupportedExceptions::Default);
 
         //*****************************************************************************
         // Fail fast helpers (for use only internally to WIL)
