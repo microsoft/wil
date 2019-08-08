@@ -1339,10 +1339,13 @@ namespace wil
                                bool fWantDebugString, _Out_writes_(debugStringSizeChars) _Post_z_ PWSTR debugString, _Pre_satisfies_(debugStringSizeChars > 0) size_t debugStringSizeChars,
                                _Out_writes_(callContextStringSizeChars) _Post_z_ PSTR callContextString, _Pre_satisfies_(callContextStringSizeChars > 0) size_t callContextStringSizeChars,
                                _Out_ FailureInfo *failure) WI_NOEXCEPT;
-        template<FailureType, bool = false>                       
+
+        __declspec(noinline) inline void ReportFailure(__R_FN_PARAMS_FULL, FailureType type, HRESULT hr, _In_opt_ PCWSTR message = nullptr, ReportFailureOptions options = ReportFailureOptions::None);
+        template<FailureType, bool = false>                 
         __declspec(noinline) inline void ReportFailure(__R_FN_PARAMS_FULL, HRESULT hr, _In_opt_ PCWSTR message = nullptr, ReportFailureOptions options = ReportFailureOptions::None);
         template<FailureType>
         inline void ReportFailure_ReplaceMsg(__R_FN_PARAMS_FULL, HRESULT hr, _Printf_format_string_ PCSTR formatString, ...);
+        __declspec(noinline) inline void ReportFailure_Hr(__R_FN_PARAMS_FULL, FailureType type, HRESULT hr);        
         template<FailureType>
         __declspec(noinline) inline void ReportFailure_Hr(__R_FN_PARAMS_FULL, HRESULT hr);
         template<FailureType>
@@ -3354,7 +3357,25 @@ namespace wil
             }
         }
 
-        _Use_decl_annotations_
+        __declspec(noinline) inline void ReportFailure(__R_FN_PARAMS_FULL, FailureType type, HRESULT hr, _In_opt_ PCWSTR message = nullptr, ReportFailureOptions options = ReportFailureOptions::None)
+        {
+            switch(type)
+            {
+            case FailureType::Exception:
+                ReportFailure<FailureType::Exception>(__R_FN_CALL_FULL, hr, message, options);
+                break;
+            case FailureType::FailFast:
+                ReportFailure<FailureType::FailFast>(__R_FN_CALL_FULL, hr, message, options);
+                break;
+            case FailureType::Log:
+                ReportFailure<FailureType::Log>(__R_FN_CALL_FULL, hr, message, options);
+                break;
+            case FailureType::Return:
+                ReportFailure<FailureType::Return>(__R_FN_CALL_FULL, hr, message, options);
+                break;
+            }
+        }
+
         template<FailureType T>
         inline __declspec(noinline) void ReportFailureBaseReturn(__R_FN_PARAMS_FULL, HRESULT hr, PCWSTR message, ReportFailureOptions options)
         {
@@ -3371,14 +3392,12 @@ namespace wil
                 debugString, ARRAYSIZE(debugString), callContextString, ARRAYSIZE(callContextString), &failure);
         }
 
-        _Use_decl_annotations_
         template<FailureType T, bool SuppressAction>
         inline __declspec(noinline) void ReportFailure(__R_FN_PARAMS_FULL, HRESULT hr, PCWSTR message, ReportFailureOptions options)
         {
             ReportFailureBaseReturn<T>(__R_FN_CALL_FULL, hr, message, options);
         }
 
-        _Use_decl_annotations_
         template<FailureType T>
         inline __declspec(noinline) RESULT_NORETURN void ReportFailureBaseNoReturn(__R_FN_PARAMS_FULL, HRESULT hr, PCWSTR message, ReportFailureOptions options)
         {
@@ -3417,14 +3436,12 @@ namespace wil
             }
         }
 
-        _Use_decl_annotations_
         template<>
         inline __declspec(noinline) RESULT_NORETURN void ReportFailure<FailureType::FailFast, false>(__R_FN_PARAMS_FULL, HRESULT hr, PCWSTR message, ReportFailureOptions options)
         {
             ReportFailureBaseNoReturn<FailureType::FailFast>(__R_FN_CALL_FULL, hr, message, options);
         }
 
-        _Use_decl_annotations_
         template<>
         inline __declspec(noinline) RESULT_NORETURN void ReportFailure<FailureType::Exception, false>(__R_FN_PARAMS_FULL, HRESULT hr, PCWSTR message, ReportFailureOptions options)
         {
@@ -3495,7 +3512,6 @@ namespace wil
             ReportFailure<FailureType::Exception>(__R_FN_CALL_FULL, hr, message);
         }
 
-        _Use_decl_annotations_
         template <FailureType T>
         inline void ReportFailure_ReplaceMsg(__R_FN_PARAMS_FULL, HRESULT hr, PCSTR formatString, ...)
         {
@@ -3504,21 +3520,37 @@ namespace wil
             ReportFailure_Msg<T>(__R_FN_CALL_FULL, hr, formatString, argList);
         }
 
-        _Use_decl_annotations_
+        __declspec(noinline) inline void ReportFailure_Hr(__R_FN_PARAMS_FULL, FailureType type, HRESULT hr)
+        {
+            switch(type)
+            {
+            case FailureType::Exception:
+                ReportFailure_Hr<FailureType::Exception>(__R_FN_CALL_FULL, hr);
+                break;
+            case FailureType::FailFast:
+                ReportFailure_Hr<FailureType::FailFast>(__R_FN_CALL_FULL, hr);
+                break;
+            case FailureType::Log:
+                ReportFailure_Hr<FailureType::Log>(__R_FN_CALL_FULL, hr);
+                break;
+            case FailureType::Return:
+                ReportFailure_Hr<FailureType::Return>(__R_FN_CALL_FULL, hr);
+                break;
+            }
+        }
+
         template<FailureType T>
         __declspec(noinline) inline void ReportFailure_Hr(__R_FN_PARAMS_FULL, HRESULT hr)
         {
             ReportFailure<T>(__R_FN_CALL_FULL, hr);
         }
 
-        _Use_decl_annotations_
         template<>
         __declspec(noinline) inline RESULT_NORETURN void ReportFailure_Hr<FailureType::FailFast>(__R_FN_PARAMS_FULL, HRESULT hr)
         {
             ReportFailure<FailureType::FailFast>(__R_FN_CALL_FULL, hr);
         }
 
-        _Use_decl_annotations_
         template<>
         __declspec(noinline) inline RESULT_NORETURN void ReportFailure_Hr<FailureType::Exception>(__R_FN_PARAMS_FULL, HRESULT hr)
         {
@@ -3634,7 +3666,6 @@ namespace wil
             ReportFailure<FailureType::Exception>(__R_FN_CALL_FULL, hr);
         }
 
-        _Use_decl_annotations_
         template<FailureType T>
         __declspec(noinline) inline HRESULT ReportFailure_CaughtException(__R_FN_PARAMS_FULL, SupportedExceptions supported)
         {
@@ -3947,7 +3978,6 @@ namespace wil
             // Log Macros
             //*****************************************************************************
 
-            _Use_decl_annotations_
             __R_DIRECT_METHOD(HRESULT, Log_Hr)(__R_DIRECT_FN_PARAMS HRESULT hr) WI_NOEXCEPT
             {
                 __R_FN_LOCALS;
@@ -4202,7 +4232,6 @@ namespace wil
                 return status;
             }
 
-            _Use_decl_annotations_
             __R_DIRECT_METHOD(HRESULT, Log_HrMsg)(__R_DIRECT_FN_PARAMS HRESULT hr, PCSTR formatString, ...) WI_NOEXCEPT
             {
                 va_list argList;
@@ -4212,7 +4241,6 @@ namespace wil
                 return hr;
             }
 
-            _Use_decl_annotations_
             __R_DIRECT_METHOD(DWORD, Log_Win32Msg)(__R_DIRECT_FN_PARAMS DWORD err, PCSTR formatString, ...) WI_NOEXCEPT
             {
                 va_list argList;
@@ -4611,7 +4639,6 @@ namespace wil
                 }
             }
 
-            _Use_decl_annotations_
             __RFF_CONDITIONAL_METHOD(bool, FailFast_HrIf)(__RFF_CONDITIONAL_FN_PARAMS HRESULT hr, bool condition) WI_NOEXCEPT
             {
                 if (condition)
@@ -4977,7 +5004,6 @@ namespace wil
                 wil::details::ReportFailure_Hr<FailureType::FailFast>(__RFF_INTERNAL_FN_CALL E_UNEXPECTED);
             }
 
-            _Use_decl_annotations_
             __RFF_CONDITIONAL_METHOD(bool, FailFast_If)(__RFF_CONDITIONAL_FN_PARAMS bool condition) WI_NOEXCEPT
             {
                 if (condition)
@@ -4987,7 +5013,6 @@ namespace wil
                 return condition;
             }
 
-            _Use_decl_annotations_
             __RFF_CONDITIONAL_METHOD(bool, FailFast_IfFalse)(__RFF_CONDITIONAL_FN_PARAMS bool condition) WI_NOEXCEPT
             {
                 if (!condition)
@@ -5105,7 +5130,6 @@ namespace wil
                 return hr;
             }
 
-            _Use_decl_annotations_
             __RFF_CONDITIONAL_METHOD(bool, FailFastImmediate_If)(bool condition) WI_NOEXCEPT
             {
                 if (condition)
