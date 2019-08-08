@@ -7,6 +7,13 @@
 #include <string>
 #endif
 
+// Required for pinterface template specializations that we depend on in this test
+#include <Windows.ApplicationModel.Chat.h>
+#pragma push_macro("GetCurrentTime")
+#undef GetCurrentTime
+#include <Windows.UI.Xaml.Data.h>
+#pragma pop_macro("GetCurrentTime")
+
 #include "common.h"
 #include "FakeWinRTTypes.h"
 #include "test_objects.h"
