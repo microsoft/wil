@@ -3357,25 +3357,6 @@ namespace wil
             }
         }
 
-        __declspec(noinline) inline void ReportFailure(__R_FN_PARAMS_FULL, FailureType type, HRESULT hr, _In_opt_ PCWSTR message = nullptr, ReportFailureOptions options = ReportFailureOptions::None)
-        {
-            switch(type)
-            {
-            case FailureType::Exception:
-                ReportFailure<FailureType::Exception>(__R_FN_CALL_FULL, hr, message, options);
-                break;
-            case FailureType::FailFast:
-                ReportFailure<FailureType::FailFast>(__R_FN_CALL_FULL, hr, message, options);
-                break;
-            case FailureType::Log:
-                ReportFailure<FailureType::Log>(__R_FN_CALL_FULL, hr, message, options);
-                break;
-            case FailureType::Return:
-                ReportFailure<FailureType::Return>(__R_FN_CALL_FULL, hr, message, options);
-                break;
-            }
-        }
-
         template<FailureType T>
         inline __declspec(noinline) void ReportFailureBaseReturn(__R_FN_PARAMS_FULL, HRESULT hr, PCWSTR message, ReportFailureOptions options)
         {
@@ -3446,6 +3427,25 @@ namespace wil
         inline __declspec(noinline) RESULT_NORETURN void ReportFailure<FailureType::Exception, false>(__R_FN_PARAMS_FULL, HRESULT hr, PCWSTR message, ReportFailureOptions options)
         {
             ReportFailureBaseNoReturn<FailureType::Exception>(__R_FN_CALL_FULL, hr, message, options);
+        }
+
+        __declspec(noinline) inline void ReportFailure(__R_FN_PARAMS_FULL, FailureType type, HRESULT hr, _In_opt_ PCWSTR message, ReportFailureOptions options)
+        {
+            switch(type)
+            {
+            case FailureType::Exception:
+                ReportFailure<FailureType::Exception>(__R_FN_CALL_FULL, hr, message, options);
+                break;
+            case FailureType::FailFast:
+                ReportFailure<FailureType::FailFast>(__R_FN_CALL_FULL, hr, message, options);
+                break;
+            case FailureType::Log:
+                ReportFailure<FailureType::Log>(__R_FN_CALL_FULL, hr, message, options);
+                break;
+            case FailureType::Return:
+                ReportFailure<FailureType::Return>(__R_FN_CALL_FULL, hr, message, options);
+                break;
+            }
         }
 
         template<FailureType T>
@@ -3520,6 +3520,24 @@ namespace wil
             ReportFailure_Msg<T>(__R_FN_CALL_FULL, hr, formatString, argList);
         }
 
+        template<FailureType T>
+        __declspec(noinline) inline void ReportFailure_Hr(__R_FN_PARAMS_FULL, HRESULT hr)
+        {
+            ReportFailure<T>(__R_FN_CALL_FULL, hr);
+        }
+
+        template<>
+        __declspec(noinline) inline RESULT_NORETURN void ReportFailure_Hr<FailureType::FailFast>(__R_FN_PARAMS_FULL, HRESULT hr)
+        {
+            ReportFailure<FailureType::FailFast>(__R_FN_CALL_FULL, hr);
+        }
+
+        template<>
+        __declspec(noinline) inline RESULT_NORETURN void ReportFailure_Hr<FailureType::Exception>(__R_FN_PARAMS_FULL, HRESULT hr)
+        {
+            ReportFailure<FailureType::Exception>(__R_FN_CALL_FULL, hr);
+        }
+
         __declspec(noinline) inline void ReportFailure_Hr(__R_FN_PARAMS_FULL, FailureType type, HRESULT hr)
         {
             switch(type)
@@ -3537,24 +3555,6 @@ namespace wil
                 ReportFailure_Hr<FailureType::Return>(__R_FN_CALL_FULL, hr);
                 break;
             }
-        }
-
-        template<FailureType T>
-        __declspec(noinline) inline void ReportFailure_Hr(__R_FN_PARAMS_FULL, HRESULT hr)
-        {
-            ReportFailure<T>(__R_FN_CALL_FULL, hr);
-        }
-
-        template<>
-        __declspec(noinline) inline RESULT_NORETURN void ReportFailure_Hr<FailureType::FailFast>(__R_FN_PARAMS_FULL, HRESULT hr)
-        {
-            ReportFailure<FailureType::FailFast>(__R_FN_CALL_FULL, hr);
-        }
-
-        template<>
-        __declspec(noinline) inline RESULT_NORETURN void ReportFailure_Hr<FailureType::Exception>(__R_FN_PARAMS_FULL, HRESULT hr)
-        {
-            ReportFailure<FailureType::Exception>(__R_FN_CALL_FULL, hr);
         }
 
         _Success_(true)
