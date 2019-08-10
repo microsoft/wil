@@ -20,7 +20,7 @@ namespace wil
     namespace details
     {
         // Default error case for undefined conversions in intsafe.h
-        template<typename OldT, typename NewT> constexpr auto intsafe_conversion = nullptr;
+        template<typename OldT, typename NewT> constexpr nullptr_t intsafe_conversion = nullptr;
 
         // is_known_safe_static_cast_v determines if a conversion is known to be safe or not. Known
         // safe conversions can be handled by static_cast, this includes conversions between the same
