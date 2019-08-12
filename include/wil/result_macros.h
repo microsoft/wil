@@ -2951,6 +2951,9 @@ namespace wil
 
             case SupportedExceptions::None:
                 return functor.Run();
+
+            case SupportedExceptions::Default:
+                WI_ASSERT(false);
             }
 
             WI_ASSERT(false);
@@ -3393,7 +3396,7 @@ namespace wil
 
             LogFailure(__R_FN_CALL_FULL, T, hr, message, needPlatformException,
                 debugString, ARRAYSIZE(debugString), callContextString, ARRAYSIZE(callContextString), &failure);
-
+__WI_SUPPRESS_4127_S
             if (T == FailureType::FailFast)
             {
                 WilFailFast(const_cast<FailureInfo&>(failure));
@@ -3415,6 +3418,7 @@ namespace wil
                 // Wil was instructed to throw, but doesn't have any capability to do so (global function pointers are not setup)
                 WilFailFast(const_cast<FailureInfo&>(failure));
             }
+__WI_SUPPRESS_4127_E
         }
 
         template<>
@@ -3486,6 +3490,56 @@ namespace wil
             }
 
             return hr;
+        }
+
+        template<FailureType T>
+        inline HRESULT RESULT_NORETURN ReportFailure_CaughtExceptionCommonNoReturnBase(__R_FN_PARAMS_FULL, _Inout_updates_(debugStringChars) PWSTR debugString, _Pre_satisfies_(debugStringChars > 0) size_t debugStringChars, SupportedExceptions supported)
+        {
+            bool isNormalized = false;
+            const auto length = wcslen(debugString);
+            WI_ASSERT(length < debugStringChars);
+            HRESULT hr = S_OK;
+            if (details::g_pfnResultFromCaughtExceptionInternal)
+            {
+                hr = details::g_pfnResultFromCaughtExceptionInternal(debugString + length, debugStringChars - length, &isNormalized);
+            }
+
+            const bool known = (FAILED(hr));
+            if (!known)
+            {
+                hr = __HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION);
+            }
+
+            ReportFailureOptions options = ReportFailureOptions::ForcePlatformException;
+            WI_SetFlagIf(options, ReportFailureOptions::MayRethrow, isNormalized);
+
+            if ((supported == SupportedExceptions::None) ||
+                ((supported == SupportedExceptions::Known) && !known) ||
+                ((supported == SupportedExceptions::Thrown) && !isNormalized) ||
+                ((supported == SupportedExceptions::Default) && !known && g_fResultFailFastUnknownExceptions))
+            {
+                // By default WIL will issue a fail fast for unrecognized exception types.  Wil recognizes any std::exception or wil::ResultException based
+                // types and Platform::Exception^, so there aren't too many valid exception types which could cause this.  Those that are valid, should be handled
+                // by remapping the exception callback.  Those that are not valid should be found and fixed (meaningless accidents like 'throw hr;').
+                // The caller may also be requesting non-default behavior to fail-fast more frequently (primarily for debugging unknown exceptions).
+                ReportFailure<FailureType::FailFast>(__R_FN_CALL_FULL, hr, debugString, options);
+            }
+            else
+            {
+                ReportFailure<T>(__R_FN_CALL_FULL, hr, debugString, options);
+            }
+        }
+
+        template<>
+        inline RESULT_NORETURN HRESULT ReportFailure_CaughtExceptionCommon<FailureType::FailFast>(__R_FN_PARAMS_FULL, _Inout_updates_(debugStringChars) PWSTR debugString, _Pre_satisfies_(debugStringChars > 0) size_t debugStringChars, SupportedExceptions supported)
+        {
+            ReportFailure_CaughtExceptionCommonNoReturnBase<FailureType::FailFast>(__R_FN_CALL_FULL, debugString, debugStringChars, supported);
+        }
+
+        template<>
+        inline RESULT_NORETURN HRESULT ReportFailure_CaughtExceptionCommon<FailureType::Exception>(__R_FN_PARAMS_FULL, _Inout_updates_(debugStringChars) PWSTR debugString, _Pre_satisfies_(debugStringChars > 0) size_t debugStringChars, SupportedExceptions supported)
+        {
+            ReportFailure_CaughtExceptionCommonNoReturnBase<FailureType::Exception>(__R_FN_CALL_FULL, debugString, debugStringChars, supported);
         }
 
         template<FailureType T>
@@ -3674,6 +3728,22 @@ namespace wil
             return ReportFailure_CaughtExceptionCommon<T>(__R_FN_CALL_FULL, message, ARRAYSIZE(message), supported);
         }
 
+        template<>
+        __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_CaughtException<FailureType::FailFast>(__R_FN_PARAMS_FULL, SupportedExceptions supported)
+        {
+            wchar_t message[2048];
+            message[0] = L'\0';
+            ReportFailure_CaughtExceptionCommon<FailureType::FailFast>(__R_FN_CALL_FULL, message, ARRAYSIZE(message), supported);
+        }
+
+        template<>
+        __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_CaughtException<FailureType::Exception>(__R_FN_PARAMS_FULL, SupportedExceptions supported)
+        {
+            wchar_t message[2048];
+            message[0] = L'\0';
+            ReportFailure_CaughtExceptionCommon<FailureType::Exception>(__R_FN_CALL_FULL, message, ARRAYSIZE(message), supported);
+        }
+
         template<FailureType T>
         __declspec(noinline) inline void ReportFailure_HrMsg(__R_FN_PARAMS_FULL, HRESULT hr, _Printf_format_string_ PCSTR formatString, va_list argList)
         {
@@ -3810,6 +3880,26 @@ namespace wil
             PrintLoggingMessage(message, ARRAYSIZE(message), formatString, argList);
             StringCchCatW(message, ARRAYSIZE(message), L" -- ");
             return ReportFailure_CaughtExceptionCommon<T>(__R_FN_CALL_FULL, message, ARRAYSIZE(message), SupportedExceptions::Default);
+        }
+
+        template<>
+        __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_CaughtExceptionMsg<FailureType::FailFast>(__R_FN_PARAMS_FULL, _Printf_format_string_ PCSTR formatString, va_list argList)
+        {
+            // Pre-populate the buffer with our message, the exception message will be added to it...
+            wchar_t message[2048];
+            PrintLoggingMessage(message, ARRAYSIZE(message), formatString, argList);
+            StringCchCatW(message, ARRAYSIZE(message), L" -- ");
+            ReportFailure_CaughtExceptionCommon<FailureType::FailFast>(__R_FN_CALL_FULL, message, ARRAYSIZE(message), SupportedExceptions::Default);
+        }
+
+        template<>
+        __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_CaughtExceptionMsg<FailureType::Exception>(__R_FN_PARAMS_FULL, _Printf_format_string_ PCSTR formatString, va_list argList)
+        {
+            // Pre-populate the buffer with our message, the exception message will be added to it...
+            wchar_t message[2048];
+            PrintLoggingMessage(message, ARRAYSIZE(message), formatString, argList);
+            StringCchCatW(message, ARRAYSIZE(message), L" -- ");
+            ReportFailure_CaughtExceptionCommon<FailureType::Exception>(__R_FN_CALL_FULL, message, ARRAYSIZE(message), SupportedExceptions::Default);
         }
 
 
