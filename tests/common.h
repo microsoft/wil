@@ -199,6 +199,9 @@ namespace witest
         // RaiseFailFastException cannot be continued or handled. By instead calling RaiseException, it allows us to
         // handle exceptions
         ::RaiseException(rec->ExceptionCode, rec->ExceptionFlags, rec->NumberParameters, rec->ExceptionInformation);
+#ifdef __clang__
+        __builtin_unreachable();
+#endif
     }
 
     constexpr DWORD msvc_exception_code = 0xE06D7363;
