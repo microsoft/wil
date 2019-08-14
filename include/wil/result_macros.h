@@ -866,10 +866,10 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 #endif
 #ifdef RESULT_DEBUG
 #define WI_USAGE_ERROR(msg, ...)                            do { LOG_HR_MSG(HRESULT_FROM_WIN32(ERROR_ASSERTION_FAILURE), msg, ##__VA_ARGS__); WI_USAGE_ASSERT_STOP(false); } while ((void)0, 0)
-#define WI_USAGE_ERROR_FORWARD(msg, ...)                    do { ReportFailure_ReplaceMsg(__R_FN_CALL_FULL, FailureType::Log, HRESULT_FROM_WIN32(ERROR_ASSERTION_FAILURE), msg, ##__VA_ARGS__); WI_USAGE_ASSERT_STOP(false); } while ((void)0, 0)
+#define WI_USAGE_ERROR_FORWARD(msg, ...)                    do { ReportFailure_ReplaceMsg<FailureType::Log>(__R_FN_CALL_FULL, HRESULT_FROM_WIN32(ERROR_ASSERTION_FAILURE), msg, ##__VA_ARGS__); WI_USAGE_ASSERT_STOP(false); } while ((void)0, 0)
 #else
 #define WI_USAGE_ERROR(msg, ...)                            do { LOG_HR(HRESULT_FROM_WIN32(ERROR_ASSERTION_FAILURE)); WI_USAGE_ASSERT_STOP(false); } while ((void)0, 0)
-#define WI_USAGE_ERROR_FORWARD(msg, ...)                    do { ReportFailure_Hr(__R_FN_CALL_FULL, FailureType::Log, HRESULT_FROM_WIN32(ERROR_ASSERTION_FAILURE)); WI_USAGE_ASSERT_STOP(false); } while ((void)0, 0)
+#define WI_USAGE_ERROR_FORWARD(msg, ...)                    do { ReportFailure_Hr<FailureType::Log>(__R_FN_CALL_FULL, HRESULT_FROM_WIN32(ERROR_ASSERTION_FAILURE)); WI_USAGE_ASSERT_STOP(false); } while ((void)0, 0)
 #endif
 #define WI_USAGE_VERIFY(condition, msg, ...)                do { const auto __passed = wil::verify_bool(condition); if (!__passed) { WI_USAGE_ERROR(msg, ##__VA_ARGS__); }} while ((void)0, 0)
 #define WI_USAGE_VERIFY_FORWARD(condition, msg, ...)        do { const auto __passed = wil::verify_bool(condition); if (!__passed) { WI_USAGE_ERROR_FORWARD(msg, ##__VA_ARGS__); }} while ((void)0, 0)
@@ -1222,8 +1222,7 @@ namespace wil
         {
             None                    = 0x00,
             ForcePlatformException  = 0x01,
-            SuppressAction          = 0x02,
-            MayRethrow              = 0x04,
+            MayRethrow              = 0x02,
         };
         DEFINE_ENUM_FLAG_OPERATORS(ReportFailureOptions);
 
@@ -1340,10 +1339,17 @@ namespace wil
                                bool fWantDebugString, _Out_writes_(debugStringSizeChars) _Post_z_ PWSTR debugString, _Pre_satisfies_(debugStringSizeChars > 0) size_t debugStringSizeChars,
                                _Out_writes_(callContextStringSizeChars) _Post_z_ PSTR callContextString, _Pre_satisfies_(callContextStringSizeChars > 0) size_t callContextStringSizeChars,
                                _Out_ FailureInfo *failure) WI_NOEXCEPT;
-        _When_((type == FailureType::Exception) || (type == FailureType::FailFast), _Analysis_noreturn_) __declspec(noinline) inline void ReportFailure(__R_FN_PARAMS_FULL, FailureType type, HRESULT hr, _In_opt_ PCWSTR message = nullptr, ReportFailureOptions options = ReportFailureOptions::None);
-        _When_((type == FailureType::Exception) || (type == FailureType::FailFast), _Analysis_noreturn_) inline void ReportFailure_ReplaceMsg(__R_FN_PARAMS_FULL, FailureType type, HRESULT hr, _Printf_format_string_ PCSTR formatString, ...);
-        _When_((type == FailureType::Exception) || (type == FailureType::FailFast), _Analysis_noreturn_) __declspec(noinline) inline void ReportFailure_Hr(__R_FN_PARAMS_FULL, FailureType type, HRESULT hr);
-        _When_((type == FailureType::Exception) || (type == FailureType::FailFast), _Analysis_noreturn_) __declspec(noinline) inline HRESULT ReportFailure_CaughtException(__R_FN_PARAMS_FULL, FailureType type, SupportedExceptions supported = SupportedExceptions::Default);
+
+        __declspec(noinline) inline void ReportFailure(__R_FN_PARAMS_FULL, FailureType type, HRESULT hr, _In_opt_ PCWSTR message = nullptr, ReportFailureOptions options = ReportFailureOptions::None);
+        template<FailureType, bool = false>                 
+        __declspec(noinline) inline void ReportFailure(__R_FN_PARAMS_FULL, HRESULT hr, _In_opt_ PCWSTR message = nullptr, ReportFailureOptions options = ReportFailureOptions::None);
+        template<FailureType>
+        inline void ReportFailure_ReplaceMsg(__R_FN_PARAMS_FULL, HRESULT hr, _Printf_format_string_ PCSTR formatString, ...);
+        __declspec(noinline) inline void ReportFailure_Hr(__R_FN_PARAMS_FULL, FailureType type, HRESULT hr);        
+        template<FailureType>
+        __declspec(noinline) inline void ReportFailure_Hr(__R_FN_PARAMS_FULL, HRESULT hr);
+        template<FailureType>
+        __declspec(noinline) inline HRESULT ReportFailure_CaughtException(__R_FN_PARAMS_FULL, SupportedExceptions supported = SupportedExceptions::Default);
 
         //*****************************************************************************
         // Fail fast helpers (for use only internally to WIL)
@@ -2488,7 +2494,7 @@ namespace wil
             message[0] = L'\0';
             MaybeGetExceptionString(exception, message, ARRAYSIZE(message));
             auto hr = exception.GetErrorCode();
-            wil::details::ReportFailure(__R_DIAGNOSTICS_RA(diagnostics, returnAddress), FailureType::Log, hr, message);
+            wil::details::ReportFailure<FailureType::Log>(__R_DIAGNOSTICS_RA(diagnostics, returnAddress), hr, message);
             return hr;
         }
 
@@ -2498,7 +2504,7 @@ namespace wil
             message[0] = L'\0';
             MaybeGetExceptionString(exception, message, ARRAYSIZE(message));
             constexpr auto hr = E_OUTOFMEMORY;
-            wil::details::ReportFailure(__R_DIAGNOSTICS_RA(diagnostics, returnAddress), FailureType::Log, hr, message);
+            wil::details::ReportFailure<FailureType::Log>(__R_DIAGNOSTICS_RA(diagnostics, returnAddress), hr, message);
             return hr;
         }
 
@@ -2508,7 +2514,7 @@ namespace wil
             message[0] = L'\0';
             MaybeGetExceptionString(exception, message, ARRAYSIZE(message));
             constexpr auto hr = __HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION);
-            wil::details::ReportFailure(__R_DIAGNOSTICS_RA(diagnostics, returnAddress), FailureType::Log, hr, message);
+            ReportFailure<FailureType::Log>(__R_DIAGNOSTICS_RA(diagnostics, returnAddress), hr, message);
             return hr;
         }
 
@@ -2522,7 +2528,7 @@ namespace wil
                 auto hr = g_pfnResultFromCaughtException_CppWinRt(message, ARRAYSIZE(message), &ignored);
                 if (FAILED(hr))
                 {
-                    ReportFailure(__R_DIAGNOSTICS_RA(diagnostics, returnAddress), FailureType::Log, hr, message);
+                    ReportFailure<FailureType::Log>(__R_DIAGNOSTICS_RA(diagnostics, returnAddress), hr, message);
                     return hr;
                 }
             }
@@ -2606,7 +2612,7 @@ namespace wil
             message[0] = L'\0';
             MaybeGetExceptionString(exception, message, ARRAYSIZE(message));
             auto hr = exception->HResult;
-            wil::details::ReportFailure(__R_DIAGNOSTICS_RA(diagnostics, returnAddress), FailureType::Log, hr, message);
+            wil::details::ReportFailure<FailureType::Log>(__R_DIAGNOSTICS_RA(diagnostics, returnAddress), hr, message);
             return hr;
         }
 
@@ -2940,11 +2946,14 @@ namespace wil
                 }
                 catch (...)
                 {
-                    return wil::details::ReportFailure_CaughtException(__R_DIAGNOSTICS_RA(diagnostics, returnAddress), FailureType::Log, supported);
+                    return wil::details::ReportFailure_CaughtException<FailureType::Log>(__R_DIAGNOSTICS_RA(diagnostics, returnAddress), supported);
                 }
 
             case SupportedExceptions::None:
                 return functor.Run();
+
+            case SupportedExceptions::Default:
+                WI_ASSERT(false);
             }
 
             WI_ASSERT(false);
@@ -2979,7 +2988,7 @@ namespace wil
             }
             catch (...)
             {
-                return wil::details::ReportFailure_CaughtException(__R_DIAGNOSTICS(diagnostics), _ReturnAddress(), FailureType::Log, supported);
+                return wil::details::ReportFailure_CaughtException<FailureType::Log>(__R_DIAGNOSTICS(diagnostics), _ReturnAddress(), supported);
             }
         }
 
@@ -3351,10 +3360,10 @@ namespace wil
             }
         }
 
-        _Use_decl_annotations_
-        inline __declspec(noinline) void ReportFailure(__R_FN_PARAMS_FULL, FailureType type, HRESULT hr, PCWSTR message, ReportFailureOptions options)
+        template<FailureType T>
+        inline __declspec(noinline) void ReportFailureBaseReturn(__R_FN_PARAMS_FULL, HRESULT hr, PCWSTR message, ReportFailureOptions options)
         {
-            bool needPlatformException = ((type == FailureType::Exception) &&
+            bool needPlatformException = ((T == FailureType::Exception) &&
                 WI_IsFlagClear(options, ReportFailureOptions::MayRethrow) &&
                 (g_pfnThrowPlatformException != nullptr) &&
                 (g_fResultThrowPlatformException || WI_IsFlagSet(options, ReportFailureOptions::ForcePlatformException)));
@@ -3363,36 +3372,88 @@ namespace wil
             wchar_t debugString[2048];
             char callContextString[1024];
 
-            LogFailure(__R_FN_CALL_FULL, type, hr, message, needPlatformException,
+            LogFailure(__R_FN_CALL_FULL, T, hr, message, needPlatformException,
                 debugString, ARRAYSIZE(debugString), callContextString, ARRAYSIZE(callContextString), &failure);
+        }
 
-            if (WI_IsFlagClear(options, ReportFailureOptions::SuppressAction))
+        template<FailureType T, bool SuppressAction>
+        inline __declspec(noinline) void ReportFailure(__R_FN_PARAMS_FULL, HRESULT hr, PCWSTR message, ReportFailureOptions options)
+        {
+            ReportFailureBaseReturn<T>(__R_FN_CALL_FULL, hr, message, options);
+        }
+
+        template<FailureType T>
+        inline __declspec(noinline) RESULT_NORETURN void ReportFailureBaseNoReturn(__R_FN_PARAMS_FULL, HRESULT hr, PCWSTR message, ReportFailureOptions options)
+        {
+            bool needPlatformException = ((T == FailureType::Exception) &&
+                WI_IsFlagClear(options, ReportFailureOptions::MayRethrow) &&
+                (g_pfnThrowPlatformException != nullptr) &&
+                (g_fResultThrowPlatformException || WI_IsFlagSet(options, ReportFailureOptions::ForcePlatformException)));
+
+            FailureInfo failure;
+            wchar_t debugString[2048];
+            char callContextString[1024];
+
+            LogFailure(__R_FN_CALL_FULL, T, hr, message, needPlatformException,
+                debugString, ARRAYSIZE(debugString), callContextString, ARRAYSIZE(callContextString), &failure);
+__WI_SUPPRESS_4127_S
+            if (T == FailureType::FailFast)
             {
-                if (type == FailureType::FailFast)
+                WilFailFast(const_cast<FailureInfo&>(failure));
+            }
+            else
+            {
+                if (needPlatformException)
                 {
-                    WilFailFast(const_cast<FailureInfo&>(failure));
+                    g_pfnThrowPlatformException(failure, debugString);
                 }
-                else if (type == FailureType::Exception)
+
+                if (WI_IsFlagSet(options, ReportFailureOptions::MayRethrow))
                 {
-                    if (needPlatformException)
-                    {
-                        g_pfnThrowPlatformException(failure, debugString);
-                    }
-
-                    if (WI_IsFlagSet(options, ReportFailureOptions::MayRethrow))
-                    {
-                        RethrowCaughtException();
-                    }
-
-                    ThrowResultException(failure);
-
-                    // Wil was instructed to throw, but doesn't have any capability to do so (global function pointers are not setup)
-                    WilFailFast(const_cast<FailureInfo&>(failure));
+                    RethrowCaughtException();
                 }
+
+                ThrowResultException(failure);
+
+                // Wil was instructed to throw, but doesn't have any capability to do so (global function pointers are not setup)
+                WilFailFast(const_cast<FailureInfo&>(failure));
+            }
+__WI_SUPPRESS_4127_E
+        }
+
+        template<>
+        inline __declspec(noinline) RESULT_NORETURN void ReportFailure<FailureType::FailFast, false>(__R_FN_PARAMS_FULL, HRESULT hr, PCWSTR message, ReportFailureOptions options)
+        {
+            ReportFailureBaseNoReturn<FailureType::FailFast>(__R_FN_CALL_FULL, hr, message, options);
+        }
+
+        template<>
+        inline __declspec(noinline) RESULT_NORETURN void ReportFailure<FailureType::Exception, false>(__R_FN_PARAMS_FULL, HRESULT hr, PCWSTR message, ReportFailureOptions options)
+        {
+            ReportFailureBaseNoReturn<FailureType::Exception>(__R_FN_CALL_FULL, hr, message, options);
+        }
+
+        __declspec(noinline) inline void ReportFailure(__R_FN_PARAMS_FULL, FailureType type, HRESULT hr, _In_opt_ PCWSTR message, ReportFailureOptions options)
+        {
+            switch(type)
+            {
+            case FailureType::Exception:
+                ReportFailure<FailureType::Exception>(__R_FN_CALL_FULL, hr, message, options);
+                break;
+            case FailureType::FailFast:
+                ReportFailure<FailureType::FailFast>(__R_FN_CALL_FULL, hr, message, options);
+                break;
+            case FailureType::Log:
+                ReportFailure<FailureType::Log>(__R_FN_CALL_FULL, hr, message, options);
+                break;
+            case FailureType::Return:
+                ReportFailure<FailureType::Return>(__R_FN_CALL_FULL, hr, message, options);
+                break;
             }
         }
 
-        inline HRESULT ReportFailure_CaughtExceptionCommon(__R_FN_PARAMS_FULL, FailureType type, _Inout_updates_(debugStringChars) PWSTR debugString, _Pre_satisfies_(debugStringChars > 0) size_t debugStringChars, SupportedExceptions supported)
+        template<FailureType T>
+        inline HRESULT ReportFailure_CaughtExceptionCommon(__R_FN_PARAMS_FULL, _Inout_updates_(debugStringChars) PWSTR debugString, _Pre_satisfies_(debugStringChars > 0) size_t debugStringChars, SupportedExceptions supported)
         {
             bool isNormalized = false;
             auto length = wcslen(debugString);
@@ -3409,6 +3470,9 @@ namespace wil
                 hr = __HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION);
             }
 
+            ReportFailureOptions options = ReportFailureOptions::ForcePlatformException;
+            WI_SetFlagIf(options, ReportFailureOptions::MayRethrow, isNormalized);
+
             if ((supported == SupportedExceptions::None) ||
                 ((supported == SupportedExceptions::Known) && !known) ||
                 ((supported == SupportedExceptions::Thrown) && !isNormalized) ||
@@ -3418,137 +3482,424 @@ namespace wil
                 // types and Platform::Exception^, so there aren't too many valid exception types which could cause this.  Those that are valid, should be handled
                 // by remapping the exception callback.  Those that are not valid should be found and fixed (meaningless accidents like 'throw hr;').
                 // The caller may also be requesting non-default behavior to fail-fast more frequently (primarily for debugging unknown exceptions).
+                ReportFailure<FailureType::FailFast>(__R_FN_CALL_FULL, hr, debugString, options);
+            }
+            else
+            {
+                ReportFailure<T>(__R_FN_CALL_FULL, hr, debugString, options);
+            }
 
-                type = FailureType::FailFast;
+            return hr;
+        }
+
+        template<FailureType T>
+        inline HRESULT RESULT_NORETURN ReportFailure_CaughtExceptionCommonNoReturnBase(__R_FN_PARAMS_FULL, _Inout_updates_(debugStringChars) PWSTR debugString, _Pre_satisfies_(debugStringChars > 0) size_t debugStringChars, SupportedExceptions supported)
+        {
+            bool isNormalized = false;
+            const auto length = wcslen(debugString);
+            WI_ASSERT(length < debugStringChars);
+            HRESULT hr = S_OK;
+            if (details::g_pfnResultFromCaughtExceptionInternal)
+            {
+                hr = details::g_pfnResultFromCaughtExceptionInternal(debugString + length, debugStringChars - length, &isNormalized);
+            }
+
+            const bool known = (FAILED(hr));
+            if (!known)
+            {
+                hr = __HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION);
             }
 
             ReportFailureOptions options = ReportFailureOptions::ForcePlatformException;
             WI_SetFlagIf(options, ReportFailureOptions::MayRethrow, isNormalized);
-            ReportFailure(__R_FN_CALL_FULL, type, hr, debugString, options);
-            return hr;
+
+            if ((supported == SupportedExceptions::None) ||
+                ((supported == SupportedExceptions::Known) && !known) ||
+                ((supported == SupportedExceptions::Thrown) && !isNormalized) ||
+                ((supported == SupportedExceptions::Default) && !known && g_fResultFailFastUnknownExceptions))
+            {
+                // By default WIL will issue a fail fast for unrecognized exception types.  Wil recognizes any std::exception or wil::ResultException based
+                // types and Platform::Exception^, so there aren't too many valid exception types which could cause this.  Those that are valid, should be handled
+                // by remapping the exception callback.  Those that are not valid should be found and fixed (meaningless accidents like 'throw hr;').
+                // The caller may also be requesting non-default behavior to fail-fast more frequently (primarily for debugging unknown exceptions).
+                ReportFailure<FailureType::FailFast>(__R_FN_CALL_FULL, hr, debugString, options);
+            }
+            else
+            {
+                ReportFailure<T>(__R_FN_CALL_FULL, hr, debugString, options);
+            }
         }
 
-        _When_((type == FailureType::Exception) || (type == FailureType::FailFast), _Analysis_noreturn_)
-        inline void ReportFailure_Msg(__R_FN_PARAMS_FULL, FailureType type, HRESULT hr, _Printf_format_string_ PCSTR formatString, va_list argList)
+        template<>
+        inline RESULT_NORETURN HRESULT ReportFailure_CaughtExceptionCommon<FailureType::FailFast>(__R_FN_PARAMS_FULL, _Inout_updates_(debugStringChars) PWSTR debugString, _Pre_satisfies_(debugStringChars > 0) size_t debugStringChars, SupportedExceptions supported)
+        {
+            ReportFailure_CaughtExceptionCommonNoReturnBase<FailureType::FailFast>(__R_FN_CALL_FULL, debugString, debugStringChars, supported);
+        }
+
+        template<>
+        inline RESULT_NORETURN HRESULT ReportFailure_CaughtExceptionCommon<FailureType::Exception>(__R_FN_PARAMS_FULL, _Inout_updates_(debugStringChars) PWSTR debugString, _Pre_satisfies_(debugStringChars > 0) size_t debugStringChars, SupportedExceptions supported)
+        {
+            ReportFailure_CaughtExceptionCommonNoReturnBase<FailureType::Exception>(__R_FN_CALL_FULL, debugString, debugStringChars, supported);
+        }
+
+        template<FailureType T>
+        inline void ReportFailure_Msg(__R_FN_PARAMS_FULL, HRESULT hr, _Printf_format_string_ PCSTR formatString, va_list argList)
         {
             wchar_t message[2048];
             PrintLoggingMessage(message, ARRAYSIZE(message), formatString, argList);
-            ReportFailure(__R_FN_CALL_FULL, type, hr, message);
+            ReportFailure<T>(__R_FN_CALL_FULL, hr, message);
         }
 
-        _Use_decl_annotations_
-        inline void ReportFailure_ReplaceMsg(__R_FN_PARAMS_FULL, FailureType type, HRESULT hr, PCSTR formatString, ...)
+        template<>
+        inline RESULT_NORETURN void ReportFailure_Msg<FailureType::FailFast>(__R_FN_PARAMS_FULL, HRESULT hr, _Printf_format_string_ PCSTR formatString, va_list argList)
+        {
+            wchar_t message[2048];
+            PrintLoggingMessage(message, ARRAYSIZE(message), formatString, argList);
+            ReportFailure<FailureType::FailFast>(__R_FN_CALL_FULL, hr, message);
+        }
+
+        template<>
+        inline RESULT_NORETURN void ReportFailure_Msg<FailureType::Exception>(__R_FN_PARAMS_FULL, HRESULT hr, _Printf_format_string_ PCSTR formatString, va_list argList)
+        {
+            wchar_t message[2048];
+            PrintLoggingMessage(message, ARRAYSIZE(message), formatString, argList);
+            ReportFailure<FailureType::Exception>(__R_FN_CALL_FULL, hr, message);
+        }
+
+        template <FailureType T>
+        inline void ReportFailure_ReplaceMsg(__R_FN_PARAMS_FULL, HRESULT hr, PCSTR formatString, ...)
         {
             va_list argList;
             va_start(argList, formatString);
-            ReportFailure_Msg(__R_FN_CALL_FULL, type, hr, formatString, argList);
+            ReportFailure_Msg<T>(__R_FN_CALL_FULL, hr, formatString, argList);
         }
 
-        _Use_decl_annotations_
+        template<FailureType T>
+        __declspec(noinline) inline void ReportFailure_Hr(__R_FN_PARAMS_FULL, HRESULT hr)
+        {
+            ReportFailure<T>(__R_FN_CALL_FULL, hr);
+        }
+
+        template<>
+        __declspec(noinline) inline RESULT_NORETURN void ReportFailure_Hr<FailureType::FailFast>(__R_FN_PARAMS_FULL, HRESULT hr)
+        {
+            ReportFailure<FailureType::FailFast>(__R_FN_CALL_FULL, hr);
+        }
+
+        template<>
+        __declspec(noinline) inline RESULT_NORETURN void ReportFailure_Hr<FailureType::Exception>(__R_FN_PARAMS_FULL, HRESULT hr)
+        {
+            ReportFailure<FailureType::Exception>(__R_FN_CALL_FULL, hr);
+        }
+
         __declspec(noinline) inline void ReportFailure_Hr(__R_FN_PARAMS_FULL, FailureType type, HRESULT hr)
         {
-            ReportFailure(__R_FN_CALL_FULL, type, hr);
+            switch(type)
+            {
+            case FailureType::Exception:
+                ReportFailure_Hr<FailureType::Exception>(__R_FN_CALL_FULL, hr);
+                break;
+            case FailureType::FailFast:
+                ReportFailure_Hr<FailureType::FailFast>(__R_FN_CALL_FULL, hr);
+                break;
+            case FailureType::Log:
+                ReportFailure_Hr<FailureType::Log>(__R_FN_CALL_FULL, hr);
+                break;
+            case FailureType::Return:
+                ReportFailure_Hr<FailureType::Return>(__R_FN_CALL_FULL, hr);
+                break;
+            }
         }
 
         _Success_(true)
-        _When_((type == FailureType::Exception) || (type == FailureType::FailFast), _Analysis_noreturn_)
         _Translates_Win32_to_HRESULT_(err)
-        __declspec(noinline) inline HRESULT ReportFailure_Win32(__R_FN_PARAMS_FULL, FailureType type, DWORD err)
+        template<FailureType T>
+        __declspec(noinline) inline HRESULT ReportFailure_Win32(__R_FN_PARAMS_FULL, DWORD err)
         {
             const auto hr = __HRESULT_FROM_WIN32(err);
-            ReportFailure(__R_FN_CALL_FULL, type, hr);
+            ReportFailure<T>(__R_FN_CALL_FULL, hr);
             return hr;
         }
+        
+        _Success_(true)
+        _Translates_Win32_to_HRESULT_(err)
+        template<>
+        __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_Win32<FailureType::FailFast>(__R_FN_PARAMS_FULL, DWORD err)
+        {
+            const auto hr = __HRESULT_FROM_WIN32(err);
+            ReportFailure<FailureType::FailFast>(__R_FN_CALL_FULL, hr);
+        }
+         
+        _Success_(true)
+        _Translates_Win32_to_HRESULT_(err)
+        template<>
+        __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_Win32<FailureType::Exception>(__R_FN_PARAMS_FULL, DWORD err)
+        {
+            const auto hr = __HRESULT_FROM_WIN32(err);
+            ReportFailure<FailureType::Exception>(__R_FN_CALL_FULL, hr);
+        }
 
-        _When_((type == FailureType::Exception) || (type == FailureType::FailFast), _Analysis_noreturn_)
-        __declspec(noinline) inline DWORD ReportFailure_GetLastError(__R_FN_PARAMS_FULL, FailureType type)
+        template<FailureType T>
+        __declspec(noinline) inline DWORD ReportFailure_GetLastError(__R_FN_PARAMS_FULL)
         {
             const auto err = GetLastErrorFail(__R_FN_CALL_FULL);
             const auto hr = __HRESULT_FROM_WIN32(err);
-            ReportFailure(__R_FN_CALL_FULL, type, hr);
+            ReportFailure<T>(__R_FN_CALL_FULL, hr);
             return err;
         }
 
+        template<>
+        __declspec(noinline) inline RESULT_NORETURN DWORD ReportFailure_GetLastError<FailureType::FailFast>(__R_FN_PARAMS_FULL)
+        {
+            const auto err = GetLastErrorFail(__R_FN_CALL_FULL);
+            const auto hr = __HRESULT_FROM_WIN32(err);
+            ReportFailure<FailureType::FailFast>(__R_FN_CALL_FULL, hr);
+        }
+
+        template<>
+        __declspec(noinline) inline RESULT_NORETURN DWORD ReportFailure_GetLastError<FailureType::Exception>(__R_FN_PARAMS_FULL)
+        {
+            const auto err = GetLastErrorFail(__R_FN_CALL_FULL);
+            const auto hr = __HRESULT_FROM_WIN32(err);
+            ReportFailure<FailureType::Exception>(__R_FN_CALL_FULL, hr);
+        }
+
         _Success_(true)
-        _When_((type == FailureType::Exception) || (type == FailureType::FailFast), _Analysis_noreturn_)
         _Translates_last_error_to_HRESULT_
-        __declspec(noinline) inline HRESULT ReportFailure_GetLastErrorHr(__R_FN_PARAMS_FULL, FailureType type)
+        template<FailureType T>
+        __declspec(noinline) inline HRESULT ReportFailure_GetLastErrorHr(__R_FN_PARAMS_FULL)
         {
             const auto hr = GetLastErrorFailHr(__R_FN_CALL_FULL);
-            ReportFailure(__R_FN_CALL_FULL, type, hr);
+            ReportFailure<T>(__R_FN_CALL_FULL, hr);
             return hr;
         }
 
         _Success_(true)
-        _When_((type == FailureType::Exception) || (type == FailureType::FailFast), _Analysis_noreturn_)
+        _Translates_last_error_to_HRESULT_
+        template<>
+        __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_GetLastErrorHr<FailureType::FailFast>(__R_FN_PARAMS_FULL)
+        {
+            const auto hr = GetLastErrorFailHr(__R_FN_CALL_FULL);
+            ReportFailure<FailureType::FailFast>(__R_FN_CALL_FULL, hr);
+        }
+
+        _Success_(true)
+        _Translates_last_error_to_HRESULT_
+        template<>
+        __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_GetLastErrorHr<FailureType::Exception>(__R_FN_PARAMS_FULL)
+        {
+            const auto hr = GetLastErrorFailHr(__R_FN_CALL_FULL);
+            ReportFailure<FailureType::Exception>(__R_FN_CALL_FULL, hr);
+        }
+
+        _Success_(true)
         _Translates_NTSTATUS_to_HRESULT_(status)
-        __declspec(noinline) inline HRESULT ReportFailure_NtStatus(__R_FN_PARAMS_FULL, FailureType type, NTSTATUS status)
+        template<FailureType T>
+        __declspec(noinline) inline HRESULT ReportFailure_NtStatus(__R_FN_PARAMS_FULL, NTSTATUS status)
         {
             const auto hr = wil::details::NtStatusToHr(status);
-            ReportFailure(__R_FN_CALL_FULL, type, hr);
+            ReportFailure<T>(__R_FN_CALL_FULL, hr);
             return hr;
         }
 
-        _Use_decl_annotations_
-        __declspec(noinline) inline HRESULT ReportFailure_CaughtException(__R_FN_PARAMS_FULL, FailureType type, SupportedExceptions supported)
+        _Success_(true)
+        _Translates_NTSTATUS_to_HRESULT_(status)
+        template<>
+        __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_NtStatus<FailureType::FailFast>(__R_FN_PARAMS_FULL, NTSTATUS status)
+        {
+            const auto hr = wil::details::NtStatusToHr(status);
+            ReportFailure<FailureType::FailFast>(__R_FN_CALL_FULL, hr);
+        }
+
+        _Success_(true)
+        _Translates_NTSTATUS_to_HRESULT_(status)
+        template<>
+        __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_NtStatus<FailureType::Exception>(__R_FN_PARAMS_FULL, NTSTATUS status)
+        {
+            const auto hr = wil::details::NtStatusToHr(status);
+            ReportFailure<FailureType::Exception>(__R_FN_CALL_FULL, hr);
+        }
+
+        template<FailureType T>
+        __declspec(noinline) inline HRESULT ReportFailure_CaughtException(__R_FN_PARAMS_FULL, SupportedExceptions supported)
         {
             wchar_t message[2048];
             message[0] = L'\0';
-            return ReportFailure_CaughtExceptionCommon(__R_FN_CALL_FULL, type, message, ARRAYSIZE(message), supported);
+            return ReportFailure_CaughtExceptionCommon<T>(__R_FN_CALL_FULL, message, ARRAYSIZE(message), supported);
         }
 
-        _When_((type == FailureType::Exception) || (type == FailureType::FailFast), _Analysis_noreturn_)
-        __declspec(noinline) inline void ReportFailure_HrMsg(__R_FN_PARAMS_FULL, FailureType type, HRESULT hr, _Printf_format_string_ PCSTR formatString, va_list argList)
+        template<>
+        __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_CaughtException<FailureType::FailFast>(__R_FN_PARAMS_FULL, SupportedExceptions supported)
         {
-            ReportFailure_Msg(__R_FN_CALL_FULL, type, hr, formatString, argList);
+            wchar_t message[2048];
+            message[0] = L'\0';
+            ReportFailure_CaughtExceptionCommon<FailureType::FailFast>(__R_FN_CALL_FULL, message, ARRAYSIZE(message), supported);
+        }
+
+        template<>
+        __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_CaughtException<FailureType::Exception>(__R_FN_PARAMS_FULL, SupportedExceptions supported)
+        {
+            wchar_t message[2048];
+            message[0] = L'\0';
+            ReportFailure_CaughtExceptionCommon<FailureType::Exception>(__R_FN_CALL_FULL, message, ARRAYSIZE(message), supported);
+        }
+
+        template<FailureType T>
+        __declspec(noinline) inline void ReportFailure_HrMsg(__R_FN_PARAMS_FULL, HRESULT hr, _Printf_format_string_ PCSTR formatString, va_list argList)
+        {
+            ReportFailure_Msg<T>(__R_FN_CALL_FULL, hr, formatString, argList);
+        }
+
+        template<>
+        __declspec(noinline) inline RESULT_NORETURN void ReportFailure_HrMsg<FailureType::FailFast>(__R_FN_PARAMS_FULL, HRESULT hr, _Printf_format_string_ PCSTR formatString, va_list argList)
+        {
+            ReportFailure_Msg<FailureType::FailFast>(__R_FN_CALL_FULL, hr, formatString, argList);
+        }
+
+        template<>
+        __declspec(noinline) inline RESULT_NORETURN void ReportFailure_HrMsg<FailureType::Exception>(__R_FN_PARAMS_FULL, HRESULT hr, _Printf_format_string_ PCSTR formatString, va_list argList)
+        {
+            ReportFailure_Msg<FailureType::Exception>(__R_FN_CALL_FULL, hr, formatString, argList);
         }
 
         _Success_(true)
-        _When_((type == FailureType::Exception) || (type == FailureType::FailFast), _Analysis_noreturn_)
         _Translates_Win32_to_HRESULT_(err)
-        __declspec(noinline) inline HRESULT ReportFailure_Win32Msg(__R_FN_PARAMS_FULL, FailureType type, DWORD err, _Printf_format_string_ PCSTR formatString, va_list argList)
+        template<FailureType T>
+        __declspec(noinline) inline HRESULT ReportFailure_Win32Msg(__R_FN_PARAMS_FULL, DWORD err, _Printf_format_string_ PCSTR formatString, va_list argList)
         {
             auto hr = __HRESULT_FROM_WIN32(err);
-            ReportFailure_Msg(__R_FN_CALL_FULL, type, hr, formatString, argList);
+            ReportFailure_Msg<T>(__R_FN_CALL_FULL, hr, formatString, argList);
             return hr;
         }
 
-        _When_((type == FailureType::Exception) || (type == FailureType::FailFast), _Analysis_noreturn_)
-        __declspec(noinline) inline DWORD ReportFailure_GetLastErrorMsg(__R_FN_PARAMS_FULL, FailureType type, _Printf_format_string_ PCSTR formatString, va_list argList)
+        _Success_(true)
+        _Translates_Win32_to_HRESULT_(err)
+        template<>
+        __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_Win32Msg<FailureType::FailFast>(__R_FN_PARAMS_FULL, DWORD err, _Printf_format_string_ PCSTR formatString, va_list argList)
+        {
+            auto hr = __HRESULT_FROM_WIN32(err);
+            ReportFailure_Msg<FailureType::FailFast>(__R_FN_CALL_FULL, hr, formatString, argList);
+        }
+
+        _Success_(true)
+        _Translates_Win32_to_HRESULT_(err)
+        template<>
+        __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_Win32Msg<FailureType::Exception>(__R_FN_PARAMS_FULL, DWORD err, _Printf_format_string_ PCSTR formatString, va_list argList)
+        {
+            auto hr = __HRESULT_FROM_WIN32(err);
+            ReportFailure_Msg<FailureType::Exception>(__R_FN_CALL_FULL, hr, formatString, argList);
+        }
+
+        template<FailureType T>
+        __declspec(noinline) inline DWORD ReportFailure_GetLastErrorMsg(__R_FN_PARAMS_FULL, _Printf_format_string_ PCSTR formatString, va_list argList)
         {
             auto err = GetLastErrorFail(__R_FN_CALL_FULL);
             auto hr = __HRESULT_FROM_WIN32(err);
-            ReportFailure_Msg(__R_FN_CALL_FULL, type, hr, formatString, argList);
+            ReportFailure_Msg<T>(__R_FN_CALL_FULL, hr, formatString, argList);
             return err;
+        }
+
+        template<>
+        __declspec(noinline) inline RESULT_NORETURN DWORD ReportFailure_GetLastErrorMsg<FailureType::FailFast>(__R_FN_PARAMS_FULL, _Printf_format_string_ PCSTR formatString, va_list argList)
+        {
+            auto err = GetLastErrorFail(__R_FN_CALL_FULL);
+            auto hr = __HRESULT_FROM_WIN32(err);
+            ReportFailure_Msg<FailureType::FailFast>(__R_FN_CALL_FULL, hr, formatString, argList);
+        }
+
+        template<>
+        __declspec(noinline) inline RESULT_NORETURN DWORD ReportFailure_GetLastErrorMsg<FailureType::Exception>(__R_FN_PARAMS_FULL, _Printf_format_string_ PCSTR formatString, va_list argList)
+        {
+            auto err = GetLastErrorFail(__R_FN_CALL_FULL);
+            auto hr = __HRESULT_FROM_WIN32(err);
+            ReportFailure_Msg<FailureType::Exception>(__R_FN_CALL_FULL, hr, formatString, argList);
         }
 
         _Success_(true)
         _When_((type == FailureType::Exception) || (type == FailureType::FailFast), _Analysis_noreturn_)
         _Translates_last_error_to_HRESULT_
-        __declspec(noinline) inline HRESULT ReportFailure_GetLastErrorHrMsg(__R_FN_PARAMS_FULL, FailureType type, _Printf_format_string_ PCSTR formatString, va_list argList)
+        template<FailureType T>
+        __declspec(noinline) inline HRESULT ReportFailure_GetLastErrorHrMsg(__R_FN_PARAMS_FULL, _Printf_format_string_ PCSTR formatString, va_list argList)
         {
             auto hr = GetLastErrorFailHr(__R_FN_CALL_FULL);
-            ReportFailure_Msg(__R_FN_CALL_FULL, type, hr, formatString, argList);
+            ReportFailure_Msg<T>(__R_FN_CALL_FULL, hr, formatString, argList);
             return hr;
         }
 
         _Success_(true)
-        _When_((type == FailureType::Exception) || (type == FailureType::FailFast), _Analysis_noreturn_)
+        _Translates_last_error_to_HRESULT_
+        template<>
+        __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_GetLastErrorHrMsg<FailureType::FailFast>(__R_FN_PARAMS_FULL, _Printf_format_string_ PCSTR formatString, va_list argList)
+        {
+            auto hr = GetLastErrorFailHr(__R_FN_CALL_FULL);
+            ReportFailure_Msg<FailureType::FailFast>(__R_FN_CALL_FULL, hr, formatString, argList);
+        }
+
+        _Success_(true)
+        _Translates_last_error_to_HRESULT_
+        template<>
+        __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_GetLastErrorHrMsg<FailureType::Exception>(__R_FN_PARAMS_FULL, _Printf_format_string_ PCSTR formatString, va_list argList)
+        {
+            auto hr = GetLastErrorFailHr(__R_FN_CALL_FULL);
+            ReportFailure_Msg<FailureType::Exception>(__R_FN_CALL_FULL, hr, formatString, argList);
+        }
+
+        _Success_(true)
         _Translates_NTSTATUS_to_HRESULT_(status)
-        __declspec(noinline) inline HRESULT ReportFailure_NtStatusMsg(__R_FN_PARAMS_FULL, FailureType type, NTSTATUS status, _Printf_format_string_ PCSTR formatString, va_list argList)
+        template<FailureType T>
+        __declspec(noinline) inline HRESULT ReportFailure_NtStatusMsg(__R_FN_PARAMS_FULL, NTSTATUS status, _Printf_format_string_ PCSTR formatString, va_list argList)
         {
             auto hr = wil::details::NtStatusToHr(status);
-            ReportFailure_Msg(__R_FN_CALL_FULL, type, hr, formatString, argList);
+            ReportFailure_Msg<T>(__R_FN_CALL_FULL, hr, formatString, argList);
             return hr;
         }
 
-        __declspec(noinline) inline HRESULT ReportFailure_CaughtExceptionMsg(__R_FN_PARAMS_FULL, FailureType type, _Printf_format_string_ PCSTR formatString, va_list argList)
+        _Success_(true)
+        _Translates_NTSTATUS_to_HRESULT_(status)
+        template<>
+        __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_NtStatusMsg<FailureType::FailFast>(__R_FN_PARAMS_FULL, NTSTATUS status, _Printf_format_string_ PCSTR formatString, va_list argList)
+        {
+            auto hr = wil::details::NtStatusToHr(status);
+            ReportFailure_Msg<FailureType::FailFast>(__R_FN_CALL_FULL, hr, formatString, argList);
+        }
+
+        _Success_(true)
+        _Translates_NTSTATUS_to_HRESULT_(status)
+        template<>
+        __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_NtStatusMsg<FailureType::Exception>(__R_FN_PARAMS_FULL, NTSTATUS status, _Printf_format_string_ PCSTR formatString, va_list argList)
+        {
+            auto hr = wil::details::NtStatusToHr(status);
+            ReportFailure_Msg<FailureType::Exception>(__R_FN_CALL_FULL, hr, formatString, argList);
+        }
+
+        template<FailureType T>
+        __declspec(noinline) inline HRESULT ReportFailure_CaughtExceptionMsg(__R_FN_PARAMS_FULL, _Printf_format_string_ PCSTR formatString, va_list argList)
         {
             // Pre-populate the buffer with our message, the exception message will be added to it...
             wchar_t message[2048];
             PrintLoggingMessage(message, ARRAYSIZE(message), formatString, argList);
             StringCchCatW(message, ARRAYSIZE(message), L" -- ");
-            return ReportFailure_CaughtExceptionCommon(__R_FN_CALL_FULL, type, message, ARRAYSIZE(message), SupportedExceptions::Default);
+            return ReportFailure_CaughtExceptionCommon<T>(__R_FN_CALL_FULL, message, ARRAYSIZE(message), SupportedExceptions::Default);
+        }
+
+        template<>
+        __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_CaughtExceptionMsg<FailureType::FailFast>(__R_FN_PARAMS_FULL, _Printf_format_string_ PCSTR formatString, va_list argList)
+        {
+            // Pre-populate the buffer with our message, the exception message will be added to it...
+            wchar_t message[2048];
+            PrintLoggingMessage(message, ARRAYSIZE(message), formatString, argList);
+            StringCchCatW(message, ARRAYSIZE(message), L" -- ");
+            ReportFailure_CaughtExceptionCommon<FailureType::FailFast>(__R_FN_CALL_FULL, message, ARRAYSIZE(message), SupportedExceptions::Default);
+        }
+
+        template<>
+        __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_CaughtExceptionMsg<FailureType::Exception>(__R_FN_PARAMS_FULL, _Printf_format_string_ PCSTR formatString, va_list argList)
+        {
+            // Pre-populate the buffer with our message, the exception message will be added to it...
+            wchar_t message[2048];
+            PrintLoggingMessage(message, ARRAYSIZE(message), formatString, argList);
+            StringCchCatW(message, ARRAYSIZE(message), L" -- ");
+            ReportFailure_CaughtExceptionCommon<FailureType::Exception>(__R_FN_CALL_FULL, message, ARRAYSIZE(message), SupportedExceptions::Default);
         }
 
 
@@ -3630,7 +3981,7 @@ namespace wil
             __R_DIRECT_METHOD(void, Return_Hr)(__R_DIRECT_FN_PARAMS HRESULT hr) WI_NOEXCEPT
             {
                 __R_FN_LOCALS;
-                wil::details::ReportFailure_Hr(__R_DIRECT_FN_CALL FailureType::Return, hr);
+                wil::details::ReportFailure_Hr<FailureType::Return>(__R_DIRECT_FN_CALL hr);
             }
 
             _Success_(true)
@@ -3638,7 +3989,7 @@ namespace wil
             __R_DIRECT_METHOD(HRESULT, Return_Win32)(__R_DIRECT_FN_PARAMS DWORD err) WI_NOEXCEPT
             {
                 __R_FN_LOCALS;
-                return wil::details::ReportFailure_Win32(__R_DIRECT_FN_CALL FailureType::Return, err);
+                return wil::details::ReportFailure_Win32<FailureType::Return>(__R_DIRECT_FN_CALL err);
             }
 
             _Success_(true)
@@ -3646,7 +3997,7 @@ namespace wil
             __R_DIRECT_METHOD(HRESULT, Return_GetLastError)(__R_DIRECT_FN_PARAMS_ONLY) WI_NOEXCEPT
             {
                 __R_FN_LOCALS;
-                return wil::details::ReportFailure_GetLastErrorHr(__R_DIRECT_FN_CALL FailureType::Return);
+                return wil::details::ReportFailure_GetLastErrorHr<FailureType::Return>(__R_DIRECT_FN_CALL_ONLY);
             }
 
             _Success_(true)
@@ -3654,14 +4005,14 @@ namespace wil
             __R_DIRECT_METHOD(HRESULT, Return_NtStatus)(__R_DIRECT_FN_PARAMS NTSTATUS status) WI_NOEXCEPT
             {
                 __R_FN_LOCALS;
-                return wil::details::ReportFailure_NtStatus(__R_DIRECT_FN_CALL FailureType::Return, status);
+                return wil::details::ReportFailure_NtStatus<FailureType::Return>(__R_DIRECT_FN_CALL status);
             }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
             __R_DIRECT_METHOD(HRESULT, Return_CaughtException)(__R_DIRECT_FN_PARAMS_ONLY) WI_NOEXCEPT
             {
                 __R_FN_LOCALS;
-                return wil::details::ReportFailure_CaughtException(__R_DIRECT_FN_CALL FailureType::Return);
+                return wil::details::ReportFailure_CaughtException<FailureType::Return>(__R_DIRECT_FN_CALL_ONLY);
             }
 #endif
 
@@ -3670,7 +4021,7 @@ namespace wil
                 va_list argList;
                 va_start(argList, formatString);
                 __R_FN_LOCALS;
-                wil::details::ReportFailure_HrMsg(__R_DIRECT_FN_CALL FailureType::Return, hr, formatString, argList);
+                wil::details::ReportFailure_HrMsg<FailureType::Return>(__R_DIRECT_FN_CALL hr, formatString, argList);
             }
 
             _Success_(true)
@@ -3680,7 +4031,7 @@ namespace wil
                 va_list argList;
                 va_start(argList, formatString);
                 __R_FN_LOCALS;
-                return wil::details::ReportFailure_Win32Msg(__R_DIRECT_FN_CALL FailureType::Return, err, formatString, argList);
+                return wil::details::ReportFailure_Win32Msg<FailureType::Return>(__R_DIRECT_FN_CALL err, formatString, argList);
             }
 
             _Success_(true)
@@ -3690,7 +4041,7 @@ namespace wil
                 va_list argList;
                 va_start(argList, formatString);
                 __R_FN_LOCALS;
-                return wil::details::ReportFailure_GetLastErrorHrMsg(__R_DIRECT_FN_CALL FailureType::Return, formatString, argList);
+                return wil::details::ReportFailure_GetLastErrorHrMsg<FailureType::Return>(__R_DIRECT_FN_CALL formatString, argList);
             }
 
             _Success_(true)
@@ -3700,7 +4051,7 @@ namespace wil
                 va_list argList;
                 va_start(argList, formatString);
                 __R_FN_LOCALS;
-                return wil::details::ReportFailure_NtStatusMsg(__R_DIRECT_FN_CALL FailureType::Return, status, formatString, argList);
+                return wil::details::ReportFailure_NtStatusMsg<FailureType::Return>(__R_DIRECT_FN_CALL status, formatString, argList);
             }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
@@ -3709,7 +4060,7 @@ namespace wil
                 va_list argList;
                 va_start(argList, formatString);
                 __R_FN_LOCALS;
-                return wil::details::ReportFailure_CaughtExceptionMsg(__R_DIRECT_FN_CALL FailureType::Return, formatString, argList);
+                return wil::details::ReportFailure_CaughtExceptionMsg<FailureType::Return>(__R_DIRECT_FN_CALL formatString, argList);
             }
 #endif
 
@@ -3717,11 +4068,10 @@ namespace wil
             // Log Macros
             //*****************************************************************************
 
-            _Use_decl_annotations_
             __R_DIRECT_METHOD(HRESULT, Log_Hr)(__R_DIRECT_FN_PARAMS HRESULT hr) WI_NOEXCEPT
             {
                 __R_FN_LOCALS;
-                wil::details::ReportFailure_Hr(__R_DIRECT_FN_CALL FailureType::Log, hr);
+                wil::details::ReportFailure_Hr<FailureType::Log>(__R_DIRECT_FN_CALL hr);
                 return hr;
             }
 
@@ -3729,21 +4079,21 @@ namespace wil
             __R_DIRECT_METHOD(DWORD, Log_Win32)(__R_DIRECT_FN_PARAMS DWORD err) WI_NOEXCEPT
             {
                 __R_FN_LOCALS;
-                wil::details::ReportFailure_Win32(__R_DIRECT_FN_CALL FailureType::Log, err);
+                wil::details::ReportFailure_Win32<FailureType::Log>(__R_DIRECT_FN_CALL err);
                 return err;
             }
 
             __R_DIRECT_METHOD(DWORD, Log_GetLastError)(__R_DIRECT_FN_PARAMS_ONLY) WI_NOEXCEPT
             {
                 __R_FN_LOCALS;
-                return wil::details::ReportFailure_GetLastError(__R_DIRECT_FN_CALL FailureType::Log);
+                return wil::details::ReportFailure_GetLastError<FailureType::Log>(__R_DIRECT_FN_CALL_ONLY);
             }
 
             _Post_satisfies_(return == status)
             __R_DIRECT_METHOD(NTSTATUS, Log_NtStatus)(__R_DIRECT_FN_PARAMS NTSTATUS status) WI_NOEXCEPT
             {
                 __R_FN_LOCALS;
-                wil::details::ReportFailure_NtStatus(__R_DIRECT_FN_CALL FailureType::Log, status);
+                wil::details::ReportFailure_NtStatus<FailureType::Log>(__R_DIRECT_FN_CALL status);
                 return status;
             }
 
@@ -3751,38 +4101,38 @@ namespace wil
             __R_DIRECT_METHOD(HRESULT, Log_CaughtException)(__R_DIRECT_FN_PARAMS_ONLY) WI_NOEXCEPT
             {
                 __R_FN_LOCALS;
-                return wil::details::ReportFailure_CaughtException(__R_DIRECT_FN_CALL FailureType::Log);
+                return wil::details::ReportFailure_CaughtException<FailureType::Log>(__R_DIRECT_FN_CALL_ONLY);
             }
 #endif
 
             __R_INTERNAL_METHOD(_Log_Hr)(__R_INTERNAL_FN_PARAMS HRESULT hr) WI_NOEXCEPT
             {
                 __R_FN_LOCALS;
-                wil::details::ReportFailure_Hr(__R_INTERNAL_FN_CALL FailureType::Log, hr);
+                wil::details::ReportFailure_Hr<FailureType::Log>(__R_INTERNAL_FN_CALL hr);
             }
 
             __R_INTERNAL_METHOD(_Log_GetLastError)(__R_INTERNAL_FN_PARAMS_ONLY) WI_NOEXCEPT
             {
                 __R_FN_LOCALS;
-                wil::details::ReportFailure_GetLastError(__R_INTERNAL_FN_CALL FailureType::Log);
+                wil::details::ReportFailure_GetLastError<FailureType::Log>(__R_INTERNAL_FN_CALL_ONLY);
             }
 
             __R_INTERNAL_METHOD(_Log_Win32)(__R_INTERNAL_FN_PARAMS DWORD err) WI_NOEXCEPT
             {
                 __R_FN_LOCALS;
-                wil::details::ReportFailure_Win32(__R_INTERNAL_FN_CALL FailureType::Log, err);
+                wil::details::ReportFailure_Win32<FailureType::Log>(__R_INTERNAL_FN_CALL err);
             }
 
             __R_INTERNAL_METHOD(_Log_NullAlloc)(__R_INTERNAL_FN_PARAMS_ONLY) WI_NOEXCEPT
             {
                 __R_FN_LOCALS;
-                wil::details::ReportFailure_Hr(__R_INTERNAL_FN_CALL FailureType::Log, E_OUTOFMEMORY);
+                wil::details::ReportFailure_Hr<FailureType::Log>(__R_INTERNAL_FN_CALL E_OUTOFMEMORY);
             }
 
             __R_INTERNAL_METHOD(_Log_NtStatus)(__R_INTERNAL_FN_PARAMS NTSTATUS status) WI_NOEXCEPT
             {
                 __R_FN_LOCALS;
-                wil::details::ReportFailure_NtStatus(__R_INTERNAL_FN_CALL FailureType::Log, status);
+                wil::details::ReportFailure_NtStatus<FailureType::Log>(__R_INTERNAL_FN_CALL status);
             }
 
             _Post_satisfies_(return == hr)
@@ -3972,23 +4322,21 @@ namespace wil
                 return status;
             }
 
-            _Use_decl_annotations_
             __R_DIRECT_METHOD(HRESULT, Log_HrMsg)(__R_DIRECT_FN_PARAMS HRESULT hr, PCSTR formatString, ...) WI_NOEXCEPT
             {
                 va_list argList;
                 va_start(argList, formatString);
                 __R_FN_LOCALS;
-                wil::details::ReportFailure_HrMsg(__R_DIRECT_FN_CALL FailureType::Log, hr, formatString, argList);
+                wil::details::ReportFailure_HrMsg<FailureType::Log>(__R_DIRECT_FN_CALL hr, formatString, argList);
                 return hr;
             }
 
-            _Use_decl_annotations_
             __R_DIRECT_METHOD(DWORD, Log_Win32Msg)(__R_DIRECT_FN_PARAMS DWORD err, PCSTR formatString, ...) WI_NOEXCEPT
             {
                 va_list argList;
                 va_start(argList, formatString);
                 __R_FN_LOCALS;
-                wil::details::ReportFailure_Win32Msg(__R_DIRECT_FN_CALL FailureType::Log, err, formatString, argList);
+                wil::details::ReportFailure_Win32Msg<FailureType::Log>(__R_DIRECT_FN_CALL err, formatString, argList);
                 return err;
             }
 
@@ -3997,7 +4345,7 @@ namespace wil
                 va_list argList;
                 va_start(argList, formatString);
                 __R_FN_LOCALS;
-                return wil::details::ReportFailure_GetLastErrorMsg(__R_DIRECT_FN_CALL FailureType::Log, formatString, argList);
+                return wil::details::ReportFailure_GetLastErrorMsg<FailureType::Log>(__R_DIRECT_FN_CALL formatString, argList);
             }
 
             _Post_satisfies_(return == status)
@@ -4006,7 +4354,7 @@ namespace wil
                 va_list argList;
                 va_start(argList, formatString);
                 __R_FN_LOCALS;
-                wil::details::ReportFailure_NtStatusMsg(__R_DIRECT_FN_CALL FailureType::Log, status, formatString, argList);
+                wil::details::ReportFailure_NtStatusMsg<FailureType::Log>(__R_DIRECT_FN_CALL status, formatString, argList);
                 return status;
             }
 
@@ -4016,38 +4364,38 @@ namespace wil
                 va_list argList;
                 va_start(argList, formatString);
                 __R_FN_LOCALS;
-                return wil::details::ReportFailure_CaughtExceptionMsg(__R_DIRECT_FN_CALL FailureType::Log, formatString, argList);
+                return wil::details::ReportFailure_CaughtExceptionMsg<FailureType::Log>(__R_DIRECT_FN_CALL formatString, argList);
             }
 #endif
 
             __R_INTERNAL_NOINLINE_METHOD(_Log_HrMsg)(__R_INTERNAL_NOINLINE_FN_PARAMS HRESULT hr, _Printf_format_string_ PCSTR formatString, va_list argList) WI_NOEXCEPT
             {
                 __R_FN_LOCALS;
-                wil::details::ReportFailure_HrMsg(__R_INTERNAL_NOINLINE_FN_CALL FailureType::Log, hr, formatString, argList);
+                wil::details::ReportFailure_HrMsg<FailureType::Log>(__R_INTERNAL_NOINLINE_FN_CALL hr, formatString, argList);
             }
 
             __R_INTERNAL_NOINLINE_METHOD(_Log_GetLastErrorMsg)(__R_INTERNAL_NOINLINE_FN_PARAMS _Printf_format_string_ PCSTR formatString, va_list argList) WI_NOEXCEPT
             {
                 __R_FN_LOCALS;
-                wil::details::ReportFailure_GetLastErrorMsg(__R_INTERNAL_NOINLINE_FN_CALL FailureType::Log, formatString, argList);
+                wil::details::ReportFailure_GetLastErrorMsg<FailureType::Log>(__R_INTERNAL_NOINLINE_FN_CALL formatString, argList);
             }
 
             __R_INTERNAL_NOINLINE_METHOD(_Log_Win32Msg)(__R_INTERNAL_NOINLINE_FN_PARAMS DWORD err, _Printf_format_string_ PCSTR formatString, va_list argList) WI_NOEXCEPT
             {
                 __R_FN_LOCALS;
-                wil::details::ReportFailure_Win32Msg(__R_INTERNAL_NOINLINE_FN_CALL FailureType::Log, err, formatString, argList);
+                wil::details::ReportFailure_Win32Msg<FailureType::Log>(__R_INTERNAL_NOINLINE_FN_CALL err, formatString, argList);
             }
 
             __R_INTERNAL_NOINLINE_METHOD(_Log_NullAllocMsg)(__R_INTERNAL_NOINLINE_FN_PARAMS _Printf_format_string_ PCSTR formatString, va_list argList) WI_NOEXCEPT
             {
                 __R_FN_LOCALS;
-                wil::details::ReportFailure_HrMsg(__R_INTERNAL_NOINLINE_FN_CALL FailureType::Log, E_OUTOFMEMORY, formatString, argList);
+                wil::details::ReportFailure_HrMsg<FailureType::Log>(__R_INTERNAL_NOINLINE_FN_CALL E_OUTOFMEMORY, formatString, argList);
             }
 
             __R_INTERNAL_NOINLINE_METHOD(_Log_NtStatusMsg)(__R_INTERNAL_NOINLINE_FN_PARAMS NTSTATUS status, _Printf_format_string_ PCSTR formatString, va_list argList) WI_NOEXCEPT
             {
                 __R_FN_LOCALS;
-                wil::details::ReportFailure_NtStatusMsg(__R_INTERNAL_NOINLINE_FN_CALL FailureType::Log, status, formatString, argList);
+                wil::details::ReportFailure_NtStatusMsg<FailureType::Log>(__R_INTERNAL_NOINLINE_FN_CALL status, formatString, argList);
             }
 
             _Post_satisfies_(return == hr)
@@ -4252,63 +4600,63 @@ namespace wil
             __RFF_DIRECT_NORET_METHOD(void, FailFast_Hr)(__RFF_DIRECT_FN_PARAMS HRESULT hr) WI_NOEXCEPT
             {
                 __RFF_FN_LOCALS;
-                wil::details::ReportFailure_Hr(__RFF_DIRECT_FN_CALL FailureType::FailFast, hr);
+                wil::details::ReportFailure_Hr<FailureType::FailFast>(__RFF_DIRECT_FN_CALL hr);
             }
 
             __RFF_DIRECT_NORET_METHOD(void, FailFast_Win32)(__RFF_DIRECT_FN_PARAMS DWORD err) WI_NOEXCEPT
             {
                 __RFF_FN_LOCALS;
-                wil::details::ReportFailure_Win32(__RFF_DIRECT_FN_CALL FailureType::FailFast, err);
+                wil::details::ReportFailure_Win32<FailureType::FailFast>(__RFF_DIRECT_FN_CALL err);
             }
 
             __RFF_DIRECT_NORET_METHOD(void, FailFast_GetLastError)(__RFF_DIRECT_FN_PARAMS_ONLY) WI_NOEXCEPT
             {
                 __RFF_FN_LOCALS;
-                wil::details::ReportFailure_GetLastError(__RFF_DIRECT_FN_CALL FailureType::FailFast);
+                wil::details::ReportFailure_GetLastError<FailureType::FailFast>(__RFF_DIRECT_FN_CALL_ONLY);
             }
 
             __RFF_DIRECT_NORET_METHOD(void, FailFast_NtStatus)(__RFF_DIRECT_FN_PARAMS NTSTATUS status) WI_NOEXCEPT
             {
                 __RFF_FN_LOCALS;
-                wil::details::ReportFailure_NtStatus(__RFF_DIRECT_FN_CALL FailureType::FailFast, status);
+                wil::details::ReportFailure_NtStatus<FailureType::FailFast>(__RFF_DIRECT_FN_CALL status);
             }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
             __RFF_DIRECT_NORET_METHOD(void, FailFast_CaughtException)(__RFF_DIRECT_FN_PARAMS_ONLY) WI_NOEXCEPT
             {
                 __RFF_FN_LOCALS;
-                wil::details::ReportFailure_CaughtException(__RFF_DIRECT_FN_CALL FailureType::FailFast);
+                wil::details::ReportFailure_CaughtException<FailureType::FailFast>(__RFF_DIRECT_FN_CALL_ONLY);
             }
 #endif
 
             __RFF_INTERNAL_NORET_METHOD(_FailFast_Hr)(__RFF_INTERNAL_FN_PARAMS HRESULT hr) WI_NOEXCEPT
             {
                 __RFF_FN_LOCALS;
-                wil::details::ReportFailure_Hr(__RFF_INTERNAL_FN_CALL FailureType::FailFast, hr);
+                wil::details::ReportFailure_Hr<FailureType::FailFast>(__RFF_INTERNAL_FN_CALL hr);
             }
 
             __RFF_INTERNAL_NORET_METHOD(_FailFast_GetLastError)(__RFF_INTERNAL_FN_PARAMS_ONLY) WI_NOEXCEPT
             {
                 __RFF_FN_LOCALS;
-                wil::details::ReportFailure_GetLastError(__RFF_INTERNAL_FN_CALL FailureType::FailFast);
+                wil::details::ReportFailure_GetLastError<FailureType::FailFast>(__RFF_INTERNAL_FN_CALL_ONLY);
             }
 
             __RFF_INTERNAL_NORET_METHOD(_FailFast_Win32)(__RFF_INTERNAL_FN_PARAMS DWORD err) WI_NOEXCEPT
             {
                 __RFF_FN_LOCALS;
-                wil::details::ReportFailure_Win32(__RFF_INTERNAL_FN_CALL FailureType::FailFast, err);
+                wil::details::ReportFailure_Win32<FailureType::FailFast>(__RFF_INTERNAL_FN_CALL err);
             }
 
             __RFF_INTERNAL_NORET_METHOD(_FailFast_NullAlloc)(__RFF_INTERNAL_FN_PARAMS_ONLY) WI_NOEXCEPT
             {
                 __RFF_FN_LOCALS;
-                wil::details::ReportFailure_Hr(__RFF_INTERNAL_FN_CALL FailureType::FailFast, E_OUTOFMEMORY);
+                wil::details::ReportFailure_Hr<FailureType::FailFast>(__RFF_INTERNAL_FN_CALL E_OUTOFMEMORY);
             }
 
             __RFF_INTERNAL_NORET_METHOD(_FailFast_NtStatus)(__RFF_INTERNAL_FN_PARAMS NTSTATUS status) WI_NOEXCEPT
             {
                 __RFF_FN_LOCALS;
-                wil::details::ReportFailure_NtStatus(__RFF_INTERNAL_FN_CALL FailureType::FailFast, status);
+                wil::details::ReportFailure_NtStatus<FailureType::FailFast>(__RFF_INTERNAL_FN_CALL status);
             }
 
             _Post_satisfies_(return == hr) _When_(FAILED(hr), _Analysis_noreturn_)
@@ -4381,7 +4729,6 @@ namespace wil
                 }
             }
 
-            _Use_decl_annotations_
             __RFF_CONDITIONAL_METHOD(bool, FailFast_HrIf)(__RFF_CONDITIONAL_FN_PARAMS HRESULT hr, bool condition) WI_NOEXCEPT
             {
                 if (condition)
@@ -4476,7 +4823,7 @@ namespace wil
                 va_list argList;
                 va_start(argList, formatString);
                 __RFF_FN_LOCALS;
-                wil::details::ReportFailure_HrMsg(__RFF_DIRECT_FN_CALL FailureType::FailFast, hr, formatString, argList);
+                wil::details::ReportFailure_HrMsg<FailureType::FailFast>(__RFF_DIRECT_FN_CALL hr, formatString, argList);
             }
 
             __RFF_DIRECT_NORET_METHOD(void, FailFast_Win32Msg)(__RFF_DIRECT_FN_PARAMS DWORD err, _Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT
@@ -4484,7 +4831,7 @@ namespace wil
                 va_list argList;
                 va_start(argList, formatString);
                 __RFF_FN_LOCALS;
-                wil::details::ReportFailure_Win32Msg(__RFF_DIRECT_FN_CALL FailureType::FailFast, err, formatString, argList);
+                wil::details::ReportFailure_Win32Msg<FailureType::FailFast>(__RFF_DIRECT_FN_CALL err, formatString, argList);
             }
 
             __RFF_DIRECT_NORET_METHOD(void, FailFast_GetLastErrorMsg)(__RFF_DIRECT_FN_PARAMS _Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT
@@ -4492,7 +4839,7 @@ namespace wil
                 va_list argList;
                 va_start(argList, formatString);
                 __RFF_FN_LOCALS;
-                wil::details::ReportFailure_GetLastErrorMsg(__RFF_DIRECT_FN_CALL FailureType::FailFast, formatString, argList);
+                wil::details::ReportFailure_GetLastErrorMsg<FailureType::FailFast>(__RFF_DIRECT_FN_CALL formatString, argList);
             }
 
             __RFF_DIRECT_NORET_METHOD(void, FailFast_NtStatusMsg)(__RFF_DIRECT_FN_PARAMS NTSTATUS status, _Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT
@@ -4500,7 +4847,7 @@ namespace wil
                 va_list argList;
                 va_start(argList, formatString);
                 __RFF_FN_LOCALS;
-                wil::details::ReportFailure_NtStatusMsg(__RFF_DIRECT_FN_CALL FailureType::FailFast, status, formatString, argList);
+                wil::details::ReportFailure_NtStatusMsg<FailureType::FailFast>(__RFF_DIRECT_FN_CALL status, formatString, argList);
             }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
@@ -4509,38 +4856,38 @@ namespace wil
                 va_list argList;
                 va_start(argList, formatString);
                 __RFF_FN_LOCALS;
-                wil::details::ReportFailure_CaughtExceptionMsg(__RFF_DIRECT_FN_CALL FailureType::FailFast, formatString, argList);
+                wil::details::ReportFailure_CaughtExceptionMsg<FailureType::FailFast>(__RFF_DIRECT_FN_CALL formatString, argList);
             }
 #endif
 
             __RFF_INTERNAL_NOINLINE_NORET_METHOD(_FailFast_HrMsg)(__RFF_INTERNAL_NOINLINE_FN_PARAMS HRESULT hr, _Printf_format_string_ PCSTR formatString, va_list argList) WI_NOEXCEPT
             {
                 __RFF_FN_LOCALS;
-                wil::details::ReportFailure_HrMsg(__RFF_INTERNAL_NOINLINE_FN_CALL FailureType::FailFast, hr, formatString, argList);
+                wil::details::ReportFailure_HrMsg<FailureType::FailFast>(__RFF_INTERNAL_NOINLINE_FN_CALL hr, formatString, argList);
             }
 
             __RFF_INTERNAL_NOINLINE_NORET_METHOD(_FailFast_GetLastErrorMsg)(__RFF_INTERNAL_NOINLINE_FN_PARAMS _Printf_format_string_ PCSTR formatString, va_list argList) WI_NOEXCEPT
             {
                 __RFF_FN_LOCALS;
-                wil::details::ReportFailure_GetLastErrorMsg(__RFF_INTERNAL_NOINLINE_FN_CALL FailureType::FailFast, formatString, argList);
+                wil::details::ReportFailure_GetLastErrorMsg<FailureType::FailFast>(__RFF_INTERNAL_NOINLINE_FN_CALL formatString, argList);
             }
 
             __RFF_INTERNAL_NOINLINE_NORET_METHOD(_FailFast_Win32Msg)(__RFF_INTERNAL_NOINLINE_FN_PARAMS DWORD err, _Printf_format_string_ PCSTR formatString, va_list argList) WI_NOEXCEPT
             {
                 __RFF_FN_LOCALS;
-                wil::details::ReportFailure_Win32Msg(__RFF_INTERNAL_NOINLINE_FN_CALL FailureType::FailFast, err, formatString, argList);
+                wil::details::ReportFailure_Win32Msg<FailureType::FailFast>(__RFF_INTERNAL_NOINLINE_FN_CALL err, formatString, argList);
             }
 
             __RFF_INTERNAL_NOINLINE_NORET_METHOD(_FailFast_NullAllocMsg)(__RFF_INTERNAL_NOINLINE_FN_PARAMS _Printf_format_string_ PCSTR formatString, va_list argList) WI_NOEXCEPT
             {
                 __RFF_FN_LOCALS;
-                wil::details::ReportFailure_HrMsg(__RFF_INTERNAL_NOINLINE_FN_CALL FailureType::FailFast, E_OUTOFMEMORY, formatString, argList);
+                wil::details::ReportFailure_HrMsg<FailureType::FailFast>(__RFF_INTERNAL_NOINLINE_FN_CALL E_OUTOFMEMORY, formatString, argList);
             }
 
             __RFF_INTERNAL_NOINLINE_NORET_METHOD(_FailFast_NtStatusMsg)(__RFF_INTERNAL_NOINLINE_FN_PARAMS NTSTATUS status, _Printf_format_string_ PCSTR formatString, va_list argList) WI_NOEXCEPT
             {
                 __RFF_FN_LOCALS;
-                wil::details::ReportFailure_NtStatusMsg(__RFF_INTERNAL_NOINLINE_FN_CALL FailureType::FailFast, status, formatString, argList);
+                wil::details::ReportFailure_NtStatusMsg<FailureType::FailFast>(__RFF_INTERNAL_NOINLINE_FN_CALL status, formatString, argList);
             }
 
             _Post_satisfies_(return == hr) _When_(FAILED(hr), _Analysis_noreturn_)
@@ -4738,16 +5085,15 @@ namespace wil
             __RFF_DIRECT_NORET_METHOD(void, FailFast_Unexpected)(__RFF_DIRECT_FN_PARAMS_ONLY) WI_NOEXCEPT
             {
                 __RFF_FN_LOCALS;
-                wil::details::ReportFailure_Hr(__RFF_DIRECT_FN_CALL FailureType::FailFast, E_UNEXPECTED);
+                wil::details::ReportFailure_Hr<FailureType::FailFast>(__RFF_DIRECT_FN_CALL E_UNEXPECTED);
             }
 
             __RFF_INTERNAL_NORET_METHOD(_FailFast_Unexpected)(__RFF_INTERNAL_FN_PARAMS_ONLY) WI_NOEXCEPT
             {
                 __RFF_FN_LOCALS;
-                wil::details::ReportFailure_Hr(__RFF_INTERNAL_FN_CALL FailureType::FailFast, E_UNEXPECTED);
+                wil::details::ReportFailure_Hr<FailureType::FailFast>(__RFF_INTERNAL_FN_CALL E_UNEXPECTED);
             }
 
-            _Use_decl_annotations_
             __RFF_CONDITIONAL_METHOD(bool, FailFast_If)(__RFF_CONDITIONAL_FN_PARAMS bool condition) WI_NOEXCEPT
             {
                 if (condition)
@@ -4757,7 +5103,6 @@ namespace wil
                 return condition;
             }
 
-            _Use_decl_annotations_
             __RFF_CONDITIONAL_METHOD(bool, FailFast_IfFalse)(__RFF_CONDITIONAL_FN_PARAMS bool condition) WI_NOEXCEPT
             {
                 if (!condition)
@@ -4794,13 +5139,13 @@ namespace wil
                 va_list argList;
                 va_start(argList, formatString);
                 __RFF_FN_LOCALS;
-                wil::details::ReportFailure_HrMsg(__RFF_DIRECT_FN_CALL FailureType::FailFast, E_UNEXPECTED, formatString, argList);
+                wil::details::ReportFailure_HrMsg<FailureType::FailFast>(__RFF_DIRECT_FN_CALL E_UNEXPECTED, formatString, argList);
             }
 
             __RFF_INTERNAL_NOINLINE_NORET_METHOD(_FailFast_UnexpectedMsg)(__RFF_INTERNAL_NOINLINE_FN_PARAMS _Printf_format_string_ PCSTR formatString, va_list argList) WI_NOEXCEPT
             {
                 __RFF_FN_LOCALS;
-                wil::details::ReportFailure_HrMsg(__RFF_INTERNAL_NOINLINE_FN_CALL FailureType::FailFast, E_UNEXPECTED, formatString, argList);
+                wil::details::ReportFailure_HrMsg<FailureType::FailFast>(__RFF_INTERNAL_NOINLINE_FN_CALL E_UNEXPECTED, formatString, argList);
             }
 
             _Post_satisfies_(return == condition) _When_(condition, _Analysis_noreturn_)
@@ -4875,7 +5220,6 @@ namespace wil
                 return hr;
             }
 
-            _Use_decl_annotations_
             __RFF_CONDITIONAL_METHOD(bool, FailFastImmediate_If)(bool condition) WI_NOEXCEPT
             {
                 if (condition)
@@ -4936,61 +5280,61 @@ namespace wil
             __R_DIRECT_NORET_METHOD(void, Throw_Hr)(__R_DIRECT_FN_PARAMS HRESULT hr)
             {
                 __R_FN_LOCALS;
-                wil::details::ReportFailure_Hr(__R_DIRECT_FN_CALL FailureType::Exception, hr);
+                wil::details::ReportFailure_Hr<FailureType::Exception>(__R_DIRECT_FN_CALL hr);
             }
 
             __R_DIRECT_NORET_METHOD(void, Throw_Win32)(__R_DIRECT_FN_PARAMS DWORD err)
             {
                 __R_FN_LOCALS;
-                wil::details::ReportFailure_Win32(__R_DIRECT_FN_CALL FailureType::Exception, err);
+                wil::details::ReportFailure_Win32<FailureType::Exception>(__R_DIRECT_FN_CALL err);
             }
 
             __R_DIRECT_NORET_METHOD(void, Throw_GetLastError)(__R_DIRECT_FN_PARAMS_ONLY)
             {
                 __R_FN_LOCALS;
-                wil::details::ReportFailure_GetLastError(__R_DIRECT_FN_CALL FailureType::Exception);
+                wil::details::ReportFailure_GetLastError<FailureType::Exception>(__R_DIRECT_FN_CALL_ONLY);
             }
 
             __R_DIRECT_NORET_METHOD(void, Throw_NtStatus)(__R_DIRECT_FN_PARAMS NTSTATUS status)
             {
                 __R_FN_LOCALS;
-                wil::details::ReportFailure_NtStatus(__R_DIRECT_FN_CALL FailureType::Exception, status);
+                wil::details::ReportFailure_NtStatus<FailureType::Exception>(__R_DIRECT_FN_CALL status);
             }
 
             __R_DIRECT_NORET_METHOD(void, Throw_CaughtException)(__R_DIRECT_FN_PARAMS_ONLY)
             {
                 __R_FN_LOCALS;
-                wil::details::ReportFailure_CaughtException(__R_DIRECT_FN_CALL FailureType::Exception);
+                wil::details::ReportFailure_CaughtException<FailureType::Exception>(__R_DIRECT_FN_CALL_ONLY);
             }
 
             __R_INTERNAL_NORET_METHOD(_Throw_Hr)(__R_INTERNAL_FN_PARAMS HRESULT hr)
             {
                 __R_FN_LOCALS;
-                wil::details::ReportFailure_Hr(__R_INTERNAL_FN_CALL FailureType::Exception, hr);
+                wil::details::ReportFailure_Hr<FailureType::Exception>(__R_INTERNAL_FN_CALL hr);
             }
 
             __R_INTERNAL_NORET_METHOD(_Throw_GetLastError)(__R_INTERNAL_FN_PARAMS_ONLY)
             {
                 __R_FN_LOCALS;
-                wil::details::ReportFailure_GetLastError(__R_INTERNAL_FN_CALL FailureType::Exception);
+                wil::details::ReportFailure_GetLastError<FailureType::Exception>(__R_INTERNAL_FN_CALL_ONLY);
             }
 
             __R_INTERNAL_NORET_METHOD(_Throw_Win32)(__R_INTERNAL_FN_PARAMS DWORD err)
             {
                 __R_FN_LOCALS;
-                wil::details::ReportFailure_Win32(__R_INTERNAL_FN_CALL FailureType::Exception, err);
+                wil::details::ReportFailure_Win32<FailureType::Exception>(__R_INTERNAL_FN_CALL err);
             }
 
             __R_INTERNAL_NORET_METHOD(_Throw_NullAlloc)(__R_INTERNAL_FN_PARAMS_ONLY)
             {
                 __R_FN_LOCALS;
-                wil::details::ReportFailure_Hr(__R_INTERNAL_FN_CALL FailureType::Exception, E_OUTOFMEMORY);
+                wil::details::ReportFailure_Hr<FailureType::Exception>(__R_INTERNAL_FN_CALL E_OUTOFMEMORY);
             }
 
             __R_INTERNAL_NORET_METHOD(_Throw_NtStatus)(__R_INTERNAL_FN_PARAMS NTSTATUS status)
             {
                 __R_FN_LOCALS;
-                wil::details::ReportFailure_NtStatus(__R_INTERNAL_FN_CALL FailureType::Exception, status);
+                wil::details::ReportFailure_NtStatus<FailureType::Exception>(__R_INTERNAL_FN_CALL status);
             }
 
             _Post_satisfies_(return == hr) _When_(FAILED(hr), _Analysis_noreturn_)
@@ -5161,7 +5505,7 @@ namespace wil
                 va_list argList;
                 va_start(argList, formatString);
                 __R_FN_LOCALS;
-                wil::details::ReportFailure_HrMsg(__R_DIRECT_FN_CALL FailureType::Exception, hr, formatString, argList);
+                wil::details::ReportFailure_HrMsg<FailureType::Exception>(__R_DIRECT_FN_CALL hr, formatString, argList);
             }
 
             __R_DIRECT_NORET_METHOD(void, Throw_Win32Msg)(__R_DIRECT_FN_PARAMS DWORD err, _Printf_format_string_ PCSTR formatString, ...)
@@ -5169,7 +5513,7 @@ namespace wil
                 va_list argList;
                 va_start(argList, formatString);
                 __R_FN_LOCALS;
-                wil::details::ReportFailure_Win32Msg(__R_DIRECT_FN_CALL FailureType::Exception, err, formatString, argList);
+                wil::details::ReportFailure_Win32Msg<FailureType::Exception>(__R_DIRECT_FN_CALL err, formatString, argList);
             }
 
             __R_DIRECT_NORET_METHOD(void, Throw_GetLastErrorMsg)(__R_DIRECT_FN_PARAMS _Printf_format_string_ PCSTR formatString, ...)
@@ -5177,7 +5521,7 @@ namespace wil
                 va_list argList;
                 va_start(argList, formatString);
                 __R_FN_LOCALS;
-                wil::details::ReportFailure_GetLastErrorMsg(__R_DIRECT_FN_CALL FailureType::Exception, formatString, argList);
+                wil::details::ReportFailure_GetLastErrorMsg<FailureType::Exception>(__R_DIRECT_FN_CALL formatString, argList);
             }
 
             __R_DIRECT_NORET_METHOD(void, Throw_NtStatusMsg)(__R_DIRECT_FN_PARAMS NTSTATUS status, _Printf_format_string_ PCSTR formatString, ...)
@@ -5185,7 +5529,7 @@ namespace wil
                 va_list argList;
                 va_start(argList, formatString);
                 __R_FN_LOCALS;
-                wil::details::ReportFailure_NtStatusMsg(__R_DIRECT_FN_CALL FailureType::Exception, status, formatString, argList);
+                wil::details::ReportFailure_NtStatusMsg<FailureType::Exception>(__R_DIRECT_FN_CALL status, formatString, argList);
             }
 
             __R_DIRECT_NORET_METHOD(void, Throw_CaughtExceptionMsg)(__R_DIRECT_FN_PARAMS _Printf_format_string_ PCSTR formatString, ...)
@@ -5193,37 +5537,37 @@ namespace wil
                 va_list argList;
                 va_start(argList, formatString);
                 __R_FN_LOCALS;
-                wil::details::ReportFailure_CaughtExceptionMsg(__R_DIRECT_FN_CALL FailureType::Exception, formatString, argList);
+                wil::details::ReportFailure_CaughtExceptionMsg<FailureType::Exception>(__R_DIRECT_FN_CALL formatString, argList);
             }
 
             __R_INTERNAL_NOINLINE_NORET_METHOD(_Throw_HrMsg)(__R_INTERNAL_NOINLINE_FN_PARAMS HRESULT hr, _Printf_format_string_ PCSTR formatString, va_list argList)
             {
                 __R_FN_LOCALS;
-                wil::details::ReportFailure_HrMsg(__R_INTERNAL_NOINLINE_FN_CALL FailureType::Exception, hr, formatString, argList);
+                wil::details::ReportFailure_HrMsg<FailureType::Exception>(__R_INTERNAL_NOINLINE_FN_CALL hr, formatString, argList);
             }
 
             __R_INTERNAL_NOINLINE_NORET_METHOD(_Throw_GetLastErrorMsg)(__R_INTERNAL_NOINLINE_FN_PARAMS _Printf_format_string_ PCSTR formatString, va_list argList)
             {
                 __R_FN_LOCALS;
-                wil::details::ReportFailure_GetLastErrorMsg(__R_INTERNAL_NOINLINE_FN_CALL FailureType::Exception, formatString, argList);
+                wil::details::ReportFailure_GetLastErrorMsg<FailureType::Exception>(__R_INTERNAL_NOINLINE_FN_CALL formatString, argList);
             }
 
             __R_INTERNAL_NOINLINE_NORET_METHOD(_Throw_Win32Msg)(__R_INTERNAL_NOINLINE_FN_PARAMS DWORD err, _Printf_format_string_ PCSTR formatString, va_list argList)
             {
                 __R_FN_LOCALS;
-                wil::details::ReportFailure_Win32Msg(__R_INTERNAL_NOINLINE_FN_CALL FailureType::Exception, err, formatString, argList);
+                wil::details::ReportFailure_Win32Msg<FailureType::Exception>(__R_INTERNAL_NOINLINE_FN_CALL err, formatString, argList);
             }
 
             __R_INTERNAL_NOINLINE_NORET_METHOD(_Throw_NullAllocMsg)(__R_INTERNAL_NOINLINE_FN_PARAMS _Printf_format_string_ PCSTR formatString, va_list argList)
             {
                 __R_FN_LOCALS;
-                wil::details::ReportFailure_HrMsg(__R_INTERNAL_NOINLINE_FN_CALL FailureType::Exception, E_OUTOFMEMORY, formatString, argList);
+                wil::details::ReportFailure_HrMsg<FailureType::Exception>(__R_INTERNAL_NOINLINE_FN_CALL E_OUTOFMEMORY, formatString, argList);
             }
 
             __R_INTERNAL_NOINLINE_NORET_METHOD(_Throw_NtStatusMsg)(__R_INTERNAL_NOINLINE_FN_PARAMS NTSTATUS status, _Printf_format_string_ PCSTR formatString, va_list argList)
             {
                 __R_FN_LOCALS;
-                wil::details::ReportFailure_NtStatusMsg(__R_INTERNAL_NOINLINE_FN_CALL FailureType::Exception, status, formatString, argList);
+                wil::details::ReportFailure_NtStatusMsg<FailureType::Exception>(__R_INTERNAL_NOINLINE_FN_CALL status, formatString, argList);
             }
 
             _Post_satisfies_(return == hr) _When_(FAILED(hr), _Analysis_noreturn_)
