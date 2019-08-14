@@ -517,7 +517,7 @@ namespace wil
                     }
                     catch (...)
                     {
-                        ReportFailure_CaughtException(__R_DIAGNOSTICS(m_info), m_address, FailureType::Log);
+                        ReportFailure_CaughtException<FailureType::Log>(__R_DIAGNOSTICS(m_info), m_address);
                     }
                 }
             }
