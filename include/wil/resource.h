@@ -5247,6 +5247,12 @@ namespace wil
             m_globalMemory = GlobalLock(medium.hGlobal);
         }
 
+        unique_hglobal_locked(HGLOBAL global) : unique_any<void*, decltype(&::GlobalUnlock), ::GlobalUnlock>(global)
+        {
+            // GlobalLock returns a pointer to the associated global memory block and that's what callers care about.
+            m_globalMemory = GlobalLock(global);
+        }
+
         // In the future, we could easily add additional constructor overloads such as unique_hglobal_locked(HGLOBAL) to make consumption easier.
 
         pointer get() const
