@@ -5247,7 +5247,7 @@ namespace wil
             m_globalMemory = GlobalLock(global);
         }
 
-        unique_hglobal_locked(const unique_hglobal &global) : unique_hglobal_locked(global.get())
+        unique_hglobal_locked(unique_hglobal &global) : unique_hglobal_locked(global.get())
         {
         }
 
