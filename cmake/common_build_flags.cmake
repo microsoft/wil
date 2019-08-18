@@ -35,7 +35,6 @@ append_cxx_flag("/wd4324")
 if (${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
     # Ignore a few Clang warnings. We may want to revisit in the future to see if any of these can/should be removed
     append_cxx_flag("-Wno-switch")
-    append_cxx_flag("-Wno-invalid-noreturn")
     append_cxx_flag("-Wno-c++17-compat-mangling")
     append_cxx_flag("-Wno-missing-field-initializers")
 
