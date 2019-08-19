@@ -5245,6 +5245,10 @@ namespace wil
         {
             // GlobalLock returns a pointer to the associated global memory block and that's what callers care about.
             m_globalMemory = GlobalLock(global);
+            if (!m_globalMemory)
+            {
+                release();
+            }
         }
 
         explicit unique_hglobal_locked(unique_hglobal& global) : unique_hglobal_locked(global.get())
