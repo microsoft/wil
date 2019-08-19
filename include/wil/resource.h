@@ -5241,17 +5241,17 @@ namespace wil
     {
         unique_hglobal_locked() = delete;
 
-        unique_hglobal_locked(HGLOBAL global) : unique_any<void*, decltype(&::GlobalUnlock), ::GlobalUnlock>(global)
+        explicit unique_hglobal_locked(HGLOBAL global) : unique_any<void*, decltype(&::GlobalUnlock), ::GlobalUnlock>(global)
         {
             // GlobalLock returns a pointer to the associated global memory block and that's what callers care about.
             m_globalMemory = GlobalLock(global);
         }
 
-        unique_hglobal_locked(unique_hglobal &global) : unique_hglobal_locked(global.get())
+        explicit unique_hglobal_locked(unique_hglobal& global) : unique_hglobal_locked(global.get())
         {
         }
 
-        unique_hglobal_locked(_In_ STGMEDIUM &medium) : unique_hglobal_locked(medium.hGlobal)
+        explicit unique_hglobal_locked(_In_ STGMEDIUM& medium) : unique_hglobal_locked(medium.hGlobal)
         {
         }
 
