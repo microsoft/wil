@@ -5255,7 +5255,7 @@ namespace wil
         {
         }
 
-        explicit unique_hglobal_locked(_In_ STGMEDIUM& medium) : unique_hglobal_locked(medium.hGlobal)
+        explicit unique_hglobal_locked(STGMEDIUM& medium) : unique_hglobal_locked(medium.hGlobal)
         {
         }
 
