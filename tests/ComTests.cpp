@@ -591,7 +591,8 @@ IAlways : public IUnknown
 class __declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20b00")) // non-implemented to allow QI for the class to be attempted (and fail)
 ComObject : witest::AllocatedObject,
     public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::RuntimeClassType::ClassicCom>,
-                                        ITest, IDerivedTest, IAlways>{
+                                        Microsoft::WRL::ChainInterfaces<IDerivedTest, ITest>,
+                                        IAlways>{
 public:
     COM_DECLSPEC_NOTHROW IFACEMETHODIMP_(void) Test() {}
     COM_DECLSPEC_NOTHROW IFACEMETHODIMP_(void) TestDerived() {}
@@ -943,6 +944,7 @@ static void TestSmartPointerConversion(const Ptr1& ptr1, const Ptr2& ptr2)
 template <typename IFace1, typename IFace2>
 static void TestPointerConversionCombination(IFace1* p1, IFace2* p2)
 {
+#ifdef WIL_EXHAUSTIVE_TEST
 #ifdef WIL_ENABLE_EXCEPTIONS
     TestSmartPointerConversion(wil::com_ptr<IFace1>(p1), wil::com_ptr<IFace2>(p2));
     TestSmartPointerConversion(wil::com_ptr<IFace1>(p1), wil::com_ptr_failfast<IFace2>(p2));
@@ -954,6 +956,7 @@ static void TestPointerConversionCombination(IFace1* p1, IFace2* p2)
 #endif
     TestSmartPointerConversion(wil::com_ptr_failfast<IFace1>(p1), wil::com_ptr_failfast<IFace2>(p2));
     TestSmartPointerConversion(wil::com_ptr_failfast<IFace1>(p1), wil::com_ptr_nothrow<IFace2>(p2));
+#endif // WIL_EXHAUSTIVE_TEST
 
 #ifdef WIL_ENABLE_EXCEPTIONS
     TestSmartPointerConversion(wil::com_ptr_nothrow<IFace1>(p1), wil::com_ptr<IFace2>(p2));
@@ -997,6 +1000,7 @@ TEST_CASE("ComTests::Test_PointerConversion", "[com][com_ptr]")
     TestPointerConversion<IDerivedTest, IDerivedTest, ComObject>();
     TestPointerConversion<IAlways, IAlways, ComObject>();
 
+#ifdef WIL_EXHAUSTIVE_TEST
     TestPointerConversion<WinRtObject, WinRtObject, WinRtObject>();
     TestPointerConversion<IUnknown, IUnknown, WinRtObject>();
     TestPointerConversion<IUnknown, ITest, WinRtObject>();
@@ -1014,6 +1018,7 @@ TEST_CASE("ComTests::Test_PointerConversion", "[com][com_ptr]")
     TestPointerConversion<IDerivedTest, IDerivedTest, WinRtObject>();
     TestPointerConversion<IDerivedTestInspectable, IDerivedTestInspectable, WinRtObject>();
     TestPointerConversion<IAlways, IAlways, WinRtObject>();
+#endif
 
     REQUIRE_FALSE(witest::g_objectCount.Leaked());
     wil::g_fResultOutputDebugString = restoreDebugString;
@@ -1348,21 +1353,19 @@ static void TestGlobalQuery(const Ptr& source)
 }
 
 // Test fluent query functions for types that support them (exception and fail fast)
-template <typename DestPtr, typename Ptr>
+template <typename IFace, typename Ptr>
 void TestSmartPointerQueryFluent(wistd::true_type, const Ptr& source)     // void return (non-error based)
 {
-    using element_type = typename DestPtr::element_type;
-
     SECTION("query")
     {
         if (source)
         {
-            REQUIRE(source.template query<element_type>());
+            REQUIRE(source.template query<IFace>());
             REQUIRE_ERROR(source.template query<INever>());
         }
         else
         {
-            REQUIRE_CRASH(source.template query<element_type>());
+            REQUIRE_CRASH(source.template query<IFace>());
             REQUIRE_CRASH(source.template query<INever>());
         }
     }
@@ -1371,29 +1374,30 @@ void TestSmartPointerQueryFluent(wistd::true_type, const Ptr& source)     // voi
     {
         if (source)
         {
-            REQUIRE(source.template copy<element_type>());
+            REQUIRE(source.template copy<IFace>());
             REQUIRE_ERROR(source.template copy<INever>());
         }
         else
         {
-            REQUIRE_FALSE(source.template copy<element_type>());
+            REQUIRE_FALSE(source.template copy<IFace>());
             REQUIRE_FALSE(source.template copy<INever>());
         }
     }
 }
 
 // "Test" fluent query functions for error-based types (by doing nothing)
-template <typename DestPtr, typename Ptr>
+template <typename IFace, typename Ptr>
 void TestSmartPointerQueryFluent(wistd::false_type, const Ptr& /*source*/)     // error-code based return
 {
     // error code based code cannot call the fluent error methods
 }
 
 // Test iid, ppv queries for types that support them (interfaces yes, classes no)
-template <typename DestPtr, typename Ptr>
+template <typename IFace, typename Ptr>
 void TestSmartPointerQueryIidPpv(wistd::true_type, const Ptr& source)       // interface
 {
     wil::com_ptr_nothrow<INever> never;
+    using DestPtr = wil::com_ptr_nothrow<IFace>;
 
     SECTION("query_to(iid, ppv)")
     {
@@ -1469,18 +1473,18 @@ void TestSmartPointerQueryIidPpv(wistd::true_type, const Ptr& source)       // i
 }
 
 // "Test" iid, ppv queries for types that support them for a class (unsupported same (interfaces yes, classes no)
-template <typename DestPtr, typename Ptr>
+template <typename IFace, typename Ptr>
 void TestSmartPointerQueryIidPpv(wistd::false_type, const Ptr& /*source*/)      // class
 {
     // we can't compile against iid, ppv with a class
 }
 
 // Test the various query and copy methods against the given source pointer (trying produce the given dest pointer)
-template <typename DestPtr, typename Ptr>
+template <typename IFace, typename Ptr>
 void TestSmartPointerQuery(const Ptr& source)
 {
     wil::com_ptr_nothrow<INever> never;
-    using element_type = typename DestPtr::element_type;
+    using DestPtr = wil::com_ptr_nothrow<IFace>;
 
     SECTION("query_to(U**)")
     {
@@ -1504,12 +1508,12 @@ void TestSmartPointerQuery(const Ptr& source)
     {
         if (source)
         {
-            REQUIRE(source.template try_query<element_type>());
+            REQUIRE(source.template try_query<IFace>());
             REQUIRE_FALSE(source.template try_query<INever>());
         }
         else
         {
-            REQUIRE_CRASH(source.template try_query<element_type>());
+            REQUIRE_CRASH(source.template try_query<IFace>());
             REQUIRE_CRASH(source.template try_query<INever>());
         }
     }
@@ -1554,12 +1558,12 @@ void TestSmartPointerQuery(const Ptr& source)
     {
         if (source)
         {
-            REQUIRE(source.template try_copy<element_type>());
+            REQUIRE(source.template try_copy<IFace>());
             REQUIRE_FALSE(source.template try_copy<INever>());
         }
         else
         {
-            REQUIRE_FALSE(source.template try_copy<element_type>());
+            REQUIRE_FALSE(source.template try_copy<IFace>());
             REQUIRE_FALSE(source.template try_copy<INever>());
         }
     }
@@ -1582,37 +1586,29 @@ void TestSmartPointerQuery(const Ptr& source)
         }
     }
 
-    TestSmartPointerQueryFluent<DestPtr, Ptr>(typename wistd::is_same<void, typename Ptr::result>::type(), source);
+    TestSmartPointerQueryFluent<IFace, Ptr>(typename wistd::is_same<void, typename Ptr::result>::type(), source);
 
-    TestSmartPointerQueryIidPpv<DestPtr, Ptr>(typename wistd::is_abstract<element_type>::type(), source);
+    TestSmartPointerQueryIidPpv<IFace, Ptr>(typename wistd::is_abstract<IFace>::type(), source);
 }
 
 template <typename TargetIFace, typename IFace>
 static void TestQueryCombination(IFace* ptr)
 {
     TestGlobalQuery<TargetIFace>(ptr);
+#ifdef WIL_EXHAUSTIVE_TEST
 #ifdef WIL_ENABLE_EXCEPTIONS
     TestGlobalQuery<TargetIFace>(wil::com_ptr<IFace>(ptr));
 #endif
     TestGlobalQuery<TargetIFace>(wil::com_ptr_failfast<IFace>(ptr));
+#endif
     TestGlobalQuery<TargetIFace>(wil::com_ptr_nothrow<IFace>(ptr));
     TestGlobalQuery<TargetIFace>(Microsoft::WRL::ComPtr<IFace>(ptr));
 
 #ifdef WIL_ENABLE_EXCEPTIONS
-    TestSmartPointerQuery<wil::com_ptr<TargetIFace>>(wil::com_ptr<IFace>(ptr));
-    TestSmartPointerQuery<wil::com_ptr<TargetIFace>>(wil::com_ptr_failfast<IFace>(ptr));
-    TestSmartPointerQuery<wil::com_ptr<TargetIFace>>(wil::com_ptr_nothrow<IFace>(ptr));
-
-    TestSmartPointerQuery<wil::com_ptr_failfast<TargetIFace>>(wil::com_ptr<IFace>(ptr));
+    TestSmartPointerQuery<TargetIFace>(wil::com_ptr<IFace>(ptr));
 #endif
-    TestSmartPointerQuery<wil::com_ptr_failfast<TargetIFace>>(wil::com_ptr_failfast<IFace>(ptr));
-    TestSmartPointerQuery<wil::com_ptr_failfast<TargetIFace>>(wil::com_ptr_nothrow<IFace>(ptr));
-
-#ifdef WIL_ENABLE_EXCEPTIONS
-    TestSmartPointerQuery<wil::com_ptr_nothrow<TargetIFace>>(wil::com_ptr<IFace>(ptr));
-#endif
-    TestSmartPointerQuery<wil::com_ptr_nothrow<TargetIFace>>(wil::com_ptr_failfast<IFace>(ptr));
-    TestSmartPointerQuery<wil::com_ptr_nothrow<TargetIFace>>(wil::com_ptr_nothrow<IFace>(ptr));
+    TestSmartPointerQuery<TargetIFace>(wil::com_ptr_failfast<IFace>(ptr));
+    TestSmartPointerQuery<TargetIFace>(wil::com_ptr_nothrow<IFace>(ptr));
 }
 
 template <typename TargetIFace, typename IFace>
@@ -1637,11 +1633,9 @@ TEST_CASE("ComTests::Test_Query", "[com][com_ptr]")
     auto restoreDebugString = wil::g_fResultOutputDebugString;
     wil::g_fResultOutputDebugString = false;
 
-    TestQuery<ComObject, ComObject, ComObject>();
-    TestQuery<ComObject, IUnknown, ComObject>();
-    TestQuery<ComObject, ITest, ComObject>();
-    TestQuery<WinRtObject, IInspectable, WinRtObject>();
-    TestQuery<WinRtObject, ITestInspectable, WinRtObject>();
+    TestQuery<ComObject, ComObject, ComObject>(); // Same type (no QI)
+    TestQuery<ComObject, IUnknown, ComObject>();  // Ambiguous base (must QI)
+    TestQuery<ComObject, ITest, ComObject>();     // Non-ambiguous base (no QI)
 
     // This adds a significant amount of time to the compilation duration, so most tests are disabled by default...
 #ifdef WIL_EXHAUSTIVE_TEST
@@ -1667,6 +1661,8 @@ TEST_CASE("ComTests::Test_Query", "[com][com_ptr]")
     TestQuery<WinRtObject, WinRtObject, WinRtObject>();                      // WinRtObject
     TestQuery<WinRtObject, IUnknown, WinRtObject>();
     TestQuery<WinRtObject, ITest, WinRtObject>();
+    TestQuery<WinRtObject, IInspectable, WinRtObject>();
+    TestQuery<WinRtObject, ITestInspectable, WinRtObject>();
     TestQuery<WinRtObject, IDerivedTest, WinRtObject>();
     TestQuery<WinRtObject, IDerivedTestInspectable, WinRtObject>();
     TestQuery<WinRtObject, IAlways, WinRtObject>();
@@ -1779,10 +1775,10 @@ void TestAgileCombinations()
     TestAgile(Microsoft::WRL::ComPtr<IFace>(ptr));
 
     auto agilePtr = wil::com_agile_query_failfast(ptr);
-    TestQuery<IUnknown>(agilePtr.get());
-    TestQuery<IInspectable>(agilePtr.get());
     TestQuery<ITest>(agilePtr.get());
 #ifdef WIL_EXHAUSTIVE_TEST
+    TestQuery<IUnknown>(agilePtr.get());
+    TestQuery<IInspectable>(agilePtr.get());
     TestQuery<IDerivedTest>(agilePtr.get());
     TestQuery<ITestInspectable>(agilePtr.get());
     TestQuery<IDerivedTestInspectable>(agilePtr.get());
@@ -2013,83 +2009,81 @@ void TestSmartPointerQueryFluentWithFailedResolve(wistd::false_type, const Ptr& 
     template <typename TargetIFace, typename Ptr>
 void TestSmartPointerQueryFluentWithFailedResolve(wistd::true_type, const Ptr& source)
 {
-    using element_type = typename TargetIFace::element_type;
-
-    REQUIRE_ERROR(source.template query<element_type>());
-    REQUIRE_ERROR(source.template copy<element_type>());
+    REQUIRE_ERROR(source.template query<TargetIFace>());
+    REQUIRE_ERROR(source.template copy<TargetIFace>());
 }
 
 template <typename TargetIFace, typename Ptr>
 void TestSmartPointerQueryWithFailedResolve(const Ptr source)
 {
-    using element_type = typename TargetIFace::element_type;
+    using DestPtr = wil::com_ptr_nothrow<TargetIFace>;
 
     SECTION("query_to(U**)")
     {
-        TargetIFace dest;
+        DestPtr dest;
         REQUIRE_ERROR(source.query_to(&dest));
         REQUIRE(!dest);
     }
 
     SECTION("try_query")
     {
-        REQUIRE(!source.template try_query<element_type>());
+        REQUIRE(!source.template try_query<TargetIFace>());
     }
 
     SECTION("try_query_to(U**)")
     {
-        TargetIFace dest;
+        DestPtr dest;
         REQUIRE(!source.try_query_to(&dest));
         REQUIRE(!dest);
     }
 
     SECTION("copy_to(U**)")
     {
-        TargetIFace dest;
+        DestPtr dest;
         REQUIRE_ERROR(source.copy_to(&dest));
         REQUIRE(!dest);
     }
 
     SECTION("try_copy")
     {
-        REQUIRE(!source.template try_copy<element_type>());
+        REQUIRE(!source.template try_copy<TargetIFace>());
     }
 
     SECTION("try_copy_to(U**)")
     {
-        TargetIFace dest;
+        DestPtr dest;
         REQUIRE(!source.try_copy_to(&dest));
         REQUIRE(!dest);
     }
 
     TestSmartPointerQueryFluentWithFailedResolve<TargetIFace, Ptr>(typename wistd::is_same<void, typename Ptr::result>::type(), source);
 
-    if (wistd::is_abstract<element_type>::value)
+    if (wistd::is_abstract<TargetIFace>::value)
     {
         SECTION("query_to(iid, ppv)")
         {
-            TargetIFace dest;
+            DestPtr dest;
             REQUIRE_ERROR(source.query_to(IID_PPV_ARGS(&dest)));
             REQUIRE(!dest);
         }
 
         SECTION("try_query_to(iid, ppv)")
         {
-            TargetIFace dest;
+            DestPtr dest;
             REQUIRE(!source.try_query_to(IID_PPV_ARGS(&dest)));
             REQUIRE(!dest);
         }
 
         SECTION("copy_to(iid, ppv)")
         {
-            TargetIFace dest;
+            DestPtr dest;
             REQUIRE_ERROR(source.copy_to(IID_PPV_ARGS(&dest)));
             REQUIRE(!dest);
         }
 
         SECTION("try_copy_to(iid, ppv)")
         {
-            TargetIFace dest;
+            DestPtr dest;
             REQUIRE(!source.try_copy_to(IID_PPV_ARGS(&dest)));
             REQUIRE(!dest);
         }
@@ -2100,28 +2094,20 @@ template <typename TargetIFace, typename IFace>
 void TestQueryWithFailedResolve(IFace* ptr)
 {
     TestGlobalQueryWithFailedResolve<TargetIFace>(ptr);
+#ifdef WIL_EXHAUSTIVE_TEST
 #ifdef WIL_ENABLE_EXCEPTIONS
     TestGlobalQueryWithFailedResolve<TargetIFace>(wil::com_ptr<IFace>(ptr));
 #endif
     TestGlobalQueryWithFailedResolve<TargetIFace>(wil::com_ptr_failfast<IFace>(ptr));
+#endif
     TestGlobalQueryWithFailedResolve<TargetIFace>(wil::com_ptr_nothrow<IFace>(ptr));
     TestGlobalQueryWithFailedResolve<TargetIFace>(Microsoft::WRL::ComPtr<IFace>(ptr));
 
 #ifdef WIL_ENABLE_EXCEPTIONS
-    TestSmartPointerQueryWithFailedResolve<wil::com_ptr<TargetIFace>>(wil::com_ptr<IFace>(ptr));
-    TestSmartPointerQueryWithFailedResolve<wil::com_ptr<TargetIFace>>(wil::com_ptr_failfast<IFace>(ptr));
-    TestSmartPointerQueryWithFailedResolve<wil::com_ptr<TargetIFace>>(wil::com_ptr_nothrow<IFace>(ptr));
-
-    TestSmartPointerQueryWithFailedResolve<wil::com_ptr_failfast<TargetIFace>>(wil::com_ptr<IFace>(ptr));
+    TestSmartPointerQueryWithFailedResolve<TargetIFace>(wil::com_ptr<IFace>(ptr));
 #endif
-    TestSmartPointerQueryWithFailedResolve<wil::com_ptr_failfast<TargetIFace>>(wil::com_ptr_failfast<IFace>(ptr));
-    TestSmartPointerQueryWithFailedResolve<wil::com_ptr_failfast<TargetIFace>>(wil::com_ptr_nothrow<IFace>(ptr));
-
-#ifdef WIL_ENABLE_EXCEPTIONS
-    TestSmartPointerQueryWithFailedResolve<wil::com_ptr_nothrow<TargetIFace>>(wil::com_ptr<IFace>(ptr));
-#endif
-    TestSmartPointerQueryWithFailedResolve<wil::com_ptr_nothrow<TargetIFace>>(wil::com_ptr_failfast<IFace>(ptr));
-    TestSmartPointerQueryWithFailedResolve<wil::com_ptr_nothrow<TargetIFace>>(wil::com_ptr_nothrow<IFace>(ptr));
+    TestSmartPointerQueryWithFailedResolve<TargetIFace>(wil::com_ptr_nothrow<IFace>(ptr));
+    TestSmartPointerQueryWithFailedResolve<TargetIFace>(wil::com_ptr_failfast<IFace>(ptr));
 }
 
 template <typename IFace>
@@ -2130,17 +2116,15 @@ void TestWeakCombinations()
     auto ptr = make_object<IFace, WinRtObject>();
 
     TestWeak(ptr);
-#ifdef WIL_ENABLE_EXCEPTIONS
-    TestWeak(wil::com_ptr<IFace>(ptr));
-#endif
+    TestWeak(wil::com_ptr_nothrow<IFace>(ptr));
     TestWeak(Microsoft::WRL::ComPtr<IFace>(ptr));
 
     auto weakPtr = wil::com_weak_query_failfast(ptr);
-    TestQuery<IUnknown>(weakPtr.get());
-    TestQuery<IInspectable>(weakPtr.get());
-    TestQuery<ITest>(weakPtr.get());
+    TestQuery<IUnknown>(weakPtr.get()); // Not IInspectable derived
+    TestQuery<ITest>(weakPtr.get()); // IInspectable derived
 
 #ifdef WIL_EXHAUSTIVE_TEST
+    TestQuery<IInspectable>(weakPtr.get());
     TestQuery<IDerivedTest>(weakPtr.get());
     TestQuery<ITestInspectable>(weakPtr.get());
     TestQuery<IDerivedTestInspectable>(weakPtr.get());
@@ -2150,17 +2134,19 @@ void TestWeakCombinations()
     // On the final release of the pointer, the weak reference will no longer resolve
     ptr->Release();
     TestQueryWithFailedResolve<IUnknown>(weakPtr.get());
-    TestQueryWithFailedResolve<IInspectable>(weakPtr.get());
     TestQueryWithFailedResolve<ITest>(weakPtr.get());
+#ifdef WIL_EXHAUSTIVE_TEST
+    TestQueryWithFailedResolve<IInspectable>(weakPtr.get());
+#endif
 }
 
 TEST_CASE("ComTests::Test_Weak", "[com][com_weak_ref]")
 {
     // TestWeakCombinations<WinRtObject>();
-    TestWeakCombinations<IUnknown>();
-    TestWeakCombinations<IInspectable>();
     TestWeakCombinations<ITest>();
 #ifdef WIL_EXHAUSTIVE_TEST
+    TestWeakCombinations<IUnknown>();
+    TestWeakCombinations<IInspectable>();
     TestWeakCombinations<IDerivedTest>();
     TestWeakCombinations<ITestInspectable>();
     TestWeakCombinations<IDerivedTestInspectable>();
