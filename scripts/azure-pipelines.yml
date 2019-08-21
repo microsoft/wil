@@ -4,7 +4,7 @@ trigger:
 - master
 
 jobs:
-- job: Build and Test
+- job: BuildAndTest
   timeoutInMinutes: 360
 
   pool:
