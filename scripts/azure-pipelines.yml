@@ -1,11 +1,11 @@
 # Windows Implementation Library Pipeline
 
+trigger:
+- master
+
 jobs:
 - job: Build and Test
   timeoutInMinutes: 360
-
-  trigger:
-  - master
 
   pool:
     vmImage: 'windows-2019'
