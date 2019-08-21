@@ -6,6 +6,8 @@ trigger:
 pool:
   vmImage: 'windows-2019'
 
+timeoutInMinutes: 360
+
 steps:
 - script: |
     choco install llvm
