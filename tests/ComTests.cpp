@@ -944,25 +944,23 @@ static void TestSmartPointerConversion(const Ptr1& ptr1, const Ptr2& ptr2)
 template <typename IFace1, typename IFace2>
 static void TestPointerConversionCombination(IFace1* p1, IFace2* p2)
 {
+#ifdef WIL_ENABLE_EXCEPTIONS
+    TestSmartPointerConversion(wil::com_ptr<IFace1>(p1), wil::com_ptr_nothrow<IFace2>(p2));
+#endif
+    TestSmartPointerConversion(wil::com_ptr_failfast<IFace1>(p1), wil::com_ptr_nothrow<IFace2>(p2));
+    TestSmartPointerConversion(wil::com_ptr_nothrow<IFace1>(p1), wil::com_ptr_nothrow<IFace2>(p2));
+
 #ifdef WIL_EXHAUSTIVE_TEST
 #ifdef WIL_ENABLE_EXCEPTIONS
     TestSmartPointerConversion(wil::com_ptr<IFace1>(p1), wil::com_ptr<IFace2>(p2));
-    TestSmartPointerConversion(wil::com_ptr<IFace1>(p1), wil::com_ptr_failfast<IFace2>(p2));
-    TestSmartPointerConversion(wil::com_ptr<IFace1>(p1), wil::com_ptr_nothrow<IFace2>(p2));
-#endif
-
-#ifdef WIL_ENABLE_EXCEPTIONS
     TestSmartPointerConversion(wil::com_ptr_failfast<IFace1>(p1), wil::com_ptr<IFace2>(p2));
+    TestSmartPointerConversion(wil::com_ptr_nothrow<IFace1>(p1), wil::com_ptr<IFace2>(p2));
+
+    TestSmartPointerConversion(wil::com_ptr<IFace1>(p1), wil::com_ptr_failfast<IFace2>(p2));
 #endif
     TestSmartPointerConversion(wil::com_ptr_failfast<IFace1>(p1), wil::com_ptr_failfast<IFace2>(p2));
-    TestSmartPointerConversion(wil::com_ptr_failfast<IFace1>(p1), wil::com_ptr_nothrow<IFace2>(p2));
-#endif // WIL_EXHAUSTIVE_TEST
-
-#ifdef WIL_ENABLE_EXCEPTIONS
-    TestSmartPointerConversion(wil::com_ptr_nothrow<IFace1>(p1), wil::com_ptr<IFace2>(p2));
-#endif
     TestSmartPointerConversion(wil::com_ptr_nothrow<IFace1>(p1), wil::com_ptr_failfast<IFace2>(p2));
-    TestSmartPointerConversion(wil::com_ptr_nothrow<IFace1>(p1), wil::com_ptr_nothrow<IFace2>(p2));
+#endif
 }
 
 template <typename IFace1, typename IFace2, typename Object>
@@ -991,16 +989,17 @@ TEST_CASE("ComTests::Test_PointerConversion", "[com][com_ptr]")
     TestPointerConversion<NoCom, NoCom, NoCom>();
 
     TestPointerConversion<ComObject, ComObject, ComObject>();
-    TestPointerConversion<IUnknown, IUnknown, ComObject>();
     TestPointerConversion<IUnknown, ITest, ComObject>();
     TestPointerConversion<IUnknown, IDerivedTest, ComObject>();
-    TestPointerConversion<IUnknown, IAlways, ComObject>();
-    TestPointerConversion<ITest, ITest, ComObject>();
     TestPointerConversion<ITest, IDerivedTest, ComObject>();
-    TestPointerConversion<IDerivedTest, IDerivedTest, ComObject>();
-    TestPointerConversion<IAlways, IAlways, ComObject>();
 
 #ifdef WIL_EXHAUSTIVE_TEST
+    TestPointerConversion<IUnknown, IUnknown, ComObject>();
+    TestPointerConversion<ITest, ITest, ComObject>();
+    TestPointerConversion<IDerivedTest, IDerivedTest, ComObject>();
+    TestPointerConversion<IAlways, IAlways, ComObject>();
+    TestPointerConversion<IUnknown, IAlways, ComObject>();
+
     TestPointerConversion<WinRtObject, WinRtObject, WinRtObject>();
     TestPointerConversion<IUnknown, IUnknown, WinRtObject>();
     TestPointerConversion<IUnknown, ITest, WinRtObject>();
