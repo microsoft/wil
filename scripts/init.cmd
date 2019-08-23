@@ -9,8 +9,9 @@ goto :init
 
 :usage
     echo USAGE:
-    echo     init.cmd [--help] [-c^|--compiler ^<clang^|msvc^>] [-g^|--generator ^<ninja^|msbuild^>] [--fast]
-    echo         [-b^|--build-type ^<debug^|release^|relwithdebinfo^|minsizerel^>] [-v^|--version X.Y.Z]
+    echo     init.cmd [--help] [-c^|--compiler ^<clang^|msvc^>] [-g^|--generator ^<ninja^|msbuild^>]
+    echo         [-b^|--build-type ^<debug^|release^|relwithdebinfo^|minsizerel^>] [-l^|--linker link^|lld-link]
+    echo         [--fast] [-v^|--version X.Y.Z]
     echo.
     echo ARGUMENTS
     echo     -c^|--compiler       Controls the compiler used, either 'clang' (the default) or 'msvc'
@@ -29,6 +30,7 @@ goto :init
     set COMPILER=
     set GENERATOR=
     set BUILD_TYPE=
+    set LINKER=
     set CMAKE_ARGS=
     set BITNESS=
     set VERSION=
@@ -86,6 +88,21 @@ goto :init
         goto :parse
     )
 
+    set LINKER_SET=0
+    if /I "%~1"=="-l" set LINKER_SET=1
+    if /I "%~1"=="--linker" set LINKER_SET=1
+    if %LINKER_SET%==1 (
+        if "%LINKER%" NEQ "" echo ERROR: Linker already specified & call :usage & exit /B 1
+
+        if /I "%~2"=="link" set LINKER=link
+        if /I "%~2"=="lld-link" set LINKER=lld-link
+        if "!LINKER!"=="" echo ERROR: Unrecognized/missing linker %~2 & call :usage & exit /B 1
+
+        shift
+        shift
+        goto :parse
+    )
+
     set VERSION_SET=0
     if /I "%~1"=="-v" set VERSION_SET=1
     if /I "%~1"=="--version" set VERSION_SET=1
@@ -113,8 +130,11 @@ goto :init
 
 :execute
     :: Check for conflicting arguments
-    if "%COMPILER%"=="clang" (
-        if "%GENERATOR%"=="msbuild" echo ERROR: Cannot use Clang with MSBuild & exit /B 1
+    if "%GENERATOR%"=="msbuild" (
+        if "%COMPILER%"=="clang" echo ERROR: Cannot use Clang with MSBuild & exit /B 1
+
+        :: While CMake won't give an error, specifying the linker won't actually have any effect with the VS generator
+        if "%LINKER%"=="lld-link" echo ERROR: Cannot use lld-link with MSBuild & exit /B 1
     )
 
     :: Select defaults
@@ -124,6 +144,8 @@ goto :init
     if "%COMPILER%"=="" set COMPILER=clang
 
     if "%BUILD_TYPE%"=="" set BUILD_TYPE=debug
+
+    if "%LINKER%"=="" set LINKER=link
 
     :: Formulate CMake arguments
     if %GENERATOR%==ninja set CMAKE_ARGS=%CMAKE_ARGS% -G Ninja
@@ -143,6 +165,10 @@ goto :init
         :: '/permissive-' etc. and older versions of the SDK are typically not as clean as the most recent versions.
         :: This flag will force the generator to select the most recent SDK version independent of host OS version.
         set CMAKE_ARGS=%CMAKE_ARGS% -DCMAKE_SYSTEM_VERSION=10.0
+    )
+
+    if %LINKER%==lld-link (
+        set CMAKE_ARGS=%CMAKE_ARGS% -DCMAKE_LINKER=lld-link
     )
 
     if "%VERSION%" NEQ "" set CMAKE_ARGS=%CMAKE_ARGS% -DWIL_BUILD_VERSION=%VERSION%
@@ -165,6 +191,7 @@ goto :init
     :: Run CMake
     pushd %BUILD_DIR%
     echo Using compiler....... %COMPILER%
+    echo Using linker......... %LINKER%
     echo Using architecture... %Platform%
     echo Using build type..... %BUILD_TYPE%
     echo Using build root..... %CD%
