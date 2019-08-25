@@ -1914,7 +1914,7 @@ namespace wil {
         public:
             bool is_valid() const WI_NOEXCEPT
             {
-                return (m_ptr && static_cast<bool>(*m_ptr));
+                return (m_ptr && m_ptr->is_valid());
             }
 
             void reset(pointer_storage ptr = policy::invalid_value())
