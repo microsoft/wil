@@ -31,7 +31,7 @@
 namespace wil
 {
 #pragma region std::chrono wrappers for GetTickCount[64]
-    namespace impl
+    namespace details
     {
         template<class ResultT, ResultT(__stdcall *GetTickCount)(), class BaseClock>
         struct tick_count_clock_impl
@@ -49,13 +49,13 @@ namespace wil
         };
     }
 
-    struct tick_count_clock : impl::tick_count_clock_impl<DWORD, &::GetTickCount, tick_count_clock> {};
+    struct tick_count_clock : details::tick_count_clock_impl<DWORD, &::GetTickCount, tick_count_clock> {};
 #if _WIN32_WINNT >= 0x0600
-    struct tick_count64_clock : impl::tick_count_clock_impl<ULONGLONG, &::GetTickCount64, tick_count_clock> {};
+    struct tick_count64_clock : details::tick_count_clock_impl<ULONGLONG, &::GetTickCount64, tick_count_clock> {};
 #endif // _WIN32_WINNT >= 0x0600
 #pragma endregion
 
-    namespace impl
+    namespace details
     {
         constexpr DWORD64 filetime_to_int(const FILETIME& ft) WI_NOEXCEPT
         {
@@ -72,7 +72,7 @@ namespace wil
     }
 
 #pragma region std::chrono wrappers for GetSystemTime[Precise]AsFileTime
-    namespace impl
+    namespace details
     {
         template<VOID(WINAPI *GetSystemTime)(_Out_ LPFILETIME), class BaseClock>
         struct system_time_clock_impl
@@ -184,10 +184,10 @@ namespace wil
 #endif
     }
 
-    struct system_time_clock : impl::system_time_clock_impl<&::GetSystemTimeAsFileTime, system_time_clock> {};
+    struct system_time_clock : details::system_time_clock_impl<&::GetSystemTimeAsFileTime, system_time_clock> {};
 
 #if _WIN32_WINNT >= _WIN32_WINNT_WIN8
-    struct precise_system_time_clock : impl::system_time_clock_impl<&::GetSystemTimePreciseAsFileTime, system_time_clock> {};
+    struct precise_system_time_clock : details::system_time_clock_impl<&::GetSystemTimePreciseAsFileTime, system_time_clock> {};
     using high_precision_system_time_clock = precise_system_time_clock;
 #else // _WIN32_WINNT < _WIN32_WINNT_WIN8
     using high_precision_system_time_clock = system_time_clock;
@@ -195,7 +195,7 @@ namespace wil
 #pragma endregion
 
 #pragma region std::chrono wrappers for Query[Unbiased]InterruptTime[Precise]
-    namespace impl
+    namespace details
     {
         template<VOID(WINAPI *QueryInterruptTime)(_Out_ PULONGLONG), class BaseClock>
         struct interrupt_time_clock_impl
@@ -223,11 +223,11 @@ namespace wil
     }
 
 #if _WIN32_WINNT >= 0x0601
-    struct unbiased_interrupt_time_clock : impl::interrupt_time_clock_impl<&impl::QueryUnbiasedInterruptTime, unbiased_interrupt_time_clock> {};
+    struct unbiased_interrupt_time_clock : details::interrupt_time_clock_impl<&details::QueryUnbiasedInterruptTime, unbiased_interrupt_time_clock> {};
 #if defined(NTDDI_WIN10)
-    struct interrupt_time_clock : impl::interrupt_time_clock_impl<&::QueryInterruptTime, interrupt_time_clock> {};
-    struct precise_interrupt_time_clock : impl::interrupt_time_clock_impl<&::QueryInterruptTimePrecise, interrupt_time_clock> {};
-    struct precise_unbiased_interrupt_time_clock : impl::interrupt_time_clock_impl<&::QueryUnbiasedInterruptTimePrecise, unbiased_interrupt_time_clock> {};
+    struct interrupt_time_clock : details::interrupt_time_clock_impl<&::QueryInterruptTime, interrupt_time_clock> {};
+    struct precise_interrupt_time_clock : details::interrupt_time_clock_impl<&::QueryInterruptTimePrecise, interrupt_time_clock> {};
+    struct precise_unbiased_interrupt_time_clock : details::interrupt_time_clock_impl<&::QueryUnbiasedInterruptTimePrecise, unbiased_interrupt_time_clock> {};
 #endif
 #endif
 #pragma endregion
@@ -249,15 +249,15 @@ namespace wil
         cpu_time_duration user_time;
     };
 
-    namespace impl
+    namespace details
     {
         inline execution_times __WI_LIBCPP_CONSTEXPR_AFTER_CXX11 execution_times_from_filetimes(FILETIME creation_time, FILETIME exit_time, FILETIME kernel_time, FILETIME user_time) WI_NOEXCEPT
         {
             return {
                 system_time_clock::from_filetime(creation_time),
                 system_time_clock::from_filetime(exit_time),
-                cpu_time_duration{ static_cast<cpu_time_duration::rep>(impl::filetime_to_int(kernel_time)) },
-                cpu_time_duration{ static_cast<cpu_time_duration::rep>(impl::filetime_to_int(user_time)) }
+                cpu_time_duration{ static_cast<cpu_time_duration::rep>(details::filetime_to_int(kernel_time)) },
+                cpu_time_duration{ static_cast<cpu_time_duration::rep>(details::filetime_to_int(user_time)) }
             };
         }
 
@@ -285,7 +285,7 @@ namespace wil
 
         ErrorPolicy::Win32BOOL(::GetThreadTimes(thread, &creation_time, &exit_time, &kernel_time, &user_time));
 
-        return impl::execution_times_from_filetimes(creation_time, exit_time, kernel_time, user_time);
+        return details::execution_times_from_filetimes(creation_time, exit_time, kernel_time, user_time);
     }
 
     WI_NODISCARD thread_times get_thread_times(HANDLE thread = ::GetCurrentThread())
@@ -296,7 +296,7 @@ namespace wil
     template<class ErrorPolicy>
     WI_NODISCARD cpu_time_duration get_thread_cpu_time(HANDLE thread = ::GetCurrentThread(), cpu_time kind = cpu_time::total)
     {
-        return impl::get_cpu_time(get_thread_times<ErrorPolicy>(thread), kind);
+        return details::get_cpu_time(get_thread_times<ErrorPolicy>(thread), kind);
     }
 
     WI_NODISCARD cpu_time_duration get_thread_cpu_time(HANDLE thread = ::GetCurrentThread(), cpu_time kind = cpu_time::total)
@@ -316,7 +316,7 @@ namespace wil
 
         ErrorPolicy::Win32BOOL(::GetProcessTimes(process, &creation_time, &exit_time, &kernel_time, &user_time));
 
-        return impl::execution_times_from_filetimes(creation_time, exit_time, kernel_time, user_time);
+        return details::execution_times_from_filetimes(creation_time, exit_time, kernel_time, user_time);
     }
 
     WI_NODISCARD process_times get_process_times(HANDLE process = ::GetCurrentProcess())
@@ -327,7 +327,7 @@ namespace wil
     template<class ErrorPolicy>
     WI_NODISCARD cpu_time_duration get_process_cpu_time(HANDLE process = ::GetCurrentProcess(), cpu_time kind = cpu_time::total)
     {
-        return impl::get_cpu_time(get_process_times<ErrorPolicy>(process), kind);
+        return details::get_cpu_time(get_process_times<ErrorPolicy>(process), kind);
     }
 
     WI_NODISCARD cpu_time_duration get_process_cpu_time(HANDLE process = ::GetCurrentProcess(), cpu_time kind = cpu_time::total)
