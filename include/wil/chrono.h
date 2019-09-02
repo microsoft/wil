@@ -33,25 +33,25 @@ namespace wil
 #pragma region std::chrono wrappers for GetTickCount[64]
     namespace details
     {
-        template<class ResultT, ResultT(__stdcall *GetTickCount)(), class BaseClock>
+        template<typename rep_t, typename get_tick_count_fn_t, get_tick_count_fn_t get_tick_count_fn, typename base_clock_t>
         struct tick_count_clock_impl
         {
-            using rep = ResultT;
+            using rep = rep_t;
             using period = std::milli;
             using duration = std::chrono::duration<rep, period>;
-            using time_point = std::chrono::time_point<BaseClock, duration>;
+            using time_point = std::chrono::time_point<base_clock_t, duration>;
             static constexpr bool const is_steady = true;
 
             WI_NODISCARD static time_point now() WI_NOEXCEPT
             {
-                return time_point{duration{ GetTickCount() }};
+                return time_point{duration{ get_tick_count_fn() }};
             }
         };
     }
 
-    struct tick_count_clock : details::tick_count_clock_impl<DWORD, &::GetTickCount, tick_count_clock> {};
+    struct tick_count_clock : details::tick_count_clock_impl<DWORD, decltype(&::GetTickCount), ::GetTickCount, tick_count_clock> {};
 #if _WIN32_WINNT >= 0x0600
-    struct tick_count64_clock : details::tick_count_clock_impl<ULONGLONG, &::GetTickCount64, tick_count_clock> {};
+    struct tick_count64_clock : details::tick_count_clock_impl<ULONGLONG, decltype(&::GetTickCount64), ::GetTickCount64, tick_count_clock> {};
 #endif // _WIN32_WINNT >= 0x0600
 #pragma endregion
 
@@ -74,20 +74,20 @@ namespace wil
 #pragma region std::chrono wrappers for GetSystemTime[Precise]AsFileTime
     namespace details
     {
-        template<VOID(WINAPI *GetSystemTime)(_Out_ LPFILETIME), class BaseClock>
+        template<typename get_system_time_fn_t, get_system_time_fn_t get_system_time_fn, typename base_clock_t>
         struct system_time_clock_impl
         {
         public:
             using rep = LONGLONG;
             using period = std::ratio_multiply<std::hecto, std::nano>;
             using duration = std::chrono::duration<rep, period>;
-            using time_point = std::chrono::time_point<BaseClock, duration>;
+            using time_point = std::chrono::time_point<base_clock_t, duration>;
             static constexpr bool const is_steady = false;
 
             WI_NODISCARD static time_point now() WI_NOEXCEPT
             {
                 alignas(rep) FILETIME ft;
-                GetSystemTime(&ft);
+                get_system_time_fn(&ft);
                 return from_filetime(ft);
             }
 
@@ -179,15 +179,15 @@ namespace wil
         };
 
 #if __WI_LIBCPP_STD_VER <= 11
-        template<VOID(WINAPI *GetSystemTime)(_Out_ LPFILETIME), class BaseClock>
-        typename system_time_clock_impl<GetSystemTime, BaseClock>::time_point const system_time_clock_impl<GetSystemTime, BaseClock>::unix_epoch{duration{116444736000000000LL}};
+        template<typename get_system_time_fn_t, get_system_time_fn_t get_system_time_fn, typename base_clock_t>
+        typename system_time_clock_impl<get_system_time_fn_t, get_system_time_fn, base_clock_t>::time_point const system_time_clock_impl<get_system_time_fn_t, get_system_time_fn, base_clock_t>::unix_epoch{duration{116444736000000000LL}};
 #endif
     }
 
-    struct system_time_clock : details::system_time_clock_impl<&::GetSystemTimeAsFileTime, system_time_clock> {};
+    struct system_time_clock : details::system_time_clock_impl<decltype(&::GetSystemTimeAsFileTime), ::GetSystemTimeAsFileTime, system_time_clock> {};
 
 #if _WIN32_WINNT >= _WIN32_WINNT_WIN8
-    struct precise_system_time_clock : details::system_time_clock_impl<&::GetSystemTimePreciseAsFileTime, system_time_clock> {};
+    struct precise_system_time_clock : details::system_time_clock_impl<decltype(&::GetSystemTimePreciseAsFileTime), ::GetSystemTimePreciseAsFileTime, system_time_clock> {};
     using high_precision_system_time_clock = precise_system_time_clock;
 #else // _WIN32_WINNT < _WIN32_WINNT_WIN8
     using high_precision_system_time_clock = system_time_clock;
@@ -197,37 +197,30 @@ namespace wil
 #pragma region std::chrono wrappers for Query[Unbiased]InterruptTime[Precise]
     namespace details
     {
-        template<VOID(WINAPI *QueryInterruptTime)(_Out_ PULONGLONG), class BaseClock>
+        template<typename query_interrupt_time_fn_t, query_interrupt_time_fn_t query_interrupt_time_fn, class base_clock_t>
         struct interrupt_time_clock_impl
         {
             using rep = LONGLONG;
             using period = std::ratio_multiply<std::hecto, std::nano>;
             using duration = std::chrono::duration<rep, period>;
-            using time_point = std::chrono::time_point<BaseClock, duration>;
+            using time_point = std::chrono::time_point<base_clock_t, duration>;
             static constexpr bool const is_steady = true;
 
             WI_NODISCARD static time_point now() WI_NOEXCEPT
             {
                 ULONGLONG t;
-                QueryInterruptTime(&t);
+                query_interrupt_time_fn(&t);
                 return time_point{duration{ static_cast<rep>(t) }};
             }
         };
-
-#if _WIN32_WINNT >= 0x0601
-        VOID WINAPI QueryUnbiasedInterruptTime(_Out_ PULONGLONG UnbiasedTime) WI_NOEXCEPT
-        {
-            ::QueryUnbiasedInterruptTime(UnbiasedTime);
-        }
-#endif
     }
 
 #if _WIN32_WINNT >= 0x0601
-    struct unbiased_interrupt_time_clock : details::interrupt_time_clock_impl<&details::QueryUnbiasedInterruptTime, unbiased_interrupt_time_clock> {};
+    struct unbiased_interrupt_time_clock : details::interrupt_time_clock_impl<decltype(&::QueryUnbiasedInterruptTime), ::QueryUnbiasedInterruptTime, unbiased_interrupt_time_clock> {};
 #if defined(NTDDI_WIN10)
-    struct interrupt_time_clock : details::interrupt_time_clock_impl<&::QueryInterruptTime, interrupt_time_clock> {};
-    struct precise_interrupt_time_clock : details::interrupt_time_clock_impl<&::QueryInterruptTimePrecise, interrupt_time_clock> {};
-    struct precise_unbiased_interrupt_time_clock : details::interrupt_time_clock_impl<&::QueryUnbiasedInterruptTimePrecise, unbiased_interrupt_time_clock> {};
+    struct interrupt_time_clock : details::interrupt_time_clock_impl<decltype(&::QueryInterruptTime), ::QueryInterruptTime, interrupt_time_clock> {};
+    struct precise_interrupt_time_clock : details::interrupt_time_clock_impl<decltype(&::QueryInterruptTimePrecise), ::QueryInterruptTimePrecise, interrupt_time_clock> {};
+    struct precise_unbiased_interrupt_time_clock : details::interrupt_time_clock_impl<decltype(&::QueryUnbiasedInterruptTimePrecise), ::QueryUnbiasedInterruptTimePrecise, unbiased_interrupt_time_clock> {};
 #endif
 #endif
 #pragma endregion
@@ -275,7 +268,7 @@ namespace wil
 
     using thread_times = execution_times;
 
-    template<class ErrorPolicy>
+    template<class error_policy>
     WI_NODISCARD thread_times get_thread_times(HANDLE thread = ::GetCurrentThread())
     {
         FILETIME creation_time;
@@ -283,7 +276,7 @@ namespace wil
         FILETIME kernel_time;
         FILETIME user_time;
 
-        ErrorPolicy::Win32BOOL(::GetThreadTimes(thread, &creation_time, &exit_time, &kernel_time, &user_time));
+        error_policy::Win32BOOL(::GetThreadTimes(thread, &creation_time, &exit_time, &kernel_time, &user_time));
 
         return details::execution_times_from_filetimes(creation_time, exit_time, kernel_time, user_time);
     }
@@ -293,10 +286,10 @@ namespace wil
         return get_thread_times<err_exception_policy>(thread);
     }
 
-    template<class ErrorPolicy>
+    template<class error_policy>
     WI_NODISCARD cpu_time_duration get_thread_cpu_time(HANDLE thread = ::GetCurrentThread(), cpu_time kind = cpu_time::total)
     {
-        return details::get_cpu_time(get_thread_times<ErrorPolicy>(thread), kind);
+        return details::get_cpu_time(get_thread_times<error_policy>(thread), kind);
     }
 
     WI_NODISCARD cpu_time_duration get_thread_cpu_time(HANDLE thread = ::GetCurrentThread(), cpu_time kind = cpu_time::total)
@@ -306,7 +299,7 @@ namespace wil
 
     using process_times = execution_times;
 
-    template<class ErrorPolicy>
+    template<class error_policy>
     WI_NODISCARD process_times get_process_times(HANDLE process = ::GetCurrentProcess())
     {
         FILETIME creation_time;
@@ -314,7 +307,7 @@ namespace wil
         FILETIME kernel_time;
         FILETIME user_time;
 
-        ErrorPolicy::Win32BOOL(::GetProcessTimes(process, &creation_time, &exit_time, &kernel_time, &user_time));
+        error_policy::Win32BOOL(::GetProcessTimes(process, &creation_time, &exit_time, &kernel_time, &user_time));
 
         return details::execution_times_from_filetimes(creation_time, exit_time, kernel_time, user_time);
     }
@@ -324,10 +317,10 @@ namespace wil
         return get_process_times<err_exception_policy>(process);
     }
 
-    template<class ErrorPolicy>
+    template<class error_policy>
     WI_NODISCARD cpu_time_duration get_process_cpu_time(HANDLE process = ::GetCurrentProcess(), cpu_time kind = cpu_time::total)
     {
-        return details::get_cpu_time(get_process_times<ErrorPolicy>(process), kind);
+        return details::get_cpu_time(get_process_times<error_policy>(process), kind);
     }
 
     WI_NODISCARD cpu_time_duration get_process_cpu_time(HANDLE process = ::GetCurrentProcess(), cpu_time kind = cpu_time::total)
@@ -342,10 +335,10 @@ namespace wil
         using duration = cpu_time_duration;
         using time_point = std::chrono::time_point<current_thread_cpu_time_clock, duration>;
 
-        template<class ErrorPolicy>
+        template<class error_policy>
         WI_NODISCARD static time_point now()
         {
-            return time_point{ get_thread_cpu_time<ErrorPolicy>() };
+            return time_point{ get_thread_cpu_time<error_policy>() };
         }
 
         WI_NODISCARD static time_point now()
@@ -361,10 +354,10 @@ namespace wil
         using duration = cpu_time_duration;
         using time_point = std::chrono::time_point<current_process_cpu_time_clock, duration>;
 
-        template<class ErrorPolicy>
+        template<class error_policy>
         WI_NODISCARD static time_point now()
         {
-            return time_point{ get_process_cpu_time<ErrorPolicy>() };
+            return time_point{ get_process_cpu_time<error_policy>() };
         }
 
         WI_NODISCARD static time_point now()
