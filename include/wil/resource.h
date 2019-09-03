@@ -5241,13 +5241,23 @@ namespace wil
     {
         unique_hglobal_locked() = delete;
 
-        unique_hglobal_locked(_In_ STGMEDIUM& medium) : unique_any<void*, decltype(&::GlobalUnlock), ::GlobalUnlock>(medium.hGlobal)
+        explicit unique_hglobal_locked(HGLOBAL global) : unique_any<void*, decltype(&::GlobalUnlock), ::GlobalUnlock>(global)
         {
             // GlobalLock returns a pointer to the associated global memory block and that's what callers care about.
-            m_globalMemory = GlobalLock(medium.hGlobal);
+            m_globalMemory = GlobalLock(global);
+            if (!m_globalMemory)
+            {
+                release();
+            }
         }
 
-        // In the future, we could easily add additional constructor overloads such as unique_hglobal_locked(HGLOBAL) to make consumption easier.
+        explicit unique_hglobal_locked(unique_hglobal& global) : unique_hglobal_locked(global.get())
+        {
+        }
+
+        explicit unique_hglobal_locked(STGMEDIUM& medium) : unique_hglobal_locked(medium.hGlobal)
+        {
+        }
 
         pointer get() const
         {
