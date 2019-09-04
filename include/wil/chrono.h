@@ -225,6 +225,7 @@ namespace wil
 #endif // _WIN32_WINNT >= 0x0601
 #pragma endregion
 
+#pragma region std::chrono wrappers for thread/process times
     using cpu_time_duration = std::chrono::duration<LONGLONG, std::ratio_multiply<std::hecto, std::nano>>;
 
     enum class cpu_time
@@ -327,7 +328,9 @@ namespace wil
     {
         return get_process_cpu_time<err_exception_policy>(process, kind);
     }
+#pragma endregion
 
+#pragma region Thread/process CPU clocks
     struct current_thread_cpu_time_clock
     {
         using rep = cpu_time_duration::rep;
@@ -365,6 +368,7 @@ namespace wil
             return time_point{ now<err_exception_policy>() };
         }
     };
+#pragma endregion
 }
 
 #endif // __WIL_CHRONO_INCLUDED
