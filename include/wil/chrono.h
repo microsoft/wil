@@ -244,7 +244,7 @@ namespace wil
 
     namespace details
     {
-        inline execution_times __WI_LIBCPP_CONSTEXPR_AFTER_CXX11 execution_times_from_filetimes(FILETIME creation_time, FILETIME exit_time, FILETIME kernel_time, FILETIME user_time) WI_NOEXCEPT
+        inline __WI_LIBCPP_CONSTEXPR_AFTER_CXX11 execution_times execution_times_from_filetimes(FILETIME creation_time, FILETIME exit_time, FILETIME kernel_time, FILETIME user_time) WI_NOEXCEPT
         {
             return {
                 system_time_clock::from_filetime(creation_time),
@@ -254,7 +254,7 @@ namespace wil
             };
         }
 
-        inline cpu_time_duration __WI_LIBCPP_CONSTEXPR_AFTER_CXX11 get_cpu_time(const execution_times& times, cpu_time kind) WI_NOEXCEPT
+        inline __WI_LIBCPP_CONSTEXPR_AFTER_CXX11 cpu_time_duration get_cpu_time(const execution_times& times, cpu_time kind) WI_NOEXCEPT
         {
             switch (kind)
             {
