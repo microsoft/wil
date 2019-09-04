@@ -281,7 +281,7 @@ namespace wil
         return details::execution_times_from_filetimes(creation_time, exit_time, kernel_time, user_time);
     }
 
-    WI_NODISCARD thread_times get_thread_times(HANDLE thread = ::GetCurrentThread())
+    WI_NODISCARD inline thread_times get_thread_times(HANDLE thread = ::GetCurrentThread())
     {
         return get_thread_times<err_exception_policy>(thread);
     }
@@ -292,7 +292,7 @@ namespace wil
         return details::get_cpu_time(get_thread_times<error_policy>(thread), kind);
     }
 
-    WI_NODISCARD cpu_time_duration get_thread_cpu_time(HANDLE thread = ::GetCurrentThread(), cpu_time kind = cpu_time::total)
+    WI_NODISCARD inline cpu_time_duration get_thread_cpu_time(HANDLE thread = ::GetCurrentThread(), cpu_time kind = cpu_time::total)
     {
         return get_thread_cpu_time<err_exception_policy>(thread, kind);
     }
@@ -312,7 +312,7 @@ namespace wil
         return details::execution_times_from_filetimes(creation_time, exit_time, kernel_time, user_time);
     }
 
-    WI_NODISCARD process_times get_process_times(HANDLE process = ::GetCurrentProcess())
+    WI_NODISCARD inline process_times get_process_times(HANDLE process = ::GetCurrentProcess())
     {
         return get_process_times<err_exception_policy>(process);
     }
@@ -323,7 +323,7 @@ namespace wil
         return details::get_cpu_time(get_process_times<error_policy>(process), kind);
     }
 
-    WI_NODISCARD cpu_time_duration get_process_cpu_time(HANDLE process = ::GetCurrentProcess(), cpu_time kind = cpu_time::total)
+    WI_NODISCARD inline cpu_time_duration get_process_cpu_time(HANDLE process = ::GetCurrentProcess(), cpu_time kind = cpu_time::total)
     {
         return get_process_cpu_time<err_exception_policy>(process, kind);
     }
