@@ -346,7 +346,7 @@ namespace wil
 
         WI_NODISCARD static time_point now()
         {
-            return time_point{ now<err_exception_policy>() };
+            return time_point{ get_thread_cpu_time() };
         }
     };
 
@@ -365,7 +365,7 @@ namespace wil
 
         WI_NODISCARD static time_point now()
         {
-            return time_point{ now<err_exception_policy>() };
+            return time_point{ get_process_cpu_time() };
         }
     };
 #pragma endregion
