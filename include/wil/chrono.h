@@ -155,7 +155,7 @@ namespace wil
             {
                 return from_crt_time(t);
             }
-#endif
+#endif // !defined(_CRT_NO_TIME_T)
 
             WI_NODISCARD static __WI_LIBCPP_CONSTEXPR_AFTER_CXX11 ::__time32_t to_time32_t(const time_point& t) WI_NOEXCEPT
             {
@@ -221,8 +221,8 @@ namespace wil
     struct interrupt_time_clock : details::interrupt_time_clock_impl<decltype(&::QueryInterruptTime), ::QueryInterruptTime, interrupt_time_clock> {};
     struct precise_interrupt_time_clock : details::interrupt_time_clock_impl<decltype(&::QueryInterruptTimePrecise), ::QueryInterruptTimePrecise, interrupt_time_clock> {};
     struct precise_unbiased_interrupt_time_clock : details::interrupt_time_clock_impl<decltype(&::QueryUnbiasedInterruptTimePrecise), ::QueryUnbiasedInterruptTimePrecise, unbiased_interrupt_time_clock> {};
-#endif
-#endif
+#endif // defined(NTDDI_WIN10)
+#endif // _WIN32_WINNT >= 0x0601
 #pragma endregion
 
     using cpu_time_duration = std::chrono::duration<LONGLONG, std::ratio_multiply<std::hecto, std::nano>>;
