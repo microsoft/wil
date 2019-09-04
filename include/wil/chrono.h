@@ -197,7 +197,7 @@ namespace wil
 #pragma region std::chrono wrappers for Query[Unbiased]InterruptTime[Precise]
     namespace details
     {
-        template<typename query_interrupt_time_fn_t, query_interrupt_time_fn_t query_interrupt_time_fn, class base_clock_t>
+        template<typename query_interrupt_time_fn_t, query_interrupt_time_fn_t query_interrupt_time_fn, typename base_clock_t>
         struct interrupt_time_clock_impl
         {
             using rep = LONGLONG;
