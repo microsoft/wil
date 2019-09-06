@@ -5320,11 +5320,14 @@ namespace wil
 #if defined(_INC_STDIO) && !defined(__WIL_INC_STDIO) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && !defined(WIL_KERNEL_MODE)
 #define __WIL_INC_STDIO
     typedef unique_any<FILE*, decltype(&::_pclose), ::_pclose> unique_pipe;
+    typedef unique_any<FILE*, decltype(&::fclose), ::fclose> unique_file;
 #endif // __WIL_INC_STDIO
 #if defined(__WIL_INC_STDIO) && !defined(__WIL__INC_STDIO_STL) && defined(WIL_RESOURCE_STL)
 #define __WIL__INC_STDIO_STL
     typedef shared_any<unique_pipe> shared_pipe;
     typedef weak_any<shared_pipe> weak_pipe;
+    typedef shared_any<unique_file> shared_file;
+    typedef weak_any<unique_file> weak_file;
 #endif // __WIL__INC_STDIO_STL
 
 #if defined(_NTLSA_) && !defined(__WIL_NTLSA_) && !defined(WIL_KERNEL_MODE)
