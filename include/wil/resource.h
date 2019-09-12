@@ -185,12 +185,12 @@ namespace wil
                 other.m_ptr = policy::invalid_value();
             }
 
+        public:
             bool is_valid() const WI_NOEXCEPT
             {
                 return policy::is_valid(m_ptr);
             }
 
-        public:
             void reset(pointer_storage ptr = policy::invalid_value()) WI_NOEXCEPT
             {
                 if (policy::is_valid(m_ptr))
@@ -1911,12 +1911,12 @@ namespace wil {
                 m_ptr = wistd::move(other.m_ptr);
             }
 
+        public:
             bool is_valid() const WI_NOEXCEPT
             {
-                return (m_ptr && static_cast<bool>(*m_ptr));
+                return (m_ptr && m_ptr->is_valid());
             }
 
-        public:
             void reset(pointer_storage ptr = policy::invalid_value())
             {
                 if (policy::is_valid(ptr))
