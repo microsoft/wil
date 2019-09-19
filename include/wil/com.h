@@ -1918,7 +1918,7 @@ namespace wil
     template<typename Class, typename Interface = IClassFactory, typename error_policy = err_exception_policy>
     wil::com_ptr_t<Interface, error_policy> CoGetClassObject(DWORD dwClsContext = CLSCTX_INPROC_SERVER)
     {
-        return CoGetClassObject<Interface, error_policy>(dwClsContext);
+        return CoGetClassObject<Interface, error_policy>(__uuidof(Class), dwClsContext);
     }
 
     /** constructs a COM object class factory using an CLSID on IClassFactory or a specific interface. */
