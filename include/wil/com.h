@@ -396,6 +396,13 @@ namespace wil
             return reinterpret_cast<void**>(put());
         }
 
+        //! Returns the address of the internal pointer casted to IUnknown** (releases ownership of the pointer BEFORE returning the address).
+        //! @see put
+        IUnknown** put_unknown() WI_NOEXCEPT
+        {
+            return reinterpret_cast<IUnknown**>(put());
+        }
+
         //! Returns the address of the internal pointer (releases ownership of the pointer BEFORE returning the address).
         //! The pointer is explicitly released to prevent accidental leaks of the pointer.  Coding standards generally indicate that
         //! there is little valid `_Inout_` use of `IInterface**`, making this safe to do under typical use.  Since this behavior is not always immediately

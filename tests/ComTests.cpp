@@ -320,6 +320,18 @@ TEST_CASE("ComTests::Test_Address", "[com][com_ptr]")
         REQUIRE(ptr == nullptr);
     }
 
+    SECTION("put_unknown")
+    {
+        wil::com_ptr_nothrow<IUnknownFake> ptr(&helper);
+        IUnknownFake::Clear();
+
+        IUnknown** puFakePtr = ptr.put_unknown();
+        REQUIRE(IUnknownFake::GetRelease() == 1);
+        REQUIRE(IUnknownFake::GetAddRef() == 0);
+        REQUIRE((*puFakePtr) == nullptr);
+        REQUIRE(ptr == nullptr);
+    }
+
     SECTION("Address operator")
     {
         wil::com_ptr_nothrow<IUnknownFake> ptr(&helper);
