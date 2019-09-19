@@ -9,6 +9,7 @@
 using namespace Microsoft::WRL;
 
 // avoid including #include <shobjidl.h>, it fails to compile in noprivateapis
+EXTERN_C const CLSID CLSID_ShellLink;
 class DECLSPEC_UUID("00021401-0000-0000-C000-000000000046") ShellLink;
 
 // Uncomment this line to do a more exhaustive test of the concepts covered by this file.  By
@@ -304,6 +305,18 @@ TEST_CASE("ComTests::Test_Address", "[com][com_ptr]")
         REQUIRE(IUnknownFake::GetRelease() == 1);
         REQUIRE(IUnknownFake::GetAddRef() == 0);
         REQUIRE((*pFakePtr) == nullptr);
+        REQUIRE(ptr == nullptr);
+    }
+
+    SECTION("put_void")
+    {
+        wil::com_ptr_nothrow<IUnknownFake> ptr(&helper);
+        IUnknownFake::Clear();
+
+        void** pvFakePtr = ptr.put_void();
+        REQUIRE(IUnknownFake::GetRelease() == 1);
+        REQUIRE(IUnknownFake::GetAddRef() == 0);
+        REQUIRE((*pvFakePtr) == nullptr);
         REQUIRE(ptr == nullptr);
     }
 
@@ -2163,9 +2176,12 @@ TEST_CASE("ComTests::VerifyCoCreate", "[com][CoCreateInstance]")
     // success cases
 #ifdef WIL_ENABLE_EXCEPTIONS
     auto link1 = wil::CoCreateInstance<ShellLink>();
+    auto link2 = wil::CoCreateInstance(CLSID_ShellLink);
 #endif
-    auto link2 = wil::CoCreateInstanceFailFast<ShellLink>();
-    auto link3 = wil::CoCreateInstanceNoThrow<ShellLink>();
+    auto link3 = wil::CoCreateInstanceFailFast<ShellLink>();
+    auto link4 = wil::CoCreateInstanceFailFast(CLSID_ShellLink);
+    auto link5 = wil::CoCreateInstanceNoThrow<ShellLink>();
+    auto link6 = wil::CoCreateInstanceNoThrow(CLSID_ShellLink);
 
     // failure
 #ifdef WIL_ENABLE_EXCEPTIONS
@@ -2183,9 +2199,12 @@ TEST_CASE("ComTests::VerifyCoGetClassObject", "[com][CoGetClassObject]")
     // success cases
 #ifdef WIL_ENABLE_EXCEPTIONS
     auto linkFactory1 = wil::CoGetClassObject<ShellLink>();
+    auto linkFactory2 = wil::CoGetClassObject(CLSID_ShellLink);
 #endif
-    auto linkFactory2 = wil::CoGetClassObjectFailFast<ShellLink>();
-    auto linkFactory3 = wil::CoGetClassObjectNoThrow<ShellLink>();
+    auto linkFactory3 = wil::CoGetClassObjectFailFast<ShellLink>();
+    auto linkFactory4 = wil::CoGetClassObjectFailFast(CLSID_ShellLink);
+    auto linkFactory5 = wil::CoGetClassObjectNoThrow<ShellLink>();
+    auto linkFactory6 = wil::CoGetClassObjectNoThrow(CLSID_ShellLink);
 
     // failure
 #ifdef WIL_ENABLE_EXCEPTIONS
