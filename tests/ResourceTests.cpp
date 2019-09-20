@@ -15,52 +15,6 @@
 
 #include "common.h"
 
-TEST_CASE("ResourceTests::TestLastErrorContext", "[resource][last_error_context]")
-{
-    // Destructing the last_error_context restores the error.
-    {
-        SetLastError(42);
-        auto error42 = wil::last_error_context();
-        SetLastError(0);
-    }
-    REQUIRE(GetLastError() == 42);
-
-    // The context can be moved.
-    {
-        SetLastError(42);
-        auto error42 = wil::last_error_context();
-        SetLastError(0);
-        {
-            auto another_error42 = wil::last_error_context(std::move(error42));
-            SetLastError(1);
-        }
-        REQUIRE(GetLastError() == 42);
-        SetLastError(0);
-        // error42 has been moved-from and should not do anything at destruction.
-    }
-    REQUIRE(GetLastError() == 0);
-
-    // The context can be self-assigned, which has no effect.
-    {
-        SetLastError(42);
-        auto error42 = wil::last_error_context();
-        SetLastError(0);
-        error42 = std::move(error42);
-        SetLastError(1);
-    }
-    REQUIRE(GetLastError() == 42);
-
-    // The context can be dismissed, which cause it to do nothing at destruction.
-    {
-        SetLastError(42);
-        auto error42 = wil::last_error_context();
-        SetLastError(0);
-        error42.release();
-        SetLastError(1);
-    }
-    REQUIRE(GetLastError() == 1);
-}
-
 TEST_CASE("ResourceTests::TestScopeExit", "[resource][scope_exit]")
 {
     int count = 0;
