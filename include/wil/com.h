@@ -303,6 +303,7 @@ namespace wil
         //! Move assign from a like `com_ptr_t` (releases current pointer, avoids AddRef/Release by moving the parameter).
         com_ptr_t& operator=(com_ptr_t&& other) WI_NOEXCEPT
         {
+            WI_ASSERT_MSG(this != wistd::addressof(other), "R-Values should be unique: self assignment is a bug");
             attach(other.detach());
             return *this;
         }

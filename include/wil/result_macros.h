@@ -1390,23 +1390,17 @@ namespace wil
 
             shared_buffer& operator=(shared_buffer const &other) WI_NOEXCEPT
             {
-                if (this != wistd::addressof(other))
-                {
-                    assign(other.m_pCopy, other.m_size);
-                }
+                assign(other.m_pCopy, other.m_size);
                 return *this;
             }
 
             shared_buffer& operator=(shared_buffer &&other) WI_NOEXCEPT
             {
-                if (this != wistd::addressof(other))
-                {
-                    reset();
-                    m_pCopy = other.m_pCopy;
-                    m_size = other.m_size;
-                    other.m_pCopy = nullptr;
-                    other.m_size = 0;
-                }
+                reset();
+                m_pCopy = other.m_pCopy;
+                m_size = other.m_size;
+                other.m_pCopy = nullptr;
+                other.m_size = 0;
                 return *this;
             }
 
@@ -1538,26 +1532,20 @@ namespace wil
 
             shared_object& operator=(shared_object const &other) WI_NOEXCEPT
             {
-                if (this != wistd::addressof(other))
+                reset();
+                m_pCopy = other.m_pCopy;
+                if (m_pCopy != nullptr)
                 {
-                    reset();
-                    m_pCopy = other.m_pCopy;
-                    if (m_pCopy != nullptr)
-                    {
-                        ::InterlockedIncrementNoFence(&m_pCopy->m_refCount);
-                    }
+                    ::InterlockedIncrementNoFence(&m_pCopy->m_refCount);
                 }
                 return *this;
             }
 
             shared_object& operator=(shared_object &&other) WI_NOEXCEPT
             {
-                if (this != wistd::addressof(other))
-                {
-                    reset();
-                    m_pCopy = other.m_pCopy;
-                    other.m_pCopy = nullptr;
-                }
+                reset();
+                m_pCopy = other.m_pCopy;
+                other.m_pCopy = nullptr;
                 return *this;
             }
 
