@@ -1885,7 +1885,7 @@ namespace wil
     template<typename Class, typename Interface = IUnknown>
     wil::com_ptr_failfast<Interface> CoCreateInstanceFailFast(DWORD dwClsContext = CLSCTX_INPROC_SERVER)
     {
-		return CoCreateInstanceFailFast<Interface>(__uuidof(Class), dwClsContext);
+        return CoCreateInstanceFailFast<Interface>(__uuidof(Class), dwClsContext);
     }
 
     /** constructs a COM object using an CLSID on a specific interface or IUnknown.
