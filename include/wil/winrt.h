@@ -587,9 +587,12 @@ namespace wil
 
             vector_iterator& operator=(const vector_iterator& other)
             {
-                m_v = other.m_v;
-                m_i = other.m_i;
-                err_policy::HResult(other.m_element.CopyTo(m_element.ReleaseAndGetAddressOf()));
+                if (this != wistd::addressof(other))
+                {
+                    m_v = other.m_v;
+                    m_i = other.m_i;
+                    err_policy::HResult(other.m_element.CopyTo(m_element.ReleaseAndGetAddressOf()));
+                }
                 return *this;
             }
 

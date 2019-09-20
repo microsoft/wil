@@ -1939,6 +1939,15 @@ namespace wistd     // ("Windows Implementation" std)
         return static_cast<_Tp&&>(__t);
     }
 
+    template <class _T1, class _T2 = _T1>
+    inline __WI_LIBCPP_INLINE_VISIBILITY __WI_LIBCPP_CONSTEXPR_AFTER_CXX17
+    _T1 exchange(_T1& __obj, _T2 && __new_value)
+    {
+        _T1 __old_value = wistd::move(__obj);
+        __obj = wistd::forward<_T2>(__new_value);
+        return __old_value;
+    }
+
 #else  // __WI_LIBCPP_HAS_NO_RVALUE_REFERENCES
 
     template <class _Tp>
@@ -1965,6 +1974,14 @@ namespace wistd     // ("Windows Implementation" std)
         return __t;
     }
 
+    template <class _T1, class _T2 = _T1>
+    inline __WI_LIBCPP_INLINE_VISIBILITY
+    _T1 exchange(_T1& __obj, const _T2& __new_value)
+    {
+        _T1 __old_value = __obj;
+        __obj = __new_value;
+        return __old_value;
+    }
 
     template <class _Tp>
     class __rv
