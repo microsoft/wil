@@ -62,4 +62,7 @@ else()
     # append_cxx_flag("/Wv:18")
 
     append_cxx_flag("/bigobj")
+
+    # NOTE: Temporary workaround while https://github.com/microsoft/wil/issues/102 is being investigated
+    append_cxx_flag("/d2FH4-")
 endif()
