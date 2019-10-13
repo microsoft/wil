@@ -4643,6 +4643,7 @@ namespace wil
     inline unique_hdc_paint BeginPaint(HWND hwnd, _Out_opt_ PPAINTSTRUCT pPaintStruct = nullptr) WI_NOEXCEPT
     {
         paint_dc pdc;
+        pdc.hwnd = hwnd;
         HDC hdc = ::BeginPaint(hwnd, &pdc.ps);
         assign_to_opt_param(pPaintStruct, pdc.ps);
         return (hdc == nullptr) ? unique_hdc_paint() : unique_hdc_paint(pdc);
