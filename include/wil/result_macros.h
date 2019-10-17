@@ -3623,9 +3623,9 @@ __WI_SUPPRESS_4127_E
             }
         }
 
+        template<FailureType T>
         _Success_(true)
         _Translates_Win32_to_HRESULT_(err)
-        template<FailureType T>
         __declspec(noinline) inline HRESULT ReportFailure_Win32(__R_FN_PARAMS_FULL, DWORD err)
         {
             const auto hr = __HRESULT_FROM_WIN32(err);
@@ -3633,18 +3633,18 @@ __WI_SUPPRESS_4127_E
             return hr;
         }
         
+        template<>
         _Success_(true)
         _Translates_Win32_to_HRESULT_(err)
-        template<>
         __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_Win32<FailureType::FailFast>(__R_FN_PARAMS_FULL, DWORD err)
         {
             const auto hr = __HRESULT_FROM_WIN32(err);
             ReportFailure<FailureType::FailFast>(__R_FN_CALL_FULL, hr);
         }
-         
+
+        template<>
         _Success_(true)
         _Translates_Win32_to_HRESULT_(err)
-        template<>
         __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_Win32<FailureType::Exception>(__R_FN_PARAMS_FULL, DWORD err)
         {
             const auto hr = __HRESULT_FROM_WIN32(err);
@@ -3676,9 +3676,9 @@ __WI_SUPPRESS_4127_E
             ReportFailure<FailureType::Exception>(__R_FN_CALL_FULL, hr);
         }
 
+        template<FailureType T>
         _Success_(true)
         _Translates_last_error_to_HRESULT_
-        template<FailureType T>
         __declspec(noinline) inline HRESULT ReportFailure_GetLastErrorHr(__R_FN_PARAMS_FULL)
         {
             const auto hr = GetLastErrorFailHr(__R_FN_CALL_FULL);
@@ -3686,27 +3686,27 @@ __WI_SUPPRESS_4127_E
             return hr;
         }
 
+        template<>
         _Success_(true)
         _Translates_last_error_to_HRESULT_
-        template<>
         __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_GetLastErrorHr<FailureType::FailFast>(__R_FN_PARAMS_FULL)
         {
             const auto hr = GetLastErrorFailHr(__R_FN_CALL_FULL);
             ReportFailure<FailureType::FailFast>(__R_FN_CALL_FULL, hr);
         }
 
+        template<>
         _Success_(true)
         _Translates_last_error_to_HRESULT_
-        template<>
         __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_GetLastErrorHr<FailureType::Exception>(__R_FN_PARAMS_FULL)
         {
             const auto hr = GetLastErrorFailHr(__R_FN_CALL_FULL);
             ReportFailure<FailureType::Exception>(__R_FN_CALL_FULL, hr);
         }
 
+        template<FailureType T>
         _Success_(true)
         _Translates_NTSTATUS_to_HRESULT_(status)
-        template<FailureType T>
         __declspec(noinline) inline HRESULT ReportFailure_NtStatus(__R_FN_PARAMS_FULL, NTSTATUS status)
         {
             const auto hr = wil::details::NtStatusToHr(status);
@@ -3714,18 +3714,18 @@ __WI_SUPPRESS_4127_E
             return hr;
         }
 
+        template<>
         _Success_(true)
         _Translates_NTSTATUS_to_HRESULT_(status)
-        template<>
         __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_NtStatus<FailureType::FailFast>(__R_FN_PARAMS_FULL, NTSTATUS status)
         {
             const auto hr = wil::details::NtStatusToHr(status);
             ReportFailure<FailureType::FailFast>(__R_FN_CALL_FULL, hr);
         }
 
+        template<>
         _Success_(true)
         _Translates_NTSTATUS_to_HRESULT_(status)
-        template<>
         __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_NtStatus<FailureType::Exception>(__R_FN_PARAMS_FULL, NTSTATUS status)
         {
             const auto hr = wil::details::NtStatusToHr(status);
@@ -3774,9 +3774,9 @@ __WI_SUPPRESS_4127_E
             ReportFailure_Msg<FailureType::Exception>(__R_FN_CALL_FULL, hr, formatString, argList);
         }
 
+        template<FailureType T>
         _Success_(true)
         _Translates_Win32_to_HRESULT_(err)
-        template<FailureType T>
         __declspec(noinline) inline HRESULT ReportFailure_Win32Msg(__R_FN_PARAMS_FULL, DWORD err, _Printf_format_string_ PCSTR formatString, va_list argList)
         {
             auto hr = __HRESULT_FROM_WIN32(err);
@@ -3784,18 +3784,18 @@ __WI_SUPPRESS_4127_E
             return hr;
         }
 
+        template<>
         _Success_(true)
         _Translates_Win32_to_HRESULT_(err)
-        template<>
         __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_Win32Msg<FailureType::FailFast>(__R_FN_PARAMS_FULL, DWORD err, _Printf_format_string_ PCSTR formatString, va_list argList)
         {
             auto hr = __HRESULT_FROM_WIN32(err);
             ReportFailure_Msg<FailureType::FailFast>(__R_FN_CALL_FULL, hr, formatString, argList);
         }
 
+        template<>
         _Success_(true)
         _Translates_Win32_to_HRESULT_(err)
-        template<>
         __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_Win32Msg<FailureType::Exception>(__R_FN_PARAMS_FULL, DWORD err, _Printf_format_string_ PCSTR formatString, va_list argList)
         {
             auto hr = __HRESULT_FROM_WIN32(err);
@@ -3827,10 +3827,9 @@ __WI_SUPPRESS_4127_E
             ReportFailure_Msg<FailureType::Exception>(__R_FN_CALL_FULL, hr, formatString, argList);
         }
 
-        _Success_(true)
-        _When_((type == FailureType::Exception) || (type == FailureType::FailFast), _Analysis_noreturn_)
-        _Translates_last_error_to_HRESULT_
         template<FailureType T>
+        _Success_(true)
+        _Translates_last_error_to_HRESULT_
         __declspec(noinline) inline HRESULT ReportFailure_GetLastErrorHrMsg(__R_FN_PARAMS_FULL, _Printf_format_string_ PCSTR formatString, va_list argList)
         {
             auto hr = GetLastErrorFailHr(__R_FN_CALL_FULL);
@@ -3838,27 +3837,27 @@ __WI_SUPPRESS_4127_E
             return hr;
         }
 
+        template<>
         _Success_(true)
         _Translates_last_error_to_HRESULT_
-        template<>
         __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_GetLastErrorHrMsg<FailureType::FailFast>(__R_FN_PARAMS_FULL, _Printf_format_string_ PCSTR formatString, va_list argList)
         {
             auto hr = GetLastErrorFailHr(__R_FN_CALL_FULL);
             ReportFailure_Msg<FailureType::FailFast>(__R_FN_CALL_FULL, hr, formatString, argList);
         }
 
+        template<>
         _Success_(true)
         _Translates_last_error_to_HRESULT_
-        template<>
         __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_GetLastErrorHrMsg<FailureType::Exception>(__R_FN_PARAMS_FULL, _Printf_format_string_ PCSTR formatString, va_list argList)
         {
             auto hr = GetLastErrorFailHr(__R_FN_CALL_FULL);
             ReportFailure_Msg<FailureType::Exception>(__R_FN_CALL_FULL, hr, formatString, argList);
         }
 
+        template<FailureType T>
         _Success_(true)
         _Translates_NTSTATUS_to_HRESULT_(status)
-        template<FailureType T>
         __declspec(noinline) inline HRESULT ReportFailure_NtStatusMsg(__R_FN_PARAMS_FULL, NTSTATUS status, _Printf_format_string_ PCSTR formatString, va_list argList)
         {
             auto hr = wil::details::NtStatusToHr(status);
@@ -3866,18 +3865,18 @@ __WI_SUPPRESS_4127_E
             return hr;
         }
 
+        template<>
         _Success_(true)
         _Translates_NTSTATUS_to_HRESULT_(status)
-        template<>
         __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_NtStatusMsg<FailureType::FailFast>(__R_FN_PARAMS_FULL, NTSTATUS status, _Printf_format_string_ PCSTR formatString, va_list argList)
         {
             auto hr = wil::details::NtStatusToHr(status);
             ReportFailure_Msg<FailureType::FailFast>(__R_FN_CALL_FULL, hr, formatString, argList);
         }
 
+        template<>
         _Success_(true)
         _Translates_NTSTATUS_to_HRESULT_(status)
-        template<>
         __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_NtStatusMsg<FailureType::Exception>(__R_FN_PARAMS_FULL, NTSTATUS status, _Printf_format_string_ PCSTR formatString, va_list argList)
         {
             auto hr = wil::details::NtStatusToHr(status);
@@ -4080,6 +4079,7 @@ __WI_SUPPRESS_4127_E
             // Log Macros
             //*****************************************************************************
 
+            _Post_satisfies_(return == hr)
             __R_DIRECT_METHOD(HRESULT, Log_Hr)(__R_DIRECT_FN_PARAMS HRESULT hr) WI_NOEXCEPT
             {
                 __R_FN_LOCALS;
@@ -4334,7 +4334,8 @@ __WI_SUPPRESS_4127_E
                 return status;
             }
 
-            __R_DIRECT_METHOD(HRESULT, Log_HrMsg)(__R_DIRECT_FN_PARAMS HRESULT hr, PCSTR formatString, ...) WI_NOEXCEPT
+            _Post_satisfies_(return == hr)
+            __R_DIRECT_METHOD(HRESULT, Log_HrMsg)(__R_DIRECT_FN_PARAMS HRESULT hr, _Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT
             {
                 va_list argList;
                 va_start(argList, formatString);
@@ -4343,7 +4344,8 @@ __WI_SUPPRESS_4127_E
                 return hr;
             }
 
-            __R_DIRECT_METHOD(DWORD, Log_Win32Msg)(__R_DIRECT_FN_PARAMS DWORD err, PCSTR formatString, ...) WI_NOEXCEPT
+            _Post_satisfies_(return == err)
+            __R_DIRECT_METHOD(DWORD, Log_Win32Msg)(__R_DIRECT_FN_PARAMS DWORD err, _Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT
             {
                 va_list argList;
                 va_start(argList, formatString);
@@ -4741,6 +4743,7 @@ __WI_SUPPRESS_4127_E
                 }
             }
 
+            _Post_satisfies_(return == condition) _When_(condition, _Analysis_noreturn_)
             __RFF_CONDITIONAL_METHOD(bool, FailFast_HrIf)(__RFF_CONDITIONAL_FN_PARAMS HRESULT hr, bool condition) WI_NOEXCEPT
             {
                 if (condition)
@@ -5106,6 +5109,7 @@ __WI_SUPPRESS_4127_E
                 wil::details::ReportFailure_Hr<FailureType::FailFast>(__RFF_INTERNAL_FN_CALL E_UNEXPECTED);
             }
 
+            _Post_satisfies_(return == condition) _When_(condition, _Analysis_noreturn_)
             __RFF_CONDITIONAL_METHOD(bool, FailFast_If)(__RFF_CONDITIONAL_FN_PARAMS bool condition) WI_NOEXCEPT
             {
                 if (condition)
@@ -5115,6 +5119,7 @@ __WI_SUPPRESS_4127_E
                 return condition;
             }
 
+            _Post_satisfies_(return == condition) _When_(!condition, _Analysis_noreturn_)
             __RFF_CONDITIONAL_METHOD(bool, FailFast_IfFalse)(__RFF_CONDITIONAL_FN_PARAMS bool condition) WI_NOEXCEPT
             {
                 if (!condition)
@@ -5232,6 +5237,7 @@ __WI_SUPPRESS_4127_E
                 return hr;
             }
 
+            _Post_satisfies_(return == condition) _When_(condition, _Analysis_noreturn_)
             __RFF_CONDITIONAL_METHOD(bool, FailFastImmediate_If)(bool condition) WI_NOEXCEPT
             {
                 if (condition)

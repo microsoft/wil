@@ -375,9 +375,7 @@ namespace wil
 
         //! Returns the address of the internal pointer (releases ownership of the pointer BEFORE returning the address).
         //! The pointer is explicitly released to prevent accidental leaks of the pointer.  Coding standards generally indicate that
-        //! there is little valid `_Inout_` use of `IInterface**`, making this safe to do under typical use.  Since this behavior is not always immediately
-        //! apparent, prefer to scope variables as close to use as possible (generally avoiding use of the same com_ptr variable in successive calls to
-        //! receive an output interface).
+        //! there is little valid `_Inout_` use of `IInterface**`, making this safe to do under typical use.
         //! @see addressof
         //! ~~~~
         //! STDAPI GetMuffin(IMuffin **muffin);
@@ -388,6 +386,20 @@ namespace wil
         {
             reset();
             return &m_ptr;
+        }
+
+        //! Returns the address of the internal pointer casted to void** (releases ownership of the pointer BEFORE returning the address).
+        //! @see put
+        void** put_void() WI_NOEXCEPT
+        {
+            return reinterpret_cast<void**>(put());
+        }
+
+        //! Returns the address of the internal pointer casted to IUnknown** (releases ownership of the pointer BEFORE returning the address).
+        //! @see put
+        IUnknown** put_unknown() WI_NOEXCEPT
+        {
+            return reinterpret_cast<IUnknown**>(put());
         }
 
         //! Returns the address of the internal pointer (releases ownership of the pointer BEFORE returning the address).
@@ -1845,20 +1857,42 @@ namespace wil
         return SUCCEEDED(com_raw_ptr(wistd::forward<T>(ptrSource))->QueryInterface(IID_PPV_ARGS(&agileObject)));
     }
 
-    /** constructs a COM object using the class as the identifier (that has an associated CLSID) on a specific interface or IUnknown.*/
+    /** constructs a COM object using an CLSID on a specific interface or IUnknown.*/
+    template<typename Interface = IUnknown, typename error_policy = err_exception_policy>
+    wil::com_ptr_t<Interface, error_policy> CoCreateInstance(REFCLSID rclsid, DWORD dwClsContext = CLSCTX_INPROC_SERVER)
+    {
+        wil::com_ptr_t<Interface, error_policy> result;
+        error_policy::HResult(::CoCreateInstance(rclsid, nullptr, dwClsContext, IID_PPV_ARGS(&result)));
+        return result;
+    }
+
+    /** constructs a COM object using the class as the identifier (that has an associated CLSID) on a specific interface or IUnknown. */
     template<typename Class, typename Interface = IUnknown, typename error_policy = err_exception_policy>
     wil::com_ptr_t<Interface, error_policy> CoCreateInstance(DWORD dwClsContext = CLSCTX_INPROC_SERVER)
     {
-        wil::com_ptr_t<Interface, error_policy> result;
-        error_policy::HResult(::CoCreateInstance(__uuidof(Class), nullptr, dwClsContext, IID_PPV_ARGS(&result)));
-        return result;
+        return CoCreateInstance<Interface, error_policy>(__uuidof(Class), dwClsContext);
+    }
+
+    /** constructs a COM object using an CLSID on a specific interface or IUnknown. */
+    template<typename Interface = IUnknown>
+    wil::com_ptr_failfast<Interface> CoCreateInstanceFailFast(REFCLSID rclsid, DWORD dwClsContext = CLSCTX_INPROC_SERVER)
+    {
+        return CoCreateInstance<Interface, err_failfast_policy>(rclsid, dwClsContext);
     }
 
     /** constructs a COM object using the class as the identifier (that has an associated CLSID) on a specific interface or IUnknown. */
     template<typename Class, typename Interface = IUnknown>
     wil::com_ptr_failfast<Interface> CoCreateInstanceFailFast(DWORD dwClsContext = CLSCTX_INPROC_SERVER)
     {
-        return CoCreateInstance<Class, Interface, err_failfast_policy>(dwClsContext);
+        return CoCreateInstanceFailFast<Interface>(__uuidof(Class), dwClsContext);
+    }
+
+    /** constructs a COM object using an CLSID on a specific interface or IUnknown.
+    Note, failures are reported as a null result, the HRESULT is lost. */
+    template<typename Interface = IUnknown>
+    wil::com_ptr_nothrow<Interface> CoCreateInstanceNoThrow(REFCLSID rclsid, DWORD dwClsContext = CLSCTX_INPROC_SERVER)
+    {
+        return CoCreateInstance<Interface, err_returncode_policy>(rclsid, dwClsContext);
     }
 
     /** constructs a COM object using the class as the identifier (that has an associated CLSID) on a specific interface or IUnknown.
@@ -1866,7 +1900,16 @@ namespace wil
     template<typename Class, typename Interface = IUnknown>
     wil::com_ptr_nothrow<Interface> CoCreateInstanceNoThrow(DWORD dwClsContext = CLSCTX_INPROC_SERVER)
     {
-        return CoCreateInstance<Class, Interface, err_returncode_policy>(dwClsContext);
+        return CoCreateInstanceNoThrow<Interface>(__uuidof(Class), dwClsContext);
+    }
+
+    /** constructs a COM object class factory using an CLSID on IClassFactory or a specific interface. */
+    template<typename Interface = IClassFactory, typename error_policy = err_exception_policy>
+    wil::com_ptr_t<Interface, error_policy> CoGetClassObject(REFCLSID rclsid, DWORD dwClsContext = CLSCTX_INPROC_SERVER)
+    {
+        wil::com_ptr_t<Interface, error_policy> result;
+        error_policy::HResult(CoGetClassObject(rclsid, dwClsContext, nullptr, IID_PPV_ARGS(&result)));
+        return result;
     }
 
     /** constructs a COM object class factory using the class as the identifier (that has an associated CLSID)
@@ -1874,9 +1917,14 @@ namespace wil
     template<typename Class, typename Interface = IClassFactory, typename error_policy = err_exception_policy>
     wil::com_ptr_t<Interface, error_policy> CoGetClassObject(DWORD dwClsContext = CLSCTX_INPROC_SERVER)
     {
-        wil::com_ptr_t<Interface, error_policy> result;
-        error_policy::HResult(CoGetClassObject(__uuidof(Class), dwClsContext, nullptr, IID_PPV_ARGS(&result)));
-        return result;
+        return CoGetClassObject<Interface, error_policy>(__uuidof(Class), dwClsContext);
+    }
+
+    /** constructs a COM object class factory using an CLSID on IClassFactory or a specific interface. */
+    template<typename Interface = IClassFactory>
+    wil::com_ptr_failfast<Interface> CoGetClassObjectFailFast(REFCLSID rclsid, DWORD dwClsContext = CLSCTX_INPROC_SERVER)
+    {
+        return CoGetClassObject<Interface, err_failfast_policy>(rclsid, dwClsContext);
     }
 
     /** constructs a COM object class factory using the class as the identifier (that has an associated CLSID)
@@ -1884,7 +1932,15 @@ namespace wil
     template<typename Class, typename Interface = IClassFactory>
     wil::com_ptr_failfast<Interface> CoGetClassObjectFailFast(DWORD dwClsContext = CLSCTX_INPROC_SERVER)
     {
-        return CoGetClassObject<Class, Interface, err_failfast_policy>(dwClsContext);
+        return CoGetClassObjectFailFast<Interface>(__uuidof(Class), dwClsContext);
+    }
+
+    /** constructs a COM object class factory using an CLSID on IClassFactory or a specific interface.
+    Note, failures are reported as a null result, the HRESULT is lost. */
+    template<typename Interface = IClassFactory>
+    wil::com_ptr_nothrow<Interface> CoGetClassObjectNoThrow(REFCLSID rclsid, DWORD dwClsContext = CLSCTX_INPROC_SERVER)
+    {
+        return CoGetClassObject<Interface, err_returncode_policy>(rclsid, dwClsContext);
     }
 
     /** constructs a COM object class factory using the class as the identifier (that has an associated CLSID)
@@ -1893,7 +1949,7 @@ namespace wil
     template<typename Class, typename Interface = IClassFactory>
     wil::com_ptr_nothrow<Interface> CoGetClassObjectNoThrow(DWORD dwClsContext = CLSCTX_INPROC_SERVER)
     {
-        return CoGetClassObject<Class, Interface, err_returncode_policy>(dwClsContext);
+        return CoGetClassObjectNoThrow<Interface>(__uuidof(Class), dwClsContext);
     }
 #pragma endregion
 
