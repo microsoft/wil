@@ -189,7 +189,7 @@ namespace wil
     {
         // C++/WinRT only gives us the return address (caller), so pass along an empty 'DiagnosticsInfo' since we don't
         // have accurate file/line/etc. information
-        return static_cast<std::int32_t>(details::ReportFailure_CaughtException(__R_DIAGNOSTICS_RA(DiagnosticsInfo{}, returnAddress), FailureType::Return));
+        return static_cast<std::int32_t>(details::ReportFailure_CaughtException<FailureType::Return>(__R_DIAGNOSTICS_RA(DiagnosticsInfo{}, returnAddress)));
     }
 
     inline void WilInitialize_CppWinRT()

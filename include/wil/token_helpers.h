@@ -438,6 +438,63 @@ namespace wil
     }
 #endif // WIL_ENABLE_EXCEPTIONS
 
+    namespace details
+    {
+        template<size_t AuthorityCount> struct static_sid_t
+        {
+            BYTE Revision;
+            BYTE SubAuthorityCount;
+            SID_IDENTIFIER_AUTHORITY IdentifierAuthority;
+            DWORD SubAuthority[AuthorityCount];
+
+            PSID get()
+            {
+                return reinterpret_cast<PSID>(this);
+            }
+
+            template<size_t other> static_sid_t& operator=(const static_sid_t<other>& source)
+            {
+                static_assert(other <= AuthorityCount, "Cannot assign from a larger static sid to a smaller one");
+
+                if (&this->Revision != &source.Revision)
+                {
+                    memcpy(this, &source, sizeof(source));
+                }
+
+                return *this;
+            }
+        };
+    }
+
+    /** Returns a structure containing a Revision 1 SID initialized with the authorities provided
+    Replaces AllocateAndInitializeSid by constructing a structure laid out like a PSID, but
+    returned like a value. The resulting object is suitable for use with any method taking PSID,
+    passed by "&the_sid" or via "the_sid.get()"
+    ~~~~
+    // Change the owner of the key to administrators
+    auto systemSid = wil::make_static_sid(SECURITY_NT_AUTHORITY, SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS);
+    RETURN_IF_WIN32_ERROR(SetNamedSecurityInfo(keyPath, SE_REGISTRY_KEY, OWNER_SECURITY_INFORMATION, &systemSid, nullptr, nullptr, nullptr));
+    ~~~~
+    */
+    template<typename... Ts> constexpr auto make_static_sid(const SID_IDENTIFIER_AUTHORITY& authority, Ts&&... subAuthorities)
+    {
+        using sid_t = details::static_sid_t<sizeof...(subAuthorities)>;
+
+        static_assert(sizeof...(subAuthorities) <= SID_MAX_SUB_AUTHORITIES, "too many sub authorities");
+        static_assert(offsetof(sid_t, Revision) == offsetof(_SID, Revision), "layout mismatch");
+        static_assert(offsetof(sid_t, SubAuthorityCount) == offsetof(_SID, SubAuthorityCount), "layout mismatch");
+        static_assert(offsetof(sid_t, IdentifierAuthority) == offsetof(_SID, IdentifierAuthority), "layout mismatch");
+        static_assert(offsetof(sid_t, SubAuthority) == offsetof(_SID, SubAuthority), "layout mismatch");
+
+        return sid_t { SID_REVISION, sizeof...(subAuthorities), authority, { static_cast<DWORD>(subAuthorities)... } };
+    }
+
+    //! Variant of static_sid that defaults to the NT authority
+    template<typename... Ts> constexpr auto make_static_nt_sid(Ts&& ... subAuthorities)
+    {
+        return make_static_sid(SECURITY_NT_AUTHORITY, wistd::forward<Ts>(subAuthorities)...);
+    }
+
     /** Determines whether a specified security identifier (SID) is enabled in an access token.
     This function determines whether a security identifier, described by a given set of subauthorities, is enabled
     in the given access token. Note that only up to eight subauthorities can be passed to this function.
@@ -451,22 +508,16 @@ namespace wil
     @param token A handle to an access token. The handle must have TOKEN_QUERY access to the token, and must be an impersonation token. If token is nullptr, test_token_membership
            uses the impersonation token of the calling thread. If the thread is not impersonating, the function duplicates the thread's primary token to create an impersonation token.
     @param sidAuthority A reference to a SID_IDENTIFIER_AUTHORITY structure. This structure provides the top-level identifier authority value to set in the SID.
-    @param subAuthorities Up to eight subauthority values to place in the SID (this is a limit of AllocateAndInitializeSid).
+    @param subAuthorities Up to 15 subauthority values to place in the SID (this is a systemwide limit)
     @return S_OK on success, a FAILED hresult containing the win32 error from creating the SID or querying the token otherwise.
     */
     template<typename... Ts> HRESULT test_token_membership_nothrow(_Out_ bool* result, _In_opt_ HANDLE token,
-        const SID_IDENTIFIER_AUTHORITY& sidAuthority, Ts... subAuthorities)
+        const SID_IDENTIFIER_AUTHORITY& sidAuthority, Ts&&... subAuthorities)
     {
         *result = false;
-
-        static_assert(sizeof...(subAuthorities) <= 8, "The maximum allowed number of sub-authorities is 8 (limitation of AllocateAndInitializeSid)");
-
-        DWORD subAuthorityArray[8] = { subAuthorities... };
-        unique_any<PSID, decltype(&::FreeSid), ::FreeSid> groupSid;
-        RETURN_IF_WIN32_BOOL_FALSE(AllocateAndInitializeSid(const_cast<PSID_IDENTIFIER_AUTHORITY>(&sidAuthority), static_cast<BYTE>(sizeof...(subAuthorities)), subAuthorityArray[0], subAuthorityArray[1], subAuthorityArray[2], subAuthorityArray[3], subAuthorityArray[4], subAuthorityArray[5], subAuthorityArray[6], subAuthorityArray[7], &groupSid));
-
+        auto tempSid = make_static_sid(sidAuthority, wistd::forward<Ts>(subAuthorities)...);
         BOOL isMember;
-        RETURN_IF_WIN32_BOOL_FALSE(CheckTokenMembership(token, groupSid.get(), &isMember));
+        RETURN_IF_WIN32_BOOL_FALSE(CheckTokenMembership(token, &tempSid, &isMember));
 
         *result = (isMember != FALSE);
 
@@ -527,7 +578,7 @@ namespace wil
         const SID_IDENTIFIER_AUTHORITY& sidAuthority, Ts&&... subAuthorities)
     {
         bool result;
-        FAIL_FAST_IF_FAILED(test_token_membership_nothrow(&result, token, sidAuthority, static_cast<Ts&&>(subAuthorities)...));
+        FAIL_FAST_IF_FAILED(test_token_membership_nothrow(&result, token, sidAuthority, wistd::forward<Ts>(subAuthorities)...));
         return result;
     }
 
@@ -536,7 +587,7 @@ namespace wil
         Ts&&... subAuthorities)
     {
         bool result;
-        THROW_IF_FAILED(test_token_membership_nothrow(&result, token, sidAuthority, static_cast<Ts&&>(subAuthorities)...));
+        THROW_IF_FAILED(test_token_membership_nothrow(&result, token, sidAuthority, wistd::forward<Ts>(subAuthorities)...));
         return result;
     }
 #endif

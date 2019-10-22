@@ -678,7 +678,7 @@ namespace wil
                 // NOTE:  FailureType::Log as it's only informative (no action) and SupportedExceptions::All as it's not a barrier, only recognition.
                 wchar_t message[2048];
                 message[0] = L'\0';
-                const HRESULT hr = details::ReportFailure_CaughtExceptionCommon(__R_DIAGNOSTICS_RA(source, returnAddress), FailureType::Log, message, ARRAYSIZE(message), SupportedExceptions::All);
+                const HRESULT hr = details::ReportFailure_CaughtExceptionCommon<FailureType::Log>(__R_DIAGNOSTICS_RA(source, returnAddress), message, ARRAYSIZE(message), SupportedExceptions::All);
 
                 // Now that the exception was logged, we should be able to fetch it.
                 return GetLastError(info, minSequenceId, hr);
@@ -1130,6 +1130,11 @@ namespace wil
 
         details::InitGlobalWithStorage(state, s_processLocalData, details_abi::g_pProcessLocalData, "WilError_03");
         details::InitGlobalWithStorage(state, s_threadFailureCallbacks, details::g_pThreadFailureCallbacks);
+
+        if (state == WilInitializeCommand::Create)
+        {
+            details::g_pfnGetContextAndNotifyFailure = details::GetContextAndNotifyFailure;
+        }
     }
 
     /// @cond

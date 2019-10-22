@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.11)
+project(WIL)
 
 # Set by build server to speed up build/reduce file/object size
 option(FAST_BUILD "Sets options to speed up build/reduce obj/executable size" OFF)

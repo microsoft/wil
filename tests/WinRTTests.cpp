@@ -7,6 +7,13 @@
 #include <string>
 #endif
 
+// Required for pinterface template specializations that we depend on in this test
+#include <Windows.ApplicationModel.Chat.h>
+#pragma push_macro("GetCurrentTime")
+#undef GetCurrentTime
+#include <Windows.UI.Xaml.Data.h>
+#pragma pop_macro("GetCurrentTime")
+
 #include "common.h"
 #include "FakeWinRTTypes.h"
 #include "test_objects.h"
@@ -798,6 +805,31 @@ TEST_CASE("WinRTTests::VectorRangeTest", "[winrt][vector_range]")
     for (auto itr = pointRange.begin(); itr != pointRange.end(); ++itr)
     {
         REQUIRE(index++ == itr->Get().X);
+    }
+
+    // Iterator self-assignment is a nop.
+    {
+        auto inspRange2 = wil::get_range(inspectables.Get());
+        auto itr = inspRange2.begin();
+        REQUIRE(itr != inspRange2.end()); // should have something in it
+        auto& ref = *itr;
+        auto val = ref;
+        itr = itr;
+        REQUIRE(val == ref);
+        itr = std::move(itr);
+        REQUIRE(val == ref);
+    }
+
+    {
+        auto strRange2 = wil::get_range(strings.Get());
+        auto itr = strRange2.begin();
+        REQUIRE(itr != strRange2.end()); // should have something in it
+        auto& ref = *itr;
+        auto val = ref.Get();
+        itr = itr;
+        REQUIRE(val == ref);
+        itr = std::move(itr);
+        REQUIRE(val == ref.Get());
     }
 #endif
 }

@@ -79,10 +79,8 @@ namespace wil
 
         last_error_context & operator=(last_error_context&& other) WI_NOEXCEPT
         {
-            m_dismissed = other.m_dismissed;
+            m_dismissed = wistd::exchange(other.m_dismissed, true);
             m_error = other.m_error;
-
-            other.m_dismissed = true;
 
             return *this;
         }
@@ -185,12 +183,12 @@ namespace wil
                 other.m_ptr = policy::invalid_value();
             }
 
+        public:
             bool is_valid() const WI_NOEXCEPT
             {
                 return policy::is_valid(m_ptr);
             }
 
-        public:
             void reset(pointer_storage ptr = policy::invalid_value()) WI_NOEXCEPT
             {
                 if (policy::is_valid(m_ptr))
@@ -517,7 +515,7 @@ namespace wil
                     }
                     catch (...)
                     {
-                        ReportFailure_CaughtException(__R_DIAGNOSTICS(m_info), m_address, FailureType::Log);
+                        ReportFailure_CaughtException<FailureType::Log>(__R_DIAGNOSTICS(m_info), m_address);
                     }
                 }
             }
@@ -1911,12 +1909,12 @@ namespace wil {
                 m_ptr = wistd::move(other.m_ptr);
             }
 
+        public:
             bool is_valid() const WI_NOEXCEPT
             {
-                return (m_ptr && static_cast<bool>(*m_ptr));
+                return (m_ptr && m_ptr->is_valid());
             }
 
-        public:
             void reset(pointer_storage ptr = policy::invalid_value())
             {
                 if (policy::is_valid(ptr))
@@ -4449,8 +4447,7 @@ namespace wil
             {
                 m_value = wistd::move(source.m_value);
                 m_bufferHandle = wistd::move(source.m_bufferHandle);
-                m_charBuffer = source.m_charBuffer;
-                source.m_charBuffer = nullptr;
+                m_charBuffer = wistd::exchange(source.m_charBuffer, nullptr);
                 return *this;
             }
 
@@ -4643,6 +4640,7 @@ namespace wil
     inline unique_hdc_paint BeginPaint(HWND hwnd, _Out_opt_ PPAINTSTRUCT pPaintStruct = nullptr) WI_NOEXCEPT
     {
         paint_dc pdc;
+        pdc.hwnd = hwnd;
         HDC hdc = ::BeginPaint(hwnd, &pdc.ps);
         assign_to_opt_param(pPaintStruct, pdc.ps);
         return (hdc == nullptr) ? unique_hdc_paint() : unique_hdc_paint(pdc);
@@ -5275,13 +5273,23 @@ namespace wil
     {
         unique_hglobal_locked() = delete;
 
-        unique_hglobal_locked(_In_ STGMEDIUM& medium) : unique_any<void*, decltype(&::GlobalUnlock), ::GlobalUnlock>(medium.hGlobal)
+        explicit unique_hglobal_locked(HGLOBAL global) : unique_any<void*, decltype(&::GlobalUnlock), ::GlobalUnlock>(global)
         {
             // GlobalLock returns a pointer to the associated global memory block and that's what callers care about.
-            m_globalMemory = GlobalLock(medium.hGlobal);
+            m_globalMemory = GlobalLock(global);
+            if (!m_globalMemory)
+            {
+                release();
+            }
         }
 
-        // In the future, we could easily add additional constructor overloads such as unique_hglobal_locked(HGLOBAL) to make consumption easier.
+        explicit unique_hglobal_locked(unique_hglobal& global) : unique_hglobal_locked(global.get())
+        {
+        }
+
+        explicit unique_hglobal_locked(STGMEDIUM& medium) : unique_hglobal_locked(medium.hGlobal)
+        {
+        }
 
         pointer get() const
         {
@@ -5344,11 +5352,14 @@ namespace wil
 #if defined(_INC_STDIO) && !defined(__WIL_INC_STDIO) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && !defined(WIL_KERNEL_MODE)
 #define __WIL_INC_STDIO
     typedef unique_any<FILE*, decltype(&::_pclose), ::_pclose> unique_pipe;
+    typedef unique_any<FILE*, decltype(&::fclose), ::fclose> unique_file;
 #endif // __WIL_INC_STDIO
 #if defined(__WIL_INC_STDIO) && !defined(__WIL__INC_STDIO_STL) && defined(WIL_RESOURCE_STL)
 #define __WIL__INC_STDIO_STL
     typedef shared_any<unique_pipe> shared_pipe;
     typedef weak_any<shared_pipe> weak_pipe;
+    typedef shared_any<unique_file> shared_file;
+    typedef weak_any<unique_file> weak_file;
 #endif // __WIL__INC_STDIO_STL
 
 #if defined(_NTLSA_) && !defined(__WIL_NTLSA_) && !defined(WIL_KERNEL_MODE)
