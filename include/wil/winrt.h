@@ -26,16 +26,16 @@
 #endif
 
 #ifdef WIL_ENABLE_EXCEPTIONS
+#pragma warning(push)
+#pragma warning(disable:4643)
 /// @cond
 namespace std
 {
-    template<class _Elem, class _Traits, class _Alloc>
-    class basic_string;
-
     template<class _Ty>
     struct less;
 }
 /// @endcond
+#pragma warning(pop)
 #endif
 
 // This enables this code to be used in code that uses the ABI prefix or not.
@@ -145,16 +145,17 @@ namespace wil
                 return str;
             }
 
-#ifdef WIL_ENABLE_EXCEPTIONS
-            template<class TraitsT, class AllocT>
-            static const wchar_t* get_buffer(
-                const std::basic_string<wchar_t, TraitsT, AllocT>& str,
-                UINT32* length) WI_NOEXCEPT
+            // Overload for std::wstring, or at least things that behave like std::wstring, without adding a dependency
+            // on STL headers
+            template <typename StringT>
+            static wistd::enable_if_t<wistd::conjunction_v<
+                wistd::is_same<const wchar_t*, decltype(wistd::declval<StringT>().c_str())>,
+                wistd::is_same<typename StringT::size_type, decltype(wistd::declval<StringT>().length())>>,
+            const wchar_t*> get_buffer(const StringT& str, UINT32* length) WI_NOEXCEPT
             {
                 *length = static_cast<UINT32>(str.length());
                 return str.c_str();
             }
-#endif
 
             template <typename LhsT, typename RhsT>
             static auto compare(LhsT&& lhs, RhsT&& rhs) ->
@@ -1312,12 +1313,12 @@ namespace details
         typedef wistd::remove_pointer_t<decltype(GetAsyncDelegateType(operation))> TIDelegate;
 
         auto callback = Callback<Implements<RuntimeClassFlags<ClassicCom>, TIDelegate, TBaseAgility>>(
-            [func = wistd::forward<TFunction>(func)](TIOperation operation, AsyncStatus status) mutable -> HRESULT
+            [func = wistd::forward<TFunction>(func)](TIOperation operation, ABI::Windows::Foundation::AsyncStatus status) mutable -> HRESULT
         {
             HRESULT hr = S_OK;
-            if (status != AsyncStatus::Completed)   // avoid a potentially costly marshaled QI / call if we completed successfully
+            if (status != ABI::Windows::Foundation::AsyncStatus::Completed)   // avoid a potentially costly marshaled QI / call if we completed successfully
             {
-                ComPtr<IAsyncInfo> asyncInfo;
+                ComPtr<ABI::Windows::Foundation::IAsyncInfo> asyncInfo;
                 operation->QueryInterface(IID_PPV_ARGS(&asyncInfo)); // All must implement IAsyncInfo
                 asyncInfo->get_ErrorCode(&hr);
             }
@@ -1337,19 +1338,19 @@ namespace details
         typedef wistd::remove_pointer_t<decltype(GetAsyncDelegateType(operation))> TIDelegate;
 
         auto callback = Callback<Implements<RuntimeClassFlags<ClassicCom>, TIDelegate, TBaseAgility>>(
-            [func = wistd::forward<TFunction>(func)](TIOperation operation, AsyncStatus status) mutable -> HRESULT
+            [func = wistd::forward<TFunction>(func)](TIOperation operation, ABI::Windows::Foundation::AsyncStatus status) mutable -> HRESULT
         {
             typename details::MapToSmartType<typename GetAbiType<typename wistd::remove_pointer<TIOperation>::type::TResult_complex>::type>::type result;
 
             HRESULT hr = S_OK;
-            if (status == AsyncStatus::Completed)
+            if (status == ABI::Windows::Foundation::AsyncStatus::Completed)
             {
                 hr = operation->GetResults(result.GetAddressOf());
             }
             else
             {
                 // avoid a potentially costly marshaled QI / call if we completed successfully
-                ComPtr<IAsyncInfo> asyncInfo;
+                ComPtr<ABI::Windows::Foundation::IAsyncInfo> asyncInfo;
                 operation->QueryInterface(IID_PPV_ARGS(&asyncInfo)); // all must implement this
                 asyncInfo->get_ErrorCode(&hr);
             }
@@ -1375,7 +1376,7 @@ namespace details
                 RETURN_HR(m_completedEventHandle.create());
             }
 
-            HRESULT STDMETHODCALLTYPE Invoke(_In_ TIOperation, AsyncStatus status) override
+            HRESULT STDMETHODCALLTYPE Invoke(_In_ TIOperation, ABI::Windows::Foundation::AsyncStatus status) override
             {
                 m_status = status;
                 m_completedEventHandle.SetEvent();
@@ -1387,13 +1388,13 @@ namespace details
                 return m_completedEventHandle.get();
             }
 
-            AsyncStatus GetStatus() const
+            ABI::Windows::Foundation::AsyncStatus GetStatus() const
             {
                 return m_status;
             }
 
         private:
-            volatile AsyncStatus m_status = AsyncStatus::Started;
+            volatile ABI::Windows::Foundation::AsyncStatus m_status = ABI::Windows::Foundation::AsyncStatus::Started;
             wil::unique_event_nothrow m_completedEventHandle;
         };
 
@@ -1416,9 +1417,9 @@ namespace details
         }
         RETURN_IF_FAILED(hr);
 
-        if (completedDelegate->GetStatus() != AsyncStatus::Completed)
+        if (completedDelegate->GetStatus() != ABI::Windows::Foundation::AsyncStatus::Completed)
         {
-            Microsoft::WRL::ComPtr<IAsyncInfo> asyncInfo;
+            Microsoft::WRL::ComPtr<ABI::Windows::Foundation::IAsyncInfo> asyncInfo;
             operation->QueryInterface(IID_PPV_ARGS(&asyncInfo)); // all must implement this
             hr = E_UNEXPECTED;
             asyncInfo->get_ErrorCode(&hr); // error return ignored, ok?
@@ -1666,7 +1667,7 @@ namespace details
 
         IFACEMETHODIMP put_Completed(ABI::Windows::Foundation::IAsyncOperationCompletedHandler<TResult>* competed) override
         {
-            competed->Invoke(this, AsyncStatus::Completed);
+            competed->Invoke(this, ABI::Windows::Foundation::AsyncStatus::Completed);
             return S_OK;
         }
 
@@ -1705,7 +1706,7 @@ namespace details
     public:
         IFACEMETHODIMP put_Completed(ABI::Windows::Foundation::IAsyncActionCompletedHandler* competed) override
         {
-            competed->Invoke(this, AsyncStatus::Completed);
+            competed->Invoke(this, ABI::Windows::Foundation::AsyncStatus::Completed);
             return S_OK;
         }
 

@@ -129,7 +129,7 @@ namespace wil
             typedef pointer pointer;
             typedef pointer_invalid pointer_invalid;
             typedef pointer_access pointer_access;
-            __forceinline static pointer_storage invalid_value() WI_NOEXCEPT { return (pointer)invalid; }
+            __forceinline static pointer_storage invalid_value() { return (pointer)invalid; }
             __forceinline static bool is_valid(pointer_storage value) WI_NOEXCEPT { return (static_cast<pointer>(value) != (pointer)invalid); }
             __forceinline static void close(pointer_storage value) WI_NOEXCEPT { wistd::invoke(close_fn, value); }
 
@@ -4729,7 +4729,41 @@ namespace wil
     }
     /// @endcond
 
-    typedef unique_any<PCCERT_CONTEXT, decltype(&::CertFreeCertificateContext), ::CertFreeCertificateContext> unique_cert_context;
+    struct cert_context_t : details::unique_storage<details::resource_policy<PCCERT_CONTEXT, decltype(&::CertFreeCertificateContext), ::CertFreeCertificateContext>>
+    {
+        // forward all base class constructors...
+        template <typename... args_t>
+        explicit cert_context_t(args_t&&... args) WI_NOEXCEPT : unique_storage(wistd::forward<args_t>(args)...) {}
+
+        /** A wrapper around CertEnumCertificatesInStore.
+        CertEnumCertificatesInStore takes ownership of its second paramter in an unclear fashion,
+        making it error-prone to use in combination with unique_cert_context. This wrapper helps
+        manage the resource correctly while ensuring the GetLastError state set by CertEnumCertificatesInStore.
+        is not lost. See MSDN for more information on `CertEnumCertificatesInStore`.
+        ~~~~
+        void MyMethod(HCERTSTORE certStore)
+        {
+            wil::unique_cert_context enumCert;
+            while (enumCert.CertEnumCertificatesInStore(certStore))
+            {
+                UseTheCertToDoTheThing(enumCert);
+            }
+        }
+        ~~~~
+        @param certStore A handle of a certificate store.
+        @param 'true' if a certificate was enumerated by this call, false otherwise.
+        */
+        bool CertEnumCertificatesInStore(HCERTSTORE certStore) WI_NOEXCEPT
+        {
+            reset(::CertEnumCertificatesInStore(certStore, release()));
+            return is_valid();
+        }
+    };
+
+    // Warning - ::CertEnumCertificatesInStore takes ownership of its parameter. Prefer the
+    // .CertEnumCertificatesInStore method of the unique_cert_context or else use .release
+    // when calling ::CertEnumCertificatesInStore directly.
+    typedef unique_any_t<cert_context_t> unique_cert_context;
     typedef unique_any<PCCERT_CHAIN_CONTEXT, decltype(&::CertFreeCertificateChain), ::CertFreeCertificateChain> unique_cert_chain_context;
     typedef unique_any<HCERTSTORE, decltype(&details::CertCloseStoreNoParam), details::CertCloseStoreNoParam> unique_hcertstore;
     typedef unique_any<HCRYPTPROV, decltype(&details::CryptReleaseContextNoParam), details::CryptReleaseContextNoParam> unique_hcryptprov;

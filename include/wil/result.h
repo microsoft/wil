@@ -318,7 +318,7 @@ namespace wil
 
                 const DWORD size = static_cast<DWORD>(sizeof(ProcessLocalStorageData<T>));
 
-                unique_process_heap_ptr<ProcessLocalStorageData<T>> dataAlloc(static_cast<ProcessLocalStorageData<T>*>(::HeapAlloc(::GetProcessHeap(), HEAP_ZERO_MEMORY, size)));
+                unique_process_heap_ptr<ProcessLocalStorageData<T>> dataAlloc(static_cast<ProcessLocalStorageData<T>*>(details::ProcessHeapAlloc(HEAP_ZERO_MEMORY, size)));
                 __WIL_PRIVATE_RETURN_IF_NULL_ALLOC(dataAlloc);
 
                 SemaphoreValue semaphoreValue;
@@ -406,7 +406,7 @@ namespace wil
 
                 if (shouldAllocate)
                 {
-                    Node *pNew = reinterpret_cast<Node *>(::HeapAlloc(::GetProcessHeap(), 0, sizeof(Node)));
+                    Node *pNew = reinterpret_cast<Node *>(details::ProcessHeapAlloc(0, sizeof(Node)));
                     if (pNew != nullptr)
                     {
                         new(pNew)Node{ threadId };
@@ -487,7 +487,7 @@ namespace wil
 
                 if (!stringBuffer || (stringBufferSize < neededSize))
                 {
-                    auto newBuffer = ::HeapAlloc(::GetProcessHeap(), HEAP_ZERO_MEMORY, neededSize);
+                    auto newBuffer = details::ProcessHeapAlloc(HEAP_ZERO_MEMORY, neededSize);
                     if (newBuffer)
                     {
                         ::HeapFree(::GetProcessHeap(), 0, stringBuffer);
@@ -565,7 +565,7 @@ namespace wil
                 if (!errors && create)
                 {
                     const unsigned short errorCount = 5;
-                    errors = reinterpret_cast<ThreadLocalFailureInfo *>(::HeapAlloc(::GetProcessHeap(), HEAP_ZERO_MEMORY, errorCount * sizeof(ThreadLocalFailureInfo)));
+                    errors = reinterpret_cast<ThreadLocalFailureInfo *>(details::ProcessHeapAlloc(HEAP_ZERO_MEMORY, errorCount * sizeof(ThreadLocalFailureInfo)));
                     if (errors)
                     {
                         errorAllocCount = errorCount;

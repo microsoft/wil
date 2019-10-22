@@ -1218,6 +1218,27 @@ namespace wil
         // Plugin to call RoOriginateError (WIL use only)
         __declspec(selectany) void(__stdcall *g_pfnOriginateCallback)(wil::FailureInfo const& failure) WI_PFN_NOEXCEPT = nullptr;
 
+        // Plugin to call RoFailFastWithErrorContext (WIL use only)
+        __declspec(selectany) void(__stdcall* g_pfnFailfastWithContextCallback)(wil::FailureInfo const& failure) WI_PFN_NOEXCEPT = nullptr;
+
+        // Called to tell Appverifier to ignore a particular allocation from leak tracking
+        // If AppVerifier is not enabled, this is a no-op
+        // Desktop/System Only: Automatically setup when building Windows (BUILD_WINDOWS defined)
+        __declspec(selectany) NTSTATUS(__stdcall *g_pfnRtlDisownModuleHeapAllocation)(_In_ HANDLE heapHandle, _In_ PVOID address) WI_PFN_NOEXCEPT = nullptr;
+
+        // Allocate and disown the allocation so that Appverifier does not complain about a false leak
+        inline PVOID ProcessHeapAlloc(_In_ DWORD flags, _In_ size_t size)
+        {
+            PVOID allocation = ::HeapAlloc(::GetProcessHeap(), flags, size);
+        
+            if (g_pfnRtlDisownModuleHeapAllocation)
+            {
+                (void)g_pfnRtlDisownModuleHeapAllocation(::GetProcessHeap(), allocation);
+            }
+        
+            return allocation;
+        }
+
         enum class ReportFailureOptions
         {
             None                    = 0x00,
@@ -2244,6 +2265,17 @@ namespace wil
         // Only ONE function can own the error origination callback
         __FAIL_FAST_IMMEDIATE_ASSERT__((details::g_pfnOriginateCallback == nullptr) || (callbackFunction == nullptr) || (details::g_pfnOriginateCallback == callbackFunction));
         details::g_pfnOriginateCallback = callbackFunction;
+    }
+
+    // [optionally] Plug in failfast callback
+    // This provides the ability for a module to call RoFailFastWithErrorContext in the failfast handler -if- there is stowed
+    // exception data available.  Normally, the callback is owned by including result_originate.h in the including module.
+    // Alternatively a module could re-route to its own implementation.
+    inline void SetFailfastWithContextCallback(_In_opt_ decltype(details::g_pfnFailfastWithContextCallback) callbackFunction)
+    {
+        // Only ONE function can own the failfast with context callback
+        __FAIL_FAST_IMMEDIATE_ASSERT__((details::g_pfnFailfastWithContextCallback == nullptr) || (callbackFunction == nullptr) || (details::g_pfnFailfastWithContextCallback == callbackFunction));
+        details::g_pfnFailfastWithContextCallback = callbackFunction;
     }
 
     // A RAII wrapper around the storage of a FailureInfo struct (which is normally meant to be consumed
@@ -3325,6 +3357,12 @@ namespace wil
             RESULT_RAISE_FAST_FAIL_EXCEPTION;
 #endif
 
+            // Before we fail fast in this method, give the [optional] RoFailFastWithErrorContext a try.
+            if (g_pfnFailfastWithContextCallback)
+            {
+                g_pfnFailfastWithContextCallback(failure);
+            }
+
             // parameter 0 is the !analyze code (FAST_FAIL_FATAL_APP_EXIT)
             EXCEPTION_RECORD er{};
             er.NumberParameters = 1;            // default to be safe, see below
@@ -3785,8 +3823,9 @@ namespace wil
                 wil::details::ReportFailure_NtStatus(__R_INTERNAL_FN_CALL FailureType::Log, status);
             }
 
+            // Should be decorated WI_NOEXCEPT, but conflicts with forceinline.
             _Post_satisfies_(return == hr)
-            __R_CONDITIONAL_METHOD(HRESULT, Log_IfFailed)(__R_CONDITIONAL_FN_PARAMS HRESULT hr) WI_NOEXCEPT
+            __R_CONDITIONAL_METHOD(HRESULT, Log_IfFailed)(__R_CONDITIONAL_FN_PARAMS HRESULT hr)
             {
                 if (FAILED(hr))
                 {
@@ -3822,8 +3861,9 @@ namespace wil
                 return hr;
             }
 
+            // Should be decorated WI_NOEXCEPT, but conflicts with forceinline.
             _Post_satisfies_(return == ret)
-            __R_CONDITIONAL_METHOD(BOOL, Log_IfWin32BoolFalse)(__R_CONDITIONAL_FN_PARAMS BOOL ret) WI_NOEXCEPT
+            __R_CONDITIONAL_METHOD(BOOL, Log_IfWin32BoolFalse)(__R_CONDITIONAL_FN_PARAMS BOOL ret)
             {
                 if (!ret)
                 {
@@ -3832,8 +3872,9 @@ namespace wil
                 return ret;
             }
 
+            // Should be decorated WI_NOEXCEPT, but conflicts with forceinline.
             _Post_satisfies_(return == err)
-            __R_CONDITIONAL_METHOD(DWORD, Log_IfWin32Error)(__R_CONDITIONAL_FN_PARAMS DWORD err) WI_NOEXCEPT
+            __R_CONDITIONAL_METHOD(DWORD, Log_IfWin32Error)(__R_CONDITIONAL_FN_PARAMS DWORD err)
             {
                 if (FAILED_WIN32(err))
                 {
@@ -3842,8 +3883,9 @@ namespace wil
                 return err;
             }
 
+            // Should be decorated WI_NOEXCEPT, but conflicts with forceinline.
             _Post_satisfies_(return == handle)
-            __R_CONDITIONAL_METHOD(HANDLE, Log_IfHandleInvalid)(__R_CONDITIONAL_FN_PARAMS HANDLE handle) WI_NOEXCEPT
+            __R_CONDITIONAL_METHOD(HANDLE, Log_IfHandleInvalid)(__R_CONDITIONAL_FN_PARAMS HANDLE handle)
             {
                 if (handle == INVALID_HANDLE_VALUE)
                 {
@@ -3852,8 +3894,9 @@ namespace wil
                 return handle;
             }
 
+            // Should be decorated WI_NOEXCEPT, but conflicts with forceinline.
             _Post_satisfies_(return == handle)
-            __R_CONDITIONAL_METHOD(HANDLE, Log_IfHandleNull)(__R_CONDITIONAL_FN_PARAMS HANDLE handle) WI_NOEXCEPT
+            __R_CONDITIONAL_METHOD(HANDLE, Log_IfHandleNull)(__R_CONDITIONAL_FN_PARAMS HANDLE handle)
             {
                 if (handle == nullptr)
                 {
@@ -3882,8 +3925,9 @@ namespace wil
                 }
             }
 
+            // Should be decorated WI_NOEXCEPT, but conflicts with forceinline.
             _Post_satisfies_(return == condition)
-            __R_CONDITIONAL_METHOD(bool, Log_HrIf)(__R_CONDITIONAL_FN_PARAMS HRESULT hr, bool condition) WI_NOEXCEPT
+            __R_CONDITIONAL_METHOD(bool, Log_HrIf)(__R_CONDITIONAL_FN_PARAMS HRESULT hr, bool condition)
             {
                 if (condition)
                 {
@@ -3892,8 +3936,9 @@ namespace wil
                 return condition;
             }
 
+            // Should be decorated WI_NOEXCEPT, but conflicts with forceinline.
             _Post_satisfies_(return == condition)
-            __R_CONDITIONAL_METHOD(bool, Log_HrIfFalse)(__R_CONDITIONAL_FN_PARAMS HRESULT hr, bool condition) WI_NOEXCEPT
+            __R_CONDITIONAL_METHOD(bool, Log_HrIfFalse)(__R_CONDITIONAL_FN_PARAMS HRESULT hr, bool condition)
             {
                 if (!condition)
                 {
@@ -3922,8 +3967,9 @@ namespace wil
                 }
             }
 
+            // Should be decorated WI_NOEXCEPT, but conflicts with forceinline.
             _Post_satisfies_(return == condition)
-            __R_CONDITIONAL_METHOD(bool, Log_GetLastErrorIf)(__R_CONDITIONAL_FN_PARAMS bool condition) WI_NOEXCEPT
+            __R_CONDITIONAL_METHOD(bool, Log_GetLastErrorIf)(__R_CONDITIONAL_FN_PARAMS bool condition)
             {
                 if (condition)
                 {
@@ -3932,8 +3978,9 @@ namespace wil
                 return condition;
             }
 
+            // Should be decorated WI_NOEXCEPT, but conflicts with forceinline.
             _Post_satisfies_(return == condition)
-            __R_CONDITIONAL_METHOD(bool, Log_GetLastErrorIfFalse)(__R_CONDITIONAL_FN_PARAMS bool condition) WI_NOEXCEPT
+            __R_CONDITIONAL_METHOD(bool, Log_GetLastErrorIfFalse)(__R_CONDITIONAL_FN_PARAMS bool condition)
             {
                 if (!condition)
                 {
@@ -3962,8 +4009,9 @@ namespace wil
                 }
             }
 
+            // Should be decorated WI_NOEXCEPT, but conflicts with forceinline.
             _Post_satisfies_(return == status)
-            __R_CONDITIONAL_METHOD(NTSTATUS, Log_IfNtStatusFailed)(__R_CONDITIONAL_FN_PARAMS NTSTATUS status) WI_NOEXCEPT
+            __R_CONDITIONAL_METHOD(NTSTATUS, Log_IfNtStatusFailed)(__R_CONDITIONAL_FN_PARAMS NTSTATUS status)
             {
                 if (FAILED_NTSTATUS(status))
                 {
@@ -4331,8 +4379,9 @@ namespace wil
                 return ret;
             }
 
+            // Should be decorated WI_NOEXCEPT, but conflicts with forceinline.
             _Post_satisfies_(return == err) _When_(FAILED_WIN32(err), _Analysis_noreturn_)
-            __RFF_CONDITIONAL_METHOD(DWORD, FailFast_IfWin32Error)(__RFF_CONDITIONAL_FN_PARAMS DWORD err) WI_NOEXCEPT
+            __RFF_CONDITIONAL_METHOD(DWORD, FailFast_IfWin32Error)(__RFF_CONDITIONAL_FN_PARAMS DWORD err)
             {
                 if (FAILED_WIN32(err))
                 {
@@ -4361,9 +4410,10 @@ namespace wil
                 return handle;
             }
 
+            // Should be decorated WI_NOEXCEPT, but conflicts with forceinline.
             template <__RFF_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_NOT_CLASS(PointerT)>
             _Post_satisfies_(return == pointer) _When_(pointer == nullptr, _Analysis_noreturn_)
-            __RFF_CONDITIONAL_TEMPLATE_METHOD(RESULT_NORETURN_NULL PointerT, FailFast_IfNullAlloc)(__RFF_CONDITIONAL_FN_PARAMS _Pre_maybenull_ PointerT pointer) WI_NOEXCEPT
+            __RFF_CONDITIONAL_TEMPLATE_METHOD(RESULT_NORETURN_NULL PointerT, FailFast_IfNullAlloc)(__RFF_CONDITIONAL_FN_PARAMS _Pre_maybenull_ PointerT pointer)
             {
                 if (pointer == nullptr)
                 {
@@ -4372,8 +4422,9 @@ namespace wil
                 return pointer;
             }
 
+            // Should be decorated WI_NOEXCEPT, but conflicts with forceinline.
             template <__RFF_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_CLASS(PointerT)>
-            __RFF_CONDITIONAL_TEMPLATE_METHOD(void, FailFast_IfNullAlloc)(__RFF_CONDITIONAL_FN_PARAMS const PointerT& pointer) WI_NOEXCEPT
+            __RFF_CONDITIONAL_TEMPLATE_METHOD(void, FailFast_IfNullAlloc)(__RFF_CONDITIONAL_FN_PARAMS const PointerT& pointer)
             {
                 if (pointer == nullptr)
                 {
@@ -4401,9 +4452,10 @@ namespace wil
                 return condition;
             }
 
+            // Should be decorated WI_NOEXCEPT, but conflicts with forceinline.
             template <__RFF_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_NOT_CLASS(PointerT)>
             _Post_satisfies_(return == pointer) _When_(pointer == nullptr, _Analysis_noreturn_)
-            __RFF_CONDITIONAL_TEMPLATE_METHOD(RESULT_NORETURN_NULL PointerT, FailFast_HrIfNull)(__RFF_CONDITIONAL_FN_PARAMS HRESULT hr, _Pre_maybenull_ PointerT pointer) WI_NOEXCEPT
+            __RFF_CONDITIONAL_TEMPLATE_METHOD(RESULT_NORETURN_NULL PointerT, FailFast_HrIfNull)(__RFF_CONDITIONAL_FN_PARAMS HRESULT hr, _Pre_maybenull_ PointerT pointer)
             {
                 if (pointer == nullptr)
                 {
@@ -4412,8 +4464,9 @@ namespace wil
                 return pointer;
             }
 
+            // Should be decorated WI_NOEXCEPT, but conflicts with forceinline.
             template <__RFF_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_CLASS(PointerT)>
-            __RFF_CONDITIONAL_TEMPLATE_METHOD(void, FailFast_HrIfNull)(__RFF_CONDITIONAL_FN_PARAMS HRESULT hr, _In_opt_ const PointerT& pointer) WI_NOEXCEPT
+            __RFF_CONDITIONAL_TEMPLATE_METHOD(void, FailFast_HrIfNull)(__RFF_CONDITIONAL_FN_PARAMS HRESULT hr, _In_opt_ const PointerT& pointer)
             {
                 if (pointer == nullptr)
                 {
@@ -4441,9 +4494,10 @@ namespace wil
                 return condition;
             }
 
+            // Should be decorated WI_NOEXCEPT, but conflicts with forceinline.
             template <__RFF_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_NOT_CLASS(PointerT)>
             _Post_satisfies_(return == pointer) _When_(pointer == nullptr, _Analysis_noreturn_)
-            __RFF_CONDITIONAL_TEMPLATE_METHOD(RESULT_NORETURN_NULL PointerT, FailFast_GetLastErrorIfNull)(__RFF_CONDITIONAL_FN_PARAMS _Pre_maybenull_ PointerT pointer) WI_NOEXCEPT
+            __RFF_CONDITIONAL_TEMPLATE_METHOD(RESULT_NORETURN_NULL PointerT, FailFast_GetLastErrorIfNull)(__RFF_CONDITIONAL_FN_PARAMS _Pre_maybenull_ PointerT pointer)
             {
                 if (pointer == nullptr)
                 {
@@ -4452,8 +4506,9 @@ namespace wil
                 return pointer;
             }
 
+            // Should be decorated WI_NOEXCEPT, but conflicts with forceinline.
             template <__RFF_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_CLASS(PointerT)>
-            __RFF_CONDITIONAL_TEMPLATE_METHOD(void, FailFast_GetLastErrorIfNull)(__RFF_CONDITIONAL_FN_PARAMS _In_opt_ const PointerT& pointer) WI_NOEXCEPT
+            __RFF_CONDITIONAL_TEMPLATE_METHOD(void, FailFast_GetLastErrorIfNull)(__RFF_CONDITIONAL_FN_PARAMS _In_opt_ const PointerT& pointer)
             {
                 if (pointer == nullptr)
                 {
@@ -4767,10 +4822,11 @@ namespace wil
                 return condition;
             }
 
+            // Should be decorated WI_NOEXCEPT, but conflicts with forceinline.
             template <__RFF_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_NOT_CLASS(PointerT)>
             __WI_SUPPRESS_NULLPTR_ANALYSIS
             _Post_satisfies_(return == pointer) _When_(pointer == nullptr, _Analysis_noreturn_)
-            __RFF_CONDITIONAL_TEMPLATE_METHOD(RESULT_NORETURN_NULL PointerT, FailFast_IfNull)(__RFF_CONDITIONAL_FN_PARAMS _Pre_maybenull_ PointerT pointer) WI_NOEXCEPT
+            __RFF_CONDITIONAL_TEMPLATE_METHOD(RESULT_NORETURN_NULL PointerT, FailFast_IfNull)(__RFF_CONDITIONAL_FN_PARAMS _Pre_maybenull_ PointerT pointer)
             {
                 if (pointer == nullptr)
                 {
@@ -4779,9 +4835,10 @@ namespace wil
                 return pointer;
             }
 
+            // Should be decorated WI_NOEXCEPT, but conflicts with forceinline.
             template <__RFF_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_CLASS(PointerT)>
             __WI_SUPPRESS_NULLPTR_ANALYSIS
-            __RFF_CONDITIONAL_TEMPLATE_METHOD(void, FailFast_IfNull)(__RFF_CONDITIONAL_FN_PARAMS _In_opt_ const PointerT& pointer) WI_NOEXCEPT
+            __RFF_CONDITIONAL_TEMPLATE_METHOD(void, FailFast_IfNull)(__RFF_CONDITIONAL_FN_PARAMS _In_opt_ const PointerT& pointer)
             {
                 if (pointer == nullptr)
                 {
@@ -4895,9 +4952,10 @@ namespace wil
                 return condition;
             }
 
+            // Should be decorated WI_NOEXCEPT, but conflicts with forceinline.
             template <__RFF_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_NOT_CLASS(PointerT)>
             _Post_satisfies_(return == pointer) _When_(pointer == nullptr, _Analysis_noreturn_)
-            __RFF_CONDITIONAL_TEMPLATE_METHOD(RESULT_NORETURN_NULL PointerT, FailFastImmediate_IfNull)(_Pre_maybenull_ PointerT pointer) WI_NOEXCEPT
+            __RFF_CONDITIONAL_TEMPLATE_METHOD(RESULT_NORETURN_NULL PointerT, FailFastImmediate_IfNull)(_Pre_maybenull_ PointerT pointer)
             {
                 if (pointer == nullptr)
                 {
@@ -4906,8 +4964,9 @@ namespace wil
                 return pointer;
             }
 
+            // Should be decorated WI_NOEXCEPT, but conflicts with forceinline.
             template <__RFF_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_CLASS(PointerT)>
-            __RFF_CONDITIONAL_TEMPLATE_METHOD(void, FailFastImmediate_IfNull)(_In_opt_ const PointerT& pointer) WI_NOEXCEPT
+            __RFF_CONDITIONAL_TEMPLATE_METHOD(void, FailFastImmediate_IfNull)(_In_opt_ const PointerT& pointer)
             {
                 if (pointer == nullptr)
                 {

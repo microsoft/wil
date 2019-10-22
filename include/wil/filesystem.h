@@ -187,6 +187,45 @@ namespace wil
     };
     DEFINE_ENUM_FLAG_OPERATORS(RemoveDirectoryOptions);
 
+    namespace details
+    {
+        // Reparse points should not be traversed in most recursive walks of the file system,
+        // unless allowed through the appropriate reparse tag.
+        inline bool CanRecurseIntoDirectory(const FILE_ATTRIBUTE_TAG_INFO& info)
+        {
+            return (WI_IsFlagSet(info.FileAttributes, FILE_ATTRIBUTE_DIRECTORY) &&
+                    (WI_IsFlagClear(info.FileAttributes, FILE_ATTRIBUTE_REPARSE_POINT) ||
+                    (IsReparseTagDirectory(info.ReparseTag) || (info.ReparseTag == IO_REPARSE_TAG_WCI))));
+        }
+
+        // Retrieve a handle to a directory only if it is safe to recurse into.
+        inline wil::unique_hfile TryCreateFileCanRecurseIntoDirectory(PCWSTR path, PWIN32_FIND_DATAW fileFindData)
+        {
+            wil::unique_hfile result(CreateFileW(path, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_DELETE,
+                nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, nullptr));
+            if (result)
+            {
+                FILE_ATTRIBUTE_TAG_INFO fati;
+                if (GetFileInformationByHandleEx(result.get(), FileAttributeTagInfo, &fati, sizeof(fati)) &&
+                    CanRecurseIntoDirectory(fati))
+                {
+                    if (fileFindData)
+                    {
+                        // Refresh the found file's data now that we have secured the directory from external manipulation.
+                        fileFindData->dwFileAttributes = fati.FileAttributes;
+                        fileFindData->dwReserved0 = fati.ReparseTag;
+                    }
+                }
+                else
+                {
+                    result.reset();
+                }
+            }
+
+            return result;
+        }
+    }
+
     // If inputPath is a non-normalized name be sure to pass an extended length form to ensure
     // it can be addressed and deleted.
     inline HRESULT RemoveDirectoryRecursiveNoThrow(PCWSTR inputPath, RemoveDirectoryOptions options = RemoveDirectoryOptions::None) WI_NOEXCEPT
@@ -228,8 +267,24 @@ namespace wil
                     PATHCCH_ENSURE_IS_EXTENDED_LENGTH_PATH | PATHCCH_DO_NOT_NORMALIZE_SEGMENTS, &pathToDelete));
                 if (WI_IsFlagSet(fd.dwFileAttributes, FILE_ATTRIBUTE_DIRECTORY))
                 {
-                    RemoveDirectoryOptions localOptions = options;
-                    RETURN_IF_FAILED(RemoveDirectoryRecursiveNoThrow(pathToDelete.get(), WI_ClearFlag(localOptions, RemoveDirectoryOptions::KeepRootDirectory)));
+                    // Get a handle to the directory to delete, preventing it from being replaced to prevent writes which could be used
+                    // to bypass permission checks, and verify that it is not a name surrogate (e.g. symlink, mount point, etc).
+                    wil::unique_hfile recursivelyDeletableDirectoryHandle = details::TryCreateFileCanRecurseIntoDirectory(pathToDelete.get(), &fd);
+                    if (recursivelyDeletableDirectoryHandle)
+                    {
+                        RemoveDirectoryOptions localOptions = options;
+                        RETURN_IF_FAILED(RemoveDirectoryRecursiveNoThrow(pathToDelete.get(), WI_ClearFlag(localOptions, RemoveDirectoryOptions::KeepRootDirectory)));
+                    }
+                    else if (WI_IsFlagSet(fd.dwFileAttributes, FILE_ATTRIBUTE_REPARSE_POINT))
+                    {
+                        // This is a directory reparse point that should not be recursed. Delete it without traversing into it.
+                        RETURN_IF_WIN32_BOOL_FALSE(::RemoveDirectoryW(pathToDelete.get()));
+                    }
+                    else
+                    {
+                        // Failed to grab a handle to the file or to read its attributes. This is not safe to recurse.
+                        RETURN_WIN32(::GetLastError());
+                    }
                 }
                 else
                 {

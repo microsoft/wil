@@ -15,19 +15,9 @@
 #include "resource.h"
 #include <memory>
 #include <string>
+#include <vector>
 
 #if defined(WIL_ENABLE_EXCEPTIONS)
-namespace std
-{
-    template<class _Ty, class _Alloc>
-    class vector;
-
-    template<class _Elem>
-    struct char_traits;
-
-    template<class _Elem, class _Traits, class _Alloc>
-    class basic_string;
-} // namespace std
 
 namespace wil
 {
