@@ -40,6 +40,7 @@ if (${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
 
     # For tests, we want to be able to test self assignment, so disable this warning
     append_cxx_flag("-Wno-self-assign-overloaded")
+    append_cxx_flag("-Wno-self-move")
 
     # clang-cl does not understand the /permissive- flag (or at least it opts to ignore it). We can achieve similar
     # results through the following flags.

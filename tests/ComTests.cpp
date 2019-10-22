@@ -173,6 +173,9 @@ TEST_CASE("ComTests::Test_Assign", "[com][com_ptr]")
         // as this should be a rare/never operation...
         // REQUIRE(IUnknownFake::GetRelease() == 0);
         // REQUIRE(IUnknownFake::GetAddRef() == 0);
+
+        ptr = std::move(ptr);
+        REQUIRE(ptr.get() == &helper);
     }
 
     IUnknownFake2 helper3;

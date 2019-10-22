@@ -79,10 +79,8 @@ namespace wil
 
         last_error_context & operator=(last_error_context&& other) WI_NOEXCEPT
         {
-            m_dismissed = other.m_dismissed;
+            m_dismissed = wistd::exchange(other.m_dismissed, true);
             m_error = other.m_error;
-
-            other.m_dismissed = true;
 
             return *this;
         }
@@ -4449,8 +4447,7 @@ namespace wil
             {
                 m_value = wistd::move(source.m_value);
                 m_bufferHandle = wistd::move(source.m_bufferHandle);
-                m_charBuffer = source.m_charBuffer;
-                source.m_charBuffer = nullptr;
+                m_charBuffer = wistd::exchange(source.m_charBuffer, nullptr);
                 return *this;
             }
 
