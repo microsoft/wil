@@ -227,6 +227,9 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 #ifndef RESULT_NORETURN_NULL
 #define RESULT_NORETURN_NULL                                _Ret_notnull_
 #endif
+#ifndef RESULT_NORETURN_RESULT
+#define RESULT_NORETURN_RESULT(expr)                        (void)(expr);
+#endif
 
 //*****************************************************************************
 // Helpers to setup the macros and functions used below... do not directly use.
@@ -1230,12 +1233,12 @@ namespace wil
         inline PVOID ProcessHeapAlloc(_In_ DWORD flags, _In_ size_t size)
         {
             PVOID allocation = ::HeapAlloc(::GetProcessHeap(), flags, size);
-        
+
             if (g_pfnRtlDisownModuleHeapAllocation)
             {
                 (void)g_pfnRtlDisownModuleHeapAllocation(::GetProcessHeap(), allocation);
             }
-        
+
             return allocation;
         }
 
@@ -1362,11 +1365,11 @@ namespace wil
                                _Out_ FailureInfo *failure) WI_NOEXCEPT;
 
         __declspec(noinline) inline void ReportFailure(__R_FN_PARAMS_FULL, FailureType type, HRESULT hr, _In_opt_ PCWSTR message = nullptr, ReportFailureOptions options = ReportFailureOptions::None);
-        template<FailureType, bool = false>                 
+        template<FailureType, bool = false>
         __declspec(noinline) inline void ReportFailure(__R_FN_PARAMS_FULL, HRESULT hr, _In_opt_ PCWSTR message = nullptr, ReportFailureOptions options = ReportFailureOptions::None);
         template<FailureType>
         inline void ReportFailure_ReplaceMsg(__R_FN_PARAMS_FULL, HRESULT hr, _Printf_format_string_ PCSTR formatString, ...);
-        __declspec(noinline) inline void ReportFailure_Hr(__R_FN_PARAMS_FULL, FailureType type, HRESULT hr);        
+        __declspec(noinline) inline void ReportFailure_Hr(__R_FN_PARAMS_FULL, FailureType type, HRESULT hr);
         template<FailureType>
         __declspec(noinline) inline void ReportFailure_Hr(__R_FN_PARAMS_FULL, HRESULT hr);
         template<FailureType>
@@ -3578,18 +3581,20 @@ __WI_SUPPRESS_4127_E
             {
                 ReportFailure<T>(__R_FN_CALL_FULL, hr, debugString, options);
             }
+
+            RESULT_NORETURN_RESULT(hr);
         }
 
         template<>
         inline RESULT_NORETURN HRESULT ReportFailure_CaughtExceptionCommon<FailureType::FailFast>(__R_FN_PARAMS_FULL, _Inout_updates_(debugStringChars) PWSTR debugString, _Pre_satisfies_(debugStringChars > 0) size_t debugStringChars, SupportedExceptions supported)
         {
-            ReportFailure_CaughtExceptionCommonNoReturnBase<FailureType::FailFast>(__R_FN_CALL_FULL, debugString, debugStringChars, supported);
+            RESULT_NORETURN_RESULT(ReportFailure_CaughtExceptionCommonNoReturnBase<FailureType::FailFast>(__R_FN_CALL_FULL, debugString, debugStringChars, supported));
         }
 
         template<>
         inline RESULT_NORETURN HRESULT ReportFailure_CaughtExceptionCommon<FailureType::Exception>(__R_FN_PARAMS_FULL, _Inout_updates_(debugStringChars) PWSTR debugString, _Pre_satisfies_(debugStringChars > 0) size_t debugStringChars, SupportedExceptions supported)
         {
-            ReportFailure_CaughtExceptionCommonNoReturnBase<FailureType::Exception>(__R_FN_CALL_FULL, debugString, debugStringChars, supported);
+            RESULT_NORETURN_RESULT(ReportFailure_CaughtExceptionCommonNoReturnBase<FailureType::Exception>(__R_FN_CALL_FULL, debugString, debugStringChars, supported));
         }
 
         template<FailureType T>
@@ -3670,7 +3675,7 @@ __WI_SUPPRESS_4127_E
             ReportFailure<T>(__R_FN_CALL_FULL, hr);
             return hr;
         }
-        
+
         template<>
         _Success_(true)
         _Translates_Win32_to_HRESULT_(err)
@@ -3678,6 +3683,7 @@ __WI_SUPPRESS_4127_E
         {
             const auto hr = __HRESULT_FROM_WIN32(err);
             ReportFailure<FailureType::FailFast>(__R_FN_CALL_FULL, hr);
+            RESULT_NORETURN_RESULT(hr);
         }
 
         template<>
@@ -3687,6 +3693,7 @@ __WI_SUPPRESS_4127_E
         {
             const auto hr = __HRESULT_FROM_WIN32(err);
             ReportFailure<FailureType::Exception>(__R_FN_CALL_FULL, hr);
+            RESULT_NORETURN_RESULT(hr);
         }
 
         template<FailureType T>
@@ -3704,6 +3711,7 @@ __WI_SUPPRESS_4127_E
             const auto err = GetLastErrorFail(__R_FN_CALL_FULL);
             const auto hr = __HRESULT_FROM_WIN32(err);
             ReportFailure<FailureType::FailFast>(__R_FN_CALL_FULL, hr);
+            RESULT_NORETURN_RESULT(err);
         }
 
         template<>
@@ -3712,6 +3720,7 @@ __WI_SUPPRESS_4127_E
             const auto err = GetLastErrorFail(__R_FN_CALL_FULL);
             const auto hr = __HRESULT_FROM_WIN32(err);
             ReportFailure<FailureType::Exception>(__R_FN_CALL_FULL, hr);
+            RESULT_NORETURN_RESULT(err);
         }
 
         template<FailureType T>
@@ -3731,6 +3740,7 @@ __WI_SUPPRESS_4127_E
         {
             const auto hr = GetLastErrorFailHr(__R_FN_CALL_FULL);
             ReportFailure<FailureType::FailFast>(__R_FN_CALL_FULL, hr);
+            RESULT_NORETURN_RESULT(hr);
         }
 
         template<>
@@ -3740,6 +3750,7 @@ __WI_SUPPRESS_4127_E
         {
             const auto hr = GetLastErrorFailHr(__R_FN_CALL_FULL);
             ReportFailure<FailureType::Exception>(__R_FN_CALL_FULL, hr);
+            RESULT_NORETURN_RESULT(hr);
         }
 
         template<FailureType T>
@@ -3759,6 +3770,7 @@ __WI_SUPPRESS_4127_E
         {
             const auto hr = wil::details::NtStatusToHr(status);
             ReportFailure<FailureType::FailFast>(__R_FN_CALL_FULL, hr);
+            RESULT_NORETURN_RESULT(hr);
         }
 
         template<>
@@ -3768,6 +3780,7 @@ __WI_SUPPRESS_4127_E
         {
             const auto hr = wil::details::NtStatusToHr(status);
             ReportFailure<FailureType::Exception>(__R_FN_CALL_FULL, hr);
+            RESULT_NORETURN_RESULT(hr);
         }
 
         template<FailureType T>
@@ -3783,7 +3796,7 @@ __WI_SUPPRESS_4127_E
         {
             wchar_t message[2048];
             message[0] = L'\0';
-            ReportFailure_CaughtExceptionCommon<FailureType::FailFast>(__R_FN_CALL_FULL, message, ARRAYSIZE(message), supported);
+            RESULT_NORETURN_RESULT(ReportFailure_CaughtExceptionCommon<FailureType::FailFast>(__R_FN_CALL_FULL, message, ARRAYSIZE(message), supported));
         }
 
         template<>
@@ -3791,7 +3804,7 @@ __WI_SUPPRESS_4127_E
         {
             wchar_t message[2048];
             message[0] = L'\0';
-            ReportFailure_CaughtExceptionCommon<FailureType::Exception>(__R_FN_CALL_FULL, message, ARRAYSIZE(message), supported);
+            RESULT_NORETURN_RESULT(ReportFailure_CaughtExceptionCommon<FailureType::Exception>(__R_FN_CALL_FULL, message, ARRAYSIZE(message), supported));
         }
 
         template<FailureType T>
@@ -3829,6 +3842,7 @@ __WI_SUPPRESS_4127_E
         {
             auto hr = __HRESULT_FROM_WIN32(err);
             ReportFailure_Msg<FailureType::FailFast>(__R_FN_CALL_FULL, hr, formatString, argList);
+            RESULT_NORETURN_RESULT(hr);
         }
 
         template<>
@@ -3838,6 +3852,7 @@ __WI_SUPPRESS_4127_E
         {
             auto hr = __HRESULT_FROM_WIN32(err);
             ReportFailure_Msg<FailureType::Exception>(__R_FN_CALL_FULL, hr, formatString, argList);
+            RESULT_NORETURN_RESULT(hr);
         }
 
         template<FailureType T>
@@ -3855,6 +3870,7 @@ __WI_SUPPRESS_4127_E
             auto err = GetLastErrorFail(__R_FN_CALL_FULL);
             auto hr = __HRESULT_FROM_WIN32(err);
             ReportFailure_Msg<FailureType::FailFast>(__R_FN_CALL_FULL, hr, formatString, argList);
+            RESULT_NORETURN_RESULT(err);
         }
 
         template<>
@@ -3863,6 +3879,7 @@ __WI_SUPPRESS_4127_E
             auto err = GetLastErrorFail(__R_FN_CALL_FULL);
             auto hr = __HRESULT_FROM_WIN32(err);
             ReportFailure_Msg<FailureType::Exception>(__R_FN_CALL_FULL, hr, formatString, argList);
+            RESULT_NORETURN_RESULT(err);
         }
 
         template<FailureType T>
@@ -3882,6 +3899,7 @@ __WI_SUPPRESS_4127_E
         {
             auto hr = GetLastErrorFailHr(__R_FN_CALL_FULL);
             ReportFailure_Msg<FailureType::FailFast>(__R_FN_CALL_FULL, hr, formatString, argList);
+            RESULT_NORETURN_RESULT(hr);
         }
 
         template<>
@@ -3891,6 +3909,7 @@ __WI_SUPPRESS_4127_E
         {
             auto hr = GetLastErrorFailHr(__R_FN_CALL_FULL);
             ReportFailure_Msg<FailureType::Exception>(__R_FN_CALL_FULL, hr, formatString, argList);
+            RESULT_NORETURN_RESULT(hr);
         }
 
         template<FailureType T>
@@ -3910,6 +3929,7 @@ __WI_SUPPRESS_4127_E
         {
             auto hr = wil::details::NtStatusToHr(status);
             ReportFailure_Msg<FailureType::FailFast>(__R_FN_CALL_FULL, hr, formatString, argList);
+            RESULT_NORETURN_RESULT(hr);
         }
 
         template<>
@@ -3919,6 +3939,7 @@ __WI_SUPPRESS_4127_E
         {
             auto hr = wil::details::NtStatusToHr(status);
             ReportFailure_Msg<FailureType::Exception>(__R_FN_CALL_FULL, hr, formatString, argList);
+            RESULT_NORETURN_RESULT(hr);
         }
 
         template<FailureType T>
@@ -3938,7 +3959,7 @@ __WI_SUPPRESS_4127_E
             wchar_t message[2048];
             PrintLoggingMessage(message, ARRAYSIZE(message), formatString, argList);
             StringCchCatW(message, ARRAYSIZE(message), L" -- ");
-            ReportFailure_CaughtExceptionCommon<FailureType::FailFast>(__R_FN_CALL_FULL, message, ARRAYSIZE(message), SupportedExceptions::Default);
+            RESULT_NORETURN_RESULT(ReportFailure_CaughtExceptionCommon<FailureType::FailFast>(__R_FN_CALL_FULL, message, ARRAYSIZE(message), SupportedExceptions::Default));
         }
 
         template<>
@@ -3948,7 +3969,7 @@ __WI_SUPPRESS_4127_E
             wchar_t message[2048];
             PrintLoggingMessage(message, ARRAYSIZE(message), formatString, argList);
             StringCchCatW(message, ARRAYSIZE(message), L" -- ");
-            ReportFailure_CaughtExceptionCommon<FailureType::Exception>(__R_FN_CALL_FULL, message, ARRAYSIZE(message), SupportedExceptions::Default);
+            RESULT_NORETURN_RESULT(ReportFailure_CaughtExceptionCommon<FailureType::Exception>(__R_FN_CALL_FULL, message, ARRAYSIZE(message), SupportedExceptions::Default));
         }
 
 
