@@ -40,7 +40,7 @@ namespace wil
             using period = std::milli;
             using duration = std::chrono::duration<rep, period>;
             using time_point = std::chrono::time_point<base_clock_t, duration>;
-            static constexpr bool const is_steady = true;
+            static constexpr bool is_steady = true;
 
             WI_NODISCARD static time_point now() WI_NOEXCEPT
             {
@@ -82,7 +82,7 @@ namespace wil
             using period = std::ratio_multiply<std::hecto, std::nano>;
             using duration = std::chrono::duration<rep, period>;
             using time_point = std::chrono::time_point<base_clock_t, duration>;
-            static constexpr bool const is_steady = false;
+            static constexpr bool is_steady = false;
 
             WI_NODISCARD static time_point now() WI_NOEXCEPT
             {
@@ -204,7 +204,7 @@ namespace wil
             using period = std::ratio_multiply<std::hecto, std::nano>;
             using duration = std::chrono::duration<rep, period>;
             using time_point = std::chrono::time_point<base_clock_t, duration>;
-            static constexpr bool const is_steady = true;
+            static constexpr bool is_steady = true;
 
             WI_NODISCARD static time_point now() WI_NOEXCEPT
             {
