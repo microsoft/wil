@@ -397,9 +397,9 @@ namespace wil
 
         //! Returns the address of the internal pointer casted to IUnknown** (releases ownership of the pointer BEFORE returning the address).
         //! @see put
-        IUnknown** put_unknown() WI_NOEXCEPT
+        ::IUnknown** put_unknown() WI_NOEXCEPT
         {
-            return reinterpret_cast<IUnknown**>(put());
+            return reinterpret_cast<::IUnknown**>(put());
         }
 
         //! Returns the address of the internal pointer (releases ownership of the pointer BEFORE returning the address).
@@ -2264,8 +2264,8 @@ namespace wil
     @param value Set to point to the allocated result of reading a string from `source`
     */
     inline HRESULT stream_read_string_nothrow(
-        _In_ ISequentialStream* source, 
-        _When_(options == empty_string_options::returns_empty, _Outptr_result_z_) _When_(options == empty_string_options::returns_null, _Outptr_result_maybenull_z_) wchar_t** value, 
+        _In_ ISequentialStream* source,
+        _When_(options == empty_string_options::returns_empty, _Outptr_result_z_) _When_(options == empty_string_options::returns_null, _Outptr_result_maybenull_z_) wchar_t** value,
         empty_string_options options = empty_string_options::returns_empty)
     {
         unsigned short cch;

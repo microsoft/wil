@@ -5283,10 +5283,6 @@ namespace wil
             }
         }
 
-        explicit unique_hglobal_locked(unique_hglobal& global) : unique_hglobal_locked(global.get())
-        {
-        }
-
         explicit unique_hglobal_locked(STGMEDIUM& medium) : unique_hglobal_locked(medium.hGlobal)
         {
         }
