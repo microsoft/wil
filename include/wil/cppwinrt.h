@@ -108,7 +108,7 @@ namespace wil::details
             catch (const winrt::hresult_error& exception)
             {
                 MaybeGetExceptionString(exception, debugString, debugStringChars);
-                return exception.code().value;
+                return exception.to_abi();
             }
             catch (const std::bad_alloc& exception)
             {
@@ -149,7 +149,7 @@ namespace wil::details
             catch (const winrt::hresult_error& exception)
             {
                 MaybeGetExceptionString(exception, debugString, debugStringChars);
-                return exception.code().value;
+                return exception.to_abi();
             }
             catch (const std::bad_alloc& exception)
             {
@@ -201,7 +201,7 @@ namespace wil
             winrt_to_hresult_handler = winrt_to_hresult;
         }
     }
-    
+
     /// @cond
     namespace details
     {
