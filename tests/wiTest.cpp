@@ -2494,7 +2494,8 @@ TEST_CASE("WindowsInternalTests::InitOnceNonTests")
     init = {};
 
     // A thrown exception leaves the object un-initialized
-    REQUIRE_THROWS_AS(winner = wil::init_once(init, [&] { called = true; throw wil::ResultException(E_FAIL); }), wil::ResultException);
+    static volatile bool always_true = true; // So that the compiler can't determine that we unconditionally throw below (warning C4702)
+    REQUIRE_THROWS_AS(winner = wil::init_once(init, [&] { called = true; THROW_HR_IF(E_FAIL, always_true); }), wil::ResultException);
     REQUIRE_FALSE(wil::init_once_initialized(init));
     REQUIRE(called);
     REQUIRE_FALSE(winner);
