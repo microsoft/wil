@@ -72,6 +72,11 @@ namespace wil
         {
         }
 
+        DWORD get_last_error()
+		{
+			return m_error;
+		}
+        
         last_error_context(last_error_context&& other) WI_NOEXCEPT
         {
             operator=(wistd::move(other));
