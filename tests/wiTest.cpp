@@ -3,7 +3,9 @@
 #include <wil/resource.h>
 #include <wil/win32_helpers.h>
 #include <wil/filesystem.h>
+#if (_WIN32_WINNT >= _WIN32_WINNT_WIN8)
 #include <wil/wrl.h>
+#endif
 #include <wil/com.h>
 
 #ifdef WIL_ENABLE_EXCEPTIONS
@@ -1015,9 +1017,13 @@ TEST_CASE("WindowsInternalTests::UniqueHandle", "[resource][unique_any]")
         wchar_t tempFileName[MAX_PATH];
         REQUIRE_SUCCEEDED(witest::GetTempFileName(tempFileName));
 
+#if (_WIN32_WINNT >= _WIN32_WINNT_WIN8)
         CREATEFILE2_EXTENDED_PARAMETERS params = { sizeof(params) };
         params.dwFileAttributes = FILE_ATTRIBUTE_TEMPORARY;
         wil::unique_hfile spValidHandle(::CreateFile2(tempFileName, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_DELETE, CREATE_ALWAYS, &params));
+#else
+        wil::unique_hfile spValidHandle(::CreateFileW(tempFileName, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_DELETE, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_TEMPORARY, nullptr));
+#endif
 
         ::DeleteFileW(tempFileName);
         REQUIRE(spValidHandle.get() != INVALID_HANDLE_VALUE);
@@ -1072,9 +1078,13 @@ TEST_CASE("WindowsInternalTests::UniqueHandle", "[resource][unique_any]")
         wchar_t tempFileName2[MAX_PATH];
         REQUIRE_SUCCEEDED(witest::GetTempFileName(tempFileName2));
 
+#if (_WIN32_WINNT >= _WIN32_WINNT_WIN8)
         CREATEFILE2_EXTENDED_PARAMETERS params2 = { sizeof(params2) };
         params2.dwFileAttributes = FILE_ATTRIBUTE_TEMPORARY;
         *(&spMoveHandle) = ::CreateFile2(tempFileName2, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_DELETE, CREATE_ALWAYS, &params2);
+#else
+        *(&spMoveHandle) = ::CreateFileW(tempFileName2, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_DELETE, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_TEMPORARY, nullptr);
+#endif
 
         ::DeleteFileW(tempFileName2);
         REQUIRE(spMoveHandle);
@@ -2931,7 +2941,7 @@ TEST_CASE("WindowsInternalTests::TestUniqueArrayCases", "[resource]")
 }
 #endif
 
-#ifndef __cplusplus_winrt
+#if !defined(__cplusplus_winrt) && (_WIN32_WINNT >= _WIN32_WINNT_WIN8)
 TEST_CASE("WindowsInternalTests::VerifyMakeAgileCallback", "[wrl]")
 {
     using namespace ABI::Windows::Foundation;
