@@ -122,6 +122,7 @@ namespace wil
     }
 #endif // WIL_ENABLE_EXCEPTIONS
 
+#if (_WIN32_WINNT >= _WIN32_WINNT_WIN8)
     // Returns tokenHandle or the effective thread token if tokenHandle is null.
     // Note, this returns an token handle who's lifetime is managed independently
     // and it may be a pseudo token, don't free it!
@@ -287,6 +288,7 @@ namespace wil
         return tokenInfo;
     }
 #endif
+#endif // _WIN32_WINNT >= _WIN32_WINNT_WIN8
 
     /// @cond
     namespace details
@@ -524,6 +526,7 @@ namespace wil
         return S_OK;
     }
 
+#if (_WIN32_WINNT >= _WIN32_WINNT_WIN8)
     /** Determine whether a token represents an app container
     This method uses the passed in token and emits a boolean indicating that
     whether TokenIsAppContainer is true.
@@ -573,6 +576,7 @@ namespace wil
         return value;
     }
 #endif // WIL_ENABLE_EXCEPTIONS
+#endif // _WIN32_WINNT >= _WIN32_WINNT_WIN8
 
     template<typename... Ts> bool test_token_membership_failfast(_In_opt_ HANDLE token,
         const SID_IDENTIFIER_AUTHORITY& sidAuthority, Ts&&... subAuthorities)
