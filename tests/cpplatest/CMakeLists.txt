@@ -29,3 +29,5 @@ target_sources(witest.cpplatest PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/../WistdTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../wiTest.cpp
     )
+
+target_link_libraries(witest.cpplatest PUBLIC WIL)

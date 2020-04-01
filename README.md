@@ -47,6 +47,24 @@ C:\vcpkg> vcpkg install wil:x64-windows
 ```
 Note that even though WIL is a header-only library, you still need to install the package for all architectures/platforms you wish to use it with. Otherwise, WIL won't be added to the include path for the missing architectures/platforms. Execute `vcpkg help triplet` for a list of available options.
 
+## Consuming WIL via CMake
+
+WIL exports and installs a CMake target for use in other CMake projects. You can link your target to WIL with the following:
+
+```cmake
+find_package(WIL)
+
+add_library(MyCMakeTarget PUBLIC WIL)
+```
+
+If CMake is unable to locate WIL automatically, you can configure `WIL_DIR` to ensure it is found:
+
+```cmd
+C:\my\project> cmake -DWIL_DIR=%YOUR_WIL_INSTALL_DIRECTORY%/cmake
+```
+
+These instructions can be combined with the package manager instructions above to consume a stable version of WIL from a CMake project.
+
 # Building/Testing
 To get started testing WIL, first make sure that you have a recent version of [Visual Studio](https://visualstudio.microsoft.com/downloads/) and the most recent [Windows SDK](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk) installed. If you are doing
 any non-trivial work, also be sure to have a recent version of [Clang](http://releases.llvm.org/download.html) installed. Once everything is installed, open a VS

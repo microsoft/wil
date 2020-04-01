@@ -1,9 +1,6 @@
 
 include(${CMAKE_SOURCE_DIR}/cmake/common_build_flags.cmake)
 
-# All projects need to reference the WIL headers
-include_directories(${CMAKE_SOURCE_DIR}/include)
-
 # TODO: Might be worth trying to conditionally do this on SDK version, assuming there's a semi-easy way to detect that
 include_directories(BEFORE SYSTEM ./workarounds/wrl)
 
