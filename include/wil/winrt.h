@@ -1275,9 +1275,9 @@ namespace details
     //     LastType<int, bool>::type boolValue;
     template <typename... Ts> struct LastType
     {
-        template<typename T, typename... Ts> struct LastTypeOfTs
+        template<typename T, typename... OtherTs> struct LastTypeOfTs
         {
-            typedef typename LastTypeOfTs<Ts...>::type type;
+            typedef typename LastTypeOfTs<OtherTs...>::type type;
         };
 
         template<typename T> struct LastTypeOfTs<T>
@@ -1285,8 +1285,8 @@ namespace details
             typedef T type;
         };
 
-        template<typename... Ts>
-        static typename LastTypeOfTs<Ts...>::type LastTypeOfTsFunc() {}
+        template<typename... OtherTs>
+        static typename LastTypeOfTs<OtherTs...>::type LastTypeOfTsFunc() {}
         typedef decltype(LastTypeOfTsFunc<Ts...>()) type;
     };
 
