@@ -1780,7 +1780,7 @@ namespace wil
     // Wraps StringCchPrintFExW and stores it in an automatically allocated string.  Takes a buffer followed by the same format arguments
     // that StringCchPrintfExW takes.
     template <typename string_type>
-    HRESULT str_printf_nothrow(string_type& result, _Printf_format_string_ PCWSTR pszFormat, _In_ ...)
+    HRESULT str_printf_nothrow(string_type& result, _Printf_format_string_ PCWSTR pszFormat, ...)
     {
         va_list argsVL;
         va_start(argsVL, pszFormat);
@@ -1793,7 +1793,7 @@ namespace wil
     // Wraps StringCchPrintFExW and stores it in an automatically allocated string.  Takes a buffer followed by the same format arguments
     // that StringCchPrintfExW takes.
     template <typename string_type>
-    string_type str_printf(_Printf_format_string_ PCWSTR pszFormat, _In_ ...)
+    string_type str_printf(_Printf_format_string_ PCWSTR pszFormat, ...)
     {
         string_type result;
         va_list argsVL;
@@ -1808,7 +1808,7 @@ namespace wil
     // Wraps StringCchPrintFExW and stores it in an automatically allocated string.  Takes a buffer followed by the same format arguments
     // that StringCchPrintfExW takes.
     template <typename string_type>
-    string_type str_printf_failfast(_Printf_format_string_ PCWSTR pszFormat, _In_ ...)
+    string_type str_printf_failfast(_Printf_format_string_ PCWSTR pszFormat, ...)
     {
         string_type result;
         va_list argsVL;
