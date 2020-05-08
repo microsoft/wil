@@ -1358,7 +1358,7 @@ namespace wil
             _Post_satisfies_(return == condition) _When_(condition, _Analysis_noreturn_) __RFF_CONDITIONAL_METHOD(bool, FailFastImmediate_If)(bool condition) WI_NOEXCEPT;
         }
 
-        __declspec(noreturn) inline void __stdcall WilFailFast(const FailureInfo& info);
+        RESULT_NORETURN inline void __stdcall WilFailFast(const FailureInfo& info);
         inline void LogFailure(__R_FN_PARAMS_FULL, FailureType type, HRESULT hr, _In_opt_ PCWSTR message,
                                bool fWantDebugString, _Out_writes_(debugStringSizeChars) _Post_z_ PWSTR debugString, _Pre_satisfies_(debugStringSizeChars > 0) size_t debugStringSizeChars,
                                _Out_writes_(callContextStringSizeChars) _Post_z_ PSTR callContextString, _Pre_satisfies_(callContextStringSizeChars > 0) size_t callContextStringSizeChars,
@@ -1701,7 +1701,7 @@ namespace wil
             return 1;
         }
 
-        inline __declspec(noreturn) void __stdcall WilRaiseFailFastException(_In_ PEXCEPTION_RECORD er, _In_opt_ PCONTEXT cr, _In_ DWORD flags)
+        inline RESULT_NORETURN void __stdcall WilRaiseFailFastException(_In_ PEXCEPTION_RECORD er, _In_opt_ PCONTEXT cr, _In_ DWORD flags)
         {
             // if we managed to load the pointer either through WilDynamicRaiseFailFastException (PARTITION_DESKTOP etc.)
             // or via direct linkage (e.g. UWP apps), then use it.
@@ -2509,7 +2509,7 @@ namespace wil
         // Private helpers to catch and propagate exceptions
         //*****************************************************************************
 
-        __declspec(noreturn) inline void TerminateAndReportError(_In_opt_ PEXCEPTION_POINTERS)
+        RESULT_NORETURN inline void TerminateAndReportError(_In_opt_ PEXCEPTION_POINTERS)
         {
             // This is an intentional fail-fast that was caught by an exception guard with WIL.  Look back up the callstack to determine
             // the source of the actual exception being thrown.  The exception guard used by the calling code did not expect this
@@ -3022,6 +3022,7 @@ namespace wil
             __except (wil::details::TerminateAndReportError(GetExceptionInformation()), EXCEPTION_CONTINUE_SEARCH)
             {
                 WI_ASSERT(false);
+                RESULT_NORETURN_RESULT(HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION));
             }
         }
 
@@ -3376,7 +3377,7 @@ namespace wil
             }
         }
 
-        inline __declspec(noreturn) void __stdcall WilFailFast(const wil::FailureInfo& failure)
+        inline RESULT_NORETURN void __stdcall WilFailFast(const wil::FailureInfo& failure)
         {
             if (g_pfnWilFailFast)
             {
@@ -4009,7 +4010,7 @@ __WI_SUPPRESS_4127_E
 #endif
 
         template <typename T>
-        __declspec(noreturn) inline void ReportFailure_CustomExceptionHelper(_Inout_ T &exception, __R_FN_PARAMS_FULL, _In_opt_ PCWSTR message = nullptr)
+        RESULT_NORETURN inline void ReportFailure_CustomExceptionHelper(_Inout_ T &exception, __R_FN_PARAMS_FULL, _In_opt_ PCWSTR message = nullptr)
         {
             // When seeing the error: "cannot convert parameter 1 from 'XXX' to 'wil::ResultException &'"
             // Custom exceptions must be based upon either ResultException or Platform::Exception^ to be used with ResultException.h.
