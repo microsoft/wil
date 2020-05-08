@@ -31,7 +31,6 @@
 #include "com.h"
 #include <roerrorapi.h>
 
-#ifndef __cplusplus_winrt // The CX runtime likes to originate errors already so we would conflict with them.
 namespace wil
 {
     namespace details
@@ -122,6 +121,5 @@ WI_HEADER_INITITALIZATION_FUNCTION(ResultStowedExceptionInitialize, []
     ::wil::SetFailfastWithContextCallback(::wil::details::FailfastWithContextCallback);
     return 1;
 });
-#endif // __cplusplus_winrt
 
 #endif // __WIL_RESULT_ORIGINATE_INCLUDED

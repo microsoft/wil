@@ -90,6 +90,8 @@ namespace wil
 
             wchar_t* buffer() { return &m_value[0]; }
 
+            HRESULT trim_at_existing_null(size_t length) { m_value.erase(length); return S_OK; }
+
             std::wstring release() { return std::wstring(std::move(m_value)); }
 
             static PCWSTR get(const std::wstring& value) { return value.c_str(); }

@@ -183,7 +183,8 @@ namespace wil
     enum class RemoveDirectoryOptions
     {
         None = 0,
-        KeepRootDirectory = 0x1
+        KeepRootDirectory = 0x1,
+        RemoveReadOnly = 0x2,
     };
     DEFINE_ENUM_FLAG_OPERATORS(RemoveDirectoryOptions);
 
@@ -197,33 +198,33 @@ namespace wil
                     (WI_IsFlagClear(info.FileAttributes, FILE_ATTRIBUTE_REPARSE_POINT) ||
                     (IsReparseTagDirectory(info.ReparseTag) || (info.ReparseTag == IO_REPARSE_TAG_WCI))));
         }
+    }
 
-        // Retrieve a handle to a directory only if it is safe to recurse into.
-        inline wil::unique_hfile TryCreateFileCanRecurseIntoDirectory(PCWSTR path, PWIN32_FIND_DATAW fileFindData)
+    // Retrieve a handle to a directory only if it is safe to recurse into.
+    inline wil::unique_hfile TryCreateFileCanRecurseIntoDirectory(PCWSTR path, PWIN32_FIND_DATAW fileFindData)
+    {
+        wil::unique_hfile result(CreateFileW(path, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_DELETE,
+            nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, nullptr));
+        if (result)
         {
-            wil::unique_hfile result(CreateFileW(path, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_DELETE,
-                nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, nullptr));
-            if (result)
+            FILE_ATTRIBUTE_TAG_INFO fati;
+            if (GetFileInformationByHandleEx(result.get(), FileAttributeTagInfo, &fati, sizeof(fati)) &&
+                details::CanRecurseIntoDirectory(fati))
             {
-                FILE_ATTRIBUTE_TAG_INFO fati;
-                if (GetFileInformationByHandleEx(result.get(), FileAttributeTagInfo, &fati, sizeof(fati)) &&
-                    CanRecurseIntoDirectory(fati))
+                if (fileFindData)
                 {
-                    if (fileFindData)
-                    {
-                        // Refresh the found file's data now that we have secured the directory from external manipulation.
-                        fileFindData->dwFileAttributes = fati.FileAttributes;
-                        fileFindData->dwReserved0 = fati.ReparseTag;
-                    }
-                }
-                else
-                {
-                    result.reset();
+                    // Refresh the found file's data now that we have secured the directory from external manipulation.
+                    fileFindData->dwFileAttributes = fati.FileAttributes;
+                    fileFindData->dwReserved0 = fati.ReparseTag;
                 }
             }
-
-            return result;
+            else
+            {
+                result.reset();
+            }
         }
+
+        return result;
     }
 
     // If inputPath is a non-normalized name be sure to pass an extended length form to ensure
@@ -269,7 +270,7 @@ namespace wil
                 {
                     // Get a handle to the directory to delete, preventing it from being replaced to prevent writes which could be used
                     // to bypass permission checks, and verify that it is not a name surrogate (e.g. symlink, mount point, etc).
-                    wil::unique_hfile recursivelyDeletableDirectoryHandle = details::TryCreateFileCanRecurseIntoDirectory(pathToDelete.get(), &fd);
+                    wil::unique_hfile recursivelyDeletableDirectoryHandle = TryCreateFileCanRecurseIntoDirectory(pathToDelete.get(), &fd);
                     if (recursivelyDeletableDirectoryHandle)
                     {
                         RemoveDirectoryOptions localOptions = options;
@@ -288,9 +289,29 @@ namespace wil
                 }
                 else
                 {
-                    // note: if pathToDelete is read-only this will fail, consider adding
-                    // RemoveDirectoryOptions::RemoveReadOnly to enable this behavior.
-                    RETURN_IF_WIN32_BOOL_FALSE(::DeleteFileW(pathToDelete.get()));
+                    // Try a DeleteFile.  Some errors may be recoverable.
+                    if (!::DeleteFileW(pathToDelete.get()))
+                    {
+                        // Fail for anything other than ERROR_ACCESS_DENIED with option to RemoveReadOnly available
+                        bool potentiallyFixableReadOnlyProblem = 
+                            WI_IsFlagSet(options, RemoveDirectoryOptions::RemoveReadOnly) && ::GetLastError() == ERROR_ACCESS_DENIED;
+                        RETURN_LAST_ERROR_IF(!potentiallyFixableReadOnlyProblem);
+                        
+                        // Fail if the file does not have read-only set, likely just an ACL problem
+                        DWORD fileAttr = ::GetFileAttributesW(pathToDelete.get());
+                        RETURN_LAST_ERROR_IF(!WI_IsFlagSet(fileAttr, FILE_ATTRIBUTE_READONLY));
+
+                        // Remove read-only flag, setting to NORMAL if completely empty
+                        WI_ClearFlag(fileAttr, FILE_ATTRIBUTE_READONLY);
+                        if (fileAttr == 0)
+                        {
+                            fileAttr = FILE_ATTRIBUTE_NORMAL;
+                        }
+
+                        // Set the new attributes and try to delete the file again, returning any failure
+                        ::SetFileAttributesW(pathToDelete.get(), fileAttr);
+                        RETURN_IF_WIN32_BOOL_FALSE(::DeleteFileW(pathToDelete.get()));
+                    }
                 }
             }
 
@@ -927,6 +948,36 @@ namespace wil
             S_OK : HRESULT_FROM_WIN32(::GetLastError());
         RETURN_HR_IF_EXPECTED(hr, hr == E_INVALIDARG); // operation not supported by file system
         RETURN_IF_FAILED(hr);
+        return S_OK;
+    }
+
+    // Verifies that the given file path is not a hard or a soft link. If the file is present at the path, returns
+    // a handle to it without delete permissions to block an attacker from swapping the file.
+    inline HRESULT CreateFileAndEnsureNotLinked(PCWSTR path, wil::unique_hfile& fileHandle)
+    {
+        // Open handles to the original path and to the final path and compare each file's information
+        // to verify they are the same file. If they are different, the file is a soft link.
+        fileHandle.reset(CreateFileW(path, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, nullptr));
+        RETURN_LAST_ERROR_IF(!fileHandle);
+        BY_HANDLE_FILE_INFORMATION fileInfo;
+        RETURN_IF_WIN32_BOOL_FALSE(GetFileInformationByHandle(fileHandle.get(), &fileInfo));
+
+        // Open a handle without the reparse point flag to get the final path in case it is a soft link.
+        wil::unique_hfile finalPathHandle(CreateFileW(path, 0, 0, nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, nullptr));
+        RETURN_LAST_ERROR_IF(!finalPathHandle);
+        BY_HANDLE_FILE_INFORMATION finalFileInfo;
+        RETURN_IF_WIN32_BOOL_FALSE(GetFileInformationByHandle(finalPathHandle.get(), &finalFileInfo));
+        finalPathHandle.reset();
+
+        // The low and high indices and volume serial number uniquely identify a file. These must match if they are the same file.
+        const bool isSoftLink =
+            ((fileInfo.nFileIndexLow != finalFileInfo.nFileIndexLow) ||
+             (fileInfo.nFileIndexHigh != finalFileInfo.nFileIndexHigh) ||
+             (fileInfo.dwVolumeSerialNumber != finalFileInfo.dwVolumeSerialNumber));
+
+        // Return failure if it is a soft link or a hard link (number of links greater than 1).
+        RETURN_HR_IF(HRESULT_FROM_WIN32(ERROR_BAD_PATHNAME), (isSoftLink || fileInfo.nNumberOfLinks > 1));
+
         return S_OK;
     }
 

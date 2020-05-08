@@ -2679,6 +2679,9 @@ namespace wil
                 catch (Platform::Exception^ exception)
                 {
                     *isNormalized = true;
+                    // We need to call __abi_translateCurrentException so that the CX runtime will pull the originated error information
+                    // out of the exception object and place it back into thread-local storage.
+                    __abi_translateCurrentException(false);
                     MaybeGetExceptionString(exception, debugString, debugStringChars);
                     return exception->HResult;
                 }
@@ -2710,6 +2713,9 @@ namespace wil
                 catch (Platform::Exception^ exception)
                 {
                     *isNormalized = true;
+                    // We need to call __abi_translateCurrentException so that the CX runtime will pull the originated error information
+                    // out of the exception object and place it back into thread-local storage.
+                    __abi_translateCurrentException(false);
                     MaybeGetExceptionString(exception, debugString, debugStringChars);
                     return exception->HResult;
                 }
@@ -3312,8 +3318,9 @@ namespace wil
             }
 
             // If the hook is enabled then it will be given the opportunity to call RoOriginateError to greatly improve the diagnostic experience
-            // for uncaught exceptions.
-            if (details::g_pfnOriginateCallback)
+            // for uncaught exceptions.  In cases where we will be throwing a C++/CX Platform::Exception we should avoid originating because the
+            // CX runtime will be doing that for us.  fWantDebugString is only set to true when the caller will be throwing a Platform::Exception.
+            if (details::g_pfnOriginateCallback && !fWantDebugString)
             {
                 details::g_pfnOriginateCallback(*failure);
             }
