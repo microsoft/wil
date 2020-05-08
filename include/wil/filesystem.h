@@ -31,6 +31,7 @@ namespace wil
         return wcsncmp(path, L"\\\\?\\", 4) == 0;
     }
 
+#if (_WIN32_WINNT >= _WIN32_WINNT_WIN7)
     //! Find the last segment of a path. Matches the behavior of shlwapi!PathFindFileNameW()
     //! note, does not support streams being specified like PathFindFileNameW(), is that a bug or a feature?
     inline PCWSTR find_last_path_segment(_In_ PCWSTR path)
@@ -51,6 +52,7 @@ namespace wil
         }
         return result;
     }
+#endif
 
     //! Determine if the file name is one of the special "." or ".." names.
     inline bool path_is_dot_or_dotdot(_In_ PCWSTR fileName)
@@ -83,7 +85,7 @@ namespace wil
         return false;
     }
 
-#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && (_WIN32_WINNT >= _WIN32_WINNT_WIN7)
 
     // PathCch.h APIs are only in desktop API for now.
 
@@ -293,10 +295,10 @@ namespace wil
                     if (!::DeleteFileW(pathToDelete.get()))
                     {
                         // Fail for anything other than ERROR_ACCESS_DENIED with option to RemoveReadOnly available
-                        bool potentiallyFixableReadOnlyProblem = 
+                        bool potentiallyFixableReadOnlyProblem =
                             WI_IsFlagSet(options, RemoveDirectoryOptions::RemoveReadOnly) && ::GetLastError() == ERROR_ACCESS_DENIED;
                         RETURN_LAST_ERROR_IF(!potentiallyFixableReadOnlyProblem);
-                        
+
                         // Fail if the file does not have read-only set, likely just an ACL problem
                         DWORD fileAttr = ::GetFileAttributesW(pathToDelete.get());
                         RETURN_LAST_ERROR_IF(!WI_IsFlagSet(fileAttr, FILE_ATTRIBUTE_READONLY));
@@ -1008,7 +1010,7 @@ namespace wil
         return result;
     }
 #endif // _CPPUNWIND
-#endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+#endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && (_WIN32_WINNT >= _WIN32_WINNT_WIN7)
 }
 
 #endif // __WIL_FILESYSTEM_INCLUDED

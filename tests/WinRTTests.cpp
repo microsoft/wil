@@ -1,5 +1,5 @@
 
-#include <time.h> // TODO: https://github.com/microsoft/wil/issues/44
+#include <ctime> // TODO: https://github.com/microsoft/wil/issues/44
 #include <wil/winrt.h>
 
 #ifdef WIL_ENABLE_EXCEPTIONS

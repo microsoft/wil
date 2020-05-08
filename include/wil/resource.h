@@ -113,20 +113,20 @@ namespace wil
         typedef wistd::integral_constant<size_t, 1> pointer_access_noaddress;       // get() and release() are available
         typedef wistd::integral_constant<size_t, 2> pointer_access_none;            // the raw pointer is not available
 
-        template <typename pointer,                                           // The handle type
+        template <typename pointer_t,                                         // The handle type
             typename close_fn_t,                                              // The handle close function type
             close_fn_t close_fn,                                              //      * and function pointer
-            typename pointer_access = pointer_access_all,                     // all, noaddress or none to control pointer method access
-            typename pointer_storage = pointer,                               // The type used to store the handle (usually the same as the handle itself)
-            typename invalid_t = pointer,                                     // The invalid handle value type
+            typename pointer_access_t = pointer_access_all,                   // all, noaddress or none to control pointer method access
+            typename pointer_storage_t = pointer_t,                           // The type used to store the handle (usually the same as the handle itself)
+            typename invalid_t = pointer_t,                                   // The invalid handle value type
             invalid_t invalid = invalid_t(),                                  //      * and its value (default ZERO value)
-            typename pointer_invalid = wistd::nullptr_t>                      // nullptr_t if the invalid handle value is compatible with nullptr, otherwise pointer
+            typename pointer_invalid_t = wistd::nullptr_t>                    // nullptr_t if the invalid handle value is compatible with nullptr, otherwise pointer
             struct resource_policy
         {
-            typedef pointer_storage pointer_storage;
-            typedef pointer pointer;
-            typedef pointer_invalid pointer_invalid;
-            typedef pointer_access pointer_access;
+            typedef pointer_storage_t pointer_storage;
+            typedef pointer_t pointer;
+            typedef pointer_invalid_t pointer_invalid;
+            typedef pointer_access_t pointer_access;
             __forceinline static pointer_storage invalid_value() { return (pointer)invalid; }
             __forceinline static bool is_valid(pointer_storage value) WI_NOEXCEPT { return (static_cast<pointer>(value) != (pointer)invalid); }
             __forceinline static void close(pointer_storage value) WI_NOEXCEPT { wistd::invoke(close_fn, value); }
@@ -144,11 +144,11 @@ namespace wil
         // into the inheritance chain between unique_any_t and unique_storage.  This allows classes like unique_event
         // to be a unique_any formed class, but also expose methods like SetEvent directly.
 
-        template <typename policy>
+        template <typename Policy>
         class unique_storage
         {
         protected:
-            typedef policy policy;
+            typedef Policy policy;
             typedef typename policy::pointer_storage pointer_storage;
             typedef typename policy::pointer pointer;
             typedef unique_storage<policy> base_storage;
@@ -1855,11 +1855,11 @@ namespace wil {
         // into the inheritance chain between shared_any_t and shared_storage.  This allows classes like shared_event
         // to be a shared_any formed class, but also expose methods like SetEvent directly.
 
-        template <typename unique_t>
+        template <typename UniqueT>
         class shared_storage
         {
         protected:
-            typedef unique_t unique_t;
+            typedef UniqueT unique_t;
             typedef typename unique_t::policy policy;
             typedef typename policy::pointer_storage pointer_storage;
             typedef typename policy::pointer pointer;
@@ -2147,11 +2147,11 @@ namespace wil {
     // This class provides weak_ptr<> support for shared_any<>, bringing the same weak reference counting and lock() acquire semantics
     // to shared_any.
 
-    template <typename shared_t>
+    template <typename SharedT>
     class weak_any
     {
     public:
-        typedef shared_t shared_t;
+        typedef SharedT shared_t;
 
         weak_any() WI_NOEXCEPT
         {
@@ -2676,7 +2676,7 @@ namespace wil
     typedef unique_any_t<event_t<details::unique_storage<details::handle_resource_policy>, err_exception_policy>>      unique_event;
 #endif
 
-#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && (_WIN32_WINNT >= _WIN32_WINNT_WIN7)
     enum class SlimEventType
     {
         AutoReset,
@@ -2843,7 +2843,7 @@ namespace wil
     /** An alias for `wil::slim_event_auto_reset`. */
     using slim_event = slim_event_auto_reset;
 
-#endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+#endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && (_WIN32_WINNT >= _WIN32_WINNT_WIN7)
 
     typedef unique_any<HANDLE, decltype(&details::ReleaseMutex), details::ReleaseMutex, details::pointer_access_none> mutex_release_scope_exit;
 
@@ -3561,8 +3561,8 @@ namespace wil
         typedef typename err_policy::result result;
 
         // Exception-based constructors
-        template <typename err_policy>
-        event_watcher_t(unique_any_t<event_t<details::unique_storage<details::handle_resource_policy>, err_policy>> &&eventHandle, wistd::function<void()> &&callback)
+        template <typename from_err_policy>
+        event_watcher_t(unique_any_t<event_t<details::unique_storage<details::handle_resource_policy>, from_err_policy>> &&eventHandle, wistd::function<void()> &&callback)
         {
             static_assert(wistd::is_same<void, result>::value, "this constructor requires exceptions or fail fast; use the create method");
             create(wistd::move(eventHandle), wistd::move(callback));
