@@ -25,18 +25,27 @@
 #include <collection.h> // bring in the CRT iterator for support for C++ CX code
 #endif
 
-#ifdef WIL_ENABLE_EXCEPTIONS
-#pragma warning(push)
-#pragma warning(disable:4643)
 /// @cond
+#if defined(WIL_ENABLE_EXCEPTIONS) && !defined(__WI_HAS_STD_LESS)
+#ifdef __has_include
+#if __has_include(<functional>)
+#define __WI_HAS_STD_LESS 1
+#include <functional>
+#endif // Otherwise, not using STL; don't specialize std::less
+#else
+// Fall back to the old way of forward declaring std::less
+#define __WI_HAS_STD_LESS 1
+#pragma warning(push)
+#pragma warning(disable:4643) // Forward declaring '...' in namespace std is not permitted by the C++ Standard.
 namespace std
 {
     template<class _Ty>
     struct less;
 }
-/// @endcond
 #pragma warning(pop)
 #endif
+#endif
+/// @endcond
 
 // This enables this code to be used in code that uses the ABI prefix or not.
 // Code using the public SDK and C++ CX code has the ABI prefix, windows internal
@@ -2206,7 +2215,7 @@ struct ABI::Windows::Foundation::IAsyncOperationWithProgressCompletedHandler<ABI
 #pragma pop_macro("ABI")
 #endif
 
-#ifdef WIL_ENABLE_EXCEPTIONS
+#if __WI_HAS_STD_LESS
 
 namespace std
 {

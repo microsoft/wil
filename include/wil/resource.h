@@ -3385,6 +3385,9 @@ namespace wil
 
             wchar_t* buffer() { WI_ASSERT(m_value.get());  return m_value.get(); }
 
+            // By default, assume string_type is a null-terminated string and therefore does not require trimming.
+            HRESULT trim_at_existing_null(size_t /* length */) { return S_OK; }
+
             string_type release() { return wistd::move(m_value); }
 
             // Utility to abstract access to the null terminated m_value of all string types.
@@ -4460,6 +4463,8 @@ namespace wil
                 if (source)
                 {
                     RETURN_IF_FAILED(WindowsCreateString(source, static_cast<UINT32>(length), &m_value));
+                    m_charBuffer = nullptr;
+                    m_bufferHandle.reset(); // do this after WindowsCreateString so we can trim_at_existing_null() from our own buffer
                 }
                 else
                 {
@@ -4472,6 +4477,8 @@ namespace wil
 
             wchar_t* buffer() { WI_ASSERT(m_charBuffer != nullptr);  return m_charBuffer; }
             const wchar_t* buffer() const { return m_charBuffer; }
+
+            HRESULT trim_at_existing_null(size_t length) { return make(buffer(), length); }
 
             unique_hstring release()
             {
@@ -5658,7 +5665,6 @@ namespace wil
             using wdf_lock_storage_t = unique_wdf_lock_storage<WDFSPINLOCK>;
 
         public:
-
             using pointer = wdf_lock_storage_t::pointer;
 
             // Forward all base class constructors, but have it be explicit.
@@ -5684,7 +5690,6 @@ namespace wil
             using wdf_lock_storage_t = unique_wdf_lock_storage<WDFWAITLOCK>;
 
         public:
-
             using pointer = wdf_lock_storage_t::pointer;
 
             // Forward all base class constructors, but have it be explicit.
@@ -5831,8 +5836,8 @@ namespace wil
     using kspin_lock_at_dpc_guard = unique_any<PKSPIN_LOCK, decltype(details::ReleaseSpinLockFromDpcLevel), &details::ReleaseSpinLockFromDpcLevel,
         details::pointer_access_none>;
 
-    inline
     WI_NODISCARD
+    inline
     _IRQL_requires_max_(DISPATCH_LEVEL)
     _IRQL_saves_
     _IRQL_raises_(DISPATCH_LEVEL)
@@ -5845,8 +5850,8 @@ namespace wil
         return kspin_lock_guard(spinLockSavedIrql);
     }
 
-    inline
     WI_NODISCARD
+    inline
     _IRQL_requires_min_(DISPATCH_LEVEL)
     kspin_lock_at_dpc_guard
     acquire_kspin_lock_at_dpc(_In_ PKSPIN_LOCK spinLock)
@@ -5858,7 +5863,6 @@ namespace wil
     class kernel_spin_lock
     {
     public:
-
         kernel_spin_lock() WI_NOEXCEPT
         {
             ::KeInitializeSpinLock(&m_kSpinLock);
@@ -5889,7 +5893,6 @@ namespace wil
         }
 
     private:
-
         KSPIN_LOCK m_kSpinLock;
     };
 
@@ -5899,7 +5902,6 @@ namespace wil
         class kernel_event_t
         {
         public:
-
             explicit kernel_event_t(bool isSignaled = false) WI_NOEXCEPT
             {
                 ::KeInitializeEvent(&m_kernelEvent, static_cast<EVENT_TYPE>(eventType), isSignaled ? TRUE : FALSE);
@@ -5956,7 +5958,6 @@ namespace wil
             }
 
         private:
-
             bool wait_for_single_object(_In_opt_ LARGE_INTEGER* waitDuration) WI_NOEXCEPT
             {
                 auto status = ::KeWaitForSingleObject(&m_kernelEvent, Executive, KernelMode, FALSE, waitDuration);
@@ -5974,6 +5975,204 @@ namespace wil
     using kernel_event_auto_reset = details::kernel_event_t<SynchronizationEvent>;
     using kernel_event_manual_reset = details::kernel_event_t<NotificationEvent>;
     using kernel_event = kernel_event_auto_reset; // For parity with the default for other WIL event types.
+
+    /**
+    RAII class and lock-guards for a kernel FAST_MUTEX.
+    */
+
+    using fast_mutex_guard = unique_any<FAST_MUTEX*, decltype(::ExReleaseFastMutex), &::ExReleaseFastMutex, details::pointer_access_none>;
+
+    WI_NODISCARD
+    inline
+    _IRQL_requires_max_(APC_LEVEL)
+    fast_mutex_guard acquire_fast_mutex(FAST_MUTEX* fastMutex) WI_NOEXCEPT
+    {
+        ::ExAcquireFastMutex(fastMutex);
+        return fast_mutex_guard(fastMutex);
+    }
+
+    WI_NODISCARD
+    inline
+    _IRQL_requires_max_(APC_LEVEL)
+    fast_mutex_guard try_acquire_fast_mutex(FAST_MUTEX* fastMutex) WI_NOEXCEPT
+    {
+        if (::ExTryToAcquireFastMutex(fastMutex))
+        {
+            return fast_mutex_guard(fastMutex);
+        }
+        else
+        {
+            return fast_mutex_guard();
+        }
+    }
+
+    class fast_mutex
+    {
+    public:
+        fast_mutex() WI_NOEXCEPT
+        {
+            ::ExInitializeFastMutex(&m_fastMutex);
+        }
+
+        ~fast_mutex() WI_NOEXCEPT = default;
+
+        // Cannot change memory location.
+        fast_mutex(const fast_mutex&) = delete;
+        fast_mutex& operator=(const fast_mutex&) = delete;
+        fast_mutex(fast_mutex&&) = delete;
+        fast_mutex& operator=(fast_mutex&&) = delete;
+
+        // Calls ExAcquireFastMutex. Returned wil::unique_any object calls ExReleaseFastMutex on
+        // destruction.
+        WI_NODISCARD
+        _IRQL_requires_max_(APC_LEVEL)
+        fast_mutex_guard acquire() WI_NOEXCEPT
+        {
+            return acquire_fast_mutex(&m_fastMutex);
+        }
+
+        // Calls ExTryToAcquireFastMutex. Returned wil::unique_any may be empty. If non-empty, it
+        // calls ExReleaseFastMutex on destruction.
+        WI_NODISCARD
+        _IRQL_requires_max_(APC_LEVEL)
+        fast_mutex_guard try_acquire() WI_NOEXCEPT
+        {
+            return try_acquire_fast_mutex(&m_fastMutex);
+        }
+
+    private:
+        FAST_MUTEX m_fastMutex;
+    };
+
+    namespace details
+    {
+        _IRQL_requires_max_(APC_LEVEL)
+        inline void release_fast_mutex_with_critical_region(FAST_MUTEX* fastMutex) WI_NOEXCEPT
+        {
+            ::ExReleaseFastMutexUnsafe(fastMutex);
+            ::KeLeaveCriticalRegion();
+        }
+    }
+
+    using fast_mutex_with_critical_region_guard =
+        unique_any<FAST_MUTEX*, decltype(details::release_fast_mutex_with_critical_region), &details::release_fast_mutex_with_critical_region, details::pointer_access_none>;
+
+    WI_NODISCARD
+    inline
+    _IRQL_requires_max_(APC_LEVEL)
+    fast_mutex_with_critical_region_guard acquire_fast_mutex_with_critical_region(FAST_MUTEX* fastMutex) WI_NOEXCEPT
+    {
+        ::KeEnterCriticalRegion();
+        ::ExAcquireFastMutexUnsafe(fastMutex);
+        return fast_mutex_with_critical_region_guard(fastMutex);
+    }
+
+    // A FAST_MUTEX lock class that calls KeEnterCriticalRegion and then ExAcquireFastMutexUnsafe.
+    // Returned wil::unique_any lock-guard calls ExReleaseFastMutexUnsafe and KeLeaveCriticalRegion
+    // on destruction. This is useful if calling code wants to stay at PASSIVE_LEVEL.
+    class fast_mutex_with_critical_region
+    {
+    public:
+        fast_mutex_with_critical_region() WI_NOEXCEPT
+        {
+            ::ExInitializeFastMutex(&m_fastMutex);
+        }
+
+        ~fast_mutex_with_critical_region() WI_NOEXCEPT = default;
+
+        // Cannot change memory location.
+        fast_mutex_with_critical_region(const fast_mutex_with_critical_region&) = delete;
+        fast_mutex_with_critical_region& operator=(const fast_mutex_with_critical_region&) = delete;
+        fast_mutex_with_critical_region(fast_mutex_with_critical_region&&) = delete;
+        fast_mutex_with_critical_region& operator=(fast_mutex_with_critical_region&&) = delete;
+
+        WI_NODISCARD
+        _IRQL_requires_max_(APC_LEVEL)
+        fast_mutex_with_critical_region_guard acquire() WI_NOEXCEPT
+        {
+            return acquire_fast_mutex_with_critical_region(&m_fastMutex);
+        }
+
+    private:
+        FAST_MUTEX m_fastMutex;
+    };
+
+    namespace details
+    {
+        _IRQL_requires_max_(APC_LEVEL)
+        inline void release_push_lock_exclusive(EX_PUSH_LOCK* pushLock) WI_NOEXCEPT
+        {
+            ::ExReleasePushLockExclusive(pushLock);
+            ::KeLeaveCriticalRegion();
+        }
+
+        _IRQL_requires_max_(APC_LEVEL)
+        inline void release_push_lock_shared(EX_PUSH_LOCK* pushLock) WI_NOEXCEPT
+        {
+            ::ExReleasePushLockShared(pushLock);
+            ::KeLeaveCriticalRegion();
+        }
+    }
+
+    using push_lock_exclusive_guard =
+        unique_any<EX_PUSH_LOCK*, decltype(&details::release_push_lock_exclusive), &details::release_push_lock_exclusive, details::pointer_access_noaddress>;
+
+    using push_lock_shared_guard =
+        unique_any<EX_PUSH_LOCK*, decltype(&details::release_push_lock_shared), &details::release_push_lock_shared, details::pointer_access_noaddress>;
+
+    WI_NODISCARD
+    inline
+    _IRQL_requires_max_(APC_LEVEL)
+    push_lock_exclusive_guard acquire_push_lock_exclusive(EX_PUSH_LOCK* pushLock) WI_NOEXCEPT
+    {
+        ::KeEnterCriticalRegion();
+        ::ExAcquirePushLockExclusive(pushLock);
+        return push_lock_exclusive_guard(pushLock);
+    }
+
+    WI_NODISCARD
+    inline
+    _IRQL_requires_max_(APC_LEVEL)
+    push_lock_shared_guard acquire_push_lock_shared(EX_PUSH_LOCK* pushLock) WI_NOEXCEPT
+    {
+        ::KeEnterCriticalRegion();
+        ::ExAcquirePushLockShared(pushLock);
+        return push_lock_shared_guard(pushLock);
+    }
+
+    class push_lock
+    {
+    public:
+        push_lock() WI_NOEXCEPT
+        {
+            ::ExInitializePushLock(&m_pushLock);
+        }
+
+        ~push_lock() WI_NOEXCEPT = default;
+
+        // Cannot change memory location.
+        push_lock(const push_lock&) = delete;
+        push_lock& operator=(const push_lock&) = delete;
+        push_lock(push_lock&&) = delete;
+        push_lock& operator=(push_lock&&) = delete;
+
+        WI_NODISCARD
+        _IRQL_requires_max_(APC_LEVEL)
+        push_lock_exclusive_guard acquire_exclusive() WI_NOEXCEPT
+        {
+            return acquire_push_lock_exclusive(&m_pushLock);
+        }
+
+        WI_NODISCARD
+        _IRQL_requires_max_(APC_LEVEL)
+        push_lock_shared_guard acquire_shared() WI_NOEXCEPT
+        {
+            return acquire_push_lock_shared(&m_pushLock);
+        }
+
+    private:
+        EX_PUSH_LOCK m_pushLock;
+    };
 
     namespace details
     {
