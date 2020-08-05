@@ -62,6 +62,30 @@ namespace wil
             FAIL_FAST_IF_FAILED(::SafeArrayUnaccessData(psa));
         }
 
+        inline HRESULT SafeArrayCountElements( SAFEARRAY* psa, ULONG* pCount )
+        {
+            RETURN_HR_IF_NULL(E_INVALIDARG, psa);
+            RETURN_HR_IF_NULL(E_POINTER, pCount);
+            ULONG nDims = ::SafeArrayGetDim(psa);
+            ULONGLONG result = 1;
+            LONG nLbound = 0;
+            LONG nUbound = 0;
+            for ( UINT i = 1 ; i <= nDims ; ++i )
+            {
+                RETURN_IF_FAILED(::SafeArrayGetLBound(psa, i, &nLbound));
+                RETURN_IF_FAILED(::SafeArrayGetUBound(psa, i, &nUbound));
+
+                result *= (nUbound - nLbound + 1);
+                if ( result > ULONG_MAX )
+                {
+                    RETURN_HR(HRESULT_FROM_WIN32(ERROR_ARITHMETIC_OVERFLOW));
+                }
+            }
+
+            *pCount = static_cast<ULONG>(result);
+            return S_OK;
+        }
+
         typedef resource_policy<SAFEARRAY*, decltype(&details::SafeArrayDestory), details::SafeArrayDestory, details::pointer_access_all> safearray_resource_policy;
         //typedef resource_policy<SAFEARRAY*, decltype(&details::SafeArrayUnlock), details::SafeArrayUnlock, details::pointer_access_all> safearray_lock_resource_policy;
         //typedef resource_policy<SAFEARRAY*, decltype(&details::SafeArrayUnaccessData), details::SafeArrayUnaccessData, details::pointer_access_all> safearray_accessdata_resource_policy;
@@ -78,6 +102,53 @@ namespace wil
         __FAIL_FAST_ASSERT__(psa != nullptr);
         return safearray_unlock_scope_exit(psa);
     }
+
+    template <typename T, typename storage_t, typename err_policy = err_exception_policy>
+    class safearraydata_t : public storage_t
+    {
+    public:
+        // forward all base class constructors...
+        template <typename... args_t>
+        explicit safearraydata_t(args_t&&... args) WI_NOEXCEPT : storage_t(wistd::forward<args_t>(args)...) {}
+
+        // HRESULT or void error handling...
+        typedef typename err_policy::result result;
+
+        // Exception-based construction
+        safearraydata_t()
+        {
+            static_assert(wistd::is_same<void, result>::value, "this constructor requires exceptions; use the create method");
+            //create(vt, cElements, lowerBound);
+        }
+
+        result create(storage_t::pointer psa)
+        {
+            HRESULT hr = [&]()
+            {
+                RETURN_HR_IF(E_INVALIDARG, !storage_t::is_valid(psa));
+                RETURN_IF_FAILED(::SafeArrayAccessData(psa, &m_pBegin));
+                storage_t::reset(sa);
+                RETURN_IF_FAILED(details::SafeArrayCountElements(storage_t::get(), &m_nCount));
+                m_pEnd = m_pBegin + m_nCount;
+                return S_OK;
+            }();
+
+            return err_policy::HResult(hr);
+        }
+
+        T* begin() WI_NOEXCEPT { return m_pBegin; }
+        T* end() WI_NOEXCEPT { return m_pEnd; }
+        const T* begin() const  WI_NOEXCEPT { return m_pBegin; }
+        const T* end() const  WI_NOEXCEPT { return m_pEnd; }
+        ULONG count() const WI_NOEXCEPT { return m_nCount; }
+
+        // TODO: Implement index operator to support [] syntax
+
+    private:
+        T*  m_pBegin = nullptr;
+        T*  m_pEnd = nullptr;
+        ULONG m_nCount = 0;
+    };
 
     template <typename storage_t, typename err_policy = err_exception_policy>
     class safearray_t : public storage_t
@@ -140,6 +211,11 @@ namespace wil
             return err_policy::HResult(::SafeArrayGetUBound(storage_t::get(), 1, pUbound));
         }
 
+        result count(ULONG* pCount) const
+        {
+            return err_policy::HResult(details::SafeArrayCountElements(storage_t::get(), pCount));
+        }
+
         // Lock Helper
         WI_NODISCARD safearray_unlock_scope_exit scope_lock() const WI_NOEXCEPT
         {
@@ -147,14 +223,14 @@ namespace wil
         }
 
         // Exception-based helper functions
-        LONG lbound(UINT nDim = 1) const
+        WI_NODISCARD LONG lbound(UINT nDim = 1) const
         {
             static_assert(wistd::is_same<void, result>::value, "this method requires exceptions");
             LONG result = 0;
             lbound(nDim, &result);
             return result;
         }
-        LONG ubound(UINT nDim = 1) const
+        WI_NODISCARD LONG ubound(UINT nDim = 1) const
         {
             static_assert(wistd::is_same<void, result>::value, "this method requires exceptions");
             LONG result = 0;
