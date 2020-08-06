@@ -118,20 +118,20 @@ namespace wil
         typedef wistd::integral_constant<size_t, 1> pointer_access_noaddress;       // get() and release() are available
         typedef wistd::integral_constant<size_t, 2> pointer_access_none;            // the raw pointer is not available
 
-        template <typename pointer,                                           // The handle type
+        template <typename pointer_t,                                         // The handle type
             typename close_fn_t,                                              // The handle close function type
             close_fn_t close_fn,                                              //      * and function pointer
-            typename pointer_access = pointer_access_all,                     // all, noaddress or none to control pointer method access
-            typename pointer_storage = pointer,                               // The type used to store the handle (usually the same as the handle itself)
-            typename invalid_t = pointer,                                     // The invalid handle value type
+            typename pointer_access_t = pointer_access_all,                   // all, noaddress or none to control pointer method access
+            typename pointer_storage_t = pointer_t,                           // The type used to store the handle (usually the same as the handle itself)
+            typename invalid_t = pointer_t,                                   // The invalid handle value type
             invalid_t invalid = invalid_t(),                                  //      * and its value (default ZERO value)
-            typename pointer_invalid = wistd::nullptr_t>                      // nullptr_t if the invalid handle value is compatible with nullptr, otherwise pointer
+            typename pointer_invalid_t = wistd::nullptr_t>                    // nullptr_t if the invalid handle value is compatible with nullptr, otherwise pointer
             struct resource_policy
         {
-            typedef pointer_storage pointer_storage;
-            typedef pointer pointer;
-            typedef pointer_invalid pointer_invalid;
-            typedef pointer_access pointer_access;
+            typedef pointer_storage_t pointer_storage;
+            typedef pointer_t pointer;
+            typedef pointer_invalid_t pointer_invalid;
+            typedef pointer_access_t pointer_access;
             __forceinline static pointer_storage invalid_value() { return (pointer)invalid; }
             __forceinline static bool is_valid(pointer_storage value) WI_NOEXCEPT { return (static_cast<pointer>(value) != (pointer)invalid); }
             __forceinline static void close(pointer_storage value) WI_NOEXCEPT { wistd::invoke(close_fn, value); }
@@ -149,11 +149,11 @@ namespace wil
         // into the inheritance chain between unique_any_t and unique_storage.  This allows classes like unique_event
         // to be a unique_any formed class, but also expose methods like SetEvent directly.
 
-        template <typename policy>
+        template <typename Policy>
         class unique_storage
         {
         protected:
-            typedef policy policy;
+            typedef Policy policy;
             typedef typename policy::pointer_storage pointer_storage;
             typedef typename policy::pointer pointer;
             typedef unique_storage<policy> base_storage;
@@ -1785,7 +1785,7 @@ namespace wil
     // Wraps StringCchPrintFExW and stores it in an automatically allocated string.  Takes a buffer followed by the same format arguments
     // that StringCchPrintfExW takes.
     template <typename string_type>
-    HRESULT str_printf_nothrow(string_type& result, _Printf_format_string_ PCWSTR pszFormat, _In_ ...)
+    HRESULT str_printf_nothrow(string_type& result, _Printf_format_string_ PCWSTR pszFormat, ...)
     {
         va_list argsVL;
         va_start(argsVL, pszFormat);
@@ -1798,7 +1798,7 @@ namespace wil
     // Wraps StringCchPrintFExW and stores it in an automatically allocated string.  Takes a buffer followed by the same format arguments
     // that StringCchPrintfExW takes.
     template <typename string_type>
-    string_type str_printf(_Printf_format_string_ PCWSTR pszFormat, _In_ ...)
+    string_type str_printf(_Printf_format_string_ PCWSTR pszFormat, ...)
     {
         string_type result;
         va_list argsVL;
@@ -1813,7 +1813,7 @@ namespace wil
     // Wraps StringCchPrintFExW and stores it in an automatically allocated string.  Takes a buffer followed by the same format arguments
     // that StringCchPrintfExW takes.
     template <typename string_type>
-    string_type str_printf_failfast(_Printf_format_string_ PCWSTR pszFormat, _In_ ...)
+    string_type str_printf_failfast(_Printf_format_string_ PCWSTR pszFormat, ...)
     {
         string_type result;
         va_list argsVL;
@@ -1860,11 +1860,11 @@ namespace wil {
         // into the inheritance chain between shared_any_t and shared_storage.  This allows classes like shared_event
         // to be a shared_any formed class, but also expose methods like SetEvent directly.
 
-        template <typename unique_t>
+        template <typename UniqueT>
         class shared_storage
         {
         protected:
-            typedef unique_t unique_t;
+            typedef UniqueT unique_t;
             typedef typename unique_t::policy policy;
             typedef typename policy::pointer_storage pointer_storage;
             typedef typename policy::pointer pointer;
@@ -2152,11 +2152,11 @@ namespace wil {
     // This class provides weak_ptr<> support for shared_any<>, bringing the same weak reference counting and lock() acquire semantics
     // to shared_any.
 
-    template <typename shared_t>
+    template <typename SharedT>
     class weak_any
     {
     public:
-        typedef shared_t shared_t;
+        typedef SharedT shared_t;
 
         weak_any() WI_NOEXCEPT
         {
@@ -2681,7 +2681,7 @@ namespace wil
     typedef unique_any_t<event_t<details::unique_storage<details::handle_resource_policy>, err_exception_policy>>      unique_event;
 #endif
 
-#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && (_WIN32_WINNT >= _WIN32_WINNT_WIN7)
     enum class SlimEventType
     {
         AutoReset,
@@ -2848,7 +2848,7 @@ namespace wil
     /** An alias for `wil::slim_event_auto_reset`. */
     using slim_event = slim_event_auto_reset;
 
-#endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+#endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && (_WIN32_WINNT >= _WIN32_WINNT_WIN7)
 
     typedef unique_any<HANDLE, decltype(&details::ReleaseMutex), details::ReleaseMutex, details::pointer_access_none> mutex_release_scope_exit;
 
@@ -3390,6 +3390,9 @@ namespace wil
 
             wchar_t* buffer() { WI_ASSERT(m_value.get());  return m_value.get(); }
 
+            // By default, assume string_type is a null-terminated string and therefore does not require trimming.
+            HRESULT trim_at_existing_null(size_t /* length */) { return S_OK; }
+
             string_type release() { return wistd::move(m_value); }
 
             // Utility to abstract access to the null terminated m_value of all string types.
@@ -3563,8 +3566,8 @@ namespace wil
         typedef typename err_policy::result result;
 
         // Exception-based constructors
-        template <typename err_policy>
-        event_watcher_t(unique_any_t<event_t<details::unique_storage<details::handle_resource_policy>, err_policy>> &&eventHandle, wistd::function<void()> &&callback)
+        template <typename from_err_policy>
+        event_watcher_t(unique_any_t<event_t<details::unique_storage<details::handle_resource_policy>, from_err_policy>> &&eventHandle, wistd::function<void()> &&callback)
         {
             static_assert(wistd::is_same<void, result>::value, "this constructor requires exceptions or fail fast; use the create method");
             create(wistd::move(eventHandle), wistd::move(callback));
@@ -4465,6 +4468,8 @@ namespace wil
                 if (source)
                 {
                     RETURN_IF_FAILED(WindowsCreateString(source, static_cast<UINT32>(length), &m_value));
+                    m_charBuffer = nullptr;
+                    m_bufferHandle.reset(); // do this after WindowsCreateString so we can trim_at_existing_null() from our own buffer
                 }
                 else
                 {
@@ -4477,6 +4482,8 @@ namespace wil
 
             wchar_t* buffer() { WI_ASSERT(m_charBuffer != nullptr);  return m_charBuffer; }
             const wchar_t* buffer() const { return m_charBuffer; }
+
+            HRESULT trim_at_existing_null(size_t length) { return make(buffer(), length); }
 
             unique_hstring release()
             {
@@ -5663,7 +5670,6 @@ namespace wil
             using wdf_lock_storage_t = unique_wdf_lock_storage<WDFSPINLOCK>;
 
         public:
-
             using pointer = wdf_lock_storage_t::pointer;
 
             // Forward all base class constructors, but have it be explicit.
@@ -5689,7 +5695,6 @@ namespace wil
             using wdf_lock_storage_t = unique_wdf_lock_storage<WDFWAITLOCK>;
 
         public:
-
             using pointer = wdf_lock_storage_t::pointer;
 
             // Forward all base class constructors, but have it be explicit.
@@ -5836,8 +5841,8 @@ namespace wil
     using kspin_lock_at_dpc_guard = unique_any<PKSPIN_LOCK, decltype(details::ReleaseSpinLockFromDpcLevel), &details::ReleaseSpinLockFromDpcLevel,
         details::pointer_access_none>;
 
-    inline
     WI_NODISCARD
+    inline
     _IRQL_requires_max_(DISPATCH_LEVEL)
     _IRQL_saves_
     _IRQL_raises_(DISPATCH_LEVEL)
@@ -5850,8 +5855,8 @@ namespace wil
         return kspin_lock_guard(spinLockSavedIrql);
     }
 
-    inline
     WI_NODISCARD
+    inline
     _IRQL_requires_min_(DISPATCH_LEVEL)
     kspin_lock_at_dpc_guard
     acquire_kspin_lock_at_dpc(_In_ PKSPIN_LOCK spinLock)
@@ -5863,7 +5868,6 @@ namespace wil
     class kernel_spin_lock
     {
     public:
-
         kernel_spin_lock() WI_NOEXCEPT
         {
             ::KeInitializeSpinLock(&m_kSpinLock);
@@ -5894,7 +5898,6 @@ namespace wil
         }
 
     private:
-
         KSPIN_LOCK m_kSpinLock;
     };
 
@@ -5904,7 +5907,6 @@ namespace wil
         class kernel_event_t
         {
         public:
-
             explicit kernel_event_t(bool isSignaled = false) WI_NOEXCEPT
             {
                 ::KeInitializeEvent(&m_kernelEvent, static_cast<EVENT_TYPE>(eventType), isSignaled ? TRUE : FALSE);
@@ -5961,7 +5963,6 @@ namespace wil
             }
 
         private:
-
             bool wait_for_single_object(_In_opt_ LARGE_INTEGER* waitDuration) WI_NOEXCEPT
             {
                 auto status = ::KeWaitForSingleObject(&m_kernelEvent, Executive, KernelMode, FALSE, waitDuration);
@@ -5979,6 +5980,204 @@ namespace wil
     using kernel_event_auto_reset = details::kernel_event_t<SynchronizationEvent>;
     using kernel_event_manual_reset = details::kernel_event_t<NotificationEvent>;
     using kernel_event = kernel_event_auto_reset; // For parity with the default for other WIL event types.
+
+    /**
+    RAII class and lock-guards for a kernel FAST_MUTEX.
+    */
+
+    using fast_mutex_guard = unique_any<FAST_MUTEX*, decltype(::ExReleaseFastMutex), &::ExReleaseFastMutex, details::pointer_access_none>;
+
+    WI_NODISCARD
+    inline
+    _IRQL_requires_max_(APC_LEVEL)
+    fast_mutex_guard acquire_fast_mutex(FAST_MUTEX* fastMutex) WI_NOEXCEPT
+    {
+        ::ExAcquireFastMutex(fastMutex);
+        return fast_mutex_guard(fastMutex);
+    }
+
+    WI_NODISCARD
+    inline
+    _IRQL_requires_max_(APC_LEVEL)
+    fast_mutex_guard try_acquire_fast_mutex(FAST_MUTEX* fastMutex) WI_NOEXCEPT
+    {
+        if (::ExTryToAcquireFastMutex(fastMutex))
+        {
+            return fast_mutex_guard(fastMutex);
+        }
+        else
+        {
+            return fast_mutex_guard();
+        }
+    }
+
+    class fast_mutex
+    {
+    public:
+        fast_mutex() WI_NOEXCEPT
+        {
+            ::ExInitializeFastMutex(&m_fastMutex);
+        }
+
+        ~fast_mutex() WI_NOEXCEPT = default;
+
+        // Cannot change memory location.
+        fast_mutex(const fast_mutex&) = delete;
+        fast_mutex& operator=(const fast_mutex&) = delete;
+        fast_mutex(fast_mutex&&) = delete;
+        fast_mutex& operator=(fast_mutex&&) = delete;
+
+        // Calls ExAcquireFastMutex. Returned wil::unique_any object calls ExReleaseFastMutex on
+        // destruction.
+        WI_NODISCARD
+        _IRQL_requires_max_(APC_LEVEL)
+        fast_mutex_guard acquire() WI_NOEXCEPT
+        {
+            return acquire_fast_mutex(&m_fastMutex);
+        }
+
+        // Calls ExTryToAcquireFastMutex. Returned wil::unique_any may be empty. If non-empty, it
+        // calls ExReleaseFastMutex on destruction.
+        WI_NODISCARD
+        _IRQL_requires_max_(APC_LEVEL)
+        fast_mutex_guard try_acquire() WI_NOEXCEPT
+        {
+            return try_acquire_fast_mutex(&m_fastMutex);
+        }
+
+    private:
+        FAST_MUTEX m_fastMutex;
+    };
+
+    namespace details
+    {
+        _IRQL_requires_max_(APC_LEVEL)
+        inline void release_fast_mutex_with_critical_region(FAST_MUTEX* fastMutex) WI_NOEXCEPT
+        {
+            ::ExReleaseFastMutexUnsafe(fastMutex);
+            ::KeLeaveCriticalRegion();
+        }
+    }
+
+    using fast_mutex_with_critical_region_guard =
+        unique_any<FAST_MUTEX*, decltype(details::release_fast_mutex_with_critical_region), &details::release_fast_mutex_with_critical_region, details::pointer_access_none>;
+
+    WI_NODISCARD
+    inline
+    _IRQL_requires_max_(APC_LEVEL)
+    fast_mutex_with_critical_region_guard acquire_fast_mutex_with_critical_region(FAST_MUTEX* fastMutex) WI_NOEXCEPT
+    {
+        ::KeEnterCriticalRegion();
+        ::ExAcquireFastMutexUnsafe(fastMutex);
+        return fast_mutex_with_critical_region_guard(fastMutex);
+    }
+
+    // A FAST_MUTEX lock class that calls KeEnterCriticalRegion and then ExAcquireFastMutexUnsafe.
+    // Returned wil::unique_any lock-guard calls ExReleaseFastMutexUnsafe and KeLeaveCriticalRegion
+    // on destruction. This is useful if calling code wants to stay at PASSIVE_LEVEL.
+    class fast_mutex_with_critical_region
+    {
+    public:
+        fast_mutex_with_critical_region() WI_NOEXCEPT
+        {
+            ::ExInitializeFastMutex(&m_fastMutex);
+        }
+
+        ~fast_mutex_with_critical_region() WI_NOEXCEPT = default;
+
+        // Cannot change memory location.
+        fast_mutex_with_critical_region(const fast_mutex_with_critical_region&) = delete;
+        fast_mutex_with_critical_region& operator=(const fast_mutex_with_critical_region&) = delete;
+        fast_mutex_with_critical_region(fast_mutex_with_critical_region&&) = delete;
+        fast_mutex_with_critical_region& operator=(fast_mutex_with_critical_region&&) = delete;
+
+        WI_NODISCARD
+        _IRQL_requires_max_(APC_LEVEL)
+        fast_mutex_with_critical_region_guard acquire() WI_NOEXCEPT
+        {
+            return acquire_fast_mutex_with_critical_region(&m_fastMutex);
+        }
+
+    private:
+        FAST_MUTEX m_fastMutex;
+    };
+
+    namespace details
+    {
+        _IRQL_requires_max_(APC_LEVEL)
+        inline void release_push_lock_exclusive(EX_PUSH_LOCK* pushLock) WI_NOEXCEPT
+        {
+            ::ExReleasePushLockExclusive(pushLock);
+            ::KeLeaveCriticalRegion();
+        }
+
+        _IRQL_requires_max_(APC_LEVEL)
+        inline void release_push_lock_shared(EX_PUSH_LOCK* pushLock) WI_NOEXCEPT
+        {
+            ::ExReleasePushLockShared(pushLock);
+            ::KeLeaveCriticalRegion();
+        }
+    }
+
+    using push_lock_exclusive_guard =
+        unique_any<EX_PUSH_LOCK*, decltype(&details::release_push_lock_exclusive), &details::release_push_lock_exclusive, details::pointer_access_noaddress>;
+
+    using push_lock_shared_guard =
+        unique_any<EX_PUSH_LOCK*, decltype(&details::release_push_lock_shared), &details::release_push_lock_shared, details::pointer_access_noaddress>;
+
+    WI_NODISCARD
+    inline
+    _IRQL_requires_max_(APC_LEVEL)
+    push_lock_exclusive_guard acquire_push_lock_exclusive(EX_PUSH_LOCK* pushLock) WI_NOEXCEPT
+    {
+        ::KeEnterCriticalRegion();
+        ::ExAcquirePushLockExclusive(pushLock);
+        return push_lock_exclusive_guard(pushLock);
+    }
+
+    WI_NODISCARD
+    inline
+    _IRQL_requires_max_(APC_LEVEL)
+    push_lock_shared_guard acquire_push_lock_shared(EX_PUSH_LOCK* pushLock) WI_NOEXCEPT
+    {
+        ::KeEnterCriticalRegion();
+        ::ExAcquirePushLockShared(pushLock);
+        return push_lock_shared_guard(pushLock);
+    }
+
+    class push_lock
+    {
+    public:
+        push_lock() WI_NOEXCEPT
+        {
+            ::ExInitializePushLock(&m_pushLock);
+        }
+
+        ~push_lock() WI_NOEXCEPT = default;
+
+        // Cannot change memory location.
+        push_lock(const push_lock&) = delete;
+        push_lock& operator=(const push_lock&) = delete;
+        push_lock(push_lock&&) = delete;
+        push_lock& operator=(push_lock&&) = delete;
+
+        WI_NODISCARD
+        _IRQL_requires_max_(APC_LEVEL)
+        push_lock_exclusive_guard acquire_exclusive() WI_NOEXCEPT
+        {
+            return acquire_push_lock_exclusive(&m_pushLock);
+        }
+
+        WI_NODISCARD
+        _IRQL_requires_max_(APC_LEVEL)
+        push_lock_shared_guard acquire_shared() WI_NOEXCEPT
+        {
+            return acquire_push_lock_shared(&m_pushLock);
+        }
+
+    private:
+        EX_PUSH_LOCK m_pushLock;
+    };
 
     namespace details
     {
