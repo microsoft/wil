@@ -88,7 +88,7 @@ namespace wil
 
         typedef resource_policy<SAFEARRAY*, decltype(&details::SafeArrayDestory), details::SafeArrayDestory, details::pointer_access_all> safearray_resource_policy;
         //typedef resource_policy<SAFEARRAY*, decltype(&details::SafeArrayUnlock), details::SafeArrayUnlock, details::pointer_access_all> safearray_lock_resource_policy;
-        //typedef resource_policy<SAFEARRAY*, decltype(&details::SafeArrayUnaccessData), details::SafeArrayUnaccessData, details::pointer_access_all> safearray_accessdata_resource_policy;
+        typedef resource_policy<SAFEARRAY*, decltype(&details::SafeArrayUnaccessData), details::SafeArrayUnaccessData, details::pointer_access_all> safearray_accessdata_resource_policy;
 
     }
     /// @endcond
@@ -115,10 +115,10 @@ namespace wil
         typedef typename err_policy::result result;
 
         // Exception-based construction
-        safearraydata_t()
+        safearraydata_t(storage_t::pointer psa)
         {
             static_assert(wistd::is_same<void, result>::value, "this constructor requires exceptions; use the create method");
-            //create(vt, cElements, lowerBound);
+            create(psa);
         }
 
         result create(storage_t::pointer psa)
@@ -136,13 +136,16 @@ namespace wil
             return err_policy::HResult(hr);
         }
 
+        // Ranged-for style
         T* begin() WI_NOEXCEPT { return m_pBegin; }
         T* end() WI_NOEXCEPT { return m_pEnd; }
-        const T* begin() const  WI_NOEXCEPT { return m_pBegin; }
-        const T* end() const  WI_NOEXCEPT { return m_pEnd; }
-        ULONG count() const WI_NOEXCEPT { return m_nCount; }
+        const T* begin() const WI_NOEXCEPT { return m_pBegin; }
+        const T* end() const WI_NOEXCEPT { return m_pEnd; }
 
-        // TODO: Implement index operator to support [] syntax
+        // Old style iteration
+        ULONG count() const WI_NOEXCEPT { return m_nCount; }
+        WI_NODISCARD T& operator[](ULONG i)      { WI_ASSERT(i < m_nCount);  return *(m_pBegin + i); }
+        WI_NODISCARD const T& operator[](ULONG i) const { WI_ASSERT(i < m_nCount); return *(m_pBegin +i); }
 
     private:
         T*  m_pBegin = nullptr;
@@ -150,9 +153,24 @@ namespace wil
         ULONG m_nCount = 0;
     };
 
+//     template<typename T>
+//     using unique_safearrayaccess_nothrow = unique_any_t<safearraydata_t<T, details::unique_storage<details::safearray_accessdata_resource_policy>, err_returncode_policy>>;
+
+//     template<typename T>
+//     using unique_safearrayaccess_failfast = unique_any_t<safearraydata_t<T, details::unique_storage<details::safearray_accessdata_resource_policy>, err_failfast_policy>>;
+
+// #ifdef WIL_ENABLE_EXCEPTIONS
+//     template<typename T>
+//     using unique_safearrayaccess = unique_any_t<safearraydata_t<T, details::unique_storage<details::safearray_accessdata_resource_policy>, err_exception_policy>>;
+// #endif
+
+
     template <typename storage_t, typename err_policy = err_exception_policy>
     class safearray_t : public storage_t
     {
+        template<typename T>
+        using unique_accessdata_t = unique_any_t<safearraydata_t<T, details::unique_storage<details::safearray_accessdata_resource_policy>, err_policy>>;
+
     public:
         // forward all base class constructors...
         template <typename... args_t>
@@ -175,7 +193,7 @@ namespace wil
             {
                 RETURN_HR_IF_NULL(E_INVALIDARG, sab);
                 RETURN_HR_IF(E_INVALIDARG, cDims < 1);
-                SAFEARRAY* sa = ::SafeArrayCreate(vt, cDims, sab);
+                auto* sa = ::SafeArrayCreate(vt, cDims, sab);
                 RETURN_LAST_ERROR_IF_NULL(sa);
                 storage_t::reset(sa);
                 return S_OK;
@@ -216,6 +234,20 @@ namespace wil
             return err_policy::HResult(details::SafeArrayCountElements(storage_t::get(), pCount));
         }
 
+        result copy(storage_t::pointer psa)
+        {
+            HRESULT hr = [&]()
+            {
+               auto dest = invalid_value();
+
+                RETURN_IF_FAILED(::SafeArrayCopy(psa, &dest));
+                storage_t::reset(dest);
+                return S_OK;
+            }();
+
+            return err_policy::HResult(hr);
+        }
+
         // Lock Helper
         WI_NODISCARD safearray_unlock_scope_exit scope_lock() const WI_NOEXCEPT
         {
@@ -237,10 +269,15 @@ namespace wil
             ubound(nDim, &result);
             return result;
         }
-
+        WI_NODISCARD ULONG count() const
+        {
+            static_assert(wistd::is_same<void, result>::value, "this method requires exceptions");
+            ULONG result = 0;
+            count(&result);
+            return result;
+        }
 
     private:
-
     };
 
 
