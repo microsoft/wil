@@ -27,25 +27,26 @@ namespace wil
     namespace details
     {
         template<typename T>
-        struct TypeTraits{};
+        struct VarTraits{};
 
-        template<> struct TypeTraits<char>                       { enum { type = VT_I1 }; };
-        template<> struct TypeTraits<short>                      { enum { type = VT_I2 }; };
-        template<> struct TypeTraits<long>                       { enum { type = VT_I4 }; };
-        template<> struct TypeTraits<int>                        { enum { type = VT_I4 }; };
-        template<> struct TypeTraits<long long>                  { enum { type = VT_I8 }; };
-        template<> struct TypeTraits<__int64>                    { enum { type = VT_I8 }; };
-        template<> struct TypeTraits<unsigned char>              { enum { type = VT_UI1 }; };
-        template<> struct TypeTraits<unsigned short>             { enum { type = VT_UI2 }; };
-        template<> struct TypeTraits<unsigned long>              { enum { type = VT_UI4 }; };
-        template<> struct TypeTraits<unsigned int>               { enum { type = VT_UI4 }; };
-        template<> struct TypeTraits<unsigned long long>         { enum { type = VT_UI8 }; };
-        template<> struct TypeTraits<unsigned __int64>           { enum { type = VT_UI8 }; };
-        template<> struct TypeTraits<float>                      { enum { type = VT_R4 }; };
-        template<> struct TypeTraits<double>                     { enum { type = VT_R8 }; };
+        template<> struct VarTraits<char>                       { enum { type = VT_I1 }; };
+        template<> struct VarTraits<short>                      { enum { type = VT_I2 }; };
+        template<> struct VarTraits<long>                       { enum { type = VT_I4 }; };
+        template<> struct VarTraits<int>                        { enum { type = VT_I4 }; };
+        template<> struct VarTraits<long long>                  { enum { type = VT_I8 }; };
+        template<> struct VarTraits<__int64>                    { enum { type = VT_I8 }; };
+        template<> struct VarTraits<unsigned char>              { enum { type = VT_UI1 }; };
+        template<> struct VarTraits<unsigned short>             { enum { type = VT_UI2 }; };
+        template<> struct VarTraits<unsigned long>              { enum { type = VT_UI4 }; };
+        template<> struct VarTraits<unsigned int>               { enum { type = VT_UI4 }; };
+        template<> struct VarTraits<unsigned long long>         { enum { type = VT_UI8 }; };
+        template<> struct VarTraits<unsigned __int64>           { enum { type = VT_UI8 }; };
+        template<> struct VarTraits<float>                      { enum { type = VT_R4 }; };
+        template<> struct VarTraits<double>                     { enum { type = VT_R8 }; };
+        template<> struct VarTraits<BSTR>                       { enum { type = VT_BSTR }; };
 
         template<typename INTERFACE>
-        struct TypeTraits<com_ptr<INTERFACE>>                    { enum { type = VT_UNKNOWN }; };
+        struct VarTraits<com_ptr<INTERFACE>>                    { enum { type = VT_UNKNOWN }; };
 
         inline void __stdcall SafeArrayDestory(SAFEARRAY* psa) WI_NOEXCEPT
         {
@@ -208,6 +209,14 @@ namespace wil
             auto bounds = SAFEARRAYBOUND{cElements, lowerBound};
 
             return err_policy::HResult(create(vt, 1, &bounds));
+        }
+
+        template<typename T>
+        result create(UINT cElements, LONG lowerBound = 0)
+        {
+            constexpr auto vt = static_cast<VARTYPE>(details::VarTraits<T>::type);
+
+            return err_policy::Hresult(create(vt, cElements, lowerBound));
         }
 
         ULONG dim() const WI_NOEXCEPT { return ::SafeArrayGetDim(storage_t::get()); }
