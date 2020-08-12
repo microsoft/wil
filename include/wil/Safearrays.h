@@ -186,6 +186,8 @@ namespace wil
     public:
         template<typename T>
         using unique_accessdata_t = unique_any_t<safearraydata_t<T, details::unique_storage<details::safearray_accessdata_resource_policy>, err_policy>>;
+
+        using unique_safearray_t = unique_any_t<safearray_t<storage_t, err_policy>>;
         typedef typename err_policy::result result;
         typedef typename storage_t::pointer pointer;
 
@@ -361,6 +363,14 @@ namespace wil
             static_assert(wistd::is_same<void, result>::value, "this method requires exceptions");
             ULONG result = 0;
             count(&result);
+            return result;
+        }
+        WI_NODISCARD unique_safearray_t copy() const
+        {
+            static_assert(wistd::is_same<void, result>::value, "this method requires exceptions");
+
+            auto result = unique_safearray_t{};
+            result.create(storage_t::get());
             return result;
         }
 
