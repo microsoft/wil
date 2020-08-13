@@ -48,7 +48,6 @@ TEST_CASE("SafearrayTests::Create", "[safearray][create]")
 #endif
 }
 
-
 TEST_CASE("SafearrayTests::Lock", "[safearray][lock]")
 {
     SECTION("Lock SafeArray")
@@ -72,6 +71,34 @@ TEST_CASE("SafearrayTests::Lock", "[safearray][lock]")
         const auto endingLocks = sa.get()->cLocks;
 
         REQUIRE(startingLocks == endingLocks);
+    }
+
+}
+
+TEST_CASE("SafearrayTests::AccessData", "[safearray][data]")
+{
+    SECTION("Basic")
+    {
+        constexpr auto SIZE = 32;
+
+        wil::unique_safearray_nothrow sa;
+
+        REQUIRE_SUCCEEDED(sa.create(VT_UI4, SIZE));
+
+        for (auto i = 0; i < SIZE; ++i)
+        {
+            sa.put_element((1 << i), i);
+        }
+
+        {
+            wil::unique_safearray_nothrow::unique_accessdata_t<UINT> data;
+            UINT counter = 0;
+            REQUIRE_SUCCEEDED(sa.access_data(data));
+            for (auto& n : data)
+            {
+                REQUIRE(n == static_cast<UINT>(1 << counter++));
+            }
+        }
     }
 
 }

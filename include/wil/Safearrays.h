@@ -68,6 +68,13 @@ namespace wil
             FAIL_FAST_IF_FAILED(::SafeArrayUnaccessData(psa));
         }
 
+        template<typename T>
+        inline void __stdcall SafeArrayAccessData(SAFEARRAY* psa, T*& p) WI_NOEXCEPT
+        {
+            __FAIL_FAST_ASSERT__(psa != nullptr);
+            FAIL_FAST_IF_FAILED(::SafeArrayAccessData(psa, reinterpret_cast<void**>(&p)));
+        }
+
         inline HRESULT __stdcall SafeArrayCreate(VARTYPE vt, UINT cDims, SAFEARRAYBOUND* sab, SAFEARRAY*& psa) WI_NOEXCEPT
         {
             WI_ASSERT(sab != nullptr);
@@ -143,8 +150,7 @@ namespace wil
             HRESULT hr = [&]()
             {
                 WI_ASSERT(sizeof(T) == ::SafeArrayGetElemsize(psa));
-                RETURN_HR_IF(E_INVALIDARG, !storage_t::is_valid(psa));
-                RETURN_IF_FAILED(::SafeArrayAccessData(psa, &m_pBegin));
+                details::SafeArrayAccessData(psa, m_pBegin);
                 storage_t::reset(psa);
                 RETURN_IF_FAILED(details::SafeArrayCountElements(storage_t::get(), &m_nCount));
                 return S_OK;
@@ -343,27 +349,34 @@ namespace wil
             return err_policy::HResult(::SafeArrayGetElement(storage_t::get(), &nIndex, &t));
         }
 
+        // Data Access
+        template<typename T>
+        result access_data(unique_accessdata_t<T>& data)
+        {
+            return err_policy::HResult(data.create(storage_t::get()));
+        }
+
         // Exception-based helper functions
         WI_NODISCARD LONG lbound(UINT nDim = 1) const
         {
             static_assert(wistd::is_same<void, result>::value, "this method requires exceptions");
-            LONG result = 0;
-            lbound(nDim, &result);
-            return result;
+            LONG nResult = 0;
+            lbound(nDim, &nResult);
+            return nResult;
         }
         WI_NODISCARD LONG ubound(UINT nDim = 1) const
         {
             static_assert(wistd::is_same<void, result>::value, "this method requires exceptions");
-            LONG result = 0;
-            ubound(nDim, &result);
-            return result;
+            LONG nResult = 0;
+            ubound(nDim, &nResult);
+            return nResult;
         }
         WI_NODISCARD ULONG count() const
         {
             static_assert(wistd::is_same<void, result>::value, "this method requires exceptions");
-            ULONG result = 0;
-            count(&result);
-            return result;
+            ULONG nResult = 0;
+            count(&nResult);
+            return nResult;
         }
         WI_NODISCARD unique_safearray_t copy() const
         {
@@ -372,6 +385,15 @@ namespace wil
             auto result = unique_safearray_t{};
             result.create(storage_t::get());
             return result;
+        }
+        template<typename T>
+        WI_NODISCARD unique_accessdata_t<T> access_data() const
+        {
+            static_assert(wistd::is_same<void, result>::value, "this method requires exceptions");
+
+            auto data = unique_accessdata_t<T>{};
+            data.create(storage_t::get());
+            return data;
         }
 
     private:
