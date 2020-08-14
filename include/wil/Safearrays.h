@@ -43,6 +43,7 @@ namespace wil
         template<> struct VarTraits<double>                     { enum { type = VT_R8 }; };
         template<> struct VarTraits<BSTR>                       { enum { type = VT_BSTR }; };
         template<> struct VarTraits<LPUNKNOWN>                  { enum { type = VT_UNKNOWN }; };
+        template<> struct VarTraits<LPDISPATCH>                 { enum { type = VT_DISPATCH }; };
         template<> struct VarTraits<VARIANT>                    { enum { type = VT_VARIANT }; };
 
         inline void __stdcall SafeArrayDestory(SAFEARRAY* psa) WI_NOEXCEPT
@@ -195,9 +196,9 @@ namespace wil
     private:
         // SFINAE Helpers to improve readability
         // Filters functions that don't require a type because a type was provided by the class type
-        template<typename T> using IsSafeArrayTyped = typename wistd::enable_if<!wistd::is_same<void, T>::value, int>::type;
+        template<typename T> using EnableIfTyped = typename wistd::enable_if<!wistd::is_same<void, T>::value, int>::type;
         // Filters functions that require a type because the class type doesn't provide one (element_t == void)
-        template<typename T> using IsSafeArrayNotTyped = typename wistd::enable_if<wistd::is_same<void, T>::value, int>::type;
+        template<typename T> using EnableIfNotTyped = typename wistd::enable_if<wistd::is_same<void, T>::value, int>::type;
 
     public:
         template<typename T>
@@ -214,28 +215,34 @@ namespace wil
         explicit safearray_t(args_t&&... args) WI_NOEXCEPT : storage_t(wistd::forward<args_t>(args)...) {}
 
         // Exception-based construction
-        template<typename T = element_t, typename wistd::enable_if<wistd::is_same<void, T>::value, int>::type = 0>
+        template<typename T = element_t, EnableIfNotTyped<T> = 0>
         safearray_t(VARTYPE vt, UINT cElements, LONG lowerBound = 0)
         {
             static_assert(wistd::is_same<void, result>::value, "this constructor requires exceptions; use the create method");
             create(vt, cElements, lowerBound);
         }
+        template<typename T = element_t, EnableIfTyped<T> = 0>
+        safearray_t(UINT cElements, LONG lowerBound = 0)
+        {
+            static_assert(wistd::is_same<void, result>::value, "this constructor requires exceptions; use the create method");
+            create(cElements, lowerBound);
+        }
 
         // Low-level, arbitrary number of dimensions
-        template<typename T = element_t, typename wistd::enable_if<wistd::is_same<void, T>::value, int>::type = 0>
+        template<typename T = element_t, EnableIfNotTyped<T> = 0>
         result create(VARTYPE vt, UINT cDims, SAFEARRAYBOUND* sab)
         {
             return err_policy::HResult(_create(vt, cDims, sab));
         }
 
         // Single Dimension specialization
-        template<typename T = element_t, typename wistd::enable_if<wistd::is_same<void, T>::value, int>::type = 0>
+        template<typename T = element_t, EnableIfNotTyped<T> = 0>
         result create(VARTYPE vt, UINT cElements, LONG lowerBound = 0)
         {
             auto bounds = SAFEARRAYBOUND{ cElements, lowerBound };
             return err_policy::HResult(_create(vt, 1, &bounds));
         }
-        template<typename T, typename U = element_t, typename wistd::enable_if<wistd::is_same<void, U>::value, int>::type = 0>
+        template<typename T, typename U = element_t, EnableIfNotTyped<U> = 0>
         result create(UINT cElements, LONG lowerBound = 0)
         {
             constexpr auto vt = static_cast<VARTYPE>(details::VarTraits<T>::type);
@@ -244,16 +251,8 @@ namespace wil
         }
 
         // Uses the fixed element type defined by the class
-        // Exception-based construction
-        template<typename T = element_t, typename wistd::enable_if<!wistd::is_same<void, T>::value, int>::type = 0>
-        safearray_t(UINT cElements, LONG lowerBound = 0)
-        {
-            static_assert(wistd::is_same<void, result>::value, "this constructor requires exceptions; use the create method");
-            create(cElements, lowerBound);
-        }
-
         // Low-level, arbitrary number of dimensions
-        template<typename T = element_t, typename wistd::enable_if<!wistd::is_same<void, T>::value, int>::type = 0>
+        template<typename T = element_t, EnableIfTyped<T> = 0>
         result create(UINT cDims, SAFEARRAYBOUND* sab)
         {
             constexpr auto vt = static_cast<VARTYPE>(details::VarTraits<T>::type);
@@ -261,7 +260,7 @@ namespace wil
         }
 
         // Single Dimension specialization
-        template<typename T = element_t, typename wistd::enable_if<!wistd::is_same<void, T>::value, int>::type = 0>
+        template<typename T = element_t, EnableIfTyped<T> = 0>
         result create(UINT cElements, LONG lowerBound = 0)
         {
             constexpr auto vt = static_cast<VARTYPE>(details::VarTraits<T>::type);
