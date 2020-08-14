@@ -16,6 +16,7 @@
 #endif
 
 #include <new.h> // new(std::nothrow)
+#include "wistd_type_traits.h"
 #include "resource.h" // unique_hkey
 
 namespace wil
@@ -62,17 +63,17 @@ namespace wil
             FAIL_FAST_IF_FAILED(::SafeArrayUnlock(psa));
         }
 
-        inline void __stdcall SafeArrayUnaccessData(SAFEARRAY* psa) WI_NOEXCEPT
-        {
-            __FAIL_FAST_ASSERT__(psa != nullptr);
-            FAIL_FAST_IF_FAILED(::SafeArrayUnaccessData(psa));
-        }
-
         template<typename T>
         inline void __stdcall SafeArrayAccessData(SAFEARRAY* psa, T*& p) WI_NOEXCEPT
         {
             __FAIL_FAST_ASSERT__(psa != nullptr);
             FAIL_FAST_IF_FAILED(::SafeArrayAccessData(psa, reinterpret_cast<void**>(&p)));
+        }
+
+        inline void __stdcall SafeArrayUnaccessData(SAFEARRAY* psa) WI_NOEXCEPT
+        {
+            __FAIL_FAST_ASSERT__(psa != nullptr);
+            FAIL_FAST_IF_FAILED(::SafeArrayUnaccessData(psa));
         }
 
         inline HRESULT __stdcall SafeArrayCreate(VARTYPE vt, UINT cDims, SAFEARRAYBOUND* sab, SAFEARRAY*& psa) WI_NOEXCEPT
@@ -185,17 +186,27 @@ namespace wil
      using unique_safearrayaccess = unique_any_t<safearraydata_t<T, details::unique_storage<details::safearray_accessdata_resource_policy>, err_exception_policy>>;
 #endif
 
-
-    template <typename storage_t, typename err_policy = err_exception_policy>
+    // Add safearray functionality to the given storage type using the given error policy
+    // element_t is the C++ type for the elements in the safearray OR use void to enable
+    // the methods that take the type as a parameter
+    template <typename storage_t, typename err_policy = err_exception_policy, typename element_t = void>
     class safearray_t : public storage_t
     {
+    private:
+        // SFINAE Helpers to improve readability
+        // Filters functions that don't require a type because a type was provided by the class type
+        template<typename T> using IsSafeArrayTyped = typename wistd::enable_if<!wistd::is_same<void, T>::value, int>::type;
+        // Filters functions that require a type because the class type doesn't provide one (element_t == void)
+        template<typename T> using IsSafeArrayNotTyped = typename wistd::enable_if<wistd::is_same<void, T>::value, int>::type;
+
     public:
         template<typename T>
         using unique_accessdata_t = unique_any_t<safearraydata_t<T, details::unique_storage<details::safearray_accessdata_resource_policy>, err_policy>>;
 
-        using unique_safearray_t = unique_any_t<safearray_t<storage_t, err_policy>>;
+        using unique_safearray_t = unique_any_t<safearray_t<storage_t, err_policy, element_t>>;
         typedef typename err_policy::result result;
         typedef typename storage_t::pointer pointer;
+        typedef element_t elemtype;
 
     public:
         // forward all base class constructors...
@@ -203,6 +214,7 @@ namespace wil
         explicit safearray_t(args_t&&... args) WI_NOEXCEPT : storage_t(wistd::forward<args_t>(args)...) {}
 
         // Exception-based construction
+        template<typename T = element_t, typename wistd::enable_if<wistd::is_same<void, T>::value, int>::type = 0>
         safearray_t(VARTYPE vt, UINT cElements, LONG lowerBound = 0)
         {
             static_assert(wistd::is_same<void, result>::value, "this constructor requires exceptions; use the create method");
@@ -210,50 +222,51 @@ namespace wil
         }
 
         // Low-level, arbitrary number of dimensions
+        template<typename T = element_t, typename wistd::enable_if<wistd::is_same<void, T>::value, int>::type = 0>
         result create(VARTYPE vt, UINT cDims, SAFEARRAYBOUND* sab)
         {
-            HRESULT hr = [&]()
-            {
-                auto psa = storage_t::policy::invalid_value();
-
-                RETURN_IF_FAILED(details::SafeArrayCreate(vt, cDims, sab, psa));
-                storage_t::reset(psa);
-                return S_OK;
-            }();
-
-            return err_policy::HResult(hr);
+            return err_policy::HResult(_create(vt, cDims, sab));
         }
 
         // Single Dimension specialization
+        template<typename T = element_t, typename wistd::enable_if<wistd::is_same<void, T>::value, int>::type = 0>
         result create(VARTYPE vt, UINT cElements, LONG lowerBound = 0)
         {
-            HRESULT hr = [&]()
-            {
-                auto bounds = SAFEARRAYBOUND{ cElements, lowerBound };
-                auto psa = storage_t::policy::invalid_value();
-
-                RETURN_IF_FAILED(details::SafeArrayCreate(vt, 1, &bounds, psa));
-                storage_t::reset(psa);
-                return S_OK;
-            }();
-
-            return err_policy::HResult(hr);
+            auto bounds = SAFEARRAYBOUND{ cElements, lowerBound };
+            return err_policy::HResult(_create(vt, 1, &bounds));
         }
-        template<typename T>
+        template<typename T, typename U = element_t, typename wistd::enable_if<wistd::is_same<void, U>::value, int>::type = 0>
         result create(UINT cElements, LONG lowerBound = 0)
         {
             constexpr auto vt = static_cast<VARTYPE>(details::VarTraits<T>::type);
-            HRESULT hr = [&]()
-            {
-                auto bounds = SAFEARRAYBOUND{ cElements, lowerBound };
-                auto psa = storage_t::policy::invalid_value();
+            auto bounds = SAFEARRAYBOUND{ cElements, lowerBound };
+            return err_policy::HResult(_create(vt, 1, &bounds));
+        }
 
-                RETURN_IF_FAILED(details::SafeArrayCreate(vt, 1, &bounds, psa));
-                storage_t::reset(psa);
-                return S_OK;
-            }();
+        // Uses the fixed element type defined by the class
+        // Exception-based construction
+        template<typename T = element_t, typename wistd::enable_if<!wistd::is_same<void, T>::value, int>::type = 0>
+        safearray_t(UINT cElements, LONG lowerBound = 0)
+        {
+            static_assert(wistd::is_same<void, result>::value, "this constructor requires exceptions; use the create method");
+            create(cElements, lowerBound);
+        }
 
-            return err_policy::HResult(hr);
+        // Low-level, arbitrary number of dimensions
+        template<typename T = element_t, typename wistd::enable_if<!wistd::is_same<void, T>::value, int>::type = 0>
+        result create(UINT cDims, SAFEARRAYBOUND* sab)
+        {
+            constexpr auto vt = static_cast<VARTYPE>(details::VarTraits<T>::type);
+            return err_policy::HResult(_create(vt, cDims, sab));
+        }
+
+        // Single Dimension specialization
+        template<typename T = element_t, typename wistd::enable_if<!wistd::is_same<void, T>::value, int>::type = 0>
+        result create(UINT cElements, LONG lowerBound = 0)
+        {
+            constexpr auto vt = static_cast<VARTYPE>(details::VarTraits<T>::type);
+            auto bounds = SAFEARRAYBOUND{ cElements, lowerBound };
+            return err_policy::HResult(_create(vt, 1, &bounds));
         }
 
         // Create a Copy
@@ -397,13 +410,65 @@ namespace wil
         }
 
     private:
+        HRESULT _create(VARTYPE vt, UINT cDims, SAFEARRAYBOUND* sab)
+        {
+            auto psa = storage_t::policy::invalid_value();
+            RETURN_IF_FAILED(details::SafeArrayCreate(vt, cDims, sab, psa));
+            storage_t::reset(psa);
+            return S_OK;
+        }
     };
 
-    using unique_safearray_nothrow = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_returncode_policy>>;
-    using unique_safearray_failfast = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_failfast_policy>>;
+    using unique_safearray_nothrow = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_returncode_policy, void>>;
+    using unique_safearray_failfast = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_failfast_policy, void>>;
+    using unique_char_safearray_nothrow = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_returncode_policy, char>>;
+    using unique_char_safearray_failfast = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_failfast_policy, char>>;
+    using unique_short_safearray_nothrow = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_returncode_policy, short>>;
+    using unique_short_safearray_failfast = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_failfast_policy, short>>;
+    using unique_long_safearray_nothrow = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_returncode_policy, long>>;
+    using unique_long_safearray_failfast = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_failfast_policy, long>>;
+    using unique_int_safearray_nothrow = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_returncode_policy, int>>;
+    using unique_int_safearray_failfast = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_failfast_policy, int>>;
+    using unique_longlong_safearray_nothrow = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_returncode_policy, long long>>;
+    using unique_longlong_safearray_failfast = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_failfast_policy, long long>>;
+    using unique_byte_safearray_nothrow = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_returncode_policy, byte>>;
+    using unique_byte_safearray_failfast = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_failfast_policy, byte>>;
+    using unique_word_safearray_nothrow = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_returncode_policy, WORD>>;
+    using unique_word_safearray_failfast = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_failfast_policy, WORD>>;
+    using unique_dword_safearray_nothrow = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_returncode_policy, DWORD>>;
+    using unique_dword_safearray_failfast = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_failfast_policy, DWORD>>;
+    using unique_ulonglong_safearray_nothrow = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_returncode_policy, ULONGLONG>>;
+    using unique_ulonglong_safearray_failfast = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_failfast_policy, ULONGLONG>>;
+    using unique_float_safearray_nothrow = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_returncode_policy, float>>;
+    using unique_float_safearray_failfast = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_failfast_policy, float>>;
+    using unique_double_safearray_nothrow = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_returncode_policy, double>>;
+    using unique_double_safearray_failfast = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_failfast_policy, double>>;
+    using unique_bstr_safearray_nothrow = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_returncode_policy, BSTR>>;
+    using unique_bstr_safearray_failfast = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_failfast_policy, BSTR>>;
+    using unique_unknown_safearray_nothrow = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_returncode_policy, LPUNKNOWN>>;
+    using unique_unknown_safearray_failfast = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_failfast_policy, LPUNKNOWN>>;
+    using unique_dispatch_safearray_nothrow = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_returncode_policy, LPDISPATCH>>;
+    using unique_dispatch_safearray_failfast = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_failfast_policy, LPDISPATCH>>;
+    using unique_variant_safearray_nothrow = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_returncode_policy, VARIANT>>;
+    using unique_variant_safearray_failfast = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_failfast_policy, VARIANT>>;
 
 #ifdef WIL_ENABLE_EXCEPTIONS
-    using unique_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy>>;
+    using unique_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, void>>;
+    using unique_char_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, char>>;
+    using unique_short_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, short>>;
+    using unique_long_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, long>>;
+    using unique_int_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, int>>;
+    using unique_longlong_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, long long>>;
+    using unique_byte_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, byte>>;
+    using unique_word_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, WORD>>;
+    using unique_dword_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, DWORD>>;
+    using unique_ulonglong_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, ULONGLONG>>;
+    using unique_float_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, float>>;
+    using unique_double_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, double>>;
+    using unique_bstr_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, BSTR>>;
+    using unique_unknown_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, LPUNKNOWN>>;
+    using unique_dispatch_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, LPDISPATCH>>;
+    using unique_variant_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, VARIANT>>;
 #endif
 
 #endif
