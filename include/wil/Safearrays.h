@@ -40,7 +40,10 @@ namespace wil
         template<> struct VarTraits<unsigned int>               { enum { type = VT_UI4 }; };
         template<> struct VarTraits<unsigned long long>         { enum { type = VT_UI8 }; };
         template<> struct VarTraits<float>                      { enum { type = VT_R4 }; };
-        template<> struct VarTraits<double>                     { enum { type = VT_R8 }; };
+        template<> struct VarTraits<VARIANT_BOOL>               { enum { type = VT_BOOL }; };
+        template<> struct VarTraits<DATE>                       { enum { type = VT_DATE }; };
+        template<> struct VarTraits<CURRENCY>                   { enum { type = VT_CY }; };
+        template<> struct VarTraits<DECIMAL>                    { enum { type = VT_DECIMAL }; };
         template<> struct VarTraits<BSTR>                       { enum { type = VT_BSTR }; };
         template<> struct VarTraits<LPUNKNOWN>                  { enum { type = VT_UNKNOWN }; };
         template<> struct VarTraits<LPDISPATCH>                 { enum { type = VT_DISPATCH }; };
@@ -114,6 +117,42 @@ namespace wil
 
         typedef resource_policy<SAFEARRAY*, decltype(&details::SafeArrayDestory), details::SafeArrayDestory, details::pointer_access_all> safearray_resource_policy;
         typedef resource_policy<SAFEARRAY*, decltype(&details::SafeArrayUnaccessData), details::SafeArrayUnaccessData, details::pointer_access_all> safearray_accessdata_resource_policy;
+
+        //template<LONG... Indexes>
+        //class safearray_index : private std::array<LONG, sizeof...(Indexes)>
+        //{
+        //public:
+        //    safearray_index() : std::array<LONG, sizeof...(Indexes)>{ Indexes... };
+        //    LPLONG get() { return data(); }
+        //    ULONG count() { return static_cast<ULONG>(size()); }
+        //};
+
+        //template<LONG Index>
+        //class safearray_index
+        //{
+        //public:
+        //    safearray_index() : _value{ Index } {}
+        //    LPLONG get() { return &_value; }
+        //    ULONG count() { return 1; }
+        //private:
+        //    LONG _value;
+        //};
+
+        //template<LPLONG Indexes>
+        //class safearray_index
+        //{
+        //public:
+        //    safearray_index() : _indexes{Indexes}
+        //    LPLONG get() { return _indexes; }
+        //    ULONG count() { return 0; }
+        //private:
+        //    LPLONG _indexes:
+        //};
+
+        //template<typename... Args>
+        //DebugContextT& Format(const wchar_t* const lpszFormat, Args... args) noexcept
+        //    template<typename T, CharT... cs>
+        //    constexpr auto chars = std::array<CharT, sizeof...(cs)>{ cs... };
 
     }
     /// @endcond
@@ -315,6 +354,8 @@ namespace wil
             return wil::SafeArrayUnlock_scope_exit(storage_t::get());
         }
 
+        // Lowest-Level functions for those who know what they're doing
+            // TODO: Finish safearray_index type to collapse both versions into one functioon
         result put_element(void* pv, LONG* pIndices)
         {
             return err_policy::HResult(::SafeArrayPutElement(storage_t::get(), pIndices, pv));
@@ -324,20 +365,6 @@ namespace wil
             WI_ASSERT(dim() == 1);
             return err_policy::HResult(::SafeArrayPutElement(storage_t::get(), &nIndex, pv));
         }
-        template<typename T>
-        result put_element(T t, LONG* pIndices)
-        {
-            WI_ASSERT(sizeof(t) == elemsize());
-            return err_policy::HResult(::SafeArrayPutElement(storage_t::get(), pIndices, &t));
-        }
-        template<typename T>
-        result put_element(T t, LONG nIndex)
-        {
-            WI_ASSERT(sizeof(t) == elemsize());
-            WI_ASSERT(dim() == 1);
-            return err_policy::HResult(::SafeArrayPutElement(storage_t::get(), &nIndex, &t));
-        }
-
         result get_element(void* pv, LONG* pIndices)
         {
             return err_policy::HResult(::SafeArrayGetElement(storage_t::get(), pIndices, pv));
@@ -347,14 +374,45 @@ namespace wil
             WI_ASSERT(dim() == 1);
             return err_policy::HResult(::SafeArrayGetElement(storage_t::get(), &nIndex, pv));
         }
-        template<typename T>
-        result get_element(T& t, LONG* pIndices)
+
+        //template<typename T>
+        //result put_element(const T& t, LONG* pIndices)
+        //{
+        //    WI_ASSERT(sizeof(t) == elemsize());
+        //    return err_policy::HResult(::SafeArrayPutElement(storage_t::get(), pIndices, &t));
+        //}
+        //template<typename T>
+        //result get_element(T& t, LONG* pIndices)
+        //{
+        //    WI_ASSERT(sizeof(t) == elemsize());
+        //    return err_policy::HResult(::SafeArrayGetElement(storage_t::get(), pIndices, &t));
+        //}
+        template<typename T, typename U = element_t, EnableIfNotTyped<U> = 0>
+        result put_element(const T& t, LONG nIndex)
         {
             WI_ASSERT(sizeof(t) == elemsize());
-            return err_policy::HResult(::SafeArrayGetElement(storage_t::get(), pIndices, &t));
+            WI_ASSERT(dim() == 1);
+            return err_policy::HResult(::SafeArrayPutElement(storage_t::get(), &nIndex, &t));
         }
-        template<typename T>
+
+        template<typename T, typename U = element_t, EnableIfNotTyped<U> = 0>
         result get_element(T& t, LONG nIndex)
+        {
+            WI_ASSERT(sizeof(t) == elemsize());
+            WI_ASSERT(dim() == 1);
+            return err_policy::HResult(::SafeArrayGetElement(storage_t::get(), &nIndex, &t));
+        }
+
+        template<typename T = element_t, EnableIfTyped<T> = 0>
+        result put_element(const element_t& t, LONG nIndex)
+        {
+            WI_ASSERT(sizeof(t) == elemsize());
+            WI_ASSERT(dim() == 1);
+            return err_policy::HResult(::SafeArrayPutElement(storage_t::get(), &nIndex, &t));
+        }
+
+        template<typename T = element_t, EnableIfTyped<T> = 0>
+        result get_element(element_t& t, LONG nIndex)
         {
             WI_ASSERT(sizeof(t) == elemsize());
             WI_ASSERT(dim() == 1);
@@ -450,6 +508,14 @@ namespace wil
     using unique_dispatch_safearray_failfast = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_failfast_policy, LPDISPATCH>>;
     using unique_variant_safearray_nothrow = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_returncode_policy, VARIANT>>;
     using unique_variant_safearray_failfast = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_failfast_policy, VARIANT>>;
+    using unique_varbool_safearray_nothrow = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_returncode_policy, VARIANT_BOOL>>;
+    using unique_varbool_safearray_failfast = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_failfast_policy, VARIANT_BOOL>>;
+    using unique_date_safearray_nothrow = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_returncode_policy, DATE>>;
+    using unique_date_safearray_failfast = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_failfast_policy, DATE>>;
+    using unique_currency_safearray_nothrow = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_returncode_policy, CURRENCY>>;
+    using unique_currency_safearray_failfast = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_failfast_policy, CURRENCY>>;
+    using unique_decimal_safearray_nothrow = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_returncode_policy, DECIMAL>>;
+    using unique_decimal_safearray_failfast = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_failfast_policy, DECIMAL>>;
 
 #ifdef WIL_ENABLE_EXCEPTIONS
     using unique_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, void>>;
@@ -468,6 +534,10 @@ namespace wil
     using unique_unknown_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, LPUNKNOWN>>;
     using unique_dispatch_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, LPDISPATCH>>;
     using unique_variant_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, VARIANT>>;
+    using unique_varbool_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, VARIANT_BOOL>>;
+    using unique_date_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, DATE>>;
+    using unique_currency_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, CURRENCY>>;
+    using unique_decimal_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, DECIMAL>>;
 #endif
 
 #endif
