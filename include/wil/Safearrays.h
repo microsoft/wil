@@ -40,6 +40,7 @@ namespace wil
         template<> struct VarTraits<unsigned int>               { enum { type = VT_UI4 }; };
         template<> struct VarTraits<unsigned long long>         { enum { type = VT_UI8 }; };
         template<> struct VarTraits<float>                      { enum { type = VT_R4 }; };
+        template<> struct VarTraits<double>                     { enum { type = VT_R8 }; };
         template<> struct VarTraits<VARIANT_BOOL>               { enum { type = VT_BOOL }; };
         template<> struct VarTraits<DATE>                       { enum { type = VT_DATE }; };
         template<> struct VarTraits<CURRENCY>                   { enum { type = VT_CY }; };
@@ -80,12 +81,30 @@ namespace wil
             FAIL_FAST_IF_FAILED(::SafeArrayUnaccessData(psa));
         }
 
+        inline VARTYPE __stdcall SafeArrayGetVartype(SAFEARRAY* psa)
+        {
+            // Safearrays cannot hold type VT_NULL, so this value
+            // means the SAFEARRAY was null
+            VARTYPE vt = VT_NULL;
+            if (psa != nullptr)
+            {
+                if (FAILED(::SafeArrayGetVartype(psa, &vt)))
+                {
+                    // Safearrays cannot hold type VT_EMPTY, so this value
+                    // means the type couldn't be determined
+                    vt = VT_EMPTY;
+                }
+            }
+            return vt;
+        }
+
         inline HRESULT __stdcall SafeArrayCreate(VARTYPE vt, UINT cDims, SAFEARRAYBOUND* sab, SAFEARRAY*& psa) WI_NOEXCEPT
         {
             WI_ASSERT(sab != nullptr);
             WI_ASSERT(cDims > 0);
             psa = ::SafeArrayCreate(vt, cDims, sab);
             RETURN_LAST_ERROR_IF_NULL(psa);
+            WI_ASSERT(vt == details::SafeArrayGetVartype(psa));
             return S_OK;
         }
 
@@ -173,6 +192,13 @@ namespace wil
     public:
         typedef typename err_policy::result result;
         typedef typename storage_t::pointer pointer;
+        typedef T value_type;
+        typedef value_type* value_pointer;
+        typedef const value_type* const_value_pointer;
+        typedef value_type& value_reference;
+        typedef const value_type& const_value_reference;
+        typedef value_type* iterator;
+        typedef const value_type* const_iterator;
 
     public:
         // forward all base class constructors...
@@ -190,7 +216,9 @@ namespace wil
         {
             HRESULT hr = [&]()
             {
+                constexpr auto vt = static_cast<VARTYPE>(details::VarTraits<T>::type);
                 WI_ASSERT(sizeof(T) == ::SafeArrayGetElemsize(psa));
+                WI_ASSERT(vt == detail::SafeArrayGetVartype(psa));
                 details::SafeArrayAccessData(psa, m_pBegin);
                 storage_t::reset(psa);
                 RETURN_IF_FAILED(details::SafeArrayCountElements(storage_t::get(), &m_nCount));
@@ -201,19 +229,24 @@ namespace wil
         }
 
         // Ranged-for style
-        T* begin() WI_NOEXCEPT { return m_pBegin; }
-        T* end() WI_NOEXCEPT { return m_pBegin+m_nCount; }
-        const T* begin() const WI_NOEXCEPT { return m_pBegin; }
-        const T* end() const WI_NOEXCEPT { return m_pBegin+m_nCount; }
+        iterator begin() WI_NOEXCEPT { return m_pBegin; }
+        iterator end() WI_NOEXCEPT { return m_pBegin+m_nSize; }
+        const_iterator begin() const WI_NOEXCEPT { return m_pBegin; }
+        const_iterator end() const WI_NOEXCEPT { return m_pBegin+m_nSize; }
+        const_iterator cbegin() const WI_NOEXCEPT { return begin(); }
+        const_iterator cend() const WI_NOEXCEPT { return end(); }
 
         // Old style iteration
-        ULONG count() const WI_NOEXCEPT { return m_nCount; }
-        WI_NODISCARD T& operator[](ULONG i) { WI_ASSERT(i < m_nCount);  return *(m_pBegin + i); }
-        WI_NODISCARD const T& operator[](ULONG i) const { WI_ASSERT(i < m_nCount); return *(m_pBegin +i); }
+        ULONG size() const WI_NOEXCEPT { return m_nSize; }
+        WI_NODISCARD value_reference operator[](ULONG i) { WI_ASSERT(i < m_nSize);  return *(m_pBegin + i); }
+        WI_NODISCARD const_value_reference operator[](ULONG i) const { WI_ASSERT(i < m_nSize); return *(m_pBegin +i); }
+
+        // Utilities
+        bool empty() const WI_NOEXCEPT { return m_nSize == ULONG{}; }
 
     private:
-        T*  m_pBegin = nullptr;
-        ULONG m_nCount = 0;
+        value_pointer m_pBegin = nullptr;
+        ULONG m_nSize = 0;
     };
 
     template<typename T>
@@ -226,24 +259,31 @@ namespace wil
      using unique_safearrayaccess = unique_any_t<safearraydata_t<T, details::unique_storage<details::safearray_accessdata_resource_policy>, err_exception_policy>>;
 #endif
 
+
     // Add safearray functionality to the given storage type using the given error policy
-    // element_t is the C++ type for the elements in the safearray OR use void to enable
-    // the methods that take the type as a parameter
+    //  element_t is the either:
+    //      A) The C++ type for the elements in the safearray and all methods are typesafe
+    //      B) void to make the safearray generic (and not as typesafe)
     template <typename storage_t, typename err_policy = err_exception_policy, typename element_t = void>
     class safearray_t : public storage_t
     {
     private:
         // SFINAE Helpers to improve readability
         // Filters functions that don't require a type because a type was provided by the class type
-        template<typename T> using EnableIfTyped = typename wistd::enable_if<!wistd::is_same<void, T>::value, int>::type;
+        template<typename T> using EnableIfTyped = typename wistd::enable_if<!wistd::is_void<T>::value, int>::type;
         // Filters functions that require a type because the class type doesn't provide one (element_t == void)
-        template<typename T> using EnableIfNotTyped = typename wistd::enable_if<wistd::is_same<void, T>::value, int>::type;
+        template<typename T> using EnableIfNotTyped = typename wistd::enable_if<wistd::is_void<T>::value, int>::type;
 
     public:
+        // AccessData type that still requires a type (used when not typed)
         template<typename T>
         using unique_accessdata_t = unique_any_t<safearraydata_t<T, details::unique_storage<details::safearray_accessdata_resource_policy>, err_policy>>;
+        // AccessData type that uses the safearray's type (used when a type is provided)
+        using unique_accessdata = unique_any_t<safearraydata_t<element_t, details::unique_storage<details::safearray_accessdata_resource_policy>, err_policy>>;
 
-        using unique_safearray_t = unique_any_t<safearray_t<storage_t, err_policy, element_t>>;
+        // Represents this type
+        using unique_type = unique_any_t<safearray_t<storage_t, err_policy, element_t>>;
+
         typedef typename err_policy::result result;
         typedef typename storage_t::pointer pointer;
         typedef element_t elemtype;
@@ -394,7 +434,6 @@ namespace wil
             WI_ASSERT(dim() == 1);
             return err_policy::HResult(::SafeArrayPutElement(storage_t::get(), &nIndex, &t));
         }
-
         template<typename T, typename U = element_t, EnableIfNotTyped<U> = 0>
         result get_element(T& t, LONG nIndex)
         {
@@ -402,7 +441,6 @@ namespace wil
             WI_ASSERT(dim() == 1);
             return err_policy::HResult(::SafeArrayGetElement(storage_t::get(), &nIndex, &t));
         }
-
         template<typename T = element_t, EnableIfTyped<T> = 0>
         result put_element(const element_t& t, LONG nIndex)
         {
@@ -410,7 +448,6 @@ namespace wil
             WI_ASSERT(dim() == 1);
             return err_policy::HResult(::SafeArrayPutElement(storage_t::get(), &nIndex, &t));
         }
-
         template<typename T = element_t, EnableIfTyped<T> = 0>
         result get_element(element_t& t, LONG nIndex)
         {
@@ -420,8 +457,15 @@ namespace wil
         }
 
         // Data Access
-        template<typename T>
+            // Use with non-typed safearrays after the type has been determined
+        template<typename T, typename U = element_t, EnableIfNotTyped<U> = 0>
         result access_data(unique_accessdata_t<T>& data)
+        {
+            return err_policy::HResult(data.create(storage_t::get()));
+        }
+            // Use with type safearrays
+        template<typename T = element_t, EnableIfTyped<T> = 0>
+        result access_data(unique_accessdata& data)
         {
             return err_policy::HResult(data.create(storage_t::get()));
         }
@@ -448,21 +492,30 @@ namespace wil
             count(&nResult);
             return nResult;
         }
-        WI_NODISCARD unique_safearray_t copy() const
+        WI_NODISCARD unique_type copy() const
         {
             static_assert(wistd::is_same<void, result>::value, "this method requires exceptions");
 
-            auto result = unique_safearray_t{};
+            auto result = unique_type{};
             result.create(storage_t::get());
             return result;
         }
-        template<typename T>
+        template<typename T, typename U = element_t, EnableIfNotTyped<U> = 0>
         WI_NODISCARD unique_accessdata_t<T> access_data() const
         {
             static_assert(wistd::is_same<void, result>::value, "this method requires exceptions");
 
             auto data = unique_accessdata_t<T>{};
-            data.create(storage_t::get());
+            access_data(data);
+            return data;
+        }
+        template<typename T = element_t, EnableIfTyped<T> = 0>
+        WI_NODISCARD unique_accessdata access_data() const
+        {
+            static_assert(wistd::is_same<void, result>::value, "this method requires exceptions");
+
+            auto data = unique_accessdata{};
+            access_data(data);
             return data;
         }
 
@@ -500,14 +553,6 @@ namespace wil
     using unique_float_safearray_failfast = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_failfast_policy, float>>;
     using unique_double_safearray_nothrow = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_returncode_policy, double>>;
     using unique_double_safearray_failfast = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_failfast_policy, double>>;
-    using unique_bstr_safearray_nothrow = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_returncode_policy, BSTR>>;
-    using unique_bstr_safearray_failfast = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_failfast_policy, BSTR>>;
-    using unique_unknown_safearray_nothrow = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_returncode_policy, LPUNKNOWN>>;
-    using unique_unknown_safearray_failfast = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_failfast_policy, LPUNKNOWN>>;
-    using unique_dispatch_safearray_nothrow = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_returncode_policy, LPDISPATCH>>;
-    using unique_dispatch_safearray_failfast = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_failfast_policy, LPDISPATCH>>;
-    using unique_variant_safearray_nothrow = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_returncode_policy, VARIANT>>;
-    using unique_variant_safearray_failfast = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_failfast_policy, VARIANT>>;
     using unique_varbool_safearray_nothrow = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_returncode_policy, VARIANT_BOOL>>;
     using unique_varbool_safearray_failfast = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_failfast_policy, VARIANT_BOOL>>;
     using unique_date_safearray_nothrow = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_returncode_policy, DATE>>;
@@ -516,6 +561,14 @@ namespace wil
     using unique_currency_safearray_failfast = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_failfast_policy, CURRENCY>>;
     using unique_decimal_safearray_nothrow = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_returncode_policy, DECIMAL>>;
     using unique_decimal_safearray_failfast = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_failfast_policy, DECIMAL>>;
+    using unique_bstr_safearray_nothrow = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_returncode_policy, BSTR>>;
+    using unique_bstr_safearray_failfast = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_failfast_policy, BSTR>>;
+    using unique_unknown_safearray_nothrow = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_returncode_policy, LPUNKNOWN>>;
+    using unique_unknown_safearray_failfast = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_failfast_policy, LPUNKNOWN>>;
+    using unique_dispatch_safearray_nothrow = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_returncode_policy, LPDISPATCH>>;
+    using unique_dispatch_safearray_failfast = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_failfast_policy, LPDISPATCH>>;
+    using unique_variant_safearray_nothrow = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_returncode_policy, VARIANT>>;
+    using unique_variant_safearray_failfast = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_failfast_policy, VARIANT>>;
 
 #ifdef WIL_ENABLE_EXCEPTIONS
     using unique_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, void>>;
@@ -530,14 +583,14 @@ namespace wil
     using unique_ulonglong_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, ULONGLONG>>;
     using unique_float_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, float>>;
     using unique_double_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, double>>;
-    using unique_bstr_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, BSTR>>;
-    using unique_unknown_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, LPUNKNOWN>>;
-    using unique_dispatch_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, LPDISPATCH>>;
-    using unique_variant_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, VARIANT>>;
     using unique_varbool_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, VARIANT_BOOL>>;
     using unique_date_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, DATE>>;
     using unique_currency_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, CURRENCY>>;
     using unique_decimal_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, DECIMAL>>;
+    using unique_bstr_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, BSTR>>;
+    using unique_unknown_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, LPUNKNOWN>>;
+    using unique_dispatch_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, LPDISPATCH>>;
+    using unique_variant_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, VARIANT>>;
 #endif
 
 #endif
