@@ -30,7 +30,7 @@ namespace wil
         struct VarTraits{};
 
         template<> struct VarTraits<char>                       { enum { type = VT_I1 }; };
-        template<> struct VarTraits<short>                      { enum { type = VT_I2 }; };
+        //template<> struct VarTraits<short>                      { enum { type = VT_I2 }; };
         template<> struct VarTraits<long>                       { enum { type = VT_I4 }; };
         template<> struct VarTraits<int>                        { enum { type = VT_I4 }; };
         template<> struct VarTraits<long long>                  { enum { type = VT_I8 }; };
@@ -40,7 +40,7 @@ namespace wil
         template<> struct VarTraits<unsigned int>               { enum { type = VT_UI4 }; };
         template<> struct VarTraits<unsigned long long>         { enum { type = VT_UI8 }; };
         template<> struct VarTraits<float>                      { enum { type = VT_R4 }; };
-        template<> struct VarTraits<double>                     { enum { type = VT_R8 }; };
+        //template<> struct VarTraits<double>                     { enum { type = VT_R8 }; };
         template<> struct VarTraits<VARIANT_BOOL>               { enum { type = VT_BOOL }; };
         template<> struct VarTraits<DATE>                       { enum { type = VT_DATE }; };
         template<> struct VarTraits<CURRENCY>                   { enum { type = VT_CY }; };
@@ -218,10 +218,10 @@ namespace wil
             {
                 constexpr auto vt = static_cast<VARTYPE>(details::VarTraits<T>::type);
                 WI_ASSERT(sizeof(T) == ::SafeArrayGetElemsize(psa));
-                WI_ASSERT(vt == detail::SafeArrayGetVartype(psa));
+                WI_ASSERT(vt == details::SafeArrayGetVartype(psa));
                 details::SafeArrayAccessData(psa, m_pBegin);
                 storage_t::reset(psa);
-                RETURN_IF_FAILED(details::SafeArrayCountElements(storage_t::get(), &m_nCount));
+                RETURN_IF_FAILED(details::SafeArrayCountElements(storage_t::get(), &m_nSize));
                 return S_OK;
             }();
 
@@ -270,9 +270,9 @@ namespace wil
     private:
         // SFINAE Helpers to improve readability
         // Filters functions that don't require a type because a type was provided by the class type
-        template<typename T> using EnableIfTyped = typename wistd::enable_if<!wistd::is_void<T>::value, int>::type;
+        template<typename T> using EnableIfTyped = typename wistd::enable_if<!wistd::is_same<T, void>::value, int>::type;
         // Filters functions that require a type because the class type doesn't provide one (element_t == void)
-        template<typename T> using EnableIfNotTyped = typename wistd::enable_if<wistd::is_void<T>::value, int>::type;
+        template<typename T> using EnableIfNotTyped = typename wistd::enable_if<wistd::is_same<T, void>::value, int>::type;
 
     public:
         // AccessData type that still requires a type (used when not typed)
@@ -300,6 +300,12 @@ namespace wil
             static_assert(wistd::is_same<void, result>::value, "this constructor requires exceptions; use the create method");
             create(vt, cElements, lowerBound);
         }
+        template<typename T, typename U = element_t, EnableIfNotTyped<U> = 0>
+        safearray_t(UINT cElements, LONG lowerBound = 0)
+        {
+            static_assert(wistd::is_same<void, result>::value, "this constructor requires exceptions; use the create method");
+            create<T>(cElements, lowerBound);
+        }
         template<typename T = element_t, EnableIfTyped<T> = 0>
         safearray_t(UINT cElements, LONG lowerBound = 0)
         {
@@ -321,13 +327,6 @@ namespace wil
             auto bounds = SAFEARRAYBOUND{ cElements, lowerBound };
             return err_policy::HResult(_create(vt, 1, &bounds));
         }
-        template<typename T, typename U = element_t, EnableIfNotTyped<U> = 0>
-        result create(UINT cElements, LONG lowerBound = 0)
-        {
-            constexpr auto vt = static_cast<VARTYPE>(details::VarTraits<T>::type);
-            auto bounds = SAFEARRAYBOUND{ cElements, lowerBound };
-            return err_policy::HResult(_create(vt, 1, &bounds));
-        }
 
         // Uses the fixed element type defined by the class
         // Low-level, arbitrary number of dimensions
@@ -339,7 +338,7 @@ namespace wil
         }
 
         // Single Dimension specialization
-        template<typename T = element_t, EnableIfTyped<T> = 0>
+        template<typename T = element_t, typename wistd::enable_if<!wistd::is_same<T, void>::value, int>::type = 0>
         result create(UINT cElements, LONG lowerBound = 0)
         {
             constexpr auto vt = static_cast<VARTYPE>(details::VarTraits<T>::type);
@@ -348,7 +347,7 @@ namespace wil
         }
 
         // Create a Copy
-        result create(pointer psaSrc)
+        result create_copy(pointer psaSrc)
         {
             HRESULT hr = [&]()
             {
@@ -396,20 +395,20 @@ namespace wil
 
         // Lowest-Level functions for those who know what they're doing
             // TODO: Finish safearray_index type to collapse both versions into one functioon
-        result put_element(void* pv, LONG* pIndices)
+        result put_element(LONG* pIndices, void* pv)
         {
             return err_policy::HResult(::SafeArrayPutElement(storage_t::get(), pIndices, pv));
         }
-        result put_element(void* pv, LONG nIndex)
+        result put_element(LONG nIndex, void* pv)
         {
             WI_ASSERT(dim() == 1);
             return err_policy::HResult(::SafeArrayPutElement(storage_t::get(), &nIndex, pv));
         }
-        result get_element(void* pv, LONG* pIndices)
+        result get_element(LONG* pIndices, void* pv)
         {
             return err_policy::HResult(::SafeArrayGetElement(storage_t::get(), pIndices, pv));
         }
-        result get_element(void* pv, LONG nIndex)
+        result get_element(LONG nIndex, void* pv)
         {
             WI_ASSERT(dim() == 1);
             return err_policy::HResult(::SafeArrayGetElement(storage_t::get(), &nIndex, pv));
@@ -427,34 +426,66 @@ namespace wil
         //    WI_ASSERT(sizeof(t) == elemsize());
         //    return err_policy::HResult(::SafeArrayGetElement(storage_t::get(), pIndices, &t));
         //}
-        template<typename T, typename U = element_t, EnableIfNotTyped<U> = 0>
-        result put_element(const T& t, LONG nIndex)
+        template<typename T, typename U = element_t, typename wistd::enable_if<wistd::is_same<U, void>::value && !wistd::is_same<T, BSTR>::value, int>::type = 0>
+        result put_element(LONG nIndex, const T& t)
         {
             WI_ASSERT(sizeof(t) == elemsize());
             WI_ASSERT(dim() == 1);
-            return err_policy::HResult(::SafeArrayPutElement(storage_t::get(), &nIndex, &t));
+            return err_policy::HResult(::SafeArrayPutElement(storage_t::get(), &nIndex, reinterpret_cast<void*>(const_cast<T*>(&t))));
         }
         template<typename T, typename U = element_t, EnableIfNotTyped<U> = 0>
-        result get_element(T& t, LONG nIndex)
+        result get_element(LONG nIndex, T& t)
         {
             WI_ASSERT(sizeof(t) == elemsize());
             WI_ASSERT(dim() == 1);
             return err_policy::HResult(::SafeArrayGetElement(storage_t::get(), &nIndex, &t));
         }
-        template<typename T = element_t, EnableIfTyped<T> = 0>
-        result put_element(const element_t& t, LONG nIndex)
+        template<typename T = element_t, typename wistd::enable_if<!wistd::is_same<element_t, void>::value && !wistd::is_same<T, BSTR>::value, int>::type = 0>
+        result put_element(LONG nIndex, const T& t)
         {
             WI_ASSERT(sizeof(t) == elemsize());
             WI_ASSERT(dim() == 1);
-            return err_policy::HResult(::SafeArrayPutElement(storage_t::get(), &nIndex, &t));
+            return err_policy::HResult(::SafeArrayPutElement(storage_t::get(), &nIndex, reinterpret_cast<void*>(const_cast<T*>(&t))));
         }
         template<typename T = element_t, EnableIfTyped<T> = 0>
-        result get_element(element_t& t, LONG nIndex)
+        result get_element(LONG nIndex, T& t)
         {
             WI_ASSERT(sizeof(t) == elemsize());
             WI_ASSERT(dim() == 1);
             return err_policy::HResult(::SafeArrayGetElement(storage_t::get(), &nIndex, &t));
         }
+        //template<typename T> using EnableIfTyped = typename wistd::enable_if<!wistd::is_same<T, void>::value, int>::type;
+        //// Filters functions that require a type because the class type doesn't provide one (element_t == void)
+        //template<typename T> using EnableIfNotTyped = typename wistd::enable_if<wistd::is_same<T, void>::value, int>::type;
+
+        template<typename T, typename U = element_t, typename wistd::enable_if<wistd::is_same<U, void>::value&& wistd::is_same<T, BSTR>::value, int>::type = 0>
+        result put_element(LONG nIndex, BSTR bstr)
+        {
+            WI_ASSERT(sizeof(bstr) == elemsize());
+            WI_ASSERT(dim() == 1);
+            return err_policy::HResult(::SafeArrayPutElement(storage_t::get(), &nIndex, bstr));
+        }
+        //template<typename T, typename U = element_t, typename wistd::enable_if<wistd::is_same<U, void>::value && wistd::is_same<T, BSTR>::value, int>::type = 0>
+        //result get_element(LONG nIndex, T& t)
+        //{
+        //    WI_ASSERT(sizeof(t) == elemsize());
+        //    WI_ASSERT(dim() == 1);
+        //    return err_policy::HResult(::SafeArrayGetElement(storage_t::get(), &nIndex, &t));
+        //}
+        template<typename T = element_t, typename wistd::enable_if<!wistd::is_same<element_t, void>::value&& wistd::is_same<T, BSTR>::value, int>::type = 0>
+        result put_element(LONG nIndex, BSTR bstr)
+        {
+            WI_ASSERT(sizeof(bstr) == elemsize());
+            WI_ASSERT(dim() == 1);
+            return err_policy::HResult(::SafeArrayPutElement(storage_t::get(), &nIndex, bstr));
+        }
+        //template<typename T = element_t, EnableIfTyped<T> = 0>
+        //result get_element(LONG nIndex, T& t)
+        //{
+        //    WI_ASSERT(sizeof(t) == elemsize());
+        //    WI_ASSERT(dim() == 1);
+        //    return err_policy::HResult(::SafeArrayGetElement(storage_t::get(), &nIndex, &t));
+        //}
 
         // Data Access
             // Use with non-typed safearrays after the type has been determined
