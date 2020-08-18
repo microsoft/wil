@@ -211,6 +211,15 @@ namespace wil
             static_assert(wistd::is_same<void, result>::value, "this constructor requires exceptions; use the create method");
             create(psa);
         }
+        safearraydata_t(safearraydata_t&& other) : storage_t(wistd::move(other))
+        {
+            m_pBegin = wistd::exchange(other.m_pBegin, nullptr);
+            m_nSize = wistd::exchange(other.m_nSize, 0L);
+        }
+        ~safearraydata_t()
+        {
+
+        }
 
         result create(pointer psa)
         {
@@ -229,16 +238,14 @@ namespace wil
         }
 
         // Ranged-for style
-        iterator begin() WI_NOEXCEPT { return m_pBegin; }
-        iterator end() WI_NOEXCEPT { return m_pBegin+m_nSize; }
+        iterator begin() WI_NOEXCEPT { WI_ASSERT(m_pBegin != nullptr); return m_pBegin; }
+        iterator end() WI_NOEXCEPT { WI_ASSERT(m_pBegin != nullptr); return m_pBegin+m_nSize; }
         const_iterator begin() const WI_NOEXCEPT { return m_pBegin; }
         const_iterator end() const WI_NOEXCEPT { return m_pBegin+m_nSize; }
-        const_iterator cbegin() const WI_NOEXCEPT { return begin(); }
-        const_iterator cend() const WI_NOEXCEPT { return end(); }
 
         // Old style iteration
         ULONG size() const WI_NOEXCEPT { return m_nSize; }
-        WI_NODISCARD value_reference operator[](ULONG i) { WI_ASSERT(i < m_nSize);  return *(m_pBegin + i); }
+        WI_NODISCARD value_reference operator[](ULONG i) { WI_ASSERT(i < m_nSize); return *(m_pBegin + i); }
         WI_NODISCARD const_value_reference operator[](ULONG i) const { WI_ASSERT(i < m_nSize); return *(m_pBegin +i); }
 
         // Utilities
@@ -273,6 +280,20 @@ namespace wil
         template<typename T> using EnableIfTyped = typename wistd::enable_if<!wistd::is_same<T, void>::value, int>::type;
         // Filters functions that require a type because the class type doesn't provide one (element_t == void)
         template<typename T> using EnableIfNotTyped = typename wistd::enable_if<wistd::is_same<T, void>::value, int>::type;
+        template<typename T>
+        using is_pointer_type = wistd::disjunction<wistd::is_same<T, BSTR>,
+                                                    wistd::is_same<T, LPUNKNOWN>,
+                                                    wistd::is_same<T, LPDISPATCH>>;
+
+        template<typename T>
+        using is_type_not_set = wistd::is_same<T, void>;
+
+        template<typename T>
+        using is_valid_type = wistd::negation<is_type_not_set<T>>;
+
+        template <typename T>
+        using is_value_type = wistd::conjunction<wistd::negation<is_pointer_type<T>>, is_valid_type<T>>;
+
 
     public:
         // AccessData type that still requires a type (used when not typed)
@@ -294,19 +315,19 @@ namespace wil
         explicit safearray_t(args_t&&... args) WI_NOEXCEPT : storage_t(wistd::forward<args_t>(args)...) {}
 
         // Exception-based construction
-        template<typename T = element_t, EnableIfNotTyped<T> = 0>
+        template<typename T = element_t, typename wistd::enable_if<is_type_not_set<T>::value, int>::type = 0>
         safearray_t(VARTYPE vt, UINT cElements, LONG lowerBound = 0)
         {
             static_assert(wistd::is_same<void, result>::value, "this constructor requires exceptions; use the create method");
             create(vt, cElements, lowerBound);
         }
-        template<typename T, typename U = element_t, EnableIfNotTyped<U> = 0>
+        template<typename T, typename U = element_t, typename wistd::enable_if<is_type_not_set<U>::value, int>::type = 0>
         safearray_t(UINT cElements, LONG lowerBound = 0)
         {
             static_assert(wistd::is_same<void, result>::value, "this constructor requires exceptions; use the create method");
             create<T>(cElements, lowerBound);
         }
-        template<typename T = element_t, EnableIfTyped<T> = 0>
+        template<typename T = element_t, typename wistd::enable_if<is_valid_type<T>::value, int>::type = 0>
         safearray_t(UINT cElements, LONG lowerBound = 0)
         {
             static_assert(wistd::is_same<void, result>::value, "this constructor requires exceptions; use the create method");
@@ -314,14 +335,14 @@ namespace wil
         }
 
         // Low-level, arbitrary number of dimensions
-        template<typename T = element_t, EnableIfNotTyped<T> = 0>
+        template<typename T = element_t, typename wistd::enable_if<is_type_not_set<T>::value, int>::type = 0>
         result create(VARTYPE vt, UINT cDims, SAFEARRAYBOUND* sab)
         {
             return err_policy::HResult(_create(vt, cDims, sab));
         }
 
         // Single Dimension specialization
-        template<typename T = element_t, EnableIfNotTyped<T> = 0>
+        template<typename T = element_t, typename wistd::enable_if<is_type_not_set<T>::value, int>::type = 0>
         result create(VARTYPE vt, UINT cElements, LONG lowerBound = 0)
         {
             auto bounds = SAFEARRAYBOUND{ cElements, lowerBound };
@@ -330,7 +351,7 @@ namespace wil
 
         // Uses the fixed element type defined by the class
         // Low-level, arbitrary number of dimensions
-        template<typename T = element_t, EnableIfTyped<T> = 0>
+        template<typename T = element_t, typename wistd::enable_if<is_valid_type<T>::value, int>::type = 0>
         result create(UINT cDims, SAFEARRAYBOUND* sab)
         {
             constexpr auto vt = static_cast<VARTYPE>(details::VarTraits<T>::type);
@@ -338,7 +359,7 @@ namespace wil
         }
 
         // Single Dimension specialization
-        template<typename T = element_t, typename wistd::enable_if<!wistd::is_same<T, void>::value, int>::type = 0>
+        template<typename T = element_t, typename wistd::enable_if<is_valid_type<T>::value, int>::type = 0>
         result create(UINT cElements, LONG lowerBound = 0)
         {
             constexpr auto vt = static_cast<VARTYPE>(details::VarTraits<T>::type);
@@ -412,25 +433,14 @@ namespace wil
             return err_policy::HResult(::SafeArrayGetElement(storage_t::get(), &nIndex, pv));
         }
 
-        template<typename T>
-        using is_special_type = wistd::disjunction<wistd::is_same<T, BSTR>,
-                                                        wistd::is_same<T, LPUNKNOWN>,
-                                                        wistd::is_same<T, LPDISPATCH>>;
-
-        template<typename T>
-        using is_valid_type = wistd::negation<wistd::is_same<T, void>>;
-
-        template <typename T>
-        using is_nonspecial_type = wistd::conjunction<wistd::negation<is_special_type<T>>,is_valid_type<T>>;
-
-        template<typename T = element_t, typename wistd::enable_if<is_nonspecial_type<T>::value, int>::type = 0>
+        template<typename T = element_t, typename wistd::enable_if<is_value_type<T>::value, int>::type = 0>
         result put_element(LONG nIndex, const T& val)
         {
             WI_ASSERT(sizeof(val) == elemsize());
             WI_ASSERT(dim() == 1);
             return err_policy::HResult(::SafeArrayPutElement(storage_t::get(), &nIndex, reinterpret_cast<void*>(const_cast<T*>(&val))));
         }
-        template<typename T = element_t, typename wistd::enable_if<is_special_type<T>::value, int>::type = 0>
+        template<typename T = element_t, typename wistd::enable_if<is_pointer_type<T>::value, int>::type = 0>
         result put_element(LONG nIndex, T val)
         {
             WI_ASSERT(sizeof(val) == elemsize());
@@ -459,17 +469,17 @@ namespace wil
 
         // Data Access
             // Use with non-typed safearrays after the type has been determined
-        template<typename T, typename U = element_t, EnableIfNotTyped<U> = 0>
-        result access_data(unique_accessdata_t<T>& data)
-        {
-            return err_policy::HResult(data.create(storage_t::get()));
-        }
-            // Use with type safearrays
-        template<typename T = element_t, EnableIfTyped<T> = 0>
-        result access_data(unique_accessdata& data)
-        {
-            return err_policy::HResult(data.create(storage_t::get()));
-        }
+        //template<typename T, typename U = element_t, EnableIfNotTyped<U> = 0>
+        //result access_data(unique_accessdata_t<T>& data)
+        //{
+        //    return err_policy::HResult(data.create(storage_t::get()));
+        //}
+        //    // Use with type safearrays
+        //template<typename T = element_t, EnableIfTyped<T> = 0>
+        //result access_data(unique_accessdata& data)
+        //{
+        //    return err_policy::HResult(data.create(storage_t::get()));
+        //}
 
         // Exception-based helper functions
         WI_NODISCARD LONG lbound(UINT nDim = 1) const
@@ -493,31 +503,31 @@ namespace wil
             count(&nResult);
             return nResult;
         }
-        WI_NODISCARD unique_type copy() const
+        WI_NODISCARD unique_type create_copy() const
         {
             static_assert(wistd::is_same<void, result>::value, "this method requires exceptions");
 
             auto result = unique_type{};
-            result.create(storage_t::get());
+            result.create_copy(storage_t::get());
             return result;
         }
-        template<typename T, typename U = element_t, EnableIfNotTyped<U> = 0>
+        template<typename T, typename U = element_t, typename wistd::enable_if<is_type_not_set<U>::value, int>::type = 0>
         WI_NODISCARD unique_accessdata_t<T> access_data() const
         {
             static_assert(wistd::is_same<void, result>::value, "this method requires exceptions");
 
             auto data = unique_accessdata_t<T>{};
-            access_data(data);
-            return data;
+            data.create(storage_t::get());
+            return wistd::move(data);
         }
-        template<typename T = element_t, EnableIfTyped<T> = 0>
+        template<typename T = element_t, typename wistd::enable_if<is_valid_type<T>::value, int>::type = 0>
         WI_NODISCARD unique_accessdata access_data() const
         {
             static_assert(wistd::is_same<void, result>::value, "this method requires exceptions");
 
             auto data = unique_accessdata{};
-            access_data(data);
-            return data;
+            data.create(storage_t::get());
+            return wistd::move(data);
         }
 
     private:

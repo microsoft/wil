@@ -84,7 +84,163 @@
                                                 , VARIANT                                   \
                                             )
 
-constexpr auto DEFAULT_SAMPLE_SIZE = 32;
+// {5D80EC64-6694-4F49-B0B9-CCAA65467D12}
+static const GUID IID_IAmForTesting =
+{ 0x5d80ec64, 0x6694, 0x4f49, { 0xb0, 0xb9, 0xcc, 0xaa, 0x65, 0x46, 0x7d, 0x12 } };
+
+struct __declspec(uuid("5D80EC64-6694-4F49-B0B9-CCAA65467D12"))
+    IAmForTesting : public IUnknown
+{
+    virtual HRESULT GetID(LONG* pOut) = 0;
+};
+
+class TestComObject : virtual public IAmForTesting,
+                        virtual public IDispatch
+{
+private:
+    TestComObject()
+    {
+        ::InterlockedIncrement(&s_ObjectCounter);
+        ::InterlockedIncrement(&s_IDCounter);
+        m_nID = s_IDCounter;
+    }
+
+    virtual ~TestComObject()
+    {
+        ::InterlockedDecrement(&s_ObjectCounter);
+    }
+
+    // IUnknown
+public:
+    ULONG AddRef()
+    {
+        ::InterlockedIncrement(&m_nRefCount);
+        return m_nRefCount;
+    }
+    ULONG Release()
+    {
+        ULONG ulRefCount = ::InterlockedDecrement(&m_nRefCount);
+        if (0 == m_nRefCount)
+        {
+            delete this;
+        }
+        return ulRefCount;
+    }
+    HRESULT QueryInterface(REFIID riid, LPVOID* ppvObj)
+    {
+        if (!ppvObj)
+            return E_INVALIDARG;
+        *ppvObj = NULL;
+        if (riid == IID_IUnknown)
+        {
+            *ppvObj = (LPVOID)(IAmForTesting*)this;
+            AddRef();
+            return NOERROR;
+        }
+        else if (riid == IID_IDispatch)
+        {
+            *ppvObj = (LPVOID)(IDispatch*)this;
+            AddRef();
+            return NOERROR;
+        }
+        else if (riid == IID_IAmForTesting)
+        {
+            *ppvObj = (LPVOID)(IAmForTesting*)this;
+            AddRef();
+            return NOERROR;
+        }
+        return E_NOINTERFACE;
+    }
+
+    // IDispatch
+public:
+    STDMETHODIMP GetTypeInfoCount(UINT* /*pctinfo*/)
+    {
+        return E_NOTIMPL;
+    }
+
+    STDMETHODIMP GetTypeInfo(UINT /*itinfo*/, LCID /*lcid*/, ITypeInfo** /*pptinfo*/)
+    {
+        return E_NOTIMPL;
+    }
+
+    STDMETHODIMP GetIDsOfNames(REFIID /*riid*/, LPOLESTR* /*rgszNames*/, UINT /*cNames*/, LCID /*lcid*/, DISPID* /*rgdispid*/)
+    {
+        return E_NOTIMPL;
+    }
+
+    STDMETHODIMP Invoke(DISPID /*dispidMember*/, REFIID /*riid*/, LCID /*lcid*/, WORD /*wFlags*/, DISPPARAMS* /*pdispparams*/, VARIANT* /*pvarResult*/, EXCEPINFO* /*pexcepinfo*/, UINT* /*puArgErr*/)
+    {
+        return E_NOTIMPL;
+    }
+
+    // IAmForTesting
+public:
+    STDMETHODIMP GetID(LONG* pOut)
+    {
+        if (!pOut) return E_POINTER;
+        *pOut = m_nID;
+        return S_OK;
+    }
+
+    // Factory Method
+public:
+    static HRESULT Create(REFIID riid, LPVOID* ppvObj)
+    {
+        auto* p = new (std::nothrow) TestComObject();
+        if (!p) return E_OUTOFMEMORY;
+        auto hr = p->QueryInterface(riid, ppvObj);
+        if (FAILED(hr))
+        {
+            delete p;
+        }
+        return hr;
+    }
+
+    static bool Compare(LPUNKNOWN left, LPUNKNOWN right)
+    {
+        if (left == nullptr && right == nullptr)
+        {
+            return true;
+        }
+        if (left == nullptr || right == nullptr)
+        {
+            return false;
+        }
+
+        wil::com_ptr_nothrow<IAmForTesting> spLeft;
+        wil::com_ptr_nothrow<IAmForTesting> spRight;
+
+        if (SUCCEEDED(left->QueryInterface(&spLeft)) && SUCCEEDED(right->QueryInterface(&spRight)))
+        {
+            LONG nLeft = 0;
+            LONG nRight = 0;
+
+            REQUIRE_SUCCEEDED(spLeft->GetID(&nLeft));
+            REQUIRE_SUCCEEDED(spRight->GetID(&nRight));
+
+            return (nLeft == nRight);
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+    static LONG GetObjectCounter() { return s_ObjectCounter; }
+
+private:
+    LONG m_nRefCount{};
+    LONG m_nID{};
+
+    static LONG s_ObjectCounter;
+    static LONG s_IDCounter;
+};
+
+LONG TestComObject::s_ObjectCounter = 0;
+LONG TestComObject::s_IDCounter = 0;
+
+constexpr auto DEFAULT_SAMPLE_SIZE = 32U;
 
 template<typename T, typename = typename wistd::enable_if<wistd::is_integral<T>::value, int>::type>
 auto GetSampleData() -> std::array<T, sizeof(T)*8>
@@ -106,7 +262,7 @@ std::array<T, DEFAULT_SAMPLE_SIZE> GetSampleData()
     for (auto i = 0; i < DEFAULT_SAMPLE_SIZE/2; ++i)
     {
         result[i] = (i != 0) ? static_cast<T>(1 / i) : 0;
-        result[i + (DEFAULT_SAMPLE_SIZE/2)] = 2* static_cast<T>(i);
+        result[i + (DEFAULT_SAMPLE_SIZE/2)] = 2 * static_cast<T>(i);
     }
     return result;
 }
@@ -167,14 +323,32 @@ std::array<wil::unique_variant, DEFAULT_SAMPLE_SIZE> GetSampleData()
 }
 
 template<typename T, typename = typename wistd::enable_if<wistd::is_same<T, LPUNKNOWN>::value, int>::type>
-std::array<wil::com_ptr<IUnknown>, 1> GetSampleData() { return {}; }
+std::array<wil::com_ptr_nothrow<IAmForTesting>, DEFAULT_SAMPLE_SIZE> GetSampleData()
+{
+    auto result = std::array<wil::com_ptr_nothrow<IAmForTesting>, DEFAULT_SAMPLE_SIZE>{};
+    for (auto i = 0; i < DEFAULT_SAMPLE_SIZE; ++i)
+    {
+        auto& var = result[i];
+        REQUIRE_SUCCEEDED(TestComObject::Create(IID_IAmForTesting, (LPVOID*)var.put()));
+    }
+    return result;
+}
 
 template<typename T, typename = typename wistd::enable_if<wistd::is_same<T, LPDISPATCH>::value, int>::type>
-std::array<wil::com_ptr<IDispatch>, 1> GetSampleData() { return {}; }
+std::array<wil::com_ptr_nothrow<IDispatch>, DEFAULT_SAMPLE_SIZE> GetSampleData()
+{
+    auto result = std::array<wil::com_ptr_nothrow<IDispatch>, DEFAULT_SAMPLE_SIZE>{};
+    for (auto i = 0; i < DEFAULT_SAMPLE_SIZE; ++i)
+    {
+        auto& var = result[i];
+        REQUIRE_SUCCEEDED(TestComObject::Create(IID_IDispatch, (LPVOID*)var.put()));
+    }
+    return result;
+}
 
 template <typename T, typename = typename wistd::enable_if<!wistd::is_same<T, wil::unique_bstr>::value 
-                                                            && !wistd::is_same<T, wil::com_ptr<IUnknown>>::value
-                                                            && !wistd::is_same<T, wil::com_ptr<IDispatch>>::value, int>::type>
+                                                            && !wistd::is_same<T, wil::com_ptr_nothrow<IAmForTesting>>::value
+                                                            && !wistd::is_same<T, wil::com_ptr_nothrow<IDispatch>>::value, int>::type>
 auto GetReadable(const T& t) -> const T&
 {
     return t;
@@ -186,21 +360,21 @@ auto GetReadable(const T& t) -> BSTR
     return t.get();
 }
 
-template<typename T, typename = typename wistd::enable_if<wistd::is_same<T, wil::com_ptr<IUnknown>>::value, int>::type>
+template<typename T, typename = typename wistd::enable_if<wistd::is_same<T, wil::com_ptr_nothrow<IAmForTesting>>::value, int>::type>
 auto GetReadable(const T& t) -> LPUNKNOWN
 {
     return t.get();
 }
 
-template<typename T, typename = typename wistd::enable_if<wistd::is_same<T, wil::com_ptr<IDispatch>>::value, int>::type>
+template<typename T, typename = typename wistd::enable_if<wistd::is_same<T, wil::com_ptr_nothrow<IDispatch>>::value, int>::type>
 auto GetReadable(const T& t) -> LPDISPATCH
 {
     return t.get();
 }
 
 template <typename T, typename = typename wistd::enable_if<!wistd::is_same<T, wil::unique_bstr>::value
-                                                            && !wistd::is_same<T, wil::com_ptr<IUnknown>>::value
-                                                            && !wistd::is_same<T, wil::com_ptr<IDispatch>>::value, int>::type>
+                                                            && !wistd::is_same<T, wil::com_ptr_nothrow<IAmForTesting>>::value
+                                                            && !wistd::is_same<T, wil::com_ptr_nothrow<IDispatch>>::value, int>::type>
 auto GetWritable(T& t) -> T&
 {
     return t;
@@ -212,13 +386,13 @@ auto GetWritable(T& t) -> BSTR&
     return *(t.addressof());
 }
 
-template<typename T, typename = typename wistd::enable_if<wistd::is_same<T, wil::com_ptr<IUnknown>>::value, int>::type>
+template<typename T, typename = typename wistd::enable_if<wistd::is_same<T, wil::com_ptr_nothrow<IAmForTesting>>::value, int>::type>
 auto GetWritable(T& t) -> LPUNKNOWN&
 {
-    return *(t.addressof());
+    return *((LPUNKNOWN*)t.addressof());
 }
 
-template<typename T, typename = typename wistd::enable_if<wistd::is_same<T, wil::com_ptr<IDispatch>>::value, int>::type>
+template<typename T, typename = typename wistd::enable_if<wistd::is_same<T, wil::com_ptr_nothrow<IDispatch>>::value, int>::type>
 auto GetWritable(T& t) -> LPDISPATCH&
 {
     return *(t.addressof());
@@ -231,13 +405,7 @@ bool PerformCompare(const T& left, const U& right)
 }
 
 template<>
-bool PerformCompare(const wil::unique_variant& left, const wil::unique_variant& right)
-{
-    return (::VariantCompare(left, right) == 0);
-}
-
-template<>
-bool PerformCompare(const BSTR& left, const BSTR& right)
+bool PerformCompare(_In_z_ const BSTR& left, _In_z_ const BSTR& right)
 {
     return (::SysStringLen(left) == ::SysStringLen(right))
         && (wcscmp(left, right) == 0);
@@ -262,7 +430,7 @@ bool PerformCompare(const wil::unique_bstr& left, const wil::unique_bstr& right)
 }
 
 template<>
-bool PerformCompare(const wil::unique_variant& left, const VARIANT& right)
+bool PerformCompare(const wil::unique_variant& left, const wil::unique_variant& right)
 {
     return (::VariantCompare(left, right) == 0);
 }
@@ -271,6 +439,30 @@ template<>
 bool PerformCompare(const VARIANT& left, const wil::unique_variant& right)
 {
     return (::VariantCompare(left, right) == 0);
+}
+
+template<>
+bool PerformCompare(const VARIANT& left, const VARIANT& right)
+{
+    return (::VariantCompare(left, right) == 0);
+}
+
+template<>
+bool PerformCompare(const LPUNKNOWN& left, const LPUNKNOWN& right)
+{
+    return TestComObject::Compare(left, right);
+}
+
+template<>
+bool PerformCompare(const wil::com_ptr_nothrow<IAmForTesting>& left, const LPUNKNOWN& right)
+{
+    return TestComObject::Compare(left.get(), right);
+}
+
+template<>
+bool PerformCompare(const LPUNKNOWN& left, const wil::com_ptr_nothrow<IAmForTesting>& right)
+{
+    return TestComObject::Compare(left, right.get());
 }
 
 template<typename T, typename U>
@@ -282,7 +474,7 @@ void PerfromAssignment(T& t, const U& u)
 template<>
 void PerfromAssignment(VARIANT& t, const wil::unique_variant& u)
 {
-    ::VariantCopy(&t, &u);
+    FAIL_FAST_IF_FAILED(::VariantCopy(&t, &u));
 }
 
 template<>
@@ -291,8 +483,22 @@ void PerfromAssignment(BSTR& t, const wil::unique_bstr& u)
     t = ::SysAllocString(u.get());
 }
 
+template<>
+void PerfromAssignment(LPUNKNOWN& t, const wil::com_ptr_nothrow<IAmForTesting>& u)
+{
+    if (t)
+    {
+        t->Release();
+        t = nullptr;
+    }
+    if (u)
+    {
+        REQUIRE_SUCCEEDED(u->QueryInterface<IUnknown>(&t));
+    }
+}
+
 template<typename I>
-void PerfromAssignment(I*& t, const wil::com_ptr<I>& u)
+void PerfromAssignment(I*& t, const wil::com_ptr_nothrow<I>& u)
 {
     if (t)
     {
@@ -320,7 +526,7 @@ void TestLock(safearray_t& sa)
 template<typename safearray_t>
 void TestTyped_Create_NoThrow()
 {
-    constexpr auto SIZE = 256U;
+    constexpr auto SIZE = DEFAULT_SAMPLE_SIZE;
 
     auto sa = safearray_t{};
     LONG val = 0;
@@ -343,7 +549,7 @@ void TestTyped_Create_NoThrow()
 template<typename safearray_t>
 void TestTyped_Create_FailFast()
 {
-    constexpr auto SIZE = 256U;
+    constexpr auto SIZE = DEFAULT_SAMPLE_SIZE;
 
     auto sa = safearray_t{};
     LONG val = 0;
@@ -367,7 +573,7 @@ void TestTyped_Create_FailFast()
 template<typename safearray_t>
 void TestTyped_Create()
 {
-    constexpr auto SIZE = 256U;
+    constexpr auto SIZE = DEFAULT_SAMPLE_SIZE;
 
     auto sa = safearray_t{};
     REQUIRE_NOTHROW(sa = safearray_t{ SIZE });
@@ -390,7 +596,7 @@ void TestTyped_Create()
 template<typename T>
 void Test_Create_NoThrow()
 {
-    constexpr auto SIZE = 256U;
+    constexpr auto SIZE = DEFAULT_SAMPLE_SIZE;
 
     auto sa = wil::unique_safearray_nothrow{};
     LONG val = 0;
@@ -413,7 +619,7 @@ void Test_Create_NoThrow()
 template<typename T>
 void Test_Create_FailFast()
 {
-    constexpr auto SIZE = 256U;
+    constexpr auto SIZE = DEFAULT_SAMPLE_SIZE;
 
     auto sa = wil::unique_safearray_failfast{};
     LONG val = 0;
@@ -437,9 +643,9 @@ void Test_Create_FailFast()
 template<typename T>
 void Test_Create()
 {
-    constexpr auto SIZE = 256U;
+    constexpr auto SIZE = DEFAULT_SAMPLE_SIZE;
 
-    wil::unique_safearray   sa{};
+    auto sa = wil::unique_safearray{};
     REQUIRE_NOTHROW(sa.create<T>( SIZE ));
     REQUIRE(sa);
     REQUIRE(sa.dim() == 1);
@@ -466,28 +672,25 @@ void TestTyped_DirectElement_NoThrow()
     using array_type = decltype(sample_data);
     using data_type = typename array_type::value_type;
 
-    if (SIZE > 1)
+    auto sa = safearray_t{};
+
+    REQUIRE_SUCCEEDED(sa.create(SIZE));
+    REQUIRE(sa);
+
+    // Loop through and set the values with put_element
+    for (ULONG i = 0; i < SIZE; ++i)
     {
-        auto sa = safearray_t{};
+        REQUIRE_SUCCEEDED(sa.put_element(i, GetReadable(sample_data[i])));
+    }
 
-        REQUIRE_SUCCEEDED(sa.create(SIZE));
-        REQUIRE(sa);
-
-        // Loop through and set the values with put_element
-        for (ULONG i = 0; i < SIZE; ++i)
+    // Loop through and get the values with get_element
+    for (ULONG i = 0; i < SIZE; ++i)
+    {
         {
-            REQUIRE_SUCCEEDED(sa.put_element(i, GetReadable(sample_data[i])));
-        }
-
-        // Loop through and get the values with get_element
-        for (ULONG i = 0; i < SIZE; ++i)
-        {
-            {
-                auto temp = data_type{};
-                // And make sure it was the value that was set
-                REQUIRE_SUCCEEDED(sa.get_element(i, GetWritable(temp)));
-                REQUIRE(PerformCompare(temp, sample_data[i]));
-            }
+            auto temp = data_type{};
+            // And make sure it was the value that was set
+            REQUIRE_SUCCEEDED(sa.get_element(i, GetWritable(temp)));
+            REQUIRE(PerformCompare(temp, sample_data[i]));
         }
     }
 }
@@ -501,28 +704,25 @@ void TestTyped_DirectElement_Failfast()
     using array_type = decltype(sample_data);
     using data_type = typename array_type::value_type;
 
-    if (SIZE > 1)
+    auto sa = safearray_t{};
+
+    REQUIRE_NOCRASH(sa.create(SIZE));
+    REQUIRE(sa);
+
+    // Loop through and set the values with put_element
+    for (ULONG i = 0; i < SIZE; ++i)
     {
-        auto sa = safearray_t{};
+        REQUIRE_NOCRASH(sa.put_element(i, GetReadable(sample_data[i])));
+    }
 
-        REQUIRE_NOCRASH(sa.create(SIZE));
-        REQUIRE(sa);
-
-        // Loop through and set the values with put_element
-        for (ULONG i = 0; i < SIZE; ++i)
+    // Loop through and get the values with get_element
+    for (ULONG i = 0; i < SIZE; ++i)
+    {
         {
-            REQUIRE_NOCRASH(sa.put_element(i, GetReadable(sample_data[i])));
-        }
-
-        // Loop through and get the values with get_element
-        for (ULONG i = 0; i < SIZE; ++i)
-        {
-            {
-                auto temp = data_type{};
-                // And make sure it was the value that was set
-                REQUIRE_NOCRASH(sa.get_element(i, GetWritable(temp)));
-                REQUIRE(PerformCompare(temp, sample_data[i]));
-            }
+            auto temp = data_type{};
+            // And make sure it was the value that was set
+            REQUIRE_NOCRASH(sa.get_element(i, GetWritable(temp)));
+            REQUIRE(PerformCompare(temp, sample_data[i]));
         }
     }
 }
@@ -537,28 +737,25 @@ void TestTyped_DirectElement()
     using array_type = decltype(sample_data);
     using data_type = typename array_type::value_type;
 
-    if (SIZE > 1)
+    auto sa = safearray_t{};
+
+    REQUIRE_NOTHROW(sa.create(SIZE));
+    REQUIRE(sa);
+
+    // Loop through and set the values with put_element
+    for (ULONG i = 0; i < SIZE; ++i)
     {
-        auto sa = safearray_t{};
+        REQUIRE_NOTHROW(sa.put_element(i, GetReadable(sample_data[i])));
+    }
 
-        REQUIRE_NOTHROW(sa.create(SIZE));
-        REQUIRE(sa);
-
-        // Loop through and set the values with put_element
-        for (ULONG i = 0; i < SIZE; ++i)
+    // Loop through and get the values with get_element
+    for (ULONG i = 0; i < SIZE; ++i)
+    {
         {
-            REQUIRE_NOTHROW(sa.put_element(i, GetReadable(sample_data[i])));
-        }
-
-        // Loop through and get the values with get_element
-        for (ULONG i = 0; i < SIZE; ++i)
-        {
-            {
-                auto temp = data_type{};
-                // And make sure it was the value that was set
-                REQUIRE_NOTHROW(sa.get_element(i, GetWritable(temp)));
-                REQUIRE(PerformCompare(temp, sample_data[i]));
-            }
+            auto temp = data_type{};
+            // And make sure it was the value that was set
+            REQUIRE_NOTHROW(sa.get_element(i, GetWritable(temp)));
+            REQUIRE(PerformCompare(temp, sample_data[i]));
         }
     }
 }
@@ -577,28 +774,25 @@ void Test_DirectElement_NoThrow()
     using array_type = decltype(sample_data);
     using data_type = typename array_type::value_type;
 
-    if (SIZE > 1)
+    auto sa = wil::unique_safearray_nothrow{};
+
+    REQUIRE_SUCCEEDED(sa.create<T>(SIZE));
+    REQUIRE(sa);
+
+    // Loop through and set the values with put_element
+    for (ULONG i = 0; i < SIZE; ++i)
     {
-        auto sa = wil::unique_safearray_nothrow{};
+        REQUIRE_SUCCEEDED(sa.put_element<T>(i, GetReadable(sample_data[i])));
+    }
 
-        REQUIRE_SUCCEEDED(sa.create<T>(SIZE));
-        REQUIRE(sa);
-
-        // Loop through and set the values with put_element
-        for (ULONG i = 0; i < SIZE; ++i)
+    // Loop through and get the values with get_element
+    for (ULONG i = 0; i < SIZE; ++i)
+    {
         {
-            REQUIRE_SUCCEEDED(sa.put_element<T>(i, GetReadable(sample_data[i])));
-        }
-
-        // Loop through and get the values with get_element
-        for (ULONG i = 0; i < SIZE; ++i)
-        {
-            {
-                auto temp = data_type{};
-                // And make sure it was the value that was set
-                REQUIRE_SUCCEEDED(sa.get_element<T>(i, GetWritable(temp)));
-                REQUIRE(PerformCompare(temp, sample_data[i]));
-            }
+            auto temp = data_type{};
+            // And make sure it was the value that was set
+            REQUIRE_SUCCEEDED(sa.get_element<T>(i, GetWritable(temp)));
+            REQUIRE(PerformCompare(temp, sample_data[i]));
         }
     }
 }
@@ -612,28 +806,25 @@ void Test_DirectElement_Failfast()
     using array_type = decltype(sample_data);
     using data_type = typename array_type::value_type;
 
-    if (SIZE > 1)
+    auto sa = wil::unique_safearray_failfast{};
+
+    REQUIRE_NOCRASH(sa.create<T>(SIZE));
+    REQUIRE(sa);
+
+    // Loop through and set the values with put_element
+    for (ULONG i = 0; i < SIZE; ++i)
     {
-        auto sa = wil::unique_safearray_failfast{};
+        REQUIRE_NOCRASH(sa.put_element<T>(i, GetReadable(sample_data[i])));
+    }
 
-        REQUIRE_NOCRASH(sa.create<T>(SIZE));
-        REQUIRE(sa);
-
-        // Loop through and set the values with put_element
-        for (ULONG i = 0; i < SIZE; ++i)
+    // Loop through and get the values with get_element
+    for (ULONG i = 0; i < SIZE; ++i)
+    {
         {
-            REQUIRE_NOCRASH(sa.put_element<T>(i, GetReadable(sample_data[i])));
-        }
-
-        // Loop through and get the values with get_element
-        for (ULONG i = 0; i < SIZE; ++i)
-        {
-            {
-                auto temp = data_type{};
-                // And make sure it was the value that was set
-                REQUIRE_NOCRASH(sa.get_element<T>(i, GetWritable(temp)));
-                REQUIRE(PerformCompare(temp, sample_data[i]));
-            }
+            auto temp = data_type{};
+            // And make sure it was the value that was set
+            REQUIRE_NOCRASH(sa.get_element<T>(i, GetWritable(temp)));
+            REQUIRE(PerformCompare(temp, sample_data[i]));
         }
     }
 }
@@ -648,28 +839,25 @@ void Test_DirectElement()
     using array_type = decltype(sample_data);
     using data_type = typename array_type::value_type;
 
-    if (SIZE > 1)
+    auto sa = wil::unique_safearray{};
+
+    REQUIRE_NOTHROW(sa.create<T>(SIZE));
+    REQUIRE(sa);
+
+    // Loop through and set the values with put_element
+    for (ULONG i = 0; i < SIZE; ++i)
     {
-        auto sa = wil::unique_safearray{};
+        REQUIRE_NOTHROW(sa.put_element<T>(i, GetReadable(sample_data[i])));
+    }
 
-        REQUIRE_NOTHROW(sa.create<T>(SIZE));
-        REQUIRE(sa);
-
-        // Loop through and set the values with put_element
-        for (ULONG i = 0; i < SIZE; ++i)
+    // Loop through and get the values with get_element
+    for (ULONG i = 0; i < SIZE; ++i)
+    {
         {
-            REQUIRE_NOTHROW(sa.put_element<T>(i, GetReadable(sample_data[i])));
-        }
-
-        // Loop through and get the values with get_element
-        for (ULONG i = 0; i < SIZE; ++i)
-        {
-            {
-                auto temp = data_type{};
-                // And make sure it was the value that was set
-                REQUIRE_NOTHROW(sa.get_element<T>(i, GetWritable(temp)));
-                REQUIRE(PerformCompare(temp, sample_data[i]));
-            }
+            auto temp = data_type{};
+            // And make sure it was the value that was set
+            REQUIRE_NOTHROW(sa.get_element<T>(i, GetWritable(temp)));
+            REQUIRE(PerformCompare(temp, sample_data[i]));
         }
     }
 }
@@ -688,15 +876,16 @@ void TestTyped_AccessData_NoThrow()
     using array_type = decltype(sample_data);
     using data_type = typename array_type::value_type;
 
-    if (SIZE > 1)
+    // Operate on the AccessData class using ranged-for
     {
+        // Create a new SA and copy the sample data into it
         auto sa = safearray_t{};
         REQUIRE_SUCCEEDED(sa.create(SIZE));
         REQUIRE(sa);
         {
             ULONG counter = {};
             typename safearray_t::unique_accessdata data;
-            REQUIRE_SUCCEEDED(sa.access_data(data));
+            REQUIRE_SUCCEEDED(data.create(sa.get()));
             REQUIRE(data);
             for (auto& elem : data)
             {
@@ -704,17 +893,53 @@ void TestTyped_AccessData_NoThrow()
             }
         }
 
+        // Duplicate the SA to make sure create_copy works
         auto sa2 = safearray_t{};
         REQUIRE_SUCCEEDED(sa2.create_copy(sa.get()));
         REQUIRE(sa2);
         {
+            // Verify the values in the copy are the same as
+            // the values that were placed into the original
             ULONG counter = {};
             typename safearray_t::unique_accessdata data;
-            REQUIRE_SUCCEEDED(sa2.access_data(data));
+            REQUIRE_SUCCEEDED(data.create(sa2.get()));
             REQUIRE(data);
-            for (auto& elem : data)
+            for (const auto& elem : data)
             {
                 REQUIRE(PerformCompare(elem, sample_data[counter++]));
+            }
+        }
+    }
+
+    // Operate on the AccessData class using regular for-loop
+    {
+        // Create a new SA and copy the sample data into it
+        auto sa = safearray_t{};
+        REQUIRE_SUCCEEDED(sa.create(SIZE));
+        REQUIRE(sa);
+        {
+            typename safearray_t::unique_accessdata data;
+            REQUIRE_SUCCEEDED(data.create(sa.get()));
+            REQUIRE(data);
+            for (ULONG i = 0 ; i < data.size(); ++i)
+            {
+                PerfromAssignment(data[i], sample_data[i]);
+            }
+        }
+
+        // Duplicate the SA to make sure create_copy works
+        auto sa2 = safearray_t{};
+        REQUIRE_SUCCEEDED(sa2.create_copy(sa.get()));
+        REQUIRE(sa2);
+        {
+            // Verify the values in the copy are the same as
+            // the values that were placed into the original
+            typename safearray_t::unique_accessdata data;
+            REQUIRE_SUCCEEDED(data.create(sa2.get()));
+            REQUIRE(data);
+            for (ULONG i = 0; i < data.size(); ++i)
+            {
+                REQUIRE(PerformCompare(data[i], sample_data[i]));
             }
         }
     }
@@ -723,12 +948,164 @@ void TestTyped_AccessData_NoThrow()
 template<typename safearray_t>
 void TestTyped_AccessData_Failfast()
 {
+    auto sample_data = GetSampleData<safearray_t::elemtype>();
+    auto SIZE = ULONG{ sample_data.size() };
+
+    using array_type = decltype(sample_data);
+    using data_type = typename array_type::value_type;
+
+    // Operate on the AccessData class using ranged-for
+    {
+        // Create a new SA and copy the sample data into it
+        auto sa = safearray_t{};
+        REQUIRE_NOCRASH(sa.create(SIZE));
+        REQUIRE(sa);
+        {
+            ULONG counter = {};
+            typename safearray_t::unique_accessdata data;
+            REQUIRE_NOCRASH(data.create(sa.get()));
+            REQUIRE(data);
+            for (auto& elem : data)
+            {
+                PerfromAssignment(elem, sample_data[counter++]);
+            }
+        }
+
+        // Duplicate the SA to make sure create_copy works
+        auto sa2 = safearray_t{};
+        REQUIRE_NOCRASH(sa2.create_copy(sa.get()));
+        REQUIRE(sa2);
+        {
+            // Verify the values in the copy are the same as
+            // the values that were placed into the original
+            ULONG counter = {};
+            typename safearray_t::unique_accessdata data;
+            REQUIRE_NOCRASH(data.create(sa2.get()));
+            REQUIRE(data);
+            for (const auto& elem : data)
+            {
+                REQUIRE(PerformCompare(elem, sample_data[counter++]));
+            }
+        }
+    }
+
+    // Operate on the AccessData class using regular for-loop
+    {
+        // Create a new SA and copy the sample data into it
+        auto sa = safearray_t{};
+        REQUIRE_NOCRASH(sa.create(SIZE));
+        REQUIRE(sa);
+        {
+            typename safearray_t::unique_accessdata data;
+            REQUIRE_NOCRASH(data.create(sa.get()));
+            REQUIRE(data);
+            for (ULONG i = 0; i < data.size(); ++i)
+            {
+                PerfromAssignment(data[i], sample_data[i]);
+            }
+        }
+
+        // Duplicate the SA to make sure create_copy works
+        auto sa2 = safearray_t{};
+        REQUIRE_NOCRASH(sa2.create_copy(sa.get()));
+        REQUIRE(sa2);
+        {
+            // Verify the values in the copy are the same as
+            // the values that were placed into the original
+            typename safearray_t::unique_accessdata data;
+            REQUIRE_NOCRASH(data.create(sa2.get()));
+            REQUIRE(data);
+            for (ULONG i = 0; i < data.size(); ++i)
+            {
+                REQUIRE(PerformCompare(data[i], sample_data[i]));
+            }
+        }
+    }
 }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
 template<typename safearray_t>
 void TestTyped_AccessData()
 {
+    auto sample_data = GetSampleData<safearray_t::elemtype>();
+    auto SIZE = ULONG{ sample_data.size() };
+
+    using array_type = decltype(sample_data);
+    using data_type = typename array_type::value_type;
+
+    // Operate on the AccessData class using ranged-for
+    {
+        // Create a new SA and copy the sample data into it
+        auto sa = safearray_t{};
+        REQUIRE_NOTHROW(sa.create(SIZE));
+        REQUIRE(sa);
+
+        REQUIRE_NOTHROW([&]()
+            {
+                ULONG counter = {};
+                auto data = sa.access_data();
+                for (auto& elem : data)
+                {
+                    PerfromAssignment(elem, sample_data[counter++]);
+                }
+            }());
+
+        // Duplicate the SA to make sure copy works
+        auto sa2 = safearray_t{};
+        REQUIRE_NOTHROW([&]() 
+            {
+                sa2 = sa.create_copy();
+                REQUIRE(sa2);
+            }());
+
+        REQUIRE_NOTHROW([&]()
+            {
+                // Verify the values in the copy are the same as
+                // the values that were placed into the original
+                ULONG counter = {};
+                auto data = sa.access_data();
+                for (const auto& elem : data)
+                {
+                    REQUIRE(PerformCompare(elem, sample_data[counter++]));
+                }
+            }());
+    }
+
+    // Operate on the AccessData class using regular for-loop
+    {
+        // Create a new SA and copy the sample data into it
+        auto sa = safearray_t{};
+        REQUIRE_NOTHROW(sa.create(SIZE));
+        REQUIRE(sa);
+
+        REQUIRE_NOTHROW([&]()
+            {
+                auto data = sa.access_data();
+                for (ULONG i = 0; i < data.size(); ++i)
+                {
+                    PerfromAssignment(data[i], sample_data[i]);
+                }
+            }());
+
+        // Duplicate the SA to make sure copy works
+        auto sa2 = safearray_t{};
+        REQUIRE_NOTHROW([&]()
+            {
+                sa2 = sa.create_copy();
+                REQUIRE(sa2);
+            }());
+
+        REQUIRE_NOTHROW([&]()
+            {
+                // Verify the values in the copy are the same as
+                // the values that were placed into the original
+                auto data = sa2.access_data();
+                for (ULONG i = 0; i < data.size(); ++i)
+                {
+                    REQUIRE(PerformCompare(data[i], sample_data[i]));
+                }
+            }());
+    }
 }
 #endif
 
@@ -781,6 +1158,8 @@ TEST_CASE("Safearray::Put/Get", "[safearray]")
         RUN_TEST(_DIRECT);
     }
 #endif
+
+    REQUIRE(TestComObject::GetObjectCounter() == 0);
 }
 
 
@@ -794,16 +1173,18 @@ TEST_CASE("Safearray::AccessData", "[safearray]")
 
     SECTION("Access Data - FailFast")
     {
-        //RUN_TYPED_TEST_FAILFAST(_TYPED_ACCESSDATA_FAILFAST);
+        RUN_TYPED_TEST_FAILFAST(_TYPED_ACCESSDATA_FAILFAST);
         //RUN_TEST(_DIRECT_FAILFAST);
     }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
     SECTION("Access Data - Exceptions")
     {
-        //RUN_TYPED_TEST(_TYPED_ACCESSDATA);
+        RUN_TYPED_TEST(_TYPED_ACCESSDATA);
         //RUN_TEST(_DIRECT);
     }
 #endif
+
+    REQUIRE(TestComObject::GetObjectCounter() == 0);
 }
 
