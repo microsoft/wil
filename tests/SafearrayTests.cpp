@@ -224,8 +224,8 @@ auto GetWritable(T& t) -> LPDISPATCH&
     return *(t.addressof());
 }
 
-template<typename T>
-bool PerformCompare(const T& left, const T& right)
+template<typename T, typename U>
+bool PerformCompare(const T& left, const U& right)
 {
     return (left == right);
 }
@@ -237,10 +237,72 @@ bool PerformCompare(const wil::unique_variant& left, const wil::unique_variant& 
 }
 
 template<>
+bool PerformCompare(const BSTR& left, const BSTR& right)
+{
+    return (::SysStringLen(left) == ::SysStringLen(right))
+        && (wcscmp(left, right) == 0);
+}
+
+template<>
+bool PerformCompare(const BSTR& left, const wil::unique_bstr& right)
+{
+    return PerformCompare(left, right.get());
+}
+
+template<>
+bool PerformCompare(const wil::unique_bstr& left, const BSTR& right)
+{
+    return PerformCompare(left.get(), right);
+}
+
+template<>
 bool PerformCompare(const wil::unique_bstr& left, const wil::unique_bstr& right)
 {
-    return (::SysStringLen(left.get()) == ::SysStringLen(right.get()))
-        && (wcscmp(left.get(), right.get()) == 0);
+    return PerformCompare(left.get(), right.get());
+}
+
+template<>
+bool PerformCompare(const wil::unique_variant& left, const VARIANT& right)
+{
+    return (::VariantCompare(left, right) == 0);
+}
+
+template<>
+bool PerformCompare(const VARIANT& left, const wil::unique_variant& right)
+{
+    return (::VariantCompare(left, right) == 0);
+}
+
+template<typename T, typename U>
+void PerfromAssignment(T& t, const U& u)
+{
+    t = u;
+}
+
+template<>
+void PerfromAssignment(VARIANT& t, const wil::unique_variant& u)
+{
+    ::VariantCopy(&t, &u);
+}
+
+template<>
+void PerfromAssignment(BSTR& t, const wil::unique_bstr& u)
+{
+    t = ::SysAllocString(u.get());
+}
+
+template<typename I>
+void PerfromAssignment(I*& t, const wil::com_ptr<I>& u)
+{
+    if (t)
+    {
+        t->Release();
+        t = nullptr;
+    }
+    if (u)
+    {
+        REQUIRE_SUCCEEDED(u->QueryInterface<I>(&t));
+    }
 }
 
 template<typename safearray_t>
@@ -617,6 +679,63 @@ void Test_DirectElement()
 #define _DIRECT_FAILFAST(type)          Test_DirectElement_Failfast<type>();
 #define _DIRECT(type)                   Test_DirectElement<type>();
 
+template<typename safearray_t>
+void TestTyped_AccessData_NoThrow()
+{
+    auto sample_data = GetSampleData<safearray_t::elemtype>();
+    auto SIZE = ULONG{ sample_data.size() };
+
+    using array_type = decltype(sample_data);
+    using data_type = typename array_type::value_type;
+
+    if (SIZE > 1)
+    {
+        auto sa = safearray_t{};
+        REQUIRE_SUCCEEDED(sa.create(SIZE));
+        REQUIRE(sa);
+        {
+            ULONG counter = {};
+            typename safearray_t::unique_accessdata data;
+            REQUIRE_SUCCEEDED(sa.access_data(data));
+            REQUIRE(data);
+            for (auto& elem : data)
+            {
+                PerfromAssignment(elem, sample_data[counter++]);
+            }
+        }
+
+        auto sa2 = safearray_t{};
+        REQUIRE_SUCCEEDED(sa2.create_copy(sa.get()));
+        REQUIRE(sa2);
+        {
+            ULONG counter = {};
+            typename safearray_t::unique_accessdata data;
+            REQUIRE_SUCCEEDED(sa2.access_data(data));
+            REQUIRE(data);
+            for (auto& elem : data)
+            {
+                REQUIRE(PerformCompare(elem, sample_data[counter++]));
+            }
+        }
+    }
+}
+
+template<typename safearray_t>
+void TestTyped_AccessData_Failfast()
+{
+}
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+template<typename safearray_t>
+void TestTyped_AccessData()
+{
+}
+#endif
+
+#define _TYPED_ACCESSDATA_NOTHROW(type)         TestTyped_AccessData_NoThrow<type>();
+#define _TYPED_ACCESSDATA_FAILFAST(type)        TestTyped_AccessData_Failfast<type>();
+#define _TYPED_ACCESSDATA(type)                 TestTyped_AccessData<type>();
+
 
 TEST_CASE("Safearray::Create", "[safearray]")
 {
@@ -641,7 +760,6 @@ TEST_CASE("Safearray::Create", "[safearray]")
 #endif
 }
 
-
 TEST_CASE("Safearray::Put/Get", "[safearray]")
 {
     SECTION("Direct Element Access - No Throw")
@@ -661,6 +779,30 @@ TEST_CASE("Safearray::Put/Get", "[safearray]")
     {
         RUN_TYPED_TEST(_TYPED_DIRECT);
         RUN_TEST(_DIRECT);
+    }
+#endif
+}
+
+
+TEST_CASE("Safearray::AccessData", "[safearray]")
+{
+    SECTION("Access Data - No Throw")
+    {
+        RUN_TYPED_TEST_NOTHROW(_TYPED_ACCESSDATA_NOTHROW);
+        //RUN_TEST(_DIRECT_NOTHROW);
+    }
+
+    SECTION("Access Data - FailFast")
+    {
+        //RUN_TYPED_TEST_FAILFAST(_TYPED_ACCESSDATA_FAILFAST);
+        //RUN_TEST(_DIRECT_FAILFAST);
+    }
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+    SECTION("Access Data - Exceptions")
+    {
+        //RUN_TYPED_TEST(_TYPED_ACCESSDATA);
+        //RUN_TEST(_DIRECT);
     }
 #endif
 }
