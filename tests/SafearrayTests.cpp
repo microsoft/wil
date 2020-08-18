@@ -172,6 +172,58 @@ std::array<wil::com_ptr<IUnknown>, 1> GetSampleData() { return {}; }
 template<typename T, typename = typename wistd::enable_if<wistd::is_same<T, LPDISPATCH>::value, int>::type>
 std::array<wil::com_ptr<IDispatch>, 1> GetSampleData() { return {}; }
 
+template <typename T, typename = typename wistd::enable_if<!wistd::is_same<T, wil::unique_bstr>::value 
+                                                            && !wistd::is_same<T, wil::com_ptr<IUnknown>>::value
+                                                            && !wistd::is_same<T, wil::com_ptr<IDispatch>>::value, int>::type>
+auto GetReadable(const T& t) -> const T&
+{
+    return t;
+}
+
+template<typename T, typename = typename wistd::enable_if<wistd::is_same<T, wil::unique_bstr>::value, int>::type>
+auto GetReadable(const T& t) -> BSTR
+{
+    return t.get();
+}
+
+template<typename T, typename = typename wistd::enable_if<wistd::is_same<T, wil::com_ptr<IUnknown>>::value, int>::type>
+auto GetReadable(const T& t) -> LPUNKNOWN
+{
+    return t.get();
+}
+
+template<typename T, typename = typename wistd::enable_if<wistd::is_same<T, wil::com_ptr<IDispatch>>::value, int>::type>
+auto GetReadable(const T& t) -> LPDISPATCH
+{
+    return t.get();
+}
+
+template <typename T, typename = typename wistd::enable_if<!wistd::is_same<T, wil::unique_bstr>::value
+                                                            && !wistd::is_same<T, wil::com_ptr<IUnknown>>::value
+                                                            && !wistd::is_same<T, wil::com_ptr<IDispatch>>::value, int>::type>
+auto GetWritable(T& t) -> T&
+{
+    return t;
+}
+
+template<typename T, typename = typename wistd::enable_if<wistd::is_same<T, wil::unique_bstr>::value, int>::type>
+auto GetWritable(T& t) -> BSTR&
+{
+    return *(t.addressof());
+}
+
+template<typename T, typename = typename wistd::enable_if<wistd::is_same<T, wil::com_ptr<IUnknown>>::value, int>::type>
+auto GetWritable(T& t) -> LPUNKNOWN&
+{
+    return *(t.addressof());
+}
+
+template<typename T, typename = typename wistd::enable_if<wistd::is_same<T, wil::com_ptr<IDispatch>>::value, int>::type>
+auto GetWritable(T& t) -> LPDISPATCH&
+{
+    return *(t.addressof());
+}
+
 template<typename T>
 bool PerformCompare(const T& left, const T& right)
 {
@@ -182,6 +234,13 @@ template<>
 bool PerformCompare(const wil::unique_variant& left, const wil::unique_variant& right)
 {
     return (::VariantCompare(left, right) == 0);
+}
+
+template<>
+bool PerformCompare(const wil::unique_bstr& left, const wil::unique_bstr& right)
+{
+    return (::SysStringLen(left.get()) == ::SysStringLen(right.get()))
+        && (wcscmp(left.get(), right.get()) == 0);
 }
 
 template<typename safearray_t>
@@ -262,6 +321,10 @@ void TestTyped_Create()
 }
 #endif
 
+#define _TYPED_CREATE_NOTHROW(type)         TestTyped_Create_NoThrow<type>();
+#define _TYPED_CREATE_FAILFAST(type)        TestTyped_Create_FailFast<type>();
+#define _TYPED_CREATE(type)                 TestTyped_Create<type>();
+
 template<typename T>
 void Test_Create_NoThrow()
 {
@@ -270,7 +333,7 @@ void Test_Create_NoThrow()
     auto sa = wil::unique_safearray_nothrow{};
     LONG val = 0;
     ULONG count = 0;
-    //REQUIRE_SUCCEEDED(sa.create<T>(SIZE));
+    REQUIRE_SUCCEEDED(sa.create<T>(SIZE));
     REQUIRE(sa);
     REQUIRE(sa.dim() == 1);
     REQUIRE(sa.elemsize() == sizeof(T));
@@ -328,37 +391,9 @@ void Test_Create()
 }
 #endif
 
-#define _TYPED_CREATE_NOTHROW(type)         TestTyped_Create_NoThrow<type>();
-#define _TYPED_CREATE_FAILFAST(type)        TestTyped_Create_FailFast<type>();
-#define _TYPED_CREATE(type)                 TestTyped_Create<type>();
 #define _CREATE_NOTHROW(type)               Test_Create_NoThrow<type>();
 #define _CREATE_FAILFAST(type)              Test_Create_FailFast<type>();
 #define _CREATE(type)                       Test_Create<type>();
-
-template <typename T>
-auto GetReadable(const T& t) -> const T&
-{
-    return t;
-}
-
-template<typename T, typename = typename wistd::enable_if<wistd::is_same<T, wil::unique_bstr>::value, int>::type>
-auto GetReadable(const wil::unique_bstr& t) -> BSTR
-{
-    return t.get();
-}
-
-template <typename T>
-auto GetWritable(T& t) -> T&
-{
-    return t;
-}
-
-template<typename T, typename = typename wistd::enable_if<wistd::is_same<T, wil::unique_bstr>::value, int>::type>
-auto GetWritable(wil::unique_bstr& t) -> BSTR&
-{
-    return *(t.addressof());
-}
-
 
 template<typename safearray_t>
 void TestTyped_DirectElement_NoThrow()
@@ -395,7 +430,192 @@ void TestTyped_DirectElement_NoThrow()
     }
 }
 
+template<typename safearray_t>
+void TestTyped_DirectElement_Failfast()
+{
+    auto sample_data = GetSampleData<safearray_t::elemtype>();
+    auto SIZE = ULONG{ sample_data.size() };
+
+    using array_type = decltype(sample_data);
+    using data_type = typename array_type::value_type;
+
+    if (SIZE > 1)
+    {
+        auto sa = safearray_t{};
+
+        REQUIRE_NOCRASH(sa.create(SIZE));
+        REQUIRE(sa);
+
+        // Loop through and set the values with put_element
+        for (ULONG i = 0; i < SIZE; ++i)
+        {
+            REQUIRE_NOCRASH(sa.put_element(i, GetReadable(sample_data[i])));
+        }
+
+        // Loop through and get the values with get_element
+        for (ULONG i = 0; i < SIZE; ++i)
+        {
+            {
+                auto temp = data_type{};
+                // And make sure it was the value that was set
+                REQUIRE_NOCRASH(sa.get_element(i, GetWritable(temp)));
+                REQUIRE(PerformCompare(temp, sample_data[i]));
+            }
+        }
+    }
+}
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+template<typename safearray_t>
+void TestTyped_DirectElement()
+{
+    auto sample_data = GetSampleData<safearray_t::elemtype>();
+    auto SIZE = ULONG{ sample_data.size() };
+
+    using array_type = decltype(sample_data);
+    using data_type = typename array_type::value_type;
+
+    if (SIZE > 1)
+    {
+        auto sa = safearray_t{};
+
+        REQUIRE_NOTHROW(sa.create(SIZE));
+        REQUIRE(sa);
+
+        // Loop through and set the values with put_element
+        for (ULONG i = 0; i < SIZE; ++i)
+        {
+            REQUIRE_NOTHROW(sa.put_element(i, GetReadable(sample_data[i])));
+        }
+
+        // Loop through and get the values with get_element
+        for (ULONG i = 0; i < SIZE; ++i)
+        {
+            {
+                auto temp = data_type{};
+                // And make sure it was the value that was set
+                REQUIRE_NOTHROW(sa.get_element(i, GetWritable(temp)));
+                REQUIRE(PerformCompare(temp, sample_data[i]));
+            }
+        }
+    }
+}
+#endif
+
 #define _TYPED_DIRECT_NOTHROW(type)         TestTyped_DirectElement_NoThrow<type>();
+#define _TYPED_DIRECT_FAILFAST(type)        TestTyped_DirectElement_Failfast<type>();
+#define _TYPED_DIRECT(type)                 TestTyped_DirectElement<type>();
+
+template<typename T>
+void Test_DirectElement_NoThrow()
+{
+    auto sample_data = GetSampleData<T>();
+    auto SIZE = ULONG{ sample_data.size() };
+
+    using array_type = decltype(sample_data);
+    using data_type = typename array_type::value_type;
+
+    if (SIZE > 1)
+    {
+        auto sa = wil::unique_safearray_nothrow{};
+
+        REQUIRE_SUCCEEDED(sa.create<T>(SIZE));
+        REQUIRE(sa);
+
+        // Loop through and set the values with put_element
+        for (ULONG i = 0; i < SIZE; ++i)
+        {
+            REQUIRE_SUCCEEDED(sa.put_element<T>(i, GetReadable(sample_data[i])));
+        }
+
+        // Loop through and get the values with get_element
+        for (ULONG i = 0; i < SIZE; ++i)
+        {
+            {
+                auto temp = data_type{};
+                // And make sure it was the value that was set
+                REQUIRE_SUCCEEDED(sa.get_element<T>(i, GetWritable(temp)));
+                REQUIRE(PerformCompare(temp, sample_data[i]));
+            }
+        }
+    }
+}
+
+template<typename T>
+void Test_DirectElement_Failfast()
+{
+    auto sample_data = GetSampleData<T>();
+    auto SIZE = ULONG{ sample_data.size() };
+
+    using array_type = decltype(sample_data);
+    using data_type = typename array_type::value_type;
+
+    if (SIZE > 1)
+    {
+        auto sa = wil::unique_safearray_failfast{};
+
+        REQUIRE_NOCRASH(sa.create<T>(SIZE));
+        REQUIRE(sa);
+
+        // Loop through and set the values with put_element
+        for (ULONG i = 0; i < SIZE; ++i)
+        {
+            REQUIRE_NOCRASH(sa.put_element<T>(i, GetReadable(sample_data[i])));
+        }
+
+        // Loop through and get the values with get_element
+        for (ULONG i = 0; i < SIZE; ++i)
+        {
+            {
+                auto temp = data_type{};
+                // And make sure it was the value that was set
+                REQUIRE_NOCRASH(sa.get_element<T>(i, GetWritable(temp)));
+                REQUIRE(PerformCompare(temp, sample_data[i]));
+            }
+        }
+    }
+}
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+template<typename T>
+void Test_DirectElement()
+{
+    auto sample_data = GetSampleData<T>();
+    auto SIZE = ULONG{ sample_data.size() };
+
+    using array_type = decltype(sample_data);
+    using data_type = typename array_type::value_type;
+
+    if (SIZE > 1)
+    {
+        auto sa = wil::unique_safearray{};
+
+        REQUIRE_NOTHROW(sa.create<T>(SIZE));
+        REQUIRE(sa);
+
+        // Loop through and set the values with put_element
+        for (ULONG i = 0; i < SIZE; ++i)
+        {
+            REQUIRE_NOTHROW(sa.put_element<T>(i, GetReadable(sample_data[i])));
+        }
+
+        // Loop through and get the values with get_element
+        for (ULONG i = 0; i < SIZE; ++i)
+        {
+            {
+                auto temp = data_type{};
+                // And make sure it was the value that was set
+                REQUIRE_NOTHROW(sa.get_element<T>(i, GetWritable(temp)));
+                REQUIRE(PerformCompare(temp, sample_data[i]));
+            }
+        }
+    }
+}
+#endif
+
+#define _DIRECT_NOTHROW(type)           Test_DirectElement_NoThrow<type>();
+#define _DIRECT_FAILFAST(type)          Test_DirectElement_Failfast<type>();
+#define _DIRECT(type)                   Test_DirectElement<type>();
 
 
 TEST_CASE("Safearray::Create", "[safearray]")
@@ -427,20 +647,20 @@ TEST_CASE("Safearray::Put/Get", "[safearray]")
     SECTION("Direct Element Access - No Throw")
     {
         RUN_TYPED_TEST_NOTHROW(_TYPED_DIRECT_NOTHROW);
-        //RUN_TEST(_CREATE_NOTHROW);
+        RUN_TEST(_DIRECT_NOTHROW);
     }
 
     SECTION("Direct Element Access - FailFast")
     {
-        //RUN_TYPED_TEST_FAILFAST(_TYPED_CREATE_FAILFAST);
-        //RUN_TEST(_CREATE_FAILFAST);
+        RUN_TYPED_TEST_FAILFAST(_TYPED_DIRECT_FAILFAST);
+        RUN_TEST(_DIRECT_FAILFAST);
     }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
     SECTION("Direct Element Access - Exceptions")
     {
-        //RUN_TYPED_TEST(_TYPED_CREATE);
-        //RUN_TEST(_CREATE);
+        RUN_TYPED_TEST(_TYPED_DIRECT);
+        RUN_TEST(_DIRECT);
     }
 #endif
 }

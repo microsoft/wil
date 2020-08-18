@@ -351,13 +351,11 @@ namespace wil
         {
             HRESULT hr = [&]()
             {
-               auto psa = storage_t::policy::invalid_value();
-
+                auto psa = storage_t::policy::invalid_value();
                 RETURN_IF_FAILED(::SafeArrayCopy(psaSrc, &psa));
                 storage_t::reset(psa);
                 return S_OK;
             }();
-
             return err_policy::HResult(hr);
         }
 
@@ -414,40 +412,33 @@ namespace wil
             return err_policy::HResult(::SafeArrayGetElement(storage_t::get(), &nIndex, pv));
         }
 
-        //template<typename T>
-        //result put_element(const T& t, LONG* pIndices)
-        //{
-        //    WI_ASSERT(sizeof(t) == elemsize());
-        //    return err_policy::HResult(::SafeArrayPutElement(storage_t::get(), pIndices, &t));
-        //}
-        //template<typename T>
-        //result get_element(T& t, LONG* pIndices)
-        //{
-        //    WI_ASSERT(sizeof(t) == elemsize());
-        //    return err_policy::HResult(::SafeArrayGetElement(storage_t::get(), pIndices, &t));
-        //}
-        template<typename T, typename U = element_t, typename wistd::enable_if<wistd::is_same<U, void>::value && !wistd::is_same<T, BSTR>::value, int>::type = 0>
-        result put_element(LONG nIndex, const T& t)
+        template<typename T>
+        using is_special_type = wistd::disjunction<wistd::is_same<T, BSTR>,
+                                                        wistd::is_same<T, LPUNKNOWN>,
+                                                        wistd::is_same<T, LPDISPATCH>>;
+
+        template<typename T>
+        using is_valid_type = wistd::negation<wistd::is_same<T, void>>;
+
+        template <typename T>
+        using is_nonspecial_type = wistd::conjunction<wistd::negation<is_special_type<T>>,is_valid_type<T>>;
+
+        template<typename T = element_t, typename wistd::enable_if<is_nonspecial_type<T>::value, int>::type = 0>
+        result put_element(LONG nIndex, const T& val)
         {
-            WI_ASSERT(sizeof(t) == elemsize());
+            WI_ASSERT(sizeof(val) == elemsize());
             WI_ASSERT(dim() == 1);
-            return err_policy::HResult(::SafeArrayPutElement(storage_t::get(), &nIndex, reinterpret_cast<void*>(const_cast<T*>(&t))));
+            return err_policy::HResult(::SafeArrayPutElement(storage_t::get(), &nIndex, reinterpret_cast<void*>(const_cast<T*>(&val))));
         }
-        template<typename T, typename U = element_t, EnableIfNotTyped<U> = 0>
-        result get_element(LONG nIndex, T& t)
+        template<typename T = element_t, typename wistd::enable_if<is_special_type<T>::value, int>::type = 0>
+        result put_element(LONG nIndex, T val)
         {
-            WI_ASSERT(sizeof(t) == elemsize());
+            WI_ASSERT(sizeof(val) == elemsize());
             WI_ASSERT(dim() == 1);
-            return err_policy::HResult(::SafeArrayGetElement(storage_t::get(), &nIndex, &t));
+            return err_policy::HResult(::SafeArrayPutElement(storage_t::get(), &nIndex, val));
         }
-        template<typename T = element_t, typename wistd::enable_if<!wistd::is_same<element_t, void>::value && !wistd::is_same<T, BSTR>::value, int>::type = 0>
-        result put_element(LONG nIndex, const T& t)
-        {
-            WI_ASSERT(sizeof(t) == elemsize());
-            WI_ASSERT(dim() == 1);
-            return err_policy::HResult(::SafeArrayPutElement(storage_t::get(), &nIndex, reinterpret_cast<void*>(const_cast<T*>(&t))));
-        }
-        template<typename T = element_t, EnableIfTyped<T> = 0>
+
+        template<typename T = element_t, typename wistd::enable_if<is_valid_type<T>::value, int>::type = 0>
         result get_element(LONG nIndex, T& t)
         {
             WI_ASSERT(sizeof(t) == elemsize());
@@ -458,27 +449,6 @@ namespace wil
         //// Filters functions that require a type because the class type doesn't provide one (element_t == void)
         //template<typename T> using EnableIfNotTyped = typename wistd::enable_if<wistd::is_same<T, void>::value, int>::type;
 
-        template<typename T, typename U = element_t, typename wistd::enable_if<wistd::is_same<U, void>::value&& wistd::is_same<T, BSTR>::value, int>::type = 0>
-        result put_element(LONG nIndex, BSTR bstr)
-        {
-            WI_ASSERT(sizeof(bstr) == elemsize());
-            WI_ASSERT(dim() == 1);
-            return err_policy::HResult(::SafeArrayPutElement(storage_t::get(), &nIndex, bstr));
-        }
-        //template<typename T, typename U = element_t, typename wistd::enable_if<wistd::is_same<U, void>::value && wistd::is_same<T, BSTR>::value, int>::type = 0>
-        //result get_element(LONG nIndex, T& t)
-        //{
-        //    WI_ASSERT(sizeof(t) == elemsize());
-        //    WI_ASSERT(dim() == 1);
-        //    return err_policy::HResult(::SafeArrayGetElement(storage_t::get(), &nIndex, &t));
-        //}
-        template<typename T = element_t, typename wistd::enable_if<!wistd::is_same<element_t, void>::value&& wistd::is_same<T, BSTR>::value, int>::type = 0>
-        result put_element(LONG nIndex, BSTR bstr)
-        {
-            WI_ASSERT(sizeof(bstr) == elemsize());
-            WI_ASSERT(dim() == 1);
-            return err_policy::HResult(::SafeArrayPutElement(storage_t::get(), &nIndex, bstr));
-        }
         //template<typename T = element_t, EnableIfTyped<T> = 0>
         //result get_element(LONG nIndex, T& t)
         //{
