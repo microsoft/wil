@@ -19,6 +19,13 @@
 #include "wistd_type_traits.h"
 #include "resource.h" // unique_hkey
 
+namespace std
+{
+    // Forward Defines
+    template<class T> class allocator;
+    template<class T, class Allocator = std::allocator<T>> class vector;
+}
+
 namespace wil
 {
 #if defined( _OLEAUTO_H_ ) && !defined(__WIL_OLEAUTO_)
@@ -83,16 +90,12 @@ namespace wil
 
         inline VARTYPE __stdcall SafeArrayGetVartype(SAFEARRAY* psa)
         {
-            // Safearrays cannot hold type VT_NULL, so this value
-            // means the SAFEARRAY was null
-            VARTYPE vt = VT_NULL;
+            VARTYPE vt = VT_NULL;   // Invalid for SAs, so use to mean SA was null
             if (psa != nullptr)
             {
                 if (FAILED(::SafeArrayGetVartype(psa, &vt)))
                 {
-                    // Safearrays cannot hold type VT_EMPTY, so this value
-                    // means the type couldn't be determined
-                    vt = VT_EMPTY;
+                    vt = VT_EMPTY;  // Invalid for SAs, use to mean type couldn't be determined
                 }
             }
             return vt;
@@ -108,10 +111,19 @@ namespace wil
             return S_OK;
         }
 
+        inline HRESULT __stdcall SafeArrayDimElementCount(SAFEARRAY* psa, UINT nDim, ULONG* pCount) WI_NOEXCEPT
+        {
+            __FAIL_FAST_ASSERT__(psa != nullptr);
+            __FAIL_FAST_ASSERT__(pCount != nullptr);
+            RETURN_HR_IF(E_INVALIDARG, ((nDim == 0) || (nDim > psa->cDims)));
+            // Read from the back of the array because SAFEARRAYs are stored with the dimensions in reverse order
+            *pCount = psa->rgsabound[psa->cDims - nDim].cElements;
+            return S_OK;
+        }
+
         inline HRESULT __stdcall SafeArrayCountElements(SAFEARRAY* psa, ULONG* pCount) WI_NOEXCEPT
         {
-            RETURN_HR_IF_NULL(E_POINTER, pCount);
-
+            __FAIL_FAST_ASSERT__(pCount != nullptr);
             if ( psa != nullptr )
             {
                 ULONGLONG result = 1;
@@ -123,7 +135,6 @@ namespace wil
                         RETURN_HR(HRESULT_FROM_WIN32(ERROR_ARITHMETIC_OVERFLOW));
                     }
                 }
-
                 *pCount = static_cast<ULONG>(result);
             }
             else
@@ -211,11 +222,11 @@ namespace wil
             create(psa);
         }
         safearraydata_t() = default;
-        safearraydata_t(safearraydata_t&& other) = default;
-        ~safearraydata_t()
-        {
-
-        }
+        safearraydata_t(safearraydata_t&&) = default;
+        ~safearraydata_t() = default;
+        safearraydata_t& operator=(safearraydata_t&&) = default;
+        safearraydata_t(const safearraydata_t&) = delete;
+        safearraydata_t& operator=(const safearraydata_t&) = delete;
 
         result create(pointer psa)
         {
@@ -236,8 +247,8 @@ namespace wil
         // Ranged-for style
         iterator begin() WI_NOEXCEPT { WI_ASSERT(m_pBegin != nullptr); return m_pBegin; }
         iterator end() WI_NOEXCEPT { WI_ASSERT(m_pBegin != nullptr); return m_pBegin+m_nSize; }
-        const_iterator begin() const WI_NOEXCEPT { return m_pBegin; }
-        const_iterator end() const WI_NOEXCEPT { return m_pBegin+m_nSize; }
+        const_iterator begin() const WI_NOEXCEPT { WI_ASSERT(m_pBegin != nullptr); return m_pBegin; }
+        const_iterator end() const WI_NOEXCEPT { WI_ASSERT(m_pBegin != nullptr); return m_pBegin+m_nSize; }
 
         // Old style iteration
         ULONG size() const WI_NOEXCEPT { return m_nSize; }
@@ -248,19 +259,19 @@ namespace wil
         bool empty() const WI_NOEXCEPT { return m_nSize == ULONG{}; }
 
     private:
-        safearray_unaccess_data m_unaccess;
-        value_pointer m_pBegin = nullptr;
-        ULONG m_nSize = 0;
+        safearray_unaccess_data m_unaccess{};
+        value_pointer m_pBegin{};
+        ULONG m_nSize{};
     };
 
     template<typename T>
-    using safearrayaccess_nothrow = safearraydata_t<T, err_returncode_policy>;
+    using safearraydata_nothrow = safearraydata_t<T, err_returncode_policy>;
     template<typename T>
-    using safearrayaccess_failfast = safearraydata_t<T, err_failfast_policy>;
+    using safearraydata_failfast = safearraydata_t<T, err_failfast_policy>;
 
 #ifdef WIL_ENABLE_EXCEPTIONS
     template<typename T>
-    using safearrayaccess = safearraydata_t<T, err_exception_policy>;
+    using safearraydata = safearraydata_t<T, err_exception_policy>;
 #endif
 
 
@@ -286,7 +297,7 @@ namespace wil
 
     public:
         template<typename T>
-        using safearrayaccess_t = safearraydata_t<T, err_policy>;
+        using safearraydata_t = safearraydata_t<T, err_policy>;
 
         // Represents this type
         using unique_type = unique_any_t<safearray_t<storage_t, err_policy, element_t>>;
@@ -315,22 +326,13 @@ namespace wil
         }
 
         // Low-level, arbitrary number of dimensions
+        // Uses Explicit Type
         template<typename T = element_t, typename wistd::enable_if<is_type_not_set<T>::value, int>::type = 0>
         result create(VARTYPE vt, UINT cDims, SAFEARRAYBOUND* sab)
         {
             return err_policy::HResult(_create(vt, cDims, sab));
         }
-
-        // Single Dimension specialization
-        template<typename T = element_t, typename wistd::enable_if<is_type_not_set<T>::value, int>::type = 0>
-        result create(VARTYPE vt, UINT cElements, LONG lowerBound = 0)
-        {
-            auto bounds = SAFEARRAYBOUND{ cElements, lowerBound };
-            return err_policy::HResult(_create(vt, 1, &bounds));
-        }
-
-        // Uses the fixed element type defined by the class
-        // Low-level, arbitrary number of dimensions
+        // Uses Inferred Type
         template<typename T = element_t, typename wistd::enable_if<is_type_set<T>::value, int>::type = 0>
         result create(UINT cDims, SAFEARRAYBOUND* sab)
         {
@@ -338,7 +340,15 @@ namespace wil
             return err_policy::HResult(_create(vt, cDims, sab));
         }
 
-        // Single Dimension specialization
+        // Single Dimension Specialization
+        // Uses Explicit Type
+        template<typename T = element_t, typename wistd::enable_if<is_type_not_set<T>::value, int>::type = 0>
+        result create(VARTYPE vt, UINT cElements, LONG lowerBound = 0)
+        {
+            auto bounds = SAFEARRAYBOUND{ cElements, lowerBound };
+            return err_policy::HResult(_create(vt, 1, &bounds));
+        }
+        // Uses Inferred Type
         template<typename T = element_t, typename wistd::enable_if<is_type_set<T>::value, int>::type = 0>
         result create(UINT cElements, LONG lowerBound = 0)
         {
@@ -365,25 +375,46 @@ namespace wil
         ULONG elemsize() const WI_NOEXCEPT { return ::SafeArrayGetElemsize(storage_t::get()); }
         result lbound(UINT nDim, LONG* pLbound) const
         {
+            WI_ASSERT(pLbound != nullptr);
+            WI_ASSERT((nDim > 0) && (nDim <= dim()));
             return err_policy::HResult(::SafeArrayGetLBound(storage_t::get(), nDim, pLbound));
         }
         result lbound(LONG* pLbound) const
         {
             WI_ASSERT(dim() == 1);
+            WI_ASSERT(pLbound != nullptr);
             return err_policy::HResult(::SafeArrayGetLBound(storage_t::get(), 1, pLbound));
         }
         result ubound(UINT nDim, LONG* pUbound) const
         {
+            WI_ASSERT(pUbound != nullptr);
+            WI_ASSERT((nDim > 0) && (nDim <= dim()));
             return err_policy::HResult(::SafeArrayGetUBound(storage_t::get(), nDim, pUbound));
         }
         result ubound(LONG* pUbound) const
         {
             WI_ASSERT(dim() == 1);
+            WI_ASSERT(pUbound != nullptr);
             return err_policy::HResult(::SafeArrayGetUBound(storage_t::get(), 1, pUbound));
         }
         result count(ULONG* pCount) const
         {
+            WI_ASSERT(pCount != nullptr);
             return err_policy::HResult(details::SafeArrayCountElements(storage_t::get(), pCount));
+        }
+        // Same as, but much faster than, the typical UBOUND - LBOUND + 1
+        result dim_elements(UINT nDim, ULONG* pCount) const
+        {
+            WI_ASSERT(pCount != nullptr);
+            WI_ASSERT((nDim > 0) && (nDim <= dim()));
+            return err_policy::HResult(details::SafeArrayDimElementCount(storage_t::get(), nDim, pCount));
+        }
+
+        // Retrieve the stored type (when not working with a fixed type)
+        template<typename T = element_t, typename wistd::enable_if<is_type_not_set<T>::value, int>::type = 0>
+        VARTYPE vartype()
+        {
+            return details::SafeArrayGetVartype(storage_t::get());
         }
 
         // Lock Helper
@@ -393,25 +424,26 @@ namespace wil
         }
 
         // Lowest-Level functions for those who know what they're doing
-        result put_element(LONG* pIndices, void* pv)
-        {
-            return err_policy::HResult(::SafeArrayPutElement(storage_t::get(), pIndices, pv));
-        }
         result put_element(LONG nIndex, void* pv)
         {
             WI_ASSERT(dim() == 1);
             return err_policy::HResult(::SafeArrayPutElement(storage_t::get(), &nIndex, pv));
         }
-        result get_element(LONG* pIndices, void* pv)
+        result put_element(LONG* pIndices, void* pv)
         {
-            return err_policy::HResult(::SafeArrayGetElement(storage_t::get(), pIndices, pv));
+            return err_policy::HResult(::SafeArrayPutElement(storage_t::get(), pIndices, pv));
         }
         result get_element(LONG nIndex, void* pv)
         {
             WI_ASSERT(dim() == 1);
             return err_policy::HResult(::SafeArrayGetElement(storage_t::get(), &nIndex, pv));
         }
+        result get_element(LONG* pIndices, void* pv)
+        {
+            return err_policy::HResult(::SafeArrayGetElement(storage_t::get(), pIndices, pv));
+        }
 
+        // Single Dimension Specialization
         template<typename T = element_t, typename wistd::enable_if<is_value_type<T>::value, int>::type = 0>
         result put_element(LONG nIndex, const T& val)
         {
@@ -426,13 +458,32 @@ namespace wil
             WI_ASSERT(dim() == 1);
             return err_policy::HResult(::SafeArrayPutElement(storage_t::get(), &nIndex, val));
         }
-
         template<typename T = element_t, typename wistd::enable_if<is_type_set<T>::value, int>::type = 0>
         result get_element(LONG nIndex, T& t)
         {
             WI_ASSERT(sizeof(t) == elemsize());
             WI_ASSERT(dim() == 1);
             return err_policy::HResult(::SafeArrayGetElement(storage_t::get(), &nIndex, &t));
+        }
+
+        // Multi Dimension Support
+        template<typename T = element_t, typename wistd::enable_if<is_value_type<T>::value, int>::type = 0>
+        result put_element(LONG* pIndices, const T& val)
+        {
+            WI_ASSERT(sizeof(val) == elemsize());
+            return err_policy::HResult(::SafeArrayPutElement(storage_t::get(), pIndices, reinterpret_cast<void*>(const_cast<T*>(&val))));
+        }
+        template<typename T = element_t, typename wistd::enable_if<is_pointer_type<T>::value, int>::type = 0>
+        result put_element(LONG* pIndices, T val)
+        {
+            WI_ASSERT(sizeof(val) == elemsize());
+            return err_policy::HResult(::SafeArrayPutElement(storage_t::get(), pIndices, val));
+        }
+        template<typename T = element_t, typename wistd::enable_if<is_type_set<T>::value, int>::type = 0>
+        result get_element(LONG* pIndices, T& t)
+        {
+            WI_ASSERT(sizeof(t) == elemsize());
+            return err_policy::HResult(::SafeArrayGetElement(storage_t::get(), pIndices, &t));
         }
 
         // Exception-based helper functions
@@ -457,6 +508,13 @@ namespace wil
             count(&nResult);
             return nResult;
         }
+        WI_NODISCARD ULONG dim_elements(UINT nDim = 1) const
+        {
+            static_assert(wistd::is_same<void, result>::value, "this method requires exceptions");
+            ULONG nResult = 0;
+            dim_elements(nDim, &nResult);
+            return nResult;
+        }
         WI_NODISCARD unique_type create_copy() const
         {
             static_assert(wistd::is_same<void, result>::value, "this method requires exceptions");
@@ -466,11 +524,12 @@ namespace wil
             return result;
         }
         template<typename T = element_t, typename wistd::enable_if<is_type_set<T>::value, int>::type = 0>
-        WI_NODISCARD safearrayaccess_t<T> access_data() const
+        WI_NODISCARD safearraydata_t<T> access_data() const
         {
             static_assert(wistd::is_same<void, result>::value, "this method requires exceptions");
+            WI_ASSERT(static_cast<VARTYPE>(details::VarTraits<T>::type) == details::SafeArrayGetVartype(storage_t::get()));
 
-            auto data = safearrayaccess_t<T>{};
+            auto data = safearraydata_t<T>{};
             data.create(storage_t::get());
             return wistd::move(data);
         }
@@ -489,8 +548,8 @@ namespace wil
     using unique_safearray_failfast = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_failfast_policy, void>>;
     using unique_char_safearray_nothrow = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_returncode_policy, char>>;
     using unique_char_safearray_failfast = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_failfast_policy, char>>;
-    using unique_short_safearray_nothrow = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_returncode_policy, short>>;
-    using unique_short_safearray_failfast = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_failfast_policy, short>>;
+    //using unique_short_safearray_nothrow = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_returncode_policy, short>>;
+    //using unique_short_safearray_failfast = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_failfast_policy, short>>;
     using unique_long_safearray_nothrow = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_returncode_policy, long>>;
     using unique_long_safearray_failfast = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_failfast_policy, long>>;
     using unique_int_safearray_nothrow = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_returncode_policy, int>>;
@@ -507,8 +566,8 @@ namespace wil
     using unique_ulonglong_safearray_failfast = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_failfast_policy, ULONGLONG>>;
     using unique_float_safearray_nothrow = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_returncode_policy, float>>;
     using unique_float_safearray_failfast = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_failfast_policy, float>>;
-    using unique_double_safearray_nothrow = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_returncode_policy, double>>;
-    using unique_double_safearray_failfast = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_failfast_policy, double>>;
+    //using unique_double_safearray_nothrow = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_returncode_policy, double>>;
+    //using unique_double_safearray_failfast = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_failfast_policy, double>>;
     using unique_varbool_safearray_nothrow = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_returncode_policy, VARIANT_BOOL>>;
     using unique_varbool_safearray_failfast = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_failfast_policy, VARIANT_BOOL>>;
     using unique_date_safearray_nothrow = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_returncode_policy, DATE>>;
@@ -529,7 +588,7 @@ namespace wil
 #ifdef WIL_ENABLE_EXCEPTIONS
     using unique_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, void>>;
     using unique_char_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, char>>;
-    using unique_short_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, short>>;
+    //using unique_short_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, short>>;
     using unique_long_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, long>>;
     using unique_int_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, int>>;
     using unique_longlong_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, long long>>;
@@ -538,7 +597,7 @@ namespace wil
     using unique_dword_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, DWORD>>;
     using unique_ulonglong_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, ULONGLONG>>;
     using unique_float_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, float>>;
-    using unique_double_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, double>>;
+    //using unique_double_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, double>>;
     using unique_varbool_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, VARIANT_BOOL>>;
     using unique_date_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, DATE>>;
     using unique_currency_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, CURRENCY>>;
@@ -549,11 +608,86 @@ namespace wil
     using unique_variant_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, VARIANT>>;
 #endif
 
-#endif
+template<typename container_type, typename T = typename container_type::value_type, typename err_policy = err_exception_policy>
+typename err_policy::result copy_safearray_to_container(SAFEARRAY* psa, container_type& cont)
+{
+    WI_ASSERT(psa != nullptr);
+    auto data = wil::safearraydata_nothrow<T>{};
+    return err_policy::HResult([&]()
+        {
+            RETURN_IF_FAILED(data.create(psa));
+            cont.insert(cont.end(), data.begin(), data.end());
+            return S_OK;
+        }());
+}
+
+template<typename container_type, typename T = typename container_type::value_type, typename err_policy = err_exception_policy>
+typename err_policy::result copy_container_to_safearray(const container_type& cont, SAFEARRAY** ppsa)
+{
+    WI_ASSERT(ppsa != nullptr);
+    return err_policy::HResult([&]()
+        {
+            auto sa = wil::unique_safearray_nothrow{};
+            RETURN_IF_FAILED(sa.create<T>(cont.size()));
+
+            {
+                auto data = wil::safearraydata_nothrow<T>{};
+                RETURN_IF_FAILED(data.create(sa.get()));
+
+                auto src = cont.begin();
+                auto dest = data.begin();
+                while (src != cont.end())
+                {
+                    *(dest++) = *(src++);
+                }
+            }
+
+            *ppsa = sa.release();
+            return S_OK;
+        }());
+}
+
+template<typename I, typename err_policy = err_exception_policy, typename com_err_policy = err_policy>
+typename err_policy::result copy_safearray_to_vector(SAFEARRAY* psa, std::vector<wil::com_ptr_t<I,com_err_policy>>& cont)
+{
+    WI_ASSERT(psa != nullptr);
+    auto data = wil::safearraydata_nothrow<LPUNKNOWN>{};
+    return err_policy::HResult([&]()
+        {
+            RETURN_IF_FAILED(data.create(psa));
+            cont.reserve(cont.size() + data.size());
+            cont.insert(cont.end(), data.begin(), data.end());
+            return S_OK;
+        }());
+}
+
+template<typename err_policy = err_exception_policy, typename bstr_type = wil::unique_bstr>
+typename err_policy::result copy_safearray_to_vector(SAFEARRAY* psa, std::vector<bstr_type>& cont)
+{
+    WI_ASSERT(psa != nullptr);
+    auto data = wil::safearraydata_nothrow<BSTR>{};
+    return err_policy::HResult([&]()
+        {
+            RETURN_IF_FAILED(data.create(psa));
+            cont.reserve(cont.size() + data.size());
+            cont.insert(cont.end(), data.begin(), data.end());
+            return S_OK;
+        }());
+}
 
 #ifdef WIL_ENABLE_EXCEPTIONS
+template<typename I, typename com_err_policy = err_exception_policy>
+std::vector<wil::com_ptr_t<I, com_err_policy>> copy_safearray_to_vector(SAFEARRAY* psa)
+{
+    WI_ASSERT(psa != nullptr);
+    auto data = wil::safearraydata<LPUNKNOWN>{ psa };
+    return { data.begin(), data.end() };
+}
+
 #endif // WIL_ENABLE_EXCEPTIONS
+
+#endif  // #if defined( _OLEAUTO_H_ ) && !defined(__WIL_OLEAUTO_)
 } // namespace wil
 
-#endif
+#endif  // #ifndef __WIL_SAFEARRAYS_INCLUDED
 

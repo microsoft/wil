@@ -2,8 +2,7 @@
 #include <wil/Safearrays.h>
 #include <wil/com.h>
 
-#include "common.h"
-#include <vector>
+//#include "common.h"
 #include <array>
 #include <propvarutil.h>
 
@@ -892,7 +891,7 @@ void TestTyped_AccessData_NoThrow()
         REQUIRE(sa);
         {
             ULONG counter = {};
-            wil::safearrayaccess_nothrow<safearray_t::elemtype> data;
+            wil::safearraydata_nothrow<safearray_t::elemtype> data;
             REQUIRE_SUCCEEDED(data.create(sa.get()));
             for (auto& elem : data)
             {
@@ -908,7 +907,7 @@ void TestTyped_AccessData_NoThrow()
             // Verify the values in the copy are the same as
             // the values that were placed into the original
             ULONG counter = {};
-            wil::safearrayaccess_nothrow<safearray_t::elemtype> data;
+            wil::safearraydata_nothrow<safearray_t::elemtype> data;
             REQUIRE_SUCCEEDED(data.create(sa2.get()));
             for (const auto& elem : data)
             {
@@ -924,7 +923,7 @@ void TestTyped_AccessData_NoThrow()
         REQUIRE_SUCCEEDED(sa.create(SIZE));
         REQUIRE(sa);
         {
-            wil::safearrayaccess_nothrow<safearray_t::elemtype> data;
+            wil::safearraydata_nothrow<safearray_t::elemtype> data;
             REQUIRE_SUCCEEDED(data.create(sa.get()));
             for (ULONG i = 0 ; i < data.size(); ++i)
             {
@@ -939,7 +938,7 @@ void TestTyped_AccessData_NoThrow()
         {
             // Verify the values in the copy are the same as
             // the values that were placed into the original
-            wil::safearrayaccess_nothrow<safearray_t::elemtype> data;
+            wil::safearraydata_nothrow<safearray_t::elemtype> data;
             REQUIRE_SUCCEEDED(data.create(sa2.get()));
             for (ULONG i = 0; i < data.size(); ++i)
             {
@@ -966,7 +965,7 @@ void TestTyped_AccessData_Failfast()
         REQUIRE(sa);
         {
             ULONG counter = {};
-            wil::safearrayaccess_failfast<safearray_t::elemtype> data;
+            wil::safearraydata_failfast<safearray_t::elemtype> data;
             REQUIRE_NOCRASH(data.create(sa.get()));
             for (auto& elem : data)
             {
@@ -982,7 +981,7 @@ void TestTyped_AccessData_Failfast()
             // Verify the values in the copy are the same as
             // the values that were placed into the original
             ULONG counter = {};
-            wil::safearrayaccess_failfast<safearray_t::elemtype> data;
+            wil::safearraydata_failfast<safearray_t::elemtype> data;
             REQUIRE_NOCRASH(data.create(sa2.get()));
             for (const auto& elem : data)
             {
@@ -998,7 +997,7 @@ void TestTyped_AccessData_Failfast()
         REQUIRE_NOCRASH(sa.create(SIZE));
         REQUIRE(sa);
         {
-            wil::safearrayaccess_failfast<safearray_t::elemtype> data;
+            wil::safearraydata_failfast<safearray_t::elemtype> data;
             REQUIRE_NOCRASH(data.create(sa.get()));
             for (ULONG i = 0; i < data.size(); ++i)
             {
@@ -1013,7 +1012,7 @@ void TestTyped_AccessData_Failfast()
         {
             // Verify the values in the copy are the same as
             // the values that were placed into the original
-            wil::safearrayaccess_failfast<safearray_t::elemtype> data;
+            wil::safearraydata_failfast<safearray_t::elemtype> data;
             REQUIRE_NOCRASH(data.create(sa2.get()));
             for (ULONG i = 0; i < data.size(); ++i)
             {
@@ -1128,7 +1127,7 @@ void Test_AccessData_NoThrow()
         REQUIRE(sa);
         {
             ULONG counter = {};
-            wil::safearrayaccess_nothrow<T> data;
+            wil::safearraydata_nothrow<T> data;
             REQUIRE_SUCCEEDED(data.create(sa.get()));
             for (auto& elem : data)
             {
@@ -1144,7 +1143,7 @@ void Test_AccessData_NoThrow()
             // Verify the values in the copy are the same as
             // the values that were placed into the original
             ULONG counter = {};
-            wil::safearrayaccess_nothrow<T> data;
+            wil::safearraydata_nothrow<T> data;
             REQUIRE_SUCCEEDED(data.create(sa2.get()));
             for (const auto& elem : data)
             {
@@ -1160,7 +1159,7 @@ void Test_AccessData_NoThrow()
         REQUIRE_SUCCEEDED(sa.create<T>(SIZE));
         REQUIRE(sa);
         {
-            wil::safearrayaccess_nothrow<T> data;
+            wil::safearraydata_nothrow<T> data;
             REQUIRE_SUCCEEDED(data.create(sa.get()));
             for (ULONG i = 0; i < data.size(); ++i)
             {
@@ -1175,7 +1174,7 @@ void Test_AccessData_NoThrow()
         {
             // Verify the values in the copy are the same as
             // the values that were placed into the original
-            wil::safearrayaccess_nothrow<T> data;
+            wil::safearraydata_nothrow<T> data;
             REQUIRE_SUCCEEDED(data.create(sa2.get()));
             for (ULONG i = 0; i < data.size(); ++i)
             {
@@ -1202,7 +1201,7 @@ void Test_AccessData_Failfast()
         REQUIRE(sa);
         {
             ULONG counter = {};
-            wil::safearrayaccess_failfast<T> data;
+            wil::safearraydata_failfast<T> data;
             REQUIRE_NOCRASH(data.create(sa.get()));
             for (auto& elem : data)
             {
@@ -1218,7 +1217,7 @@ void Test_AccessData_Failfast()
             // Verify the values in the copy are the same as
             // the values that were placed into the original
             ULONG counter = {};
-            wil::safearrayaccess_failfast<T> data;
+            wil::safearraydata_failfast<T> data;
             REQUIRE_NOCRASH(data.create(sa2.get()));
             for (const auto& elem : data)
             {
@@ -1234,7 +1233,7 @@ void Test_AccessData_Failfast()
         REQUIRE_NOCRASH(sa.create<T>(SIZE));
         REQUIRE(sa);
         {
-            wil::safearrayaccess_failfast<T> data;
+            wil::safearraydata_failfast<T> data;
             REQUIRE_NOCRASH(data.create(sa.get()));
             for (ULONG i = 0; i < data.size(); ++i)
             {
@@ -1249,7 +1248,7 @@ void Test_AccessData_Failfast()
         {
             // Verify the values in the copy are the same as
             // the values that were placed into the original
-            wil::safearrayaccess_failfast<T> data;
+            wil::safearraydata_failfast<T> data;
             REQUIRE_NOCRASH(data.create(sa2.get()));
             for (ULONG i = 0; i < data.size(); ++i)
             {
@@ -1395,7 +1394,6 @@ TEST_CASE("Safearray::Put/Get", "[safearray]")
     REQUIRE(TestComObject::GetObjectCounter() == 0);
 }
 
-
 TEST_CASE("Safearray::AccessData", "[safearray]")
 {
     SECTION("Access Data - No Throw")
@@ -1421,3 +1419,12 @@ TEST_CASE("Safearray::AccessData", "[safearray]")
     REQUIRE(TestComObject::GetObjectCounter() == 0);
 }
 
+TEST_CASE("Safearray Helper Functions", "[safearray]")
+{
+    std::vector<int>    test;
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+#endif
+
+    REQUIRE(TestComObject::GetObjectCounter() == 0);
+}
