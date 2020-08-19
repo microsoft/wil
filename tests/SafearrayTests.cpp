@@ -240,7 +240,7 @@ private:
 LONG TestComObject::s_ObjectCounter = 0;
 LONG TestComObject::s_IDCounter = 0;
 
-constexpr auto DEFAULT_SAMPLE_SIZE = 32U;
+constexpr auto DEFAULT_SAMPLE_SIZE = 192U;
 
 template<typename T, typename = typename wistd::enable_if<wistd::is_integral<T>::value, int>::type>
 auto GetSampleData() -> std::array<T, sizeof(T)*8>
@@ -299,7 +299,7 @@ std::array<wil::unique_variant, DEFAULT_SAMPLE_SIZE> GetSampleData()
     for (auto i = 0; i < DEFAULT_SAMPLE_SIZE; ++i)
     {
         auto& var = result[i];
-        switch (i % 4)
+        switch (i % 6)
         {
         case 0:
             V_VT(&var) = VT_I4;
@@ -316,6 +316,14 @@ std::array<wil::unique_variant, DEFAULT_SAMPLE_SIZE> GetSampleData()
         case 3:
             V_VT(&var) = VT_R4;
             V_R4(&var) = 98.6f;
+            break;
+        case 4:
+            V_VT(&var) = VT_UNKNOWN;
+            REQUIRE_SUCCEEDED(TestComObject::Create(IID_IUnknown, (LPVOID*)&(V_UNKNOWN(&var))));
+            break;
+        case 5:
+            V_VT(&var) = VT_DISPATCH;
+            REQUIRE_SUCCEEDED(TestComObject::Create(IID_IDispatch, (LPVOID*)&(V_DISPATCH(&var))));
             break;
         }
     }
@@ -884,9 +892,8 @@ void TestTyped_AccessData_NoThrow()
         REQUIRE(sa);
         {
             ULONG counter = {};
-            typename safearray_t::unique_accessdata data;
+            wil::safearrayaccess_nothrow<safearray_t::elemtype> data;
             REQUIRE_SUCCEEDED(data.create(sa.get()));
-            REQUIRE(data);
             for (auto& elem : data)
             {
                 PerfromAssignment(elem, sample_data[counter++]);
@@ -901,9 +908,8 @@ void TestTyped_AccessData_NoThrow()
             // Verify the values in the copy are the same as
             // the values that were placed into the original
             ULONG counter = {};
-            typename safearray_t::unique_accessdata data;
+            wil::safearrayaccess_nothrow<safearray_t::elemtype> data;
             REQUIRE_SUCCEEDED(data.create(sa2.get()));
-            REQUIRE(data);
             for (const auto& elem : data)
             {
                 REQUIRE(PerformCompare(elem, sample_data[counter++]));
@@ -918,9 +924,8 @@ void TestTyped_AccessData_NoThrow()
         REQUIRE_SUCCEEDED(sa.create(SIZE));
         REQUIRE(sa);
         {
-            typename safearray_t::unique_accessdata data;
+            wil::safearrayaccess_nothrow<safearray_t::elemtype> data;
             REQUIRE_SUCCEEDED(data.create(sa.get()));
-            REQUIRE(data);
             for (ULONG i = 0 ; i < data.size(); ++i)
             {
                 PerfromAssignment(data[i], sample_data[i]);
@@ -934,9 +939,8 @@ void TestTyped_AccessData_NoThrow()
         {
             // Verify the values in the copy are the same as
             // the values that were placed into the original
-            typename safearray_t::unique_accessdata data;
+            wil::safearrayaccess_nothrow<safearray_t::elemtype> data;
             REQUIRE_SUCCEEDED(data.create(sa2.get()));
-            REQUIRE(data);
             for (ULONG i = 0; i < data.size(); ++i)
             {
                 REQUIRE(PerformCompare(data[i], sample_data[i]));
@@ -962,9 +966,8 @@ void TestTyped_AccessData_Failfast()
         REQUIRE(sa);
         {
             ULONG counter = {};
-            typename safearray_t::unique_accessdata data;
+            wil::safearrayaccess_failfast<safearray_t::elemtype> data;
             REQUIRE_NOCRASH(data.create(sa.get()));
-            REQUIRE(data);
             for (auto& elem : data)
             {
                 PerfromAssignment(elem, sample_data[counter++]);
@@ -979,9 +982,8 @@ void TestTyped_AccessData_Failfast()
             // Verify the values in the copy are the same as
             // the values that were placed into the original
             ULONG counter = {};
-            typename safearray_t::unique_accessdata data;
+            wil::safearrayaccess_failfast<safearray_t::elemtype> data;
             REQUIRE_NOCRASH(data.create(sa2.get()));
-            REQUIRE(data);
             for (const auto& elem : data)
             {
                 REQUIRE(PerformCompare(elem, sample_data[counter++]));
@@ -996,9 +998,8 @@ void TestTyped_AccessData_Failfast()
         REQUIRE_NOCRASH(sa.create(SIZE));
         REQUIRE(sa);
         {
-            typename safearray_t::unique_accessdata data;
+            wil::safearrayaccess_failfast<safearray_t::elemtype> data;
             REQUIRE_NOCRASH(data.create(sa.get()));
-            REQUIRE(data);
             for (ULONG i = 0; i < data.size(); ++i)
             {
                 PerfromAssignment(data[i], sample_data[i]);
@@ -1012,9 +1013,8 @@ void TestTyped_AccessData_Failfast()
         {
             // Verify the values in the copy are the same as
             // the values that were placed into the original
-            typename safearray_t::unique_accessdata data;
+            wil::safearrayaccess_failfast<safearray_t::elemtype> data;
             REQUIRE_NOCRASH(data.create(sa2.get()));
-            REQUIRE(data);
             for (ULONG i = 0; i < data.size(); ++i)
             {
                 REQUIRE(PerformCompare(data[i], sample_data[i]));
@@ -1043,8 +1043,7 @@ void TestTyped_AccessData()
         REQUIRE_NOTHROW([&]()
             {
                 ULONG counter = {};
-                auto data = sa.access_data();
-                for (auto& elem : data)
+                for (auto& elem : sa.access_data())
                 {
                     PerfromAssignment(elem, sample_data[counter++]);
                 }
@@ -1063,8 +1062,7 @@ void TestTyped_AccessData()
                 // Verify the values in the copy are the same as
                 // the values that were placed into the original
                 ULONG counter = {};
-                auto data = sa.access_data();
-                for (const auto& elem : data)
+                for (const auto& elem : sa.access_data())
                 {
                     REQUIRE(PerformCompare(elem, sample_data[counter++]));
                 }
@@ -1113,6 +1111,241 @@ void TestTyped_AccessData()
 #define _TYPED_ACCESSDATA_FAILFAST(type)        TestTyped_AccessData_Failfast<type>();
 #define _TYPED_ACCESSDATA(type)                 TestTyped_AccessData<type>();
 
+template<typename T>
+void Test_AccessData_NoThrow()
+{
+    auto sample_data = GetSampleData<T>();
+    auto SIZE = ULONG{ sample_data.size() };
+
+    using array_type = decltype(sample_data);
+    using data_type = typename array_type::value_type;
+
+    // Operate on the AccessData class using ranged-for
+    {
+        // Create a new SA and copy the sample data into it
+        auto sa = wil::unique_safearray_nothrow{};
+        REQUIRE_SUCCEEDED(sa.create<T>(SIZE));
+        REQUIRE(sa);
+        {
+            ULONG counter = {};
+            wil::safearrayaccess_nothrow<T> data;
+            REQUIRE_SUCCEEDED(data.create(sa.get()));
+            for (auto& elem : data)
+            {
+                PerfromAssignment(elem, sample_data[counter++]);
+            }
+        }
+
+        // Duplicate the SA to make sure create_copy works
+        auto sa2 = wil::unique_safearray_nothrow{};
+        REQUIRE_SUCCEEDED(sa2.create_copy(sa.get()));
+        REQUIRE(sa2);
+        {
+            // Verify the values in the copy are the same as
+            // the values that were placed into the original
+            ULONG counter = {};
+            wil::safearrayaccess_nothrow<T> data;
+            REQUIRE_SUCCEEDED(data.create(sa2.get()));
+            for (const auto& elem : data)
+            {
+                REQUIRE(PerformCompare(elem, sample_data[counter++]));
+            }
+        }
+    }
+
+    // Operate on the AccessData class using regular for-loop
+    {
+        // Create a new SA and copy the sample data into it
+        auto sa = wil::unique_safearray_nothrow{};
+        REQUIRE_SUCCEEDED(sa.create<T>(SIZE));
+        REQUIRE(sa);
+        {
+            wil::safearrayaccess_nothrow<T> data;
+            REQUIRE_SUCCEEDED(data.create(sa.get()));
+            for (ULONG i = 0; i < data.size(); ++i)
+            {
+                PerfromAssignment(data[i], sample_data[i]);
+            }
+        }
+
+        // Duplicate the SA to make sure create_copy works
+        auto sa2 = wil::unique_safearray_nothrow{};
+        REQUIRE_SUCCEEDED(sa2.create_copy(sa.get()));
+        REQUIRE(sa2);
+        {
+            // Verify the values in the copy are the same as
+            // the values that were placed into the original
+            wil::safearrayaccess_nothrow<T> data;
+            REQUIRE_SUCCEEDED(data.create(sa2.get()));
+            for (ULONG i = 0; i < data.size(); ++i)
+            {
+                REQUIRE(PerformCompare(data[i], sample_data[i]));
+            }
+        }
+    }
+}
+
+template<typename T>
+void Test_AccessData_Failfast()
+{
+    auto sample_data = GetSampleData<T>();
+    auto SIZE = ULONG{ sample_data.size() };
+
+    using array_type = decltype(sample_data);
+    using data_type = typename array_type::value_type;
+
+    // Operate on the AccessData class using ranged-for
+    {
+        // Create a new SA and copy the sample data into it
+        auto sa = wil::unique_safearray_failfast{};
+        REQUIRE_NOCRASH(sa.create<T>(SIZE));
+        REQUIRE(sa);
+        {
+            ULONG counter = {};
+            wil::safearrayaccess_failfast<T> data;
+            REQUIRE_NOCRASH(data.create(sa.get()));
+            for (auto& elem : data)
+            {
+                PerfromAssignment(elem, sample_data[counter++]);
+            }
+        }
+
+        // Duplicate the SA to make sure create_copy works
+        auto sa2 = wil::unique_safearray_failfast{};
+        REQUIRE_NOCRASH(sa2.create_copy(sa.get()));
+        REQUIRE(sa2);
+        {
+            // Verify the values in the copy are the same as
+            // the values that were placed into the original
+            ULONG counter = {};
+            wil::safearrayaccess_failfast<T> data;
+            REQUIRE_NOCRASH(data.create(sa2.get()));
+            for (const auto& elem : data)
+            {
+                REQUIRE(PerformCompare(elem, sample_data[counter++]));
+            }
+        }
+    }
+
+    // Operate on the AccessData class using regular for-loop
+    {
+        // Create a new SA and copy the sample data into it
+        auto sa = wil::unique_safearray_failfast{};
+        REQUIRE_NOCRASH(sa.create<T>(SIZE));
+        REQUIRE(sa);
+        {
+            wil::safearrayaccess_failfast<T> data;
+            REQUIRE_NOCRASH(data.create(sa.get()));
+            for (ULONG i = 0; i < data.size(); ++i)
+            {
+                PerfromAssignment(data[i], sample_data[i]);
+            }
+        }
+
+        // Duplicate the SA to make sure create_copy works
+        auto sa2 = wil::unique_safearray_failfast{};
+        REQUIRE_NOCRASH(sa2.create_copy(sa.get()));
+        REQUIRE(sa2);
+        {
+            // Verify the values in the copy are the same as
+            // the values that were placed into the original
+            wil::safearrayaccess_failfast<T> data;
+            REQUIRE_NOCRASH(data.create(sa2.get()));
+            for (ULONG i = 0; i < data.size(); ++i)
+            {
+                REQUIRE(PerformCompare(data[i], sample_data[i]));
+            }
+        }
+    }
+}
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+template<typename T>
+void Test_AccessData()
+{
+    auto sample_data = GetSampleData<T>();
+    auto SIZE = ULONG{ sample_data.size() };
+
+    using array_type = decltype(sample_data);
+    using data_type = typename array_type::value_type;
+
+    // Operate on the AccessData class using ranged-for
+    {
+        // Create a new SA and copy the sample data into it
+        auto sa = wil::unique_safearray{};
+        REQUIRE_NOTHROW(sa.create<T>(SIZE));
+        REQUIRE(sa);
+
+        REQUIRE_NOTHROW([&]()
+            {
+                ULONG counter = {};
+                for (auto& elem : sa.access_data<T>())
+                {
+                    PerfromAssignment(elem, sample_data[counter++]);
+                }
+            }());
+
+        // Duplicate the SA to make sure copy works
+        auto sa2 = wil::unique_safearray{};
+        REQUIRE_NOTHROW([&]()
+            {
+                sa2 = sa.create_copy();
+                REQUIRE(sa2);
+            }());
+
+        REQUIRE_NOTHROW([&]()
+            {
+                // Verify the values in the copy are the same as
+                // the values that were placed into the original
+                ULONG counter = {};
+                for (const auto& elem : sa.access_data<T>())
+                {
+                    REQUIRE(PerformCompare(elem, sample_data[counter++]));
+                }
+            }());
+    }
+
+    // Operate on the AccessData class using regular for-loop
+    {
+        // Create a new SA and copy the sample data into it
+        auto sa = wil::unique_safearray{};
+        REQUIRE_NOTHROW(sa.create<T>(SIZE));
+        REQUIRE(sa);
+
+        REQUIRE_NOTHROW([&]()
+            {
+                auto data = sa.access_data<T>();
+                for (ULONG i = 0; i < data.size(); ++i)
+                {
+                    PerfromAssignment(data[i], sample_data[i]);
+                }
+            }());
+
+        // Duplicate the SA to make sure copy works
+        auto sa2 = wil::unique_safearray{};
+        REQUIRE_NOTHROW([&]()
+            {
+                sa2 = sa.create_copy();
+                REQUIRE(sa2);
+            }());
+
+        REQUIRE_NOTHROW([&]()
+            {
+                // Verify the values in the copy are the same as
+                // the values that were placed into the original
+                auto data = sa2.access_data<T>();
+                for (ULONG i = 0; i < data.size(); ++i)
+                {
+                    REQUIRE(PerformCompare(data[i], sample_data[i]));
+                }
+            }());
+    }
+}
+#endif
+
+#define _ACCESSDATA_NOTHROW(type)         Test_AccessData_NoThrow<type>();
+#define _ACCESSDATA_FAILFAST(type)        Test_AccessData_Failfast<type>();
+#define _ACCESSDATA(type)                 Test_AccessData<type>();
 
 TEST_CASE("Safearray::Create", "[safearray]")
 {
@@ -1168,20 +1401,20 @@ TEST_CASE("Safearray::AccessData", "[safearray]")
     SECTION("Access Data - No Throw")
     {
         RUN_TYPED_TEST_NOTHROW(_TYPED_ACCESSDATA_NOTHROW);
-        //RUN_TEST(_DIRECT_NOTHROW);
+        RUN_TEST(_ACCESSDATA_NOTHROW);
     }
 
     SECTION("Access Data - FailFast")
     {
         RUN_TYPED_TEST_FAILFAST(_TYPED_ACCESSDATA_FAILFAST);
-        //RUN_TEST(_DIRECT_FAILFAST);
+        RUN_TEST(_ACCESSDATA_FAILFAST);
     }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
     SECTION("Access Data - Exceptions")
     {
         RUN_TYPED_TEST(_TYPED_ACCESSDATA);
-        //RUN_TEST(_DIRECT);
+        RUN_TEST(_ACCESSDATA);
     }
 #endif
 
