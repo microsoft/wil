@@ -334,11 +334,3 @@ ASALocalRun/
 
 # CMake/Build output
 build/
-/packaging
-/build_tools/nuget.exe
-*.vcxproj
-*.filters
-*.sln
-/CMakeCache.txt
-cmake_install.cmake
-CMakeFiles/
