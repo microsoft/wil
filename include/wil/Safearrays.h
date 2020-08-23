@@ -19,13 +19,6 @@
 #include "wistd_type_traits.h"
 #include "resource.h" // unique_hkey
 
-namespace std
-{
-    // Forward Defines
-    template<class T> class allocator;
-    template<class T, class Allocator = std::allocator<T>> class vector;
-}
-
 namespace wil
 {
 #if defined( _OLEAUTO_H_ ) && !defined(__WIL_OLEAUTO_)
@@ -34,30 +27,30 @@ namespace wil
     namespace details
     {
         template<typename T>
-        struct VarTraits{};
+        struct var_traits{};
 
-        template<> struct VarTraits<char>                       { enum { type = VT_I1 }; };
-        //template<> struct VarTraits<short>                      { enum { type = VT_I2 }; };
-        template<> struct VarTraits<long>                       { enum { type = VT_I4 }; };
-        template<> struct VarTraits<int>                        { enum { type = VT_I4 }; };
-        template<> struct VarTraits<long long>                  { enum { type = VT_I8 }; };
-        template<> struct VarTraits<unsigned char>              { enum { type = VT_UI1 }; };
-        template<> struct VarTraits<unsigned short>             { enum { type = VT_UI2 }; };
-        template<> struct VarTraits<unsigned long>              { enum { type = VT_UI4 }; };
-        template<> struct VarTraits<unsigned int>               { enum { type = VT_UI4 }; };
-        template<> struct VarTraits<unsigned long long>         { enum { type = VT_UI8 }; };
-        template<> struct VarTraits<float>                      { enum { type = VT_R4 }; };
-        //template<> struct VarTraits<double>                     { enum { type = VT_R8 }; };
-        template<> struct VarTraits<VARIANT_BOOL>               { enum { type = VT_BOOL }; };
-        template<> struct VarTraits<DATE>                       { enum { type = VT_DATE }; };
-        template<> struct VarTraits<CURRENCY>                   { enum { type = VT_CY }; };
-        template<> struct VarTraits<DECIMAL>                    { enum { type = VT_DECIMAL }; };
-        template<> struct VarTraits<BSTR>                       { enum { type = VT_BSTR }; };
-        template<> struct VarTraits<LPUNKNOWN>                  { enum { type = VT_UNKNOWN }; };
-        template<> struct VarTraits<LPDISPATCH>                 { enum { type = VT_DISPATCH }; };
-        template<> struct VarTraits<VARIANT>                    { enum { type = VT_VARIANT }; };
+        template<> struct var_traits<char>                       { static constexpr auto vartype = VT_I1; };
+        //template<> struct var_traits<short>                      { static constexpr auto vartype = VT_I2; };
+        template<> struct var_traits<long>                       { static constexpr auto vartype = VT_I4; };
+        template<> struct var_traits<int>                        { static constexpr auto vartype = VT_I4; };
+        template<> struct var_traits<long long>                  { static constexpr auto vartype = VT_I8; };
+        template<> struct var_traits<unsigned char>              { static constexpr auto vartype = VT_UI1; };
+        template<> struct var_traits<unsigned short>             { static constexpr auto vartype = VT_UI2; };
+        template<> struct var_traits<unsigned long>              { static constexpr auto vartype = VT_UI4; };
+        template<> struct var_traits<unsigned int>               { static constexpr auto vartype = VT_UI4; };
+        template<> struct var_traits<unsigned long long>         { static constexpr auto vartype = VT_UI8; };
+        template<> struct var_traits<float>                      { static constexpr auto vartype = VT_R4; };
+        //template<> struct var_traits<double>                     { static constexpr auto vartype = VT_R8; };
+        template<> struct var_traits<VARIANT_BOOL>               { static constexpr auto vartype = VT_BOOL; };
+        template<> struct var_traits<DATE>                       { static constexpr auto vartype = VT_DATE; };
+        template<> struct var_traits<CURRENCY>                   { static constexpr auto vartype = VT_CY; };
+        template<> struct var_traits<DECIMAL>                    { static constexpr auto vartype = VT_DECIMAL; };
+        template<> struct var_traits<BSTR>                       { static constexpr auto vartype = VT_BSTR; };
+        template<> struct var_traits<LPUNKNOWN>                  { static constexpr auto vartype = VT_UNKNOWN; };
+        template<> struct var_traits<LPDISPATCH>                 { static constexpr auto vartype = VT_DISPATCH; };
+        template<> struct var_traits<VARIANT>                    { static constexpr auto vartype = VT_VARIANT; };
 
-        inline void __stdcall SafeArrayDestory(SAFEARRAY* psa) WI_NOEXCEPT
+        inline void __stdcall SafeArrayDestroy(SAFEARRAY* psa) WI_NOEXCEPT
         {
             __FAIL_FAST_ASSERT__(psa != nullptr);
             FAIL_FAST_IF_FAILED(::SafeArrayDestroy(psa));
@@ -91,14 +84,16 @@ namespace wil
         inline VARTYPE __stdcall SafeArrayGetVartype(SAFEARRAY* psa)
         {
             VARTYPE vt = VT_NULL;   // Invalid for SAs, so use to mean SA was null
-            if (psa != nullptr)
+            if ((psa != nullptr) && FAILED(::SafeArrayGetVartype(psa, &vt)))
             {
-                if (FAILED(::SafeArrayGetVartype(psa, &vt)))
-                {
-                    vt = VT_EMPTY;  // Invalid for SAs, use to mean type couldn't be determined
-                }
+                vt = VT_EMPTY;  // Invalid for SAs, use to mean type couldn't be determined
             }
             return vt;
+        }
+
+        inline ULONG __stdcall SafeArrayGetLockCount(SAFEARRAY* psa) WI_NOEXCEPT
+        {
+            return (psa != nullptr) ? psa->cLocks : 0U;
         }
 
         inline HRESULT __stdcall SafeArrayCreate(VARTYPE vt, UINT cDims, SAFEARRAYBOUND* sab, SAFEARRAY*& psa) WI_NOEXCEPT
@@ -124,7 +119,7 @@ namespace wil
         inline HRESULT __stdcall SafeArrayCountElements(SAFEARRAY* psa, ULONG* pCount) WI_NOEXCEPT
         {
             __FAIL_FAST_ASSERT__(pCount != nullptr);
-            if ( psa != nullptr )
+            if (psa != nullptr)
             {
                 ULONGLONG result = 1;
                 for (UINT i = 0; i < psa->cDims; ++i)
@@ -145,58 +140,82 @@ namespace wil
             return S_OK;
         }
 
-        typedef resource_policy<SAFEARRAY*, decltype(&details::SafeArrayDestory), details::SafeArrayDestory, details::pointer_access_all> safearray_resource_policy;
-        typedef resource_policy<SAFEARRAY*, decltype(&details::SafeArrayUnaccessData), details::SafeArrayUnaccessData, details::pointer_access_all> safearray_accessdata_resource_policy;
-
-        //template<LONG... Indexes>
-        //class safearray_index : private std::array<LONG, sizeof...(Indexes)>
-        //{
-        //public:
-        //    safearray_index() : std::array<LONG, sizeof...(Indexes)>{ Indexes... };
-        //    LPLONG get() { return data(); }
-        //    ULONG count() { return static_cast<ULONG>(size()); }
-        //};
-
-        //template<LONG Index>
-        //class safearray_index
-        //{
-        //public:
-        //    safearray_index() : _value{ Index } {}
-        //    LPLONG get() { return &_value; }
-        //    ULONG count() { return 1; }
-        //private:
-        //    LONG _value;
-        //};
-
-        //template<LPLONG Indexes>
-        //class safearray_index
-        //{
-        //public:
-        //    safearray_index() : _indexes{Indexes}
-        //    LPLONG get() { return _indexes; }
-        //    ULONG count() { return 0; }
-        //private:
-        //    LPLONG _indexes:
-        //};
-
-        //template<typename... Args>
-        //DebugContextT& Format(const wchar_t* const lpszFormat, Args... args) noexcept
-        //    template<typename T, CharT... cs>
-        //    constexpr auto chars = std::array<CharT, sizeof...(cs)>{ cs... };
-
+        typedef resource_policy<SAFEARRAY*, decltype(&details::SafeArrayDestroy), details::SafeArrayDestroy, details::pointer_access_all> safearray_resource_policy;
     }
     /// @endcond
 
     typedef unique_any<SAFEARRAY*, decltype(&details::SafeArrayUnlock), details::SafeArrayUnlock, details::pointer_access_noaddress> safearray_unlock_scope_exit;
 
-    // Guarantees a SafeArrayUnlock call on the given object when the returned object goes out of scope
-    // Note: call SafeArrayUnlock early with the reset() method on the returned object or abort the call with the release() method
+    //! Guarantees a SafeArrayUnlock call on the given object when the returned object goes out of scope
+    //! Note: call SafeArrayUnlock early with the reset() method on the returned object or abort the call with the release() method
     WI_NODISCARD inline safearray_unlock_scope_exit SafeArrayUnlock_scope_exit(SAFEARRAY* psa) WI_NOEXCEPT
     {
         details::SafeArrayLock(psa);
         return safearray_unlock_scope_exit(psa);
     }
 
+    //! Class that facilitates the direct access to the contents of a SAFEARRAY and "unaccessing" it when done
+    //! It enables treating the safearray like an regular array, or doing a ranged-for on the contents.
+    //! Accessing a safearray increases it's lock count, so attempts to destroy the safearray will fail until it is unaccessed.
+    //! NOTE: This class does not manage the lifetime of the SAFEARRAY itself.  See @ref safearray_t.
+    //! ~~~~
+    //! HRESULT copy_to_bstr_vector(SAFEARRAY* psa, std::vector<wil::unique_bstr>& result)
+    //! {
+    //!     auto data = wil::safearraydata_nothrow<BSTR>{};
+    //!     RETURN_IF_FAILED(data.access(psa));
+    //!     result.reserve(result.size() + data.size());
+    //!     for(BSTR& bstr : data)
+    //!     {
+    //!         result.emplace_back(bstr);
+    //!     }
+    //!     return S_OK;
+    //! }
+    //! ~~~~
+    //! unique_bstr_safearray move_to_safearray(std::vector<wil::unique_bstr>& source)
+    //! {
+    //!     auto sa = wil::unique_bstr_safearray{source.size()};
+    //!     auto current = std::begin(source);
+    //!     for(BSTR& bstr : sa.access_data())
+    //!     {
+    //!         // Transfer ownership of the BSTR into the safearray
+    //!         bstr = (*current++).release();
+    //!     }
+    //!     return sa;
+    //! }
+    //! ~~~~
+    //! void handle_safearray_of_bools(SAFEARRAY* psa, std::function<void(bool, ULONG)> fnHandler)
+    //! {
+    //!     auto data = wil::safearraydata<VARIANT_BOOL>{psa};
+    //!     for (auto i = 0U; i < data.size(); ++i)
+    //!     {
+    //!         fnHandler(data[i] != VARIANT_FALSE, i);
+    //!     }
+    //! }
+    //! ~~~~
+    //! template<typename T>
+    //! std::vector<T> extract_all_values(SAFEARRAY* psa)
+    //! {
+    //!     auto data = wil::safearraydata<T>{psa};
+    //!     // Construct the vector from the iterators
+    //!     return {data.begin(), data.end()};
+    //! }
+    //! ~~~~
+    //! template<typename INTERFACE>
+    //! std::vector<wil::com_ptr<T>> extract_all_interfaces(SAFEARRAY* psa)
+    //! {
+    //!     auto result = std::vector<wil::com_ptr<INTERFACE>>{};
+    //!     auto data = wil::safearraydata<LPUNKNOWN>{psa};
+    //!     result.reserve(data.size());
+    //!     for(auto& p : data) // type of P is LPUNKNOWN
+    //!     {
+    //!         // Use "tag_com_query" if you want failure instead of nullptr if INTERFACE not supported
+    //!         result.emplace_back(p, details::tag_try_com_query);
+    //!     }
+    //!     return result;
+    //! }
+    //! ~~~~
+    //! @tparam T           The underlying datatype expected in the SAFEARRAY. It should be a scalar type, BSTR, VARIANT_BOOL, LPUNKNOWN/LPDISPATCH, etc.
+    //! @tparam err_policy  Represents the error policy for the class (error codes, exceptions, or fail fast; see @ref page_errors)
     template <typename T, typename err_policy = err_exception_policy>
     class safearraydata_t
     {
@@ -219,7 +238,7 @@ namespace wil
         safearraydata_t(pointer psa)
         {
             static_assert(wistd::is_same<void, result>::value, "this constructor requires exceptions; use the create method");
-            create(psa);
+            access(psa);
         }
         safearraydata_t() = default;
         safearraydata_t(safearraydata_t&&) = default;
@@ -228,13 +247,11 @@ namespace wil
         safearraydata_t(const safearraydata_t&) = delete;
         safearraydata_t& operator=(const safearraydata_t&) = delete;
 
-        result create(pointer psa)
+        result access(pointer psa)
         {
             HRESULT hr = [&]()
             {
-                constexpr auto vt = static_cast<VARTYPE>(details::VarTraits<T>::type);
                 WI_ASSERT(sizeof(T) == ::SafeArrayGetElemsize(psa));
-                WI_ASSERT(vt == details::SafeArrayGetVartype(psa));
                 details::SafeArrayAccessData(psa, m_pBegin);
                 m_unaccess.reset(psa);
                 RETURN_IF_FAILED(details::SafeArrayCountElements(m_unaccess.get(), &m_nSize));
@@ -274,11 +291,54 @@ namespace wil
     using safearraydata = safearraydata_t<T, err_exception_policy>;
 #endif
 
-
-    // Add safearray functionality to the given storage type using the given error policy
-    //  element_t is the either:
-    //      A) The C++ type for the elements in the safearray and all methods are typesafe
-    //      B) void to make the safearray generic (and not as typesafe)
+    //! RAII class for SAFEARRAYs that lives between unique_any_t and unique_storage to provide extra SAFEARRAY functionality.  
+    //! SAFEARRAYs provide a convenient way of passing an array of values across APIs and can be useful because they will clean 
+    //! up their resources (interface ref counts, BSTRs, etc.) when properly destroyed.  If you have a SAFEARRAY of interface 
+    //! pointers or BSTRs, there is no need to call Release or SysFreeString on each element (that is done automatically
+    //! when the array is destroyed in SafeArrayDestroy), so the only resource that needs to be managed is the SAFEARRAY
+    //! itself.
+    //! ~~~~
+    //! // Return a SAFEARRAY from an API
+    //! HRESULT GetWonderfulData(SAFEARRAY** ppsa)
+    //! {
+    //!     wil::unique_bstr_safearray_nothrow  sa{};
+    //!     RETURN_IF_FAILED(sa.create(32));
+    //!     {
+    //!         wil::safearraydata_nothrow<BSTR>    data{};
+    //!         RETURN_IF_FAILED(data.access(sa.get());
+    //!         for(auto& bstr : data)
+    //!         {
+    //!             // SAFEARRAY will own this string and clean it up
+    //!             bstr = ::SysAllocString(L"Wonderful!");
+    //!             // Even if we bail early, nothing will leak
+    //!             RETURN_HR_IF_NULL(E_OUTOFMEMORY, bstr);
+    //!         }
+    //!     }
+    //!     *ppsa = sa.release();
+    //!     return S_OK;
+    //! }
+    //! ~~~~
+    //! // Obtain a SAFEARRAY from an API
+    //! HRESULT ProcessWonderful()
+    //! {
+    //!     wil::unique_safearray sa{};
+    //!
+    //!     // Invoke the API
+    //!     RETURN_IF_FAILED(::GetWonderfulData(sa.put()));
+    //!     // Verify the output is expected
+    //!     RETURN_HR_IF(E_UNEXPECTED, sa.vartype() != VT_BSTR);
+    //!     for(auto& bstr : sa.access_data<BSTR>())
+    //!     {
+    //!         // Use the BSTR, no clean up necessary
+    //!         DoSomethingWithBSTR(bstr);
+    //!     }
+    //!     return S_OK;
+    //! }
+    //! ~~~~
+    //! @tparam storage_t   Storage class that manages the SAFEARRAY pointer
+    //! @tparam err_policy  Represents the error policy for the class (error codes, exceptions, or fail fast; see @ref page_errors)
+    //! @tparam element_t   The underlying datatype that is contained in the safearray OR
+    //!                     it can be void to make the safearray generic (and not as typesafe)
     template <typename storage_t, typename err_policy = err_exception_policy, typename element_t = void>
     class safearray_t : public storage_t
     {
@@ -336,7 +396,7 @@ namespace wil
         template<typename T = element_t, typename wistd::enable_if<is_type_set<T>::value, int>::type = 0>
         result create(UINT cDims, SAFEARRAYBOUND* sab)
         {
-            constexpr auto vt = static_cast<VARTYPE>(details::VarTraits<T>::type);
+            constexpr auto vt = static_cast<VARTYPE>(details::var_traits<T>::vartype);
             return err_policy::HResult(_create(vt, cDims, sab));
         }
 
@@ -352,7 +412,7 @@ namespace wil
         template<typename T = element_t, typename wistd::enable_if<is_type_set<T>::value, int>::type = 0>
         result create(UINT cElements, LONG lowerBound = 0)
         {
-            constexpr auto vt = static_cast<VARTYPE>(details::VarTraits<T>::type);
+            constexpr auto vt = static_cast<VARTYPE>(details::var_traits<T>::vartype);
             auto bounds = SAFEARRAYBOUND{ cElements, lowerBound };
             return err_policy::HResult(_create(vt, 1, &bounds));
         }
@@ -410,40 +470,62 @@ namespace wil
             return err_policy::HResult(details::SafeArrayDimElementCount(storage_t::get(), nDim, pCount));
         }
 
-        // Retrieve the stored type (when not working with a fixed type)
+        //! Retrieves the stored type (when not working with a fixed type)
         template<typename T = element_t, typename wistd::enable_if<is_type_not_set<T>::value, int>::type = 0>
         VARTYPE vartype()
         {
             return details::SafeArrayGetVartype(storage_t::get());
         }
 
-        // Lock Helper
+        //! Returns the current number of locks on the SAFEARRAY
+        ULONG lock_count() const
+        {
+            return details::SafeArrayGetLockCount(storage_t::get());
+        }
+
+        //! Returns an object that keeps a lock count on the safearray until it goes out of scope
+        //! Use to keep the SAFEARRAY from being destroyed but without access the contents
+        //! Not needed when using safearraydata_t because accessing the data also holds a lock
+        //! ~~~~
+        //! void Process(wil::unique_safearray& sa)
+        //! {
+        //!     auto lock = sa.scope_lock();
+        //!     LongRunningFunction(sa);
+        //! }
         WI_NODISCARD safearray_unlock_scope_exit scope_lock() const WI_NOEXCEPT
         {
             return wil::SafeArrayUnlock_scope_exit(storage_t::get());
         }
 
-        // Lowest-Level functions for those who know what they're doing
-        result put_element(LONG nIndex, void* pv)
-        {
-            WI_ASSERT(dim() == 1);
-            return err_policy::HResult(::SafeArrayPutElement(storage_t::get(), &nIndex, pv));
-        }
-        result put_element(LONG* pIndices, void* pv)
-        {
-            return err_policy::HResult(::SafeArrayPutElement(storage_t::get(), pIndices, pv));
-        }
-        result get_element(LONG nIndex, void* pv)
-        {
-            WI_ASSERT(dim() == 1);
-            return err_policy::HResult(::SafeArrayGetElement(storage_t::get(), &nIndex, pv));
-        }
-        result get_element(LONG* pIndices, void* pv)
-        {
-            return err_policy::HResult(::SafeArrayGetElement(storage_t::get(), pIndices, pv));
-        }
 
-        // Single Dimension Specialization
+        //! Element Access
+        //! Instead of using the safearraydata_t to access the entire collection of elements
+        //! at once, it is also possible to access them one at a time.  However, using this
+        //! functionality is less efficient because it deals with copies of the elements
+        //! that the caller is then responsible for cleaning up, so use RAII data types
+        //! for items that require clean up.
+        //! ~~~~
+        //! HRESULT ProcessWonderful_UsingElements()
+        //! {
+        //!     wil::unique_safearray_nothrow sa{};
+        //!     wil::unique_bstr bstr{};
+        //!     ULONG count{};
+        //!
+        //!     // Invoke the API
+        //!     RETURN_IF_FAILED(::GetWonderfulData(sa.put()));
+        //!     // Verify the output is expected
+        //!     RETURN_HR_IF(E_UNEXPECTED, sa.vartype() != VT_BSTR);
+        //!     RETURN_HR_IF(E_UNEXPECTED, sa.dims() != 1);
+        //!     RETURN_IF_FAILED(sa.count(&count));
+        //!     for(auto i = 0U; i < count; ++i)
+        //!     {
+        //!         // Copy from the safearray to the unique_bstr
+        //!         sa.get_element(i, bstr.put());
+        //!         DoSomethingWithBSTR(bstr);
+        //!     }
+        //!     return S_OK;
+        //! }
+        //! ~~~~
         template<typename T = element_t, typename wistd::enable_if<is_value_type<T>::value, int>::type = 0>
         result put_element(LONG nIndex, const T& val)
         {
@@ -464,6 +546,26 @@ namespace wil
             WI_ASSERT(sizeof(t) == elemsize());
             WI_ASSERT(dim() == 1);
             return err_policy::HResult(::SafeArrayGetElement(storage_t::get(), &nIndex, &t));
+        }
+
+        // Lowest-Level functions for those who know what they're doing
+        result put_element(LONG nIndex, void* pv)
+        {
+            WI_ASSERT(dim() == 1);
+            return err_policy::HResult(::SafeArrayPutElement(storage_t::get(), &nIndex, pv));
+        }
+        result put_element(LONG* pIndices, void* pv)
+        {
+            return err_policy::HResult(::SafeArrayPutElement(storage_t::get(), pIndices, pv));
+        }
+        result get_element(LONG nIndex, void* pv)
+        {
+            WI_ASSERT(dim() == 1);
+            return err_policy::HResult(::SafeArrayGetElement(storage_t::get(), &nIndex, pv));
+        }
+        result get_element(LONG* pIndices, void* pv)
+        {
+            return err_policy::HResult(::SafeArrayGetElement(storage_t::get(), pIndices, pv));
         }
 
         // Multi Dimension Support
@@ -523,14 +625,28 @@ namespace wil
             result.create_copy(storage_t::get());
             return result;
         }
+        //! Returns a safearraydata_t that provides direct access to this SAFEARRAYs contents
+        //! ~~~~
+        //! unique_bstr_safearray copy_to_safearray(std::vector<wil::unique_bstr>& source)
+        //! {
+        //!     auto sa = wil::unique_bstr_safearray{source.size()};
+        //!     auto current = std::begin(source);
+        //!     for(BSTR& bstr : sa.access_data())
+        //!     {
+        //!         // Create a copy for the safearray to own
+        //!         bstr = ::SysAllocString((*current++).get());
+        //!     }
+        //!     return sa;
+        //! }
+        //! ~~~~
         template<typename T = element_t, typename wistd::enable_if<is_type_set<T>::value, int>::type = 0>
         WI_NODISCARD safearraydata_t<T> access_data() const
         {
             static_assert(wistd::is_same<void, result>::value, "this method requires exceptions");
-            WI_ASSERT(static_cast<VARTYPE>(details::VarTraits<T>::type) == details::SafeArrayGetVartype(storage_t::get()));
+            WI_ASSERT(static_cast<VARTYPE>(details::var_traits<T>::vartype) == details::SafeArrayGetVartype(storage_t::get()));
 
             auto data = safearraydata_t<T>{};
-            data.create(storage_t::get());
+            data.access(storage_t::get());
             return wistd::move(data);
         }
 
@@ -608,83 +724,6 @@ namespace wil
     using unique_variant_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, VARIANT>>;
 #endif
 
-template<typename container_type, typename T = typename container_type::value_type, typename err_policy = err_exception_policy>
-typename err_policy::result copy_safearray_to_container(SAFEARRAY* psa, container_type& cont)
-{
-    WI_ASSERT(psa != nullptr);
-    auto data = wil::safearraydata_nothrow<T>{};
-    return err_policy::HResult([&]()
-        {
-            RETURN_IF_FAILED(data.create(psa));
-            cont.insert(cont.end(), data.begin(), data.end());
-            return S_OK;
-        }());
-}
-
-template<typename container_type, typename T = typename container_type::value_type, typename err_policy = err_exception_policy>
-typename err_policy::result copy_container_to_safearray(const container_type& cont, SAFEARRAY** ppsa)
-{
-    WI_ASSERT(ppsa != nullptr);
-    return err_policy::HResult([&]()
-        {
-            auto sa = wil::unique_safearray_nothrow{};
-            RETURN_IF_FAILED(sa.create<T>(cont.size()));
-
-            {
-                auto data = wil::safearraydata_nothrow<T>{};
-                RETURN_IF_FAILED(data.create(sa.get()));
-
-                auto src = cont.begin();
-                auto dest = data.begin();
-                while (src != cont.end())
-                {
-                    *(dest++) = *(src++);
-                }
-            }
-
-            *ppsa = sa.release();
-            return S_OK;
-        }());
-}
-
-template<typename I, typename err_policy = err_exception_policy, typename com_err_policy = err_policy>
-typename err_policy::result copy_safearray_to_vector(SAFEARRAY* psa, std::vector<wil::com_ptr_t<I,com_err_policy>>& cont)
-{
-    WI_ASSERT(psa != nullptr);
-    auto data = wil::safearraydata_nothrow<LPUNKNOWN>{};
-    return err_policy::HResult([&]()
-        {
-            RETURN_IF_FAILED(data.create(psa));
-            cont.reserve(cont.size() + data.size());
-            cont.insert(cont.end(), data.begin(), data.end());
-            return S_OK;
-        }());
-}
-
-template<typename err_policy = err_exception_policy, typename bstr_type = wil::unique_bstr>
-typename err_policy::result copy_safearray_to_vector(SAFEARRAY* psa, std::vector<bstr_type>& cont)
-{
-    WI_ASSERT(psa != nullptr);
-    auto data = wil::safearraydata_nothrow<BSTR>{};
-    return err_policy::HResult([&]()
-        {
-            RETURN_IF_FAILED(data.create(psa));
-            cont.reserve(cont.size() + data.size());
-            cont.insert(cont.end(), data.begin(), data.end());
-            return S_OK;
-        }());
-}
-
-#ifdef WIL_ENABLE_EXCEPTIONS
-template<typename I, typename com_err_policy = err_exception_policy>
-std::vector<wil::com_ptr_t<I, com_err_policy>> copy_safearray_to_vector(SAFEARRAY* psa)
-{
-    WI_ASSERT(psa != nullptr);
-    auto data = wil::safearraydata<LPUNKNOWN>{ psa };
-    return { data.begin(), data.end() };
-}
-
-#endif // WIL_ENABLE_EXCEPTIONS
 
 #endif  // #if defined( _OLEAUTO_H_ ) && !defined(__WIL_OLEAUTO_)
 } // namespace wil
