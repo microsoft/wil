@@ -5,6 +5,7 @@
 #include "common.h"
 #include <array>
 #include <propvarutil.h>
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 
 #pragma comment( lib, "Propsys.lib" )
 
@@ -84,13 +85,13 @@
                                             )
 
 // {5D80EC64-6694-4F49-B0B9-CCAA65467D12}
-static const GUID IID_IAmForTesting =
-{ 0x5d80ec64, 0x6694, 0x4f49, { 0xb0, 0xb9, 0xcc, 0xaa, 0x65, 0x46, 0x7d, 0x12 } };
+//static const GUID IID_IAmForTesting =
+//{ 0x5d80ec64, 0x6694, 0x4f49, { 0xb0, 0xb9, 0xcc, 0xaa, 0x65, 0x46, 0x7d, 0x12 } };
 
-struct __declspec(uuid("5D80EC64-6694-4F49-B0B9-CCAA65467D12"))
+interface __declspec(uuid("5D80EC64-6694-4F49-B0B9-CCAA65467D12"))
     IAmForTesting : public IUnknown
 {
-    STDMETHODIMP GetID(LONG* pOut) = 0;
+    STDMETHOD(GetID)(LONG* pOut) = 0;
 };
 
 class TestComObject : virtual public IAmForTesting,
@@ -99,25 +100,26 @@ class TestComObject : virtual public IAmForTesting,
 private:
     TestComObject()
     {
-        ::InterlockedIncrement(&s_ObjectCounter);
-        ::InterlockedIncrement(&s_IDCounter);
-        m_nID = s_IDCounter;
+        ::InterlockedIncrement(&s_ObjectCount);
+        m_nID = ::InterlockedIncrement(&s_IDCount);
     }
 
     virtual ~TestComObject()
     {
-        ::InterlockedDecrement(&s_ObjectCounter);
+        ::InterlockedDecrement(&s_ObjectCount);
     }
 
     // IUnknown
 public:
-    STDMETHODIMP_(ULONG) AddRef()
+    IFACEMETHODIMP_(ULONG) AddRef()
     {
+        ::InterlockedIncrement(&s_GlobalRefCount);
         ::InterlockedIncrement(&m_nRefCount);
         return m_nRefCount;
     }
-    STDMETHODIMP_(ULONG) Release()
+    IFACEMETHODIMP_(ULONG) Release()
     {
+        ::InterlockedDecrement(&s_GlobalRefCount);
         ULONG ulRefCount = ::InterlockedDecrement(&m_nRefCount);
         if (0 == m_nRefCount)
         {
@@ -125,26 +127,20 @@ public:
         }
         return ulRefCount;
     }
-    STDMETHODIMP QueryInterface(REFIID riid, LPVOID* ppvObj)
+    IFACEMETHODIMP QueryInterface(REFIID riid, LPVOID* ppv)
     {
-        if (!ppvObj)
+        if (!ppv)
             return E_INVALIDARG;
-        *ppvObj = NULL;
-        if (riid == IID_IUnknown)
+        *ppv = NULL;
+        if (riid == __uuidof(IUnknown) || riid == __uuidof(IAmForTesting))
         {
-            *ppvObj = (LPVOID)(IAmForTesting*)this;
+            *ppv = (LPVOID)(IAmForTesting*)this;
             AddRef();
             return NOERROR;
         }
-        else if (riid == IID_IDispatch)
+        else if (riid == __uuidof(IDispatch))
         {
-            *ppvObj = (LPVOID)(IDispatch*)this;
-            AddRef();
-            return NOERROR;
-        }
-        else if (riid == IID_IAmForTesting)
-        {
-            *ppvObj = (LPVOID)(IAmForTesting*)this;
+            *ppv = (LPVOID)(IDispatch*)this;
             AddRef();
             return NOERROR;
         }
@@ -153,29 +149,29 @@ public:
 
     // IDispatch
 public:
-    STDMETHODIMP GetTypeInfoCount(UINT* /*pctinfo*/)
+    IFACEMETHODIMP GetTypeInfoCount(UINT* /*pctinfo*/)
     {
         return E_NOTIMPL;
     }
 
-    STDMETHODIMP GetTypeInfo(UINT /*itinfo*/, LCID /*lcid*/, ITypeInfo** /*pptinfo*/)
+    IFACEMETHODIMP GetTypeInfo(UINT /*itinfo*/, LCID /*lcid*/, ITypeInfo** /*pptinfo*/)
     {
         return E_NOTIMPL;
     }
 
-    STDMETHODIMP GetIDsOfNames(REFIID /*riid*/, LPOLESTR* /*rgszNames*/, UINT /*cNames*/, LCID /*lcid*/, DISPID* /*rgdispid*/)
+    IFACEMETHODIMP GetIDsOfNames(REFIID /*riid*/, LPOLESTR* /*rgszNames*/, UINT /*cNames*/, LCID /*lcid*/, DISPID* /*rgdispid*/)
     {
         return E_NOTIMPL;
     }
 
-    STDMETHODIMP Invoke(DISPID /*dispidMember*/, REFIID /*riid*/, LCID /*lcid*/, WORD /*wFlags*/, DISPPARAMS* /*pdispparams*/, VARIANT* /*pvarResult*/, EXCEPINFO* /*pexcepinfo*/, UINT* /*puArgErr*/)
+    IFACEMETHODIMP Invoke(DISPID /*dispidMember*/, REFIID /*riid*/, LCID /*lcid*/, WORD /*wFlags*/, DISPPARAMS* /*pdispparams*/, VARIANT* /*pvarResult*/, EXCEPINFO* /*pexcepinfo*/, UINT* /*puArgErr*/)
     {
         return E_NOTIMPL;
     }
 
     // IAmForTesting
 public:
-    STDMETHODIMP GetID(LONG* pOut)
+    IFACEMETHODIMP GetID(LONG* pOut)
     {
         if (!pOut) return E_POINTER;
         *pOut = m_nID;
@@ -206,6 +202,10 @@ public:
         {
             return false;
         }
+        if (left == right)
+        {
+            return true;
+        }
 
         wil::com_ptr_nothrow<IAmForTesting> spLeft;
         wil::com_ptr_nothrow<IAmForTesting> spRight;
@@ -226,23 +226,26 @@ public:
         }
     }
 
-    static LONG GetObjectCounter() { return s_ObjectCounter; }
+    static LONG ObjectCount() { return s_ObjectCount; }
+    static LONG GlobalRefCount() { return s_GlobalRefCount; }
 
 private:
     LONG m_nRefCount{};
     LONG m_nID{};
 
-    static LONG s_ObjectCounter;
-    static LONG s_IDCounter;
+    static LONG s_ObjectCount;
+    static LONG s_GlobalRefCount;
+    static LONG s_IDCount;
 };
 
-LONG TestComObject::s_ObjectCounter = 0;
-LONG TestComObject::s_IDCounter = 0;
+LONG TestComObject::s_ObjectCount = 0;
+LONG TestComObject::s_GlobalRefCount = 0;
+LONG TestComObject::s_IDCount = 0;
 
 constexpr auto DEFAULT_SAMPLE_SIZE = 192U;
 
 template<typename T, typename = typename wistd::enable_if<wistd::is_integral<T>::value, int>::type>
-auto GetSampleData() -> std::array<T, sizeof(T)*8>
+std::array<T, sizeof(T) * 8> GetSampleData()
 {
     constexpr auto BIT_COUNT = sizeof(T) * 8;
 
@@ -336,7 +339,7 @@ std::array<wil::com_ptr_nothrow<IAmForTesting>, DEFAULT_SAMPLE_SIZE> GetSampleDa
     for (auto i = 0U; i < DEFAULT_SAMPLE_SIZE; ++i)
     {
         auto& var = result[i];
-        REQUIRE_SUCCEEDED(TestComObject::Create(IID_IAmForTesting, (LPVOID*)var.put()));
+        REQUIRE_SUCCEEDED(TestComObject::Create(__uuidof(IAmForTesting), (LPVOID*)var.put()));
     }
     return result;
 }
@@ -348,7 +351,7 @@ std::array<wil::com_ptr_nothrow<IDispatch>, DEFAULT_SAMPLE_SIZE> GetSampleData()
     for (auto i = 0U; i < DEFAULT_SAMPLE_SIZE; ++i)
     {
         auto& var = result[i];
-        REQUIRE_SUCCEEDED(TestComObject::Create(IID_IDispatch, (LPVOID*)var.put()));
+        REQUIRE_SUCCEEDED(TestComObject::Create(__uuidof(IDispatch), (LPVOID*)var.put()));
     }
     return result;
 }
@@ -522,12 +525,12 @@ template<typename safearray_t>
 void TestLock(safearray_t& sa)
 {
     REQUIRE(sa);
-    const auto startingLocks = sa.get()->cLocks;
+    const auto startingLocks = sa.lock_count();
     {
         auto lock = sa.scope_lock();
-        REQUIRE(sa.get()->cLocks > startingLocks); // Verify Lock Count increased
+        REQUIRE(sa.lock_count() > startingLocks); // Verify Lock Count increased
     }
-    REQUIRE(startingLocks == sa.get()->cLocks);   // Verify it dropped back down
+    REQUIRE(startingLocks == sa.lock_count());   // Verify it dropped back down
 }
 
 template<typename safearray_t>
@@ -1391,7 +1394,7 @@ TEST_CASE("Safearray::Put/Get", "[safearray]")
     }
 #endif
 
-    REQUIRE(TestComObject::GetObjectCounter() == 0);
+    REQUIRE(TestComObject::ObjectCount() == 0);
 }
 
 TEST_CASE("Safearray::AccessData", "[safearray]")
@@ -1416,5 +1419,7 @@ TEST_CASE("Safearray::AccessData", "[safearray]")
     }
 #endif
 
-    REQUIRE(TestComObject::GetObjectCounter() == 0);
+    REQUIRE(TestComObject::ObjectCount() == 0);
 }
+
+#endif

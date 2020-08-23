@@ -21,8 +21,8 @@
 
 namespace wil
 {
-#if defined( _OLEAUTO_H_ ) && !defined(__WIL_OLEAUTO_)
-#define __WIL_OLEAUTO_
+#if defined( _OLEAUTO_H_ ) && !defined(__WIL_SAFEARRAY_)
+#define __WIL_SAFEARRAY_
     /// @cond
     namespace details
     {
@@ -81,7 +81,7 @@ namespace wil
             FAIL_FAST_IF_FAILED(::SafeArrayUnaccessData(psa));
         }
 
-        inline VARTYPE __stdcall SafeArrayGetVartype(SAFEARRAY* psa)
+        inline VARTYPE __stdcall SafeArrayGetVartype(SAFEARRAY* psa) WI_NOEXCEPT
         {
             VARTYPE vt = VT_NULL;   // Invalid for SAs, so use to mean SA was null
             if ((psa != nullptr) && FAILED(::SafeArrayGetVartype(psa, &vt)))
@@ -157,6 +157,8 @@ namespace wil
     //! Class that facilitates the direct access to the contents of a SAFEARRAY and "unaccessing" it when done
     //! It enables treating the safearray like an regular array, or doing a ranged-for on the contents.
     //! Accessing a safearray increases it's lock count, so attempts to destroy the safearray will fail until it is unaccessed.
+    //! This class works even if the SAFEARRAY is multi-dimensional by treating it as a large single-dimension array,
+    //! but doesn't support access via a multi-dimensional index.
     //! NOTE: This class does not manage the lifetime of the SAFEARRAY itself.  See @ref safearray_t.
     //! ~~~~
     //! HRESULT copy_to_bstr_vector(SAFEARRAY* psa, std::vector<wil::unique_bstr>& result)
@@ -166,7 +168,7 @@ namespace wil
     //!     result.reserve(result.size() + data.size());
     //!     for(BSTR& bstr : data)
     //!     {
-    //!         result.emplace_back(bstr);
+    //!         result.emplace_back(wil::make_bstr_nothrow(bstr));
     //!     }
     //!     return S_OK;
     //! }
@@ -249,16 +251,14 @@ namespace wil
 
         result access(pointer psa)
         {
-            HRESULT hr = [&]()
-            {
-                WI_ASSERT(sizeof(T) == ::SafeArrayGetElemsize(psa));
-                details::SafeArrayAccessData(psa, m_pBegin);
-                m_unaccess.reset(psa);
-                RETURN_IF_FAILED(details::SafeArrayCountElements(m_unaccess.get(), &m_nSize));
-                return S_OK;
-            }();
-
-            return err_policy::HResult(hr);
+            return err_policy::HResult([&]()
+                {
+                    WI_ASSERT(sizeof(T) == ::SafeArrayGetElemsize(psa));
+                    details::SafeArrayAccessData(psa, m_pBegin);
+                    m_unaccess.reset(psa);
+                    RETURN_IF_FAILED(details::SafeArrayCountElements(m_unaccess.get(), &m_nSize));
+                    return S_OK;
+                }());
         }
 
         // Ranged-for style
@@ -417,74 +417,91 @@ namespace wil
             return err_policy::HResult(_create(vt, 1, &bounds));
         }
 
-        // Create a Copy
-        result create_copy(pointer psaSrc)
+        //! Create a Copy
+        //! Replaces the current SAFEARRAY (if any) with a new one that is created by duplicating the elements in
+        //! the SAFEARRAY* provided as a parameter in psaSource
+        result create_copy(pointer psaSource)
         {
-            HRESULT hr = [&]()
-            {
-                auto psa = storage_t::policy::invalid_value();
-                RETURN_IF_FAILED(::SafeArrayCopy(psaSrc, &psa));
-                storage_t::reset(psa);
-                return S_OK;
-            }();
-            return err_policy::HResult(hr);
+            WI_ASSERT(psaSource != nullptr);
+            return err_policy::HResult([&]()
+                {
+                    auto psa = storage_t::policy::invalid_value();
+                    RETURN_IF_FAILED(::SafeArrayCopy(psaSource, &psa));
+                    storage_t::reset(psa);
+                    return S_OK;
+                }());
         }
 
-        // Dimensions, Sizes, Boundaries
+        //! @name Property Helpers
+        //! Functions to determine the size and shape of the SAFEARRAY, which
+        //! can have an arbitrary number of dimensions and each dimension can
+        //! it's own size and boundaries.
+        //! @{
+
+        //! Indicates the number of dimensions in the SAFEARRAY.  The 1st Dimension
+        //! is always 1, and there never is a Dimension 0.
         ULONG dim() const WI_NOEXCEPT { return ::SafeArrayGetDim(storage_t::get()); }
-        ULONG elemsize() const WI_NOEXCEPT { return ::SafeArrayGetElemsize(storage_t::get()); }
+        //! Returns the lowest possible index for the given dimension.
         result lbound(UINT nDim, LONG* pLbound) const
         {
             WI_ASSERT(pLbound != nullptr);
             WI_ASSERT((nDim > 0) && (nDim <= dim()));
             return err_policy::HResult(::SafeArrayGetLBound(storage_t::get(), nDim, pLbound));
         }
-        result lbound(LONG* pLbound) const
-        {
-            WI_ASSERT(dim() == 1);
-            WI_ASSERT(pLbound != nullptr);
-            return err_policy::HResult(::SafeArrayGetLBound(storage_t::get(), 1, pLbound));
-        }
+        //! Returns the highest possible index for the given dimension.
         result ubound(UINT nDim, LONG* pUbound) const
         {
             WI_ASSERT(pUbound != nullptr);
             WI_ASSERT((nDim > 0) && (nDim <= dim()));
             return err_policy::HResult(::SafeArrayGetUBound(storage_t::get(), nDim, pUbound));
         }
+        //! 1D Specialization of lbound
+        result lbound(LONG* pLbound) const
+        {
+            WI_ASSERT(dim() == 1);
+            WI_ASSERT(pLbound != nullptr);
+            return err_policy::HResult(::SafeArrayGetLBound(storage_t::get(), 1, pLbound));
+        }
+        //! 1D Specialization of ubound
         result ubound(LONG* pUbound) const
         {
             WI_ASSERT(dim() == 1);
             WI_ASSERT(pUbound != nullptr);
             return err_policy::HResult(::SafeArrayGetUBound(storage_t::get(), 1, pUbound));
         }
+        //! Indicates the total number of elements across all the dimensions
         result count(ULONG* pCount) const
         {
             WI_ASSERT(pCount != nullptr);
             return err_policy::HResult(details::SafeArrayCountElements(storage_t::get(), pCount));
         }
-        // Same as, but much faster than, the typical UBOUND - LBOUND + 1
+        //! Returns the number of elements in the specified dimension
+        //! Same as, but much faster than, the typical ubound() - lbound() + 1
         result dim_elements(UINT nDim, ULONG* pCount) const
         {
             WI_ASSERT(pCount != nullptr);
             WI_ASSERT((nDim > 0) && (nDim <= dim()));
             return err_policy::HResult(details::SafeArrayDimElementCount(storage_t::get(), nDim, pCount));
         }
+        //! Return the size, in bytes, of each element in the array
+        ULONG elemsize() const WI_NOEXCEPT { return ::SafeArrayGetElemsize(storage_t::get()); }
 
         //! Retrieves the stored type (when not working with a fixed type)
         template<typename T = element_t, typename wistd::enable_if<is_type_not_set<T>::value, int>::type = 0>
-        VARTYPE vartype()
+        VARTYPE vartype() WI_NOEXCEPT
         {
             return details::SafeArrayGetVartype(storage_t::get());
         }
 
         //! Returns the current number of locks on the SAFEARRAY
-        ULONG lock_count() const
+        ULONG lock_count() const WI_NOEXCEPT
         {
             return details::SafeArrayGetLockCount(storage_t::get());
         }
+        //! @}
 
         //! Returns an object that keeps a lock count on the safearray until it goes out of scope
-        //! Use to keep the SAFEARRAY from being destroyed but without access the contents
+        //! Use to keep the SAFEARRAY from being destroyed but without accessing the contents
         //! Not needed when using safearraydata_t because accessing the data also holds a lock
         //! ~~~~
         //! void Process(wil::unique_safearray& sa)
@@ -497,13 +514,12 @@ namespace wil
             return wil::SafeArrayUnlock_scope_exit(storage_t::get());
         }
 
-
-        //! Element Access
+        //! @name Element Access
         //! Instead of using the safearraydata_t to access the entire collection of elements
         //! at once, it is also possible to access them one at a time.  However, using this
         //! functionality is less efficient because it deals with copies of the elements
         //! that the caller is then responsible for cleaning up, so use RAII data types
-        //! for items that require clean up.
+        //! for items that require clean up, like BSTR, VARIANT, or LPUNKNOWN
         //! ~~~~
         //! HRESULT ProcessWonderful_UsingElements()
         //! {
@@ -520,12 +536,16 @@ namespace wil
         //!     for(auto i = 0U; i < count; ++i)
         //!     {
         //!         // Copy from the safearray to the unique_bstr
-        //!         sa.get_element(i, bstr.put());
+        //!         sa.get_element(i, bstr.put()); // Will release current BSTR
         //!         DoSomethingWithBSTR(bstr);
         //!     }
         //!     return S_OK;
         //! }
         //! ~~~~
+        //! @{
+
+        //! Copies the specified element and puts it into the specified index in the SAFEARRAY (1D version)
+        //! The SAFEARRAY will own any resources and will clean up when it is destroyed
         template<typename T = element_t, typename wistd::enable_if<is_value_type<T>::value, int>::type = 0>
         result put_element(LONG nIndex, const T& val)
         {
@@ -540,35 +560,17 @@ namespace wil
             WI_ASSERT(dim() == 1);
             return err_policy::HResult(::SafeArrayPutElement(storage_t::get(), &nIndex, val));
         }
+        //! Retrieves a copy of the element at the specified index.  The caller owns this copy and must free
+        //! any resources with LPUNKNOWN->Release, SysFreeString, VariantClear, , etc.
         template<typename T = element_t, typename wistd::enable_if<is_type_set<T>::value, int>::type = 0>
-        result get_element(LONG nIndex, T& t)
+        result get_element(LONG nIndex, T& val)
         {
-            WI_ASSERT(sizeof(t) == elemsize());
+            WI_ASSERT(sizeof(val) == elemsize());
             WI_ASSERT(dim() == 1);
-            return err_policy::HResult(::SafeArrayGetElement(storage_t::get(), &nIndex, &t));
+            return err_policy::HResult(::SafeArrayGetElement(storage_t::get(), &nIndex, &val));
         }
 
-        // Lowest-Level functions for those who know what they're doing
-        result put_element(LONG nIndex, void* pv)
-        {
-            WI_ASSERT(dim() == 1);
-            return err_policy::HResult(::SafeArrayPutElement(storage_t::get(), &nIndex, pv));
-        }
-        result put_element(LONG* pIndices, void* pv)
-        {
-            return err_policy::HResult(::SafeArrayPutElement(storage_t::get(), pIndices, pv));
-        }
-        result get_element(LONG nIndex, void* pv)
-        {
-            WI_ASSERT(dim() == 1);
-            return err_policy::HResult(::SafeArrayGetElement(storage_t::get(), &nIndex, pv));
-        }
-        result get_element(LONG* pIndices, void* pv)
-        {
-            return err_policy::HResult(::SafeArrayGetElement(storage_t::get(), pIndices, pv));
-        }
-
-        // Multi Dimension Support
+        //! Multiple Dimension version of put_element
         template<typename T = element_t, typename wistd::enable_if<is_value_type<T>::value, int>::type = 0>
         result put_element(LONG* pIndices, const T& val)
         {
@@ -581,14 +583,39 @@ namespace wil
             WI_ASSERT(sizeof(val) == elemsize());
             return err_policy::HResult(::SafeArrayPutElement(storage_t::get(), pIndices, val));
         }
+        //! Multiple Dimension version of get_element
         template<typename T = element_t, typename wistd::enable_if<is_type_set<T>::value, int>::type = 0>
-        result get_element(LONG* pIndices, T& t)
+        result get_element(LONG* pIndices, T& val)
         {
-            WI_ASSERT(sizeof(t) == elemsize());
-            return err_policy::HResult(::SafeArrayGetElement(storage_t::get(), pIndices, &t));
+            WI_ASSERT(sizeof(val) == elemsize());
+            return err_policy::HResult(::SafeArrayGetElement(storage_t::get(), pIndices, &val));
         }
 
-        // Exception-based helper functions
+        //! Lowest-Level functions for those who know what they're doing.
+        result put_element(LONG nIndex, void* pv)
+        {
+            WI_ASSERT(dim() == 1);
+            return err_policy::HResult(::SafeArrayPutElement(storage_t::get(), &nIndex, pv));
+        }
+        result get_element(LONG nIndex, void* pv)
+        {
+            WI_ASSERT(dim() == 1);
+            return err_policy::HResult(::SafeArrayGetElement(storage_t::get(), &nIndex, pv));
+        }
+        result put_element(LONG* pIndices, void* pv)
+        {
+            return err_policy::HResult(::SafeArrayPutElement(storage_t::get(), pIndices, pv));
+        }
+        result get_element(LONG* pIndices, void* pv)
+        {
+            return err_policy::HResult(::SafeArrayGetElement(storage_t::get(), pIndices, pv));
+        }
+        //! @}
+
+        //! Exception-based helper functions that make exception based code easier to read
+        //! @{
+
+        //! Returns the lower bound of the given dimension
         WI_NODISCARD LONG lbound(UINT nDim = 1) const
         {
             static_assert(wistd::is_same<void, result>::value, "this method requires exceptions");
@@ -596,6 +623,7 @@ namespace wil
             lbound(nDim, &nResult);
             return nResult;
         }
+        //! Returns the bupper bound of the given dimension
         WI_NODISCARD LONG ubound(UINT nDim = 1) const
         {
             static_assert(wistd::is_same<void, result>::value, "this method requires exceptions");
@@ -603,6 +631,7 @@ namespace wil
             ubound(nDim, &nResult);
             return nResult;
         }
+        //! Return the total number of elements in the SAFEARRAY
         WI_NODISCARD ULONG count() const
         {
             static_assert(wistd::is_same<void, result>::value, "this method requires exceptions");
@@ -610,6 +639,7 @@ namespace wil
             count(&nResult);
             return nResult;
         }
+        //! Returns the number of elements in the given dimension
         WI_NODISCARD ULONG dim_elements(UINT nDim = 1) const
         {
             static_assert(wistd::is_same<void, result>::value, "this method requires exceptions");
@@ -617,6 +647,7 @@ namespace wil
             dim_elements(nDim, &nResult);
             return nResult;
         }
+        //! Returns a copy of the SAFEARRAY, including all individual elements
         WI_NODISCARD unique_type create_copy() const
         {
             static_assert(wistd::is_same<void, result>::value, "this method requires exceptions");
@@ -625,8 +656,10 @@ namespace wil
             result.create_copy(storage_t::get());
             return result;
         }
-        //! Returns a safearraydata_t that provides direct access to this SAFEARRAYs contents
+
+        //! Returns a safearraydata_t that provides direct access to this SAFEARRAYs contents.  See @ref safearraydata_t.
         //! ~~~~
+        //! // Create a new safearray by copying a vector of wil::unique_bstr
         //! unique_bstr_safearray copy_to_safearray(std::vector<wil::unique_bstr>& source)
         //! {
         //!     auto sa = wil::unique_bstr_safearray{source.size()};
@@ -636,19 +669,19 @@ namespace wil
         //!         // Create a copy for the safearray to own
         //!         bstr = ::SysAllocString((*current++).get());
         //!     }
-        //!     return sa;
+        //!     return std::move(sa);
         //! }
         //! ~~~~
         template<typename T = element_t, typename wistd::enable_if<is_type_set<T>::value, int>::type = 0>
         WI_NODISCARD safearraydata_t<T> access_data() const
         {
             static_assert(wistd::is_same<void, result>::value, "this method requires exceptions");
-            WI_ASSERT(static_cast<VARTYPE>(details::var_traits<T>::vartype) == details::SafeArrayGetVartype(storage_t::get()));
 
             auto data = safearraydata_t<T>{};
             data.access(storage_t::get());
             return wistd::move(data);
         }
+        //! @}
 
     private:
         HRESULT _create(VARTYPE vt, UINT cDims, SAFEARRAYBOUND* sab)
@@ -724,8 +757,140 @@ namespace wil
     using unique_variant_safearray = unique_any_t<safearray_t<details::unique_storage<details::safearray_resource_policy>, err_exception_policy, VARIANT>>;
 #endif
 
+#endif  // #if defined( _OLEAUTO_H_ ) && !defined(__WIL_SAFEARRAY_)
 
-#endif  // #if defined( _OLEAUTO_H_ ) && !defined(__WIL_OLEAUTO_)
+#if defined(__WIL_SAFEARRAY_) && !defined(__WIL_SAFEARRAY_SHARED_STL) && defined(WIL_RESOURCE_STL)
+#define __WIL_SAFEARRAY_SHARED_STL
+    using shared_safearray_nothrow = shared_any<unique_safearray_nothrow>;
+    using shared_safearray_failfast = shared_any<unique_safearray_failfast>;
+    using shared_char_safearray_nothrow = shared_any<unique_char_safearray_nothrow>;
+    using shared_char_safearray_failfast = shared_any<unique_char_safearray_failfast>;
+    //using shared_short_safearray_nothrow = shared_any<unique_short_safearray_nothrow>;
+    //using shared_short_safearray_failfast = shared_any<unique_short_safearray_failfast>;
+    using shared_long_safearray_nothrow = shared_any<unique_long_safearray_nothrow>;
+    using shared_long_safearray_failfast = shared_any<unique_long_safearray_failfast>;
+    using shared_int_safearray_nothrow = shared_any<unique_int_safearray_nothrow>;
+    using shared_int_safearray_failfast = shared_any<unique_int_safearray_failfast>;
+    using shared_longlong_safearray_nothrow = shared_any<unique_longlong_safearray_nothrow>;
+    using shared_longlong_safearray_failfast = shared_any<unique_longlong_safearray_failfast>;
+    using shared_byte_safearray_nothrow = shared_any<unique_byte_safearray_nothrow>;
+    using shared_byte_safearray_failfast = shared_any<unique_byte_safearray_failfast>;
+    using shared_word_safearray_nothrow = shared_any<unique_word_safearray_nothrow>;
+    using shared_word_safearray_failfast = shared_any<unique_word_safearray_failfast>;
+    using shared_dword_safearray_nothrow = shared_any<unique_dword_safearray_nothrow>;
+    using shared_dword_safearray_failfast = shared_any<unique_dword_safearray_failfast>;
+    using shared_ulonglong_safearray_nothrow = shared_any<unique_ulonglong_safearray_nothrow>;
+    using shared_ulonglong_safearray_failfast = shared_any<unique_ulonglong_safearray_failfast>;
+    using shared_float_safearray_nothrow = shared_any<unique_float_safearray_nothrow>;
+    using shared_float_safearray_failfast = shared_any<unique_float_safearray_failfast>;
+    //using shared_double_safearray_nothrow = shared_any<unique_double_safearray_nothrow>;
+    //using shared_double_safearray_failfast = shared_any<unique_double_safearray_failfast>;
+    using shared_varbool_safearray_nothrow = shared_any<unique_varbool_safearray_nothrow>;
+    using shared_varbool_safearray_failfast = shared_any<unique_varbool_safearray_failfast>;
+    using shared_date_safearray_nothrow = shared_any<unique_date_safearray_nothrow>;
+    using shared_date_safearray_failfast = shared_any<unique_date_safearray_failfast>;
+    using shared_currency_safearray_nothrow = shared_any<unique_currency_safearray_nothrow>;
+    using shared_currency_safearray_failfast = shared_any<unique_currency_safearray_failfast>;
+    using shared_decimal_safearray_nothrow = shared_any<unique_decimal_safearray_nothrow>;
+    using shared_decimal_safearray_failfast = shared_any<unique_decimal_safearray_failfast>;
+    using shared_bstr_safearray_nothrow = shared_any<unique_bstr_safearray_nothrow>;
+    using shared_bstr_safearray_failfast = shared_any<unique_bstr_safearray_failfast>;
+    using shared_unknown_safearray_nothrow = shared_any<unique_unknown_safearray_nothrow>;
+    using shared_unknown_safearray_failfast = shared_any<unique_unknown_safearray_failfast>;
+    using shared_dispatch_safearray_nothrow = shared_any<unique_dispatch_safearray_nothrow>;
+    using shared_dispatch_safearray_failfast = shared_any<unique_dispatch_safearray_failfast>;
+    using shared_variant_safearray_nothrow = shared_any<unique_variant_safearray_nothrow>;
+    using shared_variant_safearray_failfast = shared_any<unique_variant_safearray_failfast>;
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+    using shared_safearray = shared_any<unique_safearray>;
+    using shared_char_safearray = shared_any<unique_char_safearray>;
+    //using shared_short_safearray = shared_any<unique_short_safearray>;
+    using shared_long_safearray = shared_any<unique_long_safearray>;
+    using shared_int_safearray = shared_any<unique_int_safearray>;
+    using shared_longlong_safearray = shared_any<unique_longlong_safearray>;
+    using shared_byte_safearray = shared_any<unique_byte_safearray>;
+    using shared_word_safearray = shared_any<unique_word_safearray>;
+    using shared_dword_safearray = shared_any<unique_dword_safearray>;
+    using shared_ulonglong_safearray = shared_any<unique_ulonglong_safearray>;
+    using shared_float_safearray = shared_any<unique_float_safearray>;
+    //using shared_double_safearray = shared_any<unique_double_safearray>;
+    using shared_varbool_safearray = shared_any<unique_varbool_safearray>;
+    using shared_date_safearray = shared_any<unique_date_safearray>;
+    using shared_currency_safearray = shared_any<unique_currency_safearray>;
+    using shared_decimal_safearray = shared_any<unique_decimal_safearray>;
+    using shared_bstr_safearray = shared_any<unique_bstr_safearray>;
+    using shared_unknown_safearray = shared_any<unique_unknown_safearray>;
+    using shared_dispatch_safearray = shared_any<unique_dispatch_safearray>;
+    using shared_variant_safearray = shared_any<unique_variant_safearray>;
+#endif
+
+    using weak_safearray_nothrow = weak_any<unique_safearray_nothrow>;
+    using weak_safearray_failfast = weak_any<unique_safearray_failfast>;
+    using weak_char_safearray_nothrow = weak_any<unique_char_safearray_nothrow>;
+    using weak_char_safearray_failfast = weak_any<unique_char_safearray_failfast>;
+    //using weak_short_safearray_nothrow = weak_any<unique_short_safearray_nothrow>;
+    //using weak_short_safearray_failfast = weak_any<unique_short_safearray_failfast>;
+    using weak_long_safearray_nothrow = weak_any<unique_long_safearray_nothrow>;
+    using weak_long_safearray_failfast = weak_any<unique_long_safearray_failfast>;
+    using weak_int_safearray_nothrow = weak_any<unique_int_safearray_nothrow>;
+    using weak_int_safearray_failfast = weak_any<unique_int_safearray_failfast>;
+    using weak_longlong_safearray_nothrow = weak_any<unique_longlong_safearray_nothrow>;
+    using weak_longlong_safearray_failfast = weak_any<unique_longlong_safearray_failfast>;
+    using weak_byte_safearray_nothrow = weak_any<unique_byte_safearray_nothrow>;
+    using weak_byte_safearray_failfast = weak_any<unique_byte_safearray_failfast>;
+    using weak_word_safearray_nothrow = weak_any<unique_word_safearray_nothrow>;
+    using weak_word_safearray_failfast = weak_any<unique_word_safearray_failfast>;
+    using weak_dword_safearray_nothrow = weak_any<unique_dword_safearray_nothrow>;
+    using weak_dword_safearray_failfast = weak_any<unique_dword_safearray_failfast>;
+    using weak_ulonglong_safearray_nothrow = weak_any<unique_ulonglong_safearray_nothrow>;
+    using weak_ulonglong_safearray_failfast = weak_any<unique_ulonglong_safearray_failfast>;
+    using weak_float_safearray_nothrow = weak_any<unique_float_safearray_nothrow>;
+    using weak_float_safearray_failfast = weak_any<unique_float_safearray_failfast>;
+    //using weak_double_safearray_nothrow = weak_any<unique_double_safearray_nothrow>;
+    //using weak_double_safearray_failfast = weak_any<unique_double_safearray_failfast>;
+    using weak_varbool_safearray_nothrow = weak_any<unique_varbool_safearray_nothrow>;
+    using weak_varbool_safearray_failfast = weak_any<unique_varbool_safearray_failfast>;
+    using weak_date_safearray_nothrow = weak_any<unique_date_safearray_nothrow>;
+    using weak_date_safearray_failfast = weak_any<unique_date_safearray_failfast>;
+    using weak_currency_safearray_nothrow = weak_any<unique_currency_safearray_nothrow>;
+    using weak_currency_safearray_failfast = weak_any<unique_currency_safearray_failfast>;
+    using weak_decimal_safearray_nothrow = weak_any<unique_decimal_safearray_nothrow>;
+    using weak_decimal_safearray_failfast = weak_any<unique_decimal_safearray_failfast>;
+    using weak_bstr_safearray_nothrow = weak_any<unique_bstr_safearray_nothrow>;
+    using weak_bstr_safearray_failfast = weak_any<unique_bstr_safearray_failfast>;
+    using weak_unknown_safearray_nothrow = weak_any<unique_unknown_safearray_nothrow>;
+    using weak_unknown_safearray_failfast = weak_any<unique_unknown_safearray_failfast>;
+    using weak_dispatch_safearray_nothrow = weak_any<unique_dispatch_safearray_nothrow>;
+    using weak_dispatch_safearray_failfast = weak_any<unique_dispatch_safearray_failfast>;
+    using weak_variant_safearray_nothrow = weak_any<unique_variant_safearray_nothrow>;
+    using weak_variant_safearray_failfast = weak_any<unique_variant_safearray_failfast>;
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+    using weak_safearray = weak_any<unique_safearray>;
+    using weak_char_safearray = weak_any<unique_char_safearray>;
+    //using weak_short_safearray = weak_any<unique_short_safearray>;
+    using weak_long_safearray = weak_any<unique_long_safearray>;
+    using weak_int_safearray = weak_any<unique_int_safearray>;
+    using weak_longlong_safearray = weak_any<unique_longlong_safearray>;
+    using weak_byte_safearray = weak_any<unique_byte_safearray>;
+    using weak_word_safearray = weak_any<unique_word_safearray>;
+    using weak_dword_safearray = weak_any<unique_dword_safearray>;
+    using weak_ulonglong_safearray = weak_any<unique_ulonglong_safearray>;
+    using weak_float_safearray = weak_any<unique_float_safearray>;
+    //using weak_double_safearray = weak_any<unique_double_safearray>;
+    using weak_varbool_safearray = weak_any<unique_varbool_safearray>;
+    using weak_date_safearray = weak_any<unique_date_safearray>;
+    using weak_currency_safearray = weak_any<unique_currency_safearray>;
+    using weak_decimal_safearray = weak_any<unique_decimal_safearray>;
+    using weak_bstr_safearray = weak_any<unique_bstr_safearray>;
+    using weak_unknown_safearray = weak_any<unique_unknown_safearray>;
+    using weak_dispatch_safearray = weak_any<unique_dispatch_safearray>;
+    using weak_variant_safearray = weak_any<unique_variant_safearray>;
+#endif
+
+#endif // __WIL_SAFEARRAY_SHARED_STL
+
 } // namespace wil
 
 #endif  // #ifndef __WIL_SAFEARRAYS_INCLUDED
