@@ -5,6 +5,7 @@
 #include "common.h"
 #include <array>
 #include <propvarutil.h>
+
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 
 #pragma comment( lib, "Propsys.lib" )
@@ -127,7 +128,7 @@ public:
         }
         return ulRefCount;
     }
-    IFACEMETHODIMP QueryInterface(REFIID riid, LPVOID* ppv)
+    STDMETHOD(QueryInterface)(REFIID riid, LPVOID* ppv)
     {
         if (!ppv)
             return E_INVALIDARG;
@@ -149,29 +150,29 @@ public:
 
     // IDispatch
 public:
-    IFACEMETHODIMP GetTypeInfoCount(UINT* /*pctinfo*/)
+    STDMETHOD(GetTypeInfoCount)(UINT* /*pctinfo*/)
     {
         return E_NOTIMPL;
     }
 
-    IFACEMETHODIMP GetTypeInfo(UINT /*itinfo*/, LCID /*lcid*/, ITypeInfo** /*pptinfo*/)
+    STDMETHOD(GetTypeInfo)(UINT /*itinfo*/, LCID /*lcid*/, ITypeInfo** /*pptinfo*/)
     {
         return E_NOTIMPL;
     }
 
-    IFACEMETHODIMP GetIDsOfNames(REFIID /*riid*/, LPOLESTR* /*rgszNames*/, UINT /*cNames*/, LCID /*lcid*/, DISPID* /*rgdispid*/)
+    STDMETHOD(GetIDsOfNames)(REFIID /*riid*/, LPOLESTR* /*rgszNames*/, UINT /*cNames*/, LCID /*lcid*/, DISPID* /*rgdispid*/)
     {
         return E_NOTIMPL;
     }
 
-    IFACEMETHODIMP Invoke(DISPID /*dispidMember*/, REFIID /*riid*/, LCID /*lcid*/, WORD /*wFlags*/, DISPPARAMS* /*pdispparams*/, VARIANT* /*pvarResult*/, EXCEPINFO* /*pexcepinfo*/, UINT* /*puArgErr*/)
+    STDMETHOD(Invoke)(DISPID /*dispidMember*/, REFIID /*riid*/, LCID /*lcid*/, WORD /*wFlags*/, DISPPARAMS* /*pdispparams*/, VARIANT* /*pvarResult*/, EXCEPINFO* /*pexcepinfo*/, UINT* /*puArgErr*/)
     {
         return E_NOTIMPL;
     }
 
     // IAmForTesting
 public:
-    IFACEMETHODIMP GetID(LONG* pOut)
+    STDMETHOD(GetID)(LONG* pOut)
     {
         if (!pOut) return E_POINTER;
         *pOut = m_nID;
@@ -356,7 +357,7 @@ std::array<wil::com_ptr_nothrow<IDispatch>, DEFAULT_SAMPLE_SIZE> GetSampleData()
     return result;
 }
 
-template <typename T, typename = typename wistd::enable_if<!wistd::is_same<T, wil::unique_bstr>::value 
+template <typename T, typename = typename wistd::enable_if<!wistd::is_same<T, wil::unique_bstr>::value
                                                             && !wistd::is_same<T, wil::com_ptr_nothrow<IAmForTesting>>::value
                                                             && !wistd::is_same<T, wil::com_ptr_nothrow<IDispatch>>::value, int>::type>
 auto GetReadable(const T& t) -> const T&
@@ -883,9 +884,6 @@ void TestTyped_AccessData_NoThrow()
     auto sample_data = GetSampleData<typename safearray_t::elemtype>();
     auto SIZE = ULONG{ sample_data.size() };
 
-    using array_type = decltype(sample_data);
-    using data_type = typename array_type::value_type;
-
     // Operate on the AccessData class using ranged-for
     {
         // Create a new SA and copy the sample data into it
@@ -956,9 +954,6 @@ void TestTyped_AccessData_Failfast()
 {
     auto sample_data = GetSampleData<typename safearray_t::elemtype>();
     auto SIZE = ULONG{ sample_data.size() };
-
-    using array_type = decltype(sample_data);
-    using data_type = typename array_type::value_type;
 
     // Operate on the AccessData class using ranged-for
     {
@@ -1032,9 +1027,6 @@ void TestTyped_AccessData()
     auto sample_data = GetSampleData<typename safearray_t::elemtype>();
     auto SIZE = ULONG{ sample_data.size() };
 
-    using array_type = decltype(sample_data);
-    using data_type = typename array_type::value_type;
-
     // Operate on the AccessData class using ranged-for
     {
         // Create a new SA and copy the sample data into it
@@ -1053,7 +1045,7 @@ void TestTyped_AccessData()
 
         // Duplicate the SA to make sure copy works
         auto sa2 = safearray_t{};
-        REQUIRE_NOTHROW([&]() 
+        REQUIRE_NOTHROW([&]()
             {
                 sa2 = sa.create_copy();
                 REQUIRE(sa2);
@@ -1118,9 +1110,6 @@ void Test_AccessData_NoThrow()
 {
     auto sample_data = GetSampleData<T>();
     auto SIZE = ULONG{ sample_data.size() };
-
-    using array_type = decltype(sample_data);
-    using data_type = typename array_type::value_type;
 
     // Operate on the AccessData class using ranged-for
     {
@@ -1193,9 +1182,6 @@ void Test_AccessData_Failfast()
     auto sample_data = GetSampleData<T>();
     auto SIZE = ULONG{ sample_data.size() };
 
-    using array_type = decltype(sample_data);
-    using data_type = typename array_type::value_type;
-
     // Operate on the AccessData class using ranged-for
     {
         // Create a new SA and copy the sample data into it
@@ -1267,9 +1253,6 @@ void Test_AccessData()
 {
     auto sample_data = GetSampleData<T>();
     auto SIZE = ULONG{ sample_data.size() };
-
-    using array_type = decltype(sample_data);
-    using data_type = typename array_type::value_type;
 
     // Operate on the AccessData class using ranged-for
     {
