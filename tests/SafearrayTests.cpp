@@ -544,7 +544,7 @@ void TestTyped_Create_NoThrow()
     ULONG count = 0;
     REQUIRE_SUCCEEDED(sa.create(SIZE));
     REQUIRE(sa);
-    REQUIRE(sa.dim() == 1);
+    REQUIRE(sa.dims() == 1);
     REQUIRE(sa.elemsize() == sizeof(typename safearray_t::elemtype));
     REQUIRE_SUCCEEDED(sa.count(&count));
     REQUIRE(count == SIZE);
@@ -567,7 +567,7 @@ void TestTyped_Create_FailFast()
     ULONG count = 0;
     REQUIRE_NOCRASH(sa.create(SIZE));
     REQUIRE(sa);
-    REQUIRE(sa.dim() == 1);
+    REQUIRE(sa.dims() == 1);
     REQUIRE(sa.elemsize() == sizeof(typename safearray_t::elemtype));
     REQUIRE_NOCRASH(sa.count(&count));
     REQUIRE(count == SIZE);
@@ -589,7 +589,7 @@ void TestTyped_Create()
     auto sa = safearray_t{};
     REQUIRE_NOTHROW(sa = safearray_t{ SIZE });
     REQUIRE(sa);
-    REQUIRE(sa.dim() == 1);
+    REQUIRE(sa.dims() == 1);
     REQUIRE(sa.elemsize() == sizeof(typename safearray_t::elemtype));
     REQUIRE_NOTHROW(sa.count() == SIZE);
     REQUIRE_NOTHROW(sa.lbound() == 0);
@@ -614,7 +614,7 @@ void Test_Create_NoThrow()
     ULONG count = 0;
     REQUIRE_SUCCEEDED(sa.create<T>(SIZE));
     REQUIRE(sa);
-    REQUIRE(sa.dim() == 1);
+    REQUIRE(sa.dims() == 1);
     REQUIRE(sa.elemsize() == sizeof(T));
     REQUIRE_SUCCEEDED(sa.count(&count));
     REQUIRE(count == SIZE);
@@ -637,7 +637,7 @@ void Test_Create_FailFast()
     ULONG count = 0;
     REQUIRE_NOCRASH(sa.create<T>(SIZE));
     REQUIRE(sa);
-    REQUIRE(sa.dim() == 1);
+    REQUIRE(sa.dims() == 1);
     REQUIRE(sa.elemsize() == sizeof(T));
     REQUIRE_NOCRASH(sa.count(&count));
     REQUIRE(count == SIZE);
@@ -659,7 +659,7 @@ void Test_Create()
     auto sa = wil::unique_safearray{};
     REQUIRE_NOTHROW(sa.create<T>( SIZE ));
     REQUIRE(sa);
-    REQUIRE(sa.dim() == 1);
+    REQUIRE(sa.dims() == 1);
     REQUIRE(sa.elemsize() == sizeof(T));
     REQUIRE_NOTHROW(sa.count() == SIZE);
     REQUIRE_NOTHROW(sa.lbound() == 0);
