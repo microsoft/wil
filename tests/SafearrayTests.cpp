@@ -1,5 +1,5 @@
-#include <wil/com.h>
 #include <wil/resource.h>
+#include <wil/com.h>
 #include <wil/safearrays.h>
 
 #include "common.h"
@@ -84,6 +84,14 @@
                                                 , LPDISPATCH                                \
                                                 , VARIANT                                   \
                                             )
+
+#define RUN_TEST_SPECIAL(test)              WI_FOREACH(test                                 \
+                                                , BSTR                                      \
+                                                , LPUNKNOWN                                 \
+                                                , LPDISPATCH                                \
+                                                , VARIANT                                   \
+                                            )
+
 
 // {5D80EC64-6694-4F49-B0B9-CCAA65467D12}
 //static const GUID IID_IAmForTesting =
@@ -541,13 +549,13 @@ void TestTyped_Create_NoThrow()
 
     auto sa = safearray_t{};
     LONG val = 0;
-    ULONG count = 0;
+    ULONG size = 0;
     REQUIRE_SUCCEEDED(sa.create(SIZE));
     REQUIRE(sa);
     REQUIRE(sa.dims() == 1);
     REQUIRE(sa.elemsize() == sizeof(typename safearray_t::elemtype));
-    REQUIRE_SUCCEEDED(sa.count(&count));
-    REQUIRE(count == SIZE);
+    REQUIRE_SUCCEEDED(sa.size(&size));
+    REQUIRE(size == SIZE);
     REQUIRE_SUCCEEDED(sa.lbound(&val));
     REQUIRE(val == 0);
     REQUIRE_SUCCEEDED(sa.ubound(&val));
@@ -564,13 +572,13 @@ void TestTyped_Create_FailFast()
 
     auto sa = safearray_t{};
     LONG val = 0;
-    ULONG count = 0;
+    ULONG size = 0;
     REQUIRE_NOCRASH(sa.create(SIZE));
     REQUIRE(sa);
     REQUIRE(sa.dims() == 1);
     REQUIRE(sa.elemsize() == sizeof(typename safearray_t::elemtype));
-    REQUIRE_NOCRASH(sa.count(&count));
-    REQUIRE(count == SIZE);
+    REQUIRE_NOCRASH(sa.size(&size));
+    REQUIRE(size == SIZE);
     REQUIRE_NOCRASH(sa.lbound(&val));
     REQUIRE(val == 0);
     REQUIRE_NOCRASH(sa.ubound(&val));
@@ -591,7 +599,7 @@ void TestTyped_Create()
     REQUIRE(sa);
     REQUIRE(sa.dims() == 1);
     REQUIRE(sa.elemsize() == sizeof(typename safearray_t::elemtype));
-    REQUIRE_NOTHROW(sa.count() == SIZE);
+    REQUIRE_NOTHROW(sa.size() == SIZE);
     REQUIRE_NOTHROW(sa.lbound() == 0);
     REQUIRE_NOTHROW(sa.ubound() == SIZE-1);
     TestLock<safearray_t>(sa);
@@ -611,13 +619,13 @@ void Test_Create_NoThrow()
 
     auto sa = wil::unique_safearray_nothrow{};
     LONG val = 0;
-    ULONG count = 0;
+    ULONG size = 0;
     REQUIRE_SUCCEEDED(sa.create<T>(SIZE));
     REQUIRE(sa);
     REQUIRE(sa.dims() == 1);
     REQUIRE(sa.elemsize() == sizeof(T));
-    REQUIRE_SUCCEEDED(sa.count(&count));
-    REQUIRE(count == SIZE);
+    REQUIRE_SUCCEEDED(sa.size(&size));
+    REQUIRE(size == SIZE);
     REQUIRE_SUCCEEDED(sa.lbound(&val));
     REQUIRE(val == 0);
     REQUIRE_SUCCEEDED(sa.ubound(&val));
@@ -634,13 +642,13 @@ void Test_Create_FailFast()
 
     auto sa = wil::unique_safearray_failfast{};
     LONG val = 0;
-    ULONG count = 0;
+    ULONG size = 0;
     REQUIRE_NOCRASH(sa.create<T>(SIZE));
     REQUIRE(sa);
     REQUIRE(sa.dims() == 1);
     REQUIRE(sa.elemsize() == sizeof(T));
-    REQUIRE_NOCRASH(sa.count(&count));
-    REQUIRE(count == SIZE);
+    REQUIRE_NOCRASH(sa.size(&size));
+    REQUIRE(size == SIZE);
     REQUIRE_NOCRASH(sa.lbound(&val));
     REQUIRE(val == 0);
     REQUIRE_NOCRASH(sa.ubound(&val));
@@ -661,7 +669,7 @@ void Test_Create()
     REQUIRE(sa);
     REQUIRE(sa.dims() == 1);
     REQUIRE(sa.elemsize() == sizeof(T));
-    REQUIRE_NOTHROW(sa.count() == SIZE);
+    REQUIRE_NOTHROW(sa.size() == SIZE);
     REQUIRE_NOTHROW(sa.lbound() == 0);
     REQUIRE_NOTHROW(sa.ubound() == SIZE - 1);
     TestLock(sa);
@@ -1332,6 +1340,144 @@ void Test_AccessData()
 #define _ACCESSDATA_FAILFAST(type)        Test_AccessData_Failfast<type>();
 #define _ACCESSDATA(type)                 Test_AccessData<type>();
 
+template<typename T>
+void TestTyped_Element_Special_NoThrow()
+{
+    auto sample_data = GetSampleData<T>();
+    auto SIZE = ULONG{ sample_data.size() };
+
+    using array_type = decltype(sample_data);
+    using data_type = typename array_type::value_type;
+
+    auto sa = wil::unique_safearray_nothrow_t<T>{};
+
+    REQUIRE_SUCCEEDED(sa.create(SIZE));
+    REQUIRE(sa);
+
+    // Loop through and set the values with put_element
+    for (ULONG i = 0; i < SIZE; ++i)
+    {
+        // No Need to call GetReadable
+        REQUIRE_SUCCEEDED(sa.put_element(i, sample_data[i]));
+    }
+
+    // Can use a single instance because the wrapper classes clean up
+    auto temp = data_type{};
+
+    // Loop through and get the values with get_element
+    for (ULONG i = 0; i < SIZE; ++i)
+    {
+        // And make sure it was the value that was set
+        // No Need to Call GetWritable
+        REQUIRE_SUCCEEDED(sa.get_element(i, temp));
+        REQUIRE(PerformCompare(temp, sample_data[i]));
+    }
+}
+
+template<typename T>
+void TestTyped_Element_Special_Failfast()
+{
+    auto sample_data = GetSampleData<T>();
+    auto SIZE = ULONG{ sample_data.size() };
+
+    using array_type = decltype(sample_data);
+    using data_type = typename array_type::value_type;
+
+    auto sa = wil::unique_safearray_failfast_t<T>{};
+
+    REQUIRE_NOCRASH(sa.create(SIZE));
+    REQUIRE(sa);
+
+    // Loop through and set the values with put_element
+    for (ULONG i = 0; i < SIZE; ++i)
+    {
+        // No Need to call GetReadable
+        REQUIRE_NOCRASH(sa.put_element(i, sample_data[i]));
+    }
+
+    // Can use a single instance because the wrapper classes clean up
+    auto temp = data_type{};
+
+    // Loop through and get the values with get_element
+    for (ULONG i = 0; i < SIZE; ++i)
+    {
+        // And make sure it was the value that was set
+        // No Need to Call GetWritable
+        REQUIRE_NOCRASH(sa.get_element(i, temp));
+        REQUIRE(PerformCompare(temp, sample_data[i]));
+    }
+}
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+template<typename T>
+void TestTyped_Element_Special()
+{
+    auto sample_data = GetSampleData<T>();
+    auto SIZE = ULONG{ sample_data.size() };
+
+    using array_type = decltype(sample_data);
+    using data_type = typename array_type::value_type;
+
+    auto sa = wil::unique_safearray_t<T>{};
+
+    REQUIRE_NOTHROW(sa.create(SIZE));
+    REQUIRE(sa);
+
+    // Loop through and set the values with put_element
+    for (ULONG i = 0; i < SIZE; ++i)
+    {
+        // No Need to call GetReadable
+        REQUIRE_NOTHROW(sa.put_element(i, sample_data[i]));
+    }
+
+    // Can use a single instance because the wrapper classes clean up
+    auto temp = data_type{};
+
+    // Loop through and get the values with get_element
+    for (ULONG i = 0; i < SIZE; ++i)
+    {
+        // And make sure it was the value that was set
+        // No Need to Call GetWritable
+        REQUIRE_NOTHROW(sa.get_element(i, temp));
+        REQUIRE(PerformCompare(temp, sample_data[i]));
+    }
+}
+
+template<typename T>
+void TestTyped_Element_Special_Get()
+{
+    auto sample_data = GetSampleData<T>();
+    auto SIZE = ULONG{ sample_data.size() };
+
+    using array_type = decltype(sample_data);
+    using data_type = typename array_type::value_type;
+
+    auto sa = wil::unique_safearray_t<T>{};
+
+    REQUIRE_NOTHROW(sa.create(SIZE));
+    REQUIRE(sa);
+
+    // Loop through and set the values with put_element
+    for (ULONG i = 0; i < SIZE; ++i)
+    {
+        // No Need to call GetReadable
+        REQUIRE_NOTHROW(sa.put_element(i, sample_data[i]));
+    }
+
+    // Loop through and get the values with get_element
+    for (ULONG i = 0; i < SIZE; ++i)
+    {
+        // And make sure it was the value that was set via the special Get function
+        REQUIRE(PerformCompare(sa.get_element(i), sample_data[i]));
+    }
+}
+#endif
+
+#define _TYPED_DIRECT_SPECIAL_NOTHROW(type)         TestTyped_Element_Special_NoThrow<type>();
+#define _TYPED_DIRECT_SPECIAL_FAILFAST(type)        TestTyped_Element_Special_Failfast<type>();
+#define _TYPED_DIRECT_SPECIAL(type)                 TestTyped_Element_Special<type>();
+#define _TYPED_DIRECT_SPECIAL_GET(type)             TestTyped_Element_Special_Get<type>();
+
 TEST_CASE("Safearray::Create", "[safearray]")
 {
     SECTION("Create SafeArray - No Throw")
@@ -1399,6 +1545,33 @@ TEST_CASE("Safearray::AccessData", "[safearray]")
     {
         RUN_TYPED_TEST(_TYPED_ACCESSDATA);
         RUN_TEST(_ACCESSDATA);
+    }
+#endif
+
+    REQUIRE(TestComObject::ObjectCount() == 0);
+}
+
+TEST_CASE("Safearray::Put/Get Specials", "[safearray]")
+{
+    SECTION("Special Direct Element Access - No Throw")
+    {
+        RUN_TEST_SPECIAL(_TYPED_DIRECT_SPECIAL_NOTHROW);
+        //RUN_TEST_SPECIAL(_DIRECT_SPECIAL_NOTHROW);
+    }
+
+    SECTION("Special Direct Element Access - FailFast")
+    {
+        RUN_TEST_SPECIAL(_TYPED_DIRECT_SPECIAL_FAILFAST);
+        //RUN_TEST_SPECIAL(_DIRECT_SPECIAL_FAILFAST);
+    }
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+    SECTION("Special Direct Element Access - Exceptions")
+    {
+        RUN_TEST_SPECIAL(_TYPED_DIRECT_SPECIAL);
+        //RUN_TEST_SPECIAL(_DIRECT_SPECIAL);
+        RUN_TEST_SPECIAL(_TYPED_DIRECT_SPECIAL_GET);
+        //RUN_TEST_SPECIAL(_DIRECT_SPECIAL_GET);
     }
 #endif
 
