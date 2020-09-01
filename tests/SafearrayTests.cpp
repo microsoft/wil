@@ -1449,9 +1449,6 @@ void TestTyped_Element_Special_Get()
     auto sample_data = GetSampleData<T>();
     auto SIZE = ULONG{ sample_data.size() };
 
-    using array_type = decltype(sample_data);
-    using data_type = typename array_type::value_type;
-
     auto sa = wil::unique_safearray_t<T>{};
 
     REQUIRE_NOTHROW(sa.create(SIZE));

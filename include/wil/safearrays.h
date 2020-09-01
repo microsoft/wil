@@ -814,34 +814,34 @@ namespace wil
 #endif
 #if defined(__WIL_COM_INCLUDED)
         template<typename T = element_t, typename wistd::enable_if<wistd::is_same<T, LPUNKNOWN>::value, int>::type = 0>
-        WI_NODISCARD auto get_element(LONG index) -> wil::com_ptr<IUnknown>
+        WI_NODISCARD auto get_element(LONG index) -> wil::com_ptr_t<IUnknown, err_policy>
         {
             static_assert(wistd::is_same<void, result>::value, "this method requires exceptions or failfast");
-            wil::com_ptr<IUnknown> result{};
+            wil::com_ptr_t<IUnknown, err_policy> result{};
             get_element(index, result);
             return wistd::move(result);
         }
         template<typename T = element_t, typename wistd::enable_if<wistd::is_same<T, LPDISPATCH>::value, int>::type = 0>
-        WI_NODISCARD auto get_element(LONG index) -> wil::com_ptr<IDispatch>
+        WI_NODISCARD auto get_element(LONG index) -> wil::com_ptr_t<IDispatch, err_policy>
         {
             static_assert(wistd::is_same<void, result>::value, "this method requires exceptions or failfast");
-            wil::com_ptr<IDispatch> result{};
+            wil::com_ptr_t<IDispatch, err_policy> result{};
             get_element(index, result);
             return wistd::move(result);
         }
         template<typename T = element_t, typename wistd::enable_if<wistd::is_same<T, LPUNKNOWN>::value, int>::type = 0>
-        WI_NODISCARD auto get_element(LONG* indices) -> wil::com_ptr<IUnknown>
+        WI_NODISCARD auto get_element(LONG* indices) -> wil::com_ptr_t<IUnknown, err_policy>
         {
             static_assert(wistd::is_same<void, result>::value, "this method requires exceptions or failfast");
-            wil::com_ptr<IUnknown> result{};
+            wil::com_ptr_t<IUnknown, err_policy> result{};
             get_element(indices, result);
             return wistd::move(result);
         }
         template<typename T = element_t, typename wistd::enable_if<wistd::is_same<T, LPDISPATCH>::value, int>::type = 0>
-        WI_NODISCARD auto get_element(LONG* indices) -> wil::com_ptr<IDispatch>
+        WI_NODISCARD auto get_element(LONG* indices) -> wil::com_ptr_t<IDispatch, err_policy>
         {
             static_assert(wistd::is_same<void, result>::value, "this method requires exceptions or failfast");
-            wil::com_ptr<IDispatch> result{};
+            wil::com_ptr_t<IDispatch, err_policy> result{};
             get_element(indices, result);
             return wistd::move(result);
         }
