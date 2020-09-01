@@ -1556,22 +1556,18 @@ TEST_CASE("Safearray::Put/Get Specials", "[safearray]")
     SECTION("Special Direct Element Access - No Throw")
     {
         RUN_TEST_SPECIAL(_TYPED_DIRECT_SPECIAL_NOTHROW);
-        //RUN_TEST_SPECIAL(_DIRECT_SPECIAL_NOTHROW);
     }
 
     SECTION("Special Direct Element Access - FailFast")
     {
         RUN_TEST_SPECIAL(_TYPED_DIRECT_SPECIAL_FAILFAST);
-        //RUN_TEST_SPECIAL(_DIRECT_SPECIAL_FAILFAST);
     }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
     SECTION("Special Direct Element Access - Exceptions")
     {
         RUN_TEST_SPECIAL(_TYPED_DIRECT_SPECIAL);
-        //RUN_TEST_SPECIAL(_DIRECT_SPECIAL);
         RUN_TEST_SPECIAL(_TYPED_DIRECT_SPECIAL_GET);
-        //RUN_TEST_SPECIAL(_DIRECT_SPECIAL_GET);
     }
 #endif
 
