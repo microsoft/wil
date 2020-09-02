@@ -1876,7 +1876,19 @@ public:
             }
             else
             {
-                auto resolvedSender = m_weakSender.Resolve<T>();
+                auto resolvedSender = [&]()
+                {
+                    try
+                    {
+                        return m_weakSender.Resolve<T>();
+                    }
+                    catch (...)
+                    {
+                        // Ignore RPC or other failures that are unavoidable in some cases
+                        // matching wil::unique_winrt_event_token and winrt::event_revoker
+                        return static_cast<T^>(nullptr);
+                    }
+                }();
                 if (resolvedSender)
                 {
                     (resolvedSender->*m_removalFunction)(m_token);

@@ -15,6 +15,7 @@ target_sources(witest.noexcept PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/../CommonTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../ComTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../FileSystemTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../NTResultTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../ResourceTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../ResultTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../Rpc.cpp

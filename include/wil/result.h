@@ -678,7 +678,7 @@ namespace wil
                 // NOTE:  FailureType::Log as it's only informative (no action) and SupportedExceptions::All as it's not a barrier, only recognition.
                 wchar_t message[2048];
                 message[0] = L'\0';
-                const HRESULT hr = details::ReportFailure_CaughtExceptionCommon<FailureType::Log>(__R_DIAGNOSTICS_RA(source, returnAddress), message, ARRAYSIZE(message), SupportedExceptions::All);
+                const HRESULT hr = details::ReportFailure_CaughtExceptionCommon<FailureType::Log>(__R_DIAGNOSTICS_RA(source, returnAddress), message, ARRAYSIZE(message), SupportedExceptions::All).hr;
 
                 // Now that the exception was logged, we should be able to fetch it.
                 return GetLastError(info, minSequenceId, hr);
