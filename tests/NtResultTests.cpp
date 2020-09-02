@@ -62,8 +62,6 @@ TEST_CASE("NtResultTests::NtThrowCatch", "[result]")
             THROW_NTSTATUS(STATUS_INVALID_CONNECTION);
         }
         CATCH_RETURN();
-
-        return S_OK;
     }();
     // THROW_NTSTATUS converts NTSTATUS to HRESULT through WIN32 error code.
     REQUIRE(hr == wil::details::NtStatusToHr(STATUS_INVALID_CONNECTION));
@@ -76,8 +74,6 @@ TEST_CASE("NtResultTests::NtThrowCatch", "[result]")
             THROW_HR(wil::details::NtStatusToHr(STATUS_INVALID_CONNECTION));
         }
         NT_CATCH_RETURN();
-
-        return STATUS_SUCCESS;
     }();
     if (wil::details::g_pfnRtlNtStatusToDosErrorNoTeb)
     {
@@ -96,8 +92,6 @@ TEST_CASE("NtResultTests::NtThrowCatch", "[result]")
             THROW_HR(__HRESULT_FROM_WIN32(ERROR_PATH_NOT_FOUND));
         }
         NT_CATCH_RETURN();
-
-        return STATUS_SUCCESS;
     }();
     REQUIRE(status == STATUS_OBJECT_PATH_NOT_FOUND);
 
@@ -109,8 +103,6 @@ TEST_CASE("NtResultTests::NtThrowCatch", "[result]")
             THROW_HR(E_LOAD_NAMESERVICE_FAILED);
         }
         NT_CATCH_RETURN();
-
-        return STATUS_SUCCESS;
     }();
     REQUIRE(status == STATUS_INTERNAL_ERROR);
 
@@ -122,8 +114,6 @@ TEST_CASE("NtResultTests::NtThrowCatch", "[result]")
             THROW_NTSTATUS(STATUS_INVALID_CONNECTION);
         }
         NT_CATCH_RETURN();
-
-        return STATUS_SUCCESS;
     }();
     REQUIRE(status == STATUS_INVALID_CONNECTION);
 
@@ -134,8 +124,6 @@ TEST_CASE("NtResultTests::NtThrowCatch", "[result]")
             THROW_NTSTATUS_MSG(STATUS_INVALID_CONNECTION, "Throw STATUS_INVALID_CONNECTION as NTSTATUS");
         }
         NT_CATCH_RETURN();
-
-        return STATUS_SUCCESS;
     }();
     REQUIRE(status == STATUS_INVALID_CONNECTION);
 
@@ -151,8 +139,6 @@ TEST_CASE("NtResultTests::NtThrowCatch", "[result]")
 
             return wil::StatusFromCaughtException();
         }
-
-        return STATUS_SUCCESS;
     }();
     REQUIRE(status == STATUS_INVALID_CONNECTION);
 
@@ -163,8 +149,6 @@ TEST_CASE("NtResultTests::NtThrowCatch", "[result]")
             THROW_NTSTATUS_MSG(STATUS_INVALID_CONNECTION, "Throw STATUS_INVALID_CONNECTION as NTSTATUS");
         }
         CATCH_RETURN();
-
-        return STATUS_SUCCESS;
     }();
     REQUIRE(hr == wil::details::NtStatusToHr(STATUS_INVALID_CONNECTION));
 
@@ -175,8 +159,6 @@ TEST_CASE("NtResultTests::NtThrowCatch", "[result]")
             THROW_NTSTATUS_MSG(STATUS_INVALID_CONNECTION, "Throw STATUS_INVALID_CONNECTION as NTSTATUS");
         }
         NT_CATCH_RETURN_MSG("Catching STATUS_INVALID_CONNECTION thrown by NT_THROW_NTSTATUS_MSG");
-
-        return STATUS_SUCCESS;
     }();
     REQUIRE(status == STATUS_INVALID_CONNECTION);
 }
