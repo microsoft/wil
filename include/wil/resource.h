@@ -1770,7 +1770,7 @@ namespace wil
             RETURN_IF_FAILED(maker.make(nullptr, lengthRequiredWithoutNull));
 
             auto buffer = maker.buffer();
-            RETURN_IF_FAILED(::StringCchVPrintfExW(buffer, lengthRequiredWithoutNull + 1, nullptr, nullptr, STRSAFE_NULL_ON_FAILURE, pszFormat, argsVL));
+            RETURN_IF_FAILED(StringCchVPrintfExW(buffer, lengthRequiredWithoutNull + 1, nullptr, nullptr, STRSAFE_NULL_ON_FAILURE, pszFormat, argsVL));
 
             result = maker.release();
             return S_OK;
@@ -6096,6 +6096,26 @@ namespace wil
     private:
         FAST_MUTEX m_fastMutex;
     };
+
+    //! A type that calls KeLeaveCriticalRegion on destruction (or reset()).
+    using unique_leave_critical_region_call = unique_call<decltype(&::KeLeaveCriticalRegion), ::KeLeaveCriticalRegion>;
+
+    //! Disables user APCs and normal kernel APCs; returns an RAII object that reverts
+    WI_NODISCARD inline unique_leave_critical_region_call enter_critical_region()
+    {
+        KeEnterCriticalRegion();
+        return{};
+    }
+
+    //! A type that calls KeLeaveGuardedRegion on destruction (or reset()).
+    using unique_leave_guarded_region_call = unique_call<decltype(&::KeLeaveGuardedRegion), ::KeLeaveGuardedRegion>;
+
+    //! Disables all APCs; returns an RAII object that reverts
+    WI_NODISCARD inline unique_leave_guarded_region_call enter_guarded_region()
+    {
+        KeEnterGuardedRegion();
+        return{};
+    }
 
     namespace details
     {
