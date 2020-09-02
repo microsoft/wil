@@ -15,8 +15,8 @@
 
 #include <new.h> // new(std::nothrow)
 #include "wistd_type_traits.h"
-#include "resource.h"
 #include <OleAuto.h>
+#include "resource.h"
 
 namespace wil
 {
@@ -170,11 +170,12 @@ namespace wil
     //!     for(BSTR& bstr : data)
     //!     {
     //!         result.emplace_back(wil::make_bstr_nothrow(bstr));
+    //!         RETURN_HR_IF_NULL(E_OUTOFMEMORY, result.rbegin()->get());
     //!     }
     //!     return S_OK;
     //! }
     //! ~~~~
-    //! unique_bstr_safearray move_to_safearray(std::vector<wil::unique_bstr>& source)
+    //! wil::unique_bstr_safearray move_to_safearray(std::vector<wil::unique_bstr>& source)
     //! {
     //!     auto sa = wil::unique_bstr_safearray{source.size()};
     //!     auto current = std::begin(source);
@@ -191,6 +192,7 @@ namespace wil
     //!     auto data = wil::safearraydata<VARIANT_BOOL>{psa};
     //!     for (auto i = 0U; i < data.size(); ++i)
     //!     {
+    //!         // Translate to Regular Bool and Invoke the Handler
     //!         fnHandler(data[i] != VARIANT_FALSE, i);
     //!     }
     //! }
@@ -204,15 +206,15 @@ namespace wil
     //! }
     //! ~~~~
     //! template<typename INTERFACE>
-    //! std::vector<wil::com_ptr<INTERFACE>> extract_all_interfaces(SAFEARRAY* psa)
+    //! std::vector<wil::com_ptr_t<INTERFACE, wil::err_exception_policy>> extract_all_interfaces(SAFEARRAY* psa)
     //! {
-    //!     auto result = std::vector<wil::com_ptr<INTERFACE>>{};
+    //!     auto result = std::vector<wil::com_ptr_t<INTERFACE, wil::err_exception_policy>>{};
     //!     auto data = wil::safearraydata<LPUNKNOWN>{psa};
     //!     result.reserve(data.size());
     //!     for(auto& p : data) // Type of p is LPUNKNOWN
     //!     {
     //!         // Use "tag_com_query" if you want failure instead of nullptr if INTERFACE not supported
-    //!         result.emplace_back(p, details::tag_try_com_query);
+    //!         result.emplace_back(p, wil::details::tag_try_com_query);
     //!     }
     //!     return result;
     //! }
@@ -297,11 +299,11 @@ namespace wil
     //! // Return a SAFEARRAY from an API
     //! HRESULT GetWonderfulData(SAFEARRAY** ppsa)
     //! {
-    //!     wil::unique_bstr_safearray_nothrow  sa{};
+    //!     wil::unique_bstr_safearray_nothrow sa{};
     //!     RETURN_IF_FAILED(sa.create(32));
     //!     {
     //!         wil::safearraydata_nothrow<BSTR> data{};
-    //!         RETURN_IF_FAILED(data.access(sa.get());
+    //!         RETURN_IF_FAILED(data.access(sa.get()));
     //!         for(auto& bstr : data)
     //!         {
     //!             // SAFEARRAY will own this string and clean it up
@@ -757,16 +759,16 @@ namespace wil
         //! Returns a safearraydata_t that provides direct access to this SAFEARRAY's contents.  See @ref safearraydata_t.
         //! ~~~~
         //! // Create a new safearray by copying a vector of wil::unique_bstr
-        //! unique_bstr_safearray copy_to_safearray(std::vector<wil::unique_bstr>& source)
+        //! wil::unique_bstr_safearray copy_to_safearray(std::vector<wil::unique_bstr>& source)
         //! {
         //!     auto sa = wil::unique_bstr_safearray{source.size()};
         //!     auto current = std::begin(source);
         //!     for(BSTR& bstr : sa.access_data())
         //!     {
         //!         // Create a copy for the safearray to own
-        //!         bstr = ::SysAllocString((*current++).get());
+        //!         bstr = ::SysAllocString((current++)->get());
         //!     }
-        //!     return std::move(sa);
+        //!     return sa;
         //! }
         //! ~~~~
         template<typename T = element_t, typename wistd::enable_if<is_type_set<T>::value, int>::type = 0>
@@ -777,6 +779,25 @@ namespace wil
         }
 
         //! Special Get Functions
+        //! ~~~~
+        //! // Create a new safearray by copying a vector of wil::unique_bstr
+        //! std::vector<wil::unique_bstr> copy_safearray_to_vector_and_destroy(SAFEARRAY*& psa)
+        //! {
+        //!     auto sa = wil::unique_bstr_safearray{};
+        //!     sa.reset(psa);  // The SAFEARRAY is now owned by the instance of unique_safearray
+        //!     psa = nullptr;  // Signal to the caller the SA was cleaned up
+        //!
+        //!     THROW_HR_IF(E_UNEXPECTED, sa.vartype() != VT_BSTR);
+        //!
+        //!     auto result = std::vector<wil::unique_bstr>{};
+        //!     result.reserve(sa.size());
+        //!     for(auto i = 0; i < sa.size(); ++i)
+        //!     {
+        //!         result.emplace_back(sa.get_element(i));
+        //!     }
+        //!     return result;
+        //! }
+        //! ~~~~
 #if defined(__WIL_OLEAUTO_H_)
         template<typename T = element_t, typename wistd::enable_if<wistd::is_same<T, BSTR>::value, int>::type = 0>
         WI_NODISCARD auto get_element(LONG index) -> wil::unique_bstr
@@ -812,6 +833,7 @@ namespace wil
             return result;
         }
 #endif
+
 #if defined(__WIL_COM_INCLUDED)
         template<typename T = element_t, typename wistd::enable_if<wistd::is_same<T, LPUNKNOWN>::value, int>::type = 0>
         WI_NODISCARD auto get_element(LONG index) -> wil::com_ptr_t<IUnknown, err_policy>
