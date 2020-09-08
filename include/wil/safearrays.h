@@ -805,7 +805,7 @@ namespace wil
             static_assert(wistd::is_same<void, result>::value, "this method requires exceptions or failfast");
             wil::unique_bstr result{};
             get_element(index, result);
-            return wistd::move(result);
+            return result;
         }
         template<typename T = element_t, typename wistd::enable_if<wistd::is_same<T, VARIANT>::value, int>::type = 0>
         WI_NODISCARD auto get_element(LONG index) -> wil::unique_variant
@@ -822,7 +822,7 @@ namespace wil
             static_assert(wistd::is_same<void, result>::value, "this method requires exceptions or failfast");
             wil::unique_bstr result{};
             get_element(indices, result);
-            return wistd::move(result);
+            return result;
         }
         template<typename T = element_t, typename wistd::enable_if<wistd::is_same<T, VARIANT>::value, int>::type = 0>
         WI_NODISCARD auto get_element(LONG* indices) -> wil::unique_variant
@@ -841,7 +841,7 @@ namespace wil
             static_assert(wistd::is_same<void, result>::value, "this method requires exceptions or failfast");
             wil::com_ptr_t<IUnknown, err_policy> result{};
             get_element(index, result);
-            return wistd::move(result);
+            return result;
         }
         template<typename T = element_t, typename wistd::enable_if<wistd::is_same<T, LPDISPATCH>::value, int>::type = 0>
         WI_NODISCARD auto get_element(LONG index) -> wil::com_ptr_t<IDispatch, err_policy>
@@ -849,7 +849,7 @@ namespace wil
             static_assert(wistd::is_same<void, result>::value, "this method requires exceptions or failfast");
             wil::com_ptr_t<IDispatch, err_policy> result{};
             get_element(index, result);
-            return wistd::move(result);
+            return result;
         }
         template<typename T = element_t, typename wistd::enable_if<wistd::is_same<T, LPUNKNOWN>::value, int>::type = 0>
         WI_NODISCARD auto get_element(LONG* indices) -> wil::com_ptr_t<IUnknown, err_policy>
@@ -857,7 +857,7 @@ namespace wil
             static_assert(wistd::is_same<void, result>::value, "this method requires exceptions or failfast");
             wil::com_ptr_t<IUnknown, err_policy> result{};
             get_element(indices, result);
-            return wistd::move(result);
+            return result;
         }
         template<typename T = element_t, typename wistd::enable_if<wistd::is_same<T, LPDISPATCH>::value, int>::type = 0>
         WI_NODISCARD auto get_element(LONG* indices) -> wil::com_ptr_t<IDispatch, err_policy>
@@ -865,7 +865,7 @@ namespace wil
             static_assert(wistd::is_same<void, result>::value, "this method requires exceptions or failfast");
             wil::com_ptr_t<IDispatch, err_policy> result{};
             get_element(indices, result);
-            return wistd::move(result);
+            return result;
         }
 #endif
         //! @}
