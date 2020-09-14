@@ -167,7 +167,7 @@ namespace wil
     //!     auto data = wil::safearraydata_nothrow<BSTR>{};
     //!     RETURN_IF_FAILED(data.access(psa));
     //!     result.reserve(result.size() + data.size());
-    //!     for(BSTR& bstr : data)
+    //!     for (BSTR& bstr : data)
     //!     {
     //!         result.emplace_back(wil::make_bstr_nothrow(bstr));
     //!         RETURN_HR_IF_NULL(E_OUTOFMEMORY, result.rbegin()->get());
@@ -1103,4 +1103,3 @@ namespace wil
 #endif // __WIL_SAFEARRAY_SHARED_STL
 
 } // namespace wil
-
