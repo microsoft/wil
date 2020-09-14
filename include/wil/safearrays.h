@@ -167,7 +167,7 @@ namespace wil
     //!     auto data = wil::safearraydata_nothrow<BSTR>{};
     //!     RETURN_IF_FAILED(data.access(psa));
     //!     result.reserve(result.size() + data.size());
-    //!     for(BSTR& bstr : data)
+    //!     for (BSTR& bstr : data)
     //!     {
     //!         result.emplace_back(wil::make_bstr_nothrow(bstr));
     //!         RETURN_HR_IF_NULL(E_OUTOFMEMORY, result.rbegin()->get());
@@ -179,7 +179,7 @@ namespace wil
     //! {
     //!     auto sa = wil::unique_bstr_safearray{source.size()};
     //!     auto current = std::begin(source);
-    //!     for(BSTR& bstr : sa.access_data())
+    //!     for (BSTR& bstr : sa.access_data())
     //!     {
     //!         // Transfer ownership of the BSTR into the safearray
     //!         bstr = (*current++).release();
@@ -211,7 +211,7 @@ namespace wil
     //!     auto result = std::vector<wil::com_ptr_t<INTERFACE, wil::err_exception_policy>>{};
     //!     auto data = wil::safearraydata<LPUNKNOWN>{psa};
     //!     result.reserve(data.size());
-    //!     for(auto& p : data) // Type of p is LPUNKNOWN
+    //!     for (auto& p : data) // Type of p is LPUNKNOWN
     //!     {
     //!         // Use "tag_com_query" if you want failure instead of nullptr if INTERFACE not supported
     //!         result.emplace_back(p, wil::details::tag_try_com_query);
@@ -304,7 +304,7 @@ namespace wil
     //!     {
     //!         wil::safearraydata_nothrow<BSTR> data{};
     //!         RETURN_IF_FAILED(data.access(sa.get()));
-    //!         for(auto& bstr : data)
+    //!         for (auto& bstr : data)
     //!         {
     //!             // SAFEARRAY will own this string and clean it up
     //!             bstr = ::SysAllocString(L"Wonderful!");
@@ -325,7 +325,7 @@ namespace wil
     //!     RETURN_IF_FAILED(::GetWonderfulData(sa.put()));
     //!     // Verify the output is expected
     //!     RETURN_HR_IF(E_UNEXPECTED, sa.vartype() != VT_BSTR);
-    //!     for(auto& bstr : sa.access_data<BSTR>())
+    //!     for (auto& bstr : sa.access_data<BSTR>())
     //!     {
     //!         // Use the BSTR, no clean up necessary
     //!         DoSomethingWithBSTR(bstr);
@@ -529,7 +529,7 @@ namespace wil
         //!     RETURN_HR_IF(E_UNEXPECTED, sa.vartype() != VT_BSTR);
         //!     RETURN_HR_IF(E_UNEXPECTED, sa.dims() != 1);
         //!     RETURN_IF_FAILED(sa.size(&size));
-        //!     for(auto i = 0U; i < size; ++i)
+        //!     for (auto i = 0U; i < size; ++i)
         //!     {
         //!         // Copy from the safearray to the unique_bstr
         //!         sa.get_element(i, bstr.put()); // Will release current BSTR
@@ -763,7 +763,7 @@ namespace wil
         //! {
         //!     auto sa = wil::unique_bstr_safearray{source.size()};
         //!     auto current = std::begin(source);
-        //!     for(BSTR& bstr : sa.access_data())
+        //!     for (BSTR& bstr : sa.access_data())
         //!     {
         //!         // Create a copy for the safearray to own
         //!         bstr = ::SysAllocString((current++)->get());
@@ -791,7 +791,7 @@ namespace wil
         //!
         //!     auto result = std::vector<wil::unique_bstr>{};
         //!     result.reserve(sa.size());
-        //!     for(auto i = 0; i < sa.size(); ++i)
+        //!     for (auto i = 0; i < sa.size(); ++i)
         //!     {
         //!         result.emplace_back(sa.get_element(i));
         //!     }
@@ -1103,4 +1103,3 @@ namespace wil
 #endif // __WIL_SAFEARRAY_SHARED_STL
 
 } // namespace wil
-
