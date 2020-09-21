@@ -297,7 +297,7 @@ namespace wil
     /** Retrieves the fully qualified path for the file containing the specified module loaded
     by a given process. Note GetModuleFileNameExW is a macro.*/
     template <typename string_type, size_t initialBufferLength = 128>
-    HRESULT GetModuleFileNameExW(_In_opt_ HANDLE process, _In_opt_ HMODULE module, string_type& path)
+    HRESULT GetModuleFileNameExW(_In_opt_ HANDLE process, _In_opt_ HMODULE hModule, string_type& path)
     {
         // initialBufferLength is a template parameter to allow for testing.  It creates some waste for
         // shorter paths, but avoids iteration through the loop in common cases where paths are less
@@ -324,7 +324,7 @@ namespace wil
             {
                 // GetModuleFileNameExW truncates and provides no error or other indication it has done so.
                 // The only way to be sure it didn't truncate is if it didn't need the whole buffer.
-                copiedCount = ::GetModuleFileNameExW(process, module, maker.buffer(), static_cast<DWORD>(lengthWithNull));
+                copiedCount = ::GetModuleFileNameExW(process, hModule, maker.buffer(), static_cast<DWORD>(lengthWithNull));
                 copyFailed = (0 == copiedCount);
                 copySucceededWithNoTruncation = !copyFailed && (copiedCount < lengthWithNull - 1);
             }
@@ -332,7 +332,7 @@ namespace wil
             {
                 // In cases of insufficient buffer, GetModuleFileNameW will return a value equal to lengthWithNull
                 // and set the last error to ERROR_INSUFFICIENT_BUFFER.
-                copiedCount = ::GetModuleFileNameW(module, maker.buffer(), static_cast<DWORD>(lengthWithNull));
+                copiedCount = ::GetModuleFileNameW(hModule, maker.buffer(), static_cast<DWORD>(lengthWithNull));
                 copyFailed = (0 == copiedCount);
                 copySucceededWithNoTruncation = !copyFailed && (copiedCount < lengthWithNull);
             }
@@ -366,9 +366,9 @@ namespace wil
     same format that was specified when the module was loaded. Therefore, the path can be a
     long or short file name, and can have the prefix '\\?\'. */
     template <typename string_type, size_t initialBufferLength = 128>
-    HRESULT GetModuleFileNameW(HMODULE module, string_type& path)
+    HRESULT GetModuleFileNameW(HMODULE hModule, string_type& path)
     {
-        return wil::GetModuleFileNameExW<string_type, initialBufferLength>(nullptr, module, path);
+        return wil::GetModuleFileNameExW<string_type, initialBufferLength>(nullptr, hModule, path);
     }
 
     template <typename string_type, size_t stackBufferLength = 256>
@@ -428,18 +428,18 @@ namespace wil
     }
 
     template <typename string_type = wil::unique_cotaskmem_string>
-    string_type GetModuleFileNameW(HMODULE module)
+    string_type GetModuleFileNameW(HMODULE hModule)
     {
         string_type result;
-        THROW_IF_FAILED(wil::GetModuleFileNameW(module, result));
+        THROW_IF_FAILED(wil::GetModuleFileNameW(hModule, result));
         return result;
     }
 
     template <typename string_type = wil::unique_cotaskmem_string>
-    string_type GetModuleFileNameExW(HANDLE process, HMODULE module)
+    string_type GetModuleFileNameExW(HANDLE process, HMODULE hModule)
     {
         string_type result;
-        THROW_IF_FAILED(wil::GetModuleFileNameExW(process, module, result));
+        THROW_IF_FAILED(wil::GetModuleFileNameExW(process, hModule, result));
         return result;
     }
 
