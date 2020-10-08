@@ -2561,10 +2561,10 @@ namespace wil
     }
 
     // Waits on the given handle for the specified duration
-    inline bool handle_wait(HANDLE hEvent, DWORD dwMilliseconds = INFINITE) WI_NOEXCEPT
+    inline bool handle_wait(HANDLE hEvent, DWORD dwMilliseconds = INFINITE, BOOL bAlertable = FALSE) WI_NOEXCEPT
     {
         DWORD status = ::WaitForSingleObjectEx(hEvent, dwMilliseconds, FALSE);
-        __FAIL_FAST_ASSERT__((status == WAIT_TIMEOUT) || (status == WAIT_OBJECT_0));
+        __FAIL_FAST_ASSERT__((status == WAIT_TIMEOUT) || (status == WAIT_OBJECT_0) || (bAlertable && (status == WAIT_IO_COMPLETION)));
         return (status == WAIT_OBJECT_0);
     }
 
@@ -2626,9 +2626,9 @@ namespace wil
         }
 
         // Basic WaitForSingleObject on the event handle with the given timeout
-        bool wait(DWORD dwMilliseconds = INFINITE) const WI_NOEXCEPT
+        bool wait(DWORD dwMilliseconds = INFINITE, BOOL bAlertable = FALSE) const WI_NOEXCEPT
         {
-            return wil::handle_wait(storage_t::get(), dwMilliseconds);
+            return wil::handle_wait(storage_t::get(), dwMilliseconds, bAlertable);
         }
 
         // Tries to create a named event -- returns false if unable to do so (gle may still be inspected with return=false)
