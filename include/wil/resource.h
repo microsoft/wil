@@ -2563,7 +2563,7 @@ namespace wil
     // Waits on the given handle for the specified duration
     inline bool handle_wait(HANDLE hEvent, DWORD dwMilliseconds = INFINITE, BOOL bAlertable = FALSE) WI_NOEXCEPT
     {
-        DWORD status = ::WaitForSingleObjectEx(hEvent, dwMilliseconds, FALSE);
+        DWORD status = ::WaitForSingleObjectEx(hEvent, dwMilliseconds, bAlertable);
         __FAIL_FAST_ASSERT__((status == WAIT_TIMEOUT) || (status == WAIT_OBJECT_0) || (bAlertable && (status == WAIT_IO_COMPLETION)));
         return (status == WAIT_OBJECT_0);
     }
