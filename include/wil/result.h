@@ -281,7 +281,7 @@ namespace wil
 
                 const DWORD size = static_cast<DWORD>(sizeof(ProcessLocalStorageData<T>));
                 wchar_t name[MAX_PATH];
-                WI_VERIFY(SUCCEEDED(StringCchPrintfW(name, ARRAYSIZE(name), L"Local\\SM0:%d:%d:%hs", ::GetCurrentProcessId(), size, staticNameWithVersion)));
+                WI_VERIFY(SUCCEEDED(StringCchPrintfW(name, ARRAYSIZE(name), L"Local\\SM0:%lu:%lu:%hs", ::GetCurrentProcessId(), size, staticNameWithVersion)));
 
                 unique_mutex_nothrow mutex;
                 mutex.reset(::CreateMutexExW(nullptr, name, 0, MUTEX_ALL_ACCESS));
