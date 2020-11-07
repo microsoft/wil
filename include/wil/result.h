@@ -428,7 +428,7 @@ namespace wil
 
             struct Node
             {
-                DWORD threadId;
+                DWORD threadId = ULONG_MAX;
                 Node* pNext = nullptr;
                 T value{};
             };
