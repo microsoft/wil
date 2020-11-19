@@ -6228,6 +6228,48 @@ namespace wil
 
 #endif // __WIL_RESOURCE_ZWAPI
 
+#if defined(WINTRUST_H) && defined(SOFTPUB_H) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && !defined(__WIL_WINTRUST)
+#define __WIL_WINTRUST
+    namespace details
+    {
+        inline void __stdcall CloseWintrustData(_Inout_ WINTRUST_DATA* wtData) WI_NOEXCEPT
+        {
+            GUID guidV2 = WINTRUST_ACTION_GENERIC_VERIFY_V2;  
+            wtData->dwStateAction = WTD_STATEACTION_CLOSE; 
+            WinVerifyTrust(static_cast<HWND>(INVALID_HANDLE_VALUE), &guidV2, wtData);
+        }
+    }
+    typedef wil::unique_struct<WINTRUST_DATA, decltype(&details::CloseWintrustData), details::CloseWintrustData> unique_wintrust_data;
+#endif // __WIL_WINTRUST
+
+#if defined(MSCAT_H) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && !defined(__WIL_MSCAT)
+#define __WIL_MSCAT
+    namespace details
+    {
+        inline void __stdcall CryptCATAdminReleaseContextNoFlags(_Pre_opt_valid_ _Frees_ptr_opt_ HCATADMIN handle) WI_NOEXCEPT
+        {
+            CryptCATAdminReleaseContext(handle, 0);
+        }
+    }
+    typedef wil::unique_any<HCATADMIN, decltype(&details::CryptCATAdminReleaseContextNoFlags), details::CryptCATAdminReleaseContextNoFlags> unique_hcatadmin;
+
+#if defined(WIL_RESOURCE_STL) 
+    typedef shared_any<unique_hcatadmin> shared_hcatadmin;
+    struct hcatinfo_deleter
+    {
+        hcatinfo_deleter(wil::shared_hcatadmin handle) WI_NOEXCEPT : m_hCatAdmin(wistd::move(handle)) {}
+        void operator()(_Pre_opt_valid_ _Frees_ptr_opt_ HCATINFO handle) WI_NOEXCEPT
+        {
+            CryptCATAdminReleaseCatalogContext(m_hCatAdmin.get(), handle, 0);
+        }
+        wil::shared_hcatadmin m_hCatAdmin;
+    };
+    // This stores HCATINFO, i.e. HANDLE (void *)
+    typedef wistd::unique_ptr<void, hcatinfo_deleter> unique_hcatinfo;
+#endif
+
+#endif // __WIL_MSCAT
+
 } // namespace wil
 
 #pragma warning(pop)
