@@ -545,4 +545,4 @@ namespace wistd     // ("Windows Implementation" std)
 }
 /// @endcond
 
-#endif _WISTD_CONFIG_H_
+#endif // _WISTD_CONFIG_H_

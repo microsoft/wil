@@ -2794,6 +2794,7 @@ namespace wil
                 }
                 catch (...)
                 {
+                    // Fall through to returning 'hr' below
                 }
             }
 
