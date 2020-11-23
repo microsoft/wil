@@ -383,6 +383,7 @@ namespace wil
                     while (pNode != nullptr)
                     {
                         auto pCurrent = pNode;
+                        __WI_SUPPRESS_USING_UNINIT_MEM
                         pNode = pNode->pNext;
                         pCurrent->~Node();
                         ::HeapFree(::GetProcessHeap(), 0, pCurrent);
@@ -432,6 +433,12 @@ namespace wil
                 Node* pNext = nullptr;
                 T value{};
             };
+
+            static void DestroyNode(_In_ Node* node)
+            {
+                node->~Node();
+                details::FreeProcessHeap(node);
+            }
 
             Node * volatile m_hashArray[10]{};
         };

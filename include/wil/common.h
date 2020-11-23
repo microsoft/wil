@@ -67,6 +67,7 @@
 #define __WI_SUPPRESS_NULLPTR_ANALYSIS __pragma(warning(suppress:28285)) __pragma(warning(suppress:6504))
 #define __WI_SUPPRESS_NONINIT_ANALYSIS __pragma(warning(suppress:26495))
 #define __WI_SUPPRESS_NOEXCEPT_ANALYSIS __pragma(warning(suppress:26439))
+#define __WI_SUPPRESS_USING_UNINIT_MEM __pragma(warning(suppress:6001))
 #else
 #define __WI_SUPPRESS_4127_S
 #define __WI_SUPPRESS_4127_E
