@@ -59,6 +59,14 @@ TEST_CASE("ResourceTests::TestLastErrorContext", "[resource][last_error_context]
         SetLastError(1);
     }
     REQUIRE(GetLastError() == 1);
+
+    // The value in the context is unimpacted by other things changing the last error
+    {
+        SetLastError(42);
+        auto error42 = wil::last_error_context();
+        SetLastError(1);
+        REQUIRE(error42.value() == 42);
+    }
 }
 
 TEST_CASE("ResourceTests::TestScopeExit", "[resource][scope_exit]")

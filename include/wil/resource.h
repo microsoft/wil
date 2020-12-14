@@ -72,7 +72,7 @@ namespace wil
         {
         }
 
-        DWORD get_last_error()
+        auto value() const
 		{
 			return m_error;
 		}
