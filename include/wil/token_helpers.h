@@ -293,7 +293,7 @@ namespace wil
     /// @cond
     namespace details
     {
-        inline void RevertImpersonateToken(_Pre_opt_valid_ _Frees_ptr_opt_ HANDLE oldToken)
+        inline void RevertImpersonateToken(_In_ _Post_ptr_invalid_ HANDLE oldToken)
         {
             FAIL_FAST_IMMEDIATE_IF(!::SetThreadToken(nullptr, oldToken));
 

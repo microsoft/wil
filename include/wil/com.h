@@ -863,7 +863,7 @@ namespace wil
         // Internal Helpers
         /// @cond
         template <class U>
-        inline com_ptr_t(_In_ U* ptr, details::tag_com_query)
+        inline com_ptr_t(_In_ U* ptr, details::tag_com_query) : m_ptr(nullptr)
         {
             err_policy::HResult(details::query_policy_t<U>::query(ptr, &m_ptr));
         }
@@ -875,14 +875,12 @@ namespace wil
         }
 
         template <class U>
-        inline com_ptr_t(_In_opt_ U* ptr, details::tag_com_copy)
+        inline com_ptr_t(_In_opt_ U* ptr, details::tag_com_copy) : m_ptr(nullptr)
         {
             if (ptr)
             {
                 err_policy::HResult(details::query_policy_t<U>::query(ptr, &m_ptr));
-                return;
             }
-            m_ptr = nullptr;
         }
 
         template <class U>

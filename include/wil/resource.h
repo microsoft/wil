@@ -1775,7 +1775,7 @@ namespace wil
             RETURN_IF_FAILED(maker.make(nullptr, lengthRequiredWithoutNull));
 
             auto buffer = maker.buffer();
-            RETURN_IF_FAILED(::StringCchVPrintfExW(buffer, lengthRequiredWithoutNull + 1, nullptr, nullptr, STRSAFE_NULL_ON_FAILURE, pszFormat, argsVL));
+            RETURN_IF_FAILED(StringCchVPrintfExW(buffer, lengthRequiredWithoutNull + 1, nullptr, nullptr, STRSAFE_NULL_ON_FAILURE, pszFormat, argsVL));
 
             result = maker.release();
             return S_OK;
@@ -2566,10 +2566,10 @@ namespace wil
     }
 
     // Waits on the given handle for the specified duration
-    inline bool handle_wait(HANDLE hEvent, DWORD dwMilliseconds = INFINITE) WI_NOEXCEPT
+    inline bool handle_wait(HANDLE hEvent, DWORD dwMilliseconds = INFINITE, BOOL bAlertable = FALSE) WI_NOEXCEPT
     {
-        DWORD status = ::WaitForSingleObjectEx(hEvent, dwMilliseconds, FALSE);
-        __FAIL_FAST_ASSERT__((status == WAIT_TIMEOUT) || (status == WAIT_OBJECT_0));
+        DWORD status = ::WaitForSingleObjectEx(hEvent, dwMilliseconds, bAlertable);
+        __FAIL_FAST_ASSERT__((status == WAIT_TIMEOUT) || (status == WAIT_OBJECT_0) || (bAlertable && (status == WAIT_IO_COMPLETION)));
         return (status == WAIT_OBJECT_0);
     }
 
@@ -2631,9 +2631,9 @@ namespace wil
         }
 
         // Basic WaitForSingleObject on the event handle with the given timeout
-        bool wait(DWORD dwMilliseconds = INFINITE) const WI_NOEXCEPT
+        bool wait(DWORD dwMilliseconds = INFINITE, BOOL bAlertable = FALSE) const WI_NOEXCEPT
         {
-            return wil::handle_wait(storage_t::get(), dwMilliseconds);
+            return wil::handle_wait(storage_t::get(), dwMilliseconds, bAlertable);
         }
 
         // Tries to create a named event -- returns false if unable to do so (gle may still be inspected with return=false)
@@ -6102,6 +6102,26 @@ namespace wil
         FAST_MUTEX m_fastMutex;
     };
 
+    //! A type that calls KeLeaveCriticalRegion on destruction (or reset()).
+    using unique_leave_critical_region_call = unique_call<decltype(&::KeLeaveCriticalRegion), ::KeLeaveCriticalRegion>;
+
+    //! Disables user APCs and normal kernel APCs; returns an RAII object that reverts
+    WI_NODISCARD inline unique_leave_critical_region_call enter_critical_region()
+    {
+        KeEnterCriticalRegion();
+        return{};
+    }
+
+    //! A type that calls KeLeaveGuardedRegion on destruction (or reset()).
+    using unique_leave_guarded_region_call = unique_call<decltype(&::KeLeaveGuardedRegion), ::KeLeaveGuardedRegion>;
+
+    //! Disables all APCs; returns an RAII object that reverts
+    WI_NODISCARD inline unique_leave_guarded_region_call enter_guarded_region()
+    {
+        KeEnterGuardedRegion();
+        return{};
+    }
+
     namespace details
     {
         _IRQL_requires_max_(APC_LEVEL)
@@ -6212,6 +6232,48 @@ namespace wil
     using unique_kernel_handle = wil::unique_any<HANDLE, decltype(&::ZwClose), ::ZwClose>;
 
 #endif // __WIL_RESOURCE_ZWAPI
+
+#if defined(WINTRUST_H) && defined(SOFTPUB_H) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && !defined(__WIL_WINTRUST)
+#define __WIL_WINTRUST
+    namespace details
+    {
+        inline void __stdcall CloseWintrustData(_Inout_ WINTRUST_DATA* wtData) WI_NOEXCEPT
+        {
+            GUID guidV2 = WINTRUST_ACTION_GENERIC_VERIFY_V2;  
+            wtData->dwStateAction = WTD_STATEACTION_CLOSE; 
+            WinVerifyTrust(static_cast<HWND>(INVALID_HANDLE_VALUE), &guidV2, wtData);
+        }
+    }
+    typedef wil::unique_struct<WINTRUST_DATA, decltype(&details::CloseWintrustData), details::CloseWintrustData> unique_wintrust_data;
+#endif // __WIL_WINTRUST
+
+#if defined(MSCAT_H) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && !defined(__WIL_MSCAT)
+#define __WIL_MSCAT
+    namespace details
+    {
+        inline void __stdcall CryptCATAdminReleaseContextNoFlags(_Pre_opt_valid_ _Frees_ptr_opt_ HCATADMIN handle) WI_NOEXCEPT
+        {
+            CryptCATAdminReleaseContext(handle, 0);
+        }
+    }
+    typedef wil::unique_any<HCATADMIN, decltype(&details::CryptCATAdminReleaseContextNoFlags), details::CryptCATAdminReleaseContextNoFlags> unique_hcatadmin;
+
+#if defined(WIL_RESOURCE_STL) 
+    typedef shared_any<unique_hcatadmin> shared_hcatadmin;
+    struct hcatinfo_deleter
+    {
+        hcatinfo_deleter(wil::shared_hcatadmin handle) WI_NOEXCEPT : m_hCatAdmin(wistd::move(handle)) {}
+        void operator()(_Pre_opt_valid_ _Frees_ptr_opt_ HCATINFO handle) WI_NOEXCEPT
+        {
+            CryptCATAdminReleaseCatalogContext(m_hCatAdmin.get(), handle, 0);
+        }
+        wil::shared_hcatadmin m_hCatAdmin;
+    };
+    // This stores HCATINFO, i.e. HANDLE (void *)
+    typedef wistd::unique_ptr<void, hcatinfo_deleter> unique_hcatinfo;
+#endif
+
+#endif // __WIL_MSCAT
 
 } // namespace wil
 

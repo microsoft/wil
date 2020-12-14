@@ -1330,9 +1330,23 @@ namespace details
             HRESULT hr = S_OK;
             if (status != ABI::Windows::Foundation::AsyncStatus::Completed)   // avoid a potentially costly marshaled QI / call if we completed successfully
             {
+                // QI to the IAsyncInfo interface.  While all operations implement this, it is
+                // possible that the stub has disconnected, causing the QI to fail.
                 ComPtr<ABI::Windows::Foundation::IAsyncInfo> asyncInfo;
-                operation->QueryInterface(IID_PPV_ARGS(&asyncInfo)); // All must implement IAsyncInfo
-                asyncInfo->get_ErrorCode(&hr);
+                hr = operation->QueryInterface(IID_PPV_ARGS(&asyncInfo));
+                if (SUCCEEDED(hr))
+                {
+                    // Save the error code result in a temporary variable to allow us
+                    // to also retrieve the result of the COM call.  If the stub has
+                    // disconnected, this call may fail.
+                    HRESULT errorCode = E_UNEXPECTED;
+                    hr = asyncInfo->get_ErrorCode(&errorCode);
+                    if (SUCCEEDED(hr))
+                    {
+                        // Return the operations error code to the caller.
+                        hr = errorCode;
+                    }
+                }
             }
 
             return CallAndHandleErrors(func, hr);
@@ -1355,16 +1369,30 @@ namespace details
             typename details::MapToSmartType<typename GetAbiType<typename wistd::remove_pointer<TIOperation>::type::TResult_complex>::type>::type result;
 
             HRESULT hr = S_OK;
+            // avoid a potentially costly marshaled QI / call if we completed successfully
             if (status == ABI::Windows::Foundation::AsyncStatus::Completed)
             {
                 hr = operation->GetResults(result.GetAddressOf());
             }
             else
             {
-                // avoid a potentially costly marshaled QI / call if we completed successfully
+                // QI to the IAsyncInfo interface.  While all operations implement this, it is
+                // possible that the stub has disconnected, causing the QI to fail.
                 ComPtr<ABI::Windows::Foundation::IAsyncInfo> asyncInfo;
-                operation->QueryInterface(IID_PPV_ARGS(&asyncInfo)); // all must implement this
-                asyncInfo->get_ErrorCode(&hr);
+                hr = operation->QueryInterface(IID_PPV_ARGS(&asyncInfo));
+                if (SUCCEEDED(hr))
+                {
+                    // Save the error code result in a temporary variable to allow us
+                    // to also retrieve the result of the COM call.  If the stub has
+                    // disconnected, this call may fail.
+                    HRESULT errorCode = E_UNEXPECTED;
+                    hr = asyncInfo->get_ErrorCode(&errorCode);
+                    if (SUCCEEDED(hr))
+                    {
+                        // Return the operations error code to the caller.
+                        hr = errorCode;
+                    }
+                }
             }
 
             return CallAndHandleErrors(func, hr, result.Get());
@@ -1431,10 +1459,23 @@ namespace details
 
         if (completedDelegate->GetStatus() != ABI::Windows::Foundation::AsyncStatus::Completed)
         {
+            // QI to the IAsyncInfo interface.  While all operations implement this, it is
+            // possible that the stub has disconnected, causing the QI to fail.
             Microsoft::WRL::ComPtr<ABI::Windows::Foundation::IAsyncInfo> asyncInfo;
-            operation->QueryInterface(IID_PPV_ARGS(&asyncInfo)); // all must implement this
-            hr = E_UNEXPECTED;
-            asyncInfo->get_ErrorCode(&hr); // error return ignored, ok?
+            hr = operation->QueryInterface(IID_PPV_ARGS(&asyncInfo));
+            if (SUCCEEDED(hr))
+            {
+                // Save the error code result in a temporary variable to allow us
+                // to also retrieve the result of the COM call.  If the stub has
+                // disconnected, this call may fail.
+                HRESULT errorCode = E_UNEXPECTED;
+                hr = asyncInfo->get_ErrorCode(&errorCode);
+                if (SUCCEEDED(hr))
+                {
+                    // Return the operations error code to the caller.
+                    hr = errorCode;
+                }
+            }
             return hr; // leave it to the caller to log failures.
         }
         return S_OK;
@@ -1876,7 +1917,19 @@ public:
             }
             else
             {
-                auto resolvedSender = m_weakSender.Resolve<T>();
+                auto resolvedSender = [&]()
+                {
+                    try
+                    {
+                        return m_weakSender.Resolve<T>();
+                    }
+                    catch (...)
+                    {
+                        // Ignore RPC or other failures that are unavoidable in some cases
+                        // matching wil::unique_winrt_event_token and winrt::event_revoker
+                        return static_cast<T^>(nullptr);
+                    }
+                }();
                 if (resolvedSender)
                 {
                     (resolvedSender->*m_removalFunction)(m_token);

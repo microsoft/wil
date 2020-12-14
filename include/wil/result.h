@@ -281,7 +281,7 @@ namespace wil
 
                 const DWORD size = static_cast<DWORD>(sizeof(ProcessLocalStorageData<T>));
                 wchar_t name[MAX_PATH];
-                WI_VERIFY(SUCCEEDED(StringCchPrintfW(name, ARRAYSIZE(name), L"Local\\SM0:%d:%d:%hs", ::GetCurrentProcessId(), size, staticNameWithVersion)));
+                WI_VERIFY(SUCCEEDED(StringCchPrintfW(name, ARRAYSIZE(name), L"Local\\SM0:%lu:%lu:%hs", ::GetCurrentProcessId(), size, staticNameWithVersion)));
 
                 unique_mutex_nothrow mutex;
                 mutex.reset(::CreateMutexExW(nullptr, name, 0, MUTEX_ALL_ACCESS));
@@ -428,7 +428,7 @@ namespace wil
 
             struct Node
             {
-                DWORD threadId;
+                DWORD threadId = ULONG_MAX;
                 Node* pNext = nullptr;
                 T value{};
             };
@@ -678,7 +678,7 @@ namespace wil
                 // NOTE:  FailureType::Log as it's only informative (no action) and SupportedExceptions::All as it's not a barrier, only recognition.
                 wchar_t message[2048];
                 message[0] = L'\0';
-                const HRESULT hr = details::ReportFailure_CaughtExceptionCommon<FailureType::Log>(__R_DIAGNOSTICS_RA(source, returnAddress), message, ARRAYSIZE(message), SupportedExceptions::All);
+                const HRESULT hr = details::ReportFailure_CaughtExceptionCommon<FailureType::Log>(__R_DIAGNOSTICS_RA(source, returnAddress), message, ARRAYSIZE(message), SupportedExceptions::All).hr;
 
                 // Now that the exception was logged, we should be able to fetch it.
                 return GetLastError(info, minSequenceId, hr);
