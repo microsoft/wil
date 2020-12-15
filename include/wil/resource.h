@@ -73,9 +73,9 @@ namespace wil
         }
 
         auto value() const
-		{
-			return m_error;
-		}
+        {
+            return m_error;
+        }
         
         last_error_context(last_error_context&& other) WI_NOEXCEPT
         {
