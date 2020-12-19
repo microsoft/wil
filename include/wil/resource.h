@@ -3438,7 +3438,7 @@ namespace wil
     struct process_heap_deleter
     {
         template <typename T>
-        void operator()(_Pre_opt_valid_ _Frees_ptr_opt_ T* p) const
+        void operator()(_Pre_valid_ _Frees_ptr_ T* p) const
         {
             details::FreeProcessHeap(p);
         }
@@ -3447,7 +3447,7 @@ namespace wil
     struct virtualalloc_deleter
     {
         template<typename T>
-        void operator()(_Pre_opt_valid_ _Frees_ptr_opt_ T* p) const
+        void operator()(_Pre_valid_ _Frees_ptr_ T* p) const
         {
             ::VirtualFree(p, 0, MEM_RELEASE);
         }
@@ -3456,7 +3456,7 @@ namespace wil
     struct mapview_deleter
     {
         template<typename T>
-        void operator()(_Pre_opt_valid_ _Frees_ptr_opt_ T* p) const
+        void operator()(_Pre_valid_ _Frees_ptr_ T* p) const
         {
             ::UnmapViewOfFile(p);
         }
@@ -3489,7 +3489,7 @@ namespace wil
     /** Manages a typed pointer allocated with MapViewOfFile
     A specialization of wistd::unique_ptr<> that frees via UnmapViewOfFile(p).
     */
-    template<typename T>
+    template<typename T = void>
     using unique_mapview_ptr = wistd::unique_ptr<T, mapview_deleter>;
 
 #endif // __WIL_WINBASE_
