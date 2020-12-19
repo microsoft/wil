@@ -222,9 +222,6 @@ namespace wil
         });
     }
 
-    // This function does not work beyond the default stack buffer size (255).
-    // Needs to to retry in a loop similar to wil::GetModuleFileNameExW
-    // These updates and unit tests are tracked by https://github.com/Microsoft/wil/issues/3
     template <typename string_type, size_t stackBufferLength = 256>
     HRESULT QueryFullProcessImageNameW(HANDLE processHandle, _In_ DWORD flags, string_type& result) WI_NOEXCEPT
     {
@@ -234,8 +231,9 @@ namespace wil
             DWORD lengthToUse = static_cast<DWORD>(valueLength);
             BOOL const success = ::QueryFullProcessImageNameW(processHandle, flags, value, &lengthToUse);
             RETURN_LAST_ERROR_IF((success == FALSE) && (::GetLastError() != ERROR_INSUFFICIENT_BUFFER));
-            // On both success or insufficient buffer case, add +1 for the null-terminating character
-            *valueLengthNeededWithNul = lengthToUse + 1;
+
+            // On success, return the amount used; on failure, try doubling
+            *valueLengthNeededWithNul = success ? (lengthToUse + 1) : (lengthToUse * 2);
             return S_OK;
         });
     }

@@ -567,4 +567,18 @@ TEST_CASE("FileSystemTests::VerifyGetModuleFileNameExW", "[filesystem]")
 #endif
 }
 
+TEST_CASE("FileSystemTests::QueryFullProcessImageNameW", "[filesystem]")
+{
+    WCHAR fullName[MAX_PATH * 4];
+    DWORD fullNameSize = ARRAYSIZE(fullName);
+    REQUIRE(::QueryFullProcessImageNameW(::GetCurrentProcess(), 0, fullName, &fullNameSize));
+
+    wil::unique_cotaskmem_string path;
+    REQUIRE_SUCCEEDED(wil::QueryFullProcessImageNameW(::GetCurrentProcess(), 0, path));
+    REQUIRE(wcscmp(fullName, path.get()) == 0);
+
+    wil::unique_cotaskmem nativePath;
+    REQUIRE_SUCCEEDED((wil::QueryFullProcessImageNameW<wil::unique_cotaskmem_string, 15>(::GetCurrentProcess(), 0, path)));
+}
+
 #endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
