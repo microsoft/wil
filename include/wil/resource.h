@@ -1298,7 +1298,10 @@ namespace wil
     {
         template<typename T> void operator()(_Frees_ptr_opt_ T* toFree) const
         {
-            TDeleter(toFree);
+            if (toFree)
+            {
+                TDeleter(toFree);
+            }
         }
     };
 
