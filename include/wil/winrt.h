@@ -19,6 +19,7 @@
 #include "result.h"
 #include "com.h"
 #include "resource.h"
+#include <windows.foundation.h>
 #include <windows.foundation.collections.h>
 
 #ifdef __cplusplus_winrt
@@ -59,7 +60,6 @@ namespace std
 
 namespace wil
 {
-#ifdef _INC_TIME
     // time_t is the number of 1 - second intervals since January 1, 1970.
     long long const SecondsToStartOf1970 = 0x2b6109100;
     long long const HundredNanoSecondsInSecond = 10000000LL;
@@ -76,7 +76,6 @@ namespace wil
         dateTime.UniversalTime = (timeT + SecondsToStartOf1970) * HundredNanoSecondsInSecond;
         return dateTime;
     }
-#endif // _INC_TIME
 
 #pragma region HSTRING Helpers
     /// @cond
