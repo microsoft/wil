@@ -24,7 +24,7 @@
 #ifdef __has_include
 #  if __has_include(<version>)
 #    include <version>
-#    ifdef __cpp_­lib_­bit_­cast
+#    ifdef __cpp_lib_bit_cast
 #      include <bit>
 #      define WI_CONSTEXPR_BIT_CAST __WI_LIBCPP_CONSTEXPR
 #    else
@@ -73,7 +73,7 @@ namespace wil
     {
         constexpr unsigned long long to_int64(const FILETIME &ft) WI_NOEXCEPT
         {
-#ifdef __cpp_­lib_­bit_­cast
+#ifdef __cpp_lib_bit_cast
             return std::bit_cast<unsigned long long>(ft);
 #else
             // Cannot reinterpret_cast FILETIME* to unsigned long long*
@@ -84,7 +84,7 @@ namespace wil
 
         WI_CONSTEXPR_BIT_CAST FILETIME from_int64(unsigned long long i64) WI_NOEXCEPT
         {
-#ifdef __cpp_­lib_­bit_­cast
+#ifdef __cpp_lib_bit_cast
             return std::bit_cast<FILETIME>(i64);
 #else
             static_assert(sizeof(i64) == sizeof(FILETIME), "sizes don't match");
