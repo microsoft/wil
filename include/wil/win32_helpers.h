@@ -18,6 +18,21 @@
 #include <PathCch.h>
 #include <objbase.h>
 
+// detect std::bit_cast
+// should replace with __WI_LIBCPP_CONSTEXPR_AFTER_CXX20 once compilers
+// correctly signal C++20 in __cplusplus
+#ifdef __has_include
+#  if __has_include(<version>)
+#    include <version>
+#    ifdef __cpp_­lib_­bit_­cast
+#      include <bit>
+#      define WI_CONSTEXPR_BIT_CAST __WI_LIBCPP_CONSTEXPR
+#    else
+#      define WI_CONSTEXPR_BIT_CAST inline
+#    endif
+#  endif
+#endif
+
 #include "result.h"
 #include "resource.h"
 #include "wistd_functional.h"
@@ -56,31 +71,39 @@ namespace wil
 
     namespace filetime
     {
-        constexpr unsigned long long to_int64(const FILETIME &ft)
+        constexpr unsigned long long to_int64(const FILETIME &ft) WI_NOEXCEPT
         {
+#ifdef __cpp_­lib_­bit_­cast
+            return std::bit_cast<unsigned long long>(ft);
+#else
             // Cannot reinterpret_cast FILETIME* to unsigned long long*
             // due to alignment differences.
             return (static_cast<unsigned long long>(ft.dwHighDateTime) << 32) + ft.dwLowDateTime;
+#endif
         }
 
-        inline FILETIME from_int64(unsigned long long i64)
+        WI_CONSTEXPR_BIT_CAST FILETIME from_int64(unsigned long long i64) WI_NOEXCEPT
         {
+#ifdef __cpp_­lib_­bit_­cast
+            return std::bit_cast<FILETIME>(i64);
+#else
             static_assert(sizeof(i64) == sizeof(FILETIME), "sizes don't match");
             static_assert(__alignof(unsigned long long) >= __alignof(FILETIME), "alignment not compatible with type pun");
             return *reinterpret_cast<FILETIME *>(&i64);
+#endif
         }
 
-        inline FILETIME add(_In_ FILETIME const &ft, long long delta100ns)
+        inline FILETIME add(_In_ FILETIME const &ft, long long delta100ns) WI_NOEXCEPT
         {
             return from_int64(to_int64(ft) + delta100ns);
         }
 
-        constexpr bool is_empty(const FILETIME &ft)
+        constexpr bool is_empty(const FILETIME &ft) WI_NOEXCEPT
         {
             return (ft.dwHighDateTime == 0) && (ft.dwLowDateTime == 0);
         }
 
-        inline FILETIME get_system_time()
+        inline FILETIME get_system_time() WI_NOEXCEPT
         {
             FILETIME ft;
             GetSystemTimeAsFileTime(&ft);
@@ -88,13 +111,13 @@ namespace wil
         }
 
         /// Convert time as units of 100 nanoseconds to milliseconds. Fractional milliseconds are truncated.
-        constexpr unsigned long long convert_100ns_to_msec(unsigned long long time100ns)
+        constexpr unsigned long long convert_100ns_to_msec(unsigned long long time100ns) WI_NOEXCEPT
         {
             return time100ns / filetime_duration::one_millisecond;
         }
 
         /// Convert time as milliseconds to units of 100 nanoseconds.
-        constexpr unsigned long long convert_msec_to_100ns(unsigned long long timeMsec)
+        constexpr unsigned long long convert_msec_to_100ns(unsigned long long timeMsec) WI_NOEXCEPT
         {
             return timeMsec * filetime_duration::one_millisecond;
         }
@@ -117,7 +140,7 @@ namespace wil
         ///
         /// @note This is identical to QueryUnbiasedInterruptTime() but returns the value as a return value (rather than an out parameter).
         /// @see https://msdn.microsoft.com/en-us/library/windows/desktop/ee662307(v=vs.85).aspx
-        inline unsigned long long QueryUnbiasedInterruptTimeAs100ns()
+        inline unsigned long long QueryUnbiasedInterruptTimeAs100ns() WI_NOEXCEPT
         {
             ULONGLONG now{};
             QueryUnbiasedInterruptTime(&now);
@@ -126,7 +149,7 @@ namespace wil
 
         /// Returns the current unbiased interrupt-time count, in units of milliseconds. The unbiased interrupt-time count does not include time the system spends in sleep or hibernation.
         /// @see QueryUnbiasedInterruptTimeAs100ns
-        inline unsigned long long QueryUnbiasedInterruptTimeAsMSec()
+        inline unsigned long long QueryUnbiasedInterruptTimeAsMSec() WI_NOEXCEPT
         {
             return convert_100ns_to_msec(QueryUnbiasedInterruptTimeAs100ns());
         }
@@ -140,7 +163,7 @@ namespace wil
     // Adjust stackBufferLength based on typical result sizes to optimize use and
     // to test the boundary cases.
     template <typename string_type, size_t stackBufferLength = 256>
-    HRESULT AdaptFixedSizeToAllocatedResult(string_type& result, wistd::function<HRESULT(PWSTR, size_t, size_t*)> callback)
+    HRESULT AdaptFixedSizeToAllocatedResult(string_type& result, wistd::function<HRESULT(PWSTR, size_t, size_t*)> callback) WI_NOEXCEPT
     {
         details::string_maker<string_type> maker;
 
@@ -297,7 +320,7 @@ namespace wil
     /** Retrieves the fully qualified path for the file containing the specified module loaded
     by a given process. Note GetModuleFileNameExW is a macro.*/
     template <typename string_type, size_t initialBufferLength = 128>
-    HRESULT GetModuleFileNameExW(_In_opt_ HANDLE process, _In_opt_ HMODULE module, string_type& path)
+    HRESULT GetModuleFileNameExW(_In_opt_ HANDLE process, _In_opt_ HMODULE module, string_type& path) WI_NOEXCEPT
     {
         // initialBufferLength is a template parameter to allow for testing.  It creates some waste for
         // shorter paths, but avoids iteration through the loop in common cases where paths are less
@@ -366,7 +389,7 @@ namespace wil
     same format that was specified when the module was loaded. Therefore, the path can be a
     long or short file name, and can have the prefix '\\?\'. */
     template <typename string_type, size_t initialBufferLength = 128>
-    HRESULT GetModuleFileNameW(HMODULE module, string_type& path)
+    HRESULT GetModuleFileNameW(HMODULE module, string_type& path) WI_NOEXCEPT
     {
         return wil::GetModuleFileNameExW<string_type, initialBufferLength>(nullptr, module, path);
     }
@@ -449,7 +472,7 @@ namespace wil
     the linker provides for every module. This avoids the need for a global HINSTANCE variable
     and provides access to this value for static libraries. */
     EXTERN_C IMAGE_DOS_HEADER __ImageBase;
-    inline HINSTANCE GetModuleInstanceHandle() { return reinterpret_cast<HINSTANCE>(&__ImageBase); }
+    inline HINSTANCE GetModuleInstanceHandle() WI_NOEXCEPT { return reinterpret_cast<HINSTANCE>(&__ImageBase); }
 
     /// @cond
     namespace details
@@ -459,19 +482,19 @@ namespace wil
             INIT_ONCE& m_once;
             unsigned long m_flags = INIT_ONCE_INIT_FAILED;
         public:
-            init_once_completer(_In_ INIT_ONCE& once) : m_once(once)
+            init_once_completer(_In_ INIT_ONCE& once) WI_NOEXCEPT : m_once(once)
             {
             }
 
             #pragma warning(push)
             #pragma warning(disable:4702) // https://github.com/Microsoft/wil/issues/2
-            void success()
+            void success() WI_NOEXCEPT
             {
                 m_flags = 0;
             }
             #pragma warning(pop)
 
-            ~init_once_completer()
+            ~init_once_completer() WI_NOEXCEPT
             {
                 ::InitOnceComplete(&m_once, m_flags, nullptr);
             }
