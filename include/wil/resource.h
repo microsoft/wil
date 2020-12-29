@@ -5539,7 +5539,7 @@ namespace wil
     ~~~
     unique_process_information process;
     CreateProcessW(..., CREATE_SUSPENDED, ..., &process);
-    THROW_IF_WIN32_BOOL_FALSE(ResumeThread(process.hThread));
+    THROW_LAST_ERROR_IF(ResumeThread(process.hThread) == -1);
     THROW_LAST_ERROR_IF(WaitForSingleObject(process.hProcess, INFINITE) != WAIT_OBJECT_0);
     ~~~
     */

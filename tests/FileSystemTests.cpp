@@ -540,6 +540,11 @@ TEST_CASE("FileSystemTests::VerifyGetModuleFileNameW", "[filesystem]")
     REQUIRE(wcscmp(path.get(), path2.get()) == 0);
 
     REQUIRE_FAILED(wil::GetModuleFileNameW((HMODULE)INVALID_HANDLE_VALUE, path));
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+    auto wstringPath = wil::GetModuleFileNameW<std::wstring, 15>(nullptr);
+    REQUIRE(wstringPath.length() == ::wcslen(wstringPath.c_str()));
+#endif
 }
 
 TEST_CASE("FileSystemTests::VerifyGetModuleFileNameExW", "[filesystem]")
@@ -555,6 +560,25 @@ TEST_CASE("FileSystemTests::VerifyGetModuleFileNameExW", "[filesystem]")
     REQUIRE(wcscmp(path.get(), path2.get()) == 0);
 
     REQUIRE_FAILED(wil::GetModuleFileNameExW(nullptr, (HMODULE)INVALID_HANDLE_VALUE, path));
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+    auto wstringPath = wil::GetModuleFileNameExW<std::wstring, 15>(nullptr, nullptr);
+    REQUIRE(wstringPath.length() == ::wcslen(wstringPath.c_str()));
+#endif
+}
+
+TEST_CASE("FileSystemTests::QueryFullProcessImageNameW", "[filesystem]")
+{
+    WCHAR fullName[MAX_PATH * 4];
+    DWORD fullNameSize = ARRAYSIZE(fullName);
+    REQUIRE(::QueryFullProcessImageNameW(::GetCurrentProcess(), 0, fullName, &fullNameSize));
+
+    wil::unique_cotaskmem_string path;
+    REQUIRE_SUCCEEDED(wil::QueryFullProcessImageNameW(::GetCurrentProcess(), 0, path));
+    REQUIRE(wcscmp(fullName, path.get()) == 0);
+
+    wil::unique_cotaskmem nativePath;
+    REQUIRE_SUCCEEDED((wil::QueryFullProcessImageNameW<wil::unique_cotaskmem_string, 15>(::GetCurrentProcess(), 0, path)));
 }
 
 #endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
