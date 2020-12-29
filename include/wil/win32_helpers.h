@@ -309,7 +309,7 @@ namespace wil
                 // The only way to be sure it didn't truncate is if it didn't need the whole buffer. The
                 // count copied to the buffer includes the nul-character as well.
                 copiedCount = ::GetModuleFileNameExW(process, module, value, static_cast<DWORD>(valueLength));
-                valueUsedWithNul = copiedCount;
+                valueUsedWithNul = copiedCount + 1;
                 copyFailed = (0 == copiedCount);
                 copySucceededWithNoTruncation = !copyFailed && (copiedCount < valueLength - 1);
             }
@@ -326,16 +326,8 @@ namespace wil
 
             RETURN_LAST_ERROR_IF(copyFailed);
 
-            // No truncation means the caller can stop asking us for more data. This method doesn't provide a
-            // hint about the required size, so guess by doubling...
-            if (copySucceededWithNoTruncation)
-            {
-                *valueLengthNeededWithNul = valueUsedWithNul;
-            }
-            else
-            {
-                *valueLengthNeededWithNul = valueLength * 2;
-            }
+            // When the copy truncated, request another try with more space.
+            *valueLengthNeededWithNul = copySucceededWithNoTruncation ? valueUsedWithNul : (valueLength * 2);
 
             return S_OK;
         };
