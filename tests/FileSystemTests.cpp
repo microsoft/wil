@@ -547,6 +547,21 @@ TEST_CASE("FileSystemTests::VerifyGetModuleFileNameW", "[filesystem]")
 #endif
 }
 
+#ifdef WIL_ENABLE_EXCEPTIONS
+wil::unique_cotaskmem_string NativeGetModuleFileNameWrap(HANDLE processHandle, HMODULE moduleHandle)
+{
+    DWORD size = MAX_PATH * 4;
+    auto path = wil::make_cotaskmem_string_nothrow(nullptr, size);
+
+    DWORD copied = processHandle ?
+        ::GetModuleFileNameExW(processHandle, moduleHandle, path.get(), size) :
+        ::GetModuleFileNameW(moduleHandle, path.get(), size);
+    REQUIRE(copied < size);
+
+    return path;
+}
+#endif
+
 TEST_CASE("FileSystemTests::VerifyGetModuleFileNameExW", "[filesystem]")
 {
     wil::unique_cotaskmem_string path;
@@ -564,6 +579,29 @@ TEST_CASE("FileSystemTests::VerifyGetModuleFileNameExW", "[filesystem]")
 #ifdef WIL_ENABLE_EXCEPTIONS
     auto wstringPath = wil::GetModuleFileNameExW<std::wstring, 15>(nullptr, nullptr);
     REQUIRE(wstringPath.length() == ::wcslen(wstringPath.c_str()));
+    REQUIRE(wstringPath == NativeGetModuleFileNameWrap(nullptr, nullptr).get());
+
+    wstringPath = wil::GetModuleFileNameExW<std::wstring, 15>(GetCurrentProcess(), nullptr);
+    REQUIRE(wstringPath.length() == ::wcslen(wstringPath.c_str()));
+    REQUIRE(wstringPath == NativeGetModuleFileNameWrap(GetCurrentProcess(), nullptr).get());
+
+    wstringPath = wil::GetModuleFileNameW<std::wstring, 15>(nullptr);
+    REQUIRE(wstringPath.length() == ::wcslen(wstringPath.c_str()));
+    REQUIRE(wstringPath == NativeGetModuleFileNameWrap(nullptr, nullptr).get());
+
+    HMODULE kernel32 = ::GetModuleHandleW(L"kernel32.dll");
+
+    wstringPath = wil::GetModuleFileNameExW<std::wstring, 15>(nullptr, kernel32);
+    REQUIRE(wstringPath.length() == ::wcslen(wstringPath.c_str()));
+    REQUIRE(wstringPath == NativeGetModuleFileNameWrap(nullptr, kernel32).get());
+
+    wstringPath = wil::GetModuleFileNameExW<std::wstring, 15>(GetCurrentProcess(), kernel32);
+    REQUIRE(wstringPath.length() == ::wcslen(wstringPath.c_str()));
+    REQUIRE(wstringPath == NativeGetModuleFileNameWrap(GetCurrentProcess(), kernel32).get());
+
+    wstringPath = wil::GetModuleFileNameW<std::wstring, 15>(kernel32);
+    REQUIRE(wstringPath.length() == ::wcslen(wstringPath.c_str()));
+    REQUIRE(wstringPath == NativeGetModuleFileNameWrap(nullptr, kernel32).get());
 #endif
 }
 
