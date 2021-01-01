@@ -406,10 +406,9 @@ namespace wil
 
                 if (shouldAllocate)
                 {
-                    Node *pNew = reinterpret_cast<Node *>(details::ProcessHeapAlloc(0, sizeof(Node)));
-                    if (pNew != nullptr)
+                    if (auto pNewRaw = details::ProcessHeapAlloc(0, sizeof(Node)))
                     {
-                        new(pNew)Node{ threadId };
+                        auto pNew = new (pNewRaw) Node{ threadId };
 
                         Node *pFirst;
                         do

@@ -740,4 +740,5 @@ TEST_CASE("DefaultTemplateParamCompiles", "[resource]")
 
     wil::unique_midl_ptr<> g;
     wil::unique_cotaskmem_ptr<> h;
+    wil::unique_mapview_ptr<> i;
 }

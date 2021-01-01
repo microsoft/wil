@@ -15,7 +15,6 @@
 #include <sysinfoapi.h> // GetSystemTimeAsFileTime
 #include <libloaderapi.h> // GetProcAddress
 #include <Psapi.h> // GetModuleFileNameExW (macro), K32GetModuleFileNameExW
-#include <PathCch.h>
 #include <objbase.h>
 
 #include "result.h"
