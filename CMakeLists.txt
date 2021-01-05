@@ -48,4 +48,4 @@ install(EXPORT ${PROJECT_NAME}_targets
 )
 
 # Install the headers at a standard cmake location.
-install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/${PROJECT_NAME}" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
+install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/wil" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
