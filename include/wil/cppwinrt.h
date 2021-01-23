@@ -42,8 +42,6 @@ namespace wil::details
         return result;
     }
 
-    // Since the C++/WinRT version macro is a string...
-    // For example: "2.0.210122.3"
     inline constexpr int major_version_from_string(const char* versionString)
     {
         return version_from_string(versionString);
@@ -65,6 +63,11 @@ namespace wil::details
             {
                 break;
             }
+        }
+
+        if (*str == '\0')
+        {
+            return 0;
         }
 
         return version_from_string(str);
