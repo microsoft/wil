@@ -6277,8 +6277,8 @@ namespace wil
         class crypt_catalog_enumerator
         {
             wil::unique_hcatinfo m_hCatInfo;
-            const BYTE * const m_hash;
-            const DWORD m_hashLen;
+            const BYTE * m_hash;
+            DWORD m_hashLen;
             bool m_initialized = false;
 
             struct ref
