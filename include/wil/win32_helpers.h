@@ -15,8 +15,23 @@
 #include <sysinfoapi.h> // GetSystemTimeAsFileTime
 #include <libloaderapi.h> // GetProcAddress
 #include <Psapi.h> // GetModuleFileNameExW (macro), K32GetModuleFileNameExW
-#include <PathCch.h>
 #include <objbase.h>
+
+// detect std::bit_cast
+#ifdef __has_include
+#  if __has_include(<version>)
+#    include <version>
+#    if __cpp_lib_bit_cast >= 201806L
+#      include <bit>
+#    endif
+#  endif
+#endif
+
+#if __cpp_lib_bit_cast >= 201806L
+#  define __WI_CONSTEXPR_BIT_CAST constexpr
+#else
+#  define __WI_CONSTEXPR_BIT_CAST inline
+#endif
 
 #include "result.h"
 #include "resource.h"
@@ -56,31 +71,39 @@ namespace wil
 
     namespace filetime
     {
-        constexpr unsigned long long to_int64(const FILETIME &ft)
+        constexpr unsigned long long to_int64(const FILETIME &ft) WI_NOEXCEPT
         {
+#if __cpp_lib_bit_cast >= 201806L
+            return std::bit_cast<unsigned long long>(ft);
+#else
             // Cannot reinterpret_cast FILETIME* to unsigned long long*
             // due to alignment differences.
             return (static_cast<unsigned long long>(ft.dwHighDateTime) << 32) + ft.dwLowDateTime;
+#endif
         }
 
-        inline FILETIME from_int64(unsigned long long i64)
+        __WI_CONSTEXPR_BIT_CAST FILETIME from_int64(unsigned long long i64) WI_NOEXCEPT
         {
+#if __cpp_lib_bit_cast >= 201806L
+            return std::bit_cast<FILETIME>(i64);
+#else
             static_assert(sizeof(i64) == sizeof(FILETIME), "sizes don't match");
             static_assert(__alignof(unsigned long long) >= __alignof(FILETIME), "alignment not compatible with type pun");
             return *reinterpret_cast<FILETIME *>(&i64);
+#endif
         }
 
-        inline FILETIME add(_In_ FILETIME const &ft, long long delta100ns)
+        __WI_CONSTEXPR_BIT_CAST FILETIME add(_In_ FILETIME const &ft, long long delta100ns) WI_NOEXCEPT
         {
             return from_int64(to_int64(ft) + delta100ns);
         }
 
-        constexpr bool is_empty(const FILETIME &ft)
+        constexpr bool is_empty(const FILETIME &ft) WI_NOEXCEPT
         {
             return (ft.dwHighDateTime == 0) && (ft.dwLowDateTime == 0);
         }
 
-        inline FILETIME get_system_time()
+        inline FILETIME get_system_time() WI_NOEXCEPT
         {
             FILETIME ft;
             GetSystemTimeAsFileTime(&ft);
@@ -88,13 +111,13 @@ namespace wil
         }
 
         /// Convert time as units of 100 nanoseconds to milliseconds. Fractional milliseconds are truncated.
-        constexpr unsigned long long convert_100ns_to_msec(unsigned long long time100ns)
+        constexpr unsigned long long convert_100ns_to_msec(unsigned long long time100ns) WI_NOEXCEPT
         {
             return time100ns / filetime_duration::one_millisecond;
         }
 
         /// Convert time as milliseconds to units of 100 nanoseconds.
-        constexpr unsigned long long convert_msec_to_100ns(unsigned long long timeMsec)
+        constexpr unsigned long long convert_msec_to_100ns(unsigned long long timeMsec) WI_NOEXCEPT
         {
             return timeMsec * filetime_duration::one_millisecond;
         }
@@ -117,7 +140,7 @@ namespace wil
         ///
         /// @note This is identical to QueryUnbiasedInterruptTime() but returns the value as a return value (rather than an out parameter).
         /// @see https://msdn.microsoft.com/en-us/library/windows/desktop/ee662307(v=vs.85).aspx
-        inline unsigned long long QueryUnbiasedInterruptTimeAs100ns()
+        inline unsigned long long QueryUnbiasedInterruptTimeAs100ns() WI_NOEXCEPT
         {
             ULONGLONG now{};
             QueryUnbiasedInterruptTime(&now);
@@ -126,7 +149,7 @@ namespace wil
 
         /// Returns the current unbiased interrupt-time count, in units of milliseconds. The unbiased interrupt-time count does not include time the system spends in sleep or hibernation.
         /// @see QueryUnbiasedInterruptTimeAs100ns
-        inline unsigned long long QueryUnbiasedInterruptTimeAsMSec()
+        inline unsigned long long QueryUnbiasedInterruptTimeAsMSec() WI_NOEXCEPT
         {
             return convert_100ns_to_msec(QueryUnbiasedInterruptTimeAs100ns());
         }
@@ -140,7 +163,7 @@ namespace wil
     // Adjust stackBufferLength based on typical result sizes to optimize use and
     // to test the boundary cases.
     template <typename string_type, size_t stackBufferLength = 256>
-    HRESULT AdaptFixedSizeToAllocatedResult(string_type& result, wistd::function<HRESULT(PWSTR, size_t, size_t*)> callback)
+    HRESULT AdaptFixedSizeToAllocatedResult(string_type& result, wistd::function<HRESULT(PWSTR, size_t, size_t*)> callback) WI_NOEXCEPT
     {
         details::string_maker<string_type> maker;
 
@@ -222,9 +245,6 @@ namespace wil
         });
     }
 
-    // This function does not work beyond the default stack buffer size (255).
-    // Needs to to retry in a loop similar to wil::GetModuleFileNameExW
-    // These updates and unit tests are tracked by https://github.com/Microsoft/wil/issues/3
     template <typename string_type, size_t stackBufferLength = 256>
     HRESULT QueryFullProcessImageNameW(HANDLE processHandle, _In_ DWORD flags, string_type& result) WI_NOEXCEPT
     {
@@ -234,8 +254,9 @@ namespace wil
             DWORD lengthToUse = static_cast<DWORD>(valueLength);
             BOOL const success = ::QueryFullProcessImageNameW(processHandle, flags, value, &lengthToUse);
             RETURN_LAST_ERROR_IF((success == FALSE) && (::GetLastError() != ERROR_INSUFFICIENT_BUFFER));
-            // On both success or insufficient buffer case, add +1 for the null-terminating character
-            *valueLengthNeededWithNul = lengthToUse + 1;
+
+            // On success, return the amount used; on failure, try doubling
+            *valueLengthNeededWithNul = success ? (lengthToUse + 1) : (lengthToUse * 2);
             return S_OK;
         });
     }
@@ -297,68 +318,44 @@ namespace wil
     /** Retrieves the fully qualified path for the file containing the specified module loaded
     by a given process. Note GetModuleFileNameExW is a macro.*/
     template <typename string_type, size_t initialBufferLength = 128>
-    HRESULT GetModuleFileNameExW(_In_opt_ HANDLE process, _In_opt_ HMODULE module, string_type& path)
+    HRESULT GetModuleFileNameExW(_In_opt_ HANDLE process, _In_opt_ HMODULE module, string_type& path) WI_NOEXCEPT
     {
-        // initialBufferLength is a template parameter to allow for testing.  It creates some waste for
-        // shorter paths, but avoids iteration through the loop in common cases where paths are less
-        // than 128 characters.
-        // wil::max_extended_path_length + 1 (for the null char)
-        // + 1 (to be certain GetModuleFileNameExW didn't truncate)
-        size_t const ensureNoTrucation = (process != nullptr) ? 1 : 0;
-        size_t const maxExtendedPathLengthWithNull = wil::max_extended_path_length + 1 + ensureNoTrucation;
-
-        details::string_maker<string_type> maker;
-
-        for (size_t lengthWithNull = initialBufferLength;
-             lengthWithNull <= maxExtendedPathLengthWithNull;
-             lengthWithNull = (wistd::min)(lengthWithNull * 2, maxExtendedPathLengthWithNull))
+        auto adapter = [&](_Out_writes_(valueLength) PWSTR value, size_t valueLength, _Out_ size_t* valueLengthNeededWithNul) -> HRESULT
         {
-            // make() adds space for the trailing null
-            RETURN_IF_FAILED(maker.make(nullptr, lengthWithNull - 1));
-
             DWORD copiedCount;
+            size_t valueUsedWithNul;
             bool copyFailed;
             bool copySucceededWithNoTruncation;
-
             if (process != nullptr)
             {
                 // GetModuleFileNameExW truncates and provides no error or other indication it has done so.
-                // The only way to be sure it didn't truncate is if it didn't need the whole buffer.
-                copiedCount = ::GetModuleFileNameExW(process, module, maker.buffer(), static_cast<DWORD>(lengthWithNull));
+                // The only way to be sure it didn't truncate is if it didn't need the whole buffer. The
+                // count copied to the buffer includes the nul-character as well.
+                copiedCount = ::GetModuleFileNameExW(process, module, value, static_cast<DWORD>(valueLength));
+                valueUsedWithNul = copiedCount + 1;
                 copyFailed = (0 == copiedCount);
-                copySucceededWithNoTruncation = !copyFailed && (copiedCount < lengthWithNull - 1);
+                copySucceededWithNoTruncation = !copyFailed && (copiedCount < valueLength - 1);
             }
             else
             {
                 // In cases of insufficient buffer, GetModuleFileNameW will return a value equal to lengthWithNull
-                // and set the last error to ERROR_INSUFFICIENT_BUFFER.
-                copiedCount = ::GetModuleFileNameW(module, maker.buffer(), static_cast<DWORD>(lengthWithNull));
+                // and set the last error to ERROR_INSUFFICIENT_BUFFER. The count returned does not include
+                // the nul-character
+                copiedCount = ::GetModuleFileNameW(module, value, static_cast<DWORD>(valueLength));
+                valueUsedWithNul = copiedCount + 1;
                 copyFailed = (0 == copiedCount);
-                copySucceededWithNoTruncation = !copyFailed && (copiedCount < lengthWithNull);
+                copySucceededWithNoTruncation = !copyFailed && (copiedCount < valueLength);
             }
 
-            if (copyFailed)
-            {
-                RETURN_LAST_ERROR();
-            }
-            else if (copySucceededWithNoTruncation)
-            {
-                path = maker.release();
-                return S_OK;
-            }
+            RETURN_LAST_ERROR_IF(copyFailed);
 
-            WI_ASSERT((process != nullptr) || (::GetLastError() == ERROR_INSUFFICIENT_BUFFER));
+            // When the copy truncated, request another try with more space.
+            *valueLengthNeededWithNul = copySucceededWithNoTruncation ? valueUsedWithNul : (valueLength * 2);
 
-            if (lengthWithNull == maxExtendedPathLengthWithNull)
-            {
-                // If we've reached this point, there's no point in trying a larger buffer size.
-                break;
-            }
-        }
+            return S_OK;
+        };
 
-        // Any path should fit into the maximum max_extended_path_length. If we reached here, something went
-        // terribly wrong.
-        FAIL_FAST();
+        return wil::AdaptFixedSizeToAllocatedResult<string_type, initialBufferLength>(path, wistd::move(adapter));
     }
 
     /** Retrieves the fully qualified path for the file that contains the specified module.
@@ -366,7 +363,7 @@ namespace wil
     same format that was specified when the module was loaded. Therefore, the path can be a
     long or short file name, and can have the prefix '\\?\'. */
     template <typename string_type, size_t initialBufferLength = 128>
-    HRESULT GetModuleFileNameW(HMODULE module, string_type& path)
+    HRESULT GetModuleFileNameW(HMODULE module, string_type& path) WI_NOEXCEPT
     {
         return wil::GetModuleFileNameExW<string_type, initialBufferLength>(nullptr, module, path);
     }
@@ -410,36 +407,36 @@ namespace wil
 #endif
 
     /** Looks up the environment variable 'key' and fails if it is not found. */
-    template <typename string_type = wil::unique_cotaskmem_string>
+    template <typename string_type = wil::unique_cotaskmem_string, size_t initialBufferLength = 128>
     string_type GetEnvironmentVariableW(_In_ PCWSTR key)
     {
         string_type result;
-        THROW_IF_FAILED(wil::GetEnvironmentVariableW<string_type>(key, result));
+        THROW_IF_FAILED((wil::GetEnvironmentVariableW<string_type, initialBufferLength>(key, result)));
         return result;
     }
 
     /** Looks up the environment variable 'key' and returns null if it is not found. */
-    template <typename string_type = wil::unique_cotaskmem_string>
+    template <typename string_type = wil::unique_cotaskmem_string, size_t initialBufferLength = 128>
     string_type TryGetEnvironmentVariableW(_In_ PCWSTR key)
     {
         string_type result;
-        THROW_IF_FAILED(wil::TryGetEnvironmentVariableW<string_type>(key, result));
+        THROW_IF_FAILED((wil::TryGetEnvironmentVariableW<string_type, initialBufferLength>(key, result)));
         return result;
     }
 
-    template <typename string_type = wil::unique_cotaskmem_string>
+    template <typename string_type = wil::unique_cotaskmem_string, size_t initialBufferLength = 128>
     string_type GetModuleFileNameW(HMODULE module)
     {
         string_type result;
-        THROW_IF_FAILED(wil::GetModuleFileNameW(module, result));
+        THROW_IF_FAILED((wil::GetModuleFileNameW<string_type, initialBufferLength>(module, result)));
         return result;
     }
 
-    template <typename string_type = wil::unique_cotaskmem_string>
+    template <typename string_type = wil::unique_cotaskmem_string, size_t initialBufferLength = 128>
     string_type GetModuleFileNameExW(HANDLE process, HMODULE module)
     {
         string_type result;
-        THROW_IF_FAILED(wil::GetModuleFileNameExW(process, module, result));
+        THROW_IF_FAILED((wil::GetModuleFileNameExW<string_type, initialBufferLength>(process, module, result)));
         return result;
     }
 
@@ -449,7 +446,7 @@ namespace wil
     the linker provides for every module. This avoids the need for a global HINSTANCE variable
     and provides access to this value for static libraries. */
     EXTERN_C IMAGE_DOS_HEADER __ImageBase;
-    inline HINSTANCE GetModuleInstanceHandle() { return reinterpret_cast<HINSTANCE>(&__ImageBase); }
+    inline HINSTANCE GetModuleInstanceHandle() WI_NOEXCEPT { return reinterpret_cast<HINSTANCE>(&__ImageBase); }
 
     /// @cond
     namespace details
@@ -459,19 +456,19 @@ namespace wil
             INIT_ONCE& m_once;
             unsigned long m_flags = INIT_ONCE_INIT_FAILED;
         public:
-            init_once_completer(_In_ INIT_ONCE& once) : m_once(once)
+            init_once_completer(_In_ INIT_ONCE& once) WI_NOEXCEPT : m_once(once)
             {
             }
 
             #pragma warning(push)
             #pragma warning(disable:4702) // https://github.com/Microsoft/wil/issues/2
-            void success()
+            void success() WI_NOEXCEPT
             {
                 m_flags = 0;
             }
             #pragma warning(pop)
 
-            ~init_once_completer()
+            ~init_once_completer() WI_NOEXCEPT
             {
                 ::InitOnceComplete(&m_once, m_flags, nullptr);
             }

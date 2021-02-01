@@ -28,7 +28,8 @@
 namespace wil::details
 {
     // Since the C++/WinRT version macro is a string...
-    inline constexpr int major_version_from_string(const char* versionString)
+    // For example: "2.0.210122.3"
+    inline constexpr int version_from_string(const char* versionString)
     {
         int result = 0;
         auto str = versionString;
@@ -39,6 +40,37 @@ namespace wil::details
         }
 
         return result;
+    }
+
+    inline constexpr int major_version_from_string(const char* versionString)
+    {
+        return version_from_string(versionString);
+    }
+
+    inline constexpr int minor_version_from_string(const char* versionString)
+    {
+        auto str = versionString;
+        int dotCount = 0;
+        while ((*str != '\0'))
+        {
+            if (*str == '.')
+            {
+                ++dotCount;
+            }
+
+            ++str;
+            if (dotCount == 2)
+            {
+                break;
+            }
+        }
+
+        if (*str == '\0')
+        {
+            return 0;
+        }
+
+        return version_from_string(str);
     }
 }
 /// @endcond
@@ -74,6 +106,9 @@ static_assert(::wil::details::major_version_from_string(CPPWINRT_VERSION) >= 2,
 // linker errors than it is to SFINAE on variable existence, so we declare the variable here, but are careful not to
 // use it unless the version of C++/WinRT is high enough
 extern std::int32_t(__stdcall* winrt_to_hresult_handler)(void*) noexcept;
+
+// The same is true with this function pointer as well, except that the version must be 2.X or higher.
+extern void(__stdcall* winrt_throw_hresult_handler)(uint32_t, char const*, char const*, void*, winrt::hresult const) noexcept;
 
 /// @cond
 namespace wil::details
@@ -193,6 +228,12 @@ namespace wil
         return static_cast<std::int32_t>(details::ReportFailure_CaughtException<FailureType::Return>(__R_DIAGNOSTICS_RA(DiagnosticsInfo{}, returnAddress)));
     }
 
+    inline void __stdcall winrt_throw_hresult(uint32_t lineNumber, char const* fileName, char const* functionName, void* returnAddress, winrt::hresult const result) noexcept
+    {
+        void* callerReturnAddress{nullptr}; PCSTR code{nullptr};
+        wil::details::ReportFailure_Hr<FailureType::Log>(__R_FN_CALL_FULL __R_COMMA result);
+    }
+
     inline void WilInitialize_CppWinRT()
     {
         details::g_pfnResultFromCaughtException_CppWinRt = details::ResultFromCaughtException_CppWinRt;
@@ -200,6 +241,12 @@ namespace wil
         {
             WI_ASSERT(winrt_to_hresult_handler == nullptr);
             winrt_to_hresult_handler = winrt_to_hresult;
+        }
+
+        if constexpr ((details::major_version_from_string(CPPWINRT_VERSION) >= 2) && (details::minor_version_from_string(CPPWINRT_VERSION) >= 210122))
+        {
+            WI_ASSERT(winrt_throw_hresult_handler == nullptr);
+            winrt_throw_hresult_handler = winrt_throw_hresult;
         }
     }
 

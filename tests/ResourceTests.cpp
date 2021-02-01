@@ -59,6 +59,14 @@ TEST_CASE("ResourceTests::TestLastErrorContext", "[resource][last_error_context]
         SetLastError(1);
     }
     REQUIRE(GetLastError() == 1);
+
+    // The value in the context is unimpacted by other things changing the last error
+    {
+        SetLastError(42);
+        auto error42 = wil::last_error_context();
+        SetLastError(1);
+        REQUIRE(error42.value() == 42);
+    }
 }
 
 TEST_CASE("ResourceTests::TestScopeExit", "[resource][scope_exit]")
@@ -732,4 +740,5 @@ TEST_CASE("DefaultTemplateParamCompiles", "[resource]")
 
     wil::unique_midl_ptr<> g;
     wil::unique_cotaskmem_ptr<> h;
+    wil::unique_mapview_ptr<> i;
 }

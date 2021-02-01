@@ -1871,14 +1871,14 @@ namespace wil
 
     /** constructs a COM object using an CLSID on a specific interface or IUnknown. */
     template<typename Interface = IUnknown>
-    wil::com_ptr_failfast<Interface> CoCreateInstanceFailFast(REFCLSID rclsid, DWORD dwClsContext = CLSCTX_INPROC_SERVER)
+    wil::com_ptr_failfast<Interface> CoCreateInstanceFailFast(REFCLSID rclsid, DWORD dwClsContext = CLSCTX_INPROC_SERVER) WI_NOEXCEPT
     {
         return CoCreateInstance<Interface, err_failfast_policy>(rclsid, dwClsContext);
     }
 
     /** constructs a COM object using the class as the identifier (that has an associated CLSID) on a specific interface or IUnknown. */
     template<typename Class, typename Interface = IUnknown>
-    wil::com_ptr_failfast<Interface> CoCreateInstanceFailFast(DWORD dwClsContext = CLSCTX_INPROC_SERVER)
+    wil::com_ptr_failfast<Interface> CoCreateInstanceFailFast(DWORD dwClsContext = CLSCTX_INPROC_SERVER) WI_NOEXCEPT
     {
         return CoCreateInstanceFailFast<Interface>(__uuidof(Class), dwClsContext);
     }
@@ -1886,7 +1886,7 @@ namespace wil
     /** constructs a COM object using an CLSID on a specific interface or IUnknown.
     Note, failures are reported as a null result, the HRESULT is lost. */
     template<typename Interface = IUnknown>
-    wil::com_ptr_nothrow<Interface> CoCreateInstanceNoThrow(REFCLSID rclsid, DWORD dwClsContext = CLSCTX_INPROC_SERVER)
+    wil::com_ptr_nothrow<Interface> CoCreateInstanceNoThrow(REFCLSID rclsid, DWORD dwClsContext = CLSCTX_INPROC_SERVER) WI_NOEXCEPT
     {
         return CoCreateInstance<Interface, err_returncode_policy>(rclsid, dwClsContext);
     }
@@ -1894,7 +1894,7 @@ namespace wil
     /** constructs a COM object using the class as the identifier (that has an associated CLSID) on a specific interface or IUnknown.
     Note, failures are reported as a null result, the HRESULT is lost. */
     template<typename Class, typename Interface = IUnknown>
-    wil::com_ptr_nothrow<Interface> CoCreateInstanceNoThrow(DWORD dwClsContext = CLSCTX_INPROC_SERVER)
+    wil::com_ptr_nothrow<Interface> CoCreateInstanceNoThrow(DWORD dwClsContext = CLSCTX_INPROC_SERVER) WI_NOEXCEPT
     {
         return CoCreateInstanceNoThrow<Interface>(__uuidof(Class), dwClsContext);
     }
