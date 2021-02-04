@@ -19,11 +19,8 @@
 
 // detect std::bit_cast
 #ifdef __has_include
-#  if __has_include(<version>)
-#    include <version>
-#    if __cpp_lib_bit_cast >= 201806L
-#      include <bit>
-#    endif
+#  if __has_include(<bit>)
+#    include <bit>
 #  endif
 #endif
 
@@ -278,10 +275,10 @@ namespace wil
 #endif
 
     /** Looks up the environment variable 'key' and fails if it is not found. */
-    template <typename string_type>
+    template <typename string_type, size_t initialBufferLength = 128>
     inline HRESULT GetEnvironmentVariableW(_In_ PCWSTR key, string_type& result) WI_NOEXCEPT
     {
-        return wil::AdaptFixedSizeToAllocatedResult(result,
+        return wil::AdaptFixedSizeToAllocatedResult<string_type, initialBufferLength>(result,
             [&](_Out_writes_(valueLength) PWSTR value, size_t valueLength, _Out_ size_t* valueLengthNeededWithNul) -> HRESULT
         {
             // If the function succeeds, the return value is the number of characters stored in the buffer
@@ -307,10 +304,10 @@ namespace wil
     }
 
     /** Looks up the environment variable 'key' and returns null if it is not found. */
-    template <typename string_type>
+    template <typename string_type, size_t initialBufferLength = 128>
     HRESULT TryGetEnvironmentVariableW(_In_ PCWSTR key, string_type& result) WI_NOEXCEPT
     {
-        const auto hr = wil::GetEnvironmentVariableW<string_type>(key, result);
+        const auto hr = wil::GetEnvironmentVariableW<string_type, initialBufferLength>(key, result);
         RETURN_HR_IF(hr, FAILED(hr) && (hr != HRESULT_FROM_WIN32(ERROR_ENVVAR_NOT_FOUND)));
         return S_OK;
     }

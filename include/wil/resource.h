@@ -76,7 +76,7 @@ namespace wil
         {
             return m_error;
         }
-        
+
         last_error_context(last_error_context&& other) WI_NOEXCEPT
         {
             operator=(wistd::move(other));
@@ -6239,8 +6239,8 @@ namespace wil
     {
         inline void __stdcall CloseWintrustData(_Inout_ WINTRUST_DATA* wtData) WI_NOEXCEPT
         {
-            GUID guidV2 = WINTRUST_ACTION_GENERIC_VERIFY_V2;  
-            wtData->dwStateAction = WTD_STATEACTION_CLOSE; 
+            GUID guidV2 = WINTRUST_ACTION_GENERIC_VERIFY_V2;
+            wtData->dwStateAction = WTD_STATEACTION_CLOSE;
             WinVerifyTrust(static_cast<HWND>(INVALID_HANDLE_VALUE), &guidV2, wtData);
         }
     }
@@ -6258,12 +6258,12 @@ namespace wil
     }
     typedef wil::unique_any<HCATADMIN, decltype(&details::CryptCATAdminReleaseContextNoFlags), details::CryptCATAdminReleaseContextNoFlags> unique_hcatadmin;
 
-#if defined(WIL_RESOURCE_STL) 
+#if defined(WIL_RESOURCE_STL)
     typedef shared_any<unique_hcatadmin> shared_hcatadmin;
     struct hcatinfo_deleter
     {
         hcatinfo_deleter(wil::shared_hcatadmin handle) WI_NOEXCEPT : m_hCatAdmin(wistd::move(handle)) {}
-        void operator()(_Pre_opt_valid_ _Frees_ptr_opt_ HCATINFO handle) WI_NOEXCEPT
+        void operator()(_Pre_opt_valid_ _Frees_ptr_opt_ HCATINFO handle) const WI_NOEXCEPT
         {
             CryptCATAdminReleaseCatalogContext(m_hCatAdmin.get(), handle, 0);
         }
@@ -6271,7 +6271,200 @@ namespace wil
     };
     // This stores HCATINFO, i.e. HANDLE (void *)
     typedef wistd::unique_ptr<void, hcatinfo_deleter> unique_hcatinfo;
+
+    namespace details
+    {
+        class crypt_catalog_enumerator
+        {
+            wil::unique_hcatinfo m_hCatInfo;
+            const BYTE * m_hash;
+            DWORD m_hashLen;
+            bool m_initialized = false;
+
+            struct ref
+            {
+                explicit ref(crypt_catalog_enumerator &r) WI_NOEXCEPT :
+                    m_r(r)
+                {}
+
+                operator HCATINFO() const WI_NOEXCEPT
+                {
+                    return m_r.current();
+                }
+
+                wil::unique_hcatinfo move_from_unique_hcatinfo() WI_NOEXCEPT
+                {
+                    wil::unique_hcatinfo info(wistd::move(m_r.m_hCatInfo));
+                    return info;
+                }
+
+                bool operator==(wistd::nullptr_t) const WI_NOEXCEPT
+                {
+                    return m_r.m_hCatInfo == nullptr;
+                }
+
+                bool operator!=(wistd::nullptr_t) const WI_NOEXCEPT
+                {
+                    return !(*this == nullptr);
+                }
+
+            private:
+                crypt_catalog_enumerator &m_r;
+            };
+
+            struct iterator
+            {
+#ifdef _XUTILITY_
+                // muse be input_iterator_tag as use of one instance invalidates the other.
+                typedef ::std::input_iterator_tag iterator_category;
 #endif
+
+                explicit iterator(crypt_catalog_enumerator *r) WI_NOEXCEPT :
+                    m_r(r)
+                {}
+
+                iterator(const iterator &) = default;
+                iterator(iterator &&) = default;
+                iterator &operator=(const iterator &) = default;
+                iterator &operator=(iterator &&) = default;
+
+                bool operator==(const iterator &rhs) const WI_NOEXCEPT
+                {
+                    if (rhs.m_r == m_r)
+                    {
+                        return true;
+                    }
+
+                    return (*this == nullptr) && (rhs == nullptr);
+                }
+
+                bool operator!=(const iterator &rhs) const WI_NOEXCEPT
+                {
+                    return !(rhs == *this);
+                }
+
+                bool operator==(wistd::nullptr_t) const WI_NOEXCEPT
+                {
+                    return nullptr == m_r || nullptr == m_r->current();
+                }
+
+                bool operator!=(wistd::nullptr_t) const WI_NOEXCEPT
+                {
+                    return !(*this == nullptr);
+                }
+
+                iterator &operator++() WI_NOEXCEPT
+                {
+                    if (m_r != nullptr)
+                    {
+                        m_r->next();
+                    }
+
+                    return *this;
+                }
+
+                ref operator*() const WI_NOEXCEPT
+                {
+                    return ref(*m_r);
+                }
+
+            private:
+                crypt_catalog_enumerator *m_r;
+            };
+
+            shared_hcatadmin &hcatadmin() WI_NOEXCEPT
+            {
+                return m_hCatInfo.get_deleter().m_hCatAdmin;
+            }
+
+            bool move_next() WI_NOEXCEPT
+            {
+                HCATINFO prevCatInfo = m_hCatInfo.release();
+                m_hCatInfo.reset(
+                    ::CryptCATAdminEnumCatalogFromHash(
+                        hcatadmin().get(),
+                        const_cast<BYTE *>(m_hash),
+                        m_hashLen,
+                        0,
+                        &prevCatInfo));
+                return !!m_hCatInfo;
+            }
+
+            HCATINFO next() WI_NOEXCEPT
+            {
+                if (m_initialized && m_hCatInfo)
+                {
+                    move_next();
+                }
+
+                return current();
+            }
+
+            HCATINFO init() WI_NOEXCEPT
+            {
+                if (!m_initialized)
+                {
+                    m_initialized = true;
+                    move_next();
+                }
+
+                return current();
+            }
+
+            HCATINFO current() WI_NOEXCEPT
+            {
+                return m_hCatInfo.get();
+            }
+
+        public:
+            crypt_catalog_enumerator(wil::shared_hcatadmin &hCatAdmin,
+                                     const BYTE *hash,
+                                     DWORD hashLen) WI_NOEXCEPT :
+                m_hCatInfo(nullptr, hCatAdmin),
+                m_hash(hash),
+                m_hashLen(hashLen)
+                // , m_initialized(false) // redundant
+            {}
+
+            iterator begin() WI_NOEXCEPT
+            {
+                init();
+                return iterator(this);
+            }
+
+            iterator end() const WI_NOEXCEPT
+            {
+                return iterator(nullptr);
+            }
+
+            crypt_catalog_enumerator(crypt_catalog_enumerator &&) = default;
+            crypt_catalog_enumerator &operator=(crypt_catalog_enumerator &&) = default;
+
+            crypt_catalog_enumerator(const crypt_catalog_enumerator &) = delete;
+            crypt_catalog_enumerator &operator=(const crypt_catalog_enumerator &) = delete;
+        };
+    }
+
+    /** Use to enumerate catalogs containing a hash with a range-based for.
+    This avoids handling a raw resource to call CryptCATAdminEnumCatalogFromHash correctly.
+    Example:
+    `for (auto&& cat : wil::make_catalog_enumerator(hCatAdmin, hash, hashLen))
+     { CryptCATCatalogInfoFromContext(cat, &catInfo, 0); }` */
+    inline details::crypt_catalog_enumerator make_crypt_catalog_enumerator(wil::shared_hcatadmin &hCatAdmin,
+        _In_count_(hashLen) const BYTE *hash, DWORD hashLen) WI_NOEXCEPT
+    {
+        return details::crypt_catalog_enumerator(hCatAdmin, hash, hashLen);
+    }
+
+    template <size_t Size>
+    details::crypt_catalog_enumerator make_crypt_catalog_enumerator(wil::shared_hcatadmin &hCatAdmin,
+        const BYTE (&hash)[Size]) WI_NOEXCEPT
+    {
+        static_assert(Size <= static_cast<size_t>(0xffffffffUL), "Array size truncated");
+        return details::crypt_catalog_enumerator(hCatAdmin, hash, static_cast<DWORD>(Size));
+    }
+
+#endif // WI_RESOURCE_STL
 
 #endif // __WIL_MSCAT
 
