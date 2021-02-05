@@ -19,7 +19,7 @@ Some things that WIL includes to whet your appetite:
 - [`include/wil/registry.h`](include/wil/registry.h): Registry watchers that can
   call a lambda function or callback you provide whenever a certain tree within
   the Windows registry changes.
-- [`include/wil/result_macros.h`](include/wil/result_macros.h)
+- [`include/wil/result.h`](include/wil/result.h)
   ([documentation](https://github.com/Microsoft/wil/wiki/Error-handling-helpers)):
   Preprocessor macros to help you check for errors from Windows API functions,
   in many of the myriad ways those errors are reported, and surface them as
