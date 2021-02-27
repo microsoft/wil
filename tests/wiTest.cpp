@@ -3267,7 +3267,7 @@ TEST_CASE("WindowsInternalTests::ThreadPoolTimerTest", "[resource][unique_thread
     ThreadPoolTimerWorkHelper<wil::unique_threadpool_timer_nocancel, FILETIME>(SetThreadpoolTimer, true);
 }
 
-#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && (_WIN32_WINNT >= _WIN32_WINNT_WIN7)
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && (_WIN32_WINNT >= _WIN32_WINNT_WIN8)
 static void __stdcall SlimEventTrollCallback(
     _Inout_ PTP_CALLBACK_INSTANCE /*instance*/,
     _Inout_opt_ void* context,
@@ -3339,7 +3339,7 @@ TEST_CASE("WindowsInternalTests::SlimEventTests", "[resource][slim_event]")
     }
 
 }
-#endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && (_WIN32_WINNT >= _WIN32_WINNT_WIN7)
+#endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && (_WIN32_WINNT >= _WIN32_WINNT_WIN8)
 
 struct ConditionVariableCSCallbackContext
 {
