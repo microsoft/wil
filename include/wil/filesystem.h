@@ -113,7 +113,7 @@ namespace wil
     {
         if (::CreateDirectoryW(path, nullptr) == FALSE)
         {
-            DWORD const lastError = ::GetLastError();
+            DWORD lastError = ::GetLastError();
             if (lastError == ERROR_PATH_NOT_FOUND)
             {
                 size_t parentLength;
@@ -126,7 +126,11 @@ namespace wil
                 }
                 if (::CreateDirectoryW(path, nullptr) == FALSE)
                 {
-                    RETURN_WIN32(::GetLastError());
+                    lastError = ::GetLastError();
+                    if (lastError != ERROR_ALREADY_EXISTS)
+                    {
+                        RETURN_WIN32(lastError);
+                    }
                 }
             }
             else if (lastError != ERROR_ALREADY_EXISTS)
