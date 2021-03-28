@@ -438,7 +438,7 @@ namespace wil
     }
 
     template <typename string_type = wil::unique_cotaskmem_string, size_t stackBufferLength = 256>
-    string_type QueryFullProcessImageNameW(HANDLE processHandle, DWORD flags = 0)
+    string_type QueryFullProcessImageNameW(HANDLE processHandle = GetCurrentProcess(), DWORD flags = 0)
     {
         string_type result;
         THROW_IF_FAILED((wil::QueryFullProcessImageNameW<string_type, stackBufferLength>(processHandle, flags, result)));
