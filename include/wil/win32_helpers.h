@@ -422,7 +422,7 @@ namespace wil
     }
 
     template <typename string_type = wil::unique_cotaskmem_string, size_t initialBufferLength = 128>
-    string_type GetModuleFileNameW(HMODULE module)
+    string_type GetModuleFileNameW(HMODULE module = nullptr)
     {
         string_type result;
         THROW_IF_FAILED((wil::GetModuleFileNameW<string_type, initialBufferLength>(module, result)));
