@@ -496,7 +496,7 @@ namespace wil
             {
                 if (configValue == 2)
                 {
-                    __debugbreak(); // debugger attached, SHIFT+F11 to return to the caller
+                    DebugBreak(); // debugger attached, SHIFT+F11 to return to the caller
                 }
                 return; // debugger now attached, continue executing
             }
