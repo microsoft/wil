@@ -118,6 +118,29 @@ namespace wil
         typedef wistd::integral_constant<size_t, 1> pointer_access_noaddress;       // get() and release() are available
         typedef wistd::integral_constant<size_t, 2> pointer_access_none;            // the raw pointer is not available
 
+        template<bool is_fn_ptr, typename close_fn_t, close_fn_t close_fn, typename pointer_storage_t> struct close_invoke_helper
+        {
+            __forceinline static void close(typename pointer_storage_t value) WI_NOEXCEPT { wistd::invoke(close_fn, value); }
+            inline static void close_reset(typename pointer_storage_t value) WI_NOEXCEPT
+            {
+                auto preserveError = last_error_context();
+                wistd::invoke(value);
+            }
+        };
+
+        template<typename close_fn_t, close_fn_t close_fn, typename pointer_storage_t> struct close_invoke_helper<true, close_fn_t, close_fn, pointer_storage_t>
+        {
+            __forceinline static void close(typename pointer_storage_t value) WI_NOEXCEPT { close_fn(value); }
+            inline static void close_reset(typename pointer_storage_t value) WI_NOEXCEPT
+            {
+                auto preserveError = last_error_context();
+                close_fn(value);
+            }
+        };
+
+        template<typename close_fn_t, close_fn_t close_fn, typename pointer_storage_t> using close_invoker =
+            close_invoke_helper<wistd::is_pointer_v<close_fn_t> ? wistd::is_function_v<wistd::remove_pointer_t<close_fn_t>> : false, close_fn_t, close_fn, pointer_storage_t>;
+
         template <typename pointer_t,                                         // The handle type
             typename close_fn_t,                                              // The handle close function type
             close_fn_t close_fn,                                              //      * and function pointer
@@ -126,7 +149,7 @@ namespace wil
             typename invalid_t = pointer_t,                                   // The invalid handle value type
             invalid_t invalid = invalid_t(),                                  //      * and its value (default ZERO value)
             typename pointer_invalid_t = wistd::nullptr_t>                    // nullptr_t if the invalid handle value is compatible with nullptr, otherwise pointer
-            struct resource_policy
+            struct resource_policy : close_invoker<close_fn_t, close_fn, pointer_storage_t>
         {
             typedef pointer_storage_t pointer_storage;
             typedef pointer_t pointer;
@@ -134,13 +157,6 @@ namespace wil
             typedef pointer_access_t pointer_access;
             __forceinline static pointer_storage invalid_value() { return (pointer)invalid; }
             __forceinline static bool is_valid(pointer_storage value) WI_NOEXCEPT { return (static_cast<pointer>(value) != (pointer)invalid); }
-            __forceinline static void close(pointer_storage value) WI_NOEXCEPT { wistd::invoke(close_fn, value); }
-
-            inline static void close_reset(pointer_storage value) WI_NOEXCEPT
-            {
-                auto preserveError = last_error_context();
-                wistd::invoke(close_fn, value);
-            }
         };
 
 
@@ -786,6 +802,7 @@ namespace wil
     template <typename struct_t, typename close_fn_t, close_fn_t close_fn, typename init_fn_t = wistd::nullptr_t, init_fn_t init_fn = wistd::nullptr_t()>
     class unique_struct : public struct_t
     {
+        using closer = details::close_invoker<close_fn_t, close_fn, struct_t*>;
     public:
         //! Initializes the managed struct using the user-provided initialization function, or ZeroMemory if no function is specified
         unique_struct()
@@ -818,7 +835,7 @@ namespace wil
         //! Calls the custom close function
         ~unique_struct() WI_NOEXCEPT
         {
-            wistd::invoke(close_fn, this);
+            closer::close(this);
         }
 
         void reset(const unique_struct&) = delete;
@@ -826,10 +843,7 @@ namespace wil
         //! Resets this managed struct by calling the custom close function and begins management of the other struct
         void reset(const struct_t& other) WI_NOEXCEPT
         {
-            {
-                auto preserveError = last_error_context();
-                wistd::invoke(close_fn, this);
-            }
+            closer::close_reset(this);
             struct_t::operator=(other);
         }
 
@@ -837,7 +851,7 @@ namespace wil
         //! Then initializes this managed struct using the user-provided initialization function, or ZeroMemory if no function is specified
         void reset() WI_NOEXCEPT
         {
-            wistd::invoke(close_fn, this);
+            closer::close(this);
             call_init(use_default_init_fn());
         }
 
@@ -1220,7 +1234,7 @@ namespace wil
             template <typename T>
             void operator()(_Pre_opt_valid_ _Frees_ptr_opt_ T& p) const
             {
-                wistd::invoke(close_fn, &p);
+                close_invoker<close_fn_t, close_fn, T*>::close(&p);
             }
         };
 

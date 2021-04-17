@@ -742,3 +742,32 @@ TEST_CASE("DefaultTemplateParamCompiles", "[resource]")
     wil::unique_cotaskmem_ptr<> h;
     wil::unique_mapview_ptr<> i;
 }
+
+TEST_CASE("UniqueInvokeCleanupMembers", "[resource]")
+{
+    // Case 1 - unique_ptr<> for a T* that has a "destroy" member
+    struct ThingWithDestroy
+    {
+        bool destroyed = false;
+        void destroy() { destroyed = true; };
+    };
+    ThingWithDestroy toDestroy;
+    wil::unique_any<ThingWithDestroy*, decltype(&ThingWithDestroy::destroy), &ThingWithDestroy::destroy> p(&toDestroy);
+    p.reset();
+    REQUIRE(!p);
+    REQUIRE(toDestroy.destroyed);
+
+    // Case 2 - unique_struct calling a member, like above
+    struct ThingToDestroy2
+    {
+        bool* destroyed;
+        void destroy() { *destroyed = true; };
+    };
+    bool structDestroyed = false;
+    {
+        wil::unique_struct<ThingToDestroy2, decltype(&ThingToDestroy2::destroy), &ThingToDestroy2::destroy> other;
+        other.destroyed = &structDestroyed;
+        REQUIRE(!structDestroyed);
+    }
+    REQUIRE(structDestroyed);
+}
