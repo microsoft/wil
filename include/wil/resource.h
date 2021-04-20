@@ -124,7 +124,7 @@ namespace wil
             inline static void close_reset(typename pointer_storage_t value) WI_NOEXCEPT
             {
                 auto preserveError = last_error_context();
-                wistd::invoke(value);
+                wistd::invoke(close_fn, value);
             }
         };
 
@@ -1543,7 +1543,7 @@ namespace wil
                 }
                 if (oldSource)
                 {
-                    wistd::invoke(close_fn, oldSource);
+                    details::close_invoker<close_fn_t, close_fn, interface_t*>::close(oldSource);
                     oldSource->Release();
                 }
             }
@@ -1655,7 +1655,7 @@ namespace wil
             m_call = false;
             if (call)
             {
-                wistd::invoke(close_fn);
+                close_fn();
             }
         }
 
