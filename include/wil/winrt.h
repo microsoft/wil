@@ -445,7 +445,7 @@ namespace wil
                 T Get() const { return m_value; }
 
                 // Returning T&& to support move only types
-                // In case of absense of T::operator=(T&&) a call to T::operator=(const T&) will happen
+                // In case of absence of T::operator=(T&&) a call to T::operator=(const T&) will happen
                 T&& Get()          { return wistd::move(m_value); }
 
                 HRESULT CopyTo(T* result) const { *result = m_value; return S_OK; }
