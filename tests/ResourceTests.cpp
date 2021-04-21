@@ -782,7 +782,7 @@ struct TokenTester : ITokenTester
     IFACEMETHOD_(ULONG, AddRef)() override { return 2; }
     IFACEMETHOD_(ULONG, Release)() override { return 1; }
     IFACEMETHOD(QueryInterface)(REFIID, void**) { return E_NOINTERFACE; }
-    void DirectClose(DWORD_PTR token) {
+    void DirectClose(DWORD_PTR token) override {
         m_closed = (token == m_closeToken);
     }
     bool m_closed = false;

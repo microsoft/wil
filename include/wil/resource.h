@@ -120,8 +120,8 @@ namespace wil
 
         template<bool is_fn_ptr, typename close_fn_t, close_fn_t close_fn, typename pointer_storage_t> struct close_invoke_helper
         {
-            __forceinline static void close(typename pointer_storage_t value) WI_NOEXCEPT { wistd::invoke(close_fn, value); }
-            inline static void close_reset(typename pointer_storage_t value) WI_NOEXCEPT
+            __forceinline static void close(pointer_storage_t value) WI_NOEXCEPT { wistd::invoke(close_fn, value); }
+            inline static void close_reset(pointer_storage_t value) WI_NOEXCEPT
             {
                 auto preserveError = last_error_context();
                 wistd::invoke(close_fn, value);
@@ -130,8 +130,8 @@ namespace wil
 
         template<typename close_fn_t, close_fn_t close_fn, typename pointer_storage_t> struct close_invoke_helper<true, close_fn_t, close_fn, pointer_storage_t>
         {
-            __forceinline static void close(typename pointer_storage_t value) WI_NOEXCEPT { close_fn(value); }
-            inline static void close_reset(typename pointer_storage_t value) WI_NOEXCEPT
+            __forceinline static void close(pointer_storage_t value) WI_NOEXCEPT { close_fn(value); }
+            inline static void close_reset(pointer_storage_t value) WI_NOEXCEPT
             {
                 auto preserveError = last_error_context();
                 close_fn(value);
