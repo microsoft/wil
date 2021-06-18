@@ -14,6 +14,7 @@
 #include <unordered_map>
 #include <any>
 #include <type_traits>
+#include <Unknwn.h>
 #include <winrt/base.h>
 #include <roapi.h>
 #include <objidl.h>
@@ -31,7 +32,7 @@ namespace wil
     inline bool are_apartment_variables_supported()
     {
         unsigned long long apartmentId{};
-        return RoGetApartmentIdentifier(&apartmentId) == S_OK;
+        return RoGetApartmentIdentifier(&apartmentId) != HRESULT_FROM_WIN32(ERROR_API_UNAVAILABLE);
     }
 
     namespace details
@@ -73,16 +74,16 @@ namespace wil
                 auto result = createFn();
                 variables.insert({ variableKey, result });
 #ifdef _DEBUG
-                auto variable = variables.find(variableKey);
+                variable = variables.find(variableKey);
                 assert(variable != variables.end());
-                auto r = std::any_cast<std::invoke_result_t<F>>(variable->second);
+                std::ignore = std::any_cast<std::invoke_result_t<F>>(variable->second);
 #endif
                 return result;
             }
         }
         else
         {
-            struct ApartmentObserver : public winrt::implements<ApartmentObserver, ::IApartmentShutdown>
+            struct ApartmentObserver : public winrt::implements<ApartmentObserver, IApartmentShutdown>
             {
                 void STDMETHODCALLTYPE OnUninitialize(unsigned long long apartmentId) noexcept override
                 {
@@ -112,7 +113,7 @@ namespace wil
             auto& variables = a->second;
             auto variable = variables.find(variableKey);
             assert(variable != variables.end());
-            auto r = std::any_cast<std::invoke_result_t<F>>(variable->second);
+            std::ignore = std::any_cast<std::invoke_result_t<F>>(variable->second);
 #endif
             return result;
         }
