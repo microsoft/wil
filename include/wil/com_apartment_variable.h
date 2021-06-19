@@ -177,6 +177,167 @@ namespace wil
         }
         return 0;
     }
+
+    namespace details
+    {
+        struct apartment_variable_base
+        {
+            inline static winrt::slim_mutex s_lock;
+            // Apartment id -> variable storage. Variables are stored using the address of
+            // the function that produces the value as the key.
+            inline static std::unordered_map<unsigned long long,
+                std::unordered_map<wil::details::apartment_variable_base*, std::any>>
+                s_apartmentStorage;
+
+            apartment_variable_base() = default;
+            ~apartment_variable_base()
+            {
+                clear(); // needed? the apartment rundowns should have removed this already
+            }
+
+            // non-copyable, non-assignable
+            apartment_variable_base(apartment_variable_base const&) = delete;
+            void operator=(apartment_variable_base const&) = delete;
+
+            // get current value or throw if no value has been set
+            std::any& get_existing()
+            {
+                if (auto any = get_if())
+                {
+                    return *any;
+                }
+                THROW_HR(E_NOT_SET);
+            }
+
+            // get current value or custom-construct one on demand
+            std::any& get_or_create(const std::function<std::any()>& creator)
+            {
+                const auto apartmentId = GetApartmentId();
+
+                auto lock = winrt::slim_lock_guard(s_lock);
+
+                auto storage = s_apartmentStorage.find(apartmentId);
+                if (storage != s_apartmentStorage.end())
+                {
+                    auto& variables = storage->second;
+                    auto variable = variables.find(this);
+                    if (variable != variables.end())
+                    {
+                        return variable->second;
+                    }
+                    else
+                    {
+                        variable = variables.insert({ this, creator() }).first;
+                        return variable->second;
+                    }
+                }
+                else
+                {
+                    struct ApartmentObserver : public winrt::implements<ApartmentObserver, IApartmentShutdown>
+                    {
+                        void STDMETHODCALLTYPE OnUninitialize(unsigned long long apartmentId) noexcept override
+                        {
+                            // This code runs at apartment rundown so be careful to avoid deadlocks by
+                            // extracting the variables under the lock then release them outside.
+                            auto variables = [apartmentId]()
+                            {
+                                auto lock = winrt::slim_lock_guard(s_lock);
+                                return s_apartmentStorage.extract(apartmentId);
+                            }();
+                        }
+                    };
+
+                    auto observer = winrt::make<ApartmentObserver>();
+                    unsigned long long id{};
+                    APARTMENT_SHUTDOWN_REGISTRATION_COOKIE cookie{}; // leaked, COM run down releases all instances
+                    THROW_IF_FAILED(RoRegisterForApartmentShutdown(observer.get(), &id, &cookie));
+                    FAIL_FAST_IF(apartmentId != id);
+
+                    auto variables = s_apartmentStorage.insert({ apartmentId,
+                        { { this, creator() } } }).first;
+                    return variables->second.begin()->second; // new map entry is first
+                }
+            }
+
+            // get pointer to current value or nullptr if no value has been set
+            std::any* get_if()
+            {
+                auto lock = winrt::slim_lock_guard(s_lock);
+
+                auto storage = s_apartmentStorage.find(GetApartmentId());
+                if (storage != s_apartmentStorage.end())
+                {
+                    auto& variables = storage->second;
+                    auto variable = variables.find(this);
+                    if (variable != variables.end())
+                    {
+                        return &(variable->second);
+                    }
+                }
+                return nullptr;
+            }
+
+            // replace or create the current value
+            void set(std::any value)
+            {
+                // release value, with the swapped value, outside of the lock
+                {
+                    auto lock = winrt::slim_lock_guard(s_lock);
+                    auto storage = s_apartmentStorage.find(GetApartmentId());
+                    FAIL_FAST_IF(storage == s_apartmentStorage.end());
+                    auto& variables = storage->second;
+                    auto variable = variables.find(this);
+                    FAIL_FAST_IF(variable == variables.end());
+                    variable->second.swap(value);
+                }
+            }
+
+            // remove any current value
+            void clear()
+            {
+                auto lock = winrt::slim_lock_guard(s_lock);
+                auto storage = s_apartmentStorage.find(GetApartmentId());
+                if (storage != s_apartmentStorage.end())
+                {
+                    auto& variables = storage->second;
+                    variables.erase(this);
+                }
+            }
+        };
+    }
+
+    template<typename T>
+    struct apartment_variable : details::apartment_variable_base
+    {
+        using base = details::apartment_variable_base;
+
+        // get current value or throw if no value has been set
+        T& get_existing() { return std::any_cast<T&>(base::get_existing()); }
+
+        // get current value or default-construct one on demand
+        T& get_or_create()
+        {
+            return get_or_create([]() { return T{}; });
+        }
+
+        // get current value or custom-construct one on demand
+        T& get_or_create(T(*creator)())
+        {
+            return std::any_cast<T&>(base::get_or_create([creator]()
+            {
+                return std::any(creator());
+            }));
+        }
+
+        // get pointer to current value or nullptr if no value has been set
+        T* get_if() { return std::any_cast<T>(base::get_if()); }
+
+        // replace or create the current value
+        void set(T&& value) { return base::set(std::forward<T>(value)); }
+
+        // remove any current value
+        using base::clear;
+    };
 }
 
 #endif // __WIL_COM_APARTMENT_VARIABLE_INCLUDED

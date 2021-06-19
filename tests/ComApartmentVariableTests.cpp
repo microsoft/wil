@@ -157,4 +157,21 @@ TEST_CASE("ComApartmentVariable::VerifyOnlyFunctionsArePassed", "[com][get_for_c
     // wil::get_for_current_com_apartment(function);
 }
 
+TEST_CASE("ComApartmentVariable::VerifyApartmentVariable", "[com][apartment_variable]")
+{
+    if (!wil::are_apartment_variables_supported()) return;
+
+    auto coUninit = wil::CoInitializeEx(COINIT_MULTITHREADED);
+
+    wil::apartment_variable<int> v1; // should be a global
+
+    REQUIRE(v1.get_if() == nullptr);
+    REQUIRE(v1.get_or_create(fn) == 42);
+    v1.set(43);
+    REQUIRE(v1.get_or_create(fn) == 43);
+    REQUIRE(v1.get_existing() == 43);
+    v1.clear();
+    REQUIRE(v1.get_if() == nullptr);
+}
+
 #endif
