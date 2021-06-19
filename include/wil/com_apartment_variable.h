@@ -102,7 +102,7 @@ namespace wil
 
         inline void reset_for_current_com_apartment(void const* variableKey)
         {
-            const auto apartmentId = details::GetApartmentId();
+            const auto apartmentId = GetApartmentId();
             auto lock = winrt::slim_lock_guard(details::s_lock);
             auto storage = details::s_apartmentStorage.find(apartmentId);
             if (storage != details::s_apartmentStorage.end())
@@ -116,7 +116,7 @@ namespace wil
         // current apartment.
         inline void reset_for_current_com_apartment(void const* variableKey, std::any&& newAny)
         {
-            const auto apartmentId = details::GetApartmentId();
+            const auto apartmentId = GetApartmentId();
 
             // release newAny, with the swapped value, outside of the lock
             {
