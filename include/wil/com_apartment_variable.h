@@ -183,17 +183,14 @@ namespace wil
         struct apartment_variable_base
         {
             inline static winrt::slim_mutex s_lock;
-            // Apartment id -> variable storage. Variables are stored using the address of
-            // the function that produces the value as the key.
+            // Apartment id -> variable storage.
+            // Variables are stored using the address of the global variable as the key.
             inline static std::unordered_map<unsigned long long,
                 std::unordered_map<wil::details::apartment_variable_base*, std::any>>
                 s_apartmentStorage;
 
             apartment_variable_base() = default;
-            ~apartment_variable_base()
-            {
-                clear(); // needed? the apartment rundowns should have removed this already
-            }
+            ~apartment_variable_base() = default;
 
             // non-copyable, non-assignable
             apartment_variable_base(apartment_variable_base const&) = delete;
