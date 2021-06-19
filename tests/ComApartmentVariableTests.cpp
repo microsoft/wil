@@ -96,11 +96,11 @@ TEST_CASE("ComApartmentVariable::ResetTests", "[com][reset_for_current_com_apart
 
     REQUIRE(wil::apartment_variable_count() == 1);
 
-    wil::reset_for_current_com_apartment_strict(fn2);
+    wil::reset_for_current_com_apartment(fn2);
     REQUIRE(wil::apartment_variable_count() == 0);
 
     v = wil::get_for_current_com_apartment(fn2);
-    wil::reset_for_current_com_apartment_strict(fn2, 44);
+    wil::reset_for_current_com_apartment(fn2, 44);
     REQUIRE(wil::apartment_variable_count() == 1);
 
     v = wil::get_for_current_com_apartment(fn2);

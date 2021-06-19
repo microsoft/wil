@@ -14,8 +14,7 @@
 #include <unordered_map>
 #include <any>
 #include <type_traits>
-#include <Unknwn.h>
-#include <winrt/base.h>
+#include "cppwinrt.h"
 #include <roapi.h>
 #include <objidl.h>
 #include <wil/result_macros.h>
@@ -37,10 +36,10 @@ namespace wil
 
     namespace details
     {
-        inline static winrt::slim_mutex s_lock;
+        inline winrt::slim_mutex s_lock;
         // Apartment id -> variable storage. Variables are stored using the address of
         // the function that produces the value as the key.
-        inline static std::unordered_map<unsigned long long, std::unordered_map<const void*, std::any>> s_apartmentStorage;
+        inline std::unordered_map<unsigned long long, std::unordered_map<const void*, std::any>> s_apartmentStorage;
     }
 
     // Get the apartment variable, returning the value stored in the per apartment
@@ -49,10 +48,8 @@ namespace wil
     // be safely cleaned up. Call reset_for_current_com_apartment if you want to
     // rundown the variable before the apartment exits.
     template<typename F>
-    auto get_for_current_com_apartment(const F& createFn) -> std::invoke_result_t<F>
+    auto get_for_current_com_apartment(F const* createFn) -> std::invoke_result_t<F>
     {
-        static_assert(std::is_function_v<F>, "createFn must be a function");
-
         unsigned long long apartmentId{};
         FAIL_FAST_IF_FAILED(RoGetApartmentIdentifier(&apartmentId));
 
@@ -104,8 +101,7 @@ namespace wil
             FAIL_FAST_IF(apartmentId != id);
 
             auto result = createFn();
-            details::s_apartmentStorage.insert({ apartmentId,
-                decltype(details::s_apartmentStorage)::value_type::second_type { { variableKey, result } } });
+            details::s_apartmentStorage.insert({ apartmentId, { { variableKey, result } } });
 #ifdef _DEBUG
             auto a = details::s_apartmentStorage.find(id);
             assert(a != details::s_apartmentStorage.end());
@@ -123,10 +119,8 @@ namespace wil
     // effect if the variable was not stored based on a call to get_for_current_com_apartment
     // from the current apartment.
     template<typename F>
-    void reset_for_current_com_apartment(const F& createFn)
+    void reset_for_current_com_apartment(F const* createFn)
     {
-        static_assert(std::is_function_v<F>, "createFn must be a function");
-
         unsigned long long apartmentId{};
         FAIL_FAST_IF_FAILED(RoGetApartmentIdentifier(&apartmentId));
 
@@ -141,60 +135,12 @@ namespace wil
         }
     }
 
-    // Remove the variable. This requires (ensured via fail fast) that the
-    // variable is already stored based on a call to get_for_current_com_apartment in the
-    // current apartment.
-    template<typename F>
-    void reset_for_current_com_apartment_strict(const F& createFn)
-    {
-        static_assert(std::is_function_v<F>, "createFn must be a function");
-
-        unsigned long long apartmentId{};
-        FAIL_FAST_IF_FAILED(RoGetApartmentIdentifier(&apartmentId));
-
-        const auto variableKey = std::addressof(createFn);
-
-        auto lock = winrt::slim_lock_guard(details::s_lock);
-        auto storage = details::s_apartmentStorage.find(apartmentId);
-        FAIL_FAST_IF(storage == details::s_apartmentStorage.end());
-        auto& variables = storage->second;
-        variables.erase(variableKey);
-    }
-
-    // If the variable exists, replace it with a new value. This has no
-    // effect the variable was not stored, is this too loose of a contract?
-    template<typename F>
-    void reset_for_current_com_apartment(const F& createFn, std::invoke_result_t<F> newValue)
-    {
-        static_assert(std::is_function_v<F>, "createFn must be a function");
-
-        unsigned long long apartmentId{};
-        FAIL_FAST_IF_FAILED(RoGetApartmentIdentifier(&apartmentId));
-
-        const auto variableKey = std::addressof(createFn);
-
-        std::any newAny(newValue); // release outside of the lock
-        auto lock = winrt::slim_lock_guard(details::s_lock);
-        auto storage = details::s_apartmentStorage.find(apartmentId);
-        if (storage != details::s_apartmentStorage.end())
-        {
-            auto& variables = storage->second;
-            auto variable = variables.find(variableKey);
-            if (variable != variables.end())
-            {
-                variable->second.swap(newAny);
-            }
-        }
-    }
-
     // Replace a variable with a new value. This requires (ensured via fail fast) that the
     // variable is already stored based on a call to get_for_current_com_apartment in the
     // current apartment.
     template<typename F>
-    void reset_for_current_com_apartment_strict(const F& createFn, std::invoke_result_t<F> newValue)
+    void reset_for_current_com_apartment(F const* createFn, std::invoke_result_t<F> newValue)
     {
-        static_assert(std::is_function_v<F>, "createFn must be a function");
-
         unsigned long long apartmentId{};
         FAIL_FAST_IF_FAILED(RoGetApartmentIdentifier(&apartmentId));
 
