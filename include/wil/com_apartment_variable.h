@@ -50,8 +50,7 @@ namespace wil
         }
 
         // Type erased form of the get_for_current_com_apartment to avoid template bloat.
-        inline std::any& get_for_current_com_apartment(void const* variableKey,
-            const std::function<std::any()>& createAny)
+        inline std::any& get_for_current_com_apartment(void const* variableKey, const std::function<std::any()>& createAny)
         {
             const auto apartmentId = GetApartmentId();
 
@@ -102,7 +101,7 @@ namespace wil
 
         inline void reset_for_current_com_apartment(void const* variableKey)
         {
-            const auto apartmentId = GetApartmentId();
+            const auto apartmentId = details::GetApartmentId();
             auto lock = winrt::slim_lock_guard(details::s_lock);
             auto storage = details::s_apartmentStorage.find(apartmentId);
             if (storage != details::s_apartmentStorage.end())
@@ -116,7 +115,7 @@ namespace wil
         // current apartment.
         inline void reset_for_current_com_apartment(void const* variableKey, std::any&& newAny)
         {
-            const auto apartmentId = GetApartmentId();
+            const auto apartmentId = details::GetApartmentId();
 
             // release newAny, with the swapped value, outside of the lock
             {
@@ -180,16 +179,39 @@ namespace wil
 
     namespace details
     {
+        struct apt_var_platform
+        {
+            static unsigned long long GetApartmentId()
+            {
+                unsigned long long apartmentId{};
+                FAIL_FAST_IF_FAILED(RoGetApartmentIdentifier(&apartmentId));
+                return apartmentId;
+            }
+
+            static void RegisterForApartmentShutdown(IApartmentShutdown* observer)
+            {
+                unsigned long long id{};
+                APARTMENT_SHUTDOWN_REGISTRATION_COOKIE cookie{}; // leaked, COM run down releases all instances
+                THROW_IF_FAILED(RoRegisterForApartmentShutdown(observer, &id, &cookie));
+            }
+        };
+
+        template<typename test_hook = apt_var_platform>
         struct apartment_variable_base
         {
             inline static winrt::slim_mutex s_lock;
             // Apartment id -> variable storage.
             // Variables are stored using the address of the global variable as the key.
             inline static std::unordered_map<unsigned long long,
-                std::unordered_map<wil::details::apartment_variable_base*, std::any>>
+                std::unordered_map<wil::details::apartment_variable_base<test_hook>*, std::any>>
                 s_apartmentStorage;
 
-            apartment_variable_base() = default;
+            apartment_variable_base()
+            {
+                // TODO: ensure this is a global, investigate cases where address is not reliable due to re-use as stack variables.
+                // printf("%p\n", this);
+            }
+
             ~apartment_variable_base() = default;
 
             // non-copyable, non-assignable
@@ -209,7 +231,7 @@ namespace wil
             // get current value or custom-construct one on demand
             std::any& get_or_create(const std::function<std::any()>& creator)
             {
-                const auto apartmentId = GetApartmentId();
+                const auto apartmentId = test_hook::GetApartmentId();
 
                 auto lock = winrt::slim_lock_guard(s_lock);
 
@@ -244,11 +266,7 @@ namespace wil
                         }
                     };
 
-                    auto observer = winrt::make<ApartmentObserver>();
-                    unsigned long long id{};
-                    APARTMENT_SHUTDOWN_REGISTRATION_COOKIE cookie{}; // leaked, COM run down releases all instances
-                    THROW_IF_FAILED(RoRegisterForApartmentShutdown(observer.get(), &id, &cookie));
-                    FAIL_FAST_IF(apartmentId != id);
+                    test_hook::RegisterForApartmentShutdown(winrt::make<ApartmentObserver>().get());
 
                     auto variables = s_apartmentStorage.insert({ apartmentId,
                         { { this, creator() } } }).first;
@@ -261,7 +279,7 @@ namespace wil
             {
                 auto lock = winrt::slim_lock_guard(s_lock);
 
-                auto storage = s_apartmentStorage.find(GetApartmentId());
+                auto storage = s_apartmentStorage.find(test_hook::GetApartmentId());
                 if (storage != s_apartmentStorage.end())
                 {
                     auto& variables = storage->second;
@@ -280,7 +298,7 @@ namespace wil
                 // release value, with the swapped value, outside of the lock
                 {
                     auto lock = winrt::slim_lock_guard(s_lock);
-                    auto storage = s_apartmentStorage.find(GetApartmentId());
+                    auto storage = s_apartmentStorage.find(test_hook::GetApartmentId());
                     FAIL_FAST_IF(storage == s_apartmentStorage.end());
                     auto& variables = storage->second;
                     auto variable = variables.find(this);
@@ -293,20 +311,37 @@ namespace wil
             void clear()
             {
                 auto lock = winrt::slim_lock_guard(s_lock);
-                auto storage = s_apartmentStorage.find(GetApartmentId());
+                auto storage = s_apartmentStorage.find(test_hook::GetApartmentId());
                 if (storage != s_apartmentStorage.end())
                 {
                     auto& variables = storage->second;
                     variables.erase(this);
                 }
             }
+
+            static size_t apartment_count()
+            {
+                auto lock = winrt::slim_lock_guard(s_lock);
+                return s_apartmentStorage.size();
+            }
+
+            static size_t current_apartment_variable_count()
+            {
+                auto lock = winrt::slim_lock_guard(s_lock);
+                auto storage = s_apartmentStorage.find(test_hook::GetApartmentId());
+                if (storage != s_apartmentStorage.end())
+                {
+                    return storage->second.size();
+                }
+                return 0;
+            }
         };
     }
 
-    template<typename T>
-    struct apartment_variable : details::apartment_variable_base
+    template<typename T, typename test_hook = apt_var_platform>
+    struct apartment_variable : details::apartment_variable_base<test_hook>
     {
-        using base = details::apartment_variable_base;
+        using base = details::apartment_variable_base<test_hook>;
 
         // get current value or throw if no value has been set
         T& get_existing() { return std::any_cast<T&>(base::get_existing()); }
@@ -334,6 +369,8 @@ namespace wil
 
         // remove any current value
         using base::clear;
+        using base::apartment_count;
+        using base::current_apartment_variable_count;
     };
 }
 

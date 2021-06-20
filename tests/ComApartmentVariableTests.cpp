@@ -1,4 +1,5 @@
 #include <wil/com_apartment_variable.h>
+#include <wil/com.h>
 #include <functional>
 
 #include "common.h"
@@ -11,7 +12,7 @@ auto fn3() { return 42; };
 
 TEST_CASE("ComApartmentVariable::GetTests", "[com][get_for_current_com_apartment]")
 {
-    if (!wil::are_apartment_variables_supported()) return;
+    if (!wil::are_apartment_variables_supported()) { INFO("skipping " __FUNCDNAME__); return; }
 
     {
         auto coUninit = wil::CoInitializeEx(COINIT_MULTITHREADED);
@@ -70,7 +71,7 @@ TEST_CASE("ComApartmentVariable::GetTests", "[com][get_for_current_com_apartment
 
 TEST_CASE("ComApartmentVariable::ResetTests", "[com][reset_for_current_com_apartment]")
 {
-    if (!wil::are_apartment_variables_supported()) return;
+    if (!wil::are_apartment_variables_supported()) { INFO("skipping " __FUNCDNAME__); return; }
 
     auto coUninit = wil::CoInitializeEx(COINIT_MULTITHREADED);
 
@@ -108,62 +109,64 @@ TEST_CASE("ComApartmentVariable::ResetTests", "[com][reset_for_current_com_apart
     REQUIRE(v == 44);
 }
 
-struct ApartmentVariableTester : public winrt::implements<ApartmentVariableTester, IUnknown>
+struct mock_platform
 {
-    ApartmentVariableTester()
+    static unsigned long long GetApartmentId()
     {
-        InstanceCount++;
+        APTTYPE aptType;
+        APTTYPEQUALIFIER aptQualifer;
+        FAIL_FAST_IF_FAILED(CoGetApartmentType(&aptType, &aptQualifer)); // ensure COM is inited
+
+        // incorrect, but close enough for testing
+        return GetCurrentThreadId();
     }
-    ~ApartmentVariableTester()
+
+    inline static std::unordered_map<unsigned long long, std::vector<wil::com_ptr<IApartmentShutdown>>> m_observers;
+
+    static void RegisterForApartmentShutdown(IApartmentShutdown* observer)
     {
-        InstanceCount--;
+        const auto id = GetApartmentId();
+        auto apt_observers = m_observers.find(id);
+        if (apt_observers == m_observers.end())
+        {
+            m_observers.insert({ id, { observer} });
+        }
+        else
+        {
+            apt_observers->second.push_back(observer);
+        }
     }
-    inline static int InstanceCount = 0;
+
+    // This is needed to simulate the platform for unit testing.
+    static auto CoInitializeExForTesting(DWORD coinitFlags = 0 /*COINIT_MULTITHREADED*/)
+    {
+        return wil::scope_exit([aptId = GetCurrentThreadId(), init = wil::CoInitializeEx(coinitFlags)]()
+        {
+            const auto id = GetApartmentId();
+            auto apt_observers = m_observers.find(id);
+            if (apt_observers != m_observers.end())
+            {
+                const auto& observers = apt_observers->second;
+                for (auto& comptr : observers)
+                {
+                    comptr->OnUninitialize(id);
+                }
+            }
+        });
+    }
 };
 
-auto create_apartment_tester()
-{
-    return winrt::make_self<ApartmentVariableTester>();
-};
 
-TEST_CASE("ComApartmentVariable::CheckInstanceLifetime", "[com][get_for_current_com_apartment]")
-{
-    if (!wil::are_apartment_variables_supported()) return;
-
-    ApartmentVariableTester::InstanceCount = 0;
-    {
-        auto coUninit = wil::CoInitializeEx(COINIT_APARTMENTTHREADED);
-
-        REQUIRE(ApartmentVariableTester::InstanceCount == 0);
-        auto var = wil::get_for_current_com_apartment(create_apartment_tester);
-        REQUIRE(ApartmentVariableTester::InstanceCount == 1);
-        auto var2 = wil::get_for_current_com_apartment(create_apartment_tester);
-        REQUIRE(var.get() == var2.get());
-        REQUIRE(ApartmentVariableTester::InstanceCount == 1);
-    }
-    REQUIRE(ApartmentVariableTester::InstanceCount == 0);
-
-}
-
-TEST_CASE("ComApartmentVariable::VerifyOnlyFunctionsArePassed", "[com][get_for_current_com_apartment]")
-{
-    if (!wil::are_apartment_variables_supported()) return;
-
-    // Uncomment these lines to verify that they don't compile.
-    auto lambda = []() { return 42; };
-    // wil::get_for_current_com_apartment(lambda);
-
-    std::function<bool()> function([]() { return 42; });
-    // wil::get_for_current_com_apartment(function);
-}
+wil::apartment_variable<int, mock_platform> g_v1; // 00007FF7091E9040
+wil::apartment_variable<int, mock_platform> av1, av2;
 
 TEST_CASE("ComApartmentVariable::VerifyApartmentVariable", "[com][apartment_variable]")
 {
-    if (!wil::are_apartment_variables_supported()) return;
+    auto coUninit = mock_platform::CoInitializeExForTesting(COINIT_MULTITHREADED);
 
-    auto coUninit = wil::CoInitializeEx(COINIT_MULTITHREADED);
+    std::ignore = g_v1.get_or_create(fn);
 
-    wil::apartment_variable<int> v1; // should be a global
+    wil::apartment_variable<int, mock_platform> v1; // 00000020E63CF6F4, should be a global
 
     REQUIRE(v1.get_if() == nullptr);
     REQUIRE(v1.get_or_create(fn) == 42);
@@ -172,6 +175,70 @@ TEST_CASE("ComApartmentVariable::VerifyApartmentVariable", "[com][apartment_vari
     REQUIRE(v1.get_existing() == 43);
     v1.clear();
     REQUIRE(v1.get_if() == nullptr);
+}
+
+TEST_CASE("ComApartmentVariable::VerifyApartmentVariableLifetimes", "[com][apartment_variable]")
+{
+    auto coUninit = mock_platform::CoInitializeExForTesting(COINIT_MULTITHREADED);
+
+    // auto fn() { return 42; };
+    // auto fn2() { return 43; };
+
+    {
+        auto coUninitInner = mock_platform::CoInitializeExForTesting(COINIT_MULTITHREADED);
+
+        auto v1 = av1.get_or_create(fn);
+        REQUIRE(av1.apartment_count() == 1);
+        auto v2 = av1.get_existing();
+        REQUIRE((av1.current_apartment_variable_count() == 1));
+        REQUIRE(v1 == v2);
+    }
+
+    {
+        auto coUninitInner = mock_platform::CoInitializeExForTesting(COINIT_MULTITHREADED);
+        auto v1 = av1.get_or_create(fn);
+        auto v2 = av2.get_or_create(fn2);
+        REQUIRE((av1.current_apartment_variable_count() == 2));
+        REQUIRE(v1 != v2);
+        REQUIRE(av1.apartment_count() == 1);
+    }
+
+    REQUIRE((wil::apartment_variable<int, mock_platform>::apartment_count() == 0));
+
+    {
+        auto coUninitInner = mock_platform::CoInitializeExForTesting(COINIT_MULTITHREADED);
+
+        auto v = av1.get_or_create(fn);
+        REQUIRE(av1.current_apartment_variable_count() == 1);
+
+        std::thread([&]() // join below makes this ok
+        {
+            auto coUninit = mock_platform::CoInitializeExForTesting(COINIT_APARTMENTTHREADED);
+            std::ignore = av1.get_or_create(fn);
+            REQUIRE(av1.apartment_count() == 2);
+            REQUIRE(av1.current_apartment_variable_count() == 1);
+        }).join();
+        REQUIRE(av1.apartment_count() == 1);
+
+        av1.get_or_create(fn)++;
+        v = av1.get_existing();
+        REQUIRE(v == 43);
+    }
+
+    {
+        auto coUninitInner = mock_platform::CoInitializeExForTesting(COINIT_MULTITHREADED);
+
+        std::ignore = av1.get_or_create(fn);
+        REQUIRE(av1.current_apartment_variable_count() == 1);
+        av1.set(1);
+        av1.clear();
+        REQUIRE(av1.current_apartment_variable_count() == 0);
+
+        // will fail fast since clear() was called.
+        // av1.set(1);
+    }
+
+    REQUIRE((wil::apartment_variable<int, mock_platform>::apartment_count() == 0));
 }
 
 #endif
