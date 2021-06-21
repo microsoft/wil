@@ -195,7 +195,7 @@ namespace wil
         };
     }
 
-    template<typename T, typename test_hook = apt_var_platform>
+    template<typename T, typename test_hook = details::apt_var_platform>
     struct apartment_variable : details::apartment_variable_base<test_hook>
     {
         using base = details::apartment_variable_base<test_hook>;
