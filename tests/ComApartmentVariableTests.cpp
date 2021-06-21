@@ -6,109 +6,6 @@
 
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
 
-auto fn() { return 42; };
-auto fn2() { return 43; };
-auto fn3() { return 42; };
-
-TEST_CASE("ComApartmentVariable::GetTests", "[com][get_for_current_com_apartment]")
-{
-    if (!wil::are_apartment_variables_supported()) { INFO("skipping " __FUNCDNAME__); return; }
-
-    {
-        auto coUninit = wil::CoInitializeEx(COINIT_MULTITHREADED);
-        auto v1 = wil::get_for_current_com_apartment(fn);
-        REQUIRE(wil::apartment_variable_count() == 1);
-        auto v2 = wil::get_for_current_com_apartment(fn);
-        REQUIRE(wil::apartment_variable_count() == 1);
-        REQUIRE(v1 == v2);
-    }
-
-    {
-        auto coUninit = wil::CoInitializeEx(COINIT_MULTITHREADED);
-        auto v1 = wil::get_for_current_com_apartment(fn);
-        auto v2 = wil::get_for_current_com_apartment(fn3); // unique functions get their own variable
-        REQUIRE(wil::apartment_variable_count() == 2);
-        REQUIRE(v1 == v2);
-        auto v3 = wil::get_for_current_com_apartment(fn2);
-        REQUIRE(v1 != v3);
-        REQUIRE(wil::apartment_variable_count() == 3);
-    }
-
-    {
-        auto coUninit = wil::CoInitializeEx(COINIT_MULTITHREADED);
-        auto v1 = wil::get_for_current_com_apartment(fn);
-        REQUIRE(wil::apartment_count() == 1);
-        REQUIRE(wil::apartment_variable_count() == 1);
-        auto v2 = wil::get_for_current_com_apartment(fn2);
-        REQUIRE(wil::apartment_count() == 1);
-        REQUIRE(v1 == 42);
-        REQUIRE(v2 == 43);
-        REQUIRE(wil::apartment_variable_count() == 2);
-    }
-
-    REQUIRE(wil::apartment_count() == 0);
-
-    {
-        auto coUninit = wil::CoInitializeEx(COINIT_MULTITHREADED);
-        wil::get_for_current_com_apartment(fn);
-        REQUIRE(wil::apartment_count() == 1);
-        REQUIRE(wil::apartment_variable_count() == 1);
-
-        std::thread([]()
-        {
-            auto coUninit = wil::CoInitializeEx(COINIT_APARTMENTTHREADED);
-            wil::get_for_current_com_apartment(fn);
-            REQUIRE(wil::apartment_count() == 2);
-            REQUIRE(wil::apartment_variable_count() == 1);
-        }).join();
-        REQUIRE(wil::apartment_count() == 1);
-
-        REQUIRE(wil::apartment_variable_count() == 1);
-    }
-
-    REQUIRE(wil::apartment_count() == 0);
-}
-
-TEST_CASE("ComApartmentVariable::ResetTests", "[com][reset_for_current_com_apartment]")
-{
-    if (!wil::are_apartment_variables_supported()) { INFO("skipping " __FUNCDNAME__); return; }
-
-    auto coUninit = wil::CoInitializeEx(COINIT_MULTITHREADED);
-
-    auto v = wil::get_for_current_com_apartment(fn);
-    REQUIRE(wil::apartment_variable_count() == 1);
-
-    wil::reset_for_current_com_apartment(fn, 43);
-    REQUIRE(wil::apartment_variable_count() == 1);
-    v = wil::get_for_current_com_apartment(fn);
-    REQUIRE(v == 43);
-
-    wil::reset_for_current_com_apartment(fn);
-    wil::reset_for_current_com_apartment(fn);
-    REQUIRE(wil::apartment_variable_count() == 0);
-
-    // No variable so nop
-    wil::reset_for_current_com_apartment(fn2);
-
-    // variable not present, will result in a fail fast
-    // wil::reset_for_current_com_apartment(fn2, 42);
-    v = wil::get_for_current_com_apartment(fn2);
-    REQUIRE(v == 43);
-
-    REQUIRE(wil::apartment_variable_count() == 1);
-
-    wil::reset_for_current_com_apartment(fn2);
-    REQUIRE(wil::apartment_variable_count() == 0);
-
-    v = wil::get_for_current_com_apartment(fn2);
-    wil::reset_for_current_com_apartment(fn2, 44);
-    REQUIRE(wil::apartment_variable_count() == 1);
-
-    v = wil::get_for_current_com_apartment(fn2);
-    REQUIRE(wil::apartment_variable_count() == 1);
-    REQUIRE(v == 44);
-}
-
 struct mock_platform
 {
     static unsigned long long GetApartmentId()
@@ -156,6 +53,8 @@ struct mock_platform
     }
 };
 
+auto fn() { return 42; };
+auto fn2() { return 43; };
 
 wil::apartment_variable<int, mock_platform> g_v1;
 
@@ -181,9 +80,6 @@ TEST_CASE("ComApartmentVariable::VerifyApartmentVariableLifetimes", "[com][apart
     auto coUninit = mock_platform::CoInitializeExForTesting(COINIT_MULTITHREADED);
 
     wil::apartment_variable<int, mock_platform> av1, av2;
-
-    // auto fn() { return 42; };
-    // auto fn2() { return 43; };
 
     {
         auto coUninitInner = mock_platform::CoInitializeExForTesting(COINIT_MULTITHREADED);
