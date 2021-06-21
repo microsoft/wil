@@ -27,7 +27,8 @@
 namespace wil
 {
     // Determine if apartment variables are supported in the current process context.
-    // Prior to https://microsoft.visualstudio.com/OS/_git/os.2020/pullrequest/5750493 the
+    // Prior to build 22365, the APIs needed to create apartment variables (e.g. RoGetApartmentIdentifier)
+    // failed for unpackaged processes. For MS people, see http://task.ms/31861017 for details.
     // APIs needed to implement apartment variables did not work in non-packaged processes.
     inline bool are_apartment_variables_supported()
     {
@@ -37,7 +38,7 @@ namespace wil
 
     namespace details
     {
-        inline winrt::slim_mutex s_lock;
+        inline winrt::slim_mutex s_apartmentStorageLock;
         // Apartment id -> variable storage. Variables are stored using the address of
         // the function that produces the value as the key.
         inline std::unordered_map<unsigned long long, std::unordered_map<const void*, std::any>> s_apartmentStorage;
@@ -54,7 +55,7 @@ namespace wil
         {
             const auto apartmentId = GetApartmentId();
 
-            auto lock = winrt::slim_lock_guard(details::s_lock);
+            auto lock = winrt::slim_lock_guard(details::s_apartmentStorageLock);
 
             auto storage = details::s_apartmentStorage.find(apartmentId);
             if (storage != details::s_apartmentStorage.end())
@@ -81,7 +82,7 @@ namespace wil
                         // extracting the variables under the lock then release them outside.
                         auto variables = [apartmentId]()
                         {
-                            auto lock = winrt::slim_lock_guard(details::s_lock);
+                            auto lock = winrt::slim_lock_guard(details::s_apartmentStorageLock);
                             return details::s_apartmentStorage.extract(apartmentId);
                         }();
                     }
@@ -102,7 +103,7 @@ namespace wil
         inline void reset_for_current_com_apartment(void const* variableKey)
         {
             const auto apartmentId = details::GetApartmentId();
-            auto lock = winrt::slim_lock_guard(details::s_lock);
+            auto lock = winrt::slim_lock_guard(details::s_apartmentStorageLock);
             auto storage = details::s_apartmentStorage.find(apartmentId);
             if (storage != details::s_apartmentStorage.end())
             {
@@ -119,7 +120,7 @@ namespace wil
 
             // release newAny, with the swapped value, outside of the lock
             {
-                auto lock = winrt::slim_lock_guard(details::s_lock);
+                auto lock = winrt::slim_lock_guard(details::s_apartmentStorageLock);
                 auto storage = details::s_apartmentStorage.find(apartmentId);
                 FAIL_FAST_IF(storage == details::s_apartmentStorage.end());
                 auto& variables = storage->second;
@@ -168,7 +169,7 @@ namespace wil
     {
         const auto apartmentId = details::GetApartmentId();
 
-        auto lock = winrt::slim_lock_guard(details::s_lock);
+        auto lock = winrt::slim_lock_guard(details::s_apartmentStorageLock);
         auto storage = details::s_apartmentStorage.find(apartmentId);
         if (storage != details::s_apartmentStorage.end())
         {
