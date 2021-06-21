@@ -90,8 +90,8 @@ TEST_CASE("ComApartmentVariable::ResetTests", "[com][reset_for_current_com_apart
     // No variable so nop
     wil::reset_for_current_com_apartment(fn2);
 
-    // variable not present, so this has no effect
-    wil::reset_for_current_com_apartment(fn2, 42);
+    // variable not present, will result in a fail fast
+    // wil::reset_for_current_com_apartment(fn2, 42);
     v = wil::get_for_current_com_apartment(fn2);
     REQUIRE(v == 43);
 
@@ -157,8 +157,7 @@ struct mock_platform
 };
 
 
-wil::apartment_variable<int, mock_platform> g_v1; // 00007FF7091E9040
-wil::apartment_variable<int, mock_platform> av1, av2;
+wil::apartment_variable<int, mock_platform> g_v1;
 
 TEST_CASE("ComApartmentVariable::VerifyApartmentVariable", "[com][apartment_variable]")
 {
@@ -166,7 +165,7 @@ TEST_CASE("ComApartmentVariable::VerifyApartmentVariable", "[com][apartment_vari
 
     std::ignore = g_v1.get_or_create(fn);
 
-    wil::apartment_variable<int, mock_platform> v1; // 00000020E63CF6F4, should be a global
+    wil::apartment_variable<int, mock_platform> v1;
 
     REQUIRE(v1.get_if() == nullptr);
     REQUIRE(v1.get_or_create(fn) == 42);
@@ -180,6 +179,8 @@ TEST_CASE("ComApartmentVariable::VerifyApartmentVariable", "[com][apartment_vari
 TEST_CASE("ComApartmentVariable::VerifyApartmentVariableLifetimes", "[com][apartment_variable]")
 {
     auto coUninit = mock_platform::CoInitializeExForTesting(COINIT_MULTITHREADED);
+
+    wil::apartment_variable<int, mock_platform> av1, av2;
 
     // auto fn() { return 42; };
     // auto fn2() { return 43; };

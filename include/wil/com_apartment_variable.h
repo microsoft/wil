@@ -139,7 +139,7 @@ namespace wil
     template<typename F>
     auto& get_for_current_com_apartment(F const* createFn)
     {
-        return std::any_cast<std::invoke_result_t<F>&>(details::get_for_current_com_apartment(std::addressof(createFn), [createFn]()
+        return std::any_cast<std::invoke_result_t<F>&>(details::get_for_current_com_apartment(static_cast<void*>(createFn), [createFn]()
         {
             return createFn();
         }));
@@ -151,7 +151,7 @@ namespace wil
     template<typename F>
     void reset_for_current_com_apartment(F const* createFn)
     {
-        details::reset_for_current_com_apartment(std::addressof(createFn));
+        details::reset_for_current_com_apartment(static_cast<void*>(createFn));
     }
 
     // Replace a variable with a new value. This requires (ensured via fail fast) that the
@@ -160,7 +160,7 @@ namespace wil
     template<typename F>
     void reset_for_current_com_apartment(F const* createFn, std::invoke_result_t<F>&& newValue)
     {
-        details::reset_for_current_com_apartment(std::addressof(createFn), std::forward<std::invoke_result_t<F>>(newValue));
+        details::reset_for_current_com_apartment(static_cast<void*>(createFn), std::forward<std::invoke_result_t<F>>(newValue));
     }
 
     // for testing
@@ -207,13 +207,11 @@ namespace wil
                 std::unordered_map<wil::details::apartment_variable_base<test_hook>*, std::any>>
                 s_apartmentStorage;
 
-            apartment_variable_base()
+            apartment_variable_base() = default;
+            ~apartment_variable_base()
             {
-                // TODO: ensure this is a global, investigate cases where address is not reliable due to re-use as stack variables.
-                // printf("%p\n", this);
+                clear();
             }
-
-            ~apartment_variable_base() = default;
 
             // non-copyable, non-assignable
             apartment_variable_base(apartment_variable_base const&) = delete;
