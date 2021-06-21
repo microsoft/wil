@@ -291,7 +291,7 @@ namespace wil
                 return nullptr;
             }
 
-            // replace or create the current value
+            // replace or create the current value, fail fasts if the value is not already stored
             void set(std::any value)
             {
                 // release value, with the swapped value, outside of the lock
@@ -363,7 +363,7 @@ namespace wil
         // get pointer to current value or nullptr if no value has been set
         T* get_if() { return std::any_cast<T>(base::get_if()); }
 
-        // replace or create the current value
+        // replace or create the current value, fail fasts if the value is not already stored
         void set(T&& value) { return base::set(std::forward<T>(value)); }
 
         // remove any current value
