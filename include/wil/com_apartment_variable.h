@@ -86,7 +86,7 @@ namespace wil
                 THROW_HR(E_NOT_SET);
             }
 
-            variables_map* get_current_apartment_variables()
+            static variables_map* get_current_apartment_variables()
             {
                 auto storage = s_apartmentStorage.find(test_hook::GetApartmentId());
                 if (storage != s_apartmentStorage.end())
@@ -151,12 +151,10 @@ namespace wil
             {
                 auto lock = winrt::slim_lock_guard(s_lock);
 
-                auto storage = s_apartmentStorage.find(test_hook::GetApartmentId());
-                if (storage != s_apartmentStorage.end())
+                if (auto variables = get_current_apartment_variables())
                 {
-                    auto& variables = storage->second;
-                    auto variable = variables.find(this);
-                    if (variable != variables.end())
+                    auto variable = variables->find(this);
+                    if (variable != variables->end())
                     {
                         return &(variable->second);
                     }
@@ -183,11 +181,9 @@ namespace wil
             void clear()
             {
                 auto lock = winrt::slim_lock_guard(s_lock);
-                auto storage = s_apartmentStorage.find(test_hook::GetApartmentId());
-                if (storage != s_apartmentStorage.end())
+                if (auto variables = get_current_apartment_variables())
                 {
-                    auto& variables = storage->second;
-                    variables.erase(this);
+                    variables->erase(this);
                 }
             }
 
@@ -201,10 +197,9 @@ namespace wil
             static size_t current_apartment_variable_count()
             {
                 auto lock = winrt::slim_lock_guard(s_lock);
-                auto storage = s_apartmentStorage.find(test_hook::GetApartmentId());
-                if (storage != s_apartmentStorage.end())
+                if (auto variables = get_current_apartment_variables())
                 {
-                    return storage->second.size();
+                    return variables->size();
                 }
                 return 0;
             }
@@ -228,10 +223,7 @@ namespace wil
         // get current value or custom-construct one on demand
         T& get_or_create(T(*creator)())
         {
-            return std::any_cast<T&>(base::get_or_create([creator]()
-            {
-                return std::any(creator());
-            }));
+            return std::any_cast<T&>(base::get_or_create(creator));
         }
 
         // get pointer to current value or nullptr if no value has been set
