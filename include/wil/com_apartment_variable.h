@@ -59,11 +59,12 @@ namespace wil
         struct apartment_variable_base
         {
             inline static winrt::slim_mutex s_lock;
+
+            using variables_map = std::unordered_map<apartment_variable_base<test_hook>*, std::any>;
+
             // Apartment id -> variable storage.
             // Variables are stored using the address of the global variable as the key.
-            inline static std::unordered_map<unsigned long long,
-                std::unordered_map<wil::details::apartment_variable_base<test_hook>*, std::any>>
-                s_apartmentStorage;
+            inline static std::unordered_map<unsigned long long, variables_map> s_apartmentStorage;
 
             apartment_variable_base() = default;
             ~apartment_variable_base()
@@ -85,50 +86,64 @@ namespace wil
                 THROW_HR(E_NOT_SET);
             }
 
+            variables_map* get_current_apartment_variables()
+            {
+                auto storage = s_apartmentStorage.find(test_hook::GetApartmentId());
+                if (storage != s_apartmentStorage.end())
+                {
+                    return &storage->second;
+                }
+                return nullptr;
+            }
+
+            variables_map* ensure_current_apartment_variables()
+            {
+                auto variables = get_current_apartment_variables();
+                if (variables)
+                {
+                    return variables;
+                }
+
+                struct ApartmentObserver : public winrt::implements<ApartmentObserver, IApartmentShutdown>
+                {
+                    void STDMETHODCALLTYPE OnUninitialize(unsigned long long apartmentId) noexcept override
+                    {
+                        // This code runs at apartment rundown so be careful to avoid deadlocks by
+                        // extracting the variables under the lock then release them outside.
+                        auto variables = [apartmentId]()
+                        {
+                            auto lock = winrt::slim_lock_guard(s_lock);
+                            return s_apartmentStorage.extract(apartmentId);
+                        }();
+                    }
+                };
+                test_hook::RegisterForApartmentShutdown(winrt::make<ApartmentObserver>().get());
+                return &s_apartmentStorage.insert({ test_hook::GetApartmentId(), {} }).first->second;
+            }
+
             // get current value or custom-construct one on demand
             std::any& get_or_create(const std::function<std::any()>& creator)
             {
-                const auto apartmentId = test_hook::GetApartmentId();
+                variables_map* variables{};
 
-                auto lock = winrt::slim_lock_guard(s_lock);
+                { // scope for lock
+                    auto lock = winrt::slim_lock_guard(s_lock);
+                    variables = ensure_current_apartment_variables();
 
-                auto storage = s_apartmentStorage.find(apartmentId);
-                if (storage != s_apartmentStorage.end())
-                {
-                    auto& variables = storage->second;
-                    auto variable = variables.find(this);
-                    if (variable != variables.end())
+                    auto variable = variables->find(this);
+                    if (variable != variables->end())
                     {
                         return variable->second;
                     }
-                    else
-                    {
-                        variable = variables.insert({ this, creator() }).first;
-                        return variable->second;
-                    }
-                }
-                else
-                {
-                    struct ApartmentObserver : public winrt::implements<ApartmentObserver, IApartmentShutdown>
-                    {
-                        void STDMETHODCALLTYPE OnUninitialize(unsigned long long apartmentId) noexcept override
-                        {
-                            // This code runs at apartment rundown so be careful to avoid deadlocks by
-                            // extracting the variables under the lock then release them outside.
-                            auto variables = [apartmentId]()
-                            {
-                                auto lock = winrt::slim_lock_guard(s_lock);
-                                return s_apartmentStorage.extract(apartmentId);
-                            }();
-                        }
-                    };
+                } // drop the lock
 
-                    test_hook::RegisterForApartmentShutdown(winrt::make<ApartmentObserver>().get());
+                // create the object outside the lock to avoid reentrancy deadlock
+                auto value = creator();
 
-                    auto variables = s_apartmentStorage.insert({ apartmentId,
-                        { { this, creator() } } }).first;
-                    return variables->second.begin()->second; // new map entry is first
-                }
+                auto insert_lock = winrt::slim_lock_guard(s_lock);
+                // The insertion may fail if creator() recursively caused itself to be created,
+                // in which case we return the existing object and the falsely-created one is discarded.
+                return variables->insert({ this, std::move(value) }).first->second;
             }
 
             // get pointer to current value or nullptr if no value has been set
@@ -176,6 +191,7 @@ namespace wil
                 }
             }
 
+            // methods for testing
             static size_t apartment_count()
             {
                 auto lock = winrt::slim_lock_guard(s_lock);
@@ -226,6 +242,7 @@ namespace wil
 
         // remove any current value
         using base::clear;
+        // for testing
         using base::apartment_count;
         using base::current_apartment_variable_count;
     };
