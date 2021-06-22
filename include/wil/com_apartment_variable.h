@@ -238,7 +238,7 @@ namespace wil
         T* get_if() { return std::any_cast<T>(base::get_if()); }
 
         // replace or create the current value, fail fasts if the value is not already stored
-        void set(T&& value) { return base::set(std::forward<T>(value)); }
+        template<typename U> void set(U&& value) { return base::set(std::forward<U>(value)); }
 
         // remove any current value
         using base::clear;

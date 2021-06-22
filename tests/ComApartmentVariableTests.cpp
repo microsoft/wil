@@ -68,7 +68,8 @@ TEST_CASE("ComApartmentVariable::VerifyApartmentVariable", "[com][apartment_vari
 
     REQUIRE(v1.get_if() == nullptr);
     REQUIRE(v1.get_or_create(fn) == 42);
-    v1.set(43);
+    int value = 43;
+    v1.set(value);
     REQUIRE(v1.get_or_create(fn) == 43);
     REQUIRE(v1.get_existing() == 43);
     v1.clear();
