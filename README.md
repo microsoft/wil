@@ -25,6 +25,7 @@ Some things that WIL includes to whet your appetite:
   Preprocessor macros to help you check for errors from Windows API functions,
   in many of the myriad ways those errors are reported, and surface them as
   error codes or C++ exceptions in your code.
+- TODO: Add documentation for telemetry headers
 
 WIL can be used by C++ code that uses C++ exceptions as well as code that uses returned
 error codes to report errors. All of WIL can be used from user-space Windows code,
