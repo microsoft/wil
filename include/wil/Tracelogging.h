@@ -10,11 +10,7 @@
 // Note that we avoid pulling in STL's memory header from TraceLogging.h through Resource.h as we have
 // TraceLogging customers who are still on older versions of STL (without std::shared_ptr<>).
 #define RESOURCE_SUPPRESS_STL
-<<<<<<< HEAD
-#include "Microsoft.Windows.Telemetry.Result.h"
-=======
 #include <wil/result.h>
->>>>>>> e99c787 (Adding Telemetry headers to public WIL package. These headers add convenience macros for defining and logging telemetry events. These event can be used for local tracing.)
 #undef RESOURCE_SUPPRESS_STL
 #include <winmeta.h>
 #include <TraceLoggingProvider.h>

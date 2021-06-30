@@ -7,13 +7,6 @@
 #ifndef __MICROSOFT_WINDOWS_TELEMETRY_RESULTMACROS_INCLUDED
 #define __MICROSOFT_WINDOWS_TELEMETRY_RESULTMACROS_INCLUDED
 
-<<<<<<< HEAD
-// Common.h contains logic and configuration macros common to all consumers in Windows and therefore needs to be
-// included before any 'opensource' headers
-#include "Microsoft.Windows.Telemetry.Common.h"
-
-=======
->>>>>>> e99c787 (Adding Telemetry headers to public WIL package. These headers add convenience macros for defining and logging telemetry events. These event can be used for local tracing.)
 #include <wil/result_macros.h>
 
 /// @cond
