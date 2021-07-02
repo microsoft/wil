@@ -261,10 +261,10 @@ WI_ODR_PRAGMA("WIL_KERNEL_MODE", "1")
 WI_ODR_PRAGMA("WIL_KERNEL_MODE", "0")
 #endif
 
-#if defined(_CPPUNWIND) && !defined(WIL_SUPPRESS_EXCEPTIONS)
+#if (defined(_CPPUNWIND) || defined(__EXCEPTIONS)) && !defined(WIL_SUPPRESS_EXCEPTIONS)
 /** This define is automatically set when exceptions are enabled within wil.
 It is automatically defined when your code is compiled with exceptions enabled (via checking for the built-in
-_CPPUNWIND flag) unless you explicitly define WIL_SUPPRESS_EXCEPTIONS ahead of including your first wil
+_CPPUNWIND or __EXCEPTIONS flag) unless you explicitly define WIL_SUPPRESS_EXCEPTIONS ahead of including your first wil
 header.  All exception-based WIL methods and classes are included behind:
 ~~~~
 #ifdef WIL_ENABLE_EXCEPTIONS
