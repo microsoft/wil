@@ -15,7 +15,7 @@
 #include <winmeta.h>
 #include <TraceLoggingProvider.h>
 #include <TraceLoggingActivity.h>
-#include <wil/telemetry/microsofttelemetry.h>
+#include <wil/traceloggingconfig.h>
 #ifndef TRACELOGGING_SUPPRESS_NEW
 #include <new>
 #endif
