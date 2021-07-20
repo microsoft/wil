@@ -9,36 +9,6 @@
 //    PARTICULAR PURPOSE AND NONINFRINGEMENT.
 //
 //*********************************************************
-/* ++
-
-Module Name:
-
-    TraceLoggingConfig.h
-
-Abstract:
-
-    Macro definitions used by this project's TraceLogging ETW providers:
-
-    - Configuration macros that select the ETW Provider Groups to be used by
-      this project.
-    - Constants for tags that are commonly used in Microsoft's
-      TraceLogging-based ETW.
-
-    Different versions of this file use different definitions for the
-    TraceLoggingOption configuration macros. The definitions in this file are
-    empty. By default the providers do not belong to any group. If developers would
-    like to specify a specific group for their provider, they must override the definition
-    to declare an explicit group. In the default state, the telemetry will not be uploaded to 
-    Microsoft. The local telemetry can be inspected using tools such as Windows Performance
-    Analyzer. 
-
-Environment:
-
-    User mode or kernel mode.
-
---*/
-
-#pragma once
 
 // Configuration macro for use in TRACELOGGING_DEFINE_PROVIDER. The definition
 // in this file configures the provider as a normal (non-telemetry) provider.
