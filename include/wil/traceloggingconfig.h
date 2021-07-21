@@ -10,6 +10,9 @@
 //
 //*********************************************************
 
+#ifndef __WIL_TRACELOGGING_CONFIG_H
+#define __WIL_TRACELOGGING_CONFIG_H
+
 // Configuration macro for use in TRACELOGGING_DEFINE_PROVIDER. The definition
 // in this file configures the provider as a normal (non-telemetry) provider.
 #define TraceLoggingOptionMicrosoftTelemetry() \
@@ -65,3 +68,4 @@
 //     ...);
 #define MICROSOFT_FIELDTAG_DROP_PII 0x04000000
 #define MICROSOFT_FIELDTAG_HASH_PII 0x08000000
+#endif // __WIL_TRACELOGGING_CONFIG_H
