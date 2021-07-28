@@ -5384,6 +5384,16 @@ namespace wil
     typedef weak_any<unique_file> weak_file;
 #endif // __WIL__INC_STDIO_STL
 
+#if defined(_INC_LOCALE) && !defined(__WIL_INC_LOCALE) && !defined(WIL_KERNEL_MODE)
+#define __WIL_INC_LOCALE
+    typedef unique_any<_locale_t, decltype(&::_free_locale), ::_free_locale> unique_locale;
+#endif // __WIL_INC_LOCALE
+#if defined(__WIL_INC_LOCALE) && !defined(__WIL__INC_LOCALE_STL) && defined(WIL_RESOURCE_STL)
+#define __WIL__INC_LOCALE_STL
+    typedef shared_any<unique_locale> shared_locale;
+    typedef weak_any<unique_locale> weak_locale;
+#endif // __WIL__INC_LOCALE_STL
+
 #if defined(_NTLSA_) && !defined(__WIL_NTLSA_) && !defined(WIL_KERNEL_MODE)
 #define __WIL_NTLSA_
     typedef unique_any<LSA_HANDLE, decltype(&::LsaClose), ::LsaClose> unique_hlsa;
