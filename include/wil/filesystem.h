@@ -113,7 +113,7 @@ namespace wil
     {
         if (::CreateDirectoryW(path, nullptr) == FALSE)
         {
-            DWORD const lastError = ::GetLastError();
+            DWORD lastError = ::GetLastError();
             if (lastError == ERROR_PATH_NOT_FOUND)
             {
                 size_t parentLength;
@@ -122,9 +122,16 @@ namespace wil
                     wistd::unique_ptr<wchar_t[]> parent(new (std::nothrow) wchar_t[parentLength + 1]);
                     RETURN_IF_NULL_ALLOC(parent.get());
                     RETURN_IF_FAILED(StringCchCopyNW(parent.get(), parentLength + 1, path, parentLength));
-                    CreateDirectoryDeepNoThrow(parent.get()); // recurs
+                    RETURN_IF_FAILED(CreateDirectoryDeepNoThrow(parent.get())); // recurs
                 }
-                RETURN_IF_WIN32_BOOL_FALSE(::CreateDirectoryW(path, nullptr));
+                if (::CreateDirectoryW(path, nullptr) == FALSE)
+                {
+                    lastError = ::GetLastError();
+                    if (lastError != ERROR_ALREADY_EXISTS)
+                    {
+                        RETURN_WIN32(lastError);
+                    }
+                }
             }
             else if (lastError != ERROR_ALREADY_EXISTS)
             {
