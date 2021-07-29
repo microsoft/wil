@@ -20,7 +20,7 @@
 
 // detect std::bit_cast
 #ifdef __has_include
-#  if __has_include(<bit>)
+#  if (__cplusplus >= 202002L || _MSVC_LANG >= 202002L) && __has_include(<bit>)
 #    include <bit>
 #  endif
 #endif
