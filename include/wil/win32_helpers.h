@@ -15,6 +15,7 @@
 #include <sysinfoapi.h> // GetSystemTimeAsFileTime
 #include <libloaderapi.h> // GetProcAddress
 #include <Psapi.h> // GetModuleFileNameExW (macro), K32GetModuleFileNameExW
+#include <winreg.h>
 #include <objbase.h>
 
 // detect std::bit_cast
@@ -422,7 +423,7 @@ namespace wil
     }
 
     template <typename string_type = wil::unique_cotaskmem_string, size_t initialBufferLength = 128>
-    string_type GetModuleFileNameW(HMODULE module)
+    string_type GetModuleFileNameW(HMODULE module = nullptr /* current process module */)
     {
         string_type result;
         THROW_IF_FAILED((wil::GetModuleFileNameW<string_type, initialBufferLength>(module, result)));
@@ -436,6 +437,73 @@ namespace wil
         THROW_IF_FAILED((wil::GetModuleFileNameExW<string_type, initialBufferLength>(process, module, result)));
         return result;
     }
+
+    template <typename string_type = wil::unique_cotaskmem_string, size_t stackBufferLength = 256>
+    string_type QueryFullProcessImageNameW(HANDLE processHandle = GetCurrentProcess(), DWORD flags = 0)
+    {
+        string_type result;
+        THROW_IF_FAILED((wil::QueryFullProcessImageNameW<string_type, stackBufferLength>(processHandle, flags, result)));
+        return result;
+    }
+
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
+
+    // Lookup a DWORD value under HKLM\...\Image File Execution Options\<current process name>
+    inline DWORD GetCurrentProcessExecutionOption(PCWSTR valueName, DWORD defaultValue = 0)
+    {
+        auto filePath = wil::GetModuleFileNameW<wil::unique_cotaskmem_string>();
+        if (auto lastSlash = wcsrchr(filePath.get(), L'\\'))
+        {
+            const auto fileName = lastSlash + 1;
+            auto keyPath = wil::str_concat<wil::unique_cotaskmem_string>(LR"(SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\)",
+                fileName);
+            DWORD value{}, sizeofValue = sizeof(value);
+            if (::RegGetValueW(HKEY_LOCAL_MACHINE, keyPath.get(), valueName,
+#ifdef RRF_SUBKEY_WOW6464KEY
+                RRF_RT_REG_DWORD | RRF_SUBKEY_WOW6464KEY,
+#else
+                RRF_RT_REG_DWORD,
+#endif
+                nullptr, &value, &sizeofValue) == ERROR_SUCCESS)
+            {
+                return value;
+            }
+        }
+        return defaultValue;
+    }
+
+    // Waits for a debugger to attach to the current process based on registry configuration.
+    //
+    // Example:
+    //     HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\explorer.exe
+    //         WaitForDebuggerPresent=1
+    //
+    // REG_DWORD value of
+    //     missing or 0 -> don't break
+    //     1 -> wait for the debugger, continue execution once it is attached
+    //     2 -> wait for the debugger, break here once attached.
+    inline void WaitForDebuggerPresent(bool checkRegistryConfig = true)
+    {
+        for (;;)
+        {
+            auto configValue = checkRegistryConfig ? GetCurrentProcessExecutionOption(L"WaitForDebuggerPresent") : 1;
+            if (configValue == 0)
+            {
+                return; // not configured, don't wait
+            }
+
+            if (IsDebuggerPresent())
+            {
+                if (configValue == 2)
+                {
+                    DebugBreak(); // debugger attached, SHIFT+F11 to return to the caller
+                }
+                return; // debugger now attached, continue executing
+            }
+            Sleep(500);
+        }
+    }
+#endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
 
 #endif
 
