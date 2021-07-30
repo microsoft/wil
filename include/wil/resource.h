@@ -2695,7 +2695,7 @@ namespace wil
     typedef unique_any_t<event_t<details::unique_storage<details::handle_resource_policy>, err_exception_policy>>      unique_event;
 #endif
 
-#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && (_WIN32_WINNT >= _WIN32_WINNT_WIN8)
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && ((_WIN32_WINNT >= _WIN32_WINNT_WIN8) || (__WIL_RESOURCE_ENABLE_QUIRKS && (_WIN32_WINNT >= _WIN32_WINNT_WIN7)))
     enum class SlimEventType
     {
         AutoReset,
@@ -5361,10 +5361,13 @@ namespace wil
     typedef unique_any<HTHEME, decltype(&::CloseThemeData), ::CloseThemeData> unique_htheme;
 #endif // __WIL_INC_UXTHEME
 
+#pragma warning(push)
+#pragma warning(disable:4995)
 #if defined(_INC_USERENV) && !defined(__WIL_INC_USERENV) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM) && !defined(WIL_KERNEL_MODE)
 #define __WIL_INC_USERENV
     typedef unique_any<void*, decltype(&::DestroyEnvironmentBlock), ::DestroyEnvironmentBlock> unique_environment_block;
 #endif // __WIL_INC_USERENV
+#pragma warning(pop)
 
 #if defined(_WINSVC_) && !defined(__WIL_HANDLE_H_WINSVC) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && !defined(WIL_KERNEL_MODE)
 #define __WIL_HANDLE_H_WINSVC
