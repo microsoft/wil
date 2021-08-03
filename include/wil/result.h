@@ -312,7 +312,7 @@ namespace wil
             SemaphoreValue m_value;
             T m_data;
 
-            static HRESULT MakeAndInitialize(PCWSTR name, unique_mutex_nothrow&& mutex, ProcessLocalStorageData<T>** data)
+            static HRESULT MakeAndInitialize(PCWSTR name, unique_mutex_nothrow&& mutex, _Outptr_result_nullonfailure_ ProcessLocalStorageData<T>** data)
             {
                 *data = nullptr;
 

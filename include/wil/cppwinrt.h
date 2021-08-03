@@ -314,6 +314,25 @@ namespace wil
         winrt::check_hresult(from->QueryInterface(winrt::guid_of<T>(), winrt::put_abi(to)));
         return to;
     }
+
+    // For obtaining an object from an interop method on the factory. Example:
+    // winrt::InputPane inputPane = wil::capture_interop<winrt::InputPane>(&IInputPaneInterop::GetForWindow, hwnd);
+    // If the method produces something different from the factory type:
+    // winrt::IAsyncAction action = wil::capture_interop<winrt::IAsyncAction, winrt::AccountsSettingsPane>(&IAccountsSettingsPaneInterop::ShowAddAccountForWindow, hwnd);
+    template<typename WinRTResult, typename WinRTFactory = WinRTResult, typename Interface, typename... InterfaceArgs, typename... Args>
+    auto capture_interop(HRESULT(__stdcall Interface::* method)(InterfaceArgs...), Args&&... args)
+    {
+        auto interop = winrt::get_activation_factory<WinRTFactory, Interface>();
+        return winrt::capture<WinRTResult>(interop, method, std::forward<Args>(args)...);
+    }
+
+    // For obtaining an object from an interop method on an instance. Example:
+    // winrt::UserActivitySession session = wil::capture_interop<winrt::UserActivitySession>(activity, &IUserActivityInterop::CreateSessionForWindow, hwnd);
+    template<typename WinRTResult, typename Interface, typename... InterfaceArgs, typename... Args>
+    auto capture_interop(winrt::Windows::Foundation::IUnknown const& o, HRESULT(__stdcall Interface::* method)(InterfaceArgs...), Args&&... args)
+    {
+        return winrt::capture<WinRTResult>(o.as<Interface>(), method, std::forward<Args>(args)...);
+    }
 }
 
 #endif // __WIL_CPPWINRT_INCLUDED
