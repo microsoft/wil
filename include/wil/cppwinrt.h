@@ -335,4 +335,210 @@ namespace wil
     }
 }
 
+#if (defined(__cpp_lib_coroutine) && (__cpp_lib_coroutine >= 201902L)) || defined(_RESUMABLE_FUNCTIONS_SUPPORTED)
+
+#if defined(_RESUMABLE_FUNCTIONS_SUPPORTED)
+#include <experimental/coroutine>
+namespace wil::details
+{
+    template<typename T = void> using coroutine_handle = std::experimental::coroutine_handle<T>;
+}
+#else
+#include <coroutine>
+namespace wil::details
+{
+    template<typename T = void> using coroutine_handle = std::coroutine_handle<T>;
+}
+#endif
+
+/// @cond
+
+namespace winrt::Windows::UI::Core
+{
+    struct CoreDispatcher;
+    enum class CoreDispatcherPriority;
+    struct DispatchedHandler;
+}
+
+namespace winrt::Windows::System
+{
+    struct DispatcherQueue;
+    enum class DispatcherQueuePriority;
+    struct DispatcherQueueHandler;
+}
+
+namespace winrt::Microsoft::System
+{
+    struct DispatcherQueue;
+    enum class DispatcherQueuePriority;
+    struct DispatcherQueueHandler;
+}
+
+namespace winrt::Microsoft::UI::Dispatching
+{
+    struct DispatcherQueue;
+    enum class DispatcherQueuePriority;
+    struct DispatcherQueueHandler;
+}
+/// @endcond
+
+namespace wil
+{
+    /// @cond
+    namespace details
+    {
+        struct dispatcher_RunAsync
+        {
+            template<typename Dispatcher, typename... Args>
+            static void Queue(Dispatcher const& dispatcher, Args&&... args)
+            {
+                dispatcher.RunAsync(std::forward<Args>(args)...);
+            }
+        };
+
+        struct dispatcher_TryEnqueue
+        {
+            template<typename Dispatcher,typename... Args>
+            static void Queue(Dispatcher const& dispatcher, Args&&... args)
+            {
+                dispatcher.TryEnqueue(std::forward<Args>(args)...);
+            }
+        };
+
+        template<typename Dispatcher> struct dispatcher_traits;
+
+        template<>
+        struct dispatcher_traits<winrt::Windows::UI::Core::CoreDispatcher>
+        {
+            using Priority = winrt::Windows::UI::Core::CoreDispatcherPriority;
+            using Handler = winrt::Windows::UI::Core::DispatchedHandler;
+            using Queuer = dispatcher_RunAsync;
+        };
+
+        template<>
+        struct dispatcher_traits<winrt::Windows::System::DispatcherQueue>
+        {
+            using Priority = winrt::Windows::System::DispatcherQueuePriority;
+            using Handler = winrt::Windows::System::DispatcherQueueHandler;
+            using Queuer = dispatcher_TryEnqueue;
+        };
+
+        template<>
+        struct dispatcher_traits<winrt::Microsoft::System::DispatcherQueue>
+        {
+            using Priority = winrt::Microsoft::System::DispatcherQueuePriority;
+            using Handler = winrt::Microsoft::System::DispatcherQueueHandler;
+            using Queuer = dispatcher_TryEnqueue;
+        };
+
+        template<>
+        struct dispatcher_traits<winrt::Microsoft::UI::Dispatching::DispatcherQueue>
+        {
+            using Priority = winrt::Microsoft::UI::Dispatching::DispatcherQueuePriority;
+            using Handler = winrt::Microsoft::UI::Dispatching::DispatcherQueueHandler;
+            using Queuer = dispatcher_TryEnqueue;
+        };
+
+        struct dispatched_handler_state
+        {
+            details::coroutine_handle<> handle;
+            bool orphaned = false;
+        };
+
+        struct dispatcher_handler
+        {
+            dispatcher_handler(dispatched_handler_state* state) : m_state(state) { }
+            dispatcher_handler(dispatcher_handler&& other) noexcept : m_state(std::exchange(other.m_state, {})) {}
+
+            ~dispatcher_handler()
+            {
+                if (m_state && m_state->handle)
+                {
+                    m_state->orphaned = true;
+                    Complete();
+                }
+            }
+            void operator()()
+            {
+                Complete();
+            }
+
+            void Complete()
+            {
+                auto state = std::exchange(m_state, nullptr);
+                std::exchange(state->handle, {}).resume();
+            }
+
+            dispatched_handler_state* m_state;
+        };
+    }
+    /// @endcond
+
+    //! Resumes coroutine execution on the thread associated with the dispatcher, or throws
+    //! an exception (from an arbitrary thread) if unable. Supported dispatchers are
+    //! Windows.System.DispatcherQueue, Microsoft.System.DispatcherQueue,
+    //! Microsoft.UI.Dispatching.DispatcherQueue, and Windows.UI.Core.CoreDispatcher.
+    template<typename Dispatcher>
+    [[nodiscard]] auto resume_foreground(Dispatcher const& dispatcher,
+        typename details::dispatcher_traits<Dispatcher>::Priority priority = details::dispatcher_traits<Dispatcher>::Priority::Normal)
+    {
+        using Traits = details::dispatcher_traits<Dispatcher>;
+        using Priority = typename Traits::Priority;
+        using Handler = typename Traits::Handler;
+
+        struct awaitable
+        {
+            awaitable(Dispatcher const& dispatcher, Priority priority) noexcept :
+                m_dispatcher(dispatcher),
+                m_priority(priority)
+            {
+            }
+            bool await_ready() const noexcept { return false; }
+
+            void await_suspend(details::coroutine_handle<> handle)
+            {
+                m_state.handle = handle;
+                Handler handler{ details::dispatcher_handler(&m_state) };
+                try
+                {
+                    Traits::Queuer::Queue(m_dispatcher, m_priority, handler);
+                }
+                catch (...)
+                {
+                    m_state.handle = nullptr; // the exception will resume the coroutine, so the handler shouldn't do it
+                    throw;
+                }
+            }
+
+            void await_resume() const
+            {
+                if (m_state.orphaned)
+                {
+                    throw winrt::hresult_error(HRESULT_FROM_WIN32(ERROR_NO_TASK_QUEUE));
+                }
+            }
+
+        private:
+            Dispatcher const& m_dispatcher;
+            Priority const m_priority;
+            details::dispatched_handler_state m_state;
+        };
+        return awaitable{ dispatcher, priority };
+    }
+}
+
+#ifdef WIL_DELETE_WINRT_RESUME_FOREGROUND
+namespace winrt
+{
+    /// @cond
+    auto resume_foreground(Windows::UI::Core::CoreDispatcher const&, Windows::UI::Core::CoreDispatcherPriority = {}, int = 0) = delete;
+    auto resume_foreground(Windows::System::DispatcherQueue const&, Windows::System::DispatcherQueuePriority = {}, int = 0) = delete;
+    auto resume_foreground(Microsoft::System::DispatcherQueue const&, Microsoft::System::DispatcherQueuePriority = {}, int = 0) = delete;
+    auto resume_foreground(Microsoft::UI::Dispatching::DispatcherQueue const&, Microsoft::UI::Dispatching::DispatcherQueuePriority = {}, int = 0) = delete;
+    /// @endcond
+}
+#endif // WIL_DELETE_WINRT_RESUME_FOREGROUND
+
+#endif // C++20 coroutines supported
+
 #endif // __WIL_CPPWINRT_INCLUDED
