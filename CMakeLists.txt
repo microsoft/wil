@@ -32,6 +32,7 @@ endif()
 # Gather headers into an interface library.
 file(GLOB_RECURSE HEADER_FILES "${PROJECT_SOURCE_DIR}/include/${PROJECT_NAME}/*.h")
 add_library(${PROJECT_NAME} INTERFACE)
+add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 
 # The interface's include directory.
 target_include_directories(${PROJECT_NAME} INTERFACE
