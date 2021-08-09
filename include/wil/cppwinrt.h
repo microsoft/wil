@@ -337,6 +337,7 @@ namespace wil
 
 #if (defined(__cpp_lib_coroutine) && (__cpp_lib_coroutine >= 201902L)) || defined(_RESUMABLE_FUNCTIONS_SUPPORTED)
 
+/// @cond
 #if defined(_RESUMABLE_FUNCTIONS_SUPPORTED)
 #include <experimental/coroutine>
 namespace wil::details
@@ -350,8 +351,6 @@ namespace wil::details
     template<typename T = void> using coroutine_handle = std::coroutine_handle<T>;
 }
 #endif
-
-/// @cond
 
 namespace winrt::Windows::UI::Core
 {
@@ -390,7 +389,7 @@ namespace wil
         struct dispatcher_RunAsync
         {
             template<typename Dispatcher, typename... Args>
-            static void Queue(Dispatcher const& dispatcher, Args&&... args)
+            static void Schedule(Dispatcher const& dispatcher, Args&&... args)
             {
                 dispatcher.RunAsync(std::forward<Args>(args)...);
             }
@@ -399,7 +398,7 @@ namespace wil
         struct dispatcher_TryEnqueue
         {
             template<typename Dispatcher,typename... Args>
-            static void Queue(Dispatcher const& dispatcher, Args&&... args)
+            static void Schedule(Dispatcher const& dispatcher, Args&&... args)
             {
                 dispatcher.TryEnqueue(std::forward<Args>(args)...);
             }
@@ -412,7 +411,7 @@ namespace wil
         {
             using Priority = winrt::Windows::UI::Core::CoreDispatcherPriority;
             using Handler = winrt::Windows::UI::Core::DispatchedHandler;
-            using Queuer = dispatcher_RunAsync;
+            using Scheduler = dispatcher_RunAsync;
         };
 
         template<>
@@ -420,7 +419,7 @@ namespace wil
         {
             using Priority = winrt::Windows::System::DispatcherQueuePriority;
             using Handler = winrt::Windows::System::DispatcherQueueHandler;
-            using Queuer = dispatcher_TryEnqueue;
+            using Scheduler = dispatcher_TryEnqueue;
         };
 
         template<>
@@ -428,7 +427,7 @@ namespace wil
         {
             using Priority = winrt::Microsoft::System::DispatcherQueuePriority;
             using Handler = winrt::Microsoft::System::DispatcherQueueHandler;
-            using Queuer = dispatcher_TryEnqueue;
+            using Scheduler = dispatcher_TryEnqueue;
         };
 
         template<>
@@ -436,7 +435,7 @@ namespace wil
         {
             using Priority = winrt::Microsoft::UI::Dispatching::DispatcherQueuePriority;
             using Handler = winrt::Microsoft::UI::Dispatching::DispatcherQueueHandler;
-            using Queuer = dispatcher_TryEnqueue;
+            using Scheduler = dispatcher_TryEnqueue;
         };
 
         struct dispatched_handler_state
@@ -501,7 +500,9 @@ namespace wil
                 Handler handler{ details::dispatcher_handler(&m_state) };
                 try
                 {
-                    Traits::Queuer::Queue(m_dispatcher, m_priority, handler);
+                    // The return value of Schedule is not reliable. Use the dispatcher_handler destructor
+                    // to detect whether the work item failed to run.
+                    Traits::Scheduler::Schedule(m_dispatcher, m_priority, handler);
                 }
                 catch (...)
                 {
@@ -526,19 +527,6 @@ namespace wil
         return awaitable{ dispatcher, priority };
     }
 }
-
-#ifdef WIL_DELETE_WINRT_RESUME_FOREGROUND
-namespace winrt
-{
-    /// @cond
-    auto resume_foreground(Windows::UI::Core::CoreDispatcher const&, Windows::UI::Core::CoreDispatcherPriority = {}, int = 0) = delete;
-    auto resume_foreground(Windows::System::DispatcherQueue const&, Windows::System::DispatcherQueuePriority = {}, int = 0) = delete;
-    auto resume_foreground(Microsoft::System::DispatcherQueue const&, Microsoft::System::DispatcherQueuePriority = {}, int = 0) = delete;
-    auto resume_foreground(Microsoft::UI::Dispatching::DispatcherQueue const&, Microsoft::UI::Dispatching::DispatcherQueuePriority = {}, int = 0) = delete;
-    /// @endcond
-}
-#endif // WIL_DELETE_WINRT_RESUME_FOREGROUND
-
 #endif // C++20 coroutines supported
 
 #endif // __WIL_CPPWINRT_INCLUDED

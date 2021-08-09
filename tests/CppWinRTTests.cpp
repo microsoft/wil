@@ -146,7 +146,7 @@ TEST_CASE("CppWinRTTests::CppWinRTConsistencyTest", "[cppwinrt]")
 
 #if (defined(__cpp_lib_coroutine) && (__cpp_lib_coroutine >= 201902L)) || defined(_RESUMABLE_FUNCTIONS_SUPPORTED)
 
-// Define our own custom dispatcher that we can force to be have in certain ways.
+// Define our own custom dispatcher that we can force it to behave in certain ways.
 // wil::resume_foreground supports any dispatcher that has a dispatcher_traits.
 
 namespace test
@@ -209,7 +209,7 @@ namespace wil::details
     {
         using Priority = test::TestDispatcherPriority;
         using Handler = test::TestDispatcherHandler;
-        using Queuer = dispatcher_TryEnqueue;
+        using Scheduler = dispatcher_TryEnqueue;
     };
 }
 
@@ -223,11 +223,11 @@ TEST_CASE("CppWinRTTests::ResumeForegroundTests", "[cppwinrt]")
         dispatcher.mode = test::TestDispatcherMode::Dispatch;
         co_await wil::resume_foreground(dispatcher);
 
-        // Race case: Resumes on new thread, race condition (handler runs before TryEnqueue returns)
+        // Race case: Resumes before TryEnqueue returns.
         dispatcher.mode = test::TestDispatcherMode::RaceDispatch;
         co_await wil::resume_foreground(dispatcher);
 
-        // Orphan case: Never resumes, detected when handler is destructed.
+        // Orphan case: Never resumes, detected when handler is destructed without ever being invoked.
         dispatcher.mode = test::TestDispatcherMode::Orphan;
         bool seen = false;
         try
@@ -240,7 +240,7 @@ TEST_CASE("CppWinRTTests::ResumeForegroundTests", "[cppwinrt]")
         }
         REQUIRE(seen);
 
-        // Fail case: Can't even queue the handler.
+        // Fail case: Can't even schedule the resumption.
         dispatcher.mode = test::TestDispatcherMode::Fail;
         seen = false;
         try
