@@ -49,7 +49,8 @@
     * | Exception in abandoned coroutine                    | Crash     | Ignored   | Crash         |
     * | Coroutine starts automatically                      | Yes       | Yes       | Yes           |
     * | Coroutine starts synchronously                      | No        | Yes       | Yes           |
-    *
+    * | Integrates with C++/WinRT coroutine callouts        | No        | Yes       | No            |
+    * 
     * [1] Resumption in the same COM context requires that you include COM headers.
     * [2] Synchronous waiting requires that you include <synchapi.h> (usually via <windows.h>).
     *
