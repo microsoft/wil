@@ -16,6 +16,7 @@
 #include <unknwn.h>
 #include <inspectable.h>
 #include <hstring.h>
+#include "resource.h"
 
 // WIL and C++/WinRT use two different exception types for communicating HRESULT failures. Thus, both libraries need to
 // understand how to translate these exception types into the correct HRESULT values at the ABI boundary. Prior to
@@ -332,6 +333,22 @@ namespace wil
     auto capture_interop(winrt::Windows::Foundation::IUnknown const& o, HRESULT(__stdcall Interface::* method)(InterfaceArgs...), Args&&... args)
     {
         return winrt::capture<WinRTResult>(o.as<Interface>(), method, std::forward<Args>(args)...);
+    }
+
+    namespace details
+    {
+        inline void decrement_winrt_module_ref() noexcept
+        {
+            --winrt::get_module_lock();
+        }
+    }
+
+    using unique_winrt_module_ref = unique_call<decltype(details::decrement_winrt_module_ref), &details::decrement_winrt_module_ref>;
+
+    [[nodiscard]] unique_winrt_module_ref lock_winrt_module() noexcept
+    {
+        ++winrt::get_module_lock();
+        return unique_winrt_module_ref();
     }
 }
 

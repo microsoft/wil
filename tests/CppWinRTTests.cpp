@@ -142,3 +142,32 @@ TEST_CASE("CppWinRTTests::CppWinRTConsistencyTest", "[cppwinrt]")
     // NOTE: C++/WinRT maps other 'std::exception' derived exceptions to E_FAIL, however we preserve the WIL behavior
     // that such exceptions become HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION)
 }
+
+TEST_CASE("CppWinRTTests::ModuleReference", "[cppwinrt]")
+{
+    auto peek_module_ref_count = []()
+    {
+        ++winrt::get_module_lock();
+        return --winrt::get_module_lock();
+    };
+
+    auto initial = peek_module_ref_count();
+    {
+        auto cleanup = wil::lock_winrt_module();
+        REQUIRE(peek_module_ref_count() == initial + 1);
+    }
+    REQUIRE(peek_module_ref_count() == initial);
+
+    // Verify that cleanup can be std::move'd.
+    {
+        auto other_cleanup = wil::unique_winrt_module_ref(false);
+        REQUIRE(peek_module_ref_count() == initial);
+        {
+            auto cleanup = wil::lock_winrt_module();
+            REQUIRE(peek_module_ref_count() == initial + 1);
+            other_cleanup = std::move(cleanup);
+        }
+        REQUIRE(peek_module_ref_count() == initial + 1);
+    }
+    REQUIRE(peek_module_ref_count() == initial);
+}
