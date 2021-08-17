@@ -5,11 +5,15 @@ include(GNUInstallDirs)
 
 # Set by build server to speed up build/reduce file/object size
 option(FAST_BUILD "Sets options to speed up build/reduce obj/executable size" OFF)
-option(WIL_BUILD_PACKAGING "Sets option to build the packaging, default on" On)
-option(WIL_BUILD_TESTS "Sets option to build the unit tests, default on" On)
+option(WIL_BUILD_PACKAGING "Sets option to build the packaging, default on" ON)
+option(WIL_BUILD_TESTS "Sets option to build the unit tests, default on" ON)
 
 if (NOT DEFINED WIL_BUILD_VERSION)
     set(WIL_BUILD_VERSION "0.0.0")
+endif()
+
+if (NOT DEFINED CPPWINRT_VERSION)
+    set(CPPWINRT_VERSION "2.0.210806.1")
 endif()
 
 # Detect the Windows SDK version. If we're using the Visual Studio generator, this will be provided for us. Otherwise
