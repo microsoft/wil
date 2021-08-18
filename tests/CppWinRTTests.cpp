@@ -144,6 +144,22 @@ TEST_CASE("CppWinRTTests::CppWinRTConsistencyTest", "[cppwinrt]")
     // that such exceptions become HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION)
 }
 
+TEST_CASE("CppWinRTTests::ModuleReference", "[cppwinrt]")
+{
+    auto peek_module_ref_count = []()
+    {
+        ++winrt::get_module_lock();
+        return --winrt::get_module_lock();
+    };
+
+    auto initial = peek_module_ref_count();
+    {
+        auto module_ref = wil::winrt_module_reference();
+        REQUIRE(peek_module_ref_count() == initial + 1);
+    }
+    REQUIRE(peek_module_ref_count() == initial);
+}
+
 #if (defined(__cpp_lib_coroutine) && (__cpp_lib_coroutine >= 201902L)) || defined(_RESUMABLE_FUNCTIONS_SUPPORTED)
 
 // Define our own custom dispatcher that we can force it to behave in certain ways.
