@@ -252,7 +252,8 @@ namespace wil
                 if (ProcessShutdownInProgress())
                 {
                     // There are no other threads to contend with.
-                    if (--m_refCount == 0)
+                    m_refCount = m_refCount - 1;
+                    if (m_refCount == 0)
                     {
                         m_data.ProcessShutdown();
                     }
@@ -260,7 +261,8 @@ namespace wil
                 else
                 {
                     auto lock = m_mutex.acquire();
-                    if (--m_refCount == 0)
+                    m_refCount = m_refCount - 1;
+                    if (m_refCount == 0)
                     {
                         // We must explicitly destroy our semaphores while holding the mutex
                         m_value.Destroy();
@@ -295,7 +297,7 @@ namespace wil
                 if (pointer)
                 {
                     *data = reinterpret_cast<ProcessLocalStorageData<T>*>(pointer);
-                    (*data)->m_refCount++;
+                    (*data)->m_refCount = (*data)->m_refCount + 1;
                 }
                 else
                 {
@@ -312,7 +314,7 @@ namespace wil
             SemaphoreValue m_value;
             T m_data;
 
-            static HRESULT MakeAndInitialize(PCWSTR name, unique_mutex_nothrow&& mutex, ProcessLocalStorageData<T>** data)
+            static HRESULT MakeAndInitialize(PCWSTR name, unique_mutex_nothrow&& mutex, _Outptr_result_nullonfailure_ ProcessLocalStorageData<T>** data)
             {
                 *data = nullptr;
 
