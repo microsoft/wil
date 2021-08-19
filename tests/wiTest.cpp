@@ -3519,9 +3519,28 @@ TEST_CASE("WindowsInternalTests::ModuleReference", "[wrl]")
     };
 
     auto initial = peek_module_ref_count();
+
+    // Basic test: Construct and destruct.
     {
         auto module_ref = wil::wrl_module_reference();
         REQUIRE(peek_module_ref_count() == initial + 1);
+    }
+    REQUIRE(peek_module_ref_count() == initial);
+
+    // Fancy test: Copy object with embedded reference.
+    {
+        struct object_with_ref
+        {
+            wil::wrl_module_reference ref;
+        };
+        object_with_ref o1;
+        REQUIRE(peek_module_ref_count() == initial + 1);
+        auto o2 = o1;
+        REQUIRE(peek_module_ref_count() == initial + 2);
+        o1 = o2;
+        REQUIRE(peek_module_ref_count() == initial + 2);
+        o2 = std::move(o1);
+        REQUIRE(peek_module_ref_count() == initial + 2);
     }
     REQUIRE(peek_module_ref_count() == initial);
 }

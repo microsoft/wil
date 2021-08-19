@@ -397,6 +397,9 @@ namespace wil
         {
             ++winrt::get_module_lock();
         }
+
+        winrt_module_reference(winrt_module_reference const&) : winrt_module_reference() {}
+
         ~winrt_module_reference()
         {
             --winrt::get_module_lock();

@@ -101,6 +101,8 @@ namespace wil
             }
         }
 
+        wrl_module_reference(wrl_module_reference const&) : wrl_module_reference() {}
+
         ~wrl_module_reference()
         {
             if (auto modulePtr = ::Microsoft::WRL::GetModuleBase())
