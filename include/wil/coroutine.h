@@ -10,12 +10,12 @@
     *   in which case unobserved exceptions are fatal.
     * - The awaiting coroutine may be destroyed while suspended.
     *   (Don't worry if you don't know what this means.)
-    * - By default, simple_agile_task resumes in an arbitrary COM context.
-    * - By default, simple_task resumes in the same COM context.
-    * - task.resume_any_context() forces agile behavior.
-    * - task.resume_same_context() forces non-agile behavior.
+    * - By default, wil::task resumes on an arbitrary thread.
+    * - By default, wil::com_task resumes in the same COM apartment.
+    * - task.resume_any_thread() allows resumption on any thread.
+    * - task.resume_same_apartment() forces resumption in the same COM apartment.
     *
-    * The simple_task and simple_agile_task are intended to supplement PPL and C++/WinRT,
+    * The wil::task and wil::com_task are intended to supplement PPL and C++/WinRT,
     * not to replace them. It provides coroutine implementations for scenarios that PPL
     * and C++/WinRT do not support.
     *
@@ -26,7 +26,7 @@
     *
     * Comparison with PPL and C++/WinRT:
     *
-    * |                                                     | PPL       | C++/WinRT | simple_*_task |
+    * |                                                     | PPL       | C++/WinRT | wil::*task    |
     * |-----------------------------------------------------|-----------|-----------|---------------|
     * | T can be non-constructible                          | No        | Yes       | Yes           |
     * | T can be void                                       | Yes       | Yes       | Yes           |
@@ -51,7 +51,7 @@
     * | Coroutine starts synchronously                      | No        | Yes       | Yes           |
     * | Integrates with C++/WinRT coroutine callouts        | No        | Yes       | No            |
     * 
-    * [1] Resumption in the same COM context requires that you include COM headers.
+    * [1] Resumption in the same COM apartment requires that you include COM headers.
     * [2] Synchronous waiting requires that you include <synchapi.h> (usually via <windows.h>).
     *
     * You can include the COM headers and/or synchapi.h headers, and then
@@ -61,49 +61,49 @@
     * Examples:
     *
     * Implement a coroutine that returns a move-only non-WinRT type
-    * and which resumes in the same context in which it was called.
+    * and which resumes on an arbitrary thread.
     *
-    * wil::simple_task<wil::unique_cotaskmem_string> GetNameAsync()
+    * wil::task<wil::unique_cotaskmem_string> GetNameAsync()
     * {
     *     co_await resume_background(); // do work on BG thread
     *     wil::unique_cotaskmem_string name;
     *     THROW_IF_FAILED(GetNameSlow(&name));
-    *     co_return name; // awaiter will switch back to original context
+    *     co_return name; // awaiter will resume on arbitrary thread
     * }
     *
     * Consumers:
     *
     * winrt::IAsyncAction UpdateNameAsync()
     * {
-    *     // simple_task resumes on the same COM context
+    *     // wil::task resumes on an arbitrary thread.
     *     auto name = co_await GetNameAsync();
-    *     // so we are still on the UI thread
-    *     NameElement().Text(winrt::hstring(name.get()));
-    * }
-    *
-    * winrt::IAsyncAction UpdateNameAsync()
-    * {
-    *     // override default behavior of simple_task and
-    *     // allow it to resume on any thread.
-    *     auto name = co_await GetNameAsync().resume_any_context();
     *     // could be on any thread now
     *     co_await SendNameAsync(name.get());
     * }
     *
-    * Conversely, you can define a coroutine that returns a
-    * wil::simple_agile_task<T> and it will default to resuming
-    * on any thread, but you can force it to resume in the same
-    * COM context by doing co_await GetNameAsync().resume_same_context().
+    * winrt::IAsyncAction UpdateNameAsync()
+    * {
+    *     // override default behavior of wil::task and
+    *     // force it to resume in the same COM apartment.
+    *     auto name = co_await GetNameAsync().resume_same_apartment();
+    *     // so we are still on the UI thread
+    *     NameElement().Text(winrt::hstring(name.get()));
+    * }
     *
-    * There is no harm in doing resume_same_context() / resume_any_context() for a
-    * task that already defaults to resuming in that context. In fact, awaiting the
+    * Conversely, you can a coroutine that returns a
+    * wil::com_task<T> defaults to resuming in the same
+    * COM apartment, but you can allow it to resume on any thread
+    * by doing co_await GetNameAsync().resume_any_thread().
+    *
+    * There is no harm in doing resume_same_apartment() / resume_any_thread() for a
+    * task that already defaults to resuming in that manner. In fact, awaiting the
     * task directly is just a shorthand for awaiting the corresponding
-    * resume_whatever_context() method.
+    * resume_whatever() method.
     *
-    * Alternatively, you can convert between simple_agile_task<T> and simple_task<T>
+    * Alternatively, you can just convert between wil::task<T> and wil::com_task<T>
     * to change the default resumption context.
     *
-    * co_await simple_task(GetNameAsync()); // now defaults to resume_same_context();
+    * co_await wil::com_task(GetNameAsync()); // now defaults to resume_same_apartment();
     *
     * You can store the task in a variable, but since it is a move-only
     * object, you will have to use std::move in order to transfer ownership out of
@@ -111,12 +111,12 @@
     *
     * winrt::IAsyncAction SomethingAsync()
     * {
-    *     simple_task<int> task;
+    *     wil::com_task<int> task;
     *     switch (source)
     *     {
-    *     // Some of these might return simple_agile_task<int>,
-    *     // but assigning to a simple_task<int> will make
-    *     // the task non-agile.
+    *     // Some of these might return wil::task<int>,
+    *     // but assigning to a wil::com_task<int> will make
+    *     // the task resume in the same COM apartment.
     *     case widget: task = GetValueFromWidgetAsync(); break;
     *     case gadget: task = GetValueFromGadgetAsync(); break;
     *     case doodad: task = GetValueFromDoodadAsync(); break;
@@ -167,16 +167,16 @@ namespace wil
     // it can contain a move-only type. Any transfer of T as an
     // object category must be done as an rvalue reference.
     template<typename T>
-    struct simple_task;
+    struct task;
 
     template<typename T>
-    struct simple_agile_task;
+    struct com_task;
 }
 
 namespace wil::details::coro
 {
     template<typename T>
-    struct simple_promise;
+    struct task_promise;
 
     // Unions may not contain references, C++/CX types, or void.
     // To work around that, we put everything inside a result_wrapper
@@ -285,8 +285,8 @@ namespace wil::details::coro
     };
 
     // Most of the work is done in the promise_base,
-    // It is a CRTP-like base class for simple_promise<void> and
-    // simple_promise<non-void> because the language forbids
+    // It is a CRTP-like base class for task_promise<void> and
+    // task_promise<non-void> because the language forbids
     // a single promise from containing both return_value and
     // return_void methods (even if one of them is deleted by SFINAE).
     template<typename T>
@@ -323,7 +323,7 @@ namespace wil::details::coro
         result_holder<T> m_holder;
 
         // Make it easier to access our CRTP derived class.
-        using Promise = simple_promise<T>;
+        using Promise = task_promise<T>;
         auto as_promise() noexcept
         {
             return static_cast<Promise*>(this);
@@ -337,7 +337,7 @@ namespace wil::details::coro
 
         auto get_return_object() noexcept
         {
-            // let the compiler construct the simple_task / simple_agile_task from the promise.
+            // let the compiler construct the task / com_task from the promise.
             return as_promise();
         }
 
@@ -447,7 +447,7 @@ namespace wil::details::coro
     };
 
     template<typename T>
-    struct simple_promise : promise_base<T>
+    struct task_promise : promise_base<T>
     {
         template<typename U>
         void return_value(U&& value)
@@ -464,7 +464,7 @@ namespace wil::details::coro
     };
 
     template<>
-    struct simple_promise<void> : promise_base<void>
+    struct task_promise<void> : promise_base<void>
     {
         void return_void()
         {
@@ -511,13 +511,13 @@ namespace wil::details::coro
     template<typename T>
     struct task_base
     {
-        auto resume_any_context() && noexcept
+        auto resume_any_thread() && noexcept
         {
             return agile_awaiter<T>{ wistd::move(promise) };
         }
 
-        // You must #include <ole2.h> before <wil\coroutine.h> to enable non-agile awaiting.
-        auto resume_same_context() && noexcept;
+        // You must #include <ole2.h> before <wil\coroutine.h> to enable apartment-aware awaiting.
+        auto resume_same_apartment() && noexcept;
 
         // Compiler error message metaprogramming: Tell people that they
         // need to use std::move() if they try to co_await an lvalue.
@@ -528,7 +528,7 @@ namespace wil::details::coro
         decltype(auto) get() &&;
 
     protected:
-        task_base(simple_promise<T>* initial = nullptr) noexcept : promise(initial) {}
+        task_base(task_promise<T>* initial = nullptr) noexcept : promise(initial) {}
 
         template<typename D>
         D& assign(D* self, task_base&& other) noexcept
@@ -538,7 +538,7 @@ namespace wil::details::coro
         }
 
     private:
-        details::coro::promise_ptr<T> promise;
+        promise_ptr<T> promise;
 
         static void __stdcall wake_by_address(void* completed);
     };
@@ -549,12 +549,31 @@ namespace wil
     // Must write out both classes separately
     // Cannot use deduction guides with alias template type prior to C++20.
     template<typename T>
-    struct simple_task : details::coro::task_base<T>
+    struct task : details::coro::task_base<T>
     {
         using base = details::coro::task_base<T>;
-        explicit simple_task(details::coro::simple_promise<T>* initial = nullptr) noexcept : base(initial) {}
-        explicit simple_task(base&& other) noexcept : base(wistd::move(other)) {}
-        simple_task& operator=(base&& other) noexcept
+        explicit task(details::coro::task_promise<T>* initial = nullptr) noexcept : base(initial) {}
+        explicit task(base&& other) noexcept : base(wistd::move(other)) {}
+        task& operator=(base&& other) noexcept
+        {
+            return base::assign(this, wistd::move(other));
+        }
+
+        using base::operator co_await;
+
+        auto operator co_await() && noexcept
+        {
+            return wistd::move(*this).resume_any_thread();
+        }
+    };
+
+    template<typename T>
+    struct com_task : details::coro::task_base<T>
+    {
+        using base = details::coro::task_base<T>;
+        explicit com_task(details::coro::task_promise<T>* initial = nullptr) noexcept : base(initial) {}
+        explicit com_task(base&& other) noexcept : base(wistd::move(other)) {}
+        com_task& operator=(base&& other) noexcept
         {
             return base::assign(this, wistd::move(other));
         }
@@ -564,45 +583,26 @@ namespace wil
         auto operator co_await() && noexcept
         {
             // You must #include <ole2.h> before <wil\coroutine.h> to enable non-agile awaiting.
-            return wistd::move(*this).resume_same_context();
+            return wistd::move(*this).resume_same_apartment();
         }
     };
 
     template<typename T>
-    struct simple_agile_task : details::coro::task_base<T>
-    {
-        using base = details::coro::task_base<T>;
-        explicit simple_agile_task(details::coro::simple_promise<T>* initial = nullptr) noexcept : base(initial) {}
-        explicit simple_agile_task(base&& other) noexcept : base(wistd::move(other)) {}
-        simple_agile_task& operator=(base&& other) noexcept
-        {
-            return base::assign(this, wistd::move(other));
-        }
-
-        using base::operator co_await;
-
-        auto operator co_await() && noexcept
-        {
-            return wistd::move(*this).resume_any_context();
-        }
-    };
-
+    task(com_task<T>&&)->task<T>;
     template<typename T>
-    simple_task(simple_agile_task<T>&&)->simple_task<T>;
-    template<typename T>
-    simple_agile_task(simple_task<T>&&)->simple_agile_task<T>;
+    com_task(task<T>&&)->com_task<T>;
 }
 
 template <typename T, typename... Args>
-struct __WI_COROUTINE_NAMESPACE::coroutine_traits<wil::simple_task<T>, Args...>
+struct __WI_COROUTINE_NAMESPACE::coroutine_traits<wil::task<T>, Args...>
 {
-    using promise_type = wil::details::coro::simple_promise<T>;
+    using promise_type = wil::details::coro::task_promise<T>;
 };
 
 template <typename T, typename... Args>
-struct __WI_COROUTINE_NAMESPACE::coroutine_traits<wil::simple_agile_task<T>, Args...>
+struct __WI_COROUTINE_NAMESPACE::coroutine_traits<wil::com_task<T>, Args...>
 {
-    using promise_type = wil::details::coro::simple_promise<T>;
+    using promise_type = wil::details::coro::task_promise<T>;
 };
 
 #endif // __WIL_COROUTINE_INCLUDED
@@ -759,7 +759,7 @@ namespace wil::details::coro
         }
     };
 
-    // The non-agile awaiter captures the COM context when the co_await begins.
+    // The COM awaiter captures the COM context when the co_await begins.
     // When the co_await completes, it uses that COM context to resume execution.
     // This follows the same algorithm employed by C++/WinRT, which has features like
     // avoiding stack buildup and proper handling of the neutral apartment.
@@ -768,9 +768,9 @@ namespace wil::details::coro
     // but that means paying an up-front cost for something that may never end up used,
     // as well as introducing extra cleanup code in the fast-path.)
     template<typename T>
-    struct non_agile_awaiter : agile_awaiter<T>
+    struct com_awaiter : agile_awaiter<T>
     {
-        non_agile_awaiter(promise_ptr<T>&& initial) : agile_awaiter<T>(wistd::move(initial)) { }
+        com_awaiter(promise_ptr<T>&& initial) : agile_awaiter<T>(wistd::move(initial)) { }
         apartment_resumer resumer;
 
         auto await_suspend(__WI_COROUTINE_NAMESPACE::coroutine_handle<> handle)
@@ -781,9 +781,9 @@ namespace wil::details::coro
     };
 
     template<typename T>
-    auto task_base<T>::resume_same_context() && noexcept
+    auto task_base<T>::resume_same_apartment() && noexcept
     {
-        return non_agile_awaiter<T>{ wistd::move(promise) };
+        return com_awaiter<T>{ wistd::move(promise) };
     }
 }
 #endif // __WIL_COROUTINE_NON_AGILE_INCLUDED

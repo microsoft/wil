@@ -151,7 +151,7 @@ TEST_CASE("CppWinRTTests::CppWinRTConsistencyTest", "[cppwinrt]")
 #if defined(_RESUMABLE_FUNCTIONS_SUPPORTED) || defined(__cpp_lib_coroutine)
 
 // Note that we use C++/WinRT's coroutines in the test framework,
-// so that we aren't using simple_task to validate itself.
+// so that we aren't using com_task to validate itself.
 
 namespace
 {
@@ -171,7 +171,7 @@ namespace
         SetEvent(h);
     }
 
-    wil::simple_task<void> void_task(std::shared_ptr<int> value, HANDLE h)
+    wil::com_task<void> void_com_task(std::shared_ptr<int> value, HANDLE h)
     {
         if (h) co_await winrt::resume_on_signal(h);
         ++* value;
@@ -179,84 +179,107 @@ namespace
     }
 
     // Return a reference to the wrapped integer.
-    wil::simple_task<int&> intref_task(std::shared_ptr<int> value, HANDLE h)
+    wil::com_task<int&> intref_com_task(std::shared_ptr<int> value, HANDLE h)
     {
-        co_await void_task(value, h);
+        co_await void_com_task(value, h);
         co_return *value;
     }
 
     // Return a move-only type.
-    wil::simple_task<wil::unique_cotaskmem_string> string_task(HANDLE h)
+    wil::com_task<wil::unique_cotaskmem_string> string_com_task(HANDLE h)
     {
         if (h) co_await winrt::resume_on_signal(h);
         co_return wil::make_cotaskmem_string(L"Hello");
     }
 
     // Return a move-only type with agile resumption.
-    wil::simple_agile_task<wil::unique_cotaskmem_string> string_agile_task(HANDLE h)
+    wil::task<wil::unique_cotaskmem_string> string_task(HANDLE h)
     {
         if (h) co_await winrt::resume_on_signal(h);
         co_return wil::make_cotaskmem_string(L"Hello");
     }
 
-    wil::simple_task<void> exception_task(HANDLE h)
+    wil::com_task<void> exception_com_task(HANDLE h)
     {
         if (h) co_await winrt::resume_on_signal(h);
-        THROW_HR(E_ABORT);
+        throw 42; // throw some random exception
     }
 
-    wil::simple_task<void> test_sta_task(HANDLE e)
+    wil::com_task<void> test_sta_task(HANDLE e)
     {
         auto on_ui_thread = [originalThread = GetCurrentThreadId()]
         { return originalThread == GetCurrentThreadId(); };
 
-        // Use the incoming event handle to know when the coroutine has completed.
+        // Signal the incoming event handle when the coroutine has completed.
         auto complete = wil::SetEvent_scope_exit(e);
 
         // Create our own event handle to force race conditions.
         auto sync = wil::unique_event(wil::EventOptions::ManualReset);
 
-        // Remember original thread so we can return to it.
+        // Remember original thread so we can return to it at the start of each test (if desired).
         winrt::apartment_context context;
 
-        // Basic test of simple_task, ensuring that we return to the UI thread.
+        // Basic test of com_task, ensuring that we return to the UI thread.
+        co_await context; // start on UI thread
         auto value = std::make_shared<int>(1);
-        signal_later(sync.get()); // prevent void_task from completing before we call await_ready
-        co_await void_task(value, sync.get());
+        signal_later(sync.get()); // prevent void_com_task from completing before we call await_ready
+        co_await void_com_task(value, sync.get());
         REQUIRE(*value == 2);
         REQUIRE(on_ui_thread());
 
         // Fancier version that produces a reference (which PPL and C++/WinRT don't support).
-        signal_later(sync.get()); // prevent intref_task from completing before we call await_ready
-        int& valueRef = co_await intref_task(value, sync.get());
+        co_await context; // start on UI thread
+        signal_later(sync.get()); // prevent intref_com_task from completing before we call await_ready
+        int& valueRef = co_await intref_com_task(value, sync.get());
         REQUIRE(wistd::addressof(valueRef) == wistd::addressof(*value));
         REQUIRE(*value == 3);
         REQUIRE(on_ui_thread());
 
-        // Test forced agility.
-        signal_later(sync.get()); // prevent void_task from completing before we call await_ready
-        co_await wil::simple_agile_task(void_task(value, sync.get()));
+        // Test forced agility via task conversion.
+        co_await context; // start on UI thread
+        signal_later(sync.get()); // prevent void_com_task from completing before we call await_ready
+        co_await wil::task(void_com_task(value, sync.get()));
         REQUIRE(*value == 4);
         REQUIRE(!on_ui_thread());
 
-        // And then the next non-agile co_await stays on the threadpool.
+        // Test that co_await of a com_task from a threadpool thread stays on the threadpool.
         // Also test move-only type.
-        signal_later(sync.get()); // prevent string_task from completing before we call await_ready
-        auto str = co_await string_task(sync.get());
+        co_await winrt::resume_background(); // start on non-UI thread
+        signal_later(sync.get()); // prevent string_com_task from completing before we call await_ready
+        auto str = co_await string_com_task(sync.get());
         REQUIRE(wcscmp(str.get(), L"Hello") == 0);
         REQUIRE(!on_ui_thread());
 
-        // Back to the UI thread.
-        co_await context;
+        // Test forced agility via resume_any_thread.
+        co_await context; // start on UI thread
+        signal_later(sync.get()); // prevent string_com_task from completing before we call await_ready
+        str = co_await string_com_task(sync.get()).resume_any_thread();
+        REQUIRE(wcscmp(str.get(), L"Hello") == 0);
+        REQUIRE(!on_ui_thread());
 
         // Test exceptions.
-        signal_later(sync.get()); // prevent exception_task from completing before we call await_ready
-        REQUIRE_THROWS_AS(co_await exception_task(sync.get()), wil::ResultException);
+        co_await context; // start on UI thread
+        signal_later(sync.get()); // prevent exception_com_task from completing before we call await_ready
+        REQUIRE_THROWS_AS(co_await exception_com_task(sync.get()), int);
+        REQUIRE(on_ui_thread());
+
+        // Test forced apartment awareness via task conversion.
+        signal_later(sync.get()); // prevent string_task from completing before we call await_ready
+        str = co_await wil::com_task(string_task(sync.get()));
+        REQUIRE(wcscmp(str.get(), L"Hello") == 0);
+        REQUIRE(on_ui_thread());
+
+        // Test forced apartment awareness via resume_same_apartment.
+        co_await context; // start on UI thread
+        signal_later(sync.get()); // prevent string_task from completing before we call await_ready
+        str = co_await string_task(sync.get()).resume_same_apartment();
+        REQUIRE(wcscmp(str.get(), L"Hello") == 0);
         REQUIRE(on_ui_thread());
 
         // Test agile task
-        signal_later(sync.get()); // prevent exception_task from completing before we call await_ready
-        str = co_await string_agile_task(sync.get());
+        co_await context; // start on UI thread
+        signal_later(sync.get()); // prevent string_task from completing before we call await_ready
+        str = co_await string_task(sync.get());
         REQUIRE(wcscmp(str.get(), L"Hello") == 0);
         REQUIRE(!on_ui_thread());
     }
@@ -270,7 +293,7 @@ TEST_CASE("CppWinRTTests::SimpleTaskTest", "[cppwinrt]")
             wil::unique_mta_usage_cookie cookie;
             REQUIRE(CoIncrementMTAUsage(cookie.put()) == S_OK);
             auto value = std::make_shared<int>(0);
-            void_task(value, nullptr).get();
+            void_com_task(value, nullptr).get();
             REQUIRE(*value == 1);
             // Keep MTA active while we run the STA tests.
 
