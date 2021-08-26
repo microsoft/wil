@@ -1,8 +1,8 @@
 
 #include <wil/cppwinrt.h>
+#include <winrt/Windows.Foundation.h>
 #if defined(_RESUMABLE_FUNCTIONS_SUPPORTED) || defined(__cpp_lib_coroutine)
 #include <wil/coroutine.h>
-#include <winrt/Windows.Foundation.h> // use C++/WinRT coroutines to test wil coroutines
 #include <thread>
 #endif
 
@@ -148,7 +148,7 @@ TEST_CASE("CppWinRTTests::CppWinRTConsistencyTest", "[cppwinrt]")
     // that such exceptions become HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION)
 }
 
-#if defined(_RESUMABLE_FUNCTIONS_SUPPORTED) || defined(__cpp_lib_coroutine)
+#if (defined(__cpp_lib_coroutine) && (__cpp_lib_coroutine >= 201902L)) || defined(_RESUMABLE_FUNCTIONS_SUPPORTED)
 
 // Note that we use C++/WinRT's coroutines in the test framework,
 // so that we aren't using com_task to validate itself.
@@ -316,4 +316,118 @@ TEST_CASE("CppWinRTTests::SimpleTaskTest", "[cppwinrt]")
         }
     ).join();
 }
-#endif
+
+// Define our own custom dispatcher that we can force it to behave in certain ways.
+// wil::resume_foreground supports any dispatcher that has a dispatcher_traits.
+
+namespace test
+{
+    enum class TestDispatcherPriority
+    {
+        Normal = 0,
+        Weird = 1,
+    };
+
+    using TestDispatcherHandler = winrt::delegate<>;
+
+    enum class TestDispatcherMode
+    {
+        Dispatch,
+        RaceDispatch,
+        Orphan,
+        Fail,
+    };
+
+    struct TestDispatcher
+    {
+        TestDispatcher() = default;
+        TestDispatcher(TestDispatcher const&) = delete;
+
+        TestDispatcherMode mode = TestDispatcherMode::Dispatch;
+        TestDispatcherPriority expected_priority = TestDispatcherPriority::Normal;
+
+        void TryEnqueue(TestDispatcherPriority priority, TestDispatcherHandler const& handler) const
+        {
+            REQUIRE(priority == expected_priority);
+
+            if (mode == TestDispatcherMode::Fail)
+            {
+                throw winrt::hresult_not_implemented();
+            }
+
+            if (mode == TestDispatcherMode::RaceDispatch)
+            {
+                handler();
+                return;
+            }
+
+            auto background = [](auto mode, auto handler) ->winrt::fire_and_forget
+            {
+                co_await winrt::resume_background();
+                if (mode == TestDispatcherMode::Dispatch)
+                {
+                    handler();
+                }
+            }(mode, handler);
+        }
+    };
+}
+
+namespace wil::details
+{
+    template<>
+    struct dispatcher_traits<test::TestDispatcher>
+    {
+        using Priority = test::TestDispatcherPriority;
+        using Handler = test::TestDispatcherHandler;
+        using Scheduler = dispatcher_TryEnqueue;
+    };
+}
+
+TEST_CASE("CppWinRTTests::ResumeForegroundTests", "[cppwinrt]")
+{
+    []() -> winrt::Windows::Foundation::IAsyncAction
+    {
+        test::TestDispatcher dispatcher;
+
+        // Normal case: Resumes on new thread.
+        dispatcher.mode = test::TestDispatcherMode::Dispatch;
+        co_await wil::resume_foreground(dispatcher);
+
+        // Race case: Resumes before TryEnqueue returns.
+        dispatcher.mode = test::TestDispatcherMode::RaceDispatch;
+        co_await wil::resume_foreground(dispatcher);
+
+        // Orphan case: Never resumes, detected when handler is destructed without ever being invoked.
+        dispatcher.mode = test::TestDispatcherMode::Orphan;
+        bool seen = false;
+        try
+        {
+            co_await wil::resume_foreground(dispatcher);
+        }
+        catch (winrt::hresult_error const& e)
+        {
+            seen = e.code() == HRESULT_FROM_WIN32(HRESULT_FROM_WIN32(ERROR_NO_TASK_QUEUE));
+        }
+        REQUIRE(seen);
+
+        // Fail case: Can't even schedule the resumption.
+        dispatcher.mode = test::TestDispatcherMode::Fail;
+        seen = false;
+        try
+        {
+            co_await wil::resume_foreground(dispatcher);
+        }
+        catch (winrt::hresult_not_implemented const&)
+        {
+            seen = true;
+        }
+        REQUIRE(seen);
+
+        // Custom priority.
+        dispatcher.mode = test::TestDispatcherMode::Dispatch;
+        dispatcher.expected_priority = test::TestDispatcherPriority::Weird;
+        co_await wil::resume_foreground(dispatcher, test::TestDispatcherPriority::Weird);
+    }().get();
+}
+#endif // coroutines
