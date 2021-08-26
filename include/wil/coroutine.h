@@ -552,7 +552,8 @@ namespace wil
     struct task : details::coro::task_base<T>
     {
         using base = details::coro::task_base<T>;
-        explicit task(details::coro::task_promise<T>* initial = nullptr) noexcept : base(initial) {}
+        // Constructing from task_promise<T>* cannot be explicit because get_return_object relies on implicit conversion.
+        task(details::coro::task_promise<T>* initial = nullptr) noexcept : base(initial) {}
         explicit task(base&& other) noexcept : base(wistd::move(other)) {}
         task& operator=(base&& other) noexcept
         {
@@ -571,7 +572,8 @@ namespace wil
     struct com_task : details::coro::task_base<T>
     {
         using base = details::coro::task_base<T>;
-        explicit com_task(details::coro::task_promise<T>* initial = nullptr) noexcept : base(initial) {}
+        // Constructing from task_promise<T>* cannot be explicit because get_return_object relies on implicit conversion.
+        com_task(details::coro::task_promise<T>* initial = nullptr) noexcept : base(initial) {}
         explicit com_task(base&& other) noexcept : base(wistd::move(other)) {}
         com_task& operator=(base&& other) noexcept
         {
