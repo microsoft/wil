@@ -157,6 +157,7 @@ namespace wil
             // on STL headers
             template <typename StringT>
             static wistd::enable_if_t<wistd::conjunction_v<
+                wistd::is_constructible<StringT, wchar_t*>,
                 wistd::is_convertible<decltype(wistd::declval<StringT>().data()), const wchar_t*>,
                 wistd::is_same<typename StringT::size_type, decltype(wistd::declval<StringT>().size())>>,
             const wchar_t*> get_buffer(const StringT& str, UINT32* length) WI_NOEXCEPT
