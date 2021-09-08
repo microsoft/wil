@@ -3480,4 +3480,70 @@ TEST_CASE("WindowsInternalTests::ShutdownAwareObjectAlignmentTests", "[result_ma
     VerifyAlignment<wil::object_without_destructor_on_shutdown>();
 }
 
+#if (_WIN32_WINNT >= _WIN32_WINNT_WIN8)
+TEST_CASE("WindowsInternalTests::ModuleReference", "[wrl]")
+{
+    REQUIRE(::Microsoft::WRL::GetModuleBase() == nullptr);
+    // Executables don't have a ModuleBase, so we need to create one.
+    struct FakeModuleBase : Microsoft::WRL::Details::ModuleBase
+    {
+        unsigned long count = 42;
+        STDMETHOD_(unsigned long, IncrementObjectCount)()
+        {
+            return InterlockedIncrement(&count);
+        }
+        STDMETHOD_(unsigned long, DecrementObjectCount)()
+        {
+            return InterlockedDecrement(&count);
+        }
+        STDMETHOD_(unsigned long, GetObjectCount)() const
+        {
+            return count;
+        }
+        // Dummy implementations of everything else (never called).
+        STDMETHOD_(const Microsoft::WRL::Details::CreatorMap**, GetFirstEntryPointer)() const { return nullptr; }
+        STDMETHOD_(const Microsoft::WRL::Details::CreatorMap**, GetMidEntryPointer)() const { return nullptr; }
+        STDMETHOD_(const Microsoft::WRL::Details::CreatorMap**, GetLastEntryPointer)() const { return nullptr; }
+        STDMETHOD_(SRWLOCK*, GetLock)() const { return nullptr; }
+        STDMETHOD(RegisterWinRTObject)(const wchar_t*, const wchar_t**, _Inout_ RO_REGISTRATION_COOKIE*, unsigned int) { return E_NOTIMPL; }
+        STDMETHOD(UnregisterWinRTObject)(const wchar_t*, _In_ RO_REGISTRATION_COOKIE) { return E_NOTIMPL; }
+        STDMETHOD(RegisterCOMObject)(const wchar_t*, _In_ IID*, _In_ IClassFactory**, _Inout_ DWORD*, unsigned int) { return E_NOTIMPL; }
+        STDMETHOD(UnregisterCOMObject)(const wchar_t*, _Inout_ DWORD*, unsigned int) { return E_NOTIMPL; }
+
+    };
+    FakeModuleBase fake;
+
+    auto peek_module_ref_count = []()
+    {
+        return ::Microsoft::WRL::GetModuleBase()->GetObjectCount();
+    };
+
+    auto initial = peek_module_ref_count();
+
+    // Basic test: Construct and destruct.
+    {
+        auto module_ref = wil::wrl_module_reference();
+        REQUIRE(peek_module_ref_count() == initial + 1);
+    }
+    REQUIRE(peek_module_ref_count() == initial);
+
+    // Fancy test: Copy object with embedded reference.
+    {
+        struct object_with_ref
+        {
+            wil::wrl_module_reference ref;
+        };
+        object_with_ref o1;
+        REQUIRE(peek_module_ref_count() == initial + 1);
+        auto o2 = o1;
+        REQUIRE(peek_module_ref_count() == initial + 2);
+        o1 = o2;
+        REQUIRE(peek_module_ref_count() == initial + 2);
+        o2 = std::move(o1);
+        REQUIRE(peek_module_ref_count() == initial + 2);
+    }
+    REQUIRE(peek_module_ref_count() == initial);
+}
+#endif
+
 #pragma warning(pop)
