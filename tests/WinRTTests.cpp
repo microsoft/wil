@@ -6,6 +6,14 @@
 #include <string>
 #endif
 
+// detect std::wstring_view
+#ifdef __has_include
+#if (__cplusplus >= 201606L || _MSVC_LANG >= 201606L) && __has_include(<string_view>)
+#define __WI_HAS_STD_WSTRING_VIEW
+#include <string_view>
+#endif
+#endif
+
 // Required for pinterface template specializations that we depend on in this test
 #include <Windows.ApplicationModel.Chat.h>
 #pragma push_macro("GetCurrentTime")
@@ -381,6 +389,9 @@ TEST_CASE("WinRTTests::HStringMapTest", "[winrt][hstring_compare]")
 
     HStringReference ref(constArray);
     std::wstring wstr(constArray, 7);
+#ifdef __WI_HAS_STD_WSTRING_VIEW
+    std::wstring_view wstrview(wstr);
+#endif
 
     auto verifyFunc = [&](int expectedValue, auto&& keyValue)
     {
@@ -396,6 +407,9 @@ TEST_CASE("WinRTTests::HStringMapTest", "[winrt][hstring_compare]")
     verifyFunc(expectedValue, key.Get());
     verifyFunc(expectedValue, ref);
     verifyFunc(expectedValue, wstr);
+#ifdef __WI_HAS_STD_WSTRING_VIEW
+    verifyFunc(expectedValue, wstrview);
+#endif
 
     // Arrays/strings should not deduce length and should therefore find "foo"
     expectedValue = wstringMap[L"foo"];
@@ -464,6 +478,9 @@ TEST_CASE("WinRTTests::HStringCaseInsensitiveMapTest", "[winrt][hstring_compare]
 
     HStringReference ref(constArray);
     std::wstring wstr(constArray, 7);
+#ifdef __WI_HAS_STD_WSTRING_VIEW
+    std::wstring_view wstrview(wstr);
+#endif
 
     auto verifyFunc = [&](int expectedValue, auto&& key)
     {
@@ -478,6 +495,9 @@ TEST_CASE("WinRTTests::HStringCaseInsensitiveMapTest", "[winrt][hstring_compare]
     verifyFunc(foobarValue, key.Get());
     verifyFunc(foobarValue, ref);
     verifyFunc(foobarValue, wstr);
+#ifdef __WI_HAS_STD_WSTRING_VIEW
+    verifyFunc(foobarValue, wstrview);
+#endif
 
     // Arrays/strings should not deduce length and should therefore find "foo"
     verifyFunc(fooValue, constArray);
