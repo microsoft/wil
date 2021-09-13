@@ -111,7 +111,7 @@ namespace wil
             }
         };
 
-        template<typename T, typename test_hook = apartment_variable_platform>
+        template<typename test_hook = apartment_variable_platform>
         struct apartment_variable_base
         {
             inline static winrt::slim_mutex s_lock;
@@ -131,7 +131,7 @@ namespace wil
 
                 winrt::apartment_context context;
                 typename test_hook::shutdown_type cookie;
-                std::unordered_map<apartment_variable_base<T, test_hook>*, std::any> variables;
+                std::unordered_map<apartment_variable_base<test_hook>*, std::any> variables;
             };
 
             // Apartment id -> variable storage.
@@ -199,6 +199,7 @@ namespace wil
             }
 
             // get current value or custom-construct one on demand
+            template<typename T>
             std::any& get_or_create(any_maker<T>&& creator)
             {
                 apartment_variable_storage* variable_storage{};
@@ -349,9 +350,9 @@ namespace wil
     }
 
     template<typename T, typename test_hook = wil::apartment_variable_platform>
-    struct apartment_variable : details::apartment_variable_base<T, test_hook>
+    struct apartment_variable : details::apartment_variable_base<test_hook>
     {
-        using base = details::apartment_variable_base<T, test_hook>;
+        using base = details::apartment_variable_base<test_hook>;
 
         // Get current value or throw if no value has been set.
         T& get_existing() { return std::any_cast<T&>(base::get_existing()); }
