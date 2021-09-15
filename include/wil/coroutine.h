@@ -2,14 +2,12 @@
 #define __WIL_COROUTINE_INCLUDED
 
    /*
-    * A wil::simple_agile_task<T> / simple_task<T> is a coroutine with the following characteristics:
+    * A wil::task<T> / com_task<T> is a coroutine with the following characteristics:
     *
     * - T must be a copyable object, movable object, reference, or void.
     * - The coroutine may be awaited at most once. The second await will crash.
     * - The coroutine may be abandoned (allowed to destruct without co_await),
     *   in which case unobserved exceptions are fatal.
-    * - The awaiting coroutine may be destroyed while suspended.
-    *   (Don't worry if you don't know what this means.)
     * - By default, wil::task resumes on an arbitrary thread.
     * - By default, wil::com_task resumes in the same COM apartment.
     * - task.resume_any_thread() allows resumption on any thread.
@@ -17,7 +15,8 @@
     *
     * The wil::task and wil::com_task are intended to supplement PPL and C++/WinRT,
     * not to replace them. It provides coroutine implementations for scenarios that PPL
-    * and C++/WinRT do not support.
+    * and C++/WinRT do not support, but it does not support everything that PPL and
+    * C++/WinRT do.
     *
     * The implementation is optimized on the assumption that the coroutine is
     * awaited only once, and that the coroutine is discarded after completion.
@@ -35,12 +34,12 @@
     * | T can be non-WinRT object                           | Yes       | No        | Yes           |
     * | T can be move-only                                  | No        | No        | Yes           |
     * | Coroutine can be cancelled                          | Yes       | Yes       | No            |
-    * | Awaiting coroutine may be destroyed while suspended | No        | No        | Yes           |
     * | Coroutine can throw arbitrary exceptions            | Yes       | No        | Yes           |
     * | Can co_await more than once                         | Yes       | No        | No            |
+    * | Can have multiple clients waiting for completion    | Yes       | No        | No            |
     * | co_await resumes in same COM context                | Sometimes | Yes       | You choose [1]|
     * | Can force co_await to resume in same context        | Yes       | N/A       | Yes [1]       |
-    * | Can force co_await to resume in any context         | Yes       | No        | Yes           |
+    * | Can force co_await to resume in any thread          | Yes       | No        | Yes           |
     * | Can change coroutine's resumption model             | No        | No        | Yes           |
     * | Can wait synchronously                              | Yes       | Yes       | Yes [2]       |
     * | Can be consumed by non-C++ languages                | No        | Yes       | No            |
@@ -90,7 +89,7 @@
     *     NameElement().Text(winrt::hstring(name.get()));
     * }
     *
-    * Conversely, you can a coroutine that returns a
+    * Conversely, a coroutine that returns a
     * wil::com_task<T> defaults to resuming in the same
     * COM apartment, but you can allow it to resume on any thread
     * by doing co_await GetNameAsync().resume_any_thread().
