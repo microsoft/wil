@@ -2528,6 +2528,19 @@ namespace wil
 
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_SYSTEM)
     typedef unique_any<PSID, decltype(&::FreeSid), ::FreeSid> unique_sid;
+    typedef unique_any_handle_null_only<decltype(&::DeleteBoundaryDescriptor), ::DeleteBoundaryDescriptor> unique_boundary_descriptor;
+
+    namespace details
+    {
+        template<ULONG flags>
+        inline void __stdcall ClosePrivateNamespaceHelper(HANDLE h) WI_NOEXCEPT
+        {
+            ::ClosePrivateNamespace(h, flags);
+        }
+    }
+
+    template <ULONG flags = 0>
+    using unique_private_namespace = unique_any_handle_null_only<decltype(details::ClosePrivateNamespaceHelper<flags>), &details::ClosePrivateNamespaceHelper<flags>>;
 #endif
 
     using unique_tool_help_snapshot = unique_hfile;
