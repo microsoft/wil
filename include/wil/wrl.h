@@ -102,10 +102,12 @@ namespace wil
             }
             else
             {
+#ifdef GET_MODULE_HANDLE_EX_FLAG_PIN
                 // If this assertion fails, then you are using wrl_module_reference
                 // from a DLL that does not host WRL objects, and the module reference
                 // has no effect.
                 WI_ASSERT(reinterpret_cast<HMODULE>(&__ImageBase) == GetModuleHandleW(nullptr));
+#endif
             }
         }
 
