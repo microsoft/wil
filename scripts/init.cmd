@@ -11,7 +11,7 @@ goto :init
     echo USAGE:
     echo     init.cmd [--help] [-c^|--compiler ^<clang^|msvc^>] [-g^|--generator ^<ninja^|msbuild^>]
     echo         [-b^|--build-type ^<debug^|release^|relwithdebinfo^|minsizerel^>] [-l^|--linker link^|lld-link]
-    echo         [--fast] [-v^|--version X.Y.Z]
+    echo         [-v^|--version X.Y.Z] [--cppwinrt ^<version^>] [--fast]
     echo.
     echo ARGUMENTS
     echo     -c^|--compiler       Controls the compiler used, either 'clang' (the default) or 'msvc'
@@ -20,6 +20,7 @@ goto :init
     echo                         'relwithdebinfo', or 'minsizerel'
     echo     -v^|--version        Specifies the version of the NuGet package produced. Primarily only used by the CI
     echo                         build and is typically not necessary when building locally
+    echo     --cppwinrt          Manually specifies the version of C++/WinRT to use for generating headers
     echo     --fast              Used to (slightly) reduce compile times and build output size. This is primarily
     echo                         used by the CI build machines where resources are more constrained. This switch is
     echo                         temporary and will be removed once https://github.com/microsoft/wil/issues/9 is fixed
@@ -34,6 +35,7 @@ goto :init
     set CMAKE_ARGS=
     set BITNESS=
     set VERSION=
+    set CPPWINRT_VERSION=
     set FAST_BUILD=0
 
 :parse
@@ -107,10 +109,21 @@ goto :init
     if /I "%~1"=="-v" set VERSION_SET=1
     if /I "%~1"=="--version" set VERSION_SET=1
     if %VERSION_SET%==1 (
-        if "%VERSION%" NEQ "" echo ERROR: Version alread specified & call :usage & exit /B 1
+        if "%VERSION%" NEQ "" echo ERROR: Version already specified & call :usage & exit /B 1
         if /I "%~2"=="" echo ERROR: Version string missing & call :usage & exit /B 1
 
         set VERSION=%~2
+
+        shift
+        shift
+        goto :parse
+    )
+
+    if /I "%~1"=="--cppwinrt" (
+        if "%CPPWINRT_VERSION%" NEQ "" echo ERROR: C++/WinRT version already specified & call :usage & exit /B 1
+        if /I "%~2"=="" echo ERROR: C++/WinRT version string missing & call :usage & exit /B 1
+
+        set CPPWINRT_VERSION=%~2
 
         shift
         shift
@@ -172,6 +185,8 @@ goto :init
     )
 
     if "%VERSION%" NEQ "" set CMAKE_ARGS=%CMAKE_ARGS% -DWIL_BUILD_VERSION=%VERSION%
+
+    if "%CPPWINRT_VERSION%" NEQ "" set CMAKE_ARGS=%CMAKE_ARGS% -DCPPWINRT_VERSION=%CPPWINRT_VERSION%
 
     if %FAST_BUILD%==1 set CMAKE_ARGS=%CMAKE_ARGS% -DFAST_BUILD=ON
 
