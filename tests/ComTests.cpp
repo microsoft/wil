@@ -130,6 +130,25 @@ TEST_CASE("ComTests::Test_Constructors", "[com][com_ptr]")
         REQUIRE(ptrMove2.get() == &helper4);
         REQUIRE(ptr2.get() == nullptr);
     }
+
+#if defined(__cpp_deduction_guides) && (__cpp_deduction_guides >= 201907L)
+    SECTION("CTAD pointer construction")
+    {
+        wil::com_ptr_nothrow ptr(&helper); // explicit
+        REQUIRE(IUnknownFake::GetAddRef() == 1);
+        REQUIRE(ptr.get() == &helper);
+    }
+#endif
+}
+
+TEST_CASE("ComTests::Test_Make", "[com][com_ptr]")
+{
+    IUnknownFake::Clear();
+    IUnknownFake helper;
+
+    auto ptr = wil::make_com_ptr_nothrow(&helper); // CTAD workaround for pre-C++20
+    REQUIRE(IUnknownFake::GetAddRef() == 1);
+    REQUIRE(ptr.get() == &helper);
 }
 
 TEST_CASE("ComTests::Test_Assign", "[com][com_ptr]")

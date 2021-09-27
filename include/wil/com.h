@@ -1180,6 +1180,43 @@ namespace wil
 #endif
     /// @endcond
 
+#ifdef WIL_ENABLE_EXCEPTIONS
+    //! Constructs a `com_ptr` from a raw pointer.
+    //! This avoids having to restate the interface in pre-C++20.
+    //! Starting in C++20, you can write `wil::com_ptr(p)` directly.
+    //! ~~~
+    //! void example(ILongNamedThing* thing)
+    //! {
+    //!    callback([thing = wil::make_com_ptr(thing)] { /* do something */ });
+    //! }
+    //! ~~~
+    template <typename T>
+    com_ptr<T> make_com_ptr(T* p) { return p; }
+#endif
+
+    //! Constructs a `com_ptr_nothrow` from a raw pointer.
+    //! This avoids having to restate the interface in pre-C++20.
+    //! Starting in C++20, you can write `wil::com_ptr_nothrow(p)` directly.
+    //! ~~~
+    //! void example(ILongNamedThing* thing)
+    //! {
+    //!    callback([thing = wil::make_com_ptr_nothrow(thing)] { /* do something */ });
+    //! }
+    //! ~~~
+    template <typename T>
+    com_ptr_nothrow<T> make_com_ptr_nothrow(T* p) { return p; }
+
+    //! Constructs a `com_ptr_failfast` from a raw pointer.
+    //! This avoids having to restate the interface in pre-C++20.
+    //! Starting in C++20, you can write `wil::com_ptr_failfast(p)` directly.
+    //! ~~~
+    //! void example(ILongNamedThing* thing)
+    //! {
+    //!    callback([thing = wil::make_com_ptr_failfast(thing)] { /* do something */ });
+    //! }
+    //! ~~~
+    template <typename T>
+    com_ptr_failfast<T> make_com_ptr_failfast(T* p) { return p; }
 
     //! @name Stand-alone query helpers
     //! * Source pointer can be raw interface pointer, any wil com_ptr, or WRL ComPtr
