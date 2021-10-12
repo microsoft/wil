@@ -702,6 +702,7 @@ namespace wil::details::coro
         __WI_COROUTINE_NAMESPACE::coroutine_handle<> waiter;
         wil::com_ptr<IContextCallback> context{ nullptr };
         apartment_info info;
+        HRESULT resume_result = S_OK;
 
         void capture_context(__WI_COROUTINE_NAMESPACE::coroutine_handle<> handle)
         {
@@ -750,13 +751,25 @@ namespace wil::details::coro
             // Capture into a local so we don't destruct it while it's in use.
             // This also removes the context cleanup from the resume path.
             auto local_context = wistd::move(context);
-            THROW_IF_FAILED(local_context->ContextCallback(resume_apartment_callback, &data, IID_ICallbackWithNoReentrancyToApplicationSTA, 5, nullptr));
+            auto result = local_context->ContextCallback(resume_apartment_callback, &data, IID_ICallbackWithNoReentrancyToApplicationSTA, 5, nullptr);
+            if (FAILED(result))
+            {
+                // Unable to resume on the correct apartment.
+                // Resume on the wrong apartment, but tell the coroutine why.
+                resume_result = result;
+                waiter();
+            }
         }
 
         static HRESULT CALLBACK resume_apartment_callback(ComCallData* data) noexcept
         {
             as_self(data->pUserDefined)->waiter();
             return S_OK;
+        }
+
+        void check()
+        {
+            THROW_IF_FAILED(resume_result);
         }
     };
 
@@ -778,6 +791,12 @@ namespace wil::details::coro
         {
             resumer.capture_context(handle);
             return this->promise->client_await_suspend(wistd::addressof(resumer), apartment_resumer::resume_in_context);
+        }
+
+        auto await_resume()
+        {
+            resumer.check();
+            return agile_awaiter::await_resume();
         }
     };
 
