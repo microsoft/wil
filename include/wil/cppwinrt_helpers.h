@@ -14,8 +14,6 @@
 #ifndef __WIL_CPPWINRT_HELPERS_DEFINED
 #define __WIL_CPPWINRT_HELPERS_DEFINED
 
-#if (defined(__cpp_lib_coroutine) && (__cpp_lib_coroutine >= 201902L)) || defined(_RESUMABLE_FUNCTIONS_SUPPORTED)
-
 /// @cond
 #if defined(_RESUMABLE_FUNCTIONS_SUPPORTED)
 #include <experimental/coroutine>
@@ -23,14 +21,23 @@ namespace wil::details
 {
     template<typename T = void> using coroutine_handle = std::experimental::coroutine_handle<T>;
 }
-#else
+#elif defined(__cpp_lib_coroutine) && (__cpp_lib_coroutine >= 201902L)
 #include <coroutine>
 namespace wil::details
 {
     template<typename T = void> using coroutine_handle = std::coroutine_handle<T>;
 }
+#else
+namespace wil::details
+{
+    template<typename T = void> struct coroutine_handle
+    {
+        operator bool() { return false; }
+        void operator()() {}
+        void resume() {}
+    };
+}
 #endif
-
 /// @endcond
 
 namespace wil
@@ -151,7 +158,6 @@ namespace wil
         return awaitable{ dispatcher, priority };
     }
 }
-#endif // C++20 coroutines supported
 #endif // __WIL_CPPWINRT_HELPERS_DEFINED
 
 /// @cond
