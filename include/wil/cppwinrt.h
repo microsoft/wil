@@ -437,20 +437,6 @@ namespace winrt::Windows::System
     enum class DispatcherQueuePriority;
     struct DispatcherQueueHandler;
 }
-
-namespace winrt::Microsoft::System
-{
-    struct DispatcherQueue;
-    enum class DispatcherQueuePriority;
-    struct DispatcherQueueHandler;
-}
-
-namespace winrt::Microsoft::UI::Dispatching
-{
-    struct DispatcherQueue;
-    enum class DispatcherQueuePriority;
-    struct DispatcherQueueHandler;
-}
 /// @endcond
 
 namespace wil
@@ -491,22 +477,6 @@ namespace wil
         {
             using Priority = winrt::Windows::System::DispatcherQueuePriority;
             using Handler = winrt::Windows::System::DispatcherQueueHandler;
-            using Scheduler = dispatcher_TryEnqueue;
-        };
-
-        template<>
-        struct dispatcher_traits<winrt::Microsoft::System::DispatcherQueue>
-        {
-            using Priority = winrt::Microsoft::System::DispatcherQueuePriority;
-            using Handler = winrt::Microsoft::System::DispatcherQueueHandler;
-            using Scheduler = dispatcher_TryEnqueue;
-        };
-
-        template<>
-        struct dispatcher_traits<winrt::Microsoft::UI::Dispatching::DispatcherQueue>
-        {
-            using Priority = winrt::Microsoft::UI::Dispatching::DispatcherQueuePriority;
-            using Handler = winrt::Microsoft::UI::Dispatching::DispatcherQueueHandler;
             using Scheduler = dispatcher_TryEnqueue;
         };
 
