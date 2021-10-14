@@ -9,10 +9,10 @@
 //
 //*********************************************************
 
-#include "cppwinrt.h"
-
 #ifndef __WIL_CPPWINRT_HELPERS_DEFINED
 #define __WIL_CPPWINRT_HELPERS_DEFINED
+
+#include <memory>
 
 /// @cond
 #if defined(_RESUMABLE_FUNCTIONS_SUPPORTED)
@@ -146,7 +146,7 @@ namespace wil
             {
                 if (m_state.orphaned)
                 {
-                    throw winrt::hresult_error(HRESULT_FROM_WIN32(ERROR_NO_TASK_QUEUE));
+                    throw winrt::hresult_error(static_cast<winrt::hresult>(0x800701ab)); // HRESULT_FROM_WIN32(ERROR_NO_TASK_QUEUE)
                 }
             }
 
