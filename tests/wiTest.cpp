@@ -2998,6 +2998,7 @@ TEST_CASE("WindowsInternalTests::Ranges", "[common]")
         {
             ++count;
             m = 1;
+            (void)m;
         }
         REQUIRE(ARRAYSIZE(things) == count);
         REQUIRE(0 == things[0]);
