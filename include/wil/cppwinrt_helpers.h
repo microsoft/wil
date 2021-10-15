@@ -15,6 +15,29 @@
 #include <memory>
 
 /// @cond
+namespace wil::details
+{
+    struct dispatcher_RunAsync
+    {
+        template<typename Dispatcher, typename... Args>
+        static void Schedule(Dispatcher const& dispatcher, Args&&... args)
+        {
+            dispatcher.RunAsync(std::forward<Args>(args)...);
+        }
+    };
+
+    struct dispatcher_TryEnqueue
+    {
+        template<typename Dispatcher, typename... Args>
+        static void Schedule(Dispatcher const& dispatcher, Args&&... args)
+        {
+            dispatcher.TryEnqueue(std::forward<Args>(args)...);
+        }
+    };
+
+    template<typename Dispatcher> struct dispatcher_traits;
+}
+
 #if defined(_RESUMABLE_FUNCTIONS_SUPPORTED)
 #include <experimental/coroutine>
 namespace wil::details
@@ -27,79 +50,50 @@ namespace wil::details
 {
     template<typename T = void> using coroutine_handle = std::coroutine_handle<T>;
 }
-#else
+#endif
+/// @endcond
+
+#if defined(_RESUMABLE_FUNCTIONS_SUPPORTED) || (defined(__cpp_lib_coroutine) && (__cpp_lib_coroutine >= 201902L))
+/// @cond
 namespace wil::details
 {
-    template<typename T = void> struct coroutine_handle
+    struct dispatched_handler_state
     {
-        operator bool() { return false; }
-        void operator()() {}
-        void resume() {}
+        details::coroutine_handle<> handle;
+        bool orphaned = false;
+    };
+
+    struct dispatcher_handler
+    {
+        dispatcher_handler(dispatched_handler_state* state) : m_state(state) { }
+        dispatcher_handler(dispatcher_handler&& other) noexcept : m_state(std::exchange(other.m_state, {})) {}
+
+        ~dispatcher_handler()
+        {
+            if (m_state && m_state->handle)
+            {
+                m_state->orphaned = true;
+                Complete();
+            }
+        }
+        void operator()()
+        {
+            Complete();
+        }
+
+        void Complete()
+        {
+            auto state = std::exchange(m_state, nullptr);
+            std::exchange(state->handle, {}).resume();
+        }
+
+        dispatched_handler_state* m_state;
     };
 }
-#endif
 /// @endcond
 
 namespace wil
 {
-    /// @cond
-    namespace details
-    {
-        struct dispatcher_RunAsync
-        {
-            template<typename Dispatcher, typename... Args>
-            static void Schedule(Dispatcher const& dispatcher, Args&&... args)
-            {
-                dispatcher.RunAsync(std::forward<Args>(args)...);
-            }
-        };
-
-        struct dispatcher_TryEnqueue
-        {
-            template<typename Dispatcher,typename... Args>
-            static void Schedule(Dispatcher const& dispatcher, Args&&... args)
-            {
-                dispatcher.TryEnqueue(std::forward<Args>(args)...);
-            }
-        };
-
-        template<typename Dispatcher> struct dispatcher_traits;
-
-        struct dispatched_handler_state
-        {
-            details::coroutine_handle<> handle;
-            bool orphaned = false;
-        };
-
-        struct dispatcher_handler
-        {
-            dispatcher_handler(dispatched_handler_state* state) : m_state(state) { }
-            dispatcher_handler(dispatcher_handler&& other) noexcept : m_state(std::exchange(other.m_state, {})) {}
-
-            ~dispatcher_handler()
-            {
-                if (m_state && m_state->handle)
-                {
-                    m_state->orphaned = true;
-                    Complete();
-                }
-            }
-            void operator()()
-            {
-                Complete();
-            }
-
-            void Complete()
-            {
-                auto state = std::exchange(m_state, nullptr);
-                std::exchange(state->handle, {}).resume();
-            }
-
-            dispatched_handler_state* m_state;
-        };
-    }
-    /// @endcond
-
     //! Resumes coroutine execution on the thread associated with the dispatcher, or throws
     //! an exception (from an arbitrary thread) if unable. Supported dispatchers are
     //! Windows.System.DispatcherQueue, Microsoft.System.DispatcherQueue,
@@ -158,6 +152,8 @@ namespace wil
         return awaitable{ dispatcher, priority };
     }
 }
+#endif // Coroutines are supported
+
 #endif // __WIL_CPPWINRT_HELPERS_DEFINED
 
 /// @cond
