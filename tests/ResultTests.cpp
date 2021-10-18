@@ -439,16 +439,16 @@ void ExceptionHandlingCompilationTest()
     try { try { throw std::bad_alloc(); } catch (...) { THROW_NORMALIZED_CAUGHT_EXCEPTION(); } } catch (...) {}
     try { try { throw std::bad_alloc(); } catch (...) { THROW_NORMALIZED_CAUGHT_EXCEPTION_MSG("train: %d", 42); } } catch (...) {}
 
-    HRESULT hr = wil::ResultFromExceptionDebug(WI_DIAGNOSTICS_INFO, wil::SupportedExceptions::All, [&]
+    wil::ResultFromExceptionDebug(WI_DIAGNOSTICS_INFO, wil::SupportedExceptions::All, [&]
     {
         THROW_HR(E_FAIL);
     });
 
-    hr = wil::ResultFromException(WI_DIAGNOSTICS_INFO, wil::SupportedExceptions::None, [&]
+    wil::ResultFromException(WI_DIAGNOSTICS_INFO, wil::SupportedExceptions::None, [&]
     {
     });
 
-    hr = wil::ResultFromException([&]
+    wil::ResultFromException([&]
     {
     });
 
