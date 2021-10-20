@@ -16,6 +16,13 @@
 #include <memory>
 #include <string>
 #include <vector>
+#if _HAS_CXX17
+#include <string_view>
+#endif
+
+#ifndef WI_STL_FAIL_FAST_IF
+#define WI_STL_FAIL_FAST_IF FAIL_FAST_IF
+#endif
 
 #if defined(WIL_ENABLE_EXCEPTIONS)
 
@@ -108,6 +115,66 @@ namespace wil
     {
         return str.c_str();
     }
+
+#if _HAS_CXX17
+    /**
+        zstring_view. A zstring_view is identical to a std::string_view except it is always nul-terminated (unless empty).
+        * zstring_view can be used for storing string literals without "forgetting" the length or that it is nul-terminated.
+        * A zstring_view can be converted implicitly to a std::string_view because it is always safe to use a nul-terminated
+          string_view as a plain string view.
+        * A zstring_view can be constructed from a std::string because the data in std::string is nul-terminated.
+    */
+    template<class TChar>
+    class basic_zstring_view : public std::basic_string_view<TChar>
+    {
+        using size_type = typename std::basic_string_view<TChar>::size_type;
+
+    public:
+        constexpr basic_zstring_view() noexcept = default;
+        constexpr basic_zstring_view(const basic_zstring_view&) noexcept = default;
+        constexpr basic_zstring_view& operator=(const basic_zstring_view&) noexcept = default;
+
+        constexpr basic_zstring_view(const TChar* pStringData, size_type stringLength) noexcept
+            : std::basic_string_view<TChar>(pStringData, stringLength)
+        {
+            WI_STL_FAIL_FAST_IF(pStringData[stringLength] != 0);
+        }
+
+        template<size_t stringArrayLength>
+        constexpr basic_zstring_view(const TChar(&stringArray)[stringArrayLength]) noexcept
+            : std::basic_string_view<TChar>(&stringArray[0])
+        {
+            WI_STL_FAIL_FAST_IF(stringArrayLength < this->size());
+        }
+
+        constexpr basic_zstring_view(const TChar* pStr) noexcept
+            : std::basic_string_view<TChar>(pStr) {}
+
+        constexpr basic_zstring_view(const std::basic_string<TChar>& str) noexcept
+            : std::basic_string_view<TChar>(&str[0], str.size()) {}
+
+        // basic_string_view [] precondition won't let us read view[view.size()]; so we define our own.
+        constexpr const TChar& operator[](size_type idx) const noexcept
+        {
+            WI_ASSERT(idx <= this->size() && this->data() != nullptr);
+            return this->data()[idx];
+        }
+
+        constexpr const TChar* c_str() const noexcept
+        {
+            WI_ASSERT(this->data() == nullptr || this->data()[this->size()] == 0);
+            return this->data();
+        }
+
+    private:
+        // The following basic_string_view methods must not be allowed because they break the nul-termination.
+        using std::basic_string_view<TChar>::swap;
+        using std::basic_string_view<TChar>::remove_suffix;
+    };
+
+    using zstring_view = basic_zstring_view<char>;
+    using zwstring_view = basic_zstring_view<wchar_t>;
+#endif // _HAS_CXX17
 
 } // namespace wil
 
