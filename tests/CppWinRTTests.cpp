@@ -1,6 +1,9 @@
 
 #include <wil/cppwinrt.h>
 #include <winrt/Windows.Foundation.h>
+#include <wil/cppwinrt_helpers.h>
+#include <winrt/Windows.System.h>
+#include <wil/cppwinrt_helpers.h> // Verify can include a second time to unlock more features
 
 #include "catch.hpp"
 
@@ -250,6 +253,9 @@ namespace wil::details
 
 TEST_CASE("CppWinRTTests::ResumeForegroundTests", "[cppwinrt]")
 {
+    // Verify that the DispatcherQueue version has been unlocked.
+    using Verify = decltype(wil::resume_foreground(winrt::Windows::System::DispatcherQueue{ nullptr }));
+
     []() -> winrt::Windows::Foundation::IAsyncAction
     {
         test::TestDispatcher dispatcher;
