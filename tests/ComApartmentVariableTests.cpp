@@ -7,18 +7,30 @@
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
 
 template <typename... args_t>
-inline void OutputDebugStringPrintf(_Printf_format_string_ PCWSTR format, args_t&&... args)
+inline void LogOutput(_Printf_format_string_ PCWSTR format, args_t&&... args)
 {
     OutputDebugStringW(wil::str_printf_failfast<wil::unique_cotaskmem_string>(format, wistd::forward<args_t>(args)...).get());
 }
 
-void WaitForAllComApartmentsToRundown()
+inline bool IsComInitialized()
 {
     APTTYPE type{}; APTTYPEQUALIFIER qualifier{};
-    for (; CoGetApartmentType(&type, &qualifier) == S_OK;)
+    return CoGetApartmentType(&type, &qualifier) == S_OK;
+}
+
+inline void WaitForAllComApartmentsToRundown()
+{
+    while (IsComInitialized())
     {
         Sleep(0);
     }
+}
+
+void co_wait(const wil::unique_event& e)
+{
+    HANDLE raw[] = { e.get() };
+    ULONG index{};
+    FAIL_FAST_IF_FAILED(CoWaitForMultipleHandles(COWAIT_DISPATCH_CALLS, INFINITE, static_cast<ULONG>(std::size(raw)), raw, &index));
 }
 
 void RunApartmentVariableTest(void(*test)())
@@ -202,13 +214,6 @@ void TestApartmentVariableLifetimes()
     REQUIRE(av1.storage().size() == 0);
 }
 
-void co_wait(const wil::unique_event& e)
-{
-    HANDLE raw[] = { e.get() };
-    ULONG index{};
-    FAIL_FAST_IF_FAILED(CoWaitForMultipleHandles(COWAIT_DISPATCH_CALLS, INFINITE, static_cast<ULONG>(std::size(raw)), raw, &index));
-}
-
 template <typename platform = wil::apartment_variable_platform>
 void TestMultipleApartments()
 {
@@ -335,14 +340,14 @@ void TestUniqueRegistration()
         {
             void STDMETHODCALLTYPE OnUninitialize(unsigned long long apartmentId) noexcept override
             {
-                OutputDebugStringPrintf(L"OnUninitialize %ull\n", apartmentId);
+                LogOutput(L"OnUninitialize %ull\n", apartmentId);
             }
         };
 
         wil::unique_apartment_shutdown_registration apt_shutdown_registration;
         unsigned long long id{};
         FAIL_FAST_IF_FAILED(::RoRegisterForApartmentShutdown(winrt::make<ApartmentObserver>().get(), &id, apt_shutdown_registration.put()));
-        OutputDebugStringPrintf(L"RoRegisterForApartmentShutdown %p\r\n", apt_shutdown_registration.get());
+        LogOutput(L"RoRegisterForApartmentShutdown %p\r\n", apt_shutdown_registration.get());
         // don't unregister and let the pending COM apartment rundown invoke the callback.
         apt_shutdown_registration.release();
     }
@@ -361,14 +366,14 @@ TEST_CASE("ComApartmentVariable::ShutdownRegistration", "[com][unique_apartment_
         {
             void STDMETHODCALLTYPE OnUninitialize(unsigned long long apartmentId) noexcept override
             {
-                OutputDebugStringPrintf(L"OnUninitialize %ull\n", apartmentId);
+                LogOutput(L"OnUninitialize %ull\n", apartmentId);
             }
         };
 
         wil::unique_apartment_shutdown_registration apt_shutdown_registration;
         unsigned long long id{};
         FAIL_FAST_IF_FAILED(::RoRegisterForApartmentShutdown(winrt::make<ApartmentObserver>().get(), &id, apt_shutdown_registration.put()));
-        OutputDebugStringPrintf(L"RoRegisterForApartmentShutdown %p\r\n", apt_shutdown_registration.get());
+        LogOutput(L"RoRegisterForApartmentShutdown %p\r\n", apt_shutdown_registration.get());
         // don't unregister and let the pending COM apartment rundown invoke the callback.
         apt_shutdown_registration.release();
     }

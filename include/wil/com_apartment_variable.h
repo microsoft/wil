@@ -141,7 +141,10 @@ namespace wil
             apartment_variable_base() = default;
             ~apartment_variable_base()
             {
-                clear_all_apartments_async();
+                if (!ProcessShutdownInProgress())
+                {
+                    clear_all_apartments_async();
+                }
             }
 
             // non-copyable, non-assignable
@@ -215,7 +218,7 @@ namespace wil
                     }
                 } // drop the lock
 
-                // create the object outside the lock to avoid reentrancy deadlock
+                // create the object outside the lock to avoid reentrant deadlock
                 auto value = creator();
 
                 auto insert_lock = winrt::slim_lock_guard(s_lock);
@@ -312,7 +315,9 @@ namespace wil
                 {
                     try
                     {
+                        WI_ASSERT(!ProcessShutdownInProgress());
                         co_await context;
+                        WI_ASSERT(!ProcessShutdownInProgress());
                         clear();
                     }
                     catch (winrt::hresult_error const& e)
@@ -348,6 +353,22 @@ namespace wil
             }
         };
     }
+
+    // Apartment variables enable storing COM objects safely in globals
+    // or in components that use apartment affine objects that need to
+    // be created and used only in the same apartment.
+    //
+    // For global objects (namespace scope variables or function/class statics)
+    // 1) Implemented in a dll, inform wil about the dll unload state by forwarding
+    //    DLL entry point calls wil::DLLMain().
+    // 2) For exes call wil::DLLMain(..., DLL_PROCESS_DETACH, reinterpret_cast<void*>(1)).
+    //
+    // OR
+    //
+    // 3) Use wil::object_without_destructor_on_shutdown<wil::apartment_variable<T>>.
+    //
+    // These are necessary to avoid executing the async rundown inappropriately at
+    // module unload or process rundown.
 
     template<typename T, typename test_hook = wil::apartment_variable_platform>
     struct apartment_variable : details::apartment_variable_base<test_hook>
