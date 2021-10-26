@@ -37,10 +37,9 @@ namespace wil
         return RoGetApartmentIdentifier(&apartmentId) != HRESULT_FROM_WIN32(ERROR_API_UNAVAILABLE);
     }
 
-    // TODO: COM will implicitly rundown the apartment registration when it invokes a handler
-    // and it blocks calling unregister when executing the callback. So be careful to release()
-    // this if the callback is invoked.
-    // Perhaps this should not be an RAII type given how strange the behavior is.
+    // COM will implicitly rundown the apartment registration when it invokes a handler
+    // and blocks calling unregister when executing the callback. So be careful to release()
+    // this when callback is invoked to avoid a double free of the cookie.
     using unique_apartment_shutdown_registration = unique_any<APARTMENT_SHUTDOWN_REGISTRATION_COOKIE, decltype(&::RoUnregisterForApartmentShutdown), ::RoUnregisterForApartmentShutdown>;
 
     struct apartment_variable_platform
@@ -355,20 +354,30 @@ namespace wil
     }
 
     // Apartment variables enable storing COM objects safely in globals
-    // or in components that use apartment affine objects that need to
-    // be created and used only in the same apartment.
+    // (global variables, function and class statics) managing the lifetime of
+    // the instance per apartment. Each COM apartment gets an instance of the variable.
+    // They are also useful for storing references to apartment affine objects.
     //
     // For global objects (namespace scope variables or function/class statics)
-    // 1) Implemented in a dll, inform wil about the dll unload state by forwarding
-    //    DLL entry point calls wil::DLLMain().
-    // 2) For exes call wil::DLLMain(..., DLL_PROCESS_DETACH, reinterpret_cast<void*>(1)).
+    // you must do one of the following
+    // 1) When implementing a DLL, call wil::DLLMain() from the DLL entry point.
+    // 2) When implementing a EXE, wil::DLLMain(..., DLL_PROCESS_DETACH, reinterpret_cast<void*>(1))
+    //    at the end of the program entry point.
     //
     // OR
     //
     // 3) Use wil::object_without_destructor_on_shutdown<wil::apartment_variable<T>>.
     //
     // These are necessary to avoid executing the async rundown inappropriately at
-    // module unload or process rundown.
+    // module unload or process rundown. Note, code that uses the internal version
+    // of wil does not need to do any of the above.
+    //
+    // Also note, DLLs that are accessed through exported functions that create apartment
+    // instances must maintain the DLL lifetime until all have been run down.
+    // The simplest implementation is to pin the DLL by calling
+    // GetModuleHandleEx(..., GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, ) and
+    // not releasing the HMODULE. But a cooperative design using a ref count in each
+    // instance can also work.
 
     template<typename T, typename test_hook = wil::apartment_variable_platform>
     struct apartment_variable : details::apartment_variable_base<test_hook>
