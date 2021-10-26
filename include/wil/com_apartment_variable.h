@@ -77,6 +77,13 @@ namespace wil
 
     namespace details
     {
+        // For the address of data, you can detect global variables by the ability to resolve the module from the address.
+        inline bool IsGlobalVariable(const void* moduleAddress) noexcept
+        {
+            wil::unique_hmodule moduleHandle;
+            return GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, static_cast<PCWSTR>(moduleAddress), &moduleHandle) != FALSE;
+        }
+
         struct any_maker_base
         {
             std::any(*adapter)(void*);
@@ -117,12 +124,8 @@ namespace wil
 
             struct apartment_variable_storage
             {
-                apartment_variable_storage(apartment_variable_storage&& other)
-                {
-                    cookie = std::move(other.cookie);
-                    context = std::move(other.context);
-                    variables = std::move(other.variables);
-                }
+                apartment_variable_storage(apartment_variable_storage&& other) noexcept = default;
+                apartment_variable_storage(const apartment_variable_storage& other) = delete;
 
                 apartment_variable_storage(typename test_hook::shutdown_type&& cookie_) : cookie(std::move(cookie_))
                 {
@@ -140,7 +143,12 @@ namespace wil
             apartment_variable_base() = default;
             ~apartment_variable_base()
             {
-                if (!ProcessShutdownInProgress())
+                // Global variables (object with static storage duration)
+                // are run down when the process is shutting down or when the
+                // dll is unloaded. At these points it is not possible to start
+                // an async operation and the work performed is not needed,
+                // the apartments with variable have been run down already.
+                if (!details::IsGlobalVariable(this))
                 {
                     clear_all_apartments_async();
                 }
@@ -314,9 +322,7 @@ namespace wil
                 {
                     try
                     {
-                        WI_ASSERT(!ProcessShutdownInProgress());
                         co_await context;
-                        WI_ASSERT(!ProcessShutdownInProgress());
                         clear();
                     }
                     catch (winrt::hresult_error const& e)
@@ -354,30 +360,17 @@ namespace wil
     }
 
     // Apartment variables enable storing COM objects safely in globals
-    // (global variables, function and class statics) managing the lifetime of
-    // the instance per apartment. Each COM apartment gets an instance of the variable.
-    // They are also useful for storing references to apartment affine objects.
+    // (objects with static storage duration) by creating a unique copy
+    // in each apartment and managing their lifetime based on apartment rundown
+    // notifications.
+    // They can also be used for automatic or dynamic storage duration but those
+    // cases are less common.
+    // This type is also useful for storing references to apartment affine objects.
     //
-    // For global objects (namespace scope variables or function/class statics)
-    // you must do one of the following
-    // 1) When implementing a DLL, call wil::DLLMain() from the DLL entry point.
-    // 2) When implementing a EXE, wil::DLLMain(..., DLL_PROCESS_DETACH, reinterpret_cast<void*>(1))
-    //    at the end of the program entry point.
-    //
-    // OR
-    //
-    // 3) Use wil::object_without_destructor_on_shutdown<wil::apartment_variable<T>>.
-    //
-    // These are necessary to avoid executing the async rundown inappropriately at
-    // module unload or process rundown. Note, code that uses the internal version
-    // of wil does not need to do any of the above.
-    //
-    // Also note, DLLs that are accessed through exported functions that create apartment
-    // instances must maintain the DLL lifetime until all have been run down.
-    // The simplest implementation is to pin the DLL by calling
-    // GetModuleHandleEx(..., GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, ) and
-    // not releasing the HMODULE. But a cooperative design using a ref count in each
-    // instance can also work.
+    // Note, that apartment variables hosted in a COM DLL need to
+    // the DllCanUnloadNow() function to include the ref counts contributed by
+    // C++ WinRT objects. This is automatic for DLLs that host C++ WinRT objects
+    // but WRL projects will need to be updated to call winrt::get_module_lock().
 
     template<typename T, typename test_hook = wil::apartment_variable_platform>
     struct apartment_variable : details::apartment_variable_base<test_hook>
