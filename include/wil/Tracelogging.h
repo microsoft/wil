@@ -1952,7 +1952,7 @@ namespace wil
                 void* CallbackContext ); \
     protected: \
         void Create() WI_NOEXCEPT \
-            { Register(m_staticHandle.handle, &##TraceLoggingClassName##::Callback); } \
+            { Register(m_staticHandle.handle, &TraceLoggingClassName::Callback); } \
     public:
 
 
@@ -2433,6 +2433,41 @@ namespace wil
 #endif
 
 #ifdef _GENERIC_PARTB_FIELDS_ENABLED
+#define DEFINE_TRACELOGGING_EVENT_PARAM9(EventId, VarType1, varName1, VarType2, varName2, VarType3, varName3, VarType4, varName4, VarType5, varName5, VarType6, varName6, VarType7, varName7, VarType8, varName8, VarType9, varName9, ...) \
+        template<typename T1, typename T2, typename T3, typename T4, typename T5, typename T6, typename T7, typename T8, typename T9> static void EventId(T1 &&varName1, T2 &&varName2, T3 &&varName3, T4 &&varName4, T5 &&varName5, T6 &&varName6, T7 &&varName7, T8 &&varName8, T9 &&varName9) \
+        { \
+            TraceLoggingWrite(TraceLoggingType::Provider(), #EventId, \
+                TraceLoggingValue(static_cast<VarType1>(wistd::forward<T1>(varName1)), _wiltlg_STRINGIZE(varName1)), \
+                TraceLoggingValue(static_cast<VarType2>(wistd::forward<T2>(varName2)), _wiltlg_STRINGIZE(varName2)), \
+                TraceLoggingValue(static_cast<VarType3>(wistd::forward<T3>(varName3)), _wiltlg_STRINGIZE(varName3)), \
+                TraceLoggingValue(static_cast<VarType4>(wistd::forward<T4>(varName4)), _wiltlg_STRINGIZE(varName4)), \
+                TraceLoggingValue(static_cast<VarType5>(wistd::forward<T5>(varName5)), _wiltlg_STRINGIZE(varName5)), \
+                TraceLoggingValue(static_cast<VarType6>(wistd::forward<T6>(varName6)), _wiltlg_STRINGIZE(varName6)), \
+                TraceLoggingValue(static_cast<VarType7>(wistd::forward<T7>(varName7)), _wiltlg_STRINGIZE(varName7)), \
+                TraceLoggingValue(static_cast<VarType8>(wistd::forward<T8>(varName8)), _wiltlg_STRINGIZE(varName8)), \
+                TraceLoggingValue(static_cast<VarType9>(wistd::forward<T9>(varName9)), _wiltlg_STRINGIZE(varName9)), \
+                _GENERIC_PARTB_FIELDS_ENABLED, \
+                __VA_ARGS__); \
+        }
+#else
+#define DEFINE_TRACELOGGING_EVENT_PARAM9(EventId, VarType1, varName1, VarType2, varName2, VarType3, varName3, VarType4, varName4, VarType5, varName5, VarType6, varName6, VarType7, varName7, VarType8, varName8, VarType9, varName9, ...) \
+        template<typename T1, typename T2, typename T3, typename T4, typename T5, typename T6, typename T7, typename T8, typename T9> static void EventId(T1 &&varName1, T2 &&varName2, T3 &&varName3, T4 &&varName4, T5 &&varName5, T6 &&varName6, T7 &&varName7, T8 &&varName8, T9 &&varName9) \
+        { \
+            TraceLoggingWrite(TraceLoggingType::Provider(), #EventId, \
+                TraceLoggingValue(static_cast<VarType1>(wistd::forward<T1>(varName1)), _wiltlg_STRINGIZE(varName1)), \
+                TraceLoggingValue(static_cast<VarType2>(wistd::forward<T2>(varName2)), _wiltlg_STRINGIZE(varName2)), \
+                TraceLoggingValue(static_cast<VarType3>(wistd::forward<T3>(varName3)), _wiltlg_STRINGIZE(varName3)), \
+                TraceLoggingValue(static_cast<VarType4>(wistd::forward<T4>(varName4)), _wiltlg_STRINGIZE(varName4)), \
+                TraceLoggingValue(static_cast<VarType5>(wistd::forward<T5>(varName5)), _wiltlg_STRINGIZE(varName5)), \
+                TraceLoggingValue(static_cast<VarType6>(wistd::forward<T6>(varName6)), _wiltlg_STRINGIZE(varName6)), \
+                TraceLoggingValue(static_cast<VarType7>(wistd::forward<T7>(varName7)), _wiltlg_STRINGIZE(varName7)), \
+                TraceLoggingValue(static_cast<VarType8>(wistd::forward<T8>(varName8)), _wiltlg_STRINGIZE(varName8)), \
+                TraceLoggingValue(static_cast<VarType9>(wistd::forward<T9>(varName9)), _wiltlg_STRINGIZE(varName9)), \
+                __VA_ARGS__); \
+        }
+#endif
+
+#ifdef _GENERIC_PARTB_FIELDS_ENABLED
     #define DEFINE_TRACELOGGING_EVENT_PARAM9_CV(EventId, VarType1, varName1, VarType2, varName2, VarType3, varName3, VarType4, varName4, VarType5, varName5, VarType6, varName6, VarType7, varName7, VarType8, varName8, VarType9, varName9, ...) \
         template<typename T1, typename T2, typename T3, typename T4, typename T5, typename T6, typename T7, typename T8, typename T9> static void EventId(T1 &&varName1, T2 &&varName2, T3 &&varName3, T4 &&varName4, T5 &&varName5, T6 &&varName6, T7 &&varName7, T8 &&varName8, T9 &&varName9, PCSTR correlationVector) \
         { \
@@ -2758,6 +2793,8 @@ WIL_WARN_DEPRECATED_1612_PRAGMA("IMPLEMENT_TRACELOGGING_CLASS")
     DEFINE_TRACELOGGING_EVENT_PARAM7(EventId, VarType1, varName1, VarType2, varName2, VarType3, varName3, VarType4, varName4, VarType5, varName5, VarType6, varName6, VarType7, varName7, TraceLoggingKeyword(MICROSOFT_KEYWORD_MEASURES), TelemetryPrivacyDataTag(PrivacyTag))
 #define DEFINE_COMPLIANT_MEASURES_EVENT_PARAM8(EventId, PrivacyTag, VarType1, varName1, VarType2, varName2, VarType3, varName3, VarType4, varName4, VarType5, varName5, VarType6, varName6, VarType7, varName7, VarType8, varName8) \
     DEFINE_TRACELOGGING_EVENT_PARAM8(EventId, VarType1, varName1, VarType2, varName2, VarType3, varName3, VarType4, varName4, VarType5, varName5, VarType6, varName6, VarType7, varName7, VarType8, varName8, TraceLoggingKeyword(MICROSOFT_KEYWORD_MEASURES), TelemetryPrivacyDataTag(PrivacyTag))
+#define DEFINE_COMPLIANT_MEASURES_EVENT_PARAM9(EventId, PrivacyTag, VarType1, varName1, VarType2, varName2, VarType3, varName3, VarType4, varName4, VarType5, varName5, VarType6, varName6, VarType7, varName7, VarType8, varName8, VarType9, varName9) \
+    DEFINE_TRACELOGGING_EVENT_PARAM9(EventId, VarType1, varName1, VarType2, varName2, VarType3, varName3, VarType4, varName4, VarType5, varName5, VarType6, varName6, VarType7, varName7, VarType8, varName8, VarType9, varName9, TraceLoggingKeyword(MICROSOFT_KEYWORD_MEASURES), TelemetryPrivacyDataTag(PrivacyTag))
 #define DEFINE_COMPLIANT_MEASURES_EVENT_PARAM10(EventId, PrivacyTag, VarType1, varName1, VarType2, varName2, VarType3, varName3, VarType4, varName4, VarType5, varName5, VarType6, varName6, VarType7, varName7, VarType8, varName8, VarType9, varName9, VarType10, varName10) \
     DEFINE_TRACELOGGING_EVENT_PARAM10(EventId, VarType1, varName1, VarType2, varName2, VarType3, varName3, VarType4, varName4, VarType5, varName5, VarType6, varName6, VarType7, varName7, VarType8, varName8, VarType9, varName9, VarType10, varName10, TraceLoggingKeyword(MICROSOFT_KEYWORD_MEASURES), TelemetryPrivacyDataTag(PrivacyTag))
 

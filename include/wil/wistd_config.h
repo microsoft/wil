@@ -127,7 +127,7 @@
 #ifdef __WI_LIBCPP_COMPILER_CLANG
 #define __WI_CLANG_DISABLE_WARNING(warning) __pragma(clang diagnostic ignored #warning)
 #else
-#define __WI_CLANG_DISABLE_WARNING
+#define __WI_CLANG_DISABLE_WARNING(warning)
 #endif
 
 // NOTE: MSVC, which is what we primarily target, is severly underrepresented in libc++ and checks such as
