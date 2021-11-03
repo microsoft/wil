@@ -40,12 +40,13 @@ target_include_directories(${PROJECT_NAME} INTERFACE
 )
 
 # Install Package Configuration
-install(TARGETS ${PROJECT_NAME} EXPORT ${PROJECT_NAME}_targets)
-install(EXPORT ${PROJECT_NAME}_targets
+string(TOLOWER ${PROJECT_NAME} PROJECT_NAME_LOWER)
+install(TARGETS ${PROJECT_NAME} EXPORT ${PROJECT_NAME_LOWER}_targets)
+install(EXPORT ${PROJECT_NAME_LOWER}_targets
     NAMESPACE ${PROJECT_NAME}::
-    FILE ${PROJECT_NAME}-config.cmake
+    FILE ${PROJECT_NAME_LOWER}-config.cmake
     DESTINATION "${CMAKE_INSTALL_DATADIR}/cmake/${PROJECT_NAME}"
 )
 
 # Install the headers at a standard cmake location.
-install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/${PROJECT_NAME}" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
+install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/${PROJECT_NAME_LOWER}" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
