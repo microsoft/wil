@@ -742,3 +742,78 @@ TEST_CASE("DefaultTemplateParamCompiles", "[resource]")
     wil::unique_cotaskmem_ptr<> h;
     wil::unique_mapview_ptr<> i;
 }
+
+TEST_CASE("UniqueInvokeCleanupMembers", "[resource]")
+{
+    // Case 1 - unique_ptr<> for a T* that has a "destroy" member
+    struct ThingWithDestroy
+    {
+        bool destroyed = false;
+        void destroy() { destroyed = true; };
+    };
+    ThingWithDestroy toDestroy;
+    wil::unique_any<ThingWithDestroy*, decltype(&ThingWithDestroy::destroy), &ThingWithDestroy::destroy> p(&toDestroy);
+    p.reset();
+    REQUIRE(!p);
+    REQUIRE(toDestroy.destroyed);
+
+    // Case 2 - unique_struct calling a member, like above
+    struct ThingToDestroy2
+    {
+        bool* destroyed;
+        void destroy() { *destroyed = true; };
+    };
+    bool structDestroyed = false;
+    {
+        wil::unique_struct<ThingToDestroy2, decltype(&ThingToDestroy2::destroy), &ThingToDestroy2::destroy> other;
+        other.destroyed = &structDestroyed;
+        REQUIRE(!structDestroyed);
+    }
+    REQUIRE(structDestroyed);
+}
+
+struct ITokenTester : IUnknown
+{
+    virtual void DirectClose(DWORD_PTR token) = 0;
+};
+
+struct TokenTester : ITokenTester
+{
+    IFACEMETHOD_(ULONG, AddRef)() override { return 2; }
+    IFACEMETHOD_(ULONG, Release)() override { return 1; }
+    IFACEMETHOD(QueryInterface)(REFIID, void**) { return E_NOINTERFACE; }
+    void DirectClose(DWORD_PTR token) override {
+        m_closed = (token == m_closeToken);
+    }
+    bool m_closed = false;
+    DWORD_PTR m_closeToken;
+};
+
+void MyTokenTesterCloser(ITokenTester* tt, DWORD_PTR token)
+{
+    tt->DirectClose(token);
+}
+
+TEST_CASE("ComTokenCloser", "[resource]")
+{
+    using token_tester_t = wil::unique_com_token<ITokenTester, DWORD_PTR, decltype(MyTokenTesterCloser), &MyTokenTesterCloser>;
+
+    TokenTester tt;
+    tt.m_closeToken = 4;
+    {
+        token_tester_t tmp{ &tt, 4 };
+    }
+    REQUIRE(tt.m_closed);
+}
+
+TEST_CASE("ComTokenDirectCloser", "[resource]")
+{
+    using token_tester_t = wil::unique_com_token<ITokenTester, DWORD_PTR, decltype(&ITokenTester::DirectClose), &ITokenTester::DirectClose>;
+
+    TokenTester tt;
+    tt.m_closeToken = 4;
+    {
+        token_tester_t tmp{ &tt, 4 };
+    }
+    REQUIRE(tt.m_closed);
+}
