@@ -12,7 +12,8 @@ Some things that WIL includes to whet your appetite:
   Smart pointers and auto-releasing resource wrappers to let you manage Windows
   API HANDLEs, HWNDs, and other resources and resource handles with
   [RAII](https://en.cppreference.com/w/cpp/language/raii) semantics.
-- [`include/wil/win32_helpers.h`](include/wil/win32_helpers.h): Wrappers for API functions
+- [`include/wil/win32_helpers.h`](include/wil/win32_helpers.h)
+  ([documentation](https://github.com/microsoft/wil/wiki/Win32-helpers)): Wrappers for API functions
   that save you the work of manually specifying buffer sizes, calling a function twice
   to get the needed buffer size and then allocate and pass the right-size buffer,
   casting or converting between types, and so on.
@@ -24,6 +25,11 @@ Some things that WIL includes to whet your appetite:
   Preprocessor macros to help you check for errors from Windows API functions,
   in many of the myriad ways those errors are reported, and surface them as
   error codes or C++ exceptions in your code.
+- [`include/wil/tracelogging.h`](include/wil/tracelogging.h): This file contains the convenience macros 
+  that enable developers define and log telemetry. These macros use
+  [`TraceLogging API`](https://docs.microsoft.com/en-us/windows/win32/tracelogging/trace-logging-portal) 
+  to log data. This data can be viewed in tools such as 
+  [`Windows Performance Analyzer`](https://docs.microsoft.com/en-us/windows-hardware/test/wpt/windows-performance-analyzer).
 
 WIL can be used by C++ code that uses C++ exceptions as well as code that uses returned
 error codes to report errors. All of WIL can be used from user-space Windows code,

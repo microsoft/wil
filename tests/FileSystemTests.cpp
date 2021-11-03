@@ -605,6 +605,15 @@ TEST_CASE("FileSystemTests::VerifyGetModuleFileNameExW", "[filesystem]")
 #endif
 }
 
+TEST_CASE("FileSystemTests::QueryFullProcessImageNameW and GetModuleFileNameW", "[filesystem]")
+{
+#ifdef WIL_ENABLE_EXCEPTIONS
+    auto procName = wil::QueryFullProcessImageNameW<std::wstring>();
+    auto moduleName = wil::GetModuleFileNameW<std::wstring>();
+    REQUIRE(procName == moduleName);
+#endif
+}
+
 TEST_CASE("FileSystemTests::QueryFullProcessImageNameW", "[filesystem]")
 {
     WCHAR fullName[MAX_PATH * 4];
@@ -618,5 +627,6 @@ TEST_CASE("FileSystemTests::QueryFullProcessImageNameW", "[filesystem]")
     wil::unique_cotaskmem nativePath;
     REQUIRE_SUCCEEDED((wil::QueryFullProcessImageNameW<wil::unique_cotaskmem_string, 15>(::GetCurrentProcess(), 0, path)));
 }
+
 
 #endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)

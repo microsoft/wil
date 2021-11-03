@@ -20,9 +20,11 @@
 #include <Windows.h>
 #endif
 
-// Setup the debug behavior
+// Setup the debug behavior. For kernel-mode, we ignore NDEBUG because that gets set automatically
+// for driver projects. We mimic the behavior of NT_ASSERT which checks only for DBG.
+// RESULT_NO_DEBUG is provided as an opt-out mechanism.
 #ifndef RESULT_DEBUG
-#if (DBG || defined(DEBUG) || defined(_DEBUG)) && !defined(NDEBUG)
+#if (DBG || defined(DEBUG) || defined(_DEBUG)) && !defined(RESULT_NO_DEBUG) && (defined(WIL_KERNEL_MODE) || !defined(NDEBUG))
 #define RESULT_DEBUG
 #endif
 #endif
@@ -1737,7 +1739,10 @@ namespace wil
         // 1) Provide a unique count and last error code per-type
         // 2) Avoid merging the types to allow easy debugging (breakpoints, conditional breakpoints based
         //      upon count of errors from a particular type, etc)
-
+__WI_PUSH_WARNINGS
+#if __clang_major__ >= 13
+__WI_CLANG_DISABLE_WARNING(-Wunused-but-set-variable) // s_hrErrorLast used for debugging. We intentionally only assign to it
+#endif
         __declspec(noinline) inline int RecordException(HRESULT hr) WI_NOEXCEPT
         {
             static HRESULT volatile s_hrErrorLast = S_OK;
@@ -1768,6 +1773,7 @@ namespace wil
             s_hrErrorLast = hr;
             return 1;
         }
+__WI_POP_WARNINGS
 
         inline RESULT_NORETURN void __stdcall WilRaiseFailFastException(_In_ PEXCEPTION_RECORD er, _In_opt_ PCONTEXT cr, _In_ DWORD flags)
         {
@@ -2315,6 +2321,10 @@ namespace wil
     class manually_managed_shutdown_aware_object
     {
     public:
+        manually_managed_shutdown_aware_object() = default;
+        manually_managed_shutdown_aware_object(manually_managed_shutdown_aware_object const&) = delete;
+        void operator=(manually_managed_shutdown_aware_object const&) = delete;
+
         void construct()
         {
             void* var = &m_raw;
@@ -2360,6 +2370,9 @@ namespace wil
             m_object.destroy();
         }
 
+        shutdown_aware_object(shutdown_aware_object const&) = delete;
+        void operator=(shutdown_aware_object const&) = delete;
+
         //! Retrieves a reference to the contained object
         T& get() WI_NOEXCEPT
         {
@@ -2388,6 +2401,9 @@ namespace wil
                 get().~T();
             }
         }
+
+        object_without_destructor_on_shutdown(object_without_destructor_on_shutdown const&) = delete;
+        void operator=(object_without_destructor_on_shutdown const&) = delete;
 
         //! Retrieves a reference to the contained object
         T& get() WI_NOEXCEPT
