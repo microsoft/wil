@@ -367,7 +367,7 @@ namespace wil
     // cases are less common.
     // This type is also useful for storing references to apartment affine objects.
     //
-    // Note, that apartment variables hosted in a COM DLL need to
+    // Note, that apartment variables hosted in a COM DLL need to integrate with
     // the DllCanUnloadNow() function to include the ref counts contributed by
     // C++ WinRT objects. This is automatic for DLLs that host C++ WinRT objects
     // but WRL projects will need to be updated to call winrt::get_module_lock().
