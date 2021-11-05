@@ -50,6 +50,9 @@ install(TARGETS ${PROJECT_NAME} EXPORT ${PROJECT_NAME_LOWER}_targets)
 install(EXPORT ${PROJECT_NAME_LOWER}_targets
     NAMESPACE ${PROJECT_NAME}::
     FILE ${PROJECT_NAME_LOWER}-config.cmake
+```suggestion
+    FILE ${PROJECT_NAME_LOWER}Config.cmake
+
     DESTINATION "${CMAKE_INSTALL_DATADIR}/cmake/${PROJECT_NAME}"
 )
 
