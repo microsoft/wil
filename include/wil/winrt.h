@@ -163,7 +163,8 @@ namespace wil
             const wchar_t*> get_buffer(const StringT& str, UINT32* length) WI_NOEXCEPT
             {
                 *length = static_cast<UINT32>(str.size());
-                return str.data();
+                const wchar_t* ret = str.data();
+                return ret ? ret : L"";
             }
 
             template <typename LhsT, typename RhsT>
