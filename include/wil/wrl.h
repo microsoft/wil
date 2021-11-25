@@ -16,6 +16,10 @@
 #include "common.h" // wistd type_traits helpers
 #include <libloaderapi.h> // GetModuleHandleW
 
+/// @cond
+EXTERN_C IMAGE_DOS_HEADER __ImageBase;
+/// @endcond
+
 namespace wil
 {
 
@@ -81,10 +85,6 @@ namespace wil
     }
 #endif // WIL_ENABLE_EXCEPTIONS
 
-    /// @cond
-    EXTERN_C IMAGE_DOS_HEADER __ImageBase;
-    /// @endcond
-
     /** Holds a reference to the host WRL module to prevent it from being unloaded.
     Normally, the reference is held implicitly because you are a member function
     of a DLL-hosted COM object, or because you retain a strong reference
@@ -102,10 +102,12 @@ namespace wil
             }
             else
             {
+#ifdef GET_MODULE_HANDLE_EX_FLAG_PIN
                 // If this assertion fails, then you are using wrl_module_reference
                 // from a DLL that does not host WRL objects, and the module reference
                 // has no effect.
                 WI_ASSERT(reinterpret_cast<HMODULE>(&__ImageBase) == GetModuleHandleW(nullptr));
+#endif
             }
         }
 
