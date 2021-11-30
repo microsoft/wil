@@ -54,7 +54,7 @@ namespace wil
         static auto RegisterForApartmentShutdown(IApartmentShutdown* observer)
         {
             unsigned long long id{};
-            typename shutdown_type cookie;
+            shutdown_type cookie;
             THROW_IF_FAILED(RoRegisterForApartmentShutdown(observer, &id, cookie.put()));
             return cookie;
         }
