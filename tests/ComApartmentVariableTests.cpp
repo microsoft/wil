@@ -327,7 +327,7 @@ void TestLosingApartmentAlreadyRundownRace()
     apt_thread.join();
 }
 
-TEST_CASE("ComApartmentVariable::ShutdownRegistration", "[com][unique_apartment_shutdown_registration]")
+TEST_CASE("ComApartmentVariable::ShutdownRegistration", "[LocalOnly][com][unique_apartment_shutdown_registration]")
 {
     {
         wil::unique_apartment_shutdown_registration r;
