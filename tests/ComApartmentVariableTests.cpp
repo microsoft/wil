@@ -30,7 +30,7 @@ void co_wait(const wil::unique_event& e)
 {
     HANDLE raw[] = { e.get() };
     ULONG index{};
-    FAIL_FAST_IF_FAILED(CoWaitForMultipleHandles(COWAIT_DISPATCH_CALLS, INFINITE, static_cast<ULONG>(std::size(raw)), raw, &index));
+    REQUIRE_SUCCEEDED(CoWaitForMultipleHandles(COWAIT_DISPATCH_CALLS, INFINITE, static_cast<ULONG>(std::size(raw)), raw, &index));
 }
 
 void RunApartmentVariableTest(void(*test)())
@@ -46,12 +46,12 @@ struct mock_platform
     static unsigned long long GetApartmentId()
     {
         APTTYPE type; APTTYPEQUALIFIER qualifer;
-        FAIL_FAST_IF_FAILED(CoGetApartmentType(&type, &qualifer)); // ensure COM is inited
+        REQUIRE_SUCCEEDED(CoGetApartmentType(&type, &qualifer)); // ensure COM is inited
 
         // Approximate apartment Id
         if (type == APTTYPE_STA)
         {
-            FAIL_FAST_IF(GetCurrentThreadId() < APTTYPE_MAINSTA);
+            REQUIRE_FALSE(GetCurrentThreadId() < APTTYPE_MAINSTA);
             return GetCurrentThreadId();
         }
         else
@@ -327,7 +327,7 @@ void TestLosingApartmentAlreadyRundownRace()
     apt_thread.join();
 }
 
-void TestUniqueRegistration()
+TEST_CASE("ComApartmentVariable::ShutdownRegistration", "[LocalOnly][com][unique_apartment_shutdown_registration]")
 {
     {
         wil::unique_apartment_shutdown_registration r;
@@ -346,33 +346,7 @@ void TestUniqueRegistration()
 
         wil::unique_apartment_shutdown_registration apt_shutdown_registration;
         unsigned long long id{};
-        FAIL_FAST_IF_FAILED(::RoRegisterForApartmentShutdown(winrt::make<ApartmentObserver>().get(), &id, apt_shutdown_registration.put()));
-        LogOutput(L"RoRegisterForApartmentShutdown %p\r\n", apt_shutdown_registration.get());
-        // don't unregister and let the pending COM apartment rundown invoke the callback.
-        apt_shutdown_registration.release();
-    }
-}
-
-TEST_CASE("ComApartmentVariable::ShutdownRegistration", "[com][unique_apartment_shutdown_registration]")
-{
-    {
-        wil::unique_apartment_shutdown_registration r;
-    }
-
-    {
-        auto coUninit = wil::CoInitializeEx(COINIT_MULTITHREADED);
-
-        struct ApartmentObserver : public winrt::implements<ApartmentObserver, IApartmentShutdown>
-        {
-            void STDMETHODCALLTYPE OnUninitialize(unsigned long long apartmentId) noexcept override
-            {
-                LogOutput(L"OnUninitialize %ull\n", apartmentId);
-            }
-        };
-
-        wil::unique_apartment_shutdown_registration apt_shutdown_registration;
-        unsigned long long id{};
-        FAIL_FAST_IF_FAILED(::RoRegisterForApartmentShutdown(winrt::make<ApartmentObserver>().get(), &id, apt_shutdown_registration.put()));
+        REQUIRE_SUCCEEDED(::RoRegisterForApartmentShutdown(winrt::make<ApartmentObserver>().get(), &id, apt_shutdown_registration.put()));
         LogOutput(L"RoRegisterForApartmentShutdown %p\r\n", apt_shutdown_registration.get());
         // don't unregister and let the pending COM apartment rundown invoke the callback.
         apt_shutdown_registration.release();
