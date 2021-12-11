@@ -4809,6 +4809,7 @@ namespace wil
     typedef unique_any<HCRYPTPROV, decltype(&details::CryptReleaseContextNoParam), details::CryptReleaseContextNoParam> unique_hcryptprov;
     typedef unique_any<HCRYPTKEY, decltype(&::CryptDestroyKey), ::CryptDestroyKey> unique_hcryptkey;
     typedef unique_any<HCRYPTHASH, decltype(&::CryptDestroyHash), ::CryptDestroyHash> unique_hcrypthash;
+    typedef unique_any<HCRYPTMSG, decltype(&::CryptMsgClose), ::CryptMsgClose> unique_hcryptmsg;
 #endif // __WIL__WINCRYPT_H__
 #if defined(__WIL__WINCRYPT_H__) && !defined(__WIL__WINCRYPT_H__STL) && defined(WIL_RESOURCE_STL)
 #define __WIL__WINCRYPT_H__STL
@@ -4818,6 +4819,7 @@ namespace wil
     typedef shared_any<unique_hcryptprov> shared_hcryptprov;
     typedef shared_any<unique_hcryptkey> shared_hcryptkey;
     typedef shared_any<unique_hcrypthash> shared_hcrypthash;
+    typedef shared_any<unique_hcryptmsg> shared_hcryptmsg;
 
     typedef weak_any<shared_cert_context> weak_cert_context;
     typedef weak_any<shared_cert_chain_context> weak_cert_chain_context;
@@ -4825,6 +4827,7 @@ namespace wil
     typedef weak_any<shared_hcryptprov> weak_hcryptprov;
     typedef weak_any<shared_hcryptkey> weak_hcryptkey;
     typedef weak_any<shared_hcrypthash> weak_hcrypthash;
+    typedef weak_any<shared_hcryptmsg> weak_hcryptmsg;
 #endif // __WIL__WINCRYPT_H__STL
 
 
