@@ -1,5 +1,8 @@
 @echo off
+setlocal
 setlocal EnableDelayedExpansion
+
+set TEST_ARGS=%*
 
 set BUILD_ROOT=%~dp0\..\build
 
@@ -65,5 +68,5 @@ goto :eof
 :execute_test
 if not exist tests\%1\%2 ( goto :eof )
 echo Running %1 tests...
-tests\%1\%2
+tests\%1\%2 %TEST_ARGS%
 goto :eof
