@@ -273,7 +273,7 @@ namespace wil
 
         // forwarding constructor: forwards all 'explicit' and multi-arg constructors to the base class
         template <typename arg1, typename... args_t>
-        explicit unique_any_t(arg1 && first, args_t&&... args) :  // should not be WI_NOEXCEPT (may forward to a throwing constructor)
+        explicit unique_any_t(arg1 && first, args_t&&... args) noexcept(noexcept(storage_t(wistd::forward<arg1>(first), wistd::forward<args_t>(args)...))) :
             storage_t(wistd::forward<arg1>(first), wistd::forward<args_t>(args)...)
         {
             static_assert(wistd::is_same<typename policy::pointer_access, details::pointer_access_none>::value ||
