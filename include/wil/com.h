@@ -1989,7 +1989,7 @@ namespace wil
         return CoGetClassObjectNoThrow<Interface>(__uuidof(Class), dwClsContext);
     }
 
-#if __has_include(<tuple>)
+#if __has_include(<tuple>) && (__WI_LIBCPP_STD_VER >= 17)
     namespace details
     {
         template <typename error_policy, typename... Results>
@@ -2012,7 +2012,7 @@ namespace wil
 
             std::apply([i = 0, &multiQis](auto&... a) mutable
             {
-                (a.attach(reinterpret_cast<std::remove_reference_t<decltype(a)>::pointer>(multiQis[i++].pItf)), ...);
+                (a.attach(reinterpret_cast<typename std::remove_reference_t<decltype(a)>::pointer>(multiQis[i++].pItf)), ...);
             }, resultTuple);
             return std::tuple<HRESULT, decltype(resultTuple)>(hr, std::move(resultTuple));
         }
@@ -2039,7 +2039,7 @@ namespace wil
                 hr = multiQi->QueryMultipleInterfaces(ARRAYSIZE(multiQis), multiQis);
                 std::apply([i = 0, &multiQis](auto&... a) mutable
                 {
-                    (a.attach(reinterpret_cast<std::remove_reference_t<decltype(a)>::pointer>(multiQis[i++].pItf)), ...);
+                    (a.attach(reinterpret_cast<typename std::remove_reference_t<decltype(a)>::pointer>(multiQis[i++].pItf)), ...);
                 }, resultTuple);
             }
             return std::tuple<HRESULT, decltype(resultTuple)>{hr, std::move(resultTuple)};

@@ -513,12 +513,12 @@ namespace wil
     EXTERN_C IMAGE_DOS_HEADER __ImageBase;
     inline HINSTANCE GetModuleInstanceHandle() WI_NOEXCEPT { return reinterpret_cast<HINSTANCE>(&__ImageBase); }
 
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM | WINAPI_PARTITION_GAMES)
     // Use this in threads that can outlive the object or API call that created them.
     // Without this COM, or the API caller, can unload the DLL, resulting in a crash.
     // It is very important that this be the first object created in the thread proc
     // as when this runs down the thread exits and no destructors of objects created before
     // it will run.
-
     [[nodiscard]] inline auto get_module_reference_for_thread() noexcept
     {
         HMODULE thisModule{};
@@ -528,7 +528,8 @@ namespace wil
             FreeLibraryAndExitThread(thisModule, 0);
         });
     }
-    
+#endif
+
     /// @cond
     namespace details
     {
