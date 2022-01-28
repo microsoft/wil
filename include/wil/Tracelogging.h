@@ -465,7 +465,7 @@ namespace wil
         // of a failure in a CallContext activity, WatchCurrentThread() object, or attributed to a specific failure.
         virtual void OnErrorReported(bool alreadyReported, FailureInfo const &failure) WI_NOEXCEPT
         {
-            if (!alreadyReported)
+            if (!alreadyReported && WI_IsFlagClear(failure.flags, FailureFlags::RequestSuppressTelemetry))
             {
                 if (m_errorReportingType == ErrorReportingType::Telemetry)
                 {
@@ -524,22 +524,27 @@ namespace wil
             TraceLoggingWrite(m_providerHandle, "FallbackError", TraceLoggingLevel(WINEVENT_LEVEL_ERROR), __RESULT_TRACELOGGING_FAILURE_PARAMS(failure));
         }
 
-        // Helper function for TraceLoggingInfo/TraceLoggingError.
-        // It prints out trace message for debug purpose. The message does not go into the telemetry.
-        void ReportTraceLoggingMessage(bool isError, _In_ _Printf_format_string_ PCSTR formatString, va_list argList) WI_NOEXCEPT
+        // Helper function for TraceLoggingError.
+        // It prints out a trace message for debug purposes. The message does not go into the telemetry.
+        void ReportTraceLoggingError(_In_ _Printf_format_string_ PCSTR formatString, va_list argList) WI_NOEXCEPT
+        {
+            if (IsEnabled_(WINEVENT_LEVEL_ERROR, 0))
+            {
+                wchar_t loggingMessage[2048];
+                details::PrintLoggingMessage(loggingMessage, ARRAYSIZE(loggingMessage), formatString, argList);
+                TraceLoggingWrite(m_providerHandle, "TraceLoggingError", TraceLoggingLevel(WINEVENT_LEVEL_ERROR), TraceLoggingWideString(loggingMessage, "traceLoggingMessage"));
+            }
+        }
+
+        // Helper function for TraceLoggingInfo.
+        // It prints out a trace message for debug purposes. The message does not go into the telemetry.
+        void ReportTraceLoggingMessage(_In_ _Printf_format_string_ PCSTR formatString, va_list argList) WI_NOEXCEPT
         {
             if (IsEnabled_(WINEVENT_LEVEL_VERBOSE, 0))
             {
                 wchar_t loggingMessage[2048];
                 details::PrintLoggingMessage(loggingMessage, ARRAYSIZE(loggingMessage), formatString, argList);
-                if (isError)
-                {
-                    TraceLoggingWrite(m_providerHandle, "TraceLoggingError", TraceLoggingLevel(WINEVENT_LEVEL_VERBOSE), TraceLoggingWideString(loggingMessage, "traceLoggingMessage"));
-                }
-                else
-                {
-                    TraceLoggingWrite(m_providerHandle, "TraceLoggingInfo", TraceLoggingLevel(WINEVENT_LEVEL_VERBOSE), TraceLoggingWideString(loggingMessage, "traceLoggingMessage"));
-                }
+                TraceLoggingWrite(m_providerHandle, "TraceLoggingInfo", TraceLoggingLevel(WINEVENT_LEVEL_VERBOSE), TraceLoggingWideString(loggingMessage, "traceLoggingMessage"));
             }
         }
 
@@ -888,21 +893,24 @@ namespace wil
 
             __TRACELOGGING_TEST_HOOK_ACTIVITY_ERROR(failure);
 
+            if (WI_IsFlagClear(failure.flags, FailureFlags::RequestSuppressTelemetry))
+            {
 #pragma warning(push)
 #pragma warning(disable: 6319)
-            if (false, WI_IsFlagSet(options, ActivityOptions::TelemetryOnFailure) && !WasAlreadyReportedToTelemetry(failure.failureId))
-            {
-                __WI_TraceLoggingWriteTagged(*this, "ActivityError", TraceLoggingKeyword(Keyword | MICROSOFT_KEYWORD_TELEMETRY), TraceLoggingLevel(WINEVENT_LEVEL_ERROR), __ACTIVITY_ERROR_TELEMETRY_FAILURE_PARAMS(failure));
-            }
-            else if (false, WI_IsFlagSet(options, ActivityOptions::TraceLoggingOnFailure))
-            {
-                __WI_TraceLoggingWriteTagged(*this, "ActivityError", TraceLoggingKeyword(0), TraceLoggingLevel(WINEVENT_LEVEL_ERROR), __ACTIVITY_ERROR_TRACELOGGING_FAILURE_PARAMS(failure));
-            }
-            else
-            {
-                __WI_TraceLoggingWriteTagged(*this, "ActivityError", TraceLoggingKeyword(Keyword), TraceLoggingLevel(WINEVENT_LEVEL_ERROR), __ACTIVITY_ERROR_TRACELOGGING_FAILURE_PARAMS(failure));
-            }
+                if (false, WI_IsFlagSet(options, ActivityOptions::TelemetryOnFailure) && !WasAlreadyReportedToTelemetry(failure.failureId))
+                {
+                    __WI_TraceLoggingWriteTagged(*this, "ActivityError", TraceLoggingKeyword(Keyword | MICROSOFT_KEYWORD_TELEMETRY), TraceLoggingLevel(WINEVENT_LEVEL_ERROR), __ACTIVITY_ERROR_TELEMETRY_FAILURE_PARAMS(failure));
+                }
+                else if (false, WI_IsFlagSet(options, ActivityOptions::TraceLoggingOnFailure))
+                {
+                    __WI_TraceLoggingWriteTagged(*this, "ActivityError", TraceLoggingKeyword(0), TraceLoggingLevel(WINEVENT_LEVEL_ERROR), __ACTIVITY_ERROR_TRACELOGGING_FAILURE_PARAMS(failure));
+                }
+                else
+                {
+                    __WI_TraceLoggingWriteTagged(*this, "ActivityError", TraceLoggingKeyword(Keyword), TraceLoggingLevel(WINEVENT_LEVEL_ERROR), __ACTIVITY_ERROR_TRACELOGGING_FAILURE_PARAMS(failure));
+                }
 #pragma warning(pop)
+            }
 
             auto lock = LockExclusive();
             m_pActivityData->NotifyFailure(failure);
@@ -1897,9 +1905,9 @@ namespace wil
         static CallContext Start(PCSTR contextName, _Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT \
             { va_list argList; va_start(argList, formatString); return CallContext(contextName, formatString, argList); } \
         static void TraceLoggingInfo(_Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT \
-            { va_list argList; va_start(argList, formatString); return Instance()->ReportTraceLoggingMessage(false, formatString, argList); } \
+            { va_list argList; va_start(argList, formatString); return Instance()->ReportTraceLoggingMessage(formatString, argList); } \
         static void TraceLoggingError(_Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT \
-            { va_list argList; va_start(argList, formatString); return Instance()->ReportTraceLoggingMessage(true, formatString, argList); } \
+            { va_list argList; va_start(argList, formatString); return Instance()->ReportTraceLoggingError(formatString, argList); } \
     private: \
         TraceLoggingHProvider const Provider_() const WI_NOEXCEPT = delete; \
         TraceLoggingClassName() WI_NOEXCEPT {}; \
