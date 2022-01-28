@@ -1960,7 +1960,7 @@ namespace wil
                 void* CallbackContext ); \
     protected: \
         void Create() WI_NOEXCEPT \
-            { Register(m_staticHandle.handle, &##TraceLoggingClassName##::Callback); } \
+            { Register(m_staticHandle.handle, &TraceLoggingClassName::Callback); } \
     public:
 
 

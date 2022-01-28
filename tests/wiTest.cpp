@@ -166,7 +166,7 @@ void StressErrorCallbacks()
     }
 }
 
-TEST_CASE("WindowsInternalTests::ResultMacrosStress", "[!hide][result_macros][stress]")
+TEST_CASE("WindowsInternalTests::ResultMacrosStress", "[LocalOnly][result_macros][stress]")
 {
     auto restore = witest::AssignTemporaryValue(&wil::g_pfnResultLoggingCallback, EmptyResultMacrosLoggingCallback);
     StressErrorCallbacks();
