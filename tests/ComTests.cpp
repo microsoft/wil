@@ -2286,12 +2286,12 @@ TEST_CASE("ComTests::VerifyCoCreateInstanceExNoThrowMissingInterface", "[com][Co
 
     {
         // IPropertyBag is not implemented
-        auto [error, result] = wil::CoCreateInstanceExNoThrow<IBackgroundCopyManager, IPropertyBag, IUnknown>
+        auto [error, result] = wil::CoCreateInstanceExNoThrow<IBackgroundCopyManager, IUnknown, IPropertyBag>
             (__uuidof(BackgroundCopyManager), CLSCTX_LOCAL_SERVER);
-        REQUIRE_SUCCEEDED(error);
-        REQUIRE(std::get<0>(result).get() != nullptr);
+        REQUIRE(error == E_NOINTERFACE);
+        REQUIRE(std::get<0>(result).get() == nullptr);
         REQUIRE(std::get<1>(result).get() == nullptr);
-        REQUIRE(std::get<2>(result).get() != nullptr);
+        REQUIRE(std::get<2>(result).get() == nullptr);
     }
 }
 
