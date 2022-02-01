@@ -2290,8 +2290,8 @@ TEST_CASE("ComTests::VerifyCoCreateInstanceExNoThrowMissingInterface", "[com][Co
             (__uuidof(BackgroundCopyManager), CLSCTX_LOCAL_SERVER);
         REQUIRE_SUCCEEDED(error);
         REQUIRE(std::get<0>(result).get() != nullptr);
-        REQUIRE(std::get<1>(result).get() != nullptr);
-        REQUIRE(std::get<2>(result).get() == nullptr);
+        REQUIRE(std::get<1>(result).get() == nullptr);
+        REQUIRE(std::get<2>(result).get() != nullptr);
     }
 }
 
