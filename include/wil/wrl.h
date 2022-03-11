@@ -16,6 +16,10 @@
 #include "common.h" // wistd type_traits helpers
 #include <libloaderapi.h> // GetModuleHandleW
 
+/// @cond
+EXTERN_C IMAGE_DOS_HEADER __ImageBase;
+/// @endcond
+
 namespace wil
 {
 
@@ -80,10 +84,6 @@ namespace wil
         return result;
     }
 #endif // WIL_ENABLE_EXCEPTIONS
-
-    /// @cond
-    EXTERN_C IMAGE_DOS_HEADER __ImageBase;
-    /// @endcond
 
     /** Holds a reference to the host WRL module to prevent it from being unloaded.
     Normally, the reference is held implicitly because you are a member function

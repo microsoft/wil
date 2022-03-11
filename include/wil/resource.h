@@ -2528,6 +2528,22 @@ namespace wil
 
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_SYSTEM)
     typedef unique_any<PSID, decltype(&::FreeSid), ::FreeSid> unique_sid;
+    typedef unique_any_handle_null_only<decltype(&::DeleteBoundaryDescriptor), ::DeleteBoundaryDescriptor> unique_boundary_descriptor;
+
+    namespace details
+    {
+        template<ULONG flags>
+        inline void __stdcall ClosePrivateNamespaceHelper(HANDLE h) WI_NOEXCEPT
+        {
+            ::ClosePrivateNamespace(h, flags);
+        }
+    }
+
+    template <ULONG flags = 0>
+    using unique_private_namespace = unique_any_handle_null_only<decltype(details::ClosePrivateNamespaceHelper<flags>), &details::ClosePrivateNamespaceHelper<flags>>;
+
+    using unique_private_namespace_close = unique_private_namespace<>;
+    using unique_private_namespace_destroy = unique_private_namespace<PRIVATE_NAMESPACE_FLAG_DESTROY>;
 #endif
 
     using unique_tool_help_snapshot = unique_hfile;
@@ -4801,6 +4817,7 @@ namespace wil
     typedef unique_any<HCRYPTPROV, decltype(&details::CryptReleaseContextNoParam), details::CryptReleaseContextNoParam> unique_hcryptprov;
     typedef unique_any<HCRYPTKEY, decltype(&::CryptDestroyKey), ::CryptDestroyKey> unique_hcryptkey;
     typedef unique_any<HCRYPTHASH, decltype(&::CryptDestroyHash), ::CryptDestroyHash> unique_hcrypthash;
+    typedef unique_any<HCRYPTMSG, decltype(&::CryptMsgClose), ::CryptMsgClose> unique_hcryptmsg;
 #endif // __WIL__WINCRYPT_H__
 #if defined(__WIL__WINCRYPT_H__) && !defined(__WIL__WINCRYPT_H__STL) && defined(WIL_RESOURCE_STL)
 #define __WIL__WINCRYPT_H__STL
@@ -4810,6 +4827,7 @@ namespace wil
     typedef shared_any<unique_hcryptprov> shared_hcryptprov;
     typedef shared_any<unique_hcryptkey> shared_hcryptkey;
     typedef shared_any<unique_hcrypthash> shared_hcrypthash;
+    typedef shared_any<unique_hcryptmsg> shared_hcryptmsg;
 
     typedef weak_any<shared_cert_context> weak_cert_context;
     typedef weak_any<shared_cert_chain_context> weak_cert_chain_context;
@@ -4817,6 +4835,7 @@ namespace wil
     typedef weak_any<shared_hcryptprov> weak_hcryptprov;
     typedef weak_any<shared_hcryptkey> weak_hcryptkey;
     typedef weak_any<shared_hcrypthash> weak_hcrypthash;
+    typedef weak_any<shared_hcryptmsg> weak_hcryptmsg;
 #endif // __WIL__WINCRYPT_H__STL
 
 

@@ -318,7 +318,7 @@ TEST_CASE("RegistryWatcherTests::VerifyResetInCallback", "[registry][registry_wa
 }
 
 // Stress test, disabled by default
-TEST_CASE("RegistryWatcherTests::VerifyResetInCallbackStress", "[!hide][registry][registry_watcher][stress]")
+TEST_CASE("RegistryWatcherTests::VerifyResetInCallbackStress", "[LocalOnly][registry][registry_watcher][stress]")
 {
     for (DWORD value = 0; value < 10000; ++value)
     {

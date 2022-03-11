@@ -11,6 +11,7 @@
 #ifdef WIL_ENABLE_EXCEPTIONS
 #include <memory>
 #include <set>
+#include <thread>
 #include <unordered_set>
 #endif
 
@@ -166,7 +167,7 @@ void StressErrorCallbacks()
     }
 }
 
-TEST_CASE("WindowsInternalTests::ResultMacrosStress", "[!hide][result_macros][stress]")
+TEST_CASE("WindowsInternalTests::ResultMacrosStress", "[LocalOnly][result_macros][stress]")
 {
     auto restore = witest::AssignTemporaryValue(&wil::g_pfnResultLoggingCallback, EmptyResultMacrosLoggingCallback);
     StressErrorCallbacks();
@@ -2998,6 +2999,7 @@ TEST_CASE("WindowsInternalTests::Ranges", "[common]")
         {
             ++count;
             m = 1;
+            (void)m;
         }
         REQUIRE(ARRAYSIZE(things) == count);
         REQUIRE(0 == things[0]);
@@ -3543,6 +3545,24 @@ TEST_CASE("WindowsInternalTests::ModuleReference", "[wrl]")
         REQUIRE(peek_module_ref_count() == initial + 2);
     }
     REQUIRE(peek_module_ref_count() == initial);
+}
+#endif
+
+#if defined(WIL_ENABLE_EXCEPTIONS) && (defined(NTDDI_WIN10_CO) ? \
+    WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_SYSTEM | WINAPI_PARTITION_GAMES) : \
+    WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM | WINAPI_PARTITION_GAMES))
+TEST_CASE("WindowsInternalTests::VerifyModuleReferencesForThread", "[win32_helpers]")
+{
+    bool success = true;
+    std::thread([&]
+    {
+        auto moduleRef = wil::get_module_reference_for_thread();
+        moduleRef.reset(); // results in exiting the thread
+        // should never get here
+        success = false;
+        FAIL();
+    }).join();
+    REQUIRE(success);
 }
 #endif
 
