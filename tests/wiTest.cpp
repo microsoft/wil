@@ -1478,15 +1478,17 @@ TEST_CASE("WindowsInternalTests::HandleWrappers", "[resource][unique_any]")
     wil::unique_event_nothrow testEventNoExcept;
     REQUIRE(SUCCEEDED(testEventNoExcept.create(wil::EventOptions::ManualReset)));
 
-
     MutexTestCommon<wil::unique_mutex_nothrow>();
     MutexTestCommon<wil::unique_mutex_failfast>();
+    MutexRaiiTest<wil::unique_mutex_nothrow>();
+    MutexRaiiTest<wil::unique_mutex_failfast>();
 
     // intentionally disabled in the non-exception version...
     // wil::unique_mutex_nothrow testMutex2(L"FOO-TEST-2");
     wil::unique_mutex_failfast testMutex3(L"FOO-TEST-3");
 #ifdef WIL_ENABLE_EXCEPTIONS
     MutexTestCommon<wil::unique_mutex>();
+    MutexRaiiTest<wil::unique_mutex>();
 
     wil::unique_mutex testMutex(L"FOO-TEST");
     WaitForSingleObjectEx(testMutex.get(), INFINITE, TRUE);
@@ -1505,12 +1507,15 @@ TEST_CASE("WindowsInternalTests::HandleWrappers", "[resource][unique_any]")
 
     SemaphoreTestCommon<wil::unique_semaphore_nothrow>();
     SemaphoreTestCommon<wil::unique_semaphore_failfast>();
+    SemaphoreRaiiTest<wil::unique_semaphore_nothrow>();
+    SemaphoreRaiiTest<wil::unique_semaphore_failfast>();
 
     // intentionally disabled in the non-exception version...
     // wil::unique_semaphore_nothrow testSemaphore2(1, 1);
     wil::unique_semaphore_failfast testSemaphore3(1, 1);
 #ifdef WIL_ENABLE_EXCEPTIONS
     SemaphoreTestCommon<wil::unique_semaphore>();
+    SemaphoreRaiiTest<wil::unique_semaphore>();
 
     wil::unique_semaphore testSemaphore(1, 1);
     WaitForSingleObjectEx(testSemaphore.get(), INFINITE, true);
@@ -2239,6 +2244,62 @@ void EventRaiiTests()
     REQUIRE_FALSE(var4.try_open(L"\\illegal\\chars\\too\\\\many\\\\namespaces"));
     REQUIRE(::GetLastError() != ERROR_SUCCESS);
     REQUIRE(var4.try_open(L"wiltestevent"));
+}
+
+template <typename test_t>
+void MutexRaiiTests()
+{
+    test_t var1;
+    var1.create();
+
+    {
+        REQUIRE(var1.acquire());
+    }
+
+    // try_create
+    bool exists = false;
+    REQUIRE(var1.try_create(L"wiltestmutex", 0, MUTEX_ALL_ACCESS, nullptr, &exists));
+    REQUIRE_FALSE(exists);
+    test_t var2;
+    REQUIRE(var2.try_create(L"wiltestmutex", 0, MUTEX_ALL_ACCESS, nullptr, &exists));
+    REQUIRE(exists);
+    test_t var3;
+    REQUIRE_FALSE(var3.try_create(L"\\illegal\\chars\\too\\\\many\\\\namespaces", 0, MUTEX_ALL_ACCESS, nullptr, &exists));
+    REQUIRE(::GetLastError() != ERROR_SUCCESS);
+
+    // try_open
+    test_t var4;
+    REQUIRE_FALSE(var4.try_open(L"\\illegal\\chars\\too\\\\many\\\\namespaces"));
+    REQUIRE(::GetLastError() != ERROR_SUCCESS);
+    REQUIRE(var4.try_open(L"wiltestmutex"));
+}
+
+template <typename test_t>
+void SemaphoreRaiiTests()
+{
+    test_t var1;
+    var1.create(1, 1);
+
+    {
+        REQUIRE(var1.acquire());
+    }
+
+    // try_create
+    bool exists = false;
+    REQUIRE(var1.try_create(1, 1, L"wiltestsemaphore", MUTEX_ALL_ACCESS, nullptr, &exists));
+    REQUIRE_FALSE(exists);
+    test_t var2;
+    REQUIRE(var2.try_create(1, 1, L"wiltestsemaphore", MUTEX_ALL_ACCESS, nullptr, &exists));
+    REQUIRE(exists);
+    test_t var3;
+    REQUIRE_FALSE(var3.try_create(1, 1, L"\\illegal\\chars\\too\\\\many\\\\namespaces", MUTEX_ALL_ACCESS, nullptr, &exists));
+    REQUIRE(::GetLastError() != ERROR_SUCCESS);
+
+    // try_open
+    test_t var4;
+    REQUIRE_FALSE(var4.try_open(L"\\illegal\\chars\\too\\\\many\\\\namespaces"));
+    REQUIRE(::GetLastError() != ERROR_SUCCESS);
+    REQUIRE(var4.try_open(L"wiltestsemaphore"));
 }
 
 void EventTests()
