@@ -3032,7 +3032,7 @@ namespace wil
             storage_t::reset(handle);
             return true;
         }
-        
+
         // Returns HRESULT for unique_semaphore_nothrow, void with exceptions for shared_event and unique_event
         result create(LONG lInitialCount, LONG lMaximumCount, _In_opt_ PCWSTR name = nullptr, DWORD desiredAccess = SEMAPHORE_ALL_ACCESS, _In_opt_ PSECURITY_ATTRIBUTES pSemaphoreAttributes = nullptr, _Out_opt_ bool *pAlreadyExists = nullptr)
         {
