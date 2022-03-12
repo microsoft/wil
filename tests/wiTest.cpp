@@ -1480,15 +1480,15 @@ TEST_CASE("WindowsInternalTests::HandleWrappers", "[resource][unique_any]")
 
     MutexTestCommon<wil::unique_mutex_nothrow>();
     MutexTestCommon<wil::unique_mutex_failfast>();
-    MutexRaiiTest<wil::unique_mutex_nothrow>();
-    MutexRaiiTest<wil::unique_mutex_failfast>();
+    MutexRaiiTests<wil::unique_mutex_nothrow>();
+    MutexRaiiTests<wil::unique_mutex_failfast>();
 
     // intentionally disabled in the non-exception version...
     // wil::unique_mutex_nothrow testMutex2(L"FOO-TEST-2");
     wil::unique_mutex_failfast testMutex3(L"FOO-TEST-3");
 #ifdef WIL_ENABLE_EXCEPTIONS
     MutexTestCommon<wil::unique_mutex>();
-    MutexRaiiTest<wil::unique_mutex>();
+    MutexRaiiTests<wil::unique_mutex>();
 
     wil::unique_mutex testMutex(L"FOO-TEST");
     WaitForSingleObjectEx(testMutex.get(), INFINITE, TRUE);
@@ -1507,15 +1507,15 @@ TEST_CASE("WindowsInternalTests::HandleWrappers", "[resource][unique_any]")
 
     SemaphoreTestCommon<wil::unique_semaphore_nothrow>();
     SemaphoreTestCommon<wil::unique_semaphore_failfast>();
-    SemaphoreRaiiTest<wil::unique_semaphore_nothrow>();
-    SemaphoreRaiiTest<wil::unique_semaphore_failfast>();
+    SemaphoreRaiiTests<wil::unique_semaphore_nothrow>();
+    SemaphoreRaiiTests<wil::unique_semaphore_failfast>();
 
     // intentionally disabled in the non-exception version...
     // wil::unique_semaphore_nothrow testSemaphore2(1, 1);
     wil::unique_semaphore_failfast testSemaphore3(1, 1);
 #ifdef WIL_ENABLE_EXCEPTIONS
     SemaphoreTestCommon<wil::unique_semaphore>();
-    SemaphoreRaiiTest<wil::unique_semaphore>();
+    SemaphoreRaiiTests<wil::unique_semaphore>();
 
     wil::unique_semaphore testSemaphore(1, 1);
     WaitForSingleObjectEx(testSemaphore.get(), INFINITE, true);
