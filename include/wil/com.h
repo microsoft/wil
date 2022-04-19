@@ -16,6 +16,10 @@
 #include "result.h"
 #include "resource.h" // last to ensure _COMBASEAPI_H_ protected definitions are available
 
+#if __has_include(<tuple>)
+#include <tuple>
+#endif
+
 // Forward declaration within WIL (see https://msdn.microsoft.com/en-us/library/br244983.aspx)
 /// @cond
 namespace Microsoft
@@ -1984,6 +1988,140 @@ namespace wil
     {
         return CoGetClassObjectNoThrow<Interface>(__uuidof(Class), dwClsContext);
     }
+
+#if __has_include(<tuple>) && (__WI_LIBCPP_STD_VER >= 17)
+    namespace details
+    {
+        template <typename error_policy, typename... Results>
+        auto CoCreateInstanceEx(REFCLSID clsid, CLSCTX clsCtx) noexcept
+        {
+            MULTI_QI multiQis[sizeof...(Results)]{};
+            const IID* iids[sizeof...(Results)]{ &__uuidof(Results)... };
+
+            static_assert(sizeof...(Results) > 0);
+
+            for (auto i = 0U; i < sizeof...(Results); ++i)
+            {
+                multiQis[i].pIID = iids[i];
+            }
+
+            const auto hr = CoCreateInstanceEx(clsid, nullptr, clsCtx, nullptr,
+                ARRAYSIZE(multiQis), multiQis);
+
+            std::tuple<wil::com_ptr_t<Results, error_policy>...> resultTuple;
+
+            std::apply([i = 0, &multiQis](auto&... a) mutable
+            {
+                (a.attach(reinterpret_cast<typename std::remove_reference_t<decltype(a)>::pointer>(multiQis[i++].pItf)), ...);
+            }, resultTuple);
+            return std::tuple<HRESULT, decltype(resultTuple)>(hr, std::move(resultTuple));
+        }
+
+        template<typename error_policy, typename... Results>
+        auto com_multi_query(IUnknown* obj)
+        {
+            MULTI_QI multiQis[sizeof...(Results)]{};
+            const IID* iids[sizeof...(Results)]{ &__uuidof(Results)... };
+
+            static_assert(sizeof...(Results) > 0);
+
+            for (auto i = 0U; i < sizeof...(Results); ++i)
+            {
+                multiQis[i].pIID = iids[i];
+            }
+
+            std::tuple<wil::com_ptr_t<Results, error_policy>...> resultTuple{};
+
+            wil::com_ptr_nothrow<IMultiQI> multiQi;
+            auto hr = obj->QueryInterface(IID_PPV_ARGS(&multiQi));
+            if (SUCCEEDED(hr))
+            {
+                hr = multiQi->QueryMultipleInterfaces(ARRAYSIZE(multiQis), multiQis);
+                std::apply([i = 0, &multiQis](auto&... a) mutable
+                {
+                    (a.attach(reinterpret_cast<typename std::remove_reference_t<decltype(a)>::pointer>(multiQis[i++].pItf)), ...);
+                }, resultTuple);
+            }
+            return std::tuple<HRESULT, decltype(resultTuple)>{hr, std::move(resultTuple)};
+        }
+    }
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+    // CoCreateInstanceEx can be used to improve performance by requesting multiple interfaces
+    // from an object at create time. This is most useful for out of process (OOP) servers, saving
+    // and RPC per extra interface requested.
+    template <typename... Results>
+    auto CoCreateInstanceEx(REFCLSID clsid, CLSCTX clsCtx = CLSCTX_LOCAL_SERVER)
+    {
+        auto [error, result] = details::CoCreateInstanceEx<err_exception_policy, Results...>(clsid, clsCtx);
+        THROW_IF_FAILED(error);
+        THROW_HR_IF(E_NOINTERFACE, error == CO_S_NOTALLINTERFACES);
+        return result;
+    }
+
+    template <typename... Results>
+    auto TryCoCreateInstanceEx(REFCLSID clsid, CLSCTX clsCtx = CLSCTX_LOCAL_SERVER)
+    {
+        auto [error, result] = details::CoCreateInstanceEx<err_exception_policy, Results...>(clsid, clsCtx);
+        return result;
+    }
+#endif
+
+    // Returns [error, result] where result is a tuple with each of the requested interfaces.
+    template <typename... Results>
+    auto CoCreateInstanceExNoThrow(REFCLSID clsid, CLSCTX clsCtx = CLSCTX_LOCAL_SERVER) noexcept
+    {
+        auto [error, result] = details::CoCreateInstanceEx<err_returncode_policy, Results...>(clsid, clsCtx);
+        if (SUCCEEDED(error) && (error == CO_S_NOTALLINTERFACES))
+        {
+            return std::tuple<HRESULT, decltype(result)>{E_NOINTERFACE, {}};
+        }
+        return std::tuple<HRESULT, decltype(result)>{S_OK, result};
+    }
+
+    template <typename... Results>
+    auto TryCoCreateInstanceExNoThrow(REFCLSID clsid, CLSCTX clsCtx = CLSCTX_LOCAL_SERVER) noexcept
+    {
+        auto [error, result] = details::CoCreateInstanceEx<err_returncode_policy, Results...>(clsid, clsCtx);
+        return result;
+    }
+
+    template <typename... Results>
+    auto CoCreateInstanceExFailFast(REFCLSID clsid, CLSCTX clsCtx = CLSCTX_LOCAL_SERVER) noexcept
+    {
+        auto [error, result] = details::CoCreateInstanceEx<err_failfast_policy, Results...>(clsid, clsCtx);
+        FAIL_FAST_IF_FAILED(error);
+        FAIL_FAST_HR_IF(E_NOINTERFACE, error == CO_S_NOTALLINTERFACES);
+        return result;
+    }
+
+    template <typename... Results>
+    auto TryCoCreateInstanceExFailFast(REFCLSID clsid, CLSCTX clsCtx = CLSCTX_LOCAL_SERVER) noexcept
+    {
+        auto [error, result] = details::CoCreateInstanceEx<err_failfast_policy, Results...>(clsid, clsCtx);
+        return result;
+    }
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+    template<typename... Results>
+    auto com_multi_query(IUnknown* obj)
+    {
+        auto [error, result] = details::com_multi_query<err_exception_policy, Results...>(obj);
+        THROW_IF_FAILED(error);
+        THROW_HR_IF(E_NOINTERFACE, error == S_FALSE);
+        return result;
+    }
+
+    template<typename... Results>
+    auto try_com_multi_query(IUnknown* obj)
+    {
+        auto [error, result] = details::com_multi_query<err_exception_policy, Results...>(obj);
+        return result;
+    }
+#endif
+
+#endif // __has_include(<tuple>)
+
 #pragma endregion
 
 #pragma region Stream helpers

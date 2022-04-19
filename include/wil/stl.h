@@ -137,17 +137,21 @@ namespace wil
         constexpr basic_zstring_view(const TChar* pStringData, size_type stringLength) noexcept
             : std::basic_string_view<TChar>(pStringData, stringLength)
         {
-            WI_STL_FAIL_FAST_IF(pStringData[stringLength] != 0);
+            if (pStringData[stringLength] != 0) { WI_STL_FAIL_FAST_IF(true); }
         }
 
         template<size_t stringArrayLength>
         constexpr basic_zstring_view(const TChar(&stringArray)[stringArrayLength]) noexcept
             : std::basic_string_view<TChar>(&stringArray[0])
         {
-            WI_STL_FAIL_FAST_IF(stringArrayLength < this->size());
+            if (stringArrayLength < this->size()) { WI_STL_FAIL_FAST_IF(true); }
         }
 
-        constexpr basic_zstring_view(const TChar* pStr) noexcept
+        // Construct from nul-terminated char ptr. To prevent this from overshadowing array construction,
+        // we disable this constructor if the value is an array (including string literal).
+        template<typename TPtr, std::enable_if_t<
+            std::is_convertible<TPtr, const TChar*>::value && !std::is_array<TPtr>::value>* = nullptr>
+        constexpr basic_zstring_view(const TPtr pStr) noexcept
             : std::basic_string_view<TChar>(pStr) {}
 
         constexpr basic_zstring_view(const std::basic_string<TChar>& str) noexcept
