@@ -2915,8 +2915,6 @@ TEST_CASE("EnumForLoop", "[com][IEnumXyz]")
         IFakeEnum_COM<3> fakeEnum;
 
         auto i = 0;
-        using iterator_type = wil::enum_iterator<decltype(fakeEnum)>;
-
         for (auto it = wistd::begin(&fakeEnum); it != wistd::end(&fakeEnum); it++) {
             if (i < fakeEnum.NumberOfItems() - 1) {
                 const auto& c = fakeEnum.Current(); // already advanced past the iterator
@@ -2935,8 +2933,6 @@ TEST_CASE("EnumForLoop", "[com][IEnumXyz]")
             IFakeEnum_NonCOM<3> fakeEnum;
 
             auto i = 0;
-            using iterator_type = wil::enum_iterator<decltype(fakeEnum)>;
-
             for (auto it = wistd::begin(&fakeEnum); it != wistd::end(&fakeEnum); it++) {
                 REQUIRE(**it == i); // the iterator captured the enumerator's previous value
                 i++;
@@ -2982,8 +2978,6 @@ TEST_CASE("EnumForEach", "[com][IEnumXyz]")
             IFakeEnum_COM<3> fakeEnum;
 
             auto i = 0;
-            using iterator_type = wil::enum_iterator<decltype(fakeEnum)>;
-
             std::for_each(wistd::begin(&fakeEnum), wistd::end(&fakeEnum), [&i](wil::com_ptr<IFakeItem> element) {
                 REQUIRE(element->m_id == i);
                 i++;
@@ -2999,8 +2993,6 @@ TEST_CASE("EnumForEach", "[com][IEnumXyz]")
             IFakeEnum_COM<3> fakeEnum;
 
             auto i = 0;
-            using iterator_type = wil::enum_iterator<decltype(fakeEnum)>;
-
             std::for_each(wistd::begin(&fakeEnum), wistd::end(&fakeEnum), [&i](IFakeItem* element) {
                 REQUIRE(element->m_id == i);
                 i++;
@@ -3016,8 +3008,6 @@ TEST_CASE("EnumForEach", "[com][IEnumXyz]")
             IFakeEnum_COM<3> fakeEnum;
 
             auto i = 0;
-            using iterator_type = wil::enum_iterator<decltype(fakeEnum)>;
-
             std::for_each(wistd::begin(&fakeEnum), wistd::end(&fakeEnum), [&i](wil::com_ptr<IFakeItem> element) {
                 REQUIRE(element->m_id == i);
                 i++;
@@ -3031,8 +3021,6 @@ TEST_CASE("EnumForEach", "[com][IEnumXyz]")
         IFakeEnum_NonCOM<3> fakeEnum;
 
         auto i = 0;
-        using iterator_type = wil::enum_iterator<decltype(fakeEnum)>;
-
         std::for_each(fakeEnum.begin(), fakeEnum.end(), [&i](const int* element) {
             REQUIRE(*element == i);
             i++;
