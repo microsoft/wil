@@ -43,7 +43,7 @@ namespace wil {
         {};
 
         template<typename TEnum>
-        using NextArgType = typename Details::FunctionTraits<decltype(&TEnum::template Next)>::template NthArg<1>;
+        using NextArgType = typename Details::FunctionTraits<decltype(&TEnum::Next)>::template NthArg<1>;
     }
 
     template<typename TEnum>
