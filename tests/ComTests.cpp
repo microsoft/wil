@@ -3042,5 +3042,4 @@ TEST_CASE("EnumForEach", "[com][IEnumXyz]")
     }
 }
 
-
 #endif
