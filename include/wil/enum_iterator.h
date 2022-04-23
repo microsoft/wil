@@ -119,7 +119,7 @@ namespace wistd {
     }
     template<typename TEnum>
     constexpr auto end(TEnum*) {
-        return wil::enum_iterator<TEnum>::template end();
+        return wil::enum_iterator<TEnum>::end();
     }
 }
 
