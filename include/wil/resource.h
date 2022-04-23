@@ -46,7 +46,7 @@ namespace wil
     //! to that value when it is destroyed.
     //!
     //! This is useful in library code that runs during a value's destructor. If the library code could
-    //! inadvertantly change the value of GetLastError (by calling a Win32 API or similar), it should
+    //! inadvertently change the value of GetLastError (by calling a Win32 API or similar), it should
     //! instantiate a value of this type before calling the library function in order to preserve the
     //! GetLastError value the user would expect.
     //!
@@ -624,14 +624,14 @@ namespace wil
     namespace details
     {
         // The first two attach_to_smart_pointer() overloads are ambiguous when passed a com_ptr_t.
-        // To solve that use this functions return type to elminate the reset form for com_ptr_t.
+        // To solve that use this functions return type to eliminate the reset form for com_ptr_t.
         template <typename T, typename err> wistd::false_type use_reset(wil::com_ptr_t<T, err>*) { return wistd::false_type(); }
         template <typename T> wistd::true_type use_reset(T*) { return wistd::true_type(); }
     }
     /// @endcond
 
     /** Generically attach a raw pointer to a compatible smart pointer.
-    Calls the correct reset(), attach(), or Attach() method based on samrt pointer type. */
+    Calls the correct reset(), attach(), or Attach() method based on smart pointer type. */
     template <typename TSmartPointer, typename EnableResetForm = wistd::enable_if_t<decltype(details::use_reset(static_cast<TSmartPointer*>(nullptr)))::value>>
     void attach_to_smart_pointer(TSmartPointer& smartPtr, typename TSmartPointer::pointer rawPtr)
     {
@@ -762,7 +762,7 @@ namespace wil
     }
 
     /** Use to retrieve raw out parameter pointers (with a required cast) into smart pointers that do not support the '&' operator.
-    Use only when the smart pointer's &handle is not equal to the output type a function requries, necessitating a cast.
+    Use only when the smart pointer's &handle is not equal to the output type a function requires, necessitating a cast.
     Example: `wil::out_param_ptr<PSECURITY_DESCRIPTOR*>(securityDescriptor)` */
     template <typename Tcast, typename T>
     details::out_param_ptr_t<Tcast, T> out_param_ptr(T& p)
@@ -916,7 +916,7 @@ namespace wil
     };
 
     /** unique_any_array_ptr is a RAII type for managing conformant arrays that need to be freed and have elements that may need to be freed.
-    The intented use for this RAII type would be to capture out params from API like IPropertyValue::GetStringArray.
+    The intended use for this RAII type would be to capture out params from API like IPropertyValue::GetStringArray.
     This class also maintains the size of the array, so it can iterate over the members and deallocate them before it deallocates the base array pointer.
 
     If the type you're wrapping is a system type, you can share the code by declaring it in this file (Resource.h). Send requests to wildisc.
@@ -2441,7 +2441,7 @@ namespace wil
         };
 
         // SetThreadpoolTimer(timer, nullptr, 0, 0) will cancel any pending callbacks,
-        // then CloseThreadpoolTimer will asynchronusly close the timer if a callback is running.
+        // then CloseThreadpoolTimer will asynchronously close the timer if a callback is running.
         template <typename threadpool_t, PendingCallbackCancellationBehavior cancellationBehavior>
         struct DestroyThreadPoolTimer
         {

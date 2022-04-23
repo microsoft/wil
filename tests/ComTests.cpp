@@ -2,11 +2,15 @@
 #include <ocidl.h> // Bring in IObjectWithSite
 
 #include <wil/com.h>
+#ifdef WIL_ENABLE_EXCEPTIONS
+#include <wil/enum_iterator.h>
+#endif
 #include <wrl/implements.h>
 
 #include "common.h"
 
 #include <Bits.h>
+#include <array>
 
 using namespace Microsoft::WRL;
 
@@ -2819,4 +2823,224 @@ TEST_CASE("StreamTests::Saver", "[com][IStream]")
         REQUIRE(250ULL == second.Position);
     }
 }
+
+struct IFakeItem : IUnknownFake {
+    IFakeItem() : m_id(s_id++) { }
+    static int s_id;
+    int m_id;
+};
+
+int IFakeItem::s_id = 0;
+template<int N>
+struct  __declspec(uuid("a817e7a2-43fa-11d0-9e44-00aa00b67709"))
+    IFakeEnum_COM : IUnknownFake {
+    STDMETHOD(Next)(ULONG celt, IFakeItem** out, ULONG* outCount) {
+        *out = nullptr;
+        *outCount = 0;
+        if (m_idx < N) {
+            if (celt == 1) {
+                m_elements[m_idx++].copy_to(out);
+                *outCount = 1;
+                return S_OK;
+            }
+            else {
+                return E_INVALIDARG;
+            }
+        }
+        else {
+            return S_FALSE;
+        }
+    }
+    constexpr int NumberOfItems() const { return N; }
+    const wil::com_ptr<IFakeItem>& Current() const { return m_elements[m_idx]; }
+    IFakeEnum_COM() {
+        for (wil::com_ptr<IFakeItem>& e : m_elements) {
+            e = wil::make_com_ptr(new IFakeItem());
+        }
+    }
+private:
+    std::array<wil::com_ptr<IFakeItem>, N> m_elements;
+    int m_idx{ 0 };
+};
+
+template<int N>
+struct  __declspec(uuid("a817e7a2-43fa-11d0-9e44-00aa00b67709"))
+    IFakeEnum_NonCOM : IUnknownFake {
+    STDMETHOD(Next)(ULONG celt, int** out, ULONG* outCount) {
+        *out = nullptr;
+        *outCount = 0;
+        if (m_idx < N) {
+            if (celt == 1) {
+                *out = m_elements[m_idx++];
+                *outCount = 1;
+                return S_OK;
+            }
+            else {
+                return E_INVALIDARG;
+            }
+        }
+        else {
+            return S_FALSE;
+        }
+    }
+    constexpr int NumberOfItems() const { return N; }
+    int* const& Current() const { return m_elements[m_idx]; }
+    IFakeEnum_NonCOM() {
+        for (auto i = 0; i < N; i++) {
+            m_elements[i] = new int(i);
+        }
+    }
+    ~IFakeEnum_NonCOM() {
+        for (auto& e : m_elements) {
+            delete e;
+        }
+    }
+
+    auto begin() {
+        return wil::enum_iterator<IFakeEnum_NonCOM>(this);
+    }
+    auto end() const {
+        return wil::enum_iterator<IFakeEnum_NonCOM>::end();
+    }
+private:
+    std::array<int*, N> m_elements;
+    int m_idx{ 0 };
+};
+
+
+TEST_CASE("EnumForLoop", "[com][IEnumXyz]")
+{
+    SECTION("IEnum* that iterates over COM objects; for loop")
+    {
+        IFakeEnum_COM<3> fakeEnum;
+
+        auto i = 0;
+        using iterator_type = wil::enum_iterator<decltype(fakeEnum)>;
+
+        for (auto it = wistd::begin(&fakeEnum); it != wistd::end(&fakeEnum); it++) {
+            if (i < fakeEnum.NumberOfItems() - 1) {
+                const auto& c = fakeEnum.Current(); // already advanced past the iterator
+                REQUIRE(it->m_id == c->m_id - 1); // the iterator captured the enumerator's previous value
+                it->Release();
+            }
+            i++;
+        }
+        REQUIRE(i == fakeEnum.NumberOfItems());
+    }
+
+    SECTION("IEnum* that iterates over non-COM objects; for loop")
+    {
+        IUnknownFake::Clear();
+        {
+            IFakeEnum_NonCOM<3> fakeEnum;
+
+            auto i = 0;
+            using iterator_type = wil::enum_iterator<decltype(fakeEnum)>;
+
+            for (auto it = wistd::begin(&fakeEnum); it != wistd::end(&fakeEnum); it++) {
+                REQUIRE(**it == i); // the iterator captured the enumerator's previous value
+                i++;
+            }
+            REQUIRE(i == fakeEnum.NumberOfItems());
+        }
+
+        auto finalAddRefCount = IUnknownFake::GetAddRef();
+        auto finalReleaseCount = IUnknownFake::GetRelease();
+        REQUIRE(finalReleaseCount == finalAddRefCount);
+        REQUIRE(finalAddRefCount == 1);
+    }
+
+
+    SECTION("IEnum* that iterates over non-COM objects; range-for")
+    {
+        IUnknownFake::Clear();
+        {
+            IFakeEnum_NonCOM<3> fakeEnum;
+
+            auto i = 0;
+
+            for (auto& e : fakeEnum) {
+                REQUIRE(*e == i); // the iterator captured the enumerator's previous value
+                i++;
+            }
+            REQUIRE(i == fakeEnum.NumberOfItems());
+        }
+
+        auto finalAddRefCount = IUnknownFake::GetAddRef();
+        auto finalReleaseCount = IUnknownFake::GetRelease();
+        REQUIRE(finalReleaseCount == finalAddRefCount);
+        REQUIRE(finalAddRefCount == 1);
+    }
+}
+
+TEST_CASE("EnumForEach", "[com][IEnumXyz]")
+{
+    SECTION("IEnum* that iterates over COM objects; for_each")
+    {
+        IFakeItem::s_id = 0;
+        {
+            IFakeEnum_COM<3> fakeEnum;
+
+            auto i = 0;
+            using iterator_type = wil::enum_iterator<decltype(fakeEnum)>;
+
+            std::for_each(wistd::begin(&fakeEnum), wistd::end(&fakeEnum), [&i](wil::com_ptr<IFakeItem> element) {
+                REQUIRE(element->m_id == i);
+                i++;
+                });
+            REQUIRE(i == fakeEnum.NumberOfItems());
+        }
+    }
+
+    SECTION("IEnum* that iterates over non-smart pointer COM objects; for_each")
+    {
+        IFakeItem::s_id = 0;
+        {
+            IFakeEnum_COM<3> fakeEnum;
+
+            auto i = 0;
+            using iterator_type = wil::enum_iterator<decltype(fakeEnum)>;
+
+            std::for_each(wistd::begin(&fakeEnum), wistd::end(&fakeEnum), [&i](IFakeItem* element) {
+                REQUIRE(element->m_id == i);
+                i++;
+                });
+            REQUIRE(i == fakeEnum.NumberOfItems());
+        }
+    }
+
+    SECTION("IEnum* that iterates over smart pointer COM objects; for_each")
+    {
+        IFakeItem::s_id = 0;
+        {
+            IFakeEnum_COM<3> fakeEnum;
+
+            auto i = 0;
+            using iterator_type = wil::enum_iterator<decltype(fakeEnum)>;
+
+            std::for_each(wistd::begin(&fakeEnum), wistd::end(&fakeEnum), [&i](wil::com_ptr<IFakeItem> element) {
+                REQUIRE(element->m_id == i);
+                i++;
+                });
+            REQUIRE(i == fakeEnum.NumberOfItems());
+        }
+    }
+
+    SECTION("IEnum* that iterates over non-COM objects; for_each")
+    {
+        IFakeEnum_NonCOM<3> fakeEnum;
+
+        auto i = 0;
+        using iterator_type = wil::enum_iterator<decltype(fakeEnum)>;
+
+        std::for_each(fakeEnum.begin(), fakeEnum.end(), [&i](const int* element) {
+            REQUIRE(*element == i);
+            i++;
+            });
+
+        REQUIRE(i == fakeEnum.NumberOfItems());
+    }
+}
+
+
 #endif
