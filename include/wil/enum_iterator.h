@@ -38,9 +38,16 @@ namespace wil {
         template<typename F> struct FunctionTraits;
         
         template<typename T, typename Arg>
+        struct FunctionTraits<HRESULT(__stdcall T::*)(ULONG, Arg**, ULONG*)>
+            : FunctionTraitsBase<HRESULT, T, ULONG, Arg, ULONG*>
+        {};
+
+#ifdef __cpp_noexcept_function_type
+        template<typename T, typename Arg>
         struct FunctionTraits<HRESULT(__stdcall T::*)(ULONG, Arg**, ULONG*) noexcept>
             : FunctionTraitsBase<HRESULT, T, ULONG, Arg, ULONG*>
         {};
+#endif
 
         template<typename TEnum>
         using NextArgType = typename Details::FunctionTraits<decltype(&TEnum::Next)>::template NthArg<1>;
