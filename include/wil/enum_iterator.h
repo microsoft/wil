@@ -36,12 +36,9 @@ namespace wil {
         };
 
         template<typename F> struct FunctionTraits;
-
+        
         template<typename T, typename Arg>
-        using Next_t = HRESULT(__stdcall T::*)(ULONG, Arg**, ULONG*);
-
-        template<typename T, typename Arg>
-        struct FunctionTraits<Next_t<T, Arg>>
+        struct FunctionTraits<HRESULT(__stdcall T::*)(ULONG, Arg**, ULONG*) noexcept>
             : FunctionTraitsBase<HRESULT, T, ULONG, Arg, ULONG*>
         {};
 
