@@ -762,7 +762,7 @@ namespace wil
     }
 
     /** Use to retrieve raw out parameter pointers (with a required cast) into smart pointers that do not support the '&' operator.
-    Use only when the smart pointer's &handle is not equal to the output type a function requries, necessitating a cast.
+    Use only when the smart pointer's &handle is not equal to the output type a function requires, necessitating a cast.
     Example: `wil::out_param_ptr<PSECURITY_DESCRIPTOR*>(securityDescriptor)` */
     template <typename Tcast, typename T>
     details::out_param_ptr_t<Tcast, T> out_param_ptr(T& p)
