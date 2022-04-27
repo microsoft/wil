@@ -16,14 +16,14 @@
 #include <type_traits>
 #include <tuple>
 
-
 #include <type_traits>
 #include <tuple>
 #include <cstdio>
 
-namespace wil {
-
-    namespace Details {
+namespace wil
+{
+    namespace Details
+    {
         template<typename R, typename T, typename... Args>
         struct FunctionTraitsBase
         {
@@ -36,7 +36,7 @@ namespace wil {
         };
 
         template<typename F> struct FunctionTraits;
-        
+
         template<typename T, typename Arg>
         struct FunctionTraits<HRESULT(__stdcall T::*)(ULONG, Arg**, ULONG*)>
             : FunctionTraitsBase<HRESULT, T, ULONG, Arg, ULONG*>
@@ -58,9 +58,11 @@ namespace wil {
     /// Iterator class for iterating through types that implement the IEnum* COM pattern.
     /// </summary>
     /// <typeparam name="TEnum">The enumerator type, e.g. IEnumIDList, IDiaEnumSymbols.</typeparam>
-    struct enum_iterator{
+    struct enum_iterator
+    {
         enum_iterator(const enum_iterator& other) = default;
-        enum_iterator(TEnum* pEnum) : m_pEnum(pEnum) {
+        enum_iterator(TEnum* pEnum) : m_pEnum(pEnum)
+        {
             (*this)++;
         }
         /// <summary>
@@ -71,17 +73,21 @@ namespace wil {
         ~enum_iterator() = default;
 
         auto& operator++(int) { return this->operator++(); }
-        auto& operator++() {
+        auto& operator++()
+        {
             TElem* pChild{ nullptr };
             ULONG celt = 0;
             auto hr = m_pEnum->Next(1, &pChild, &celt);
-            if (hr == S_OK && celt == 1) {
+            if ((hr == S_OK) && (celt == 1))
+            {
                 m_current = pChild;
             }
-            else if (hr == S_FALSE) {
+            else if (hr == S_FALSE)
+            {
                 m_end = true;
             }
-            else {
+            else
+            {
                 THROW_HR(hr);
             }
             return *this;
@@ -90,23 +96,27 @@ namespace wil {
         TElem* const& operator*() const noexcept { return m_current; }
         TElem* operator->() const noexcept { return m_current; }
 
-        auto operator+(int v) {
+        auto operator+(int v)
+        {
             auto other = *this;
-            for (int i = 0; i < v; i++) {
+            for (int i = 0; i < v; i++)
+            {
                 other++;
             }
             return other;
         }
 
-        bool operator==(const enum_iterator& o) const noexcept {
+        bool operator==(const enum_iterator& o) const noexcept
+        {
             if (m_end ^ o.m_end) return false;
-            if (m_end == o.m_end && m_end == true) return true;
-            return o.m_current == this->m_current && o.m_pEnum == m_pEnum && m_end == o.m_end;
+            if ((m_end == o.m_end) && m_end) return true;
+            return (o.m_current == this->m_current) && (o.m_pEnum == m_pEnum) && (m_end == o.m_end);
         }
 
         bool operator!=(const enum_iterator& o) const noexcept { return !(*this == o); }
 
-        static constexpr auto end() noexcept {
+        static constexpr auto end() noexcept
+        {
             return enum_iterator{ end_tag{} };
         }
     protected:
@@ -119,13 +129,16 @@ namespace wil {
     };
 }
 
-namespace wistd {
+namespace wistd
+{
     template<typename TEnum>
-    auto begin(TEnum* pEnum) {
+    auto begin(TEnum* pEnum)
+    {
         return wil::enum_iterator<TEnum>(pEnum);
     }
     template<typename TEnum>
-    constexpr auto end(TEnum*) {
+    constexpr auto end(TEnum*)
+    {
         return wil::enum_iterator<TEnum>::end();
     }
 }
