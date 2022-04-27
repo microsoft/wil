@@ -1,7 +1,10 @@
 
 #include <wil/com.h>
 #include <wil/result.h>
+
+#if (NTDDI_VERSION >= NTDDI_WIN8)
 #include <wil/result_originate.h>
+#endif
 
 #include <roerrorapi.h>
 
@@ -436,16 +439,16 @@ void ExceptionHandlingCompilationTest()
     try { try { throw std::bad_alloc(); } catch (...) { THROW_NORMALIZED_CAUGHT_EXCEPTION(); } } catch (...) {}
     try { try { throw std::bad_alloc(); } catch (...) { THROW_NORMALIZED_CAUGHT_EXCEPTION_MSG("train: %d", 42); } } catch (...) {}
 
-    HRESULT hr = wil::ResultFromExceptionDebug(WI_DIAGNOSTICS_INFO, wil::SupportedExceptions::All, [&]
+    wil::ResultFromExceptionDebug(WI_DIAGNOSTICS_INFO, wil::SupportedExceptions::All, [&]
     {
         THROW_HR(E_FAIL);
     });
 
-    hr = wil::ResultFromException(WI_DIAGNOSTICS_INFO, wil::SupportedExceptions::None, [&]
+    wil::ResultFromException(WI_DIAGNOSTICS_INFO, wil::SupportedExceptions::None, [&]
     {
     });
 
-    hr = wil::ResultFromException([&]
+    wil::ResultFromException([&]
     {
     });
 
@@ -479,7 +482,7 @@ TEST_CASE("ResultTests::ErrorMacros", "[result]")
 }
 
 // The originate helper isn't compatible with CX so don't test it in that mode.
-#ifndef __cplusplus_winrt
+#if !defined(__cplusplus_winrt) && (NTDDI_VERSION >= NTDDI_WIN8)
 TEST_CASE("ResultTests::NoOriginationByDefault", "[result]")
 {
     ::wil::SetOriginateErrorCallback(nullptr);
@@ -572,4 +575,4 @@ TEST_CASE("ResultTests::AutomaticOriginationOnFailure", "[result]")
     }();
     REQUIRE(S_FALSE == GetRestrictedErrorInfo(&restrictedErrorInformation));
 }
-#endif // __cplusplus_winrt
+#endif

@@ -3,12 +3,15 @@
 #include <wil/resource.h>
 #include <wil/win32_helpers.h>
 #include <wil/filesystem.h>
+#if (_WIN32_WINNT >= _WIN32_WINNT_WIN8)
 #include <wil/wrl.h>
+#endif
 #include <wil/com.h>
 
 #ifdef WIL_ENABLE_EXCEPTIONS
 #include <memory>
 #include <set>
+#include <thread>
 #include <unordered_set>
 #endif
 
@@ -164,7 +167,7 @@ void StressErrorCallbacks()
     }
 }
 
-TEST_CASE("WindowsInternalTests::ResultMacrosStress", "[!hide][result_macros][stress]")
+TEST_CASE("WindowsInternalTests::ResultMacrosStress", "[LocalOnly][result_macros][stress]")
 {
     auto restore = witest::AssignTemporaryValue(&wil::g_pfnResultLoggingCallback, EmptyResultMacrosLoggingCallback);
     StressErrorCallbacks();
@@ -1015,9 +1018,13 @@ TEST_CASE("WindowsInternalTests::UniqueHandle", "[resource][unique_any]")
         wchar_t tempFileName[MAX_PATH];
         REQUIRE_SUCCEEDED(witest::GetTempFileName(tempFileName));
 
+#if (_WIN32_WINNT >= _WIN32_WINNT_WIN8)
         CREATEFILE2_EXTENDED_PARAMETERS params = { sizeof(params) };
         params.dwFileAttributes = FILE_ATTRIBUTE_TEMPORARY;
         wil::unique_hfile spValidHandle(::CreateFile2(tempFileName, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_DELETE, CREATE_ALWAYS, &params));
+#else
+        wil::unique_hfile spValidHandle(::CreateFileW(tempFileName, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_DELETE, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_TEMPORARY, nullptr));
+#endif
 
         ::DeleteFileW(tempFileName);
         REQUIRE(spValidHandle.get() != INVALID_HANDLE_VALUE);
@@ -1072,9 +1079,13 @@ TEST_CASE("WindowsInternalTests::UniqueHandle", "[resource][unique_any]")
         wchar_t tempFileName2[MAX_PATH];
         REQUIRE_SUCCEEDED(witest::GetTempFileName(tempFileName2));
 
+#if (_WIN32_WINNT >= _WIN32_WINNT_WIN8)
         CREATEFILE2_EXTENDED_PARAMETERS params2 = { sizeof(params2) };
         params2.dwFileAttributes = FILE_ATTRIBUTE_TEMPORARY;
         *(&spMoveHandle) = ::CreateFile2(tempFileName2, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_DELETE, CREATE_ALWAYS, &params2);
+#else
+        *(&spMoveHandle) = ::CreateFileW(tempFileName2, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_DELETE, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_TEMPORARY, nullptr);
+#endif
 
         ::DeleteFileW(tempFileName2);
         REQUIRE(spMoveHandle);
@@ -2494,7 +2505,8 @@ TEST_CASE("WindowsInternalTests::InitOnceNonTests")
     init = {};
 
     // A thrown exception leaves the object un-initialized
-    REQUIRE_THROWS_AS(winner = wil::init_once(init, [&] { called = true; throw wil::ResultException(E_FAIL); }), wil::ResultException);
+    static volatile bool always_true = true; // So that the compiler can't determine that we unconditionally throw below (warning C4702)
+    REQUIRE_THROWS_AS(winner = wil::init_once(init, [&] { called = true; THROW_HR_IF(E_FAIL, always_true); }), wil::ResultException);
     REQUIRE_FALSE(wil::init_once_initialized(init));
     REQUIRE(called);
     REQUIRE_FALSE(winner);
@@ -2930,7 +2942,7 @@ TEST_CASE("WindowsInternalTests::TestUniqueArrayCases", "[resource]")
 }
 #endif
 
-#ifndef __cplusplus_winrt
+#if !defined(__cplusplus_winrt) && (_WIN32_WINNT >= _WIN32_WINNT_WIN8)
 TEST_CASE("WindowsInternalTests::VerifyMakeAgileCallback", "[wrl]")
 {
     using namespace ABI::Windows::Foundation;
@@ -2987,6 +2999,7 @@ TEST_CASE("WindowsInternalTests::Ranges", "[common]")
         {
             ++count;
             m = 1;
+            (void)m;
         }
         REQUIRE(ARRAYSIZE(things) == count);
         REQUIRE(0 == things[0]);
@@ -3256,7 +3269,7 @@ TEST_CASE("WindowsInternalTests::ThreadPoolTimerTest", "[resource][unique_thread
     ThreadPoolTimerWorkHelper<wil::unique_threadpool_timer_nocancel, FILETIME>(SetThreadpoolTimer, true);
 }
 
-#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && (_WIN32_WINNT >= _WIN32_WINNT_WIN8)
 static void __stdcall SlimEventTrollCallback(
     _Inout_ PTP_CALLBACK_INSTANCE /*instance*/,
     _Inout_opt_ void* context,
@@ -3328,7 +3341,7 @@ TEST_CASE("WindowsInternalTests::SlimEventTests", "[resource][slim_event]")
     }
 
 }
-#endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+#endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && (_WIN32_WINNT >= _WIN32_WINNT_WIN8)
 
 struct ConditionVariableCSCallbackContext
 {
@@ -3468,5 +3481,89 @@ TEST_CASE("WindowsInternalTests::ShutdownAwareObjectAlignmentTests", "[result_ma
     VerifyAlignment<wil::shutdown_aware_object>();
     VerifyAlignment<wil::object_without_destructor_on_shutdown>();
 }
+
+#if (_WIN32_WINNT >= _WIN32_WINNT_WIN8)
+TEST_CASE("WindowsInternalTests::ModuleReference", "[wrl]")
+{
+    REQUIRE(::Microsoft::WRL::GetModuleBase() == nullptr);
+    // Executables don't have a ModuleBase, so we need to create one.
+    struct FakeModuleBase : Microsoft::WRL::Details::ModuleBase
+    {
+        unsigned long count = 42;
+        STDMETHOD_(unsigned long, IncrementObjectCount)()
+        {
+            return InterlockedIncrement(&count);
+        }
+        STDMETHOD_(unsigned long, DecrementObjectCount)()
+        {
+            return InterlockedDecrement(&count);
+        }
+        STDMETHOD_(unsigned long, GetObjectCount)() const
+        {
+            return count;
+        }
+        // Dummy implementations of everything else (never called).
+        STDMETHOD_(const Microsoft::WRL::Details::CreatorMap**, GetFirstEntryPointer)() const { return nullptr; }
+        STDMETHOD_(const Microsoft::WRL::Details::CreatorMap**, GetMidEntryPointer)() const { return nullptr; }
+        STDMETHOD_(const Microsoft::WRL::Details::CreatorMap**, GetLastEntryPointer)() const { return nullptr; }
+        STDMETHOD_(SRWLOCK*, GetLock)() const { return nullptr; }
+        STDMETHOD(RegisterWinRTObject)(const wchar_t*, const wchar_t**, _Inout_ RO_REGISTRATION_COOKIE*, unsigned int) { return E_NOTIMPL; }
+        STDMETHOD(UnregisterWinRTObject)(const wchar_t*, _In_ RO_REGISTRATION_COOKIE) { return E_NOTIMPL; }
+        STDMETHOD(RegisterCOMObject)(const wchar_t*, _In_ IID*, _In_ IClassFactory**, _Inout_ DWORD*, unsigned int) { return E_NOTIMPL; }
+        STDMETHOD(UnregisterCOMObject)(const wchar_t*, _Inout_ DWORD*, unsigned int) { return E_NOTIMPL; }
+
+    };
+    FakeModuleBase fake;
+
+    auto peek_module_ref_count = []()
+    {
+        return ::Microsoft::WRL::GetModuleBase()->GetObjectCount();
+    };
+
+    auto initial = peek_module_ref_count();
+
+    // Basic test: Construct and destruct.
+    {
+        auto module_ref = wil::wrl_module_reference();
+        REQUIRE(peek_module_ref_count() == initial + 1);
+    }
+    REQUIRE(peek_module_ref_count() == initial);
+
+    // Fancy test: Copy object with embedded reference.
+    {
+        struct object_with_ref
+        {
+            wil::wrl_module_reference ref;
+        };
+        object_with_ref o1;
+        REQUIRE(peek_module_ref_count() == initial + 1);
+        auto o2 = o1;
+        REQUIRE(peek_module_ref_count() == initial + 2);
+        o1 = o2;
+        REQUIRE(peek_module_ref_count() == initial + 2);
+        o2 = std::move(o1);
+        REQUIRE(peek_module_ref_count() == initial + 2);
+    }
+    REQUIRE(peek_module_ref_count() == initial);
+}
+#endif
+
+#if defined(WIL_ENABLE_EXCEPTIONS) && (defined(NTDDI_WIN10_CO) ? \
+    WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_SYSTEM | WINAPI_PARTITION_GAMES) : \
+    WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM | WINAPI_PARTITION_GAMES))
+TEST_CASE("WindowsInternalTests::VerifyModuleReferencesForThread", "[win32_helpers]")
+{
+    bool success = true;
+    std::thread([&]
+    {
+        auto moduleRef = wil::get_module_reference_for_thread();
+        moduleRef.reset(); // results in exiting the thread
+        // should never get here
+        success = false;
+        FAIL();
+    }).join();
+    REQUIRE(success);
+}
+#endif
 
 #pragma warning(pop)

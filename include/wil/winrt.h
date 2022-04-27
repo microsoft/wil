@@ -19,24 +19,34 @@
 #include "result.h"
 #include "com.h"
 #include "resource.h"
+#include <windows.foundation.h>
 #include <windows.foundation.collections.h>
 
 #ifdef __cplusplus_winrt
 #include <collection.h> // bring in the CRT iterator for support for C++ CX code
 #endif
 
-#ifdef WIL_ENABLE_EXCEPTIONS
 /// @cond
+#if defined(WIL_ENABLE_EXCEPTIONS) && !defined(__WI_HAS_STD_LESS)
+#ifdef __has_include
+#if __has_include(<functional>)
+#define __WI_HAS_STD_LESS 1
+#include <functional>
+#endif // Otherwise, not using STL; don't specialize std::less
+#else
+// Fall back to the old way of forward declaring std::less
+#define __WI_HAS_STD_LESS 1
+#pragma warning(push)
+#pragma warning(disable:4643) // Forward declaring '...' in namespace std is not permitted by the C++ Standard.
 namespace std
 {
-    template<class _Elem, class _Traits, class _Alloc>
-    class basic_string;
-
     template<class _Ty>
     struct less;
 }
-/// @endcond
+#pragma warning(pop)
 #endif
+#endif
+/// @endcond
 
 // This enables this code to be used in code that uses the ABI prefix or not.
 // Code using the public SDK and C++ CX code has the ABI prefix, windows internal
@@ -50,7 +60,6 @@ namespace std
 
 namespace wil
 {
-#ifdef _INC_TIME
     // time_t is the number of 1 - second intervals since January 1, 1970.
     long long const SecondsToStartOf1970 = 0x2b6109100;
     long long const HundredNanoSecondsInSecond = 10000000LL;
@@ -67,7 +76,6 @@ namespace wil
         dateTime.UniversalTime = (timeT + SecondsToStartOf1970) * HundredNanoSecondsInSecond;
         return dateTime;
     }
-#endif // _INC_TIME
 
 #pragma region HSTRING Helpers
     /// @cond
@@ -145,16 +153,17 @@ namespace wil
                 return str;
             }
 
-#ifdef WIL_ENABLE_EXCEPTIONS
-            template<class TraitsT, class AllocT>
-            static const wchar_t* get_buffer(
-                const std::basic_string<wchar_t, TraitsT, AllocT>& str,
-                UINT32* length) WI_NOEXCEPT
+            // Overload for std::wstring, or at least things that behave like std::wstring, without adding a dependency
+            // on STL headers
+            template <typename StringT>
+            static wistd::enable_if_t<wistd::conjunction_v<
+                wistd::is_same<const wchar_t*, decltype(wistd::declval<StringT>().c_str())>,
+                wistd::is_same<typename StringT::size_type, decltype(wistd::declval<StringT>().length())>>,
+            const wchar_t*> get_buffer(const StringT& str, UINT32* length) WI_NOEXCEPT
             {
                 *length = static_cast<UINT32>(str.length());
                 return str.c_str();
             }
-#endif
 
             template <typename LhsT, typename RhsT>
             static auto compare(LhsT&& lhs, RhsT&& rhs) ->
@@ -436,7 +445,7 @@ namespace wil
                 T Get() const { return m_value; }
 
                 // Returning T&& to support move only types
-                // In case of absense of T::operator=(T&&) a call to T::operator=(const T&) will happen
+                // In case of absence of T::operator=(T&&) a call to T::operator=(const T&) will happen
                 T&& Get()          { return wistd::move(m_value); }
 
                 HRESULT CopyTo(T* result) const { *result = m_value; return S_OK; }
@@ -587,9 +596,12 @@ namespace wil
 
             vector_iterator& operator=(const vector_iterator& other)
             {
-                m_v = other.m_v;
-                m_i = other.m_i;
-                err_policy::HResult(other.m_element.CopyTo(m_element.ReleaseAndGetAddressOf()));
+                if (this != wistd::addressof(other))
+                {
+                    m_v = other.m_v;
+                    m_i = other.m_i;
+                    err_policy::HResult(other.m_element.CopyTo(m_element.ReleaseAndGetAddressOf()));
+                }
                 return *this;
             }
 
@@ -1271,9 +1283,9 @@ namespace details
     //     LastType<int, bool>::type boolValue;
     template <typename... Ts> struct LastType
     {
-        template<typename T, typename... Ts> struct LastTypeOfTs
+        template<typename T, typename... OtherTs> struct LastTypeOfTs
         {
-            typedef typename LastTypeOfTs<Ts...>::type type;
+            typedef typename LastTypeOfTs<OtherTs...>::type type;
         };
 
         template<typename T> struct LastTypeOfTs<T>
@@ -1281,8 +1293,8 @@ namespace details
             typedef T type;
         };
 
-        template<typename... Ts>
-        static typename LastTypeOfTs<Ts...>::type LastTypeOfTsFunc() {}
+        template<typename... OtherTs>
+        static typename LastTypeOfTs<OtherTs...>::type LastTypeOfTsFunc() {}
         typedef decltype(LastTypeOfTsFunc<Ts...>()) type;
     };
 
@@ -1312,14 +1324,28 @@ namespace details
         typedef wistd::remove_pointer_t<decltype(GetAsyncDelegateType(operation))> TIDelegate;
 
         auto callback = Callback<Implements<RuntimeClassFlags<ClassicCom>, TIDelegate, TBaseAgility>>(
-            [func = wistd::forward<TFunction>(func)](TIOperation operation, AsyncStatus status) mutable -> HRESULT
+            [func = wistd::forward<TFunction>(func)](TIOperation operation, ABI::Windows::Foundation::AsyncStatus status) mutable -> HRESULT
         {
             HRESULT hr = S_OK;
-            if (status != AsyncStatus::Completed)   // avoid a potentially costly marshaled QI / call if we completed successfully
+            if (status != ABI::Windows::Foundation::AsyncStatus::Completed)   // avoid a potentially costly marshaled QI / call if we completed successfully
             {
-                ComPtr<IAsyncInfo> asyncInfo;
-                operation->QueryInterface(IID_PPV_ARGS(&asyncInfo)); // All must implement IAsyncInfo
-                asyncInfo->get_ErrorCode(&hr);
+                // QI to the IAsyncInfo interface.  While all operations implement this, it is
+                // possible that the stub has disconnected, causing the QI to fail.
+                ComPtr<ABI::Windows::Foundation::IAsyncInfo> asyncInfo;
+                hr = operation->QueryInterface(IID_PPV_ARGS(&asyncInfo));
+                if (SUCCEEDED(hr))
+                {
+                    // Save the error code result in a temporary variable to allow us
+                    // to also retrieve the result of the COM call.  If the stub has
+                    // disconnected, this call may fail.
+                    HRESULT errorCode = E_UNEXPECTED;
+                    hr = asyncInfo->get_ErrorCode(&errorCode);
+                    if (SUCCEEDED(hr))
+                    {
+                        // Return the operations error code to the caller.
+                        hr = errorCode;
+                    }
+                }
             }
 
             return CallAndHandleErrors(func, hr);
@@ -1337,21 +1363,35 @@ namespace details
         typedef wistd::remove_pointer_t<decltype(GetAsyncDelegateType(operation))> TIDelegate;
 
         auto callback = Callback<Implements<RuntimeClassFlags<ClassicCom>, TIDelegate, TBaseAgility>>(
-            [func = wistd::forward<TFunction>(func)](TIOperation operation, AsyncStatus status) mutable -> HRESULT
+            [func = wistd::forward<TFunction>(func)](TIOperation operation, ABI::Windows::Foundation::AsyncStatus status) mutable -> HRESULT
         {
             typename details::MapToSmartType<typename GetAbiType<typename wistd::remove_pointer<TIOperation>::type::TResult_complex>::type>::type result;
 
             HRESULT hr = S_OK;
-            if (status == AsyncStatus::Completed)
+            // avoid a potentially costly marshaled QI / call if we completed successfully
+            if (status == ABI::Windows::Foundation::AsyncStatus::Completed)
             {
                 hr = operation->GetResults(result.GetAddressOf());
             }
             else
             {
-                // avoid a potentially costly marshaled QI / call if we completed successfully
-                ComPtr<IAsyncInfo> asyncInfo;
-                operation->QueryInterface(IID_PPV_ARGS(&asyncInfo)); // all must implement this
-                asyncInfo->get_ErrorCode(&hr);
+                // QI to the IAsyncInfo interface.  While all operations implement this, it is
+                // possible that the stub has disconnected, causing the QI to fail.
+                ComPtr<ABI::Windows::Foundation::IAsyncInfo> asyncInfo;
+                hr = operation->QueryInterface(IID_PPV_ARGS(&asyncInfo));
+                if (SUCCEEDED(hr))
+                {
+                    // Save the error code result in a temporary variable to allow us
+                    // to also retrieve the result of the COM call.  If the stub has
+                    // disconnected, this call may fail.
+                    HRESULT errorCode = E_UNEXPECTED;
+                    hr = asyncInfo->get_ErrorCode(&errorCode);
+                    if (SUCCEEDED(hr))
+                    {
+                        // Return the operations error code to the caller.
+                        hr = errorCode;
+                    }
+                }
             }
 
             return CallAndHandleErrors(func, hr, result.Get());
@@ -1375,7 +1415,7 @@ namespace details
                 RETURN_HR(m_completedEventHandle.create());
             }
 
-            HRESULT STDMETHODCALLTYPE Invoke(_In_ TIOperation, AsyncStatus status) override
+            HRESULT STDMETHODCALLTYPE Invoke(_In_ TIOperation, ABI::Windows::Foundation::AsyncStatus status) override
             {
                 m_status = status;
                 m_completedEventHandle.SetEvent();
@@ -1387,13 +1427,13 @@ namespace details
                 return m_completedEventHandle.get();
             }
 
-            AsyncStatus GetStatus() const
+            ABI::Windows::Foundation::AsyncStatus GetStatus() const
             {
                 return m_status;
             }
 
         private:
-            volatile AsyncStatus m_status = AsyncStatus::Started;
+            volatile ABI::Windows::Foundation::AsyncStatus m_status = ABI::Windows::Foundation::AsyncStatus::Started;
             wil::unique_event_nothrow m_completedEventHandle;
         };
 
@@ -1416,12 +1456,25 @@ namespace details
         }
         RETURN_IF_FAILED(hr);
 
-        if (completedDelegate->GetStatus() != AsyncStatus::Completed)
+        if (completedDelegate->GetStatus() != ABI::Windows::Foundation::AsyncStatus::Completed)
         {
-            Microsoft::WRL::ComPtr<IAsyncInfo> asyncInfo;
-            operation->QueryInterface(IID_PPV_ARGS(&asyncInfo)); // all must implement this
-            hr = E_UNEXPECTED;
-            asyncInfo->get_ErrorCode(&hr); // error return ignored, ok?
+            // QI to the IAsyncInfo interface.  While all operations implement this, it is
+            // possible that the stub has disconnected, causing the QI to fail.
+            Microsoft::WRL::ComPtr<ABI::Windows::Foundation::IAsyncInfo> asyncInfo;
+            hr = operation->QueryInterface(IID_PPV_ARGS(&asyncInfo));
+            if (SUCCEEDED(hr))
+            {
+                // Save the error code result in a temporary variable to allow us
+                // to also retrieve the result of the COM call.  If the stub has
+                // disconnected, this call may fail.
+                HRESULT errorCode = E_UNEXPECTED;
+                hr = asyncInfo->get_ErrorCode(&errorCode);
+                if (SUCCEEDED(hr))
+                {
+                    // Return the operations error code to the caller.
+                    hr = errorCode;
+                }
+            }
             return hr; // leave it to the caller to log failures.
         }
         return S_OK;
@@ -1666,7 +1719,7 @@ namespace details
 
         IFACEMETHODIMP put_Completed(ABI::Windows::Foundation::IAsyncOperationCompletedHandler<TResult>* competed) override
         {
-            competed->Invoke(this, AsyncStatus::Completed);
+            competed->Invoke(this, ABI::Windows::Foundation::AsyncStatus::Completed);
             return S_OK;
         }
 
@@ -1705,7 +1758,7 @@ namespace details
     public:
         IFACEMETHODIMP put_Completed(ABI::Windows::Foundation::IAsyncActionCompletedHandler* competed) override
         {
-            competed->Invoke(this, AsyncStatus::Completed);
+            competed->Invoke(this, ABI::Windows::Foundation::AsyncStatus::Completed);
             return S_OK;
         }
 
@@ -1863,7 +1916,19 @@ public:
             }
             else
             {
-                auto resolvedSender = m_weakSender.Resolve<T>();
+                auto resolvedSender = [&]()
+                {
+                    try
+                    {
+                        return m_weakSender.Resolve<T>();
+                    }
+                    catch (...)
+                    {
+                        // Ignore RPC or other failures that are unavoidable in some cases
+                        // matching wil::unique_winrt_event_token and winrt::event_revoker
+                        return static_cast<T^>(nullptr);
+                    }
+                }();
                 if (resolvedSender)
                 {
                     (resolvedSender->*m_removalFunction)(m_token);
@@ -2202,7 +2267,7 @@ struct ABI::Windows::Foundation::IAsyncOperationWithProgressCompletedHandler<ABI
 #pragma pop_macro("ABI")
 #endif
 
-#ifdef WIL_ENABLE_EXCEPTIONS
+#if __WI_HAS_STD_LESS
 
 namespace std
 {

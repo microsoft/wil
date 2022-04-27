@@ -1,5 +1,8 @@
 @echo off
+setlocal
 setlocal EnableDelayedExpansion
+
+set TEST_ARGS=%*
 
 set BUILD_ROOT=%~dp0\..\build
 
@@ -56,6 +59,8 @@ call :execute_test noexcept witest.noexcept.exe
 if %ERRORLEVEL% NEQ 0 ( popd && goto :eof )
 call :execute_test normal witest.exe
 if %ERRORLEVEL% NEQ 0 ( popd && goto :eof )
+call :execute_test win7 witest.win7.exe
+if %ERRORLEVEL% NEQ 0 ( popd && goto :eof )
 popd
 
 goto :eof
@@ -63,5 +68,5 @@ goto :eof
 :execute_test
 if not exist tests\%1\%2 ( goto :eof )
 echo Running %1 tests...
-tests\%1\%2
+tests\%1\%2 %TEST_ARGS%
 goto :eof

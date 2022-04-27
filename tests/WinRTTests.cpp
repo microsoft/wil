@@ -1,5 +1,4 @@
 
-#include <time.h> // TODO: https://github.com/microsoft/wil/issues/44
 #include <wil/winrt.h>
 
 #ifdef WIL_ENABLE_EXCEPTIONS
@@ -805,6 +804,31 @@ TEST_CASE("WinRTTests::VectorRangeTest", "[winrt][vector_range]")
     for (auto itr = pointRange.begin(); itr != pointRange.end(); ++itr)
     {
         REQUIRE(index++ == itr->Get().X);
+    }
+
+    // Iterator self-assignment is a nop.
+    {
+        auto inspRange2 = wil::get_range(inspectables.Get());
+        auto itr = inspRange2.begin();
+        REQUIRE(itr != inspRange2.end()); // should have something in it
+        auto& ref = *itr;
+        auto val = ref;
+        itr = itr;
+        REQUIRE(val == ref);
+        itr = std::move(itr);
+        REQUIRE(val == ref);
+    }
+
+    {
+        auto strRange2 = wil::get_range(strings.Get());
+        auto itr = strRange2.begin();
+        REQUIRE(itr != strRange2.end()); // should have something in it
+        auto& ref = *itr;
+        auto val = ref.Get();
+        itr = itr;
+        REQUIRE(val == ref);
+        itr = std::move(itr);
+        REQUIRE(val == ref.Get());
     }
 #endif
 }

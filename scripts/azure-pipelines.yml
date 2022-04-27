@@ -37,5 +37,5 @@ jobs:
       call scripts\build_all.cmd
     displayName: 'Build x64'
 
-  - script: call scripts\runtests.cmd
+  - script: call scripts\runtests.cmd ~[LocalOnly]
     displayName: 'Run Tests'

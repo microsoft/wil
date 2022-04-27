@@ -15,6 +15,60 @@
 
 #include "common.h"
 
+TEST_CASE("ResourceTests::TestLastErrorContext", "[resource][last_error_context]")
+{
+    // Destructing the last_error_context restores the error.
+    {
+        SetLastError(42);
+        auto error42 = wil::last_error_context();
+        SetLastError(0);
+    }
+    REQUIRE(GetLastError() == 42);
+
+    // The context can be moved.
+    {
+        SetLastError(42);
+        auto error42 = wil::last_error_context();
+        SetLastError(0);
+        {
+            auto another_error42 = wil::last_error_context(std::move(error42));
+            SetLastError(1);
+        }
+        REQUIRE(GetLastError() == 42);
+        SetLastError(0);
+        // error42 has been moved-from and should not do anything at destruction.
+    }
+    REQUIRE(GetLastError() == 0);
+
+    // The context can be self-assigned, which has no effect.
+    {
+        SetLastError(42);
+        auto error42 = wil::last_error_context();
+        SetLastError(0);
+        error42 = std::move(error42);
+        SetLastError(1);
+    }
+    REQUIRE(GetLastError() == 42);
+
+    // The context can be dismissed, which cause it to do nothing at destruction.
+    {
+        SetLastError(42);
+        auto error42 = wil::last_error_context();
+        SetLastError(0);
+        error42.release();
+        SetLastError(1);
+    }
+    REQUIRE(GetLastError() == 1);
+
+    // The value in the context is unimpacted by other things changing the last error
+    {
+        SetLastError(42);
+        auto error42 = wil::last_error_context();
+        SetLastError(1);
+        REQUIRE(error42.value() == 42);
+    }
+}
+
 TEST_CASE("ResourceTests::TestScopeExit", "[resource][scope_exit]")
 {
     int count = 0;
@@ -686,4 +740,80 @@ TEST_CASE("DefaultTemplateParamCompiles", "[resource]")
 
     wil::unique_midl_ptr<> g;
     wil::unique_cotaskmem_ptr<> h;
+    wil::unique_mapview_ptr<> i;
+}
+
+TEST_CASE("UniqueInvokeCleanupMembers", "[resource]")
+{
+    // Case 1 - unique_ptr<> for a T* that has a "destroy" member
+    struct ThingWithDestroy
+    {
+        bool destroyed = false;
+        void destroy() { destroyed = true; };
+    };
+    ThingWithDestroy toDestroy;
+    wil::unique_any<ThingWithDestroy*, decltype(&ThingWithDestroy::destroy), &ThingWithDestroy::destroy> p(&toDestroy);
+    p.reset();
+    REQUIRE(!p);
+    REQUIRE(toDestroy.destroyed);
+
+    // Case 2 - unique_struct calling a member, like above
+    struct ThingToDestroy2
+    {
+        bool* destroyed;
+        void destroy() { *destroyed = true; };
+    };
+    bool structDestroyed = false;
+    {
+        wil::unique_struct<ThingToDestroy2, decltype(&ThingToDestroy2::destroy), &ThingToDestroy2::destroy> other;
+        other.destroyed = &structDestroyed;
+        REQUIRE(!structDestroyed);
+    }
+    REQUIRE(structDestroyed);
+}
+
+struct ITokenTester : IUnknown
+{
+    virtual void DirectClose(DWORD_PTR token) = 0;
+};
+
+struct TokenTester : ITokenTester
+{
+    IFACEMETHOD_(ULONG, AddRef)() override { return 2; }
+    IFACEMETHOD_(ULONG, Release)() override { return 1; }
+    IFACEMETHOD(QueryInterface)(REFIID, void**) { return E_NOINTERFACE; }
+    void DirectClose(DWORD_PTR token) override {
+        m_closed = (token == m_closeToken);
+    }
+    bool m_closed = false;
+    DWORD_PTR m_closeToken;
+};
+
+void MyTokenTesterCloser(ITokenTester* tt, DWORD_PTR token)
+{
+    tt->DirectClose(token);
+}
+
+TEST_CASE("ComTokenCloser", "[resource]")
+{
+    using token_tester_t = wil::unique_com_token<ITokenTester, DWORD_PTR, decltype(MyTokenTesterCloser), &MyTokenTesterCloser>;
+
+    TokenTester tt;
+    tt.m_closeToken = 4;
+    {
+        token_tester_t tmp{ &tt, 4 };
+    }
+    REQUIRE(tt.m_closed);
+}
+
+TEST_CASE("ComTokenDirectCloser", "[resource]")
+{
+    using token_tester_t = wil::unique_com_token<ITokenTester, DWORD_PTR, decltype(&ITokenTester::DirectClose), &ITokenTester::DirectClose>;
+
+    TokenTester tt;
+    tt.m_closeToken = 4;
+    {
+        token_tester_t tmp{ &tt, 4 };
+    }
+    REQUIRE(tt.m_closed);
 }
