@@ -4250,11 +4250,11 @@ namespace wil
     typedef unique_any<HWINEVENTHOOK, decltype(&::UnhookWinEvent), ::UnhookWinEvent> unique_hwineventhook;
 #endif
 #if !defined(NOCLIPBOARD)
-    using unique_clipboard = unique_call<decltype(::CloseClipboard()), &::CloseClipboard>;
+    using unique_close_clipboard_call = unique_call<decltype(::CloseClipboard), &::CloseClipboard>;
 
-    inline unique_clipboard open_clipboard(HWND hwnd)
+    inline unique_close_clipboard_call open_clipboard(HWND hwnd)
     {
-        return unique_clipboard(OpenClipboard(hwnd) != FALSE);
+        return unique_close_clipboard_call { OpenClipboard(hwnd) != FALSE };
     }
 #endif
 #endif // __WIL__WINUSER_
