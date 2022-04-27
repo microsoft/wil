@@ -3564,6 +3564,32 @@ TEST_CASE("WindowsInternalTests::VerifyModuleReferencesForThread", "[win32_helpe
     }).join();
     REQUIRE(success);
 }
+
+TEST_CASE("WindowsInternalTests::TransferableThreadExiter", "[win32_helpers]")
+{
+    // Create & destroy should not release the reference yet
+    {
+        wil::module_reference_for_new_thread ref;
+    }
+
+    // Stuff a thread reference into the lambda for the new thread, it should only clear
+    // when the thread executes
+    std::thread([self = wil::module_reference_for_new_thread()]() mutable
+    {
+        self.arm();
+    }).join();
+}
+
+TEST_CASE("WindowsInternalTests::CreateThread", "[win32_helpers]")
+{
+    bool success = false;
+    auto thread = wil::create_thread([&success] {
+        auto thread_init = wil::CoInitializeEx();
+        success = true;
+    });
+    ::WaitForSingleObject(thread.get(), INFINITE);
+    REQUIRE(success);
+}
 #endif
 
 #pragma warning(pop)
