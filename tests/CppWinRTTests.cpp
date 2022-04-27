@@ -228,7 +228,7 @@ namespace test
                 return;
             }
 
-            auto background = [](auto mode, auto handler) ->winrt::fire_and_forget
+            std::ignore = [](auto mode, auto handler) ->winrt::fire_and_forget
             {
                 co_await winrt::resume_background();
                 if (mode == TestDispatcherMode::Dispatch)
@@ -254,7 +254,7 @@ namespace wil::details
 TEST_CASE("CppWinRTTests::ResumeForegroundTests", "[cppwinrt]")
 {
     // Verify that the DispatcherQueue version has been unlocked.
-    using Verify = decltype(wil::resume_foreground(winrt::Windows::System::DispatcherQueue{ nullptr }));
+    static_assert(!std::is_same_v<void, decltype(wil::resume_foreground(winrt::Windows::System::DispatcherQueue{ nullptr })) > );
 
     []() -> winrt::Windows::Foundation::IAsyncAction
     {
