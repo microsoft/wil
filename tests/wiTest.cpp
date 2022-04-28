@@ -11,6 +11,7 @@
 #ifdef WIL_ENABLE_EXCEPTIONS
 #include <memory>
 #include <set>
+#include <thread>
 #include <unordered_set>
 #endif
 
@@ -166,7 +167,7 @@ void StressErrorCallbacks()
     }
 }
 
-TEST_CASE("WindowsInternalTests::ResultMacrosStress", "[!hide][result_macros][stress]")
+TEST_CASE("WindowsInternalTests::ResultMacrosStress", "[LocalOnly][result_macros][stress]")
 {
     auto restore = witest::AssignTemporaryValue(&wil::g_pfnResultLoggingCallback, EmptyResultMacrosLoggingCallback);
     StressErrorCallbacks();
@@ -1444,6 +1445,62 @@ void SemaphoreTestCommon()
     REQUIRE(eManual.try_open(L"BAR-TEST"));
 }
 
+template <typename test_t>
+void MutexRaiiTests()
+{
+    test_t var1;
+    var1.create();
+
+    {
+        REQUIRE(var1.acquire());
+    }
+
+    // try_create
+    bool exists = false;
+    REQUIRE(var1.try_create(L"wiltestmutex", 0, MUTEX_ALL_ACCESS, nullptr, &exists));
+    REQUIRE_FALSE(exists);
+    test_t var2;
+    REQUIRE(var2.try_create(L"wiltestmutex", 0, MUTEX_ALL_ACCESS, nullptr, &exists));
+    REQUIRE(exists);
+    test_t var3;
+    REQUIRE_FALSE(var3.try_create(L"\\illegal\\chars\\too\\\\many\\\\namespaces", 0, MUTEX_ALL_ACCESS, nullptr, &exists));
+    REQUIRE(::GetLastError() != ERROR_SUCCESS);
+
+    // try_open
+    test_t var4;
+    REQUIRE_FALSE(var4.try_open(L"\\illegal\\chars\\too\\\\many\\\\namespaces"));
+    REQUIRE(::GetLastError() != ERROR_SUCCESS);
+    REQUIRE(var4.try_open(L"wiltestmutex"));
+}
+
+template <typename test_t>
+void SemaphoreRaiiTests()
+{
+    test_t var1;
+    var1.create(1, 1);
+
+    {
+        REQUIRE(var1.acquire());
+    }
+
+    // try_create
+    bool exists = false;
+    REQUIRE(var1.try_create(1, 1, L"wiltestsemaphore", MUTEX_ALL_ACCESS, nullptr, &exists));
+    REQUIRE_FALSE(exists);
+    test_t var2;
+    REQUIRE(var2.try_create(1, 1, L"wiltestsemaphore", MUTEX_ALL_ACCESS, nullptr, &exists));
+    REQUIRE(exists);
+    test_t var3;
+    REQUIRE_FALSE(var3.try_create(1, 1, L"\\illegal\\chars\\too\\\\many\\\\namespaces", MUTEX_ALL_ACCESS, nullptr, &exists));
+    REQUIRE(::GetLastError() != ERROR_SUCCESS);
+
+    // try_open
+    test_t var4;
+    REQUIRE_FALSE(var4.try_open(L"\\illegal\\chars\\too\\\\many\\\\namespaces"));
+    REQUIRE(::GetLastError() != ERROR_SUCCESS);
+    REQUIRE(var4.try_open(L"wiltestsemaphore"));
+}
+
 TEST_CASE("WindowsInternalTests::HandleWrappers", "[resource][unique_any]")
 {
     EventTestCommon<wil::unique_event_nothrow>();
@@ -1477,15 +1534,17 @@ TEST_CASE("WindowsInternalTests::HandleWrappers", "[resource][unique_any]")
     wil::unique_event_nothrow testEventNoExcept;
     REQUIRE(SUCCEEDED(testEventNoExcept.create(wil::EventOptions::ManualReset)));
 
-
     MutexTestCommon<wil::unique_mutex_nothrow>();
     MutexTestCommon<wil::unique_mutex_failfast>();
+    MutexRaiiTests<wil::unique_mutex_nothrow>();
+    MutexRaiiTests<wil::unique_mutex_failfast>();
 
     // intentionally disabled in the non-exception version...
     // wil::unique_mutex_nothrow testMutex2(L"FOO-TEST-2");
     wil::unique_mutex_failfast testMutex3(L"FOO-TEST-3");
 #ifdef WIL_ENABLE_EXCEPTIONS
     MutexTestCommon<wil::unique_mutex>();
+    MutexRaiiTests<wil::unique_mutex>();
 
     wil::unique_mutex testMutex(L"FOO-TEST");
     WaitForSingleObjectEx(testMutex.get(), INFINITE, TRUE);
@@ -1504,12 +1563,15 @@ TEST_CASE("WindowsInternalTests::HandleWrappers", "[resource][unique_any]")
 
     SemaphoreTestCommon<wil::unique_semaphore_nothrow>();
     SemaphoreTestCommon<wil::unique_semaphore_failfast>();
+    SemaphoreRaiiTests<wil::unique_semaphore_nothrow>();
+    SemaphoreRaiiTests<wil::unique_semaphore_failfast>();
 
     // intentionally disabled in the non-exception version...
     // wil::unique_semaphore_nothrow testSemaphore2(1, 1);
     wil::unique_semaphore_failfast testSemaphore3(1, 1);
 #ifdef WIL_ENABLE_EXCEPTIONS
     SemaphoreTestCommon<wil::unique_semaphore>();
+    SemaphoreRaiiTests<wil::unique_semaphore>();
 
     wil::unique_semaphore testSemaphore(1, 1);
     WaitForSingleObjectEx(testSemaphore.get(), INFINITE, true);
@@ -2998,6 +3060,7 @@ TEST_CASE("WindowsInternalTests::Ranges", "[common]")
         {
             ++count;
             m = 1;
+            (void)m;
         }
         REQUIRE(ARRAYSIZE(things) == count);
         REQUIRE(0 == things[0]);
@@ -3267,7 +3330,7 @@ TEST_CASE("WindowsInternalTests::ThreadPoolTimerTest", "[resource][unique_thread
     ThreadPoolTimerWorkHelper<wil::unique_threadpool_timer_nocancel, FILETIME>(SetThreadpoolTimer, true);
 }
 
-#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && (_WIN32_WINNT >= _WIN32_WINNT_WIN7)
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && (_WIN32_WINNT >= _WIN32_WINNT_WIN8)
 static void __stdcall SlimEventTrollCallback(
     _Inout_ PTP_CALLBACK_INSTANCE /*instance*/,
     _Inout_opt_ void* context,
@@ -3339,7 +3402,7 @@ TEST_CASE("WindowsInternalTests::SlimEventTests", "[resource][slim_event]")
     }
 
 }
-#endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && (_WIN32_WINNT >= _WIN32_WINNT_WIN7)
+#endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && (_WIN32_WINNT >= _WIN32_WINNT_WIN8)
 
 struct ConditionVariableCSCallbackContext
 {
@@ -3479,5 +3542,89 @@ TEST_CASE("WindowsInternalTests::ShutdownAwareObjectAlignmentTests", "[result_ma
     VerifyAlignment<wil::shutdown_aware_object>();
     VerifyAlignment<wil::object_without_destructor_on_shutdown>();
 }
+
+#if (_WIN32_WINNT >= _WIN32_WINNT_WIN8)
+TEST_CASE("WindowsInternalTests::ModuleReference", "[wrl]")
+{
+    REQUIRE(::Microsoft::WRL::GetModuleBase() == nullptr);
+    // Executables don't have a ModuleBase, so we need to create one.
+    struct FakeModuleBase : Microsoft::WRL::Details::ModuleBase
+    {
+        unsigned long count = 42;
+        STDMETHOD_(unsigned long, IncrementObjectCount)()
+        {
+            return InterlockedIncrement(&count);
+        }
+        STDMETHOD_(unsigned long, DecrementObjectCount)()
+        {
+            return InterlockedDecrement(&count);
+        }
+        STDMETHOD_(unsigned long, GetObjectCount)() const
+        {
+            return count;
+        }
+        // Dummy implementations of everything else (never called).
+        STDMETHOD_(const Microsoft::WRL::Details::CreatorMap**, GetFirstEntryPointer)() const { return nullptr; }
+        STDMETHOD_(const Microsoft::WRL::Details::CreatorMap**, GetMidEntryPointer)() const { return nullptr; }
+        STDMETHOD_(const Microsoft::WRL::Details::CreatorMap**, GetLastEntryPointer)() const { return nullptr; }
+        STDMETHOD_(SRWLOCK*, GetLock)() const { return nullptr; }
+        STDMETHOD(RegisterWinRTObject)(const wchar_t*, const wchar_t**, _Inout_ RO_REGISTRATION_COOKIE*, unsigned int) { return E_NOTIMPL; }
+        STDMETHOD(UnregisterWinRTObject)(const wchar_t*, _In_ RO_REGISTRATION_COOKIE) { return E_NOTIMPL; }
+        STDMETHOD(RegisterCOMObject)(const wchar_t*, _In_ IID*, _In_ IClassFactory**, _Inout_ DWORD*, unsigned int) { return E_NOTIMPL; }
+        STDMETHOD(UnregisterCOMObject)(const wchar_t*, _Inout_ DWORD*, unsigned int) { return E_NOTIMPL; }
+
+    };
+    FakeModuleBase fake;
+
+    auto peek_module_ref_count = []()
+    {
+        return ::Microsoft::WRL::GetModuleBase()->GetObjectCount();
+    };
+
+    auto initial = peek_module_ref_count();
+
+    // Basic test: Construct and destruct.
+    {
+        auto module_ref = wil::wrl_module_reference();
+        REQUIRE(peek_module_ref_count() == initial + 1);
+    }
+    REQUIRE(peek_module_ref_count() == initial);
+
+    // Fancy test: Copy object with embedded reference.
+    {
+        struct object_with_ref
+        {
+            wil::wrl_module_reference ref;
+        };
+        object_with_ref o1;
+        REQUIRE(peek_module_ref_count() == initial + 1);
+        auto o2 = o1;
+        REQUIRE(peek_module_ref_count() == initial + 2);
+        o1 = o2;
+        REQUIRE(peek_module_ref_count() == initial + 2);
+        o2 = std::move(o1);
+        REQUIRE(peek_module_ref_count() == initial + 2);
+    }
+    REQUIRE(peek_module_ref_count() == initial);
+}
+#endif
+
+#if defined(WIL_ENABLE_EXCEPTIONS) && (defined(NTDDI_WIN10_CO) ? \
+    WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_SYSTEM | WINAPI_PARTITION_GAMES) : \
+    WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM | WINAPI_PARTITION_GAMES))
+TEST_CASE("WindowsInternalTests::VerifyModuleReferencesForThread", "[win32_helpers]")
+{
+    bool success = true;
+    std::thread([&]
+    {
+        auto moduleRef = wil::get_module_reference_for_thread();
+        moduleRef.reset(); // results in exiting the thread
+        // should never get here
+        success = false;
+        FAIL();
+    }).join();
+    REQUIRE(success);
+}
+#endif
 
 #pragma warning(pop)

@@ -19,24 +19,34 @@
 #include "result.h"
 #include "com.h"
 #include "resource.h"
+#include <windows.foundation.h>
 #include <windows.foundation.collections.h>
 
 #ifdef __cplusplus_winrt
 #include <collection.h> // bring in the CRT iterator for support for C++ CX code
 #endif
 
-#ifdef WIL_ENABLE_EXCEPTIONS
-#pragma warning(push)
-#pragma warning(disable:4643)
 /// @cond
+#if defined(WIL_ENABLE_EXCEPTIONS) && !defined(__WI_HAS_STD_LESS)
+#ifdef __has_include
+#if __has_include(<functional>)
+#define __WI_HAS_STD_LESS 1
+#include <functional>
+#endif // Otherwise, not using STL; don't specialize std::less
+#else
+// Fall back to the old way of forward declaring std::less
+#define __WI_HAS_STD_LESS 1
+#pragma warning(push)
+#pragma warning(disable:4643) // Forward declaring '...' in namespace std is not permitted by the C++ Standard.
 namespace std
 {
     template<class _Ty>
     struct less;
 }
-/// @endcond
 #pragma warning(pop)
 #endif
+#endif
+/// @endcond
 
 // This enables this code to be used in code that uses the ABI prefix or not.
 // Code using the public SDK and C++ CX code has the ABI prefix, windows internal
@@ -50,7 +60,6 @@ namespace std
 
 namespace wil
 {
-#ifdef _INC_TIME
     // time_t is the number of 1 - second intervals since January 1, 1970.
     long long const SecondsToStartOf1970 = 0x2b6109100;
     long long const HundredNanoSecondsInSecond = 10000000LL;
@@ -67,7 +76,6 @@ namespace wil
         dateTime.UniversalTime = (timeT + SecondsToStartOf1970) * HundredNanoSecondsInSecond;
         return dateTime;
     }
-#endif // _INC_TIME
 
 #pragma region HSTRING Helpers
     /// @cond
@@ -437,7 +445,7 @@ namespace wil
                 T Get() const { return m_value; }
 
                 // Returning T&& to support move only types
-                // In case of absense of T::operator=(T&&) a call to T::operator=(const T&) will happen
+                // In case of absence of T::operator=(T&&) a call to T::operator=(const T&) will happen
                 T&& Get()          { return wistd::move(m_value); }
 
                 HRESULT CopyTo(T* result) const { *result = m_value; return S_OK; }
@@ -1321,9 +1329,23 @@ namespace details
             HRESULT hr = S_OK;
             if (status != ABI::Windows::Foundation::AsyncStatus::Completed)   // avoid a potentially costly marshaled QI / call if we completed successfully
             {
+                // QI to the IAsyncInfo interface.  While all operations implement this, it is
+                // possible that the stub has disconnected, causing the QI to fail.
                 ComPtr<ABI::Windows::Foundation::IAsyncInfo> asyncInfo;
-                operation->QueryInterface(IID_PPV_ARGS(&asyncInfo)); // All must implement IAsyncInfo
-                asyncInfo->get_ErrorCode(&hr);
+                hr = operation->QueryInterface(IID_PPV_ARGS(&asyncInfo));
+                if (SUCCEEDED(hr))
+                {
+                    // Save the error code result in a temporary variable to allow us
+                    // to also retrieve the result of the COM call.  If the stub has
+                    // disconnected, this call may fail.
+                    HRESULT errorCode = E_UNEXPECTED;
+                    hr = asyncInfo->get_ErrorCode(&errorCode);
+                    if (SUCCEEDED(hr))
+                    {
+                        // Return the operations error code to the caller.
+                        hr = errorCode;
+                    }
+                }
             }
 
             return CallAndHandleErrors(func, hr);
@@ -1346,16 +1368,30 @@ namespace details
             typename details::MapToSmartType<typename GetAbiType<typename wistd::remove_pointer<TIOperation>::type::TResult_complex>::type>::type result;
 
             HRESULT hr = S_OK;
+            // avoid a potentially costly marshaled QI / call if we completed successfully
             if (status == ABI::Windows::Foundation::AsyncStatus::Completed)
             {
                 hr = operation->GetResults(result.GetAddressOf());
             }
             else
             {
-                // avoid a potentially costly marshaled QI / call if we completed successfully
+                // QI to the IAsyncInfo interface.  While all operations implement this, it is
+                // possible that the stub has disconnected, causing the QI to fail.
                 ComPtr<ABI::Windows::Foundation::IAsyncInfo> asyncInfo;
-                operation->QueryInterface(IID_PPV_ARGS(&asyncInfo)); // all must implement this
-                asyncInfo->get_ErrorCode(&hr);
+                hr = operation->QueryInterface(IID_PPV_ARGS(&asyncInfo));
+                if (SUCCEEDED(hr))
+                {
+                    // Save the error code result in a temporary variable to allow us
+                    // to also retrieve the result of the COM call.  If the stub has
+                    // disconnected, this call may fail.
+                    HRESULT errorCode = E_UNEXPECTED;
+                    hr = asyncInfo->get_ErrorCode(&errorCode);
+                    if (SUCCEEDED(hr))
+                    {
+                        // Return the operations error code to the caller.
+                        hr = errorCode;
+                    }
+                }
             }
 
             return CallAndHandleErrors(func, hr, result.Get());
@@ -1422,10 +1458,23 @@ namespace details
 
         if (completedDelegate->GetStatus() != ABI::Windows::Foundation::AsyncStatus::Completed)
         {
+            // QI to the IAsyncInfo interface.  While all operations implement this, it is
+            // possible that the stub has disconnected, causing the QI to fail.
             Microsoft::WRL::ComPtr<ABI::Windows::Foundation::IAsyncInfo> asyncInfo;
-            operation->QueryInterface(IID_PPV_ARGS(&asyncInfo)); // all must implement this
-            hr = E_UNEXPECTED;
-            asyncInfo->get_ErrorCode(&hr); // error return ignored, ok?
+            hr = operation->QueryInterface(IID_PPV_ARGS(&asyncInfo));
+            if (SUCCEEDED(hr))
+            {
+                // Save the error code result in a temporary variable to allow us
+                // to also retrieve the result of the COM call.  If the stub has
+                // disconnected, this call may fail.
+                HRESULT errorCode = E_UNEXPECTED;
+                hr = asyncInfo->get_ErrorCode(&errorCode);
+                if (SUCCEEDED(hr))
+                {
+                    // Return the operations error code to the caller.
+                    hr = errorCode;
+                }
+            }
             return hr; // leave it to the caller to log failures.
         }
         return S_OK;
@@ -1867,7 +1916,19 @@ public:
             }
             else
             {
-                auto resolvedSender = m_weakSender.Resolve<T>();
+                auto resolvedSender = [&]()
+                {
+                    try
+                    {
+                        return m_weakSender.Resolve<T>();
+                    }
+                    catch (...)
+                    {
+                        // Ignore RPC or other failures that are unavoidable in some cases
+                        // matching wil::unique_winrt_event_token and winrt::event_revoker
+                        return static_cast<T^>(nullptr);
+                    }
+                }();
                 if (resolvedSender)
                 {
                     (resolvedSender->*m_removalFunction)(m_token);
@@ -2206,7 +2267,7 @@ struct ABI::Windows::Foundation::IAsyncOperationWithProgressCompletedHandler<ABI
 #pragma pop_macro("ABI")
 #endif
 
-#ifdef WIL_ENABLE_EXCEPTIONS
+#if __WI_HAS_STD_LESS
 
 namespace std
 {

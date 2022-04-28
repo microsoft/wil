@@ -16,6 +16,10 @@
 #include "result.h"
 #include "resource.h" // last to ensure _COMBASEAPI_H_ protected definitions are available
 
+#if __has_include(<tuple>)
+#include <tuple>
+#endif
+
 // Forward declaration within WIL (see https://msdn.microsoft.com/en-us/library/br244983.aspx)
 /// @cond
 namespace Microsoft
@@ -863,7 +867,7 @@ namespace wil
         // Internal Helpers
         /// @cond
         template <class U>
-        inline com_ptr_t(_In_ U* ptr, details::tag_com_query)
+        inline com_ptr_t(_In_ U* ptr, details::tag_com_query) : m_ptr(nullptr)
         {
             err_policy::HResult(details::query_policy_t<U>::query(ptr, &m_ptr));
         }
@@ -875,14 +879,12 @@ namespace wil
         }
 
         template <class U>
-        inline com_ptr_t(_In_opt_ U* ptr, details::tag_com_copy)
+        inline com_ptr_t(_In_opt_ U* ptr, details::tag_com_copy) : m_ptr(nullptr)
         {
             if (ptr)
             {
                 err_policy::HResult(details::query_policy_t<U>::query(ptr, &m_ptr));
-                return;
             }
-            m_ptr = nullptr;
         }
 
         template <class U>
@@ -1182,6 +1184,43 @@ namespace wil
 #endif
     /// @endcond
 
+#ifdef WIL_ENABLE_EXCEPTIONS
+    //! Constructs a `com_ptr` from a raw pointer.
+    //! This avoids having to restate the interface in pre-C++20.
+    //! Starting in C++20, you can write `wil::com_ptr(p)` directly.
+    //! ~~~
+    //! void example(ILongNamedThing* thing)
+    //! {
+    //!    callback([thing = wil::make_com_ptr(thing)] { /* do something */ });
+    //! }
+    //! ~~~
+    template <typename T>
+    com_ptr<T> make_com_ptr(T* p) { return p; }
+#endif
+
+    //! Constructs a `com_ptr_nothrow` from a raw pointer.
+    //! This avoids having to restate the interface in pre-C++20.
+    //! Starting in C++20, you can write `wil::com_ptr_nothrow(p)` directly.
+    //! ~~~
+    //! void example(ILongNamedThing* thing)
+    //! {
+    //!    callback([thing = wil::make_com_ptr_nothrow(thing)] { /* do something */ });
+    //! }
+    //! ~~~
+    template <typename T>
+    com_ptr_nothrow<T> make_com_ptr_nothrow(T* p) { return p; }
+
+    //! Constructs a `com_ptr_failfast` from a raw pointer.
+    //! This avoids having to restate the interface in pre-C++20.
+    //! Starting in C++20, you can write `wil::com_ptr_failfast(p)` directly.
+    //! ~~~
+    //! void example(ILongNamedThing* thing)
+    //! {
+    //!    callback([thing = wil::make_com_ptr_failfast(thing)] { /* do something */ });
+    //! }
+    //! ~~~
+    template <typename T>
+    com_ptr_failfast<T> make_com_ptr_failfast(T* p) { return p; }
 
     //! @name Stand-alone query helpers
     //! * Source pointer can be raw interface pointer, any wil com_ptr, or WRL ComPtr
@@ -1873,14 +1912,14 @@ namespace wil
 
     /** constructs a COM object using an CLSID on a specific interface or IUnknown. */
     template<typename Interface = IUnknown>
-    wil::com_ptr_failfast<Interface> CoCreateInstanceFailFast(REFCLSID rclsid, DWORD dwClsContext = CLSCTX_INPROC_SERVER)
+    wil::com_ptr_failfast<Interface> CoCreateInstanceFailFast(REFCLSID rclsid, DWORD dwClsContext = CLSCTX_INPROC_SERVER) WI_NOEXCEPT
     {
         return CoCreateInstance<Interface, err_failfast_policy>(rclsid, dwClsContext);
     }
 
     /** constructs a COM object using the class as the identifier (that has an associated CLSID) on a specific interface or IUnknown. */
     template<typename Class, typename Interface = IUnknown>
-    wil::com_ptr_failfast<Interface> CoCreateInstanceFailFast(DWORD dwClsContext = CLSCTX_INPROC_SERVER)
+    wil::com_ptr_failfast<Interface> CoCreateInstanceFailFast(DWORD dwClsContext = CLSCTX_INPROC_SERVER) WI_NOEXCEPT
     {
         return CoCreateInstanceFailFast<Interface>(__uuidof(Class), dwClsContext);
     }
@@ -1888,7 +1927,7 @@ namespace wil
     /** constructs a COM object using an CLSID on a specific interface or IUnknown.
     Note, failures are reported as a null result, the HRESULT is lost. */
     template<typename Interface = IUnknown>
-    wil::com_ptr_nothrow<Interface> CoCreateInstanceNoThrow(REFCLSID rclsid, DWORD dwClsContext = CLSCTX_INPROC_SERVER)
+    wil::com_ptr_nothrow<Interface> CoCreateInstanceNoThrow(REFCLSID rclsid, DWORD dwClsContext = CLSCTX_INPROC_SERVER) WI_NOEXCEPT
     {
         return CoCreateInstance<Interface, err_returncode_policy>(rclsid, dwClsContext);
     }
@@ -1896,7 +1935,7 @@ namespace wil
     /** constructs a COM object using the class as the identifier (that has an associated CLSID) on a specific interface or IUnknown.
     Note, failures are reported as a null result, the HRESULT is lost. */
     template<typename Class, typename Interface = IUnknown>
-    wil::com_ptr_nothrow<Interface> CoCreateInstanceNoThrow(DWORD dwClsContext = CLSCTX_INPROC_SERVER)
+    wil::com_ptr_nothrow<Interface> CoCreateInstanceNoThrow(DWORD dwClsContext = CLSCTX_INPROC_SERVER) WI_NOEXCEPT
     {
         return CoCreateInstanceNoThrow<Interface>(__uuidof(Class), dwClsContext);
     }
@@ -1949,6 +1988,140 @@ namespace wil
     {
         return CoGetClassObjectNoThrow<Interface>(__uuidof(Class), dwClsContext);
     }
+
+#if __has_include(<tuple>) && (__WI_LIBCPP_STD_VER >= 17)
+    namespace details
+    {
+        template <typename error_policy, typename... Results>
+        auto CoCreateInstanceEx(REFCLSID clsid, CLSCTX clsCtx) noexcept
+        {
+            MULTI_QI multiQis[sizeof...(Results)]{};
+            const IID* iids[sizeof...(Results)]{ &__uuidof(Results)... };
+
+            static_assert(sizeof...(Results) > 0);
+
+            for (auto i = 0U; i < sizeof...(Results); ++i)
+            {
+                multiQis[i].pIID = iids[i];
+            }
+
+            const auto hr = CoCreateInstanceEx(clsid, nullptr, clsCtx, nullptr,
+                ARRAYSIZE(multiQis), multiQis);
+
+            std::tuple<wil::com_ptr_t<Results, error_policy>...> resultTuple;
+
+            std::apply([i = 0, &multiQis](auto&... a) mutable
+            {
+                (a.attach(reinterpret_cast<typename std::remove_reference_t<decltype(a)>::pointer>(multiQis[i++].pItf)), ...);
+            }, resultTuple);
+            return std::tuple<HRESULT, decltype(resultTuple)>(hr, std::move(resultTuple));
+        }
+
+        template<typename error_policy, typename... Results>
+        auto com_multi_query(IUnknown* obj)
+        {
+            MULTI_QI multiQis[sizeof...(Results)]{};
+            const IID* iids[sizeof...(Results)]{ &__uuidof(Results)... };
+
+            static_assert(sizeof...(Results) > 0);
+
+            for (auto i = 0U; i < sizeof...(Results); ++i)
+            {
+                multiQis[i].pIID = iids[i];
+            }
+
+            std::tuple<wil::com_ptr_t<Results, error_policy>...> resultTuple{};
+
+            wil::com_ptr_nothrow<IMultiQI> multiQi;
+            auto hr = obj->QueryInterface(IID_PPV_ARGS(&multiQi));
+            if (SUCCEEDED(hr))
+            {
+                hr = multiQi->QueryMultipleInterfaces(ARRAYSIZE(multiQis), multiQis);
+                std::apply([i = 0, &multiQis](auto&... a) mutable
+                {
+                    (a.attach(reinterpret_cast<typename std::remove_reference_t<decltype(a)>::pointer>(multiQis[i++].pItf)), ...);
+                }, resultTuple);
+            }
+            return std::tuple<HRESULT, decltype(resultTuple)>{hr, std::move(resultTuple)};
+        }
+    }
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+    // CoCreateInstanceEx can be used to improve performance by requesting multiple interfaces
+    // from an object at create time. This is most useful for out of process (OOP) servers, saving
+    // and RPC per extra interface requested.
+    template <typename... Results>
+    auto CoCreateInstanceEx(REFCLSID clsid, CLSCTX clsCtx = CLSCTX_LOCAL_SERVER)
+    {
+        auto [error, result] = details::CoCreateInstanceEx<err_exception_policy, Results...>(clsid, clsCtx);
+        THROW_IF_FAILED(error);
+        THROW_HR_IF(E_NOINTERFACE, error == CO_S_NOTALLINTERFACES);
+        return result;
+    }
+
+    template <typename... Results>
+    auto TryCoCreateInstanceEx(REFCLSID clsid, CLSCTX clsCtx = CLSCTX_LOCAL_SERVER)
+    {
+        auto [error, result] = details::CoCreateInstanceEx<err_exception_policy, Results...>(clsid, clsCtx);
+        return result;
+    }
+#endif
+
+    // Returns [error, result] where result is a tuple with each of the requested interfaces.
+    template <typename... Results>
+    auto CoCreateInstanceExNoThrow(REFCLSID clsid, CLSCTX clsCtx = CLSCTX_LOCAL_SERVER) noexcept
+    {
+        auto [error, result] = details::CoCreateInstanceEx<err_returncode_policy, Results...>(clsid, clsCtx);
+        if (SUCCEEDED(error) && (error == CO_S_NOTALLINTERFACES))
+        {
+            return std::tuple<HRESULT, decltype(result)>{E_NOINTERFACE, {}};
+        }
+        return std::tuple<HRESULT, decltype(result)>{S_OK, result};
+    }
+
+    template <typename... Results>
+    auto TryCoCreateInstanceExNoThrow(REFCLSID clsid, CLSCTX clsCtx = CLSCTX_LOCAL_SERVER) noexcept
+    {
+        auto [error, result] = details::CoCreateInstanceEx<err_returncode_policy, Results...>(clsid, clsCtx);
+        return result;
+    }
+
+    template <typename... Results>
+    auto CoCreateInstanceExFailFast(REFCLSID clsid, CLSCTX clsCtx = CLSCTX_LOCAL_SERVER) noexcept
+    {
+        auto [error, result] = details::CoCreateInstanceEx<err_failfast_policy, Results...>(clsid, clsCtx);
+        FAIL_FAST_IF_FAILED(error);
+        FAIL_FAST_HR_IF(E_NOINTERFACE, error == CO_S_NOTALLINTERFACES);
+        return result;
+    }
+
+    template <typename... Results>
+    auto TryCoCreateInstanceExFailFast(REFCLSID clsid, CLSCTX clsCtx = CLSCTX_LOCAL_SERVER) noexcept
+    {
+        auto [error, result] = details::CoCreateInstanceEx<err_failfast_policy, Results...>(clsid, clsCtx);
+        return result;
+    }
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+    template<typename... Results>
+    auto com_multi_query(IUnknown* obj)
+    {
+        auto [error, result] = details::com_multi_query<err_exception_policy, Results...>(obj);
+        THROW_IF_FAILED(error);
+        THROW_HR_IF(E_NOINTERFACE, error == S_FALSE);
+        return result;
+    }
+
+    template<typename... Results>
+    auto try_com_multi_query(IUnknown* obj)
+    {
+        auto [error, result] = details::com_multi_query<err_exception_policy, Results...>(obj);
+        return result;
+    }
+#endif
+
+#endif // __has_include(<tuple>)
+
 #pragma endregion
 
 #pragma region Stream helpers

@@ -261,10 +261,10 @@ WI_ODR_PRAGMA("WIL_KERNEL_MODE", "1")
 WI_ODR_PRAGMA("WIL_KERNEL_MODE", "0")
 #endif
 
-#if defined(_CPPUNWIND) && !defined(WIL_SUPPRESS_EXCEPTIONS)
+#if (defined(_CPPUNWIND) || defined(__EXCEPTIONS)) && !defined(WIL_SUPPRESS_EXCEPTIONS)
 /** This define is automatically set when exceptions are enabled within wil.
 It is automatically defined when your code is compiled with exceptions enabled (via checking for the built-in
-_CPPUNWIND flag) unless you explicitly define WIL_SUPPRESS_EXCEPTIONS ahead of including your first wil
+_CPPUNWIND or __EXCEPTIONS flag) unless you explicitly define WIL_SUPPRESS_EXCEPTIONS ahead of including your first wil
 header.  All exception-based WIL methods and classes are included behind:
 ~~~~
 #ifdef WIL_ENABLE_EXCEPTIONS
@@ -658,9 +658,39 @@ namespace wil
     _Post_satisfies_(return == hr)
     inline constexpr long verify_hresult(T hr)
     {
-        // Note: Written in terms of 'int' as HRESULT is actually:  typedef _Return_type_success_(return >= 0) long HRESULT
+        // Note: Written in terms of 'long' as HRESULT is actually:  typedef _Return_type_success_(return >= 0) long HRESULT
         static_assert(wistd::is_same<T, long>::value, "Wrong Type: HRESULT expected");
         return hr;
+    }
+
+    /** Verify that `status` is an NTSTATUS value.
+    Other types will generate an intentional compilation error.  Note that this will accept any `long` value as that is the
+    underlying typedef behind NTSTATUS.
+    //!
+    Note that occasionally you might run into an NTSTATUS which is directly defined with a #define, such as:
+    ~~~~
+    #define STATUS_NOT_SUPPORTED             0x1
+    ~~~~
+    Though this looks like an `NTSTATUS`, this is actually an `unsigned long` (the hex specification forces this).  When
+    these are encountered and they are NOT in the public SDK (have not yet shipped to the public), then you should change
+    their definition to match the manner in which `NTSTATUS` constants are defined in ntstatus.h:
+    ~~~~
+    #define STATUS_NOT_SUPPORTED             ((NTSTATUS)0xC00000BBL)
+    ~~~~
+    When these are encountered in the public SDK, their type should not be changed and you should use a static_cast
+    to use this value in a macro that utilizes `verify_ntstatus`, for example:
+    ~~~~
+    NT_RETURN_IF_FALSE(static_cast<NTSTATUS>(STATUS_NOT_SUPPORTED), (dispatch->Version == HKE_V1_0));
+    ~~~~
+    @param val The NTSTATUS returning expression
+    @return An NTSTATUS representing the evaluation of `val`. */
+    template <typename T>
+    _Post_satisfies_(return == status)
+    inline long verify_ntstatus(T status)
+    {
+        // Note: Written in terms of 'long' as NTSTATUS is actually:  typedef _Return_type_success_(return >= 0) long NTSTATUS
+        static_assert(wistd::is_same<T, long>::value, "Wrong Type: NTSTATUS expected");
+        return status;
     }
     /// @}      // end type validation routines
 
