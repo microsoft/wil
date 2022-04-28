@@ -2269,17 +2269,14 @@ __WI_POP_WARNINGS
     class last_error_context
     {
 #ifndef WIL_KERNEL_MODE
-        bool m_dismissed;
-        DWORD m_error;
+        bool m_dismissed = false;
+        DWORD m_error = 0;
     public:
-        last_error_context() WI_NOEXCEPT :
-            m_dismissed(false),
-            m_error(::GetLastError())
+        last_error_context() WI_NOEXCEPT : last_error_context(::GetLastError())
         {
         }
 
         explicit last_error_context(DWORD error) WI_NOEXCEPT :
-        m_dismissed(false),
             m_error(error)
         {
         }
@@ -2313,7 +2310,7 @@ __WI_POP_WARNINGS
             m_dismissed = true;
         }
 
-        DWORD error() const
+        auto value() const WI_NOEXCEPT
         {
             return m_error;
         }
@@ -4010,15 +4007,15 @@ __WI_SUPPRESS_4127_E
         __declspec(noinline) inline DWORD ReportFailure_GetLastError(__R_FN_PARAMS_FULL)
         {
             const last_error_context err { GetLastErrorFail(__R_FN_CALL_FULL) };
-            ReportFailure_Base<T>(__R_FN_CALL_FULL, ResultStatus::FromResult(__HRESULT_FROM_WIN32(err.error())));
-            return err.error();
+            ReportFailure_Base<T>(__R_FN_CALL_FULL, ResultStatus::FromResult(__HRESULT_FROM_WIN32(err.value())));
+            return err.value();
         }
 
         template<>
         __declspec(noinline) inline RESULT_NORETURN DWORD ReportFailure_GetLastError<FailureType::FailFast>(__R_FN_PARAMS_FULL)
         {
             const last_error_context err { GetLastErrorFail(__R_FN_CALL_FULL) };
-            ReportFailure_Base<FailureType::FailFast>(__R_FN_CALL_FULL, ResultStatus::FromResult(__HRESULT_FROM_WIN32(err.error())));
+            ReportFailure_Base<FailureType::FailFast>(__R_FN_CALL_FULL, ResultStatus::FromResult(__HRESULT_FROM_WIN32(err.value())));
             RESULT_NORETURN_RESULT(err);
         }
 
@@ -4026,7 +4023,7 @@ __WI_SUPPRESS_4127_E
         __declspec(noinline) inline RESULT_NORETURN DWORD ReportFailure_GetLastError<FailureType::Exception>(__R_FN_PARAMS_FULL)
         {
             const last_error_context err { GetLastErrorFail(__R_FN_CALL_FULL) };
-            ReportFailure_Base<FailureType::Exception>(__R_FN_CALL_FULL, ResultStatus::FromResult(__HRESULT_FROM_WIN32(err.error())));
+            ReportFailure_Base<FailureType::Exception>(__R_FN_CALL_FULL, ResultStatus::FromResult(__HRESULT_FROM_WIN32(err.value())));
             RESULT_NORETURN_RESULT(err);
         }
 
@@ -4166,15 +4163,15 @@ __WI_SUPPRESS_4127_E
         __declspec(noinline) inline DWORD ReportFailure_GetLastErrorMsg(__R_FN_PARAMS_FULL, _Printf_format_string_ PCSTR formatString, va_list argList)
         {
             const last_error_context err { GetLastErrorFail(__R_FN_CALL_FULL) };
-            ReportFailure_Msg<T>(__R_FN_CALL_FULL, ResultStatus::FromResult(__HRESULT_FROM_WIN32(err.error())), formatString, argList);
-            return err.error();
+            ReportFailure_Msg<T>(__R_FN_CALL_FULL, ResultStatus::FromResult(__HRESULT_FROM_WIN32(err.value())), formatString, argList);
+            return err.value();
         }
 
         template<>
         __declspec(noinline) inline RESULT_NORETURN DWORD ReportFailure_GetLastErrorMsg<FailureType::FailFast>(__R_FN_PARAMS_FULL, _Printf_format_string_ PCSTR formatString, va_list argList)
         {
             const last_error_context err { GetLastErrorFail(__R_FN_CALL_FULL) };
-            ReportFailure_Msg<FailureType::FailFast>(__R_FN_CALL_FULL, ResultStatus::FromResult(__HRESULT_FROM_WIN32(err.error())), formatString, argList);
+            ReportFailure_Msg<FailureType::FailFast>(__R_FN_CALL_FULL, ResultStatus::FromResult(__HRESULT_FROM_WIN32(err.value())), formatString, argList);
             RESULT_NORETURN_RESULT(err);
         }
 
@@ -4182,7 +4179,7 @@ __WI_SUPPRESS_4127_E
         __declspec(noinline) inline RESULT_NORETURN DWORD ReportFailure_GetLastErrorMsg<FailureType::Exception>(__R_FN_PARAMS_FULL, _Printf_format_string_ PCSTR formatString, va_list argList)
         {
             const last_error_context err { GetLastErrorFail(__R_FN_CALL_FULL) };
-            ReportFailure_Msg<FailureType::Exception>(__R_FN_CALL_FULL, ResultStatus::FromResult(__HRESULT_FROM_WIN32(err.error())), formatString, argList);
+            ReportFailure_Msg<FailureType::Exception>(__R_FN_CALL_FULL, ResultStatus::FromResult(__HRESULT_FROM_WIN32(err.value())), formatString, argList);
             RESULT_NORETURN_RESULT(err);
         }
 
