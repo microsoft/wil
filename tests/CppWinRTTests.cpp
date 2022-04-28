@@ -5,6 +5,9 @@
 #include <wil/coroutine.h>
 #include <thread>
 #endif
+#include <wil/cppwinrt_helpers.h>
+#include <winrt/Windows.System.h>
+#include <wil/cppwinrt_helpers.h> // Verify can include a second time to unlock more features
 
 #include "catch.hpp"
 
@@ -146,6 +149,41 @@ TEST_CASE("CppWinRTTests::CppWinRTConsistencyTest", "[cppwinrt]")
 
     // NOTE: C++/WinRT maps other 'std::exception' derived exceptions to E_FAIL, however we preserve the WIL behavior
     // that such exceptions become HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION)
+}
+
+TEST_CASE("CppWinRTTests::ModuleReference", "[cppwinrt]")
+{
+    auto peek_module_ref_count = []()
+    {
+        ++winrt::get_module_lock();
+        return --winrt::get_module_lock();
+    };
+
+    auto initial = peek_module_ref_count();
+
+    // Basic test: Construct and destruct.
+    {
+        auto module_ref = wil::winrt_module_reference();
+        REQUIRE(peek_module_ref_count() == initial + 1);
+    }
+    REQUIRE(peek_module_ref_count() == initial);
+
+    // Fancy test: Copy object with embedded reference.
+    {
+        struct object_with_ref
+        {
+            wil::winrt_module_reference ref;
+        };
+        object_with_ref o1;
+        REQUIRE(peek_module_ref_count() == initial + 1);
+        auto o2 = o1;
+        REQUIRE(peek_module_ref_count() == initial + 2);
+        o1 = o2;
+        REQUIRE(peek_module_ref_count() == initial + 2);
+        o2 = std::move(o1);
+        REQUIRE(peek_module_ref_count() == initial + 2);
+    }
+    REQUIRE(peek_module_ref_count() == initial);
 }
 
 #if (defined(__cpp_lib_coroutine) && (__cpp_lib_coroutine >= 201902L)) || defined(_RESUMABLE_FUNCTIONS_SUPPORTED)
@@ -361,7 +399,7 @@ namespace test
                 return;
             }
 
-            auto background = [](auto mode, auto handler) ->winrt::fire_and_forget
+            std::ignore = [](auto mode, auto handler) ->winrt::fire_and_forget
             {
                 co_await winrt::resume_background();
                 if (mode == TestDispatcherMode::Dispatch)
@@ -386,6 +424,10 @@ namespace wil::details
 
 TEST_CASE("CppWinRTTests::ResumeForegroundTests", "[cppwinrt]")
 {
+    // Verify that the DispatcherQueue version has been unlocked.
+    using Verify = decltype(wil::resume_foreground(winrt::Windows::System::DispatcherQueue{ nullptr }));
+    static_assert(wistd::is_trivial_v<Verify> || !wistd::is_trivial_v<Verify>);
+
     []() -> winrt::Windows::Foundation::IAsyncAction
     {
         test::TestDispatcher dispatcher;

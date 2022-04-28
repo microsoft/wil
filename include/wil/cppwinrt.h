@@ -333,200 +333,78 @@ namespace wil
     {
         return winrt::capture<WinRTResult>(o.as<Interface>(), method, std::forward<Args>(args)...);
     }
-}
 
-#if (defined(__cpp_lib_coroutine) && (__cpp_lib_coroutine >= 201902L)) || defined(_RESUMABLE_FUNCTIONS_SUPPORTED)
+    /** Holds a reference to the host C++/WinRT module to prevent it from being unloaded.
+    Normally, this is done by being in an IAsyncOperation coroutine or by holding a strong
+    reference to a C++/WinRT object hosted in the same module, but if you have neither,
+    you will need to hold a reference explicitly. For the WRL equivalent, see wrl_module_reference.
 
-/// @cond
-#if defined(_RESUMABLE_FUNCTIONS_SUPPORTED)
-#include <experimental/coroutine>
-namespace wil::details
-{
-    template<typename T = void> using coroutine_handle = std::experimental::coroutine_handle<T>;
-}
-#else
-#include <coroutine>
-namespace wil::details
-{
-    template<typename T = void> using coroutine_handle = std::coroutine_handle<T>;
-}
-#endif
-
-namespace winrt::Windows::UI::Core
-{
-    struct CoreDispatcher;
-    enum class CoreDispatcherPriority;
-    struct DispatchedHandler;
-}
-
-namespace winrt::Windows::System
-{
-    struct DispatcherQueue;
-    enum class DispatcherQueuePriority;
-    struct DispatcherQueueHandler;
-}
-
-namespace winrt::Microsoft::System
-{
-    struct DispatcherQueue;
-    enum class DispatcherQueuePriority;
-    struct DispatcherQueueHandler;
-}
-
-namespace winrt::Microsoft::UI::Dispatching
-{
-    struct DispatcherQueue;
-    enum class DispatcherQueuePriority;
-    struct DispatcherQueueHandler;
-}
-/// @endcond
-
-namespace wil
-{
-    /// @cond
-    namespace details
+    This can be used as a base, which permits EBO:
+    ~~~~
+    struct NonWinrtObject : wil::winrt_module_reference
     {
-        struct dispatcher_RunAsync
-        {
-            template<typename Dispatcher, typename... Args>
-            static void Schedule(Dispatcher const& dispatcher, Args&&... args)
-            {
-                dispatcher.RunAsync(std::forward<Args>(args)...);
-            }
-        };
+        int value;
+    };
 
-        struct dispatcher_TryEnqueue
-        {
-            template<typename Dispatcher,typename... Args>
-            static void Schedule(Dispatcher const& dispatcher, Args&&... args)
-            {
-                dispatcher.TryEnqueue(std::forward<Args>(args)...);
-            }
-        };
+    // DLL will not be unloaded as long as NonWinrtObject is still alive.
+    auto p = std::make_unique<NonWinrtObject>();
+    ~~~~
 
-        template<typename Dispatcher> struct dispatcher_traits;
-
-        template<>
-        struct dispatcher_traits<winrt::Windows::UI::Core::CoreDispatcher>
-        {
-            using Priority = winrt::Windows::UI::Core::CoreDispatcherPriority;
-            using Handler = winrt::Windows::UI::Core::DispatchedHandler;
-            using Scheduler = dispatcher_RunAsync;
-        };
-
-        template<>
-        struct dispatcher_traits<winrt::Windows::System::DispatcherQueue>
-        {
-            using Priority = winrt::Windows::System::DispatcherQueuePriority;
-            using Handler = winrt::Windows::System::DispatcherQueueHandler;
-            using Scheduler = dispatcher_TryEnqueue;
-        };
-
-        template<>
-        struct dispatcher_traits<winrt::Microsoft::System::DispatcherQueue>
-        {
-            using Priority = winrt::Microsoft::System::DispatcherQueuePriority;
-            using Handler = winrt::Microsoft::System::DispatcherQueueHandler;
-            using Scheduler = dispatcher_TryEnqueue;
-        };
-
-        template<>
-        struct dispatcher_traits<winrt::Microsoft::UI::Dispatching::DispatcherQueue>
-        {
-            using Priority = winrt::Microsoft::UI::Dispatching::DispatcherQueuePriority;
-            using Handler = winrt::Microsoft::UI::Dispatching::DispatcherQueueHandler;
-            using Scheduler = dispatcher_TryEnqueue;
-        };
-
-        struct dispatched_handler_state
-        {
-            details::coroutine_handle<> handle;
-            bool orphaned = false;
-        };
-
-        struct dispatcher_handler
-        {
-            dispatcher_handler(dispatched_handler_state* state) : m_state(state) { }
-            dispatcher_handler(dispatcher_handler&& other) noexcept : m_state(std::exchange(other.m_state, {})) {}
-
-            ~dispatcher_handler()
-            {
-                if (m_state && m_state->handle)
-                {
-                    m_state->orphaned = true;
-                    Complete();
-                }
-            }
-            void operator()()
-            {
-                Complete();
-            }
-
-            void Complete()
-            {
-                auto state = std::exchange(m_state, nullptr);
-                std::exchange(state->handle, {}).resume();
-            }
-
-            dispatched_handler_state* m_state;
-        };
-    }
-    /// @endcond
-
-    //! Resumes coroutine execution on the thread associated with the dispatcher, or throws
-    //! an exception (from an arbitrary thread) if unable. Supported dispatchers are
-    //! Windows.System.DispatcherQueue, Microsoft.System.DispatcherQueue,
-    //! Microsoft.UI.Dispatching.DispatcherQueue, and Windows.UI.Core.CoreDispatcher.
-    template<typename Dispatcher>
-    [[nodiscard]] auto resume_foreground(Dispatcher const& dispatcher,
-        typename details::dispatcher_traits<Dispatcher>::Priority priority = details::dispatcher_traits<Dispatcher>::Priority::Normal)
+    Or it can be used as a member (with [[no_unique_address]] to avoid
+    occupying any memory):
+    ~~~~
+    struct NonWinrtObject
     {
-        using Traits = details::dispatcher_traits<Dispatcher>;
-        using Priority = typename Traits::Priority;
-        using Handler = typename Traits::Handler;
+        int value;
 
-        struct awaitable
+        [[no_unique_address]] wil::winrt_module_reference module_ref;
+    };
+
+    // DLL will not be unloaded as long as NonWinrtObject is still alive.
+    auto p = std::make_unique<NonWinrtObject>();
+    ~~~~
+
+    If using it to prevent the host DLL from unloading while a thread
+    or threadpool work item is still running, create the object before
+    starting the thread, and pass it to the thread. This avoids a race
+    condition where the host DLL could get unloaded before the thread starts.
+    ~~~~
+    std::thread([module_ref = wil::winrt_module_reference()]() { do_background_work(); });
+
+    // Don't do this (race condition)
+    std::thread([]() { wil::winrt_module_reference module_ref; do_background_work(); }); // WRONG
+    ~~~~
+
+    Also useful in coroutines that neither capture DLL-hosted COM objects, nor are themselves
+    DLL-hosted COM objects. (If the coroutine returns IAsyncAction or captures a get_strong()
+    of its containing WinRT class, then the IAsyncAction or strong reference will itself keep
+    a strong reference to the host module.)
+    ~~~~
+    winrt::fire_and_forget ContinueBackgroundWork()
+    {
+        // prevent DLL from unloading while we are running on a background thread.
+        // Do this before switching to the background thread.
+        wil::winrt_module_reference module_ref;
+
+        co_await winrt::resume_background();
+        do_background_work();
+    };
+    ~~~~
+    */
+    struct [[nodiscard]] winrt_module_reference
+    {
+        winrt_module_reference()
         {
-            awaitable(Dispatcher const& dispatcher, Priority priority) noexcept :
-                m_dispatcher(dispatcher),
-                m_priority(priority)
-            {
-            }
-            bool await_ready() const noexcept { return false; }
+            ++winrt::get_module_lock();
+        }
 
-            void await_suspend(details::coroutine_handle<> handle)
-            {
-                m_state.handle = handle;
-                Handler handler{ details::dispatcher_handler(&m_state) };
-                try
-                {
-                    // The return value of Schedule is not reliable. Use the dispatcher_handler destructor
-                    // to detect whether the work item failed to run.
-                    Traits::Scheduler::Schedule(m_dispatcher, m_priority, handler);
-                }
-                catch (...)
-                {
-                    m_state.handle = nullptr; // the exception will resume the coroutine, so the handler shouldn't do it
-                    throw;
-                }
-            }
+        winrt_module_reference(winrt_module_reference const&) : winrt_module_reference() {}
 
-            void await_resume() const
-            {
-                if (m_state.orphaned)
-                {
-                    throw winrt::hresult_error(HRESULT_FROM_WIN32(ERROR_NO_TASK_QUEUE));
-                }
-            }
-
-        private:
-            Dispatcher const& m_dispatcher;
-            Priority const m_priority;
-            details::dispatched_handler_state m_state;
-        };
-        return awaitable{ dispatcher, priority };
-    }
+        ~winrt_module_reference()
+        {
+            --winrt::get_module_lock();
+        }
+    };
 }
-#endif // C++20 coroutines supported
 
 #endif // __WIL_CPPWINRT_INCLUDED

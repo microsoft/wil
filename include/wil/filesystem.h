@@ -210,9 +210,9 @@ namespace wil
     }
 
     // Retrieve a handle to a directory only if it is safe to recurse into.
-    inline wil::unique_hfile TryCreateFileCanRecurseIntoDirectory(PCWSTR path, PWIN32_FIND_DATAW fileFindData)
+    inline wil::unique_hfile TryCreateFileCanRecurseIntoDirectory(PCWSTR path, PWIN32_FIND_DATAW fileFindData, DWORD access = GENERIC_READ | /*DELETE*/ 0x00010000L, DWORD share = FILE_SHARE_READ)
     {
-        wil::unique_hfile result(CreateFileW(path, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_DELETE,
+        wil::unique_hfile result(CreateFileW(path, access, share,
             nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, nullptr));
         if (result)
         {
@@ -238,7 +238,7 @@ namespace wil
 
     // If inputPath is a non-normalized name be sure to pass an extended length form to ensure
     // it can be addressed and deleted.
-    inline HRESULT RemoveDirectoryRecursiveNoThrow(PCWSTR inputPath, RemoveDirectoryOptions options = RemoveDirectoryOptions::None) WI_NOEXCEPT
+    inline HRESULT RemoveDirectoryRecursiveNoThrow(PCWSTR inputPath, RemoveDirectoryOptions options = RemoveDirectoryOptions::None, HANDLE deleteHandle = INVALID_HANDLE_VALUE) WI_NOEXCEPT
     {
         wil::unique_hlocal_string path;
         PATHCCH_OPTIONS combineOptions = PATHCCH_NONE;
@@ -283,7 +283,7 @@ namespace wil
                     if (recursivelyDeletableDirectoryHandle)
                     {
                         RemoveDirectoryOptions localOptions = options;
-                        RETURN_IF_FAILED(RemoveDirectoryRecursiveNoThrow(pathToDelete.get(), WI_ClearFlag(localOptions, RemoveDirectoryOptions::KeepRootDirectory)));
+                        RETURN_IF_FAILED(RemoveDirectoryRecursiveNoThrow(pathToDelete.get(), WI_ClearFlag(localOptions, RemoveDirectoryOptions::KeepRootDirectory), recursivelyDeletableDirectoryHandle.get()));
                     }
                     else if (WI_IsFlagSet(fd.dwFileAttributes, FILE_ATTRIBUTE_REPARSE_POINT))
                     {
@@ -337,7 +337,16 @@ namespace wil
 
         if (WI_IsFlagClear(options, RemoveDirectoryOptions::KeepRootDirectory))
         {
-            RETURN_IF_WIN32_BOOL_FALSE(::RemoveDirectoryW(path.get()));
+            if (deleteHandle != INVALID_HANDLE_VALUE)
+            {
+                FILE_DISPOSITION_INFO fileInfo{};
+                fileInfo.DeleteFile = TRUE;
+                RETURN_IF_WIN32_BOOL_FALSE(SetFileInformationByHandle(deleteHandle, FileDispositionInfo, &fileInfo, sizeof(fileInfo)));
+            }
+            else
+            {
+                RETURN_IF_WIN32_BOOL_FALSE(::RemoveDirectoryW(path.get()));
+            }
         }
         return S_OK;
     }

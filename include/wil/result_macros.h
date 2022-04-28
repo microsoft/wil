@@ -1243,6 +1243,7 @@ namespace wil
         __declspec(selectany) void(__stdcall *g_pfnTelemetryCallback)(bool alreadyReported, wil::FailureInfo const &failure) WI_PFN_NOEXCEPT = nullptr;
 
         // Result.h plug-in (WIL use only)
+        __declspec(selectany) void(__stdcall* g_pfnNotifyFailure)(_Inout_ FailureInfo* pFailure) WI_PFN_NOEXCEPT = nullptr;
         __declspec(selectany) void(__stdcall *g_pfnGetContextAndNotifyFailure)(_Inout_ FailureInfo *pFailure, _Out_writes_(callContextStringLength) _Post_z_ PSTR callContextString, _Pre_satisfies_(callContextStringLength > 0) size_t callContextStringLength) WI_PFN_NOEXCEPT = nullptr;
 
         // Observe all errors flowing through the system with this callback (set with wil::SetResultLoggingCallback); use with custom logging
@@ -1739,7 +1740,10 @@ namespace wil
         // 1) Provide a unique count and last error code per-type
         // 2) Avoid merging the types to allow easy debugging (breakpoints, conditional breakpoints based
         //      upon count of errors from a particular type, etc)
-
+__WI_PUSH_WARNINGS
+#if __clang_major__ >= 13
+__WI_CLANG_DISABLE_WARNING(-Wunused-but-set-variable) // s_hrErrorLast used for debugging. We intentionally only assign to it
+#endif
         __declspec(noinline) inline int RecordException(HRESULT hr) WI_NOEXCEPT
         {
             static HRESULT volatile s_hrErrorLast = S_OK;
@@ -1770,6 +1774,7 @@ namespace wil
             s_hrErrorLast = hr;
             return 1;
         }
+__WI_POP_WARNINGS
 
         inline RESULT_NORETURN void __stdcall WilRaiseFailFastException(_In_ PEXCEPTION_RECORD er, _In_opt_ PCONTEXT cr, _In_ DWORD flags)
         {
@@ -3516,6 +3521,12 @@ namespace wil
             ::ZeroMemory(&failure->callContextOriginating, sizeof(failure->callContextOriginating));
             failure->pszModule = (g_pfnGetModuleName != nullptr) ? g_pfnGetModuleName() : nullptr;
 
+            // Process failure notification / adjustments
+            if (details::g_pfnNotifyFailure)
+            {
+                details::g_pfnNotifyFailure(failure);
+            }
+
             // Completes filling out failure, notifies thread-based callbacks and the telemetry callback
             if (details::g_pfnGetContextAndNotifyFailure)
             {
@@ -3531,7 +3542,7 @@ namespace wil
             // If the hook is enabled then it will be given the opportunity to call RoOriginateError to greatly improve the diagnostic experience
             // for uncaught exceptions.  In cases where we will be throwing a C++/CX Platform::Exception we should avoid originating because the
             // CX runtime will be doing that for us.  fWantDebugString is only set to true when the caller will be throwing a Platform::Exception.
-            if (details::g_pfnOriginateCallback && !fWantDebugString)
+            if (details::g_pfnOriginateCallback && !fWantDebugString && WI_IsFlagClear(failure->flags, FailureFlags::RequestSuppressTelemetry))
             {
                 details::g_pfnOriginateCallback(*failure);
             }
@@ -3544,7 +3555,7 @@ namespace wil
                 failure->status = wil::details::HrToNtStatus(failure->hr);
             }
 
-            bool const fUseOutputDebugString = IsDebuggerPresent() && g_fResultOutputDebugString;
+            bool const fUseOutputDebugString = IsDebuggerPresent() && g_fResultOutputDebugString && WI_IsFlagClear(failure->flags, FailureFlags::RequestSuppressTelemetry);
 
             // We need to generate the logging message if:
             // * We're logging to OutputDebugString
@@ -3582,7 +3593,7 @@ namespace wil
                 }
             }
 
-            if (g_fBreakOnFailure && (g_pfnDebugBreak != nullptr))
+            if ((WI_IsFlagSet(failure->flags, FailureFlags::RequestDebugBreak) || g_fBreakOnFailure) && (g_pfnDebugBreak != nullptr))
             {
                 g_pfnDebugBreak();
             }
@@ -3646,6 +3657,11 @@ namespace wil
 
             LogFailure(__R_FN_CALL_FULL, T, resultPair, message, needPlatformException,
                 debugString, ARRAYSIZE(debugString), callContextString, ARRAYSIZE(callContextString), &failure);
+
+            if (WI_IsFlagSet(failure.flags, FailureFlags::RequestFailFast))
+            {
+                WilFailFast(failure);
+            }
         }
 
         template<FailureType T, bool SuppressAction>
@@ -3669,7 +3685,7 @@ namespace wil
             LogFailure(__R_FN_CALL_FULL, T, resultPair, message, needPlatformException,
                 debugString, ARRAYSIZE(debugString), callContextString, ARRAYSIZE(callContextString), &failure);
 __WI_SUPPRESS_4127_S
-            if (T == FailureType::FailFast)
+            if ((T == FailureType::FailFast) || WI_IsFlagSet(failure.flags, FailureFlags::RequestFailFast))
             {
                 WilFailFast(const_cast<FailureInfo&>(failure));
             }
@@ -4234,6 +4250,11 @@ __WI_SUPPRESS_4127_E
 
             LogFailure(__R_FN_CALL_FULL, FailureType::Exception, ResultStatus::FromResult(hr), message, false,     // false = does not need debug string
                        debugString, ARRAYSIZE(debugString), callContextString, ARRAYSIZE(callContextString), &failure);
+
+            if (WI_IsFlagSet(failure.flags, FailureFlags::RequestFailFast))
+            {
+                WilFailFast(failure);
+            }
 
             // push the failure info context into the custom exception class
             SetFailureInfo(failure, exception);

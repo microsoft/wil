@@ -9,6 +9,7 @@
 #include <memory>
 #include <roapi.h>
 #include <winstring.h>
+#include <WinUser.h>
 
 #include <wil/resource.h>
 #include <wrl/implements.h>
@@ -816,4 +817,14 @@ TEST_CASE("ComTokenDirectCloser", "[resource]")
         token_tester_t tmp{ &tt, 4 };
     }
     REQUIRE(tt.m_closed);
+}
+
+TEST_CASE("UniqueCloseClipboardCall", "[resource]")
+{
+#if defined(__WIL__WINUSER_) && !defined(NOCLIPBOARD)    
+    if (auto clip = wil::open_clipboard(nullptr))
+    {
+        REQUIRE(::EmptyClipboard());
+    }
+#endif
 }

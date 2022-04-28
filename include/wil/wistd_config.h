@@ -107,6 +107,29 @@
 #  define __WI_LIBCPP_COMPILER_IBM
 #endif
 
+#if defined(__WI_LIBCPP_COMPILER_MSVC)
+#define __WI_PUSH_WARNINGS  __pragma(warning(push))
+#define __WI_POP_WARNINGS   __pragma(warning(pop))
+#elif defined(__WI_LIBCPP_COMPILER_CLANG)
+#define __WI_PUSH_WARNINGS  __pragma(clang diagnostic push)
+#define __WI_POP_WARNINGS   __pragma(clang diagnostic pop)
+#else
+#define __WI_PUSH_WARNINGS
+#define __WI_POP_WARNINGS
+#endif
+
+#ifdef __WI_LIBCPP_COMPILER_MSVC
+#define __WI_MSVC_DISABLE_WARNING(id)   __pragma(warning(disable: id))
+#else
+#define __WI_MSVC_DISABLE_WARNING(id)
+#endif
+
+#ifdef __WI_LIBCPP_COMPILER_CLANG
+#define __WI_CLANG_DISABLE_WARNING(warning) __pragma(clang diagnostic ignored #warning)
+#else
+#define __WI_CLANG_DISABLE_WARNING(warning)
+#endif
+
 // NOTE: MSVC, which is what we primarily target, is severly underrepresented in libc++ and checks such as
 // __has_feature(...) are always false for MSVC, even when the feature being tested _is_ present in MSVC. Therefore, we
 // instead modify all checks to be __WI_HAS_FEATURE_IS_UNION, etc., which provides the correct value for MSVC and falls
