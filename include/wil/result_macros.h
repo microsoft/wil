@@ -664,7 +664,7 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 
 // Always logs a known failure
 #define LOG_HR(hr)                                              __R_FN(Log_Hr)(__R_INFO(#hr) wil::verify_hresult(hr))
-#define LOG_LAST_ERROR()                                        (wil::last_error_context{}, __R_FN(Log_GetLastError)(__R_INFO_ONLY(nullptr)))
+#define LOG_LAST_ERROR()                                        __R_FN(Log_GetLastError)(__R_INFO_ONLY(nullptr))
 #define LOG_WIN32(win32err)                                     __R_FN(Log_Win32)(__R_INFO(#win32err) win32err)
 #define LOG_NTSTATUS(status)                                    __R_FN(Log_NtStatus)(__R_INFO(#status) status)
 
@@ -675,8 +675,8 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 #define LOG_IF_NULL_ALLOC(ptr)                                  __R_FN(Log_IfNullAlloc)(__R_INFO(#ptr) ptr)
 #define LOG_HR_IF(hr, condition)                                __R_FN(Log_HrIf)(__R_INFO(#condition) wil::verify_hresult(hr), wil::verify_bool(condition))
 #define LOG_HR_IF_NULL(hr, ptr)                                 __R_FN(Log_HrIfNull)(__R_INFO(#ptr) wil::verify_hresult(hr), ptr)
-#define LOG_LAST_ERROR_IF(condition)                            (wil::last_error_context{}, __R_FN(Log_GetLastErrorIf)(__R_INFO(#condition) wil::verify_bool(condition)))
-#define LOG_LAST_ERROR_IF_NULL(ptr)                             (wil::last_error_context{}, __R_FN(Log_GetLastErrorIfNull)(__R_INFO(#ptr) ptr))
+#define LOG_LAST_ERROR_IF(condition)                            __R_FN(Log_GetLastErrorIf)(__R_INFO(#condition) wil::verify_bool(condition))
+#define LOG_LAST_ERROR_IF_NULL(ptr)                             __R_FN(Log_GetLastErrorIfNull)(__R_INFO(#ptr) ptr)
 #define LOG_IF_NTSTATUS_FAILED(status)                          __R_FN(Log_IfNtStatusFailed)(__R_INFO(#status) status)
 
 // Alternatives for SUCCEEDED(hr) and FAILED(hr) that conditionally log failures
@@ -692,7 +692,7 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 
 // Always logs a known failure - logs a var-arg message on failure
 #define LOG_HR_MSG(hr, fmt, ...)                                __R_FN(Log_HrMsg)(__R_INFO(#hr) wil::verify_hresult(hr), fmt, ##__VA_ARGS__)
-#define LOG_LAST_ERROR_MSG(fmt, ...)                            (wil::last_error_context{}, __R_FN(Log_GetLastErrorMsg)(__R_INFO(nullptr) fmt, ##__VA_ARGS__))
+#define LOG_LAST_ERROR_MSG(fmt, ...)                            __R_FN(Log_GetLastErrorMsg)(__R_INFO(nullptr) fmt, ##__VA_ARGS__)
 #define LOG_WIN32_MSG(win32err, fmt, ...)                       __R_FN(Log_Win32Msg)(__R_INFO(#win32err) win32err, fmt, ##__VA_ARGS__)
 #define LOG_NTSTATUS_MSG(status, fmt, ...)                      __R_FN(Log_NtStatusMsg)(__R_INFO(#status) status, fmt, ##__VA_ARGS__)
 
@@ -703,8 +703,8 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 #define LOG_IF_NULL_ALLOC_MSG(ptr, fmt, ...)                    __R_FN(Log_IfNullAllocMsg)(__R_INFO(#ptr) ptr, fmt, ##__VA_ARGS__)
 #define LOG_HR_IF_MSG(hr, condition, fmt, ...)                  __R_FN(Log_HrIfMsg)(__R_INFO(#condition) wil::verify_hresult(hr), wil::verify_bool(condition), fmt, ##__VA_ARGS__)
 #define LOG_HR_IF_NULL_MSG(hr, ptr, fmt, ...)                   __R_FN(Log_HrIfNullMsg)(__R_INFO(#ptr) wil::verify_hresult(hr), ptr, fmt, ##__VA_ARGS__)
-#define LOG_LAST_ERROR_IF_MSG(condition, fmt, ...)              (wil::last_error_context{}, __R_FN(Log_GetLastErrorIfMsg)(__R_INFO(#condition) wil::verify_bool(condition), fmt, ##__VA_ARGS__))
-#define LOG_LAST_ERROR_IF_NULL_MSG(ptr, fmt, ...)               (wil::last_error_context{}, __R_FN(Log_GetLastErrorIfNullMsg)(__R_INFO(#ptr) ptr, fmt, ##__VA_ARGS__))
+#define LOG_LAST_ERROR_IF_MSG(condition, fmt, ...)              __R_FN(Log_GetLastErrorIfMsg)(__R_INFO(#condition) wil::verify_bool(condition), fmt, ##__VA_ARGS__)
+#define LOG_LAST_ERROR_IF_NULL_MSG(ptr, fmt, ...)               __R_FN(Log_GetLastErrorIfNullMsg)(__R_INFO(#ptr) ptr, fmt, ##__VA_ARGS__)
 #define LOG_IF_NTSTATUS_FAILED_MSG(status, fmt, ...)            __R_FN(Log_IfNtStatusFailedMsg)(__R_INFO(#status) status, fmt, ##__VA_ARGS__)
 
 #define __WI_COMMA_EXPECTED_HRESULT(e) , wil::verify_hresult(e)
@@ -2061,6 +2061,81 @@ namespace wil
         }
     } // details namespace
     /// @endcond
+
+    //! This type copies the current value of GetLastError at construction and resets the last error
+    //! to that value when it is destroyed.
+    //!
+    //! This is useful in library code that runs during a value's destructor. If the library code could
+    //! inadvertantly change the value of GetLastError (by calling a Win32 API or similar), it should
+    //! instantiate a value of this type before calling the library function in order to preserve the
+    //! GetLastError value the user would expect.
+    //!
+    //! This construct exists to hide kernel mode/user mode differences in wil library code.
+    //!
+    //! Example usage:
+    //!
+    //!     if (!CreateFile(...))
+    //!     {
+    //!         auto lastError = wil::last_error_context();
+    //!         WriteFile(g_hlog, logdata);
+    //!     }
+    //!
+    class last_error_context
+    {
+#ifndef WIL_KERNEL_MODE
+        bool m_dismissed;
+        DWORD m_error;
+    public:
+        last_error_context() WI_NOEXCEPT :
+            m_dismissed(false),
+            m_error(::GetLastError())
+        {
+        }
+
+        explicit last_error_context(DWORD error) WI_NOEXCEPT :
+        m_dismissed(false),
+            m_error(error)
+        {
+        }
+
+        last_error_context(last_error_context&& other) WI_NOEXCEPT
+        {
+            operator=(wistd::move(other));
+        }
+
+        last_error_context& operator=(last_error_context&& other) WI_NOEXCEPT
+        {
+            m_dismissed = wistd::exchange(other.m_dismissed, true);
+            m_error = other.m_error;
+
+            return *this;
+        }
+
+        ~last_error_context() WI_NOEXCEPT
+        {
+            if (!m_dismissed)
+            {
+                ::SetLastError(m_error);
+            }
+        }
+
+        //! last_error_context doesn't own a concrete resource, so therefore
+        //! it just disarms its destructor and returns void.
+        void release() WI_NOEXCEPT
+        {
+            WI_ASSERT(!m_dismissed);
+            m_dismissed = true;
+        }
+
+        DWORD error() const
+        {
+            return m_error;
+        }
+#else
+    public:
+        void release() WI_NOEXCEPT { }
+#endif // WIL_KERNEL_MODE
+    };
 
     //*****************************************************************************
     // WIL result handling initializers
@@ -3699,27 +3774,24 @@ __WI_SUPPRESS_4127_E
         template<FailureType T>
         __declspec(noinline) inline DWORD ReportFailure_GetLastError(__R_FN_PARAMS_FULL)
         {
-            const auto err = GetLastErrorFail(__R_FN_CALL_FULL);
-            const auto hr = __HRESULT_FROM_WIN32(err);
-            ReportFailure<T>(__R_FN_CALL_FULL, hr);
-            return err;
+            const last_error_context err { GetLastErrorFail(__R_FN_CALL_FULL) };
+            ReportFailure<T>(__R_FN_CALL_FULL, __HRESULT_FROM_WIN32(err.error()));
+            return err.error();
         }
 
         template<>
         __declspec(noinline) inline RESULT_NORETURN DWORD ReportFailure_GetLastError<FailureType::FailFast>(__R_FN_PARAMS_FULL)
         {
-            const auto err = GetLastErrorFail(__R_FN_CALL_FULL);
-            const auto hr = __HRESULT_FROM_WIN32(err);
-            ReportFailure<FailureType::FailFast>(__R_FN_CALL_FULL, hr);
+            const last_error_context err { GetLastErrorFail(__R_FN_CALL_FULL) };
+            ReportFailure<FailureType::FailFast>(__R_FN_CALL_FULL, __HRESULT_FROM_WIN32(err.error()));
             RESULT_NORETURN_RESULT(err);
         }
 
         template<>
         __declspec(noinline) inline RESULT_NORETURN DWORD ReportFailure_GetLastError<FailureType::Exception>(__R_FN_PARAMS_FULL)
         {
-            const auto err = GetLastErrorFail(__R_FN_CALL_FULL);
-            const auto hr = __HRESULT_FROM_WIN32(err);
-            ReportFailure<FailureType::Exception>(__R_FN_CALL_FULL, hr);
+            const last_error_context err { GetLastErrorFail(__R_FN_CALL_FULL) };
+            ReportFailure<FailureType::Exception>(__R_FN_CALL_FULL, __HRESULT_FROM_WIN32(err.error()));
             RESULT_NORETURN_RESULT(err);
         }
 
@@ -3858,27 +3930,24 @@ __WI_SUPPRESS_4127_E
         template<FailureType T>
         __declspec(noinline) inline DWORD ReportFailure_GetLastErrorMsg(__R_FN_PARAMS_FULL, _Printf_format_string_ PCSTR formatString, va_list argList)
         {
-            auto err = GetLastErrorFail(__R_FN_CALL_FULL);
-            auto hr = __HRESULT_FROM_WIN32(err);
-            ReportFailure_Msg<T>(__R_FN_CALL_FULL, hr, formatString, argList);
-            return err;
+            const last_error_context err { GetLastErrorFail(__R_FN_CALL_FULL) };
+            ReportFailure_Msg<T>(__R_FN_CALL_FULL, __HRESULT_FROM_WIN32(err.error()), formatString, argList);
+            return err.error();
         }
 
         template<>
         __declspec(noinline) inline RESULT_NORETURN DWORD ReportFailure_GetLastErrorMsg<FailureType::FailFast>(__R_FN_PARAMS_FULL, _Printf_format_string_ PCSTR formatString, va_list argList)
         {
-            auto err = GetLastErrorFail(__R_FN_CALL_FULL);
-            auto hr = __HRESULT_FROM_WIN32(err);
-            ReportFailure_Msg<FailureType::FailFast>(__R_FN_CALL_FULL, hr, formatString, argList);
+            const last_error_context err { GetLastErrorFail(__R_FN_CALL_FULL) };
+            ReportFailure_Msg<FailureType::FailFast>(__R_FN_CALL_FULL, __HRESULT_FROM_WIN32(err.error()), formatString, argList);
             RESULT_NORETURN_RESULT(err);
         }
 
         template<>
         __declspec(noinline) inline RESULT_NORETURN DWORD ReportFailure_GetLastErrorMsg<FailureType::Exception>(__R_FN_PARAMS_FULL, _Printf_format_string_ PCSTR formatString, va_list argList)
         {
-            auto err = GetLastErrorFail(__R_FN_CALL_FULL);
-            auto hr = __HRESULT_FROM_WIN32(err);
-            ReportFailure_Msg<FailureType::Exception>(__R_FN_CALL_FULL, hr, formatString, argList);
+            const last_error_context err { GetLastErrorFail(__R_FN_CALL_FULL) };
+            ReportFailure_Msg<FailureType::Exception>(__R_FN_CALL_FULL, __HRESULT_FROM_WIN32(err.error()), formatString, argList);
             RESULT_NORETURN_RESULT(err);
         }
 
