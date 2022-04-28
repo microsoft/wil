@@ -42,6 +42,21 @@ namespace wil
             : FunctionTraitsBase<HRESULT, T, ULONG, Arg, ULONG*>
         {};
 
+        template<typename T>
+        constexpr bool has_AddRef()
+        {
+            if constexpr (std::is_class_v<T>)
+            {
+                if constexpr (std::is_member_function_pointer_v<decltype(&T::AddRef)>)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        template<typename T> inline constexpr bool has_AddRef_v = has_AddRef<T>();
+
 #ifdef __cpp_noexcept_function_type
         template<typename T, typename Arg>
         struct FunctionTraits<HRESULT(__stdcall T::*)(ULONG, Arg**, ULONG*) noexcept>
@@ -69,13 +84,14 @@ namespace wil
         /// The type of the out parameter in Next(...) that corresponds to the element type being enumerated.
         /// e.g. PITEMID_CHILD, IDiaSymbol, etc.
         /// </summary>
-        using TElem = Details::NextArgType<TEnum>;
+        using TElemRaw = Details::NextArgType<TEnum>;
+        using TElem = std::conditional_t<Details::has_AddRef_v<TElemRaw>, wil::com_ptr<TElemRaw>, TElemRaw*>;
         ~enum_iterator() = default;
 
         auto& operator++(int) { return this->operator++(); }
         auto& operator++()
         {
-            TElem* pChild{ nullptr };
+            TElem pChild{ nullptr };
             ULONG celt = 0;
             auto hr = m_pEnum->Next(1, &pChild, &celt);
             if ((hr == S_OK) && (celt == 1))
@@ -93,8 +109,8 @@ namespace wil
             return *this;
         }
 
-        TElem* const& operator*() const noexcept { return m_current; }
-        TElem* operator->() const noexcept { return m_current; }
+        TElem const& operator*() const noexcept { return m_current; }
+        TElem operator->() const noexcept { return m_current; }
 
         auto operator+(int v)
         {
@@ -124,7 +140,7 @@ namespace wil
         enum_iterator(end_tag) : m_end(true) {}
         enum_iterator() {};
         wil::com_ptr<TEnum> m_pEnum{ nullptr };
-        TElem* m_current{ nullptr };
+        TElem m_current{ nullptr };
         bool m_end{ false };
     };
 }

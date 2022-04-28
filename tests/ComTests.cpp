@@ -2908,6 +2908,18 @@ private:
 };
 
 
+TEST_CASE("COM type traits", "[com][IsCOM]")
+{
+    static_assert(wil::Details::has_AddRef_v<IUnknown>);
+    static_assert(!wil::Details::has_AddRef_v<IUnknown*>);
+    static_assert(!wil::Details::has_AddRef_v<int>);
+    static_assert(wil::Details::has_AddRef_v<IFakeEnum_COM<1>>);
+    static_assert(wil::Details::has_AddRef_v<IFakeEnum_NonCOM<1>>);
+
+    static_assert(std::is_same_v<wil::enum_iterator<IFakeEnum_COM<1>>::TElem, wil::com_ptr<IFakeItem>>);
+    static_assert(std::is_same_v<wil::enum_iterator<IFakeEnum_NonCOM<1>>::TElem, int*>);
+}
+
 TEST_CASE("EnumForLoop", "[com][IEnumXyz]")
 {
     SECTION("IEnum* that iterates over COM objects; for loop")
@@ -2986,21 +2998,6 @@ TEST_CASE("EnumForEach", "[com][IEnumXyz]")
         }
     }
 
-    SECTION("IEnum* that iterates over non-smart pointer COM objects; for_each")
-    {
-        IFakeItem::s_id = 0;
-        {
-            IFakeEnum_COM<3> fakeEnum;
-
-            auto i = 0;
-            std::for_each(wistd::begin(&fakeEnum), wistd::end(&fakeEnum), [&i](IFakeItem* element) {
-                REQUIRE(element->m_id == i);
-                i++;
-                });
-            REQUIRE(i == fakeEnum.NumberOfItems());
-        }
-    }
-
     SECTION("IEnum* that iterates over smart pointer COM objects; for_each")
     {
         IFakeItem::s_id = 0;
@@ -3029,5 +3026,6 @@ TEST_CASE("EnumForEach", "[com][IEnumXyz]")
         REQUIRE(i == fakeEnum.NumberOfItems());
     }
 }
+
 
 #endif
