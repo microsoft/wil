@@ -513,6 +513,26 @@ namespace wil
     EXTERN_C IMAGE_DOS_HEADER __ImageBase;
     inline HINSTANCE GetModuleInstanceHandle() WI_NOEXCEPT { return reinterpret_cast<HINSTANCE>(&__ImageBase); }
 
+    // GetModuleHandleExW was added to the app partition in version 22000 of the SDK
+#if defined(NTDDI_WIN10_CO) ? \
+    WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_SYSTEM | WINAPI_PARTITION_GAMES) : \
+    WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM | WINAPI_PARTITION_GAMES)
+    // Use this in threads that can outlive the object or API call that created them.
+    // Without this COM, or the API caller, can unload the DLL, resulting in a crash.
+    // It is very important that this be the first object created in the thread proc
+    // as when this runs down the thread exits and no destructors of objects created before
+    // it will run.
+    [[nodiscard]] inline auto get_module_reference_for_thread() noexcept
+    {
+        HMODULE thisModule{};
+        FAIL_FAST_IF(!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, L"", &thisModule));
+        return wil::scope_exit([thisModule]
+        {
+            FreeLibraryAndExitThread(thisModule, 0);
+        });
+    }
+#endif
+
     /// @cond
     namespace details
     {

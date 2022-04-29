@@ -1045,7 +1045,9 @@ namespace wil
 
                 if (g_pfnTelemetryCallback != nullptr)
                 {
-                    g_pfnTelemetryCallback(reportedTelemetry, *pFailure);
+                    // If the telemetry was requested to be suppressed,
+                    // pretend like it has already been reported to the fallback callback
+                    g_pfnTelemetryCallback(reportedTelemetry || WI_IsFlagSet(pFailure->flags, FailureFlags::RequestSuppressTelemetry), *pFailure);
                 }
             }
 

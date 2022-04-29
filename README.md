@@ -25,7 +25,7 @@ Some things that WIL includes to whet your appetite:
   Preprocessor macros to help you check for errors from Windows API functions,
   in many of the myriad ways those errors are reported, and surface them as
   error codes or C++ exceptions in your code.
-- [`include/wil/tracelogging.h`](include/wil/tracelogging.h): This file contains the convenience macros 
+- [`include/wil/Tracelogging.h`](include/wil/Tracelogging.h): This file contains the convenience macros 
   that enable developers define and log telemetry. These macros use
   [`TraceLogging API`](https://docs.microsoft.com/en-us/windows/win32/tracelogging/trace-logging-portal) 
   to log data. This data can be viewed in tools such as 
