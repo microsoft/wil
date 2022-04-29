@@ -42,75 +42,6 @@ namespace Microsoft
 
 namespace wil
 {
-    //! This type copies the current value of GetLastError at construction and resets the last error
-    //! to that value when it is destroyed.
-    //!
-    //! This is useful in library code that runs during a value's destructor. If the library code could
-    //! inadvertantly change the value of GetLastError (by calling a Win32 API or similar), it should
-    //! instantiate a value of this type before calling the library function in order to preserve the
-    //! GetLastError value the user would expect.
-    //!
-    //! This construct exists to hide kernel mode/user mode differences in wil library code.
-    //!
-    //! Example usage:
-    //!
-    //!     if (!CreateFile(...))
-    //!     {
-    //!         auto lastError = wil::last_error_context();
-    //!         WriteFile(g_hlog, logdata);
-    //!     }
-    //!
-    class last_error_context
-    {
-#ifndef WIL_KERNEL_MODE
-        bool m_dismissed;
-        DWORD m_error;
-    public:
-        last_error_context() WI_NOEXCEPT :
-            m_dismissed(false),
-            m_error(::GetLastError())
-        {
-        }
-
-        auto value() const
-        {
-            return m_error;
-        }
-
-        last_error_context(last_error_context&& other) WI_NOEXCEPT
-        {
-            operator=(wistd::move(other));
-        }
-
-        last_error_context & operator=(last_error_context&& other) WI_NOEXCEPT
-        {
-            m_dismissed = wistd::exchange(other.m_dismissed, true);
-            m_error = other.m_error;
-
-            return *this;
-        }
-
-        ~last_error_context() WI_NOEXCEPT
-        {
-            if (!m_dismissed)
-            {
-                ::SetLastError(m_error);
-            }
-        }
-
-        //! last_error_context doesn't own a concrete resource, so therefore
-        //! it just disarms its destructor and returns void.
-        void release() WI_NOEXCEPT
-        {
-            WI_ASSERT(!m_dismissed);
-            m_dismissed = true;
-        }
-#else
-    public:
-        void release() WI_NOEXCEPT { }
-#endif // WIL_KERNEL_MODE
-    };
-
     /// @cond
     namespace details
     {
@@ -762,7 +693,7 @@ namespace wil
     }
 
     /** Use to retrieve raw out parameter pointers (with a required cast) into smart pointers that do not support the '&' operator.
-    Use only when the smart pointer's &handle is not equal to the output type a function requries, necessitating a cast.
+    Use only when the smart pointer's &handle is not equal to the output type a function requires, necessitating a cast.
     Example: `wil::out_param_ptr<PSECURITY_DESCRIPTOR*>(securityDescriptor)` */
     template <typename Tcast, typename T>
     details::out_param_ptr_t<Tcast, T> out_param_ptr(T& p)
@@ -2528,6 +2459,22 @@ namespace wil
 
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_SYSTEM)
     typedef unique_any<PSID, decltype(&::FreeSid), ::FreeSid> unique_sid;
+    typedef unique_any_handle_null_only<decltype(&::DeleteBoundaryDescriptor), ::DeleteBoundaryDescriptor> unique_boundary_descriptor;
+
+    namespace details
+    {
+        template<ULONG flags>
+        inline void __stdcall ClosePrivateNamespaceHelper(HANDLE h) WI_NOEXCEPT
+        {
+            ::ClosePrivateNamespace(h, flags);
+        }
+    }
+
+    template <ULONG flags = 0>
+    using unique_private_namespace = unique_any_handle_null_only<decltype(details::ClosePrivateNamespaceHelper<flags>), &details::ClosePrivateNamespaceHelper<flags>>;
+
+    using unique_private_namespace_close = unique_private_namespace<>;
+    using unique_private_namespace_destroy = unique_private_namespace<PRIVATE_NAMESPACE_FLAG_DESTROY>;
 #endif
 
     using unique_tool_help_snapshot = unique_hfile;
@@ -2651,23 +2598,23 @@ namespace wil
         }
 
         // Tries to create a named event -- returns false if unable to do so (gle may still be inspected with return=false)
-        bool try_create(EventOptions options, PCWSTR name, _In_opt_ LPSECURITY_ATTRIBUTES pSecurity = nullptr, _Out_opt_ bool *pAlreadyExists = nullptr)
+        bool try_create(EventOptions options, PCWSTR name, _In_opt_ LPSECURITY_ATTRIBUTES securityAttributes = nullptr, _Out_opt_ bool *alreadyExists = nullptr)
         {
-            auto handle = ::CreateEventExW(pSecurity, name, (WI_IsFlagSet(options, EventOptions::ManualReset) ? CREATE_EVENT_MANUAL_RESET : 0) | (WI_IsFlagSet(options, EventOptions::Signaled) ? CREATE_EVENT_INITIAL_SET : 0), EVENT_ALL_ACCESS);
+            auto handle = ::CreateEventExW(securityAttributes, name, (WI_IsFlagSet(options, EventOptions::ManualReset) ? CREATE_EVENT_MANUAL_RESET : 0) | (WI_IsFlagSet(options, EventOptions::Signaled) ? CREATE_EVENT_INITIAL_SET : 0), EVENT_ALL_ACCESS);
             if (!handle)
             {
-                assign_to_opt_param(pAlreadyExists, false);
+                assign_to_opt_param(alreadyExists, false);
                 return false;
             }
-            assign_to_opt_param(pAlreadyExists, (::GetLastError() == ERROR_ALREADY_EXISTS));
+            assign_to_opt_param(alreadyExists, (::GetLastError() == ERROR_ALREADY_EXISTS));
             storage_t::reset(handle);
             return true;
         }
 
         // Returns HRESULT for unique_event_nothrow, void with exceptions for shared_event and unique_event
-        result create(EventOptions options = EventOptions::None, PCWSTR name = nullptr, _In_opt_ LPSECURITY_ATTRIBUTES pSecurity = nullptr, _Out_opt_ bool *pAlreadyExists = nullptr)
+        result create(EventOptions options = EventOptions::None, PCWSTR name = nullptr, _In_opt_ LPSECURITY_ATTRIBUTES securityAttributes = nullptr, _Out_opt_ bool *alreadyExists = nullptr)
         {
-            return err_policy::LastErrorIfFalse(try_create(options, name, pSecurity, pAlreadyExists));
+            return err_policy::LastErrorIfFalse(try_create(options, name, securityAttributes, alreadyExists));
         }
 
         // Tries to open the named event -- returns false if unable to do so (gle may still be inspected with return=false)
@@ -2911,21 +2858,25 @@ namespace wil
         }
 
         // Tries to create a named mutex -- returns false if unable to do so (gle may still be inspected with return=false)
-        bool try_create(_In_opt_ PCWSTR name, DWORD dwFlags = 0, DWORD desiredAccess = MUTEX_ALL_ACCESS, _In_opt_ PSECURITY_ATTRIBUTES pMutexAttributes = nullptr)
+        bool try_create(_In_opt_ PCWSTR name, DWORD dwFlags = 0, DWORD desiredAccess = MUTEX_ALL_ACCESS,
+                        _In_opt_ PSECURITY_ATTRIBUTES mutexAttributes = nullptr, _Out_opt_ bool* alreadyExists = nullptr)
         {
-            auto handle = ::CreateMutexExW(pMutexAttributes, name, dwFlags, desiredAccess);
+            auto handle = ::CreateMutexExW(mutexAttributes, name, dwFlags, desiredAccess);
             if (handle == nullptr)
             {
+                assign_to_opt_param(alreadyExists, false);
                 return false;
             }
+            assign_to_opt_param(alreadyExists, (::GetLastError() == ERROR_ALREADY_EXISTS));
             storage_t::reset(handle);
             return true;
         }
 
         // Returns HRESULT for unique_mutex_nothrow, void with exceptions for shared_mutex and unique_mutex
-        result create(_In_opt_ PCWSTR name = nullptr, DWORD dwFlags = 0, DWORD desiredAccess = MUTEX_ALL_ACCESS, _In_opt_ PSECURITY_ATTRIBUTES pMutexAttributes = nullptr)
+        result create(_In_opt_ PCWSTR name = nullptr, DWORD dwFlags = 0, DWORD desiredAccess = MUTEX_ALL_ACCESS,
+                      _In_opt_ PSECURITY_ATTRIBUTES mutexAttributes = nullptr, _Out_opt_ bool* alreadyExists = nullptr)
         {
-            return err_policy::LastErrorIfFalse(try_create(name, dwFlags, desiredAccess, pMutexAttributes));
+            return err_policy::LastErrorIfFalse(try_create(name, dwFlags, desiredAccess, mutexAttributes, alreadyExists));
         }
 
         // Tries to open a named mutex -- returns false if unable to do so (gle may still be inspected with return=false)
@@ -3002,21 +2953,23 @@ namespace wil
         }
 
         // Tries to create a named event -- returns false if unable to do so (gle may still be inspected with return=false)
-        bool try_create(LONG lInitialCount, LONG lMaximumCount, _In_opt_ PCWSTR name, DWORD desiredAccess = SEMAPHORE_ALL_ACCESS, _In_opt_ PSECURITY_ATTRIBUTES pSemaphoreAttributes = nullptr)
+        bool try_create(LONG lInitialCount, LONG lMaximumCount, _In_opt_ PCWSTR name, DWORD desiredAccess = SEMAPHORE_ALL_ACCESS, _In_opt_ PSECURITY_ATTRIBUTES pSemaphoreAttributes = nullptr, _Out_opt_ bool *alreadyExists = nullptr)
         {
             auto handle = ::CreateSemaphoreExW(pSemaphoreAttributes, lInitialCount, lMaximumCount, name, 0, desiredAccess);
             if (handle == nullptr)
             {
+                assign_to_opt_param(alreadyExists, false);
                 return false;
             }
+            assign_to_opt_param(alreadyExists, (::GetLastError() == ERROR_ALREADY_EXISTS));
             storage_t::reset(handle);
             return true;
         }
 
         // Returns HRESULT for unique_semaphore_nothrow, void with exceptions for shared_event and unique_event
-        result create(LONG lInitialCount, LONG lMaximumCount, _In_opt_ PCWSTR name = nullptr, DWORD desiredAccess = SEMAPHORE_ALL_ACCESS, _In_opt_ PSECURITY_ATTRIBUTES pSemaphoreAttributes = nullptr)
+        result create(LONG lInitialCount, LONG lMaximumCount, _In_opt_ PCWSTR name = nullptr, DWORD desiredAccess = SEMAPHORE_ALL_ACCESS, _In_opt_ PSECURITY_ATTRIBUTES pSemaphoreAttributes = nullptr, _Out_opt_ bool *alreadyExists = nullptr)
         {
-            return err_policy::LastErrorIfFalse(try_create(lInitialCount, lMaximumCount, name, desiredAccess, pSemaphoreAttributes));
+            return err_policy::LastErrorIfFalse(try_create(lInitialCount, lMaximumCount, name, desiredAccess, pSemaphoreAttributes, alreadyExists));
         }
 
         // Tries to open the named semaphore -- returns false if unable to do so (gle may still be inspected with return=false)
@@ -4233,6 +4186,14 @@ namespace wil
 #if !defined(NOWINABLE)
     typedef unique_any<HWINEVENTHOOK, decltype(&::UnhookWinEvent), ::UnhookWinEvent> unique_hwineventhook;
 #endif
+#if !defined(NOCLIPBOARD)
+    using unique_close_clipboard_call = unique_call<decltype(::CloseClipboard), &::CloseClipboard>;
+
+    inline unique_close_clipboard_call open_clipboard(HWND hwnd)
+    {
+        return unique_close_clipboard_call { OpenClipboard(hwnd) != FALSE };
+    }
+#endif
 #endif // __WIL__WINUSER_
 
 #if !defined(NOGDI) && !defined(NODESKTOP)
@@ -4793,6 +4754,7 @@ namespace wil
     typedef unique_any<HCRYPTPROV, decltype(&details::CryptReleaseContextNoParam), details::CryptReleaseContextNoParam> unique_hcryptprov;
     typedef unique_any<HCRYPTKEY, decltype(&::CryptDestroyKey), ::CryptDestroyKey> unique_hcryptkey;
     typedef unique_any<HCRYPTHASH, decltype(&::CryptDestroyHash), ::CryptDestroyHash> unique_hcrypthash;
+    typedef unique_any<HCRYPTMSG, decltype(&::CryptMsgClose), ::CryptMsgClose> unique_hcryptmsg;
 #endif // __WIL__WINCRYPT_H__
 #if defined(__WIL__WINCRYPT_H__) && !defined(__WIL__WINCRYPT_H__STL) && defined(WIL_RESOURCE_STL)
 #define __WIL__WINCRYPT_H__STL
@@ -4802,6 +4764,7 @@ namespace wil
     typedef shared_any<unique_hcryptprov> shared_hcryptprov;
     typedef shared_any<unique_hcryptkey> shared_hcryptkey;
     typedef shared_any<unique_hcrypthash> shared_hcrypthash;
+    typedef shared_any<unique_hcryptmsg> shared_hcryptmsg;
 
     typedef weak_any<shared_cert_context> weak_cert_context;
     typedef weak_any<shared_cert_chain_context> weak_cert_chain_context;
@@ -4809,6 +4772,7 @@ namespace wil
     typedef weak_any<shared_hcryptprov> weak_hcryptprov;
     typedef weak_any<shared_hcryptkey> weak_hcryptkey;
     typedef weak_any<shared_hcrypthash> weak_hcrypthash;
+    typedef weak_any<shared_hcryptmsg> weak_hcryptmsg;
 #endif // __WIL__WINCRYPT_H__STL
 
 

@@ -439,16 +439,16 @@ void ExceptionHandlingCompilationTest()
     try { try { throw std::bad_alloc(); } catch (...) { THROW_NORMALIZED_CAUGHT_EXCEPTION(); } } catch (...) {}
     try { try { throw std::bad_alloc(); } catch (...) { THROW_NORMALIZED_CAUGHT_EXCEPTION_MSG("train: %d", 42); } } catch (...) {}
 
-    HRESULT hr = wil::ResultFromExceptionDebug(WI_DIAGNOSTICS_INFO, wil::SupportedExceptions::All, [&]
+    wil::ResultFromExceptionDebug(WI_DIAGNOSTICS_INFO, wil::SupportedExceptions::All, [&]
     {
         THROW_HR(E_FAIL);
     });
 
-    hr = wil::ResultFromException(WI_DIAGNOSTICS_INFO, wil::SupportedExceptions::None, [&]
+    wil::ResultFromException(WI_DIAGNOSTICS_INFO, wil::SupportedExceptions::None, [&]
     {
     });
 
-    hr = wil::ResultFromException([&]
+    wil::ResultFromException([&]
     {
     });
 
@@ -576,3 +576,16 @@ TEST_CASE("ResultTests::AutomaticOriginationOnFailure", "[result]")
     REQUIRE(S_FALSE == GetRestrictedErrorInfo(&restrictedErrorInformation));
 }
 #endif
+
+TEST_CASE("ResultTests::ReportDoesNotChangeLastError", "[result]")
+{
+    decltype(wil::details::g_pfnLoggingCallback) oopsie = [](wil::FailureInfo const&) noexcept
+    {
+        ::SetLastError(ERROR_ABANDON_HIBERFILE);
+    };
+    auto swap = witest::AssignTemporaryValue(&wil::details::g_pfnLoggingCallback, oopsie);
+
+    ::SetLastError(ERROR_ABIOS_ERROR);
+    LOG_IF_WIN32_BOOL_FALSE(FALSE);
+    REQUIRE(::GetLastError() == ERROR_ABIOS_ERROR);
+}

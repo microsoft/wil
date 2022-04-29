@@ -1,5 +1,9 @@
 
 #include <wil/cppwinrt.h>
+#include <winrt/Windows.Foundation.h>
+#include <wil/cppwinrt_helpers.h>
+#include <winrt/Windows.System.h>
+#include <wil/cppwinrt_helpers.h> // Verify can include a second time to unlock more features
 
 #include "catch.hpp"
 
@@ -142,3 +146,159 @@ TEST_CASE("CppWinRTTests::CppWinRTConsistencyTest", "[cppwinrt]")
     // NOTE: C++/WinRT maps other 'std::exception' derived exceptions to E_FAIL, however we preserve the WIL behavior
     // that such exceptions become HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION)
 }
+
+TEST_CASE("CppWinRTTests::ModuleReference", "[cppwinrt]")
+{
+    auto peek_module_ref_count = []()
+    {
+        ++winrt::get_module_lock();
+        return --winrt::get_module_lock();
+    };
+
+    auto initial = peek_module_ref_count();
+
+    // Basic test: Construct and destruct.
+    {
+        auto module_ref = wil::winrt_module_reference();
+        REQUIRE(peek_module_ref_count() == initial + 1);
+    }
+    REQUIRE(peek_module_ref_count() == initial);
+
+    // Fancy test: Copy object with embedded reference.
+    {
+        struct object_with_ref
+        {
+            wil::winrt_module_reference ref;
+        };
+        object_with_ref o1;
+        REQUIRE(peek_module_ref_count() == initial + 1);
+        auto o2 = o1;
+        REQUIRE(peek_module_ref_count() == initial + 2);
+        o1 = o2;
+        REQUIRE(peek_module_ref_count() == initial + 2);
+        o2 = std::move(o1);
+        REQUIRE(peek_module_ref_count() == initial + 2);
+    }
+    REQUIRE(peek_module_ref_count() == initial);
+}
+
+#if (defined(__cpp_lib_coroutine) && (__cpp_lib_coroutine >= 201902L)) || defined(_RESUMABLE_FUNCTIONS_SUPPORTED)
+
+// Define our own custom dispatcher that we can force it to behave in certain ways.
+// wil::resume_foreground supports any dispatcher that has a dispatcher_traits.
+
+namespace test
+{
+    enum class TestDispatcherPriority
+    {
+        Normal = 0,
+        Weird = 1,
+    };
+
+    using TestDispatcherHandler = winrt::delegate<>;
+
+    enum class TestDispatcherMode
+    {
+        Dispatch,
+        RaceDispatch,
+        Orphan,
+        Fail,
+    };
+
+    struct TestDispatcher
+    {
+        TestDispatcher() = default;
+        TestDispatcher(TestDispatcher const&) = delete;
+
+        TestDispatcherMode mode = TestDispatcherMode::Dispatch;
+        TestDispatcherPriority expected_priority = TestDispatcherPriority::Normal;
+
+        void TryEnqueue(TestDispatcherPriority priority, TestDispatcherHandler const& handler) const
+        {
+            REQUIRE(priority == expected_priority);
+
+            if (mode == TestDispatcherMode::Fail)
+            {
+                throw winrt::hresult_not_implemented();
+            }
+
+            if (mode == TestDispatcherMode::RaceDispatch)
+            {
+                handler();
+                return;
+            }
+
+            std::ignore = [](auto mode, auto handler) ->winrt::fire_and_forget
+            {
+                co_await winrt::resume_background();
+                if (mode == TestDispatcherMode::Dispatch)
+                {
+                    handler();
+                }
+            }(mode, handler);
+        }
+    };
+}
+
+namespace wil::details
+{
+    template<>
+    struct dispatcher_traits<test::TestDispatcher>
+    {
+        using Priority = test::TestDispatcherPriority;
+        using Handler = test::TestDispatcherHandler;
+        using Scheduler = dispatcher_TryEnqueue;
+    };
+}
+
+TEST_CASE("CppWinRTTests::ResumeForegroundTests", "[cppwinrt]")
+{
+    // Verify that the DispatcherQueue version has been unlocked.
+    using Verify = decltype(wil::resume_foreground(winrt::Windows::System::DispatcherQueue{ nullptr }));
+    static_assert(wistd::is_trivial_v<Verify> || !wistd::is_trivial_v<Verify>);
+
+    []() -> winrt::Windows::Foundation::IAsyncAction
+    {
+        test::TestDispatcher dispatcher;
+
+        // Normal case: Resumes on new thread.
+        dispatcher.mode = test::TestDispatcherMode::Dispatch;
+        co_await wil::resume_foreground(dispatcher);
+
+        // Race case: Resumes before TryEnqueue returns.
+        dispatcher.mode = test::TestDispatcherMode::RaceDispatch;
+        co_await wil::resume_foreground(dispatcher);
+
+        // Orphan case: Never resumes, detected when handler is destructed without ever being invoked.
+        dispatcher.mode = test::TestDispatcherMode::Orphan;
+        bool seen = false;
+        try
+        {
+            co_await wil::resume_foreground(dispatcher);
+        }
+        catch (winrt::hresult_error const& e)
+        {
+            seen = e.code() == HRESULT_FROM_WIN32(HRESULT_FROM_WIN32(ERROR_NO_TASK_QUEUE));
+        }
+        REQUIRE(seen);
+
+        // Fail case: Can't even schedule the resumption.
+        dispatcher.mode = test::TestDispatcherMode::Fail;
+        seen = false;
+        try
+        {
+            co_await wil::resume_foreground(dispatcher);
+        }
+        catch (winrt::hresult_not_implemented const&)
+        {
+            seen = true;
+        }
+        REQUIRE(seen);
+
+        // Custom priority.
+        dispatcher.mode = test::TestDispatcherMode::Dispatch;
+        dispatcher.expected_priority = test::TestDispatcherPriority::Weird;
+        co_await wil::resume_foreground(dispatcher, test::TestDispatcherPriority::Weird);
+    }().get();
+}
+#endif // coroutines
