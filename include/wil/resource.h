@@ -12,6 +12,7 @@
 #include "result_macros.h"
 #include "wistd_functional.h"
 #include "wistd_memory.h"
+#include "wistd_type_traits.h"
 
 #pragma warning(push)
 #pragma warning(disable:26135 26110)    // Missing locking annotation, Caller failing to hold lock
@@ -204,7 +205,7 @@ namespace wil
 
         // forwarding constructor: forwards all 'explicit' and multi-arg constructors to the base class
         template <typename arg1, typename... args_t>
-        explicit unique_any_t(arg1 && first, args_t&&... args) noexcept(noexcept(storage_t(wistd::forward<arg1>(first), wistd::forward<args_t>(args)...))) :
+        explicit unique_any_t(arg1 && first, args_t&&... args) __WI_NOEXCEPT_((wistd::is_nothrow_constructible_v<storage_t, arg1 &&, args_t&&...>)) :
             storage_t(wistd::forward<arg1>(first), wistd::forward<args_t>(args)...)
         {
             static_assert(wistd::is_same<typename policy::pointer_access, details::pointer_access_none>::value ||
