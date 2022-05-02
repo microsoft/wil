@@ -50,6 +50,7 @@ set(COMMON_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/SafeCastTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/WistdTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/wiTest.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../natvis/wil.natvis
     )
 
 add_subdirectory(app)

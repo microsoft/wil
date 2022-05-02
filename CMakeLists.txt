@@ -44,6 +44,12 @@ target_include_directories(${PROJECT_NAME} INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
 
+# Include the .natvis files
+if (MSVC)
+    target_sources(${PROJECT_NAME} INTERFACE 
+        "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/natvis/wil.natvis>")
+endif()
+
 # Install Package Configuration
 string(TOLOWER ${PROJECT_NAME} PROJECT_NAME_LOWER)
 install(TARGETS ${PROJECT_NAME} EXPORT ${PROJECT_NAME_LOWER}_targets)
