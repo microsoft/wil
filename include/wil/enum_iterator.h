@@ -13,13 +13,19 @@
 
 #include "com.h"
 #include "result_macros.h"
+
+#include <memory>
 #include "resource.h"
 #include <type_traits>
 #include <tuple>
 
 #include <type_traits>
 #include <tuple>
-#include <memory>
+
+
+#if !defined(WIL_RESOURCE_STL) || (__WI_LIBCPP_STD_VER < 17)
+#error Needs STL and C++17
+#endif
 
 namespace wil
 {
@@ -115,26 +121,33 @@ namespace wil
         /// </summary>
         using TElemRaw = Details::NextArgType<TEnum>;
         using TElem = Details::safe_wrapper_t<TElemRaw>;
+
+        static constexpr bool is_cotaskmem = std::is_same_v<TElem, wil::shared_cotaskmem>;
+        static constexpr bool is_cotaskmem_ptr = std::is_same_v<TElem, wil::shared_cotaskmem_ptr<TElemRaw>>;
+        static constexpr bool is_cotaskmem_or_ptr = is_cotaskmem || is_cotaskmem_ptr;
+
         ~enum_iterator() = default;
     private:
         
         HRESULT CallNextAndAssign(ULONG* celt)
         {
-            return m_pEnum->Next(1, &m_current, celt);
+            if constexpr (!is_cotaskmem_or_ptr)
+            {
+                return m_pEnum->Next(1, &m_current, celt);
+            }
+            else if constexpr (is_cotaskmem)
+            {
+                return m_pEnum->Next(1, m_current.put(), celt);
+            }
+            else if constexpr (is_cotaskmem_ptr)
+            {
+                TElemRaw* rawPtr{ nullptr };
+                auto hr = m_pEnum->Next(1, &rawPtr, celt);
+                m_current.reset(rawPtr, wil::cotaskmem_deleter{});
+                return hr;
+            }
         }
-#ifdef WIL_RESOURCE_STL
-        std::enable_if_t<
-            std::is_same_v<TElem, wil::shared_cotaskmem_ptr<TElemRaw>>
-            || std::is_same_v<TElem, wil::shared_cotaskmem>
-            , HRESULT>
-        CallNextAndAssign(ULONG* celt)
-        {
-            TElemRaw* rawPtr{ nullptr };
-            auto hr = m_pEnum->Next(1, &rawPtr, celt);
-            m_current.reset(rawPtr, wil::cotaskmem_deleter{});
-            return hr;
-        }
-#endif
+
 
     public:
         auto& operator++(int) { return this->operator++(); }

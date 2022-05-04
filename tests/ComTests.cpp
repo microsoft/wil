@@ -2882,7 +2882,7 @@ namespace wil
         {
             using type = wil::shared_cotaskmem_ptr<ReleaseMe>;
         };
-        template<> struct SafeWrapper<ReleaseMe2, void>
+        template<> struct SafeWrapper<void, void>
         {
             using type = wil::shared_cotaskmem;
         };
@@ -2890,15 +2890,15 @@ namespace wil
 }
 
 
-template<int N, typename T = ReleaseMe>
+template<int N, typename THeld = ReleaseMe, typename TEnum = THeld>
 struct  __declspec(uuid("a817e7a2-43fa-11d0-9e44-00aa00b67709"))
     IFakeEnum_NonCOM : IUnknownFake {
-    STDMETHOD(Next)(ULONG celt, T** out, ULONG* outCount) {
+    STDMETHOD(Next)(ULONG celt, TEnum** out, ULONG* outCount) {
         *out = nullptr;
         *outCount = 0;
         if (m_idx < N) {
             if (celt == 1) {
-                *out = new (CoTaskMemAlloc(sizeof(T))) T(m_elements[m_idx++]);
+                *out = new (CoTaskMemAlloc(sizeof(THeld))) THeld(m_elements[m_idx++]);
                 *outCount = 1;
                 return S_OK;
             }
@@ -2911,7 +2911,7 @@ struct  __declspec(uuid("a817e7a2-43fa-11d0-9e44-00aa00b67709"))
         }
     }
     constexpr int NumberOfItems() const { return N; }
-    int* const& Current() const { return m_elements[m_idx]; }
+    auto const& Current() const { return m_elements[m_idx]; }
     IFakeEnum_NonCOM() {
         for (auto i = 0; i < N; i++) {
             m_elements[i].m_value = i;
@@ -2926,7 +2926,7 @@ struct  __declspec(uuid("a817e7a2-43fa-11d0-9e44-00aa00b67709"))
         return wil::enum_iterator<IFakeEnum_NonCOM>::end();
     }
 private:
-    std::array<T, N> m_elements;
+    std::array<THeld, N> m_elements;
     int m_idx{ 0 };
 };
 
@@ -3013,7 +3013,7 @@ TEST_CASE("EnumForLoop", "[com][IEnumXyz]")
     {
         IUnknownFake::Clear();
         {
-            IFakeEnum_NonCOM<3, ReleaseMe2> fakeEnum;
+            IFakeEnum_NonCOM<3, ReleaseMe2, void> fakeEnum;
 
             auto i = 0;
 
