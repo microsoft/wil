@@ -13,15 +13,36 @@
 
 #include "com.h"
 #include "result_macros.h"
+#include "resource.h"
 #include <type_traits>
 #include <tuple>
 
 #include <type_traits>
 #include <tuple>
-#include <cstdio>
+#include <memory>
 
 namespace wil
 {
+    template<typename T>
+    struct shared_cotaskmem_ptr : std::shared_ptr<T>
+    {
+        shared_cotaskmem_ptr() : std::shared_ptr<T>() {}
+        shared_cotaskmem_ptr(T* t) : std::shared_ptr<T>(t, wil::cotaskmem_deleter{}) {}
+    };
+
+    template<typename T, typename... Args>
+    auto make_shared_cotaskmem_ptr(Args&&... args)
+    {
+        static_assert(wistd::is_trivially_destructible<T>::value, "T has a destructor that won't be run when used with this function; use make_unique instead");
+        shared_cotaskmem_ptr<T> sp(static_cast<T*>(::CoTaskMemAlloc(sizeof(T))));
+        if (sp)
+        {
+            // use placement new to initialize memory from the previous allocation
+            new (sp.get()) T(wistd::forward<Args>(args)...);
+        }
+        return sp;
+    }
+
     namespace Details
     {
         template<typename R, typename T, typename... Args>
@@ -42,20 +63,27 @@ namespace wil
             : FunctionTraitsBase<HRESULT, T, ULONG, Arg, ULONG*>
         {};
 
-        template<typename T>
-        constexpr bool has_AddRef()
-        {
-            if constexpr (std::is_class_v<T>)
-            {
-                if constexpr (std::is_member_function_pointer_v<decltype(&T::AddRef)>)
-                {
-                    return true;
-                }
-            }
-            return false;
-        }
+        template<typename T, typename U = void>
+        struct has_AddRef_helper : std::false_type {};
 
-        template<typename T> inline constexpr bool has_AddRef_v = has_AddRef<T>();
+        template<typename T> struct has_AddRef_helper<T, std::void_t<decltype(&T::AddRef)>> : std::true_type {};
+
+        template<typename T> constexpr bool has_AddRef_v = has_AddRef_helper<T>::value;
+
+        template<typename T, typename U = void>
+        struct SafeWrapper
+        {
+            using type = T;
+        };
+
+        template<typename T>
+        struct SafeWrapper<T, std::enable_if_t<has_AddRef_v<T>>>
+        {
+            using type = wil::com_ptr<T>;
+        };
+
+        template<typename T>
+        using safe_wrapper_t = typename SafeWrapper<T>::type;
 
 #ifdef __cpp_noexcept_function_type
         template<typename T, typename Arg>
@@ -76,6 +104,7 @@ namespace wil
     struct enum_iterator
     {
         enum_iterator(const enum_iterator& other) = default;
+        enum_iterator(enum_iterator&&) = default;
         enum_iterator(TEnum* pEnum) : m_pEnum(pEnum)
         {
             (*this)++;
@@ -85,18 +114,39 @@ namespace wil
         /// e.g. PITEMID_CHILD, IDiaSymbol, etc.
         /// </summary>
         using TElemRaw = Details::NextArgType<TEnum>;
-        using TElem = std::conditional_t<Details::has_AddRef_v<TElemRaw>, wil::com_ptr<TElemRaw>, TElemRaw*>;
+        using TElem = Details::safe_wrapper_t<TElemRaw>;
         ~enum_iterator() = default;
+    private:
+        
+        HRESULT CallNextAndAssign(ULONG* celt)
+        {
+            return m_pEnum->Next(1, &m_current, celt);
+        }
+#ifdef WIL_RESOURCE_STL
+        std::enable_if_t<
+            std::is_same_v<TElem, wil::shared_cotaskmem_ptr<TElemRaw>>
+            || std::is_same_v<TElem, wil::shared_cotaskmem>
+            , HRESULT>
+        CallNextAndAssign(ULONG* celt)
+        {
+            TElemRaw* rawPtr{ nullptr };
+            auto hr = m_pEnum->Next(1, &rawPtr, celt);
+            m_current.reset(rawPtr, wil::cotaskmem_deleter{});
+            return hr;
+        }
+#endif
 
+    public:
         auto& operator++(int) { return this->operator++(); }
         auto& operator++()
         {
-            TElem pChild{ nullptr };
+            TElem pChild{ };
             ULONG celt = 0;
-            auto hr = m_pEnum->Next(1, &pChild, &celt);
+            HRESULT hr = CallNextAndAssign(&celt);
+
             if ((hr == S_OK) && (celt == 1))
             {
-                m_current = pChild;
+                // done
             }
             else if (hr == S_FALSE)
             {
@@ -110,7 +160,7 @@ namespace wil
         }
 
         TElem const& operator*() const noexcept { return m_current; }
-        TElem operator->() const noexcept { return m_current; }
+        TElem const& operator->() const noexcept { return m_current; }
 
         auto operator+(int v)
         {
@@ -131,9 +181,9 @@ namespace wil
 
         bool operator!=(const enum_iterator& o) const noexcept { return !(*this == o); }
 
-        static constexpr auto end() noexcept
+        static constexpr enum_iterator end() noexcept
         {
-            return enum_iterator{ end_tag{} };
+            return { end_tag{} };
         }
     protected:
         struct end_tag {};
@@ -148,12 +198,12 @@ namespace wil
 namespace wistd
 {
     template<typename TEnum>
-    auto begin(TEnum* pEnum)
+    wil::enum_iterator<TEnum> begin(TEnum* pEnum)
     {
-        return wil::enum_iterator<TEnum>(pEnum);
+        return { pEnum };
     }
     template<typename TEnum>
-    constexpr auto end(TEnum*)
+    constexpr wil::enum_iterator<TEnum> end(TEnum*)
     {
         return wil::enum_iterator<TEnum>::end();
     }

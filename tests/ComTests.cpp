@@ -3,6 +3,7 @@
 
 #include <wil/com.h>
 #ifdef WIL_ENABLE_EXCEPTIONS
+#include <wil/resource.h>
 #include <wil/enum_iterator.h>
 #endif
 #include <wrl/implements.h>
@@ -2863,15 +2864,41 @@ private:
     int m_idx{ 0 };
 };
 
-template<int N>
+struct ReleaseMe
+{
+    int m_value;
+};
+
+struct ReleaseMe2
+{
+    int m_value;
+};
+
+namespace wil
+{
+    namespace Details
+    {
+        template<> struct SafeWrapper<ReleaseMe, void>
+        {
+            using type = wil::shared_cotaskmem_ptr<ReleaseMe>;
+        };
+        template<> struct SafeWrapper<ReleaseMe2, void>
+        {
+            using type = wil::shared_cotaskmem;
+        };
+    }
+}
+
+
+template<int N, typename T = ReleaseMe>
 struct  __declspec(uuid("a817e7a2-43fa-11d0-9e44-00aa00b67709"))
     IFakeEnum_NonCOM : IUnknownFake {
-    STDMETHOD(Next)(ULONG celt, int** out, ULONG* outCount) {
+    STDMETHOD(Next)(ULONG celt, T** out, ULONG* outCount) {
         *out = nullptr;
         *outCount = 0;
         if (m_idx < N) {
             if (celt == 1) {
-                *out = m_elements[m_idx++];
+                *out = new (CoTaskMemAlloc(sizeof(T))) T(m_elements[m_idx++]);
                 *outCount = 1;
                 return S_OK;
             }
@@ -2887,26 +2914,21 @@ struct  __declspec(uuid("a817e7a2-43fa-11d0-9e44-00aa00b67709"))
     int* const& Current() const { return m_elements[m_idx]; }
     IFakeEnum_NonCOM() {
         for (auto i = 0; i < N; i++) {
-            m_elements[i] = new int(i);
+            m_elements[i].m_value = i;
         }
     }
-    ~IFakeEnum_NonCOM() {
-        for (auto& e : m_elements) {
-            delete e;
-        }
-    }
+    ~IFakeEnum_NonCOM() = default;
 
-    auto begin() {
+    wil::enum_iterator<IFakeEnum_NonCOM> begin() {
         return wil::enum_iterator<IFakeEnum_NonCOM>(this);
     }
-    auto end() const {
+    wil::enum_iterator<IFakeEnum_NonCOM> end() const {
         return wil::enum_iterator<IFakeEnum_NonCOM>::end();
     }
 private:
-    std::array<int*, N> m_elements;
+    std::array<T, N> m_elements;
     int m_idx{ 0 };
 };
-
 
 TEST_CASE("COM type traits", "[com][IsCOM]")
 {
@@ -2916,8 +2938,13 @@ TEST_CASE("COM type traits", "[com][IsCOM]")
     static_assert(wil::Details::has_AddRef_v<IFakeEnum_COM<1>>);
     static_assert(wil::Details::has_AddRef_v<IFakeEnum_NonCOM<1>>);
 
+    static_assert(std::is_same_v<wil::Details::safe_wrapper_t<int>, int>);
+    static_assert(std::is_same_v<wil::Details::safe_wrapper_t<IUnknown>, wil::com_ptr<IUnknown>>);
+    static_assert(std::is_same_v<wil::Details::safe_wrapper_t<ReleaseMe>, wil::shared_cotaskmem_ptr<ReleaseMe>>);
+
     static_assert(std::is_same_v<wil::enum_iterator<IFakeEnum_COM<1>>::TElem, wil::com_ptr<IFakeItem>>);
-    static_assert(std::is_same_v<wil::enum_iterator<IFakeEnum_NonCOM<1>>::TElem, int*>);
+    static_assert(std::is_same_v<wil::enum_iterator<IFakeEnum_NonCOM<1>>::TElem, wil::shared_cotaskmem_ptr<ReleaseMe>>);
+
 }
 
 TEST_CASE("EnumForLoop", "[com][IEnumXyz]")
@@ -2927,7 +2954,9 @@ TEST_CASE("EnumForLoop", "[com][IEnumXyz]")
         IFakeEnum_COM<3> fakeEnum;
 
         auto i = 0;
-        for (auto it = wistd::begin(&fakeEnum); it != wistd::end(&fakeEnum); it++) {
+        for (auto it = wistd::begin(&fakeEnum); 
+            it != wistd::end(&fakeEnum); 
+            it++) {
             if (i < fakeEnum.NumberOfItems() - 1) {
                 const auto& c = fakeEnum.Current(); // already advanced past the iterator
                 REQUIRE(it->m_id == c->m_id - 1); // the iterator captured the enumerator's previous value
@@ -2946,7 +2975,7 @@ TEST_CASE("EnumForLoop", "[com][IEnumXyz]")
 
             auto i = 0;
             for (auto it = wistd::begin(&fakeEnum); it != wistd::end(&fakeEnum); it++) {
-                REQUIRE(**it == i); // the iterator captured the enumerator's previous value
+                REQUIRE(it->m_value == i); // the iterator captured the enumerator's previous value
                 i++;
             }
             REQUIRE(i == fakeEnum.NumberOfItems());
@@ -2968,7 +2997,7 @@ TEST_CASE("EnumForLoop", "[com][IEnumXyz]")
             auto i = 0;
 
             for (auto& e : fakeEnum) {
-                REQUIRE(*e == i); // the iterator captured the enumerator's previous value
+                REQUIRE(e->m_value == i); // the iterator captured the enumerator's previous value
                 i++;
             }
             REQUIRE(i == fakeEnum.NumberOfItems());
@@ -2979,6 +3008,28 @@ TEST_CASE("EnumForLoop", "[com][IEnumXyz]")
         REQUIRE(finalReleaseCount == finalAddRefCount);
         REQUIRE(finalAddRefCount == 1);
     }
+
+    SECTION("IEnum* that iterates over non-COM objects; range-for, shared_any")
+    {
+        IUnknownFake::Clear();
+        {
+            IFakeEnum_NonCOM<3, ReleaseMe2> fakeEnum;
+
+            auto i = 0;
+
+            for (auto& e : fakeEnum) {
+                REQUIRE(static_cast<ReleaseMe2*>(e.get())->m_value == i); // the iterator captured the enumerator's previous value
+                i++;
+            }
+            REQUIRE(i == fakeEnum.NumberOfItems());
+        }
+
+        auto finalAddRefCount = IUnknownFake::GetAddRef();
+        auto finalReleaseCount = IUnknownFake::GetRelease();
+        REQUIRE(finalReleaseCount == finalAddRefCount);
+        REQUIRE(finalAddRefCount == 1);
+    }
+
 }
 
 TEST_CASE("EnumForEach", "[com][IEnumXyz]")
@@ -2990,7 +3041,7 @@ TEST_CASE("EnumForEach", "[com][IEnumXyz]")
             IFakeEnum_COM<3> fakeEnum;
 
             auto i = 0;
-            std::for_each(wistd::begin(&fakeEnum), wistd::end(&fakeEnum), [&i](wil::com_ptr<IFakeItem> element) {
+            std::for_each(wistd::begin(&fakeEnum), wistd::end(&fakeEnum), [&i](const wil::com_ptr<IFakeItem>& element) {
                 REQUIRE(element->m_id == i);
                 i++;
                 });
@@ -3005,6 +3056,7 @@ TEST_CASE("EnumForEach", "[com][IEnumXyz]")
             IFakeEnum_COM<3> fakeEnum;
 
             auto i = 0;
+     
             std::for_each(wistd::begin(&fakeEnum), wistd::end(&fakeEnum), [&i](wil::com_ptr<IFakeItem> element) {
                 REQUIRE(element->m_id == i);
                 i++;
@@ -3018,14 +3070,13 @@ TEST_CASE("EnumForEach", "[com][IEnumXyz]")
         IFakeEnum_NonCOM<3> fakeEnum;
 
         auto i = 0;
-        std::for_each(fakeEnum.begin(), fakeEnum.end(), [&i](const int* element) {
-            REQUIRE(*element == i);
+        std::for_each(fakeEnum.begin(), fakeEnum.end(), [&i](const wil::shared_cotaskmem_ptr<ReleaseMe>& element) { 
+            REQUIRE(element->m_value == i);
             i++;
             });
 
         REQUIRE(i == fakeEnum.NumberOfItems());
     }
 }
-
 
 #endif
