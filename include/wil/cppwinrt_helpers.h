@@ -213,4 +213,97 @@ namespace wil::details
 }
 #endif // __WIL_CPPWINRT_MICROSOFT_UI_DISPATCHING_HELPERS
 
+#if defined(WINRT_Windows_Foundation_Collections_H) && !defined(__WIL_CPPWINRT_WINDOWS_FOUNDATION_COLLECTION_HELPERS)
+#define __WIL_CPPWINRT_WINDOWS_FOUNDATION_COLLECTION_HELPERS
+
+namespace wil
+{
+    namespace details
+    {
+        template<typename TData, typename TSrc, uint32_t chunkSize = 64> std::vector<TData> to_vector_impl(TSrc const& src)
+        {
+            static_assert(chunkSize > 0);
+            std::vector<TData> output;
+            uint32_t offset = 0;
+            while (true)
+            {
+                output.resize(output.size() + chunkSize, winrt::impl::empty_value<TData>());
+                auto fetched = src.GetMany(offset, { output.data() + offset, output.data() + output.size() });
+                if (fetched < chunkSize)
+                {
+                    output.resize(offset + fetched);
+                    break;
+                }
+                offset += fetched;
+            }
+            return output;
+        }
+
+        template<typename TData, typename TSrc, uint32_t chunkSize = 64> std::vector<TData> to_vector_impl2(TSrc const& src)
+        {
+            static_assert(chunkSize > 0);
+            std::vector<TData> output;
+            uint32_t offset = 0;
+            while (true)
+            {
+                output.resize(output.size() + chunkSize, winrt::impl::empty_value<TData>());
+                auto fetched = src(offset, {output.data() + offset, output.data() + output.size()});
+                if (fetched < chunkSize)
+                {
+                    output.resize(offset + fetched);
+                    break;
+                }
+                offset += fetched;
+            }
+            return output;
+        }
+    }
+
+    template<typename TData, uint32_t chunkSize = 64> std::vector<TData> to_vector(winrt::Windows::Foundation::Collections::IIterator<TData> const& src)
+    {
+        static_assert(chunkSize > 0);
+        std::vector<TData> output;
+        uint32_t offset = 0;
+        while (true)
+        {
+            output.resize(output.size() + chunkSize, winrt::impl::empty_value<TData>());
+            auto fetched = src.GetMany({ output.data() + offset, output.data() + output.size() });
+            if (fetched < chunkSize)
+            {
+                output.resize(offset + fetched);
+                break;
+            }
+            offset += fetched;
+        }
+        return output;
+    }
+
+    template<typename TData> auto to_vector(winrt::Windows::Foundation::Collections::IVector<TData> const& src)
+    {
+        return details::to_vector_impl<TData>(src);
+    }
+
+    template<typename TData> auto to_vector(winrt::Windows::Foundation::Collections::IVectorView<TData> const& src)
+    {
+        return details::to_vector_impl<TData>(src);
+    }
+
+    template<typename TData> auto to_vector(winrt::Windows::Foundation::Collections::IIterable<TData> const& src)
+    {
+        return to_vector(src.First());
+    }
+
+    template<typename K, typename V> auto to_vector(winrt::Windows::Foundation::Collections::IMap<K, V> const& src)
+    {
+        return to_vector(src.First());
+    }
+
+    template<typename K, typename V> auto to_vector(winrt::Windows::Foundation::Collections::IMapView<K, V> const& src)
+    {
+        return to_vector(src.First());
+    }
+}
+
+#endif
+
 /// @endcond
