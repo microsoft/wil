@@ -46,6 +46,12 @@ namespace std
 #pragma warning(pop)
 #endif
 #endif
+#if defined(WIL_ENABLE_EXCEPTIONS) && defined(__has_include)
+#if __has_include(<vector>)
+#define __WI_HAS_STD_VECTOR 1
+#include <vector>
+#endif
+#endif
 /// @endcond
 
 // This enables this code to be used in code that uses the ABI prefix or not.
@@ -993,6 +999,29 @@ namespace wil
         ABI::Windows::Foundation::Collections::IIterable<T>* m_iterable;
     };
 #pragma endregion
+
+#if defined(__WI_HAS_STD_VECTOR)
+    template<typename VectorType> auto to_vector(VectorType* src)
+    {
+        using TResult = typename details::MapVectorResultType<VectorType>::type;
+        using TSmart = typename details::MapToSmartType<TResult>::type;
+        std::vector<TSmart> output;
+        UINT32 chunkSize = 64;
+        while (true)
+        {
+            UINT32 fetched = 0;
+            UINT32 offset = static_cast<UINT32>(output.size());
+            output.resize(output.size() + chunkSize);
+            THROW_IF_FAILED(src->GetMany(offset, chunkSize, reinterpret_cast<TResult*>(output.data() + offset), &fetched));
+            if (fetched < chunkSize)
+            {
+                output.resize(offset + fetched);
+                break;
+            }
+        }
+        return output;
+    }
+#endif
 
 #pragma region error code base IIterable<>
     template <typename T>

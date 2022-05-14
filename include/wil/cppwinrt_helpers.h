@@ -223,10 +223,10 @@ namespace wil
         template<typename TData, typename TSrc> std::vector<TData> to_vector_impl(TSrc&& fetcher)
         {
             std::vector<TData> output;
-            uint32_t offset = 0;
             const uint32_t chunkSize = 64;
             while (true)
             {
+                uint32_t offset = output.size();
                 output.resize(output.size() + chunkSize, winrt::impl::empty_value<TData>());
                 auto fetched = fetcher(offset, winrt::array_view<TData>{ output.data() + offset, output.data() + output.size() });
                 if (fetched < chunkSize)
@@ -234,7 +234,6 @@ namespace wil
                     output.resize(offset + fetched);
                     break;
                 }
-                offset += fetched;
             }
             return output;
         }
