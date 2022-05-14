@@ -220,15 +220,15 @@ namespace wil
 {
     namespace details
     {
-        template<typename TData, typename TSrc, uint32_t chunkSize = 64> std::vector<TData> to_vector_impl(TSrc const& src)
+        template<typename TData, typename TSrc> std::vector<TData> to_vector_impl(TSrc&& fetcher)
         {
-            static_assert(chunkSize > 0);
             std::vector<TData> output;
             uint32_t offset = 0;
+            const uint32_t chunkSize = 64;
             while (true)
             {
                 output.resize(output.size() + chunkSize, winrt::impl::empty_value<TData>());
-                auto fetched = src.GetMany(offset, { output.data() + offset, output.data() + output.size() });
+                auto fetched = fetcher(offset, winrt::array_view<TData>{ output.data() + offset, output.data() + output.size() });
                 if (fetched < chunkSize)
                 {
                     output.resize(offset + fetched);
@@ -239,68 +239,27 @@ namespace wil
             return output;
         }
 
-        template<typename TData, typename TSrc, uint32_t chunkSize = 64> std::vector<TData> to_vector_impl2(TSrc const& src)
+        template<typename T> struct is_vector : std::bool_constant<false> {};
+        template<typename Q> struct is_vector<winrt::Windows::Foundation::Collections::IVector<Q>> : std::bool_constant<true> {};
+        template<typename Q> struct is_vector<winrt::Windows::Foundation::Collections::IVectorView<Q>> : std::bool_constant<true> {};
+        template<typename T> struct is_iterator : std::bool_constant<false> {};
+        template<typename Q> struct is_iterator<winrt::Windows::Foundation::Collections::IIterator<Q>> : std::bool_constant<true> {};
+    }
+
+    template<typename TSrc> auto to_vector(TSrc const& src)
+    {
+        if constexpr (details::is_vector<TSrc>())
         {
-            static_assert(chunkSize > 0);
-            std::vector<TData> output;
-            uint32_t offset = 0;
-            while (true)
-            {
-                output.resize(output.size() + chunkSize, winrt::impl::empty_value<TData>());
-                auto fetched = src(offset, {output.data() + offset, output.data() + output.size()});
-                if (fetched < chunkSize)
-                {
-                    output.resize(offset + fetched);
-                    break;
-                }
-                offset += fetched;
-            }
-            return output;
+            return details::to_vector_impl<decltype(src.GetAt(0))>([&src](uint32_t offset, auto&&... a) { return src.GetMany(offset, a...); });
         }
-    }
-
-    template<typename TData, uint32_t chunkSize = 64> std::vector<TData> to_vector(winrt::Windows::Foundation::Collections::IIterator<TData> const& src)
-    {
-        static_assert(chunkSize > 0);
-        std::vector<TData> output;
-        uint32_t offset = 0;
-        while (true)
+        else if constexpr (details::is_iterator<TSrc>())
         {
-            output.resize(output.size() + chunkSize, winrt::impl::empty_value<TData>());
-            auto fetched = src.GetMany({ output.data() + offset, output.data() + output.size() });
-            if (fetched < chunkSize)
-            {
-                output.resize(offset + fetched);
-                break;
-            }
-            offset += fetched;
+            return details::to_vector_impl<decltype(src.Current())>([&src](uint32_t, auto&&... a) { return src.GetMany(a...); });
         }
-        return output;
-    }
-
-    template<typename TData> auto to_vector(winrt::Windows::Foundation::Collections::IVector<TData> const& src)
-    {
-        return details::to_vector_impl<TData>(src);
-    }
-
-    template<typename TData> auto to_vector(winrt::Windows::Foundation::Collections::IVectorView<TData> const& src)
-    {
-        return details::to_vector_impl<TData>(src);
-    }
-
-    template<typename TData> auto to_vector(winrt::Windows::Foundation::Collections::IIterable<TData> const& src)
-    {
-        return to_vector(src.First());
-    }
-
-    template<typename K, typename V> auto to_vector(winrt::Windows::Foundation::Collections::IMap<K, V> const& src)
-    {
-        return to_vector(src.First());
-    }
-
-    template<typename K, typename V> auto to_vector(winrt::Windows::Foundation::Collections::IMapView<K, V> const& src)
-    {
-        return to_vector(src.First());
+        else
+        {
+            return to_vector(src.First());
+        }
     }
 }
 

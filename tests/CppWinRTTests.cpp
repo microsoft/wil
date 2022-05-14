@@ -50,7 +50,7 @@ TEST_CASE("CppWinRTTests::VectorToVector", "[cppwinrt]")
         REQUIRE(wil::to_vector(sv) == src_vector);
         REQUIRE(wil::to_vector(sv.GetView()) == src_vector);
         REQUIRE(wil::to_vector(sv.First()) == src_vector);
-        REQUIRE(wil::to_vector<winrt::hstring, 2>(sv.First()) == src_vector);
+        REQUIRE(wil::to_vector(sv.First()) == src_vector);
         REQUIRE(wil::to_vector(sv.as<winrt::Windows::Foundation::Collections::IIterable<winrt::hstring>>()) == src_vector);
     }
     {
@@ -59,7 +59,7 @@ TEST_CASE("CppWinRTTests::VectorToVector", "[cppwinrt]")
         REQUIRE(wil::to_vector(sv) == src_vector);
         REQUIRE(wil::to_vector(sv.GetView()) == src_vector);
         REQUIRE(wil::to_vector(sv.First()) == src_vector);
-        REQUIRE(wil::to_vector<uint32_t, 2>(sv.First()) == src_vector);
+        REQUIRE(wil::to_vector(sv.First()) == src_vector);
         REQUIRE(wil::to_vector(sv.as<winrt::Windows::Foundation::Collections::IIterable<uint32_t>>()) == src_vector);
     }
     {
@@ -67,7 +67,7 @@ TEST_CASE("CppWinRTTests::VectorToVector", "[cppwinrt]")
         auto sv = winrt::single_threaded_vector(copy_thing(src_vector));
         REQUIRE(wil::to_vector(sv) == src_vector);
         REQUIRE(wil::to_vector(sv.GetView()) == src_vector);
-        REQUIRE(wil::to_vector<float, 2>(sv.First()) == src_vector);
+        REQUIRE(wil::to_vector(sv.First()) == src_vector);
         REQUIRE(wil::to_vector(sv.as<winrt::Windows::Foundation::Collections::IIterable<float>>()) == src_vector);
     }
     {
