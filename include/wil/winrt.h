@@ -1001,21 +1001,34 @@ namespace wil
 #pragma endregion
 
 #if defined(__WI_HAS_STD_VECTOR)
+    /** Converts WinRT vectors to std::vector by requesting the collection's
+    data in chunks. This can be more efficient in terms of IPC cost than
+    iteratively processing the collection.
+    ~~~
+    ComPtr<IVector<IPropertyValue*>> values = GetValues();
+    std::vector<ComPtr<IPropertyValue>> allData = wil::to_vector(values);
+    for (ComPtr<IPropertyValue> const& item : allData)
+    {
+        // use item
+    }
+    Can be used for ABI::Windows::Foundation::Collections::IVector<T> and
+    ABI::Windows::Foundation::Collections::IVectorView<T>
+    */
     template<typename VectorType> auto to_vector(VectorType* src)
     {
         using TResult = typename details::MapVectorResultType<VectorType>::type;
         using TSmart = typename details::MapToSmartType<TResult>::type;
+        static_assert(sizeof(TResult) == sizeof(TSmart), "result and smart sizes are different");
         std::vector<TSmart> output;
-        UINT32 chunkSize = 64;
+        const UINT32 chunkSize = 64;
         while (true)
         {
+            TSmart nextChunk[chunkSize]{};
             UINT32 fetched = 0;
-            UINT32 offset = static_cast<UINT32>(output.size());
-            output.resize(output.size() + chunkSize);
-            THROW_IF_FAILED(src->GetMany(offset, chunkSize, reinterpret_cast<TResult*>(output.data() + offset), &fetched));
+            THROW_IF_FAILED(src->GetMany(static_cast<UINT32>(output.size()), chunkSize, reinterpret_cast<TResult*>(nextChunk), &fetched));
+            output.insert(output.end(), std::make_move_iterator(std::begin(nextChunk)), std::make_move_iterator(std::begin(nextChunk) + fetched));
             if (fetched < chunkSize)
             {
-                output.resize(offset + fetched);
                 break;
             }
         }

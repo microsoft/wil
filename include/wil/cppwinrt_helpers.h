@@ -212,12 +212,14 @@ namespace wil::details
     };
 }
 #endif // __WIL_CPPWINRT_MICROSOFT_UI_DISPATCHING_HELPERS
+/// @endcond
 
 #if defined(WINRT_Windows_Foundation_Collections_H) && !defined(__WIL_CPPWINRT_WINDOWS_FOUNDATION_COLLECTION_HELPERS)
 #define __WIL_CPPWINRT_WINDOWS_FOUNDATION_COLLECTION_HELPERS
 
 namespace wil
 {
+    /// @cond
     namespace details
     {
         template<typename TData, typename TSrc> std::vector<TData> to_vector_impl(TSrc&& fetcher)
@@ -226,12 +228,11 @@ namespace wil
             const uint32_t chunkSize = 64;
             while (true)
             {
-                uint32_t offset = output.size();
-                output.resize(output.size() + chunkSize, winrt::impl::empty_value<TData>());
-                auto fetched = fetcher(offset, winrt::array_view<TData>{ output.data() + offset, output.data() + output.size() });
+                TData nextChunk[chunkSize]{ winrt::impl::empty_value<TData>() };
+                auto fetched = fetcher(static_cast<uint32_t>(output.size()), nextChunk);
+                output.insert(output.end(), std::make_move_iterator(std::begin(nextChunk)), std::make_move_iterator(std::begin(nextChunk) + fetched));
                 if (fetched < chunkSize)
                 {
-                    output.resize(offset + fetched);
                     break;
                 }
             }
@@ -244,7 +245,22 @@ namespace wil
         template<typename T> struct is_iterator : std::bool_constant<false> {};
         template<typename Q> struct is_iterator<winrt::Windows::Foundation::Collections::IIterator<Q>> : std::bool_constant<true> {};
     }
+    /// @endcond
 
+    /** Converts C++ / WinRT vectors, iterators, and iterables to std::vector by requesting
+    the collection's data in chunks. This can be more efficient in terms of IPC cost than
+    iteratively processing the collection.
+    ~~~
+    winrt::IVector<winrt::hstring> collection = GetCollection();
+    std::vector<winrt::hstring> allData = wil::to_vector(collection); // read all data from collection
+    for (winrt::hstring const& item : allData)
+    {
+        // use item
+    }
+    ~~~
+    Can be used for IVector<T>, IVectorView<T>, IIterable<T>, IIterator<T>, and any type or
+    interface that C++/WinRT projects those interfaces for (PropertySet, IMap<T,K>, etc.)
+    */ 
     template<typename TSrc> auto to_vector(TSrc const& src)
     {
         if constexpr (details::is_vector<TSrc>())
@@ -264,4 +280,3 @@ namespace wil
 
 #endif
 
-/// @endcond
