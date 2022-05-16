@@ -59,7 +59,6 @@ TEST_CASE("CppWinRTTests::VectorToVector", "[cppwinrt]")
         REQUIRE(wil::to_vector(sv) == src_vector);
         REQUIRE(wil::to_vector(sv.GetView()) == src_vector);
         REQUIRE(wil::to_vector(sv.First()) == src_vector);
-        REQUIRE(wil::to_vector(sv.First()) == src_vector);
         REQUIRE(wil::to_vector(sv.as<winrt::Windows::Foundation::Collections::IIterable<uint32_t>>()) == src_vector);
     }
     {
@@ -75,7 +74,29 @@ TEST_CASE("CppWinRTTests::VectorToVector", "[cppwinrt]")
         auto sm = winrt::single_threaded_map(copy_thing(src_map));
         CheckMapVector(wil::to_vector(sm), src_map);
         CheckMapVector(wil::to_vector(sm.GetView()), src_map);
-        CheckMapVector(wil::to_vector(sm), src_map);
+        CheckMapVector(wil::to_vector(sm.First()), src_map);
+    }
+    {
+        winrt::Windows::Foundation::Collections::PropertySet props;
+        props.Insert(L"kitten", winrt::box_value(L"fluffy"));
+        props.Insert(L"puppy", winrt::box_value<uint32_t>(25));
+        auto converted = wil::to_vector(props);
+        REQUIRE(converted.size() == props.Size());
+        for (auto&& kv : converted)
+        {
+            if (kv.Key() == L"kitten")
+            {
+                REQUIRE(kv.Value().as<winrt::hstring>() == L"fluffy");
+            }
+            else if (kv.Key() == L"puppy")
+            {
+                REQUIRE(kv.Value().as<uint32_t>() == 25);
+            }
+            else
+            {
+                REQUIRE(false);
+            }
+        }
     }
 }
 
