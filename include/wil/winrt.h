@@ -1020,17 +1020,15 @@ namespace wil
         using TSmart = typename details::MapToSmartType<TResult>::type;
         static_assert(sizeof(TResult) == sizeof(TSmart), "result and smart sizes are different");
         std::vector<TSmart> output;
-        const UINT32 chunkSize = 64;
-        while (true)
+        UINT32 expected = 0;
+        THROW_IF_FAILED(src->get_Size(&expected));
+        if (expected > 0)
         {
-            TSmart nextChunk[chunkSize]{};
+            output.resize(expected + 1);
             UINT32 fetched = 0;
-            THROW_IF_FAILED(src->GetMany(static_cast<UINT32>(output.size()), chunkSize, reinterpret_cast<TResult*>(nextChunk), &fetched));
-            output.insert(output.end(), std::make_move_iterator(std::begin(nextChunk)), std::make_move_iterator(std::begin(nextChunk) + fetched));
-            if (fetched < chunkSize)
-            {
-                break;
-            }
+            THROW_IF_FAILED(src->GetMany(0, static_cast<UINT32>(output.size()), reinterpret_cast<TResult*>(output.data()), &fetched));
+            THROW_HR_IF(E_CHANGED_STATE, fetched > expected);
+            output.resize(fetched);
         }
         return output;
     }
