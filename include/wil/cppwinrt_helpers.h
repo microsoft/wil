@@ -216,34 +216,27 @@ namespace wil::details
 
 #if defined(WINRT_Windows_Foundation_Collections_H) && !defined(__WIL_CPPWINRT_WINDOWS_FOUNDATION_COLLECTION_HELPERS)
 #define __WIL_CPPWINRT_WINDOWS_FOUNDATION_COLLECTION_HELPERS
-
 namespace wil
 {
     /// @cond
     namespace details
     {
-        template<typename TData, typename TSrc> std::vector<TData> to_vector_impl(TSrc&& fetcher)
-        {
-            std::vector<TData> output;
-            const uint32_t chunkSize = 64;
-            while (true)
-            {
-                TData nextChunk[chunkSize]{ winrt::impl::empty_value<TData>() };
-                auto fetched = fetcher(static_cast<uint32_t>(output.size()), nextChunk);
-                output.insert(output.end(), std::make_move_iterator(std::begin(nextChunk)), std::make_move_iterator(std::begin(nextChunk) + fetched));
-                if (fetched < chunkSize)
-                {
-                    break;
-                }
-            }
-            return output;
-        }
-
         template<typename T> struct is_vector : std::bool_constant<false> {};
         template<typename Q> struct is_vector<winrt::Windows::Foundation::Collections::IVector<Q>> : std::bool_constant<true> {};
         template<typename Q> struct is_vector<winrt::Windows::Foundation::Collections::IVectorView<Q>> : std::bool_constant<true> {};
         template<typename T> struct is_iterator : std::bool_constant<false> {};
         template<typename Q> struct is_iterator<winrt::Windows::Foundation::Collections::IIterator<Q>> : std::bool_constant<true> {};
+        template<typename T> constexpr T empty() noexcept
+        {
+            if constexpr (std::is_base_of_v<winrt::Windows::Foundation::IUnknown, T>)
+            {
+                return nullptr;
+            }
+            else
+            {
+                return {};
+            }
+        }
     }
     /// @endcond
 
@@ -265,11 +258,37 @@ namespace wil
     {
         if constexpr (details::is_vector<TSrc>())
         {
-            return details::to_vector_impl<decltype(src.GetAt(0))>([&src](uint32_t offset, auto&&... a) { return src.GetMany(offset, a...); });
+            using T = decltype(src.GetAt(0));
+            std::vector<T> result;
+            if (auto expected = src.Size())
+            {
+                result.resize(expected + 1, details::empty<T>());
+                auto actual = src.GetMany(0, result);
+                if (expected > actual)
+                {
+                    throw winrt::hresult_changed_state();
+                }
+                result.resize(actual);
+            }
+            return result;
         }
         else if constexpr (details::is_iterator<TSrc>())
         {
-            return details::to_vector_impl<decltype(src.Current())>([&src](uint32_t, auto&&... a) { return src.GetMany(a...); });
+            using T = decltype(src.Current());
+            std::vector<T> result;
+            const uint32_t chunkSize = 5;
+            while (true)
+            {
+                auto const lastSize = result.size();
+                result.resize(lastSize + chunkSize, details::empty<T>());
+                auto fetched = src.GetMany({result.data() + lastSize, result.data() + lastSize + chunkSize });
+                if (fetched < chunkSize)
+                {
+                    result.resize(lastSize + fetched);
+                    break;
+                }
+            }
+            return result;
         }
         else
         {
@@ -277,6 +296,4 @@ namespace wil
         }
     }
 }
-
 #endif
-
