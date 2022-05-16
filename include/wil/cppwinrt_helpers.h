@@ -276,7 +276,7 @@ namespace wil
         {
             using T = decltype(src.Current());
             std::vector<T> result;
-            const uint32_t chunkSize = 5;
+            const uint32_t chunkSize = 64;
             while (true)
             {
                 auto const lastSize = result.size();
