@@ -1,6 +1,7 @@
 
 #include <wil/cppwinrt.h>
 #include <winrt/Windows.Foundation.h>
+#include <winrt/Windows.Foundation.Collections.h>
 #include <wil/cppwinrt_helpers.h>
 #include <winrt/Windows.System.h>
 #include <wil/cppwinrt_helpers.h> // Verify can include a second time to unlock more features
@@ -25,6 +26,79 @@ static const HRESULT cppwinrt_mapped_hresults[] =
     HRESULT_FROM_WIN32(ERROR_CANCELLED),
     E_OUTOFMEMORY,
 };
+
+template<typename T> auto copy_thing(T const& src)
+{
+    return std::decay_t<T>(src);
+}
+
+template<typename T, typename K> 
+void CheckMapVector(std::vector<winrt::Windows::Foundation::Collections::IKeyValuePair<T, K>> const& test, std::map<T, K> const& src)
+{
+    REQUIRE(test.size() == src.size());
+    for (auto&& i : test)
+    {
+        REQUIRE(i.Value() == src.at(i.Key()));
+    }
+}
+
+TEST_CASE("CppWinRTTests::VectorToVector", "[cppwinrt]")
+{
+    {
+        std::vector<winrt::hstring> src_vector = { L"foo", L"bar", L"bas" };
+        auto sv = winrt::single_threaded_vector(copy_thing(src_vector));
+        REQUIRE(wil::to_vector(sv) == src_vector);
+        REQUIRE(wil::to_vector(sv.GetView()) == src_vector);
+        REQUIRE(wil::to_vector(sv.First()) == src_vector);
+        REQUIRE(wil::to_vector(sv.First()) == src_vector);
+        REQUIRE(wil::to_vector(sv.as<winrt::Windows::Foundation::Collections::IIterable<winrt::hstring>>()) == src_vector);
+    }
+    {
+        std::vector<uint32_t> src_vector = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 };
+        auto sv = winrt::single_threaded_vector(copy_thing(src_vector));
+        REQUIRE(wil::to_vector(sv) == src_vector);
+        REQUIRE(wil::to_vector(sv.GetView()) == src_vector);
+        REQUIRE(wil::to_vector(sv.First()) == src_vector);
+        REQUIRE(wil::to_vector(sv.as<winrt::Windows::Foundation::Collections::IIterable<uint32_t>>()) == src_vector);
+    }
+    {
+        std::vector<float> src_vector;
+        auto sv = winrt::single_threaded_vector(copy_thing(src_vector));
+        REQUIRE(wil::to_vector(sv) == src_vector);
+        REQUIRE(wil::to_vector(sv.GetView()) == src_vector);
+        REQUIRE(wil::to_vector(sv.First()) == src_vector);
+        REQUIRE(wil::to_vector(sv.as<winrt::Windows::Foundation::Collections::IIterable<float>>()) == src_vector);
+    }
+    {
+        std::map<winrt::hstring, winrt::hstring> src_map{{L"kittens", L"fluffy"}, {L"puppies", L"cute"}};
+        auto sm = winrt::single_threaded_map(copy_thing(src_map));
+        CheckMapVector(wil::to_vector(sm), src_map);
+        CheckMapVector(wil::to_vector(sm.GetView()), src_map);
+        CheckMapVector(wil::to_vector(sm.First()), src_map);
+    }
+    {
+        winrt::Windows::Foundation::Collections::PropertySet props;
+        props.Insert(L"kitten", winrt::box_value(L"fluffy"));
+        props.Insert(L"puppy", winrt::box_value<uint32_t>(25));
+        auto converted = wil::to_vector(props);
+        REQUIRE(converted.size() == props.Size());
+        for (auto&& kv : converted)
+        {
+            if (kv.Key() == L"kitten")
+            {
+                REQUIRE(kv.Value().as<winrt::hstring>() == L"fluffy");
+            }
+            else if (kv.Key() == L"puppy")
+            {
+                REQUIRE(kv.Value().as<uint32_t>() == 25);
+            }
+            else
+            {
+                REQUIRE(false);
+            }
+        }
+    }
+}
 
 TEST_CASE("CppWinRTTests::WilToCppWinRTExceptionTranslationTest", "[cppwinrt]")
 {
