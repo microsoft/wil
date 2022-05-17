@@ -1001,9 +1001,8 @@ namespace wil
 #pragma endregion
 
 #if defined(__WI_HAS_STD_VECTOR)
-    /** Converts WinRT vectors to std::vector by requesting the collection's
-    data in chunks. This can be more efficient in terms of IPC cost than
-    iteratively processing the collection.
+    /** Converts WinRT vectors to std::vector by requesting the collection's data in a single
+    operation. This can be more efficient in terms of IPC cost than iteratively processing it.
     ~~~
     ComPtr<IVector<IPropertyValue*>> values = GetValues();
     std::vector<ComPtr<IPropertyValue>> allData = wil::to_vector(values);

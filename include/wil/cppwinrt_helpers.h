@@ -240,8 +240,8 @@ namespace wil
     }
     /// @endcond
 
-    /** Converts C++ / WinRT vectors, iterators, and iterables to std::vector by requesting
-    the collection's data in chunks. This can be more efficient in terms of IPC cost than
+    /** Converts C++ / WinRT vectors, iterators, and iterables to std::vector by requesting the
+    collection's data a single request. This can be more efficient in terms of IPC cost than
     iteratively processing the collection.
     ~~~
     winrt::IVector<winrt::hstring> collection = GetCollection();
@@ -253,6 +253,8 @@ namespace wil
     ~~~
     Can be used for IVector<T>, IVectorView<T>, IIterable<T>, IIterator<T>, and any type or
     interface that C++/WinRT projects those interfaces for (PropertySet, IMap<T,K>, etc.)
+    Iterable-only types fetch content in units of 64. When used with an iterator, the returned
+    vector contains the iterator's current position and any others after it.
     */ 
     template<typename TSrc> auto to_vector(TSrc const& src)
     {
