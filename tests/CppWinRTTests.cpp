@@ -42,8 +42,52 @@ void CheckMapVector(std::vector<winrt::Windows::Foundation::Collections::IKeyVal
     }
 }
 
+struct vector_like
+{
+    uint32_t Size() const { return 100; }
+    int GetAt(uint32_t) const { return 15; }
+    uint32_t GetMany(uint32_t start, winrt::array_view<int> items) const
+    { 
+        if (start > 0) throw winrt::hresult_out_of_bounds(); 
+        std::fill_n(items.begin(), (std::min)(items.size(), Size()), GetAt(0));
+        return Size();
+    }
+};
+
+struct iterator_like
+{
+    static const uint32_t total = 20;
+    mutable uint32_t remaining = total;
+    int Current() const { return 3; }
+    uint32_t GetMany(winrt::array_view<int> items) const
+    {
+        auto to_copy = (std::min)(items.size(), remaining);
+        std::fill_n(items.begin(), to_copy, Current());
+        remaining -= to_copy;
+        return to_copy;
+    }
+};
+
+
+struct iterable_like
+{
+    auto First() const { return iterator_like{}; }
+};
+
+struct unstable_vector : winrt::implements<unstable_vector, winrt::Windows::Foundation::Collections::IVectorView<int>>
+{
+    auto Size() { return 4; }
+    int GetAt(uint32_t) { return 7; }
+    uint32_t GetMany(uint32_t, winrt::array_view<int> items) { 
+        std::fill(items.begin(), items.end(), 7);
+        return items.size();
+    }
+    bool IndexOf(int, uint32_t) { throw winrt::hresult_not_implemented(); }
+};
+
 TEST_CASE("CppWinRTTests::VectorToVector", "[cppwinrt]")
 {
+    winrt::init_apartment();
     {
         std::vector<winrt::hstring> src_vector = { L"foo", L"bar", L"bas" };
         auto sv = winrt::single_threaded_vector(copy_thing(src_vector));
@@ -98,6 +142,16 @@ TEST_CASE("CppWinRTTests::VectorToVector", "[cppwinrt]")
             }
         }
     }
+    
+    REQUIRE_THROWS(wil::to_vector(winrt::make<unstable_vector>()));
+
+    auto ilike = wil::to_vector(iterable_like{});
+    REQUIRE(ilike.size() == iterator_like::total);
+    for (auto&& i : ilike) REQUIRE(i == iterator_like{}.Current());
+
+    auto vlike = wil::to_vector(vector_like{});
+    REQUIRE(vlike.size() == vector_like{}.Size());
+    for (auto&& i : vlike) REQUIRE(i == vector_like{}.GetAt(0));    
 }
 
 TEST_CASE("CppWinRTTests::WilToCppWinRTExceptionTranslationTest", "[cppwinrt]")
