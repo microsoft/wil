@@ -152,6 +152,9 @@ TEST_CASE("CppWinRTTests::VectorToVector", "[cppwinrt]")
     auto vlike = wil::to_vector(vector_like{});
     REQUIRE(vlike.size() == vector_like{}.Size());
     for (auto&& i : vlike) REQUIRE(i == vector_like{}.GetAt(0));    
+
+    winrt::clear_factory_cache();
+    winrt::uninit_apartment();
 }
 
 TEST_CASE("CppWinRTTests::WilToCppWinRTExceptionTranslationTest", "[cppwinrt]")
