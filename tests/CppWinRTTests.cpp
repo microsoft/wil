@@ -46,11 +46,16 @@ struct vector_like
 {
     uint32_t Size() const { return 100; }
     int GetAt(uint32_t) const { return 15; }
+
     uint32_t GetMany(uint32_t start, winrt::array_view<int> items) const
     { 
-        if (start > 0) throw winrt::hresult_out_of_bounds(); 
-        std::fill_n(items.begin(), (std::min)(items.size(), Size()), GetAt(0));
-        return Size();
+        if (start > 0)
+        {
+            throw winrt::hresult_out_of_bounds(); 
+        }
+        uint32_t const to_fill = (std::min)(items.size(), Size());
+        std::fill_n(items.begin(), to_fill, GetAt(0));
+        return to_fill;
     }
 };
 
@@ -59,6 +64,7 @@ struct iterator_like
     static const uint32_t total = 20;
     mutable uint32_t remaining = total;
     int Current() const { return 3; }
+
     uint32_t GetMany(winrt::array_view<int> items) const
     {
         auto to_copy = (std::min)(items.size(), remaining);
@@ -78,10 +84,13 @@ struct unstable_vector : winrt::implements<unstable_vector, winrt::Windows::Foun
 {
     auto Size() { return 4; }
     int GetAt(uint32_t) { return 7; }
-    uint32_t GetMany(uint32_t, winrt::array_view<int> items) { 
-        std::fill(items.begin(), items.end(), 7);
+
+    uint32_t GetMany(uint32_t, winrt::array_view<int> items) 
+    { 
+        std::fill(items.begin(), items.end(), GetAt(0));
         return items.size();
     }
+
     bool IndexOf(int, uint32_t) { throw winrt::hresult_not_implemented(); }
 };
 
