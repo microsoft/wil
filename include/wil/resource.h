@@ -105,6 +105,7 @@ namespace wil
             typedef typename policy::pointer pointer;
             typedef unique_storage<policy> base_storage;
 
+        public:
             unique_storage() WI_NOEXCEPT :
             m_ptr(policy::invalid_value())
             {
@@ -129,13 +130,6 @@ namespace wil
                 }
             }
 
-            void replace(unique_storage &&other) WI_NOEXCEPT
-            {
-                reset(other.m_ptr);
-                other.m_ptr = policy::invalid_value();
-            }
-
-        public:
             bool is_valid() const WI_NOEXCEPT
             {
                 return policy::is_valid(m_ptr);
@@ -175,6 +169,13 @@ namespace wil
                 return &m_ptr;
             }
 
+        protected:
+            void replace(unique_storage &&other) WI_NOEXCEPT
+            {
+                reset(other.m_ptr);
+                other.m_ptr = policy::invalid_value();
+            }
+
         private:
             pointer_storage m_ptr;
         };
@@ -204,7 +205,8 @@ namespace wil
 
         // forwarding constructor: forwards all 'explicit' and multi-arg constructors to the base class
         template <typename arg1, typename... args_t>
-        explicit unique_any_t(arg1 && first, args_t&&... args) :  // should not be WI_NOEXCEPT (may forward to a throwing constructor)
+        explicit unique_any_t(arg1 && first, args_t&&... args)
+            __WI_NOEXCEPT_((wistd::is_nothrow_constructible_v<storage_t, arg1, args_t...>)) :
             storage_t(wistd::forward<arg1>(first), wistd::forward<args_t>(args)...)
         {
             static_assert(wistd::is_same<typename policy::pointer_access, details::pointer_access_none>::value ||
@@ -1815,6 +1817,7 @@ namespace wil {
             typedef typename policy::pointer pointer;
             typedef shared_storage<unique_t> base_storage;
 
+        public:
             shared_storage() = default;
 
             explicit shared_storage(pointer_storage ptr)
@@ -1854,12 +1857,6 @@ namespace wil {
             {
             }
 
-            void replace(shared_storage &&other) WI_NOEXCEPT
-            {
-                m_ptr = wistd::move(other.m_ptr);
-            }
-
-        public:
             bool is_valid() const WI_NOEXCEPT
             {
                 return (m_ptr && m_ptr->is_valid());
@@ -1909,6 +1906,12 @@ namespace wil {
                 return m_ptr.use_count();
             }
 
+        protected:
+            void replace(shared_storage &&other) WI_NOEXCEPT
+            {
+                m_ptr = wistd::move(other.m_ptr);
+            }
+
         private:
             template <typename storage_t>
             friend class ::wil::weak_any;
@@ -1933,7 +1936,8 @@ namespace wil {
 
         // default and forwarding constructor: forwards default, all 'explicit' and multi-arg constructors to the base class
         template <typename... args_t>
-        explicit shared_any_t(args_t&&... args) :  // should not be WI_NOEXCEPT (may forward to a throwing constructor)
+        explicit shared_any_t(args_t&&... args)
+            __WI_NOEXCEPT_((wistd::is_nothrow_constructible_v<storage_t, args_t...>)) :
             storage_t(wistd::forward<args_t>(args)...)
         {
         }
