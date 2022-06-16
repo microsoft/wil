@@ -276,6 +276,40 @@ void UniqueProcessInfo()
 }
 #endif
 
+// Compilation only test...
+#ifdef WIL_ENABLE_EXCEPTIONS
+void NoexceptConstructibleTest()
+{
+    using BaseStorage = wil::details::unique_storage<wil::details::handle_resource_policy>;
+
+    struct ThrowingConstructor : BaseStorage
+    {
+        ThrowingConstructor() = default;
+        explicit ThrowingConstructor(HANDLE) __WI_NOEXCEPT_(false) {}
+    };
+
+    struct ProtectedConstructor : BaseStorage
+    {
+    protected:
+        ProtectedConstructor() = default;
+        explicit ProtectedConstructor(HANDLE) WI_NOEXCEPT {}
+    };
+
+    // wil::unique_handle is one of the many types which are expected to be noexcept
+    // constructible since they don't perform any "advanced" initialization.
+    static_assert(wistd::is_nothrow_default_constructible_v<wil::unique_handle>, "wil::unique_any_t should always be nothrow default constructible");
+    static_assert(wistd::is_nothrow_constructible_v<wil::unique_handle, HANDLE>, "wil::unique_any_t should be noexcept if the storage is");
+
+    // The inverse: A throwing storage constructor.
+    static_assert(wistd::is_nothrow_default_constructible_v<wil::unique_any_t<ThrowingConstructor>>, "wil::unique_any_t should always be nothrow default constructible");
+    static_assert(!wistd::is_nothrow_constructible_v<wil::unique_any_t<ThrowingConstructor>, HANDLE>, "wil::unique_any_t shouldn't be noexcept if the storage isn't");
+
+    // With a protected constructor wil::unique_any_t will be unable to correctly
+    // "forward" the noexcept attribute, but the code should still compile.
+    wil::unique_any_t<ProtectedConstructor> p{ INVALID_HANDLE_VALUE };
+}
+#endif
+
 struct FakeComInterface
 {
     void AddRef()
@@ -821,7 +855,7 @@ TEST_CASE("ComTokenDirectCloser", "[resource]")
 
 TEST_CASE("UniqueCloseClipboardCall", "[resource]")
 {
-#if defined(__WIL__WINUSER_) && !defined(NOCLIPBOARD)    
+#if defined(__WIL__WINUSER_) && !defined(NOCLIPBOARD)
     if (auto clip = wil::open_clipboard(nullptr))
     {
         REQUIRE(::EmptyClipboard());
