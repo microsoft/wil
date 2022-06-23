@@ -2361,7 +2361,7 @@ namespace wil
         // Non-RTL implementation for threadpool_t parameter of DestroyThreadPoolTimer<>
         struct SystemThreadPoolMethods
         {
-            static void WINAPI SetThreadpoolTimer(_Inout_ PTP_TIMER Timer, _In_opt_ PFILETIME DueTime, _In_ DWORD Period, _In_opt_ DWORD WindowLength) WI_NOEXCEPT
+            static void WINAPI SetThreadpoolTimer(_Inout_ PTP_TIMER Timer, _In_opt_ PFILETIME DueTime, _In_ DWORD Period, _In_ DWORD WindowLength) WI_NOEXCEPT
             {
                 ::SetThreadpoolTimer(Timer, DueTime, Period, WindowLength);
             }
