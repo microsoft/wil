@@ -21,7 +21,9 @@
 #include <processthreadsapi.h>
 
 // for GetUserNameEx()
+#ifndef SECURITY_WIN32
 #define SECURITY_WIN32
+#endif
 #include <Security.h>
 
 namespace wil
