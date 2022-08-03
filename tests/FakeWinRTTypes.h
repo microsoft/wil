@@ -207,7 +207,7 @@ private:
     WinRTStorage<Abi> m_storage;
 };
 
-template <typename Logical, typename Abi = Logical, size_t MaxSize = 42>
+template <typename Logical, typename Abi = Logical, size_t MaxSize = 250>
 struct FakeVector : Microsoft::WRL::RuntimeClass<
     ABI::Windows::Foundation::Collections::IVector<Logical>,
     ABI::Windows::Foundation::Collections::IVectorView<Logical>>

@@ -47,6 +47,17 @@ TEST_CASE("StlTests::TestSecureAllocator", "[stl][secure_allocator]")
 }
 
 #if __WI_LIBCPP_STD_VER >= 17
+
+struct CustomNoncopyableString
+{
+    CustomNoncopyableString() = default;
+    CustomNoncopyableString(const CustomNoncopyableString&) = delete;
+    void operator=(const CustomNoncopyableString&) = delete;
+
+    constexpr operator PCSTR() const { return "hello"; }
+    constexpr operator PCWSTR() const { return L"w-hello"; }
+};
+
 TEST_CASE("StlTests::TestZStringView", "[stl][zstring_view]")
 {
     // Test empty cases
@@ -95,6 +106,11 @@ TEST_CASE("StlTests::TestZStringView", "[stl][zstring_view]")
     static constexpr char badCharArray[2][3] = {{'a', 'b', 'c' }, {'a', 'b', 'c' }};
     REQUIRE_CRASH((wil::zstring_view{ &badCharArray[0][0], _countof(badCharArray[0]) }));
     REQUIRE_CRASH((wil::zstring_view{ badCharArray[0] }));
+
+    // Test constructing from custom string type
+    CustomNoncopyableString customString;
+    wil::zstring_view fromCustomString(customString);
+    REQUIRE(fromCustomString == (PCSTR)customString);
 }
 
 TEST_CASE("StlTests::TestZWStringView", "[stl][zstring_view]")
@@ -145,5 +161,10 @@ TEST_CASE("StlTests::TestZWStringView", "[stl][zstring_view]")
     static constexpr wchar_t badCharArray[2][3] = {{ L'a', L'b', L'c' }, { L'a', L'b', L'c' } };
     REQUIRE_CRASH((wil::zwstring_view{ &badCharArray[0][0], _countof(badCharArray[0]) }));
     REQUIRE_CRASH((wil::zwstring_view{ badCharArray[0] }));
+
+    // Test constructing from custom string type
+    CustomNoncopyableString customString;
+    wil::zwstring_view fromCustomString(customString);
+    REQUIRE(fromCustomString == (PCWSTR)customString);
 }
 #endif

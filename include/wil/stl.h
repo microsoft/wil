@@ -16,6 +16,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <utility>
 #if _HAS_CXX17
 #include <string_view>
 #endif
@@ -151,8 +152,8 @@ namespace wil
         // we disable this constructor if the value is an array (including string literal).
         template<typename TPtr, std::enable_if_t<
             std::is_convertible<TPtr, const TChar*>::value && !std::is_array<TPtr>::value>* = nullptr>
-        constexpr basic_zstring_view(const TPtr pStr) noexcept
-            : std::basic_string_view<TChar>(pStr) {}
+        constexpr basic_zstring_view(TPtr&& pStr) noexcept
+            : std::basic_string_view<TChar>(std::forward<TPtr>(pStr)) {}
 
         constexpr basic_zstring_view(const std::basic_string<TChar>& str) noexcept
             : std::basic_string_view<TChar>(&str[0], str.size()) {}

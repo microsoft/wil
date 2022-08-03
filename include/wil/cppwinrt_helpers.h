@@ -212,5 +212,90 @@ namespace wil::details
     };
 }
 #endif // __WIL_CPPWINRT_MICROSOFT_UI_DISPATCHING_HELPERS
-
 /// @endcond
+
+#if defined(WINRT_Windows_Foundation_Collections_H) && !defined(__WIL_CPPWINRT_WINDOWS_FOUNDATION_COLLECTION_HELPERS)
+#define __WIL_CPPWINRT_WINDOWS_FOUNDATION_COLLECTION_HELPERS
+namespace wil
+{
+    /// @cond
+    namespace details
+    {
+        template<typename T> struct is_vector : std::bool_constant<false> {};
+        template<typename Q> struct is_vector<winrt::Windows::Foundation::Collections::IVector<Q>> : std::bool_constant<true> {};
+        template<typename Q> struct is_vector<winrt::Windows::Foundation::Collections::IVectorView<Q>> : std::bool_constant<true> {};
+        template<typename T> struct is_iterator : std::bool_constant<false> {};
+        template<typename Q> struct is_iterator<winrt::Windows::Foundation::Collections::IIterator<Q>> : std::bool_constant<true> {};
+        template<typename T> constexpr T empty() noexcept
+        {
+            if constexpr (std::is_base_of_v<winrt::Windows::Foundation::IUnknown, T>)
+            {
+                return nullptr;
+            }
+            else
+            {
+                return {};
+            }
+        }
+    }
+    /// @endcond
+
+    /** Converts C++ / WinRT vectors, iterators, and iterables to std::vector by requesting the
+    collection's data a single request. This can be more efficient in terms of IPC cost than
+    iteratively processing the collection.
+    ~~~
+    winrt::IVector<winrt::hstring> collection = GetCollection();
+    std::vector<winrt::hstring> allData = wil::to_vector(collection); // read all data from collection
+    for (winrt::hstring const& item : allData)
+    {
+        // use item
+    }
+    ~~~
+    Can be used for IVector<T>, IVectorView<T>, IIterable<T>, IIterator<T>, and any type or
+    interface that C++/WinRT projects those interfaces for (PropertySet, IMap<T,K>, etc.)
+    Iterable-only types fetch content in units of 64. When used with an iterator, the returned
+    vector contains the iterator's current position and any others after it.
+    */ 
+    template<typename TSrc> auto to_vector(TSrc const& src)
+    {
+        if constexpr (details::is_vector<TSrc>())
+        {
+            using T = decltype(src.GetAt(0));
+            std::vector<T> result;
+            if (auto expected = src.Size())
+            {
+                result.resize(expected + 1, details::empty<T>());
+                auto actual = src.GetMany(0, result);
+                if (expected > actual)
+                {
+                    throw winrt::hresult_changed_state();
+                }
+                result.resize(actual);
+            }
+            return result;
+        }
+        else if constexpr (details::is_iterator<TSrc>())
+        {
+            using T = decltype(src.Current());
+            std::vector<T> result;
+            const uint32_t chunkSize = 64;
+            while (true)
+            {
+                auto const lastSize = result.size();
+                result.resize(lastSize + chunkSize, details::empty<T>());
+                auto fetched = src.GetMany({result.data() + lastSize, result.data() + lastSize + chunkSize });
+                if (fetched < chunkSize)
+                {
+                    result.resize(lastSize + fetched);
+                    break;
+                }
+            }
+            return result;
+        }
+        else
+        {
+            return to_vector(src.First());
+        }
+    }
+}
+#endif

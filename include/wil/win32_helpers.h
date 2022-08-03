@@ -120,7 +120,7 @@ namespace wil
             return timeMsec * filetime_duration::one_millisecond;
         }
 
-#if defined(_APISETREALTIME_)
+#if defined(_APISETREALTIME_) && (_WIN32_WINNT >= _WIN32_WINNT_WIN7)
         /// Returns the current unbiased interrupt-time count, in units of 100 nanoseconds. The unbiased interrupt-time count does not include time the system spends in sleep or hibernation.
         ///
         /// This API avoids prematurely shortcircuiting timing loops due to system sleep/hibernation.
