@@ -32,7 +32,7 @@ template<typename T> auto copy_thing(T const& src)
     return std::decay_t<T>(src);
 }
 
-template<typename T, typename K> 
+template<typename T, typename K>
 void CheckMapVector(std::vector<winrt::Windows::Foundation::Collections::IKeyValuePair<T, K>> const& test, std::map<T, K> const& src)
 {
     REQUIRE(test.size() == src.size());
@@ -256,7 +256,7 @@ TEST_CASE("CppWinRTTests::ModuleReference", "[cppwinrt]")
     REQUIRE(peek_module_ref_count() == initial);
 }
 
-#if (defined(__cpp_lib_coroutine) && (__cpp_lib_coroutine >= 201902L)) || defined(_RESUMABLE_FUNCTIONS_SUPPORTED)
+#if (!defined(__clang__) && defined(__cpp_lib_coroutine) && (__cpp_lib_coroutine >= 201902L)) || defined(_RESUMABLE_FUNCTIONS_SUPPORTED)
 
 // Define our own custom dispatcher that we can force it to behave in certain ways.
 // wil::resume_foreground supports any dispatcher that has a dispatcher_traits.

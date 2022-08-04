@@ -7,10 +7,6 @@ project(witest.cpplatest)
 add_executable(witest.cpplatest)
 
 if (${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
-    # Seems like the coroutine libraries do not yet support Clang, but that's okay since we don't test them. The headers
-    # are pulled in by C++/WinRT
-    target_compile_definitions(witest.cpplatest PRIVATE _SILENCE_CLANG_COROUTINE_MESSAGE)
-
     # Clang is not compatible with the experimental coroutine header, so temporarily disable some headers until full
     # C++20 support is available
     set(COROUTINE_SOURCES)
