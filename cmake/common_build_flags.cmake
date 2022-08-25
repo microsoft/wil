@@ -49,6 +49,9 @@ if (${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
     # results through the following flags.
     append_cxx_flag("-fno-delayed-template-parsing")
 
+    # clang-cl needs this to enable _InterlockedCompareExchange128
+    append_cxx_flag("-mcx16")
+
     # NOTE: Windows headers not clean enough for us to realistically attempt to start fixing these errors yet. That
     # said, errors that originate from WIL headers may benefit
     # append_cxx_flag("-fno-ms-compatibility")
