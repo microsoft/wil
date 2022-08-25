@@ -892,7 +892,7 @@ namespace wil
 
         // Type unsafe version used in the implementation to avoid template bloat.
         inline HRESULT GetFileInfo(HANDLE fileHandle, FILE_INFO_BY_HANDLE_CLASS infoClass, size_t allocationSize,
-            _Outptr_result_nullonfailure_ void **result)
+            _Outptr_result_maybenull_ void **result)
         {
             *result = nullptr;
 
