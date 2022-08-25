@@ -1297,7 +1297,7 @@ namespace wil
 
         // Called to tell Appverifier to ignore a particular allocation from leak tracking
         // If AppVerifier is not enabled, this is a no-op
-        // Desktop/System Only: Automatically setup when building Windows (BUILD_WINDOWS defined)
+        __declspec(selectany) bool g_fetchedRtlDisownModuleHeapAllocation = false;
         __declspec(selectany) NTSTATUS(__stdcall *g_pfnRtlDisownModuleHeapAllocation)(_In_ HANDLE heapHandle, _In_ PVOID address) WI_PFN_NOEXCEPT = nullptr;
 
         // Allocate and disown the allocation so that Appverifier does not complain about a false leak
@@ -1308,6 +1308,16 @@ namespace wil
             if (g_pfnRtlDisownModuleHeapAllocation)
             {
                 (void)g_pfnRtlDisownModuleHeapAllocation(::GetProcessHeap(), allocation);
+            }
+            else if (!g_fetchedRtlDisownModuleHeapAllocation)
+            {
+                g_pfnRtlDisownModuleHeapAllocation = reinterpret_cast<decltype(g_pfnRtlDisownModuleHeapAllocation)>(::GetProcAddress(::GetModuleHandleW(L"ntdll.dll"), "RtlDisownModuleHeapAllocation"));
+                g_fetchedRtlDisownModuleHeapAllocation = true;
+
+                if (g_pfnRtlDisownModuleHeapAllocation)
+                {
+                    (void)g_pfnRtlDisownModuleHeapAllocation(::GetProcessHeap(), allocation);
+                }
             }
 
             return allocation;
