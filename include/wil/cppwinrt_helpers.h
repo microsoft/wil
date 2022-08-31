@@ -221,11 +221,27 @@ namespace wil
     /// @cond
     namespace details
     {
-        template<typename T> struct is_vector : std::bool_constant<false> {};
-        template<typename Q> struct is_vector<winrt::Windows::Foundation::Collections::IVector<Q>> : std::bool_constant<true> {};
-        template<typename Q> struct is_vector<winrt::Windows::Foundation::Collections::IVectorView<Q>> : std::bool_constant<true> {};
-        template<typename T> struct is_iterator : std::bool_constant<false> {};
-        template<typename Q> struct is_iterator<winrt::Windows::Foundation::Collections::IIterator<Q>> : std::bool_constant<true> {};
+        template<typename T> struct is_winrt_vector_like {
+        private:
+            template <typename U,
+                typename = decltype(std::declval<U>().GetMany(std::declval<U>().Size(),
+                    winrt::array_view<decltype(std::declval<U>().GetAt(0))>{}))>
+            static constexpr bool get_value(int) { return true; }
+            template <typename> static constexpr bool get_value(...) { return false; }  
+        public:
+            static constexpr bool value = get_value<T>(0);                                                                                                                         
+        };
+
+        template<typename T> struct is_winrt_iterator_like {
+        private:
+            template <typename U,
+                typename = decltype(std::declval<U>().GetMany(winrt::array_view<decltype(std::declval<U>().Current())>{}))>
+            static constexpr bool get_value(int) { return true; }
+            template <typename> static constexpr bool get_value(...) { return false; }  
+        public:
+            static constexpr bool value = get_value<T>(0);                                                                                                                         
+        };
+
         template<typename T> constexpr T empty() noexcept
         {
             if constexpr (std::is_base_of_v<winrt::Windows::Foundation::IUnknown, T>)
@@ -241,8 +257,8 @@ namespace wil
     /// @endcond
 
     /** Converts C++ / WinRT vectors, iterators, and iterables to std::vector by requesting the
-    collection's data a single request. This can be more efficient in terms of IPC cost than
-    iteratively processing the collection.
+    collection's data in bulk. This can be more efficient in terms of IPC cost than iteratively
+    processing the collection.
     ~~~
     winrt::IVector<winrt::hstring> collection = GetCollection();
     std::vector<winrt::hstring> allData = wil::to_vector(collection); // read all data from collection
@@ -258,7 +274,7 @@ namespace wil
     */ 
     template<typename TSrc> auto to_vector(TSrc const& src)
     {
-        if constexpr (details::is_vector<TSrc>())
+        if constexpr (details::is_winrt_vector_like<TSrc>::value)
         {
             using T = decltype(src.GetAt(0));
             std::vector<T> result;
@@ -266,7 +282,7 @@ namespace wil
             {
                 result.resize(expected + 1, details::empty<T>());
                 auto actual = src.GetMany(0, result);
-                if (expected > actual)
+                if (actual > expected)
                 {
                     throw winrt::hresult_changed_state();
                 }
@@ -274,11 +290,11 @@ namespace wil
             }
             return result;
         }
-        else if constexpr (details::is_iterator<TSrc>())
+        else if constexpr (details::is_winrt_iterator_like<TSrc>::value)
         {
             using T = decltype(src.Current());
             std::vector<T> result;
-            const uint32_t chunkSize = 64;
+            constexpr uint32_t chunkSize = 64;
             while (true)
             {
                 auto const lastSize = result.size();

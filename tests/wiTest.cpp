@@ -1846,10 +1846,13 @@ TEST_CASE("WindowsInternalTests::Locking", "[resource]")
     {
         CRITICAL_SECTION cs;
         ::InitializeCriticalSectionEx(&cs, 0, 0);
-        auto lock = wil::EnterCriticalSection(&cs);
-        REQUIRE(lock);
-        auto tryLock = wil::TryEnterCriticalSection(&cs);
-        REQUIRE(tryLock);
+        {
+            auto lock = wil::EnterCriticalSection(&cs);
+            REQUIRE(lock);
+            auto tryLock = wil::TryEnterCriticalSection(&cs);
+            REQUIRE(tryLock);
+        }
+        ::DeleteCriticalSection(&cs);
     }
     {
         wil::critical_section cs;
