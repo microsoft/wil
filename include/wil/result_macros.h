@@ -1295,28 +1295,28 @@ namespace wil
         // Plugin to call RoFailFastWithErrorContext (WIL use only)
         __declspec(selectany) void(__stdcall* g_pfnFailfastWithContextCallback)(wil::FailureInfo const& failure) WI_PFN_NOEXCEPT = nullptr;
 
-        // Called to tell Appverifier to ignore a particular allocation from leak tracking
-        // If AppVerifier is not enabled, this is a no-op
-        __declspec(selectany) bool g_fetchedRtlDisownModuleHeapAllocation = false;
-        __declspec(selectany) NTSTATUS(__stdcall *g_pfnRtlDisownModuleHeapAllocation)(_In_ HANDLE heapHandle, _In_ PVOID address) WI_PFN_NOEXCEPT = nullptr;
 
         // Allocate and disown the allocation so that Appverifier does not complain about a false leak
-        inline PVOID ProcessHeapAlloc(_In_ DWORD flags, _In_ size_t size)
+        inline PVOID ProcessHeapAlloc(_In_ DWORD flags, _In_ size_t size) WI_PFN_NOEXCEPT
         {
-            PVOID allocation = ::HeapAlloc(::GetProcessHeap(), flags, size);
+            const HANDLE processHeap = ::GetProcessHeap();
+            const PVOID allocation = ::HeapAlloc(processHeap, flags, size);
 
-            if (g_pfnRtlDisownModuleHeapAllocation)
+            static bool fetchedRtlDisownModuleHeapAllocation = false;
+            static NTSTATUS (__stdcall *pfnRtlDisownModuleHeapAllocation)(HANDLE, PVOID) WI_PFN_NOEXCEPT = nullptr;
+
+            if (pfnRtlDisownModuleHeapAllocation)
             {
-                (void)g_pfnRtlDisownModuleHeapAllocation(::GetProcessHeap(), allocation);
+                (void)pfnRtlDisownModuleHeapAllocation(processHeap, allocation);
             }
-            else if (!g_fetchedRtlDisownModuleHeapAllocation)
+            else if (!fetchedRtlDisownModuleHeapAllocation)
             {
-                g_pfnRtlDisownModuleHeapAllocation = reinterpret_cast<decltype(g_pfnRtlDisownModuleHeapAllocation)>(::GetProcAddress(::GetModuleHandleW(L"ntdll.dll"), "RtlDisownModuleHeapAllocation"));
-                g_fetchedRtlDisownModuleHeapAllocation = true;
+                pfnRtlDisownModuleHeapAllocation = reinterpret_cast<decltype(pfnRtlDisownModuleHeapAllocation)>(::GetProcAddress(::GetModuleHandleW(L"ntdll.dll"), "RtlDisownModuleHeapAllocation"));
+                fetchedRtlDisownModuleHeapAllocation = true;
 
-                if (g_pfnRtlDisownModuleHeapAllocation)
+                if (pfnRtlDisownModuleHeapAllocation)
                 {
-                    (void)g_pfnRtlDisownModuleHeapAllocation(::GetProcessHeap(), allocation);
+                    (void)pfnRtlDisownModuleHeapAllocation(processHeap, allocation);
                 }
             }
 
