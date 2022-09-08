@@ -1297,7 +1297,7 @@ namespace wil
 
 
         // Allocate and disown the allocation so that Appverifier does not complain about a false leak
-        inline PVOID ProcessHeapAlloc(_In_ DWORD flags, _In_ size_t size) WI_PFN_NOEXCEPT
+        inline PVOID ProcessHeapAlloc(_In_ DWORD flags, _In_ size_t size) WI_NOEXCEPT
         {
             const HANDLE processHeap = ::GetProcessHeap();
             const PVOID allocation = ::HeapAlloc(processHeap, flags, size);
