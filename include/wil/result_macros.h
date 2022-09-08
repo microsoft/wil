@@ -40,7 +40,7 @@
 //       constructible. Therefore, use 'sizeof' for syntax validation. We don't do this universally for all compilers
 //       since lambdas are not allowed in unevaluated contexts prior to C++20, which does not appear to affect __noop
 #if !defined(_MSC_VER) || defined(__clang__)
-#define __WI_ANALYSIS_ASSUME(_exp)                          ((void)sizeof(_exp)) // Validate syntax on non-debug builds
+#define __WI_ANALYSIS_ASSUME(_exp)                          ((void)sizeof(!(_exp))) // Validate syntax on non-debug builds
 #else
 #define __WI_ANALYSIS_ASSUME(_exp)                          __noop(_exp)
 #endif
