@@ -123,7 +123,84 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 #endif
 /// @endcond
 
-#if defined(__cplusplus) && !defined(__WIL_MIN_KERNEL) && !defined(WIL_KERNEL_MODE)
+#if defined(__cplusplus)
+
+namespace wil
+{
+    //! This type copies the current value of GetLastError at construction and resets the last error
+    //! to that value when it is destroyed.
+    //!
+    //! This is useful in library code that runs during a value's destructor. If the library code could
+    //! inadvertantly change the value of GetLastError (by calling a Win32 API or similar), it should
+    //! instantiate a value of this type before calling the library function in order to preserve the
+    //! GetLastError value the user would expect.
+    //!
+    //! This construct exists to hide kernel mode/user mode differences in wil library code.
+    //!
+    //! Example usage:
+    //!
+    //!     if (!CreateFile(...))
+    //!     {
+    //!         auto lastError = wil::last_error_context();
+    //!         WriteFile(g_hlog, logdata);
+    //!     }
+    //!
+    class last_error_context
+    {
+#ifndef WIL_KERNEL_MODE
+        bool m_dismissed = false;
+        DWORD m_error = 0;
+    public:
+        last_error_context() WI_NOEXCEPT : last_error_context(::GetLastError())
+        {
+        }
+
+        explicit last_error_context(DWORD error) WI_NOEXCEPT :
+            m_error(error)
+        {
+        }
+
+        last_error_context(last_error_context&& other) WI_NOEXCEPT
+        {
+            operator=(wistd::move(other));
+        }
+
+        last_error_context& operator=(last_error_context&& other) WI_NOEXCEPT
+        {
+            m_dismissed = wistd::exchange(other.m_dismissed, true);
+            m_error = other.m_error;
+
+            return *this;
+        }
+
+        ~last_error_context() WI_NOEXCEPT
+        {
+            if (!m_dismissed)
+            {
+                ::SetLastError(m_error);
+            }
+        }
+
+        //! last_error_context doesn't own a concrete resource, so therefore
+        //! it just disarms its destructor and returns void.
+        void release() WI_NOEXCEPT
+        {
+            WI_ASSERT(!m_dismissed);
+            m_dismissed = true;
+        }
+
+        auto value() const WI_NOEXCEPT
+        {
+            return m_error;
+        }
+#else
+    public:
+        void release() WI_NOEXCEPT { }
+#endif // WIL_KERNEL_MODE
+    };
+}
+
+#if !defined(__WIL_MIN_KERNEL) && !defined(WIL_KERNEL_MODE)
 
 #include <strsafe.h>
 #include <intrin.h>     // provides the _ReturnAddress() intrinsic
@@ -2258,78 +2335,6 @@ __WI_POP_WARNINGS
     } // details namespace
     /// @endcond
 
-    //! This type copies the current value of GetLastError at construction and resets the last error
-    //! to that value when it is destroyed.
-    //!
-    //! This is useful in library code that runs during a value's destructor. If the library code could
-    //! inadvertantly change the value of GetLastError (by calling a Win32 API or similar), it should
-    //! instantiate a value of this type before calling the library function in order to preserve the
-    //! GetLastError value the user would expect.
-    //!
-    //! This construct exists to hide kernel mode/user mode differences in wil library code.
-    //!
-    //! Example usage:
-    //!
-    //!     if (!CreateFile(...))
-    //!     {
-    //!         auto lastError = wil::last_error_context();
-    //!         WriteFile(g_hlog, logdata);
-    //!     }
-    //!
-    class last_error_context
-    {
-#ifndef WIL_KERNEL_MODE
-        bool m_dismissed = false;
-        DWORD m_error = 0;
-    public:
-        last_error_context() WI_NOEXCEPT : last_error_context(::GetLastError())
-        {
-        }
-
-        explicit last_error_context(DWORD error) WI_NOEXCEPT :
-            m_error(error)
-        {
-        }
-
-        last_error_context(last_error_context&& other) WI_NOEXCEPT
-        {
-            operator=(wistd::move(other));
-        }
-
-        last_error_context& operator=(last_error_context&& other) WI_NOEXCEPT
-        {
-            m_dismissed = wistd::exchange(other.m_dismissed, true);
-            m_error = other.m_error;
-
-            return *this;
-        }
-
-        ~last_error_context() WI_NOEXCEPT
-        {
-            if (!m_dismissed)
-            {
-                ::SetLastError(m_error);
-            }
-        }
-
-        //! last_error_context doesn't own a concrete resource, so therefore
-        //! it just disarms its destructor and returns void.
-        void release() WI_NOEXCEPT
-        {
-            WI_ASSERT(!m_dismissed);
-            m_dismissed = true;
-        }
-
-        auto value() const WI_NOEXCEPT
-        {
-            return m_error;
-        }
-#else
-    public:
-        void release() WI_NOEXCEPT { }
-#endif // WIL_KERNEL_MODE
-    };
-
     //*****************************************************************************
     // WIL result handling initializers
     //
@@ -4026,7 +4031,7 @@ __WI_SUPPRESS_4127_E
         {
             const last_error_context err { GetLastErrorFail(__R_FN_CALL_FULL) };
             ReportFailure_Base<FailureType::FailFast>(__R_FN_CALL_FULL, ResultStatus::FromResult(__HRESULT_FROM_WIN32(err.value())));
-            RESULT_NORETURN_RESULT(err);
+            RESULT_NORETURN_RESULT(err.value());
         }
 
         template<>
@@ -4034,7 +4039,7 @@ __WI_SUPPRESS_4127_E
         {
             const last_error_context err { GetLastErrorFail(__R_FN_CALL_FULL) };
             ReportFailure_Base<FailureType::Exception>(__R_FN_CALL_FULL, ResultStatus::FromResult(__HRESULT_FROM_WIN32(err.value())));
-            RESULT_NORETURN_RESULT(err);
+            RESULT_NORETURN_RESULT(err.value());
         }
 
         template<FailureType T>
@@ -4182,7 +4187,7 @@ __WI_SUPPRESS_4127_E
         {
             const last_error_context err { GetLastErrorFail(__R_FN_CALL_FULL) };
             ReportFailure_Msg<FailureType::FailFast>(__R_FN_CALL_FULL, ResultStatus::FromResult(__HRESULT_FROM_WIN32(err.value())), formatString, argList);
-            RESULT_NORETURN_RESULT(err);
+            RESULT_NORETURN_RESULT(err.value());
         }
 
         template<>
@@ -4190,7 +4195,7 @@ __WI_SUPPRESS_4127_E
         {
             const last_error_context err { GetLastErrorFail(__R_FN_CALL_FULL) };
             ReportFailure_Msg<FailureType::Exception>(__R_FN_CALL_FULL, ResultStatus::FromResult(__HRESULT_FROM_WIN32(err.value())), formatString, argList);
-            RESULT_NORETURN_RESULT(err);
+            RESULT_NORETURN_RESULT(err.value());
         }
 
         template<FailureType T>
@@ -6231,5 +6236,6 @@ __WI_SUPPRESS_4127_E
 
 #pragma warning(pop)
 
-#endif // defined(__cplusplus) && !defined(__WIL_MIN_KERNEL) && !defined(WIL_KERNEL_MODE)
+#endif // !defined(__WIL_MIN_KERNEL) && !defined(WIL_KERNEL_MODE)
+#endif // defined(__cplusplus)
 #endif // __WIL_RESULTMACROS_INCLUDED
