@@ -4026,6 +4026,8 @@ __WI_SUPPRESS_4127_E
             return err.value();
         }
 
+        __WI_PUSH_WARNINGS
+        __WI_MSVC_DISABLE_WARNING(4702) // Unreachable code due to 'err.value()' after a 'noreturn' call
         template<>
         __declspec(noinline) inline RESULT_NORETURN DWORD ReportFailure_GetLastError<FailureType::FailFast>(__R_FN_PARAMS_FULL)
         {
@@ -4041,6 +4043,7 @@ __WI_SUPPRESS_4127_E
             ReportFailure_Base<FailureType::Exception>(__R_FN_CALL_FULL, ResultStatus::FromResult(__HRESULT_FROM_WIN32(err.value())));
             RESULT_NORETURN_RESULT(err.value());
         }
+        __WI_POP_WARNINGS
 
         template<FailureType T>
         _Success_(true)
@@ -4182,6 +4185,8 @@ __WI_SUPPRESS_4127_E
             return err.value();
         }
 
+        __WI_PUSH_WARNINGS
+        __WI_MSVC_DISABLE_WARNING(4702) // Unreachable code due to 'err.value()' after a 'noreturn' call
         template<>
         __declspec(noinline) inline RESULT_NORETURN DWORD ReportFailure_GetLastErrorMsg<FailureType::FailFast>(__R_FN_PARAMS_FULL, _Printf_format_string_ PCSTR formatString, va_list argList)
         {
@@ -4197,6 +4202,7 @@ __WI_SUPPRESS_4127_E
             ReportFailure_Msg<FailureType::Exception>(__R_FN_CALL_FULL, ResultStatus::FromResult(__HRESULT_FROM_WIN32(err.value())), formatString, argList);
             RESULT_NORETURN_RESULT(err.value());
         }
+        __WI_POP_WARNINGS
 
         template<FailureType T>
         _Success_(true)
