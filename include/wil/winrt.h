@@ -46,6 +46,12 @@ namespace std
 #pragma warning(pop)
 #endif
 #endif
+#if defined(WIL_ENABLE_EXCEPTIONS) && defined(__has_include)
+#if __has_include(<vector>)
+#define __WI_HAS_STD_VECTOR 1
+#include <vector>
+#endif
+#endif
 /// @endcond
 
 // This enables this code to be used in code that uses the ABI prefix or not.
@@ -993,6 +999,39 @@ namespace wil
         ABI::Windows::Foundation::Collections::IIterable<T>* m_iterable;
     };
 #pragma endregion
+
+#if defined(__WI_HAS_STD_VECTOR)
+    /** Converts WinRT vectors to std::vector by requesting the collection's data in a single
+    operation. This can be more efficient in terms of IPC cost than iteratively processing it.
+    ~~~
+    ComPtr<IVector<IPropertyValue*>> values = GetValues();
+    std::vector<ComPtr<IPropertyValue>> allData = wil::to_vector(values);
+    for (ComPtr<IPropertyValue> const& item : allData)
+    {
+        // use item
+    }
+    Can be used for ABI::Windows::Foundation::Collections::IVector<T> and
+    ABI::Windows::Foundation::Collections::IVectorView<T>
+    */
+    template<typename VectorType> auto to_vector(VectorType* src)
+    {
+        using TResult = typename details::MapVectorResultType<VectorType>::type;
+        using TSmart = typename details::MapToSmartType<TResult>::type;
+        static_assert(sizeof(TResult) == sizeof(TSmart), "result and smart sizes are different");
+        std::vector<TSmart> output;
+        UINT32 expected = 0;
+        THROW_IF_FAILED(src->get_Size(&expected));
+        if (expected > 0)
+        {
+            output.resize(expected + 1);
+            UINT32 fetched = 0;
+            THROW_IF_FAILED(src->GetMany(0, static_cast<UINT32>(output.size()), reinterpret_cast<TResult*>(output.data()), &fetched));
+            THROW_HR_IF(E_CHANGED_STATE, fetched > expected);
+            output.resize(fetched);
+        }
+        return output;
+    }
+#endif
 
 #pragma region error code base IIterable<>
     template <typename T>

@@ -4,6 +4,7 @@
 #ifdef WIL_ENABLE_EXCEPTIONS
 #include <map>
 #include <string>
+#include <vector>
 #endif
 
 // Required for pinterface template specializations that we depend on in this test
@@ -640,7 +641,7 @@ TEST_CASE("WinRTTests::TimeTTests", "[winrt][time_t]")
     REQUIRE(time1.UniversalTime == time2.UniversalTime);
 }
 
-ComPtr<IVector<IInspectable*>> MakeSampleInspectableVector()
+ComPtr<IVector<IInspectable*>> MakeSampleInspectableVector(UINT32 count = 5)
 {
     auto result = Make<FakeVector<IInspectable*>>();
     REQUIRE(result);
@@ -648,7 +649,7 @@ ComPtr<IVector<IInspectable*>> MakeSampleInspectableVector()
     ComPtr<IPropertyValueStatics> propStatics;
     REQUIRE_SUCCEEDED(GetActivationFactory(HStringReference(RuntimeClass_Windows_Foundation_PropertyValue).Get(), &propStatics));
 
-    for (UINT32 i = 0; i < 5; ++i)
+    for (UINT32 i = 0; i < count; ++i)
     {
         ComPtr<IInspectable> myProp;
         REQUIRE_SUCCEEDED(propStatics->CreateUInt32(i, &myProp));
@@ -672,18 +673,45 @@ ComPtr<IVector<HSTRING>> MakeSampleStringVector()
     return result;
 }
 
-ComPtr<IVector<Point>> MakeSamplePointVector()
+ComPtr<IVector<Point>> MakeSamplePointVector(int count = 5)
 {
     auto result = Make<FakeVector<Point>>();
     REQUIRE(result);
 
-    for (int i = 0; i < 5; ++i)
+    for (int i = 0; i < count; ++i)
     {
         auto value = static_cast<float>(i);
         REQUIRE_SUCCEEDED(result->Append(Point{ value, value }));
     }
 
     return result;
+}
+
+template<typename T> auto cast_to(ComPtr<IInspectable> const& src)
+{
+    ComPtr<IReference<T>> theRef;
+    T value{};
+    THROW_IF_FAILED(src.As(&theRef));
+    THROW_IF_FAILED(theRef->get_Value(&value));
+    return value;
+}
+
+TEST_CASE("WinRTTests::VectorToVectorTest", "[winrt][to_vector]")
+{
+#if defined(WIL_ENABLE_EXCEPTIONS)
+    auto uninit = wil::RoInitialize_failfast();
+    auto ints = MakeSampleInspectableVector(100);
+    auto vec = wil::to_vector(ints.Get());
+    UINT32 size;
+    THROW_IF_FAILED(ints->get_Size(&size));
+    REQUIRE(size == vec.size());
+    for (UINT32 i = 0; i < size; ++i)
+    {
+        ComPtr<IInspectable> oneItem;
+        THROW_IF_FAILED(ints->GetAt(i, &oneItem));
+        REQUIRE(cast_to<UINT32>(vec[i]) == cast_to<UINT32>(oneItem));
+    }    
+#endif
 }
 
 TEST_CASE("WinRTTests::VectorRangeTest", "[winrt][vector_range]")
