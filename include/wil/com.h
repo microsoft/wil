@@ -1294,7 +1294,7 @@ namespace wil
         auto raw = com_raw_ptr(wistd::forward<T>(ptrSource));
         auto hr = details::query_policy_t<decltype(raw)>::query(raw, ptrResult);
         __analysis_assume(SUCCEEDED(hr) || (*ptrResult == nullptr));
-        RETURN_HR(hr);
+        return hr;
     }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
@@ -1336,7 +1336,7 @@ namespace wil
         auto raw = com_raw_ptr(wistd::forward<T>(ptrSource));
         auto hr = details::query_policy_t<decltype(raw)>::query(raw, riid, ptrResult);
         __analysis_assume(SUCCEEDED(hr) || (*ptrResult == nullptr));
-        RETURN_HR(hr);
+        return hr;
     }
     //! @}
 
@@ -1726,7 +1726,7 @@ namespace wil
         auto raw = com_raw_ptr(wistd::forward<T>(ptrSource));
         auto hr = ::RoGetAgileReference(options, __uuidof(raw), raw, ptrResult);
         __analysis_assume(SUCCEEDED(hr) || (*ptrResult == nullptr));
-        RETURN_HR(hr);
+        return hr;
     }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
@@ -1841,7 +1841,7 @@ namespace wil
         auto raw = com_raw_ptr(wistd::forward<T>(ptrSource));
         auto hr = details::GetWeakReference(raw, ptrResult);
         __analysis_assume(SUCCEEDED(hr) || (*ptrResult == nullptr));
-        RETURN_HR(hr);
+        return hr;
     }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
@@ -2076,7 +2076,7 @@ namespace wil
         {
             return std::tuple<HRESULT, decltype(result)>{E_NOINTERFACE, {}};
         }
-        return std::tuple<HRESULT, decltype(result)>{S_OK, result};
+        return std::tuple<HRESULT, decltype(result)>{error, result};
     }
 
     template <typename... Results>
