@@ -325,8 +325,12 @@ Three exception modes are available:
 #define WIL_HAS_CXX_17 0
 #endif
 
-// Until we'll have C++17 enabled in our code base, we're falling back to SAL
+#if __has_cpp_attribute(nodiscard)
+#define WI_NODISCARD [[nodiscard]]
+#else
+// If we don't have C++17 enabled in our code base then fall back to SAL
 #define WI_NODISCARD __WI_LIBCPP_NODISCARD_ATTRIBUTE
+#endif
 
 #define __R_ENABLE_IF_IS_CLASS(ptrType)                     wistd::enable_if_t<wistd::is_class<ptrType>::value, void*> = (void*)0
 #define __R_ENABLE_IF_IS_NOT_CLASS(ptrType)                 wistd::enable_if_t<!wistd::is_class<ptrType>::value, void*> = (void*)0
