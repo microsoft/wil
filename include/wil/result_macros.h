@@ -1311,7 +1311,10 @@ namespace wil
             }
             else if (!fetchedRtlDisownModuleHeapAllocation)
             {
-                pfnRtlDisownModuleHeapAllocation = reinterpret_cast<decltype(pfnRtlDisownModuleHeapAllocation)>(::GetProcAddress(::GetModuleHandleW(L"ntdll.dll"), "RtlDisownModuleHeapAllocation"));
+                if (auto ntdllModule = ::GetModuleHandleW(L"ntdll.dll"))
+                {
+                    pfnRtlDisownModuleHeapAllocation = reinterpret_cast<decltype(pfnRtlDisownModuleHeapAllocation)>(::GetProcAddress(ntdllModule, "RtlDisownModuleHeapAllocation"));
+                }
                 fetchedRtlDisownModuleHeapAllocation = true;
 
                 if (pfnRtlDisownModuleHeapAllocation)
