@@ -67,8 +67,8 @@ namespace std
 namespace wil
 {
     // time_t is the number of 1 - second intervals since January 1, 1970.
-    long long const SecondsToStartOf1970 = 0x2b6109100;
-    long long const HundredNanoSecondsInSecond = 10000000LL;
+    constexpr long long SecondsToStartOf1970 = 0x2b6109100;
+    constexpr long long HundredNanoSecondsInSecond = 10000000LL;
 
     inline __time64_t DateTime_to_time_t(ABI::Windows::Foundation::DateTime dateTime)
     {
@@ -294,7 +294,7 @@ namespace wil
         }
 
         //! Returns a pointer for the buffer so it can be populated
-        wchar_t* Get() const { return const_cast<wchar_t*>(m_maker.buffer()); }
+        wchar_t *Get() const { return const_cast<wchar_t *>(m_maker.buffer()); }
         //! Used to validate range of buffer when populating.
         ULONG ByteSize() const { return m_characterLength * sizeof(wchar_t); }
 
@@ -444,8 +444,8 @@ namespace wil
             #pragma warning(disable:4702) // https://github.com/Microsoft/wil/issues/2
             struct type // T holder
             {
-                type() {};
-                type(T&& value) : m_value(wistd::forward<T>(value)) {};
+                type() = default;
+                type(T&& value) : m_value(wistd::forward<T>(value)) {}
                 operator T() const { return m_value; }
                 type& operator=(T&& value) { m_value = wistd::forward<T>(value); return *this; }
                 T Get() const { return m_value; }
@@ -745,7 +745,7 @@ namespace wil
         vector_range_nothrow(const vector_range_nothrow&) = delete;
         vector_range_nothrow& operator=(const vector_range_nothrow&) = delete;
 
-        vector_range_nothrow(vector_range_nothrow&& other) :
+        vector_range_nothrow(vector_range_nothrow&& other) WI_NOEXCEPT :
             m_v(other.m_v), m_size(other.m_size), m_result(other.m_result), m_resultStorage(other.m_resultStorage),
             m_currentElement(wistd::move(other.m_currentElement))
         {
@@ -1046,7 +1046,7 @@ namespace wil
         iterable_range_nothrow& operator=(const iterable_range_nothrow&) = delete;
         iterable_range_nothrow& operator=(iterable_range_nothrow &&) = delete;
 
-        iterable_range_nothrow(iterable_range_nothrow&& other) :
+        iterable_range_nothrow(iterable_range_nothrow&& other) WI_NOEXCEPT :
             m_iterator(wistd::move(other.m_iterator)), m_element(wistd::move(other.m_element)),
             m_resultStorage(other.m_resultStorage)
         {

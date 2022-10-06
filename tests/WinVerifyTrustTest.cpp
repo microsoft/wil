@@ -31,9 +31,9 @@ TEST_CASE("WilWintrustWrapperTest::VerifyUniqueHCATADMINAllocateAndFree", "[reso
     REQUIRE(
         CryptCATAdminAcquireContext2(
         hCatAdmin.addressof(),
-        NULL,
+        nullptr,
         BCRYPT_SHA256_ALGORITHM,
-        NULL,
+        nullptr,
         0));
 
     REQUIRE(hCatAdmin.get() != nullptr);
@@ -50,9 +50,9 @@ TEST_CASE("WilWintrustWrapperTest::VerifyUnqiueHCATINFOAllocate", "[resource][wi
     REQUIRE(
         CryptCATAdminAcquireContext2(
         hCatAdmin.addressof(),
-        NULL,
+        nullptr,
         BCRYPT_SHA256_ALGORITHM,
-        NULL,
+        nullptr,
         0));
 
     wil::unique_hcatinfo hCatInfoWrapper(hCatInfo, hCatAdmin);

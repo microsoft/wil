@@ -262,13 +262,13 @@ namespace wistd     // ("Windows Implementation" std)
         // pointers (__base vtable takes an additional one).
         static constexpr size_t __buffer_size = 13 * sizeof(void*);
 
-        typedef __function::__base<_Rp(_ArgTypes...)> __base;
+        using __base = __function::__base<_Rp(_ArgTypes...)>;
         __WI_LIBCPP_SUPPRESS_NONINIT_ANALYSIS
         typename aligned_storage<__buffer_size>::type __buf_;
         __base* __f_;
 
         __WI_LIBCPP_NO_CFI static __base *__as_base(void *p) {
-          return reinterpret_cast<__base*>(p);
+          return static_cast<__base*>(p);
         }
 
         template <class _Fp, bool>
@@ -282,7 +282,7 @@ namespace wistd     // ("Windows Implementation" std)
         template <class _Fp>
         struct __callable_imp<_Fp, false>
         {
-            static const bool value = false;
+            static constexpr bool value = false;
         };
 
         template <class _Fp>
@@ -297,11 +297,12 @@ namespace wistd     // ("Windows Implementation" std)
       template <class _Fp>
       using _EnableIfCallable = typename enable_if<__callable<_Fp>::value>::type;
     public:
-        typedef _Rp result_type;
+        using result_type = _Rp;
 
         // construct/copy/destroy:
         __WI_LIBCPP_INLINE_VISIBILITY __WI_LIBCPP_SUPPRESS_NONINIT_ANALYSIS
         function() WI_NOEXCEPT : __f_(0) {}
+
         __WI_LIBCPP_INLINE_VISIBILITY
         function(nullptr_t) WI_NOEXCEPT : __f_(0) {}
         function(const function&);
@@ -341,7 +342,7 @@ namespace wistd     // ("Windows Implementation" std)
     __WI_LIBCPP_SUPPRESS_NONINIT_ANALYSIS
     function<_Rp(_ArgTypes...)>::function(const function& __f)
     {
-        if (__f.__f_ == 0)
+        if (__f.__f_ == nullptr)
             __f_ = 0;
         else
         {
@@ -354,7 +355,7 @@ namespace wistd     // ("Windows Implementation" std)
     __WI_LIBCPP_SUPPRESS_NONINIT_ANALYSIS __WI_LIBCPP_SUPPRESS_NOEXCEPT_ANALYSIS
     function<_Rp(_ArgTypes...)>::function(function&& __f)
     {
-        if (__f.__f_ == 0)
+        if (__f.__f_ == nullptr)
             __f_ = 0;
         else
         {
@@ -369,14 +370,14 @@ namespace wistd     // ("Windows Implementation" std)
     template <class _Fp, class>
     __WI_LIBCPP_SUPPRESS_NONINIT_ANALYSIS
     function<_Rp(_ArgTypes...)>::function(_Fp __f)
-        : __f_(0)
+        : __f_(nullptr)
     {
         if (__function::__not_null(__f))
         {
             typedef __function::__func<_Fp, _Rp(_ArgTypes...)> _FF;
             static_assert(sizeof(_FF) <= sizeof(__buf_),
                 "The sizeof(wistd::function) has grown too large for the reserved buffer (12 pointers).  Refactor to reduce size of the capture.");
-            __f_ = ::new((void*)&__buf_) _FF(wistd::move(__f));
+            __f_ = ::new(static_cast<void*>(&__buf_)) _FF(wistd::move(__f));
         }
     }
 
@@ -430,7 +431,7 @@ namespace wistd     // ("Windows Implementation" std)
             typedef __function::__func<typename decay<_Fp>::type, _Rp(_ArgTypes...)> _FF;
             static_assert(sizeof(_FF) <= sizeof(__buf_),
                 "The sizeof(wistd::function) has grown too large for the reserved buffer (12 pointers).  Refactor to reduce size of the capture.");
-            __f_ = ::new((void*)&__buf_) _FF(wistd::move(__f));
+            __f_ = ::new(static_cast<void*>(&__buf_)) _FF(wistd::move(__f));
         }
 
         return *this;
@@ -484,7 +485,7 @@ namespace wistd     // ("Windows Implementation" std)
     _Rp
     function<_Rp(_ArgTypes...)>::operator()(_ArgTypes... __arg) const
     {
-        if (__f_ == 0)
+        if (__f_ == nullptr)
             __throw_bad_function_call();
         return (*__f_)(wistd::forward<_ArgTypes>(__arg)...);
     }

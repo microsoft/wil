@@ -40,7 +40,7 @@ namespace wil
         template<typename Other>
         struct rebind
         {
-            typedef secure_allocator<Other> other;
+            using other = secure_allocator<Other>;
         };
 
         secure_allocator()
