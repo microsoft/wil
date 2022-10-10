@@ -109,10 +109,6 @@
         <DisplayString>{_Mydata,[_Mysize]}</DisplayString>
         <Expand>
             <Item Name="[size]" ExcludeView="simple">size()</Item>
-            <ArrayItems>
-                <Size>size()</Size>
-                <ValuePointer>data()</ValuePointer>
-            </ArrayItems>
         </Expand>
     </Type>
 </AutoVisualizer>
