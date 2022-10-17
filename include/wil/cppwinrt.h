@@ -28,7 +28,7 @@
 namespace wil::details
 {
     // Since the C++/WinRT version macro is a string...
-    // For example: "2.0.210122.3"
+    // For example: "2.0.221104.6"
     inline constexpr int version_from_string(const char* versionString)
     {
         int result = 0;
