@@ -322,7 +322,7 @@ TEST_CASE("CppWinRTTests::ModuleReference", "[cppwinrt]")
     REQUIRE(peek_module_ref_count() == initial);
 }
 
-#if (!defined(__clang__) && defined(__cpp_lib_coroutine) && (__cpp_lib_coroutine >= 201902L)) || defined(_RESUMABLE_FUNCTIONS_SUPPORTED)
+#if (defined(__cpp_lib_coroutine) && (__cpp_lib_coroutine >= 201902L)) || defined(_RESUMABLE_FUNCTIONS_SUPPORTED)
 
 // Define our own custom dispatcher that we can force it to behave in certain ways.
 // wil::resume_foreground supports any dispatcher that has a dispatcher_traits.
