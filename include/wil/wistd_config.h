@@ -39,7 +39,7 @@
 #define _WISTD_CONFIG_H_
 
 // DO NOT add *any* additional includes to this file -- there should be no dependencies from its usage
-#include <stddef.h> // For size_t and other necessary types
+#include <cstddef> // For size_t and other necessary types
 
 /// @cond
 #if defined(_MSC_VER) && !defined(__clang__)
@@ -105,6 +105,29 @@
 #  define __WI_LIBCPP_COMPILER_MSVC
 #elif defined(__IBMCPP__)
 #  define __WI_LIBCPP_COMPILER_IBM
+#endif
+
+#if defined(__WI_LIBCPP_COMPILER_MSVC)
+#define __WI_PUSH_WARNINGS  __pragma(warning(push))
+#define __WI_POP_WARNINGS   __pragma(warning(pop))
+#elif defined(__WI_LIBCPP_COMPILER_CLANG)
+#define __WI_PUSH_WARNINGS  __pragma(clang diagnostic push)
+#define __WI_POP_WARNINGS   __pragma(clang diagnostic pop)
+#else
+#define __WI_PUSH_WARNINGS
+#define __WI_POP_WARNINGS
+#endif
+
+#ifdef __WI_LIBCPP_COMPILER_MSVC
+#define __WI_MSVC_DISABLE_WARNING(id)   __pragma(warning(disable: id))
+#else
+#define __WI_MSVC_DISABLE_WARNING(id)
+#endif
+
+#ifdef __WI_LIBCPP_COMPILER_CLANG
+#define __WI_CLANG_DISABLE_WARNING(warning) __pragma(clang diagnostic ignored #warning)
+#else
+#define __WI_CLANG_DISABLE_WARNING(warning)
 #endif
 
 // NOTE: MSVC, which is what we primarily target, is severly underrepresented in libc++ and checks such as
@@ -545,4 +568,4 @@ namespace wistd     // ("Windows Implementation" std)
 }
 /// @endcond
 
-#endif _WISTD_CONFIG_H_
+#endif // _WISTD_CONFIG_H_
