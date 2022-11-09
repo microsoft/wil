@@ -13,7 +13,7 @@ if (NOT DEFINED WIL_BUILD_VERSION)
 endif()
 
 if (NOT DEFINED CPPWINRT_VERSION)
-    set(CPPWINRT_VERSION "2.0.220608.4")
+    set(CPPWINRT_VERSION "2.0.221104.6")
 endif()
 
 # Detect the Windows SDK version. If we're using the Visual Studio generator, this will be provided for us. Otherwise
