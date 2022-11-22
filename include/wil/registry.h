@@ -54,14 +54,14 @@ namespace wil
 
     // TODO: support "any" function that deduces type?
 
-    inline LSTATUS get_registry_dword_nothrow(HKEY hkey, LPCWSTR subkey, LPCWSTR regValueName, _Out_ DWORD* value) noexcept
+    inline HRESULT get_registry_dword_nothrow(HKEY hkey, LPCWSTR subkey, LPCWSTR regValueName, _Out_ DWORD* value) noexcept
     {
         DWORD size{sizeof(value)};
         // TODO: support internal registry functions?
         // TODO: support additional flags, like RRF_ZEROONFAILURE?
         // TODO: convert to HRESULT?
-        const auto result = ::RegGetValueW(hkey, subkey, regValueName, RRF_RT_DWORD, nullptr, value, &size);
-        return result;
+        const auto hr = HRESULT_FROM_WIN32(::RegGetValueW(hkey, subkey, regValueName, RRF_RT_DWORD, nullptr, value, &size));
+        return hr;
     }
 
     /// @cond
@@ -111,11 +111,11 @@ namespace wil
         {
             DWORD value{};
             const auto result = get_registry_dword_nothrow(hkey, subkey, regValueName, &value);
-            if (result == ERROR_FILE_NOT_FOUND)
+            if (result == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
             {
                 return policy::NotFound();
             }
-            THROW_IF_FAILED(HRESULT_FROM_WIN32(result));
+            THROW_IF_FAILED(result);
             return value;
         }
 
@@ -163,6 +163,31 @@ namespace wil
 #endif // defined(_STRING_)
 
 #endif  // WIL_ENABLE_EXCEPTIONS
+
+#if defined(_STRING_)
+    /// @cond
+    namespace details
+    {
+        template <typename err_policy, typename result = err_policy::result>
+        result set_registry_string(HKEY hkey, LPCWSTR subkey, LPCWSTR regValueName, const std::wstring& value)
+        {
+            static_assert(wistd::is_same_v<std::wstring::value_type, wchar_t>, "We assume a wstring is made of wchar_ts");
+
+            // TODO: where does the +1 go?
+            // TODO: check for DWORD/size_t overflow?
+            const DWORD byteSize = (static_cast<DWORD>(value.size()) + 1) * sizeof(wchar_t);
+            const auto hr = HRESULT_FROM_WIN32(::RegSetKeyValueW(hkey, subkey, regValueName, REG_SZ, value.c_str(), byteSize));
+            return err_policy::HResult(hr);
+        }
+    }
+    /// @endcond
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+    constexpr auto* set_registry_string = details::set_registry_string<err_exception_policy>;
+#endif  // WIL_ENABLE_EXCEPTIONS
+    constexpr auto* set_registry_string_nothrow = details::set_registry_string<err_returncode_policy>;
+    constexpr auto* set_registry_string_failfast = details::set_registry_string<err_failfast_policy>;
+#endif // defined(_STRING_)
 
     // unique_registry_watcher/unique_registry_watcher_nothrow/unique_registry_watcher_failfast
     // These classes make it easy to execute a provided function when a

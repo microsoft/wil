@@ -1,5 +1,6 @@
 
 #include <wil/filesystem.h>
+#include <string>
 #include <wil/registry.h>
 #include <wil/resource.h>
 
@@ -8,8 +9,9 @@
 
 #include "common.h"
 
-constexpr auto testSubkey = L"Software\\Microsoft\\RegistryWatcherTest";
+constexpr auto testSubkey = L"Software\\Microsoft\\BasicRegistryTest";
 constexpr auto dwordValueName = L"MyDwordValue";
+constexpr auto stringValueName = L"MyStringValue";
 
 TEST_CASE("BasicRegistryTests::Dwords", "[registry][get_registry_dword]")
 {
@@ -77,3 +79,42 @@ TEST_CASE("BasicRegistryTests::Dwords", "[registry][get_registry_dword]")
     }
 #endif
 }
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+TEST_CASE("BasicRegistryTests::Strings", "[registry][get_registry_string]")
+{
+    SECTION("get and set with string key and value name, nothrowish")
+    {
+        std::wstring value{ L"Hello there!" };
+        REQUIRE_SUCCEEDED(wil::set_registry_string_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, value));
+        auto result = wil::get_registry_string(HKEY_CURRENT_USER, testSubkey, stringValueName);
+        REQUIRE(result == value);
+
+        value = L"It's over, Anakin!";
+        REQUIRE_SUCCEEDED(wil::set_registry_string_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, value));
+        result = wil::get_registry_string(HKEY_CURRENT_USER, testSubkey, stringValueName);
+        REQUIRE(result == value);
+
+        value = L"";
+        REQUIRE_SUCCEEDED(wil::set_registry_string_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, value));
+        result = wil::get_registry_string(HKEY_CURRENT_USER, testSubkey, stringValueName);
+        REQUIRE(result == value);
+
+        // Evil embedded null
+        value = L"I have the \0 high ground";
+        REQUIRE_SUCCEEDED(wil::set_registry_string_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, value));
+        result = wil::get_registry_string(HKEY_CURRENT_USER, testSubkey, stringValueName);
+        REQUIRE(result == value);
+    }
+
+    SECTION("get and set with string key and value name")
+    {
+        for (std::wstring&& value : { L"No no no", L"", L"stick to the stuff you know", L"better \0 by far" })
+        {
+            wil::set_registry_string(HKEY_CURRENT_USER, testSubkey, stringValueName, value);
+            const auto result = wil::get_registry_string(HKEY_CURRENT_USER, testSubkey, stringValueName);
+            REQUIRE(result == value);
+        }
+    }
+}
+#endif
