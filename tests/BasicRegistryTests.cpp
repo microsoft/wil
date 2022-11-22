@@ -148,12 +148,45 @@ TEST_CASE("BasicRegistryTests::Strings", "[registry][get_registry_string]")
         REQUIRE(result == value);
     }
 
+    SECTION("get and set with string key and DEFAULT value, nothrowish")
+    {
+        // Evil embedded null
+        std::wstring value = L"something \0 pithy";
+        REQUIRE_SUCCEEDED(wil::set_registry_string_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, value));
+        auto result = wil::get_registry_string(HKEY_CURRENT_USER, testSubkey, stringValueName);
+        REQUIRE(result == value);
+    }
+
     SECTION("get and set with string key and value name")
     {
-        for (std::wstring&& value : { L"No no no", L"", L"stick to the stuff you know", L"better \0 by far" })
+        for (std::wstring&& value : { L"No no no", L"", L"stick to the stuff you know", L"better \0 by far", L"\0"})
         {
             wil::set_registry_string(HKEY_CURRENT_USER, testSubkey, stringValueName, value);
             const auto result = wil::get_registry_string(HKEY_CURRENT_USER, testSubkey, stringValueName);
+            REQUIRE(result == value);
+        }
+    }
+
+    SECTION("get and set with string key and DEFAULT value name")
+    {
+        for (std::wstring&& value : { L"buffalo buffalo", L"", L"buffalo buffalo buffalo", L"buffalo \0 buffalo buffalo buffalo", L"\0"})
+        {
+            wil::set_registry_string(HKEY_CURRENT_USER, testSubkey, nullptr, value);
+            const auto result = wil::get_registry_string(HKEY_CURRENT_USER, testSubkey, nullptr);
+            REQUIRE(result == value);
+        }
+    }
+
+    SECTION("get optional with string key and DEFAULT value name")
+    {
+        const auto emptyResult = wil::try_get_registry_string(HKEY_CURRENT_USER, testSubkey, nullptr);
+        REQUIRE(emptyResult == std::nullopt);
+
+        for (std::wstring&& value : { L"Ah wretch!", L"", L"said they, the bird to slay", L"\0", L"That made the breeze \0 to blow!"})
+        {
+            wil::set_registry_string(HKEY_CURRENT_USER, testSubkey, nullptr, value);
+            const auto result = wil::try_get_registry_string(HKEY_CURRENT_USER, testSubkey, nullptr);
+            REQUIRE(result.has_value());
             REQUIRE(result == value);
         }
     }
