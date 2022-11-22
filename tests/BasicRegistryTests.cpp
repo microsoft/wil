@@ -1,6 +1,8 @@
 
 #include <string>
+#if _HAS_CXX17
 #include <optional>
+#endif // _HAS_CXX17
 #include <wil/filesystem.h>
 #include <wil/registry.h>
 #include <wil/resource.h>
@@ -53,6 +55,7 @@ TEST_CASE("BasicRegistryTests::Dwords", "[registry][get_registry_dword]")
         }
     }
 
+#if defined(_OPTIONAL_)
     SECTION("get optional with string key and value name")
     {
         const auto emptyResult = wil::try_get_registry_dword(HKEY_CURRENT_USER, testSubkey, L"NonExistentKey");
@@ -66,6 +69,7 @@ TEST_CASE("BasicRegistryTests::Dwords", "[registry][get_registry_dword]")
             REQUIRE(result == value);
         }
     }
+#endif // defined(_OPTIONAL_)
 #endif
 
     SECTION("get and set with string key and DEFAULT value name, nothrow")
@@ -99,6 +103,7 @@ TEST_CASE("BasicRegistryTests::Dwords", "[registry][get_registry_dword]")
         }
     }
 
+#if defined(_OPTIONAL_)
     SECTION("get optional with string key and DEFAULT value name")
     {
         const auto emptyResult = wil::try_get_registry_dword(HKEY_CURRENT_USER, testSubkey, nullptr);
@@ -112,6 +117,7 @@ TEST_CASE("BasicRegistryTests::Dwords", "[registry][get_registry_dword]")
             REQUIRE(result == value);
         }
     }
+#endif // defined(_OPTIONAL_)
 #endif
 }
 
@@ -177,6 +183,7 @@ TEST_CASE("BasicRegistryTests::Strings", "[registry][get_registry_string]")
         }
     }
 
+#if defined(_OPTIONAL_)
     SECTION("get optional with string key and DEFAULT value name")
     {
         const auto emptyResult = wil::try_get_registry_string(HKEY_CURRENT_USER, testSubkey, nullptr);
@@ -190,5 +197,6 @@ TEST_CASE("BasicRegistryTests::Strings", "[registry][get_registry_string]")
             REQUIRE(result == value);
         }
     }
+#endif // defined(_OPTIONAL_)
 }
 #endif

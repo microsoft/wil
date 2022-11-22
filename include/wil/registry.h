@@ -85,14 +85,14 @@ namespace wil
     /// @cond
     namespace details
     {
-#if defined(_OPTIONAL_)
+#if _HAS_CXX17 && defined(_OPTIONAL_)
         template <typename Result>
         struct optional_registry_policy
         {
             typedef std::optional<Result> result;
             __forceinline static result NotFound() { return std::nullopt; }
         };
-#endif // defined(_OPTIONAL_)
+#endif // _HAS_CXX17 && defined(_OPTIONAL_)
 
         template<typename Result>
         struct required_registry_policy
@@ -149,15 +149,15 @@ namespace wil
     }
     /// @endcond
 
-#if defined(_OPTIONAL_)
+#if _HAS_CXX17 && defined(_OPTIONAL_)
     constexpr auto* try_get_registry_dword = details::get_registry_dword<details::optional_registry_policy<DWORD>>;
-#endif // defined(_OPTIONAL_)
+#endif // _HAS_CXX17 && defined(_OPTIONAL_)
     constexpr auto* get_registry_dword = details::get_registry_dword<details::required_registry_policy<DWORD>>;
 
 #if defined(_STRING_)
-#if defined(_OPTIONAL_)
+#if _HAS_CXX17 &&  defined(_OPTIONAL_)
     constexpr auto* try_get_registry_string = details::get_registry_string<details::optional_registry_policy<std::wstring>>;
-#endif // defined(_OPTIONAL_)
+#endif // _HAS_CXX17 && defined(_OPTIONAL_)
     constexpr auto* get_registry_string = details::get_registry_string<details::required_registry_policy<std::wstring>>;
 #endif // defined(_STRING_)
 
