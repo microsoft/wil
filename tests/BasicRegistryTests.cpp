@@ -1,6 +1,7 @@
 
-#include <wil/filesystem.h>
 #include <string>
+#include <optional>
+#include <wil/filesystem.h>
 #include <wil/registry.h>
 #include <wil/resource.h>
 
@@ -15,6 +16,12 @@ constexpr auto stringValueName = L"MyStringValue";
 
 TEST_CASE("BasicRegistryTests::Dwords", "[registry][get_registry_dword]")
 {
+    const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
+    if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+    {
+        REQUIRE_SUCCEEDED(deleteHr);
+    }
+
     SECTION("get and set with string key and value name, nothrow")
     {
         DWORD value = 4;
@@ -42,6 +49,20 @@ TEST_CASE("BasicRegistryTests::Dwords", "[registry][get_registry_dword]")
         {
             wil::set_registry_dword(HKEY_CURRENT_USER, testSubkey, dwordValueName, value);
             const auto result = wil::get_registry_dword(HKEY_CURRENT_USER, testSubkey, dwordValueName);
+            REQUIRE(result == value);
+        }
+    }
+
+    SECTION("get optional with string key and value name")
+    {
+        const auto emptyResult = wil::try_get_registry_dword(HKEY_CURRENT_USER, testSubkey, L"NonExistentKey");
+        REQUIRE(emptyResult == std::nullopt);
+
+        for (DWORD&& value : { 4, 1, 0 })
+        {
+            wil::set_registry_dword(HKEY_CURRENT_USER, testSubkey, dwordValueName, value);
+            const auto result = wil::try_get_registry_dword(HKEY_CURRENT_USER, testSubkey, dwordValueName);
+            REQUIRE(result.has_value());
             REQUIRE(result == value);
         }
     }
@@ -77,12 +98,32 @@ TEST_CASE("BasicRegistryTests::Dwords", "[registry][get_registry_dword]")
             REQUIRE(result == value);
         }
     }
+
+    SECTION("get optional with string key and DEFAULT value name")
+    {
+        const auto emptyResult = wil::try_get_registry_dword(HKEY_CURRENT_USER, testSubkey, nullptr);
+        REQUIRE(emptyResult == std::nullopt);
+
+        for (DWORD&& value : { 4, 1, 0 })
+        {
+            wil::set_registry_dword(HKEY_CURRENT_USER, testSubkey, nullptr, value);
+            const auto result = wil::try_get_registry_dword(HKEY_CURRENT_USER, testSubkey, nullptr);
+            REQUIRE(result.has_value());
+            REQUIRE(result == value);
+        }
+    }
 #endif
 }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
 TEST_CASE("BasicRegistryTests::Strings", "[registry][get_registry_string]")
 {
+    const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
+    if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+    {
+        REQUIRE_SUCCEEDED(deleteHr);
+    }
+
     SECTION("get and set with string key and value name, nothrowish")
     {
         std::wstring value{ L"Hello there!" };

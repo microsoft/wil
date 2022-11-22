@@ -175,7 +175,7 @@ namespace wil
 
             // TODO: where does the +1 go?
             // TODO: check for DWORD/size_t overflow?
-            const DWORD byteSize = (static_cast<DWORD>(value.size()) + 1) * sizeof(wchar_t);
+            const DWORD byteSize = (static_cast<DWORD>(value.size()) * sizeof(wchar_t)) + 1;
             const auto hr = HRESULT_FROM_WIN32(::RegSetKeyValueW(hkey, subkey, regValueName, REG_SZ, value.c_str(), byteSize));
             return err_policy::HResult(hr);
         }
