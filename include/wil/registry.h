@@ -52,8 +52,6 @@ namespace wil
     }
 #endif // WIL_ENABLE_EXCEPTIONS
 
-    // TODO: support "any" function that deduces type?
-
     inline HRESULT get_registry_dword_nothrow(HKEY hkey, LPCWSTR subkey, LPCWSTR regValueName, _Out_ DWORD* value) noexcept
     {
         DWORD size{sizeof(value)};
@@ -68,7 +66,7 @@ namespace wil
     namespace details
     {
         template <typename err_policy, typename result = err_policy::result>
-        result set_registry_dword(HKEY hkey, LPCWSTR subkey, LPCWSTR regValueName, DWORD value)
+        inline result set_registry_dword(HKEY hkey, LPCWSTR subkey, LPCWSTR regValueName, DWORD value)
         {
             // TODO: support little endian and big endian?
             const auto hr = HRESULT_FROM_WIN32(::RegSetKeyValueW(hkey, subkey, regValueName, REG_DWORD, &value, sizeof(value)));
@@ -107,7 +105,7 @@ namespace wil
         };
 
         template <typename policy, typename result_t = policy::result>
-        result_t get_registry_dword(HKEY hkey, LPCWSTR subkey = nullptr, LPCWSTR regValueName = nullptr)
+        inline result_t get_registry_dword(HKEY hkey, LPCWSTR subkey = nullptr, LPCWSTR regValueName = nullptr)
         {
             DWORD value{};
             const auto result = get_registry_dword_nothrow(hkey, subkey, regValueName, &value);
@@ -120,6 +118,7 @@ namespace wil
         }
 
 #if defined(_STRING_)
+        // std::string.resize() can throw, so this requires exceptions.
         template<typename policy, typename result_t = policy::result>
         result_t get_registry_string(HKEY hkey, LPCWSTR subkey = nullptr, LPCWSTR regValueName = nullptr)
         {
@@ -169,7 +168,7 @@ namespace wil
     namespace details
     {
         template <typename err_policy, typename result = err_policy::result>
-        result set_registry_string(HKEY hkey, LPCWSTR subkey, LPCWSTR regValueName, const std::wstring& value)
+        inline result set_registry_string(HKEY hkey, LPCWSTR subkey, LPCWSTR regValueName, const std::wstring& value)
         {
             static_assert(wistd::is_same_v<std::wstring::value_type, wchar_t>, "We assume a wstring is made of wchar_ts");
 
