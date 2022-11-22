@@ -28,6 +28,142 @@ namespace wil
     //! The maximum number of characters allowed in a registry value's name.
     size_t const max_registry_value_name_length = 16383;
 
+#ifdef WIL_ENABLE_EXCEPTIONS
+    inline wil::unique_hkey open_registry_key(HKEY hkey, PCWSTR subkey, DWORD options = 0, REGSAM samDesired = KEY_READ)
+    {
+        wil::unique_hkey openKey;
+        THROW_IF_FAILED(HRESULT_FROM_WIN32(::RegOpenKeyExW(hkey, subkey, options, samDesired, &openKey)));
+        return openKey;
+    }
+
+    // TODO: can we make any of these accesses simpler?
+    inline wil::unique_hkey create_registry_key(
+        HKEY hkey,
+        PCWSTR subkey,
+        PWSTR classType = nullptr,
+        DWORD options = REG_OPTION_NON_VOLATILE,
+        REGSAM samDesired = KEY_READ,
+        SECURITY_ATTRIBUTES* securityAttributes = nullptr,
+        _Out_ DWORD* disposition = nullptr)
+    {
+        wil::unique_hkey openKey;
+        THROW_IF_FAILED(HRESULT_FROM_WIN32(::RegCreateKeyExW(hkey, subkey, 0, classType, options, samDesired, securityAttributes, &openKey, disposition)));
+        return openKey;
+    }
+#endif // WIL_ENABLE_EXCEPTIONS
+
+    // TODO: support "any" function that deduces type?
+
+    inline LSTATUS get_registry_dword_nothrow(HKEY hkey, LPCWSTR subkey, LPCWSTR regValueName, _Out_ DWORD* value) noexcept
+    {
+        DWORD size{sizeof(value)};
+        // TODO: support internal registry functions?
+        // TODO: support additional flags, like RRF_ZEROONFAILURE?
+        // TODO: convert to HRESULT?
+        const auto result = ::RegGetValueW(hkey, subkey, regValueName, RRF_RT_DWORD, nullptr, value, &size);
+        return result;
+    }
+
+    /// @cond
+    namespace details
+    {
+        template <typename err_policy, typename result = err_policy::result>
+        result set_registry_dword(HKEY hkey, LPCWSTR subkey, LPCWSTR regValueName, DWORD value)
+        {
+            // TODO: support little endian and big endian?
+            const auto hr = HRESULT_FROM_WIN32(::RegSetKeyValueW(hkey, subkey, regValueName, REG_DWORD, &value, sizeof(value)));
+            return err_policy::HResult(hr);
+        }
+    }
+    /// @endcond
+
+    constexpr auto* set_registry_dword_nothrow = details::set_registry_dword<err_returncode_policy>;
+    constexpr auto* set_registry_dword_failfast = details::set_registry_dword<err_failfast_policy>;
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+
+    constexpr auto* set_registry_dword = details::set_registry_dword<err_exception_policy>;
+
+    /// @cond
+    namespace details
+    {
+#if defined(_OPTIONAL_)
+        template <typename Result>
+        struct optional_registry_policy
+        {
+            typedef std::optional<Result> result;
+            __forceinline static result NotFound() { return std::nullopt; }
+        };
+#endif // defined(_OPTIONAL_)
+
+        template<typename Result>
+        struct required_registry_policy
+        {
+            typedef Result result;
+            __forceinline static result NotFound()
+            {
+                THROW_HR(HRESULT_FROM_WIN32(ERROR_NOT_FOUND));
+            }
+        };
+
+        template <typename policy, typename result_t = policy::result>
+        result_t get_registry_dword(HKEY hkey, LPCWSTR subkey = nullptr, LPCWSTR regValueName = nullptr)
+        {
+            DWORD value{};
+            const auto result = get_registry_dword_nothrow(hkey, subkey, regValueName, &value);
+            if (result == ERROR_FILE_NOT_FOUND)
+            {
+                return policy::NotFound();
+            }
+            THROW_IF_FAILED(HRESULT_FROM_WIN32(result));
+            return value;
+        }
+
+#if defined(_STRING_)
+        template<typename policy, typename result_t = policy::result>
+        result_t get_registry_string(HKEY hkey, LPCWSTR subkey = nullptr, LPCWSTR regValueName = nullptr)
+        {
+            // TODO: type RRF_RT_REG_EXPAND_SZ etc?
+            // https://docs.microsoft.com/en-us/archive/msdn-magazine/2017/may/c-use-modern-c-to-access-the-windows-registry#reading-a-string-value-from-the-registry
+            DWORD size{};
+            const auto sizeResult = ::RegGetValueW(hkey, subkey, regValueName, RRF_RT_REG_SZ, nullptr, nullptr, &size);
+            if (sizeResult == ERROR_FILE_NOT_FOUND)
+            {
+                return policy::NotFound();
+            }
+            THROW_IF_FAILED(HRESULT_FROM_WIN32(sizeResult));
+
+            std::wstring data{};
+            data.resize(size / sizeof(wchar_t));
+            const auto result = ::RegGetValueW(hkey, subkey, regValueName, RRF_RT_REG_SZ, nullptr, &data[0], &size);
+
+            // We read *something* before, so any error should be a failure.
+            THROW_IF_FAILED(HRESULT_FROM_WIN32(result));
+
+            // Get rid of the double null
+            DWORD stringLengthInWchars = (size / sizeof(wchar_t)) - 1;
+            data.resize(stringLengthInWchars);
+
+            return data;
+        }
+#endif // defined(_STRING_)
+    }
+    /// @endcond
+
+#if defined(_OPTIONAL_)
+    constexpr auto* try_get_registry_dword = details::get_registry_dword<details::optional_registry_policy<DWORD>>;
+#endif // defined(_OPTIONAL_)
+    constexpr auto* get_registry_dword = details::get_registry_dword<details::required_registry_policy<DWORD>>;
+
+#if defined(_STRING_)
+#if defined(_OPTIONAL_)
+    constexpr auto* try_get_registry_string = details::get_registry_string<details::optional_registry_policy<std::wstring>>;
+#endif // defined(_OPTIONAL_)
+    constexpr auto* get_registry_string = details::get_registry_string<details::required_registry_policy<std::wstring>>;
+#endif // defined(_STRING_)
+
+#endif  // WIL_ENABLE_EXCEPTIONS
+
     // unique_registry_watcher/unique_registry_watcher_nothrow/unique_registry_watcher_failfast
     // These classes make it easy to execute a provided function when a
     // registry key changes (optionally recursively). Specify the key
