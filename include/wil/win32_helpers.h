@@ -286,6 +286,56 @@ namespace wil
     }
 #pragma endregion
 
+#pragma region RECT helpers
+    template<typename rect_type>
+    constexpr auto rect_width(rect_type rect)
+    {
+        return rect.right - rect.left;
+    }
+
+    template<typename rect_type>
+    constexpr auto rect_width(rect_type* rect)
+    {
+        return rect->right - rect->left;
+    }
+
+    template<typename rect_type>
+    constexpr auto rect_height(rect_type rect)
+    {
+        return rect.bottom - rect.top;
+    }
+
+    template<typename rect_type>
+    constexpr auto rect_height(rect_type* rect)
+    {
+        return rect->bottom - rect->top;
+    }
+
+    template<typename rect_type>
+    constexpr auto rect_is_empty(rect_type rect)
+    {
+        return (rect.left >= rect.right) || (rect.top >= rect.bottom);
+    }
+
+    template<typename rect_type>
+    constexpr auto rect_is_empty(rect_type* rect)
+    {
+        return (rect->left >= rect->right) || (rect->top >= rect->bottom);
+    }
+
+    template<typename rect_type, typename point_type>
+    constexpr auto rect_contains_point(rect_type rect, point_type point)
+    {
+        return (point.x >= rect.left) && (point.x < rect.right) && (point.y >= rect.top) && (point.y < rect.bottom);
+    }
+
+    template<typename rect_type, typename point_type>
+    constexpr auto rect_contains_point(rect_type* rect, point_type point)
+    {
+        return (point.x >= rect->left) && (point.x < rect->right) && (point.y >= rect->top) && (point.y < rect->bottom);
+    }
+#pragma endregion
+
     // Use to adapt Win32 APIs that take a fixed size buffer into forms that return
     // an allocated buffer. Supports many types of string representation.
     // See comments below on the expected behavior of the callback.
