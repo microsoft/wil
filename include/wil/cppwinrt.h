@@ -284,6 +284,11 @@ namespace wil
         return static_cast<HSTRING>(winrt::get_abi(object));
     }
 
+    inline auto str_raw_ptr(const winrt::hstring& str) noexcept
+    {
+        return str.c_str();
+    }
+
     template <typename T>
     auto put_abi(T& object) noexcept
     {
