@@ -488,8 +488,8 @@ TEST_CASE("WindowsInternalTests::ResultMacros", "[result_macros]")
     REQUIRE_RETURNS_EXPECTED(E_hrNtAssertionFailure, [] { RETURN_IF_NTSTATUS_FAILED_EXPECTED(STATUS_ASSERTION_FAILURE); return S_OK; });
     REQUIRE_THROWS_RESULT(E_hrNtAssertionFailure, [] { THROW_IF_NTSTATUS_FAILED(STATUS_ASSERTION_FAILURE); });
     REQUIRE_THROWS_MSG(E_hrNtAssertionFailure, [] { THROW_IF_NTSTATUS_FAILED_MSG(STATUS_ASSERTION_FAILURE, "msg: %d", __LINE__); });
-    REQUIRE_LOG(E_hrNtAssertionFailure, [] { REQUIRE(STATUS_ASSERTION_FAILURE == LOG_IF_NTSTATUS_FAILED(STATUS_ASSERTION_FAILURE)); });
-    REQUIRE_LOG_MSG(E_hrNtAssertionFailure, [] { REQUIRE(STATUS_ASSERTION_FAILURE == LOG_IF_NTSTATUS_FAILED_MSG(STATUS_ASSERTION_FAILURE, "msg: %d", __LINE__)); });
+    REQUIRE_LOG(E_hrNtAssertionFailure, [] { REQUIRE(STATUS_ASSERTION_FAILURE == static_cast<DWORD>(LOG_IF_NTSTATUS_FAILED(STATUS_ASSERTION_FAILURE))); });
+    REQUIRE_LOG_MSG(E_hrNtAssertionFailure, [] { REQUIRE(STATUS_ASSERTION_FAILURE == static_cast<DWORD>(LOG_IF_NTSTATUS_FAILED_MSG(STATUS_ASSERTION_FAILURE, "msg: %d", __LINE__))); });
     REQUIRE_FAILFAST(E_hrNtAssertionFailure, [] { FAIL_FAST_IF_NTSTATUS_FAILED(STATUS_ASSERTION_FAILURE); });
     REQUIRE_FAILFAST_MSG(E_hrNtAssertionFailure, [] { FAIL_FAST_IF_NTSTATUS_FAILED_MSG(STATUS_ASSERTION_FAILURE, "msg: %d", __LINE__); });
 
@@ -498,8 +498,8 @@ TEST_CASE("WindowsInternalTests::ResultMacros", "[result_macros]")
     REQUIRE_RETURNS_EXPECTED(E_OUTOFMEMORY, [] { RETURN_IF_NTSTATUS_FAILED_EXPECTED(STATUS_NO_MEMORY); return S_OK; });
     REQUIRE_THROWS_RESULT(E_OUTOFMEMORY, [] { THROW_IF_NTSTATUS_FAILED(STATUS_NO_MEMORY); });
     REQUIRE_THROWS_MSG(E_OUTOFMEMORY, [] { THROW_IF_NTSTATUS_FAILED_MSG(STATUS_NO_MEMORY, "msg: %d", __LINE__); });
-    REQUIRE_LOG(E_OUTOFMEMORY, [] { REQUIRE(STATUS_NO_MEMORY == LOG_IF_NTSTATUS_FAILED(STATUS_NO_MEMORY)); });
-    REQUIRE_LOG_MSG(E_OUTOFMEMORY, [] { REQUIRE(STATUS_NO_MEMORY == LOG_IF_NTSTATUS_FAILED_MSG(STATUS_NO_MEMORY, "msg: %d", __LINE__)); });
+    REQUIRE_LOG(E_OUTOFMEMORY, [] { REQUIRE(STATUS_NO_MEMORY == static_cast<DWORD>(LOG_IF_NTSTATUS_FAILED(STATUS_NO_MEMORY))); });
+    REQUIRE_LOG_MSG(E_OUTOFMEMORY, [] { REQUIRE(STATUS_NO_MEMORY == static_cast<DWORD>(LOG_IF_NTSTATUS_FAILED_MSG(STATUS_NO_MEMORY, "msg: %d", __LINE__))); });
     REQUIRE_FAILFAST(E_OUTOFMEMORY, [] { FAIL_FAST_IF_NTSTATUS_FAILED(STATUS_NO_MEMORY); });
     REQUIRE_FAILFAST_MSG(E_OUTOFMEMORY, [] { FAIL_FAST_IF_NTSTATUS_FAILED_MSG(STATUS_NO_MEMORY, "msg: %d", __LINE__); });
 
@@ -1846,10 +1846,13 @@ TEST_CASE("WindowsInternalTests::Locking", "[resource]")
     {
         CRITICAL_SECTION cs;
         ::InitializeCriticalSectionEx(&cs, 0, 0);
-        auto lock = wil::EnterCriticalSection(&cs);
-        REQUIRE(lock);
-        auto tryLock = wil::TryEnterCriticalSection(&cs);
-        REQUIRE(tryLock);
+        {
+            auto lock = wil::EnterCriticalSection(&cs);
+            REQUIRE(lock);
+            auto tryLock = wil::TryEnterCriticalSection(&cs);
+            REQUIRE(tryLock);
+        }
+        ::DeleteCriticalSection(&cs);
     }
     {
         wil::critical_section cs;

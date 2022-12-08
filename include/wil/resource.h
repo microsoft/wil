@@ -63,18 +63,16 @@ namespace wil
     class last_error_context
     {
 #ifndef WIL_KERNEL_MODE
-        bool m_dismissed;
-        DWORD m_error;
+        bool m_dismissed = false;
+        DWORD m_error = 0;
     public:
-        last_error_context() WI_NOEXCEPT :
-            m_dismissed(false),
-            m_error(::GetLastError())
+        last_error_context() WI_NOEXCEPT : last_error_context(::GetLastError())
         {
         }
 
-        auto value() const
+        explicit last_error_context(DWORD error) WI_NOEXCEPT :
+            m_error(error)
         {
-            return m_error;
         }
 
         last_error_context(last_error_context&& other) WI_NOEXCEPT
@@ -82,7 +80,7 @@ namespace wil
             operator=(wistd::move(other));
         }
 
-        last_error_context & operator=(last_error_context&& other) WI_NOEXCEPT
+        last_error_context& operator=(last_error_context&& other) WI_NOEXCEPT
         {
             m_dismissed = wistd::exchange(other.m_dismissed, true);
             m_error = other.m_error;
@@ -104,6 +102,11 @@ namespace wil
         {
             WI_ASSERT(!m_dismissed);
             m_dismissed = true;
+        }
+
+        auto value() const WI_NOEXCEPT
+        {
+            return m_error;
         }
 #else
     public:
@@ -174,6 +177,7 @@ namespace wil
             typedef typename policy::pointer pointer;
             typedef unique_storage<policy> base_storage;
 
+        public:
             unique_storage() WI_NOEXCEPT :
             m_ptr(policy::invalid_value())
             {
@@ -198,13 +202,6 @@ namespace wil
                 }
             }
 
-            void replace(unique_storage &&other) WI_NOEXCEPT
-            {
-                reset(other.m_ptr);
-                other.m_ptr = policy::invalid_value();
-            }
-
-        public:
             bool is_valid() const WI_NOEXCEPT
             {
                 return policy::is_valid(m_ptr);
@@ -244,6 +241,13 @@ namespace wil
                 return &m_ptr;
             }
 
+        protected:
+            void replace(unique_storage &&other) WI_NOEXCEPT
+            {
+                reset(other.m_ptr);
+                other.m_ptr = policy::invalid_value();
+            }
+
         private:
             pointer_storage m_ptr;
         };
@@ -273,7 +277,8 @@ namespace wil
 
         // forwarding constructor: forwards all 'explicit' and multi-arg constructors to the base class
         template <typename arg1, typename... args_t>
-        explicit unique_any_t(arg1 && first, args_t&&... args) :  // should not be WI_NOEXCEPT (may forward to a throwing constructor)
+        explicit unique_any_t(arg1 && first, args_t&&... args)
+            __WI_NOEXCEPT_((wistd::is_nothrow_constructible_v<storage_t, arg1, args_t...>)) :
             storage_t(wistd::forward<arg1>(first), wistd::forward<args_t>(args)...)
         {
             static_assert(wistd::is_same<typename policy::pointer_access, details::pointer_access_none>::value ||
@@ -1884,6 +1889,7 @@ namespace wil {
             typedef typename policy::pointer pointer;
             typedef shared_storage<unique_t> base_storage;
 
+        public:
             shared_storage() = default;
 
             explicit shared_storage(pointer_storage ptr)
@@ -1923,12 +1929,6 @@ namespace wil {
             {
             }
 
-            void replace(shared_storage &&other) WI_NOEXCEPT
-            {
-                m_ptr = wistd::move(other.m_ptr);
-            }
-
-        public:
             bool is_valid() const WI_NOEXCEPT
             {
                 return (m_ptr && m_ptr->is_valid());
@@ -1978,6 +1978,12 @@ namespace wil {
                 return m_ptr.use_count();
             }
 
+        protected:
+            void replace(shared_storage &&other) WI_NOEXCEPT
+            {
+                m_ptr = wistd::move(other.m_ptr);
+            }
+
         private:
             template <typename storage_t>
             friend class ::wil::weak_any;
@@ -2002,7 +2008,8 @@ namespace wil {
 
         // default and forwarding constructor: forwards default, all 'explicit' and multi-arg constructors to the base class
         template <typename... args_t>
-        explicit shared_any_t(args_t&&... args) :  // should not be WI_NOEXCEPT (may forward to a throwing constructor)
+        explicit shared_any_t(args_t&&... args)
+            __WI_NOEXCEPT_((wistd::is_nothrow_constructible_v<storage_t, args_t...>)) :
             storage_t(wistd::forward<args_t>(args)...)
         {
         }
@@ -2426,7 +2433,7 @@ namespace wil
         // Non-RTL implementation for threadpool_t parameter of DestroyThreadPoolTimer<>
         struct SystemThreadPoolMethods
         {
-            static void WINAPI SetThreadpoolTimer(_Inout_ PTP_TIMER Timer, _In_opt_ PFILETIME DueTime, _In_ DWORD Period, _In_opt_ DWORD WindowLength) WI_NOEXCEPT
+            static void WINAPI SetThreadpoolTimer(_Inout_ PTP_TIMER Timer, _In_opt_ PFILETIME DueTime, _In_ DWORD Period, _In_ DWORD WindowLength) WI_NOEXCEPT
             {
                 ::SetThreadpoolTimer(Timer, DueTime, Period, WindowLength);
             }

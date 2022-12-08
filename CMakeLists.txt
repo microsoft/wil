@@ -13,7 +13,7 @@ if (NOT DEFINED WIL_BUILD_VERSION)
 endif()
 
 if (NOT DEFINED CPPWINRT_VERSION)
-    set(CPPWINRT_VERSION "2.0.210806.1")
+    set(CPPWINRT_VERSION "2.0.221104.6")
 endif()
 
 # Detect the Windows SDK version. If we're using the Visual Studio generator, this will be provided for us. Otherwise
@@ -43,6 +43,12 @@ target_include_directories(${PROJECT_NAME} INTERFACE
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
+
+# Include the .natvis files
+if (MSVC)
+    target_sources(${PROJECT_NAME} INTERFACE
+        "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/natvis/wil.natvis>")
+endif()
 
 # Install Package Configuration
 string(TOLOWER ${PROJECT_NAME} PROJECT_NAME_LOWER)

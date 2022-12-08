@@ -40,7 +40,7 @@
 //       constructible. Therefore, use 'sizeof' for syntax validation. We don't do this universally for all compilers
 //       since lambdas are not allowed in unevaluated contexts prior to C++20, which does not appear to affect __noop
 #if !defined(_MSC_VER) || defined(__clang__)
-#define __WI_ANALYSIS_ASSUME(_exp)                          ((void)sizeof(_exp)) // Validate syntax on non-debug builds
+#define __WI_ANALYSIS_ASSUME(_exp)                          ((void)sizeof(!(_exp))) // Validate syntax on non-debug builds
 #else
 #define __WI_ANALYSIS_ASSUME(_exp)                          __noop(_exp)
 #endif
@@ -1295,19 +1295,32 @@ namespace wil
         // Plugin to call RoFailFastWithErrorContext (WIL use only)
         __declspec(selectany) void(__stdcall* g_pfnFailfastWithContextCallback)(wil::FailureInfo const& failure) WI_PFN_NOEXCEPT = nullptr;
 
-        // Called to tell Appverifier to ignore a particular allocation from leak tracking
-        // If AppVerifier is not enabled, this is a no-op
-        // Desktop/System Only: Automatically setup when building Windows (BUILD_WINDOWS defined)
-        __declspec(selectany) NTSTATUS(__stdcall *g_pfnRtlDisownModuleHeapAllocation)(_In_ HANDLE heapHandle, _In_ PVOID address) WI_PFN_NOEXCEPT = nullptr;
 
         // Allocate and disown the allocation so that Appverifier does not complain about a false leak
-        inline PVOID ProcessHeapAlloc(_In_ DWORD flags, _In_ size_t size)
+        inline PVOID ProcessHeapAlloc(_In_ DWORD flags, _In_ size_t size) WI_NOEXCEPT
         {
-            PVOID allocation = ::HeapAlloc(::GetProcessHeap(), flags, size);
+            const HANDLE processHeap = ::GetProcessHeap();
+            const PVOID allocation = ::HeapAlloc(processHeap, flags, size);
 
-            if (g_pfnRtlDisownModuleHeapAllocation)
+            static bool fetchedRtlDisownModuleHeapAllocation = false;
+            static NTSTATUS (__stdcall *pfnRtlDisownModuleHeapAllocation)(HANDLE, PVOID) WI_PFN_NOEXCEPT = nullptr;
+
+            if (pfnRtlDisownModuleHeapAllocation)
             {
-                (void)g_pfnRtlDisownModuleHeapAllocation(::GetProcessHeap(), allocation);
+                (void)pfnRtlDisownModuleHeapAllocation(processHeap, allocation);
+            }
+            else if (!fetchedRtlDisownModuleHeapAllocation)
+            {
+                if (auto ntdllModule = ::GetModuleHandleW(L"ntdll.dll"))
+                {
+                    pfnRtlDisownModuleHeapAllocation = reinterpret_cast<decltype(pfnRtlDisownModuleHeapAllocation)>(::GetProcAddress(ntdllModule, "RtlDisownModuleHeapAllocation"));
+                }
+                fetchedRtlDisownModuleHeapAllocation = true;
+
+                if (pfnRtlDisownModuleHeapAllocation)
+                {
+                    (void)pfnRtlDisownModuleHeapAllocation(processHeap, allocation);
+                }
             }
 
             return allocation;
@@ -3937,6 +3950,7 @@ __WI_SUPPRESS_4127_E
             const auto err = GetLastErrorFail(__R_FN_CALL_FULL);
             const auto hr = __HRESULT_FROM_WIN32(err);
             ReportFailure_Base<T>(__R_FN_CALL_FULL, ResultStatus::FromResult(hr));
+            ::SetLastError(err);
             return err;
         }
 
@@ -4096,6 +4110,7 @@ __WI_SUPPRESS_4127_E
             auto err = GetLastErrorFail(__R_FN_CALL_FULL);
             auto hr = __HRESULT_FROM_WIN32(err);
             ReportFailure_Msg<T>(__R_FN_CALL_FULL, ResultStatus::FromResult(hr), formatString, argList);
+            ::SetLastError(err);
             return err;
         }
 

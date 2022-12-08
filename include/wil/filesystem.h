@@ -339,9 +339,28 @@ namespace wil
         {
             if (deleteHandle != INVALID_HANDLE_VALUE)
             {
-                FILE_DISPOSITION_INFO fileInfo{};
-                fileInfo.DeleteFile = TRUE;
-                RETURN_IF_WIN32_BOOL_FALSE(SetFileInformationByHandle(deleteHandle, FileDispositionInfo, &fileInfo, sizeof(fileInfo)));
+#if (NTDDI_VERSION >= NTDDI_WIN10_RS1)
+                // DeleteFile and RemoveDirectory use POSIX delete, falling back to non-POSIX on most errors. Do the same here.
+                FILE_DISPOSITION_INFO_EX fileInfoEx{};
+                fileInfoEx.Flags = FILE_DISPOSITION_FLAG_DELETE | FILE_DISPOSITION_FLAG_POSIX_SEMANTICS;
+                if (!SetFileInformationByHandle(deleteHandle, FileDispositionInfoEx, &fileInfoEx, sizeof(fileInfoEx)))
+                {
+                    auto const err = ::GetLastError();
+                    // The real error we're looking for is STATUS_CANNOT_DELETE, but that's mapped to ERROR_ACCESS_DENIED.
+                    if (err != ERROR_ACCESS_DENIED)
+                    {
+#endif
+                        FILE_DISPOSITION_INFO fileInfo{};
+                        fileInfo.DeleteFile = TRUE;
+                        RETURN_IF_WIN32_BOOL_FALSE(SetFileInformationByHandle(deleteHandle, FileDispositionInfo, &fileInfo, sizeof(fileInfo)));
+#if (NTDDI_VERSION >= NTDDI_WIN10_RS1)
+                    }
+                    else
+                    {
+                        RETURN_WIN32(err);
+                    }
+                }
+#endif
             }
             else
             {
@@ -892,7 +911,7 @@ namespace wil
 
         // Type unsafe version used in the implementation to avoid template bloat.
         inline HRESULT GetFileInfo(HANDLE fileHandle, FILE_INFO_BY_HANDLE_CLASS infoClass, size_t allocationSize,
-            _Outptr_result_nullonfailure_ void **result)
+            _Outptr_result_maybenull_ void **result)
         {
             *result = nullptr;
 
