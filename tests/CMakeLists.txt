@@ -58,3 +58,16 @@ add_subdirectory(cpplatest)
 add_subdirectory(noexcept)
 add_subdirectory(normal)
 add_subdirectory(win7)
+
+set(ASAN_AVAILABLE FALSE)
+if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+    # Address Sanitizer is available for all architectures and build types
+    set(ASAN_AVAILABLE TRUE)
+elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    # Address Sanitizer is not available with debug libraries
+    set(ASAN_AVAILABLE NOT ${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+endif()
+
+if (${ASAN_AVAILABLE})
+    add_subdirectory(sanitize-address)
+endif()
