@@ -1,11 +1,8 @@
+
 include(${PROJECT_SOURCE_DIR}/cmake/common_build_flags.cmake)
-cmake_minimum_required(VERSION 3.11)
 
 # All projects need to reference the WIL headers
 include_directories(${PROJECT_SOURCE_DIR}/include)
-
-# TODO: Might be worth trying to conditionally do this on SDK version, assuming there's a semi-easy way to detect that
-include_directories(BEFORE SYSTEM ./workarounds/wrl)
 
 # Because we don't always use msbuild, we need to run nuget manually
 find_program(NUGET nuget)
