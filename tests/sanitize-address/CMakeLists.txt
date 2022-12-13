@@ -1,5 +1,4 @@
 
-project(witest.asan)
 add_executable(witest.asan)
 
 target_compile_options(witest.asan PRIVATE -fsanitize=address)
@@ -11,17 +10,30 @@ target_compile_definitions(witest.asan PRIVATE
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     target_compile_definitions(witest.asan PRIVATE
-        -D_DISABLE_VECTOR_ANNOTATION # Not compatible with using lld-link
+        # Not compatible with using lld-link
+        -D_DISABLE_VECTOR_ANNOTATION
+        # See below; not compatible with exceptions
+        -DCATCH_CONFIG_DISABLE_EXCEPTIONS
         )
 
-    target_link_libraries(witest.asan PRIVATE
-        clang_rt.asan_dynamic-x86_64.lib
-        clang_rt.asan_dynamic_runtime_thunk-x86_64.lib)
+    # Clang ASan on Windows has issues with Windows: https://github.com/google/sanitizers/issues/749
+    replace_cxx_flag("/EHsc" "/EHs-c-")
+
+    if ($ENV{Platform} STREQUAL "x86")
+        target_link_libraries(witest.asan PRIVATE
+            clang_rt.asan_dynamic-i386.lib
+            clang_rt.asan_dynamic_runtime_thunk-i386.lib
+            )
+    else()
+        target_link_libraries(witest.asan PRIVATE
+            clang_rt.asan_dynamic-x86_64.lib
+            clang_rt.asan_dynamic_runtime_thunk-x86_64.lib
+            )
+    endif()
 endif()
 
 target_sources(witest.asan PUBLIC
     ${COMMON_SOURCES}
-    ${CMAKE_CURRENT_SOURCE_DIR}/../StlTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../TokenHelpersTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../UniqueWinRTEventTokenTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../WatcherTests.cpp
