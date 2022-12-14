@@ -4,6 +4,9 @@ include(${PROJECT_SOURCE_DIR}/cmake/common_build_flags.cmake)
 # All projects need to reference the WIL headers
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
+# TODO: Might be worth trying to conditionally do this on SDK version, assuming there's a semi-easy way to detect that
+include_directories(BEFORE SYSTEM ./workarounds/wrl)
+
 # Because we don't always use msbuild, we need to run nuget manually
 find_program(NUGET nuget)
 if (NOT NUGET)
@@ -57,14 +60,20 @@ add_subdirectory(normal)
 add_subdirectory(win7)
 
 set(ASAN_AVAILABLE FALSE)
+set(UBSAN_AVAILABLE FALSE)
 if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
     # Address Sanitizer is available for all architectures and build types
     set(ASAN_AVAILABLE TRUE)
 elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     # Address Sanitizer is not available with debug libraries
     set(ASAN_AVAILABLE NOT ${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+    set(UBSAN_AVAILABLE NOT ${CMAKE_BUILD_TYPE} STREQUAL "Debug")
 endif()
 
 if (${ASAN_AVAILABLE})
     add_subdirectory(sanitize-address)
+endif()
+
+if (${UBSAN_AVAILABLE})
+    add_subdirectory(sanitize-undefined-behavior)
 endif()

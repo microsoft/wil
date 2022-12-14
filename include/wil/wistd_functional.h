@@ -250,21 +250,24 @@ namespace wistd     // ("Windows Implementation" std)
             return _Invoker::__call(__f_, wistd::forward<_ArgTypes>(__arg)...);
         }
 
-    }  // __function
-
-    template<class _Rp, class ..._ArgTypes>
-    class __WI_LIBCPP_TEMPLATE_VIS function<_Rp(_ArgTypes...)>
-        : public __function::__maybe_derive_from_unary_function<_Rp(_ArgTypes...)>,
-          public __function::__maybe_derive_from_binary_function<_Rp(_ArgTypes...)>
-    {
         // 'wistd::function' is most similar to 'inplace_function' in that it _only_ permits holding function objects
         // that can fit within its internal buffer. Therefore, we expand this size to accommodate space for at least 12
         // pointers (__base vtable takes an additional one).
-        static constexpr size_t __buffer_size = 13 * sizeof(void*);
+        constexpr const size_t __buffer_size = 13 * sizeof(void*);
 
+    }  // __function
+
+    // NOTE: The extra 'alignas' here is to work around the x86 compiler bug mentioned in
+    // https://github.com/microsoft/STL/issues/1533 to force alignment on the stack
+    template<class _Rp, class ..._ArgTypes>
+    class __WI_LIBCPP_TEMPLATE_VIS __WI_ALIGNAS(typename aligned_storage<__function::__buffer_size>::type)
+    function<_Rp(_ArgTypes...)>
+        : public __function::__maybe_derive_from_unary_function<_Rp(_ArgTypes...)>,
+          public __function::__maybe_derive_from_binary_function<_Rp(_ArgTypes...)>
+    {
         typedef __function::__base<_Rp(_ArgTypes...)> __base;
         __WI_LIBCPP_SUPPRESS_NONINIT_ANALYSIS
-        typename aligned_storage<__buffer_size>::type __buf_;
+        typename aligned_storage<__function::__buffer_size>::type __buf_;
         __base* __f_;
 
         __WI_LIBCPP_NO_CFI static __base *__as_base(void *p) {

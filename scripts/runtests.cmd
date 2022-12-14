@@ -61,6 +61,8 @@ call :execute_test normal witest.exe
 if %ERRORLEVEL% NEQ 0 ( popd && goto :eof )
 call :execute_test sanitize-address witest.asan.exe
 if %ERRORLEVEL% NEQ 0 ( popd && goto :eof )
+call :execute_test sanitize-undefined-behavior witest.ubsan.exe
+if %ERRORLEVEL% NEQ 0 ( popd && goto :eof )
 call :execute_test win7 witest.win7.exe
 if %ERRORLEVEL% NEQ 0 ( popd && goto :eof )
 popd

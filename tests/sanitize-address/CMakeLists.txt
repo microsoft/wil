@@ -30,10 +30,17 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
             clang_rt.asan_dynamic_runtime_thunk-x86_64.lib
             )
     endif()
+else()
+    # Using exceptions, so we can compile the STL tests
+    set(EXTRA_SOURCES
+        ${EXTRA_SOURCES}
+        ${CMAKE_CURRENT_SOURCE_DIR}/../StlTests.cpp
+        )
 endif()
 
 target_sources(witest.asan PUBLIC
     ${COMMON_SOURCES}
+    ${EXTRA_SOURCES}
     ${CMAKE_CURRENT_SOURCE_DIR}/../TokenHelpersTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../UniqueWinRTEventTokenTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../WatcherTests.cpp
