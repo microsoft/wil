@@ -57,9 +57,13 @@ namespace wil
         DWORD size{sizeof(value)};
         // TODO: support internal registry functions?
         // TODO: support additional flags, like RRF_ZEROONFAILURE?
-        // TODO: convert to HRESULT?
         const auto hr = HRESULT_FROM_WIN32(::RegGetValueW(hkey, subkey, regValueName, RRF_RT_DWORD, nullptr, value, &size));
         return hr;
+    }
+
+    inline HRESULT get_registry_dword_nothrow(HKEY hkey, LPCWSTR regValueName, _Out_ DWORD* value) noexcept
+    {
+        return get_registry_dword_nothrow(hkey, nullptr, regValueName, value);
     }
 
     /// @cond
@@ -74,7 +78,8 @@ namespace wil
         }
     }
     /// @endcond
-
+    
+    // TODO: handle without subkey, for all.
     constexpr auto* set_registry_dword_nothrow = details::set_registry_dword<err_returncode_policy>;
     constexpr auto* set_registry_dword_failfast = details::set_registry_dword<err_failfast_policy>;
 
