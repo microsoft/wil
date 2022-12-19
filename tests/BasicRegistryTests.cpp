@@ -5,6 +5,7 @@
 #endif // _HAS_CXX17
 #include <wil/filesystem.h>
 #include <wil/registry.h>
+#include <wil/registry_basic.h>
 #include <wil/resource.h>
 
 #include <memory> // For shared_event_watcher
@@ -27,6 +28,7 @@ TEST_CASE("BasicRegistryTests::Dwords", "[registry][get_registry_dword]")
     SECTION("get and set with string key and value name, nothrow")
     {
         DWORD value = 4;
+        //TODO: use wil::registry::set_value_dword_nothrow() (AND for all other tests)
         REQUIRE_SUCCEEDED(wil::set_registry_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, value));
 
         DWORD result{ 0 };
