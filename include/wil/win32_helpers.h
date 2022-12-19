@@ -310,6 +310,17 @@ namespace wil
     {
         return (point.x >= rect.left) && (point.x < rect.right) && (point.y >= rect.top) && (point.y < rect.bottom);
     }
+
+    template<typename rect_type, typename length_type>
+    constexpr rect_type rect_from_size(length_type x, length_type y, length_type width, length_type height)
+    {
+        rect_type rect;
+        rect.left = x;
+        rect.top = y;
+        rect.right = x + width;
+        rect.bottom = y + height;
+        return rect;
+    }
 #pragma endregion
 
     // Use to adapt Win32 APIs that take a fixed size buffer into forms that return
