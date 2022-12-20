@@ -824,7 +824,7 @@ namespace reg_view_details
             return ::wil::registry::details::get_key(m_key);
         }
 
-        typename err_policy::result open_key(_In_ PCWSTR subKey, ::wil::unique_hkey& hkey, ::wil::registry::key_access access = ::wil::registry::key_access::read) const
+        typename err_policy::result open_key(_In_opt_ PCWSTR subKey, ::wil::unique_hkey& hkey, ::wil::registry::key_access access = ::wil::registry::key_access::read) const
         {
             auto error = ::RegOpenKeyExW(::wil::registry::details::get_key(m_key), subKey, 0, ::wil::registry::details::get_access_flags(access), ::wil::out_param(hkey));
             if (error == ERROR_FILE_NOT_FOUND && !::wil::registry::details::should_return_not_found<err_policy>())
@@ -836,7 +836,7 @@ namespace reg_view_details
         }
 
 #if defined(__WIL_WINREG_STL)
-    typename err_policy::result open_key(_In_ PCWSTR subKey, ::wil::shared_hkey& hkey, ::wil::registry::key_access access = ::wil::registry::key_access::read) const
+    typename err_policy::result open_key(_In_opt_ PCWSTR subKey, ::wil::shared_hkey& hkey, ::wil::registry::key_access access = ::wil::registry::key_access::read) const
     {
         auto error = ::RegOpenKeyExW(::wil::registry::details::get_key(m_key), subKey, 0, ::wil::registry::details::get_access_flags(access), ::wil::out_param(hkey));
         if (error == ERROR_FILE_NOT_FOUND && !::wil::registry::details::should_return_not_found<err_policy>())
@@ -848,7 +848,7 @@ namespace reg_view_details
     }
 #endif
 
-        ::wil::unique_hkey open_unique_key(_In_ PCWSTR subKey, ::wil::registry::key_access access = ::wil::registry::key_access::read) const
+        ::wil::unique_hkey open_unique_key(_In_opt_ PCWSTR subKey, ::wil::registry::key_access access = ::wil::registry::key_access::read) const
         {
             ::wil::unique_hkey local_key{};
             open_key(subKey, local_key, access);
@@ -856,7 +856,7 @@ namespace reg_view_details
         }
 
 #if defined(__WIL_WINREG_STL)
-    ::wil::shared_hkey open_shared_key(_In_ PCWSTR subKey, ::wil::registry::key_access access = ::wil::registry::key_access::read) const
+    ::wil::shared_hkey open_shared_key(_In_opt_ PCWSTR subKey, ::wil::registry::key_access access = ::wil::registry::key_access::read) const
     {
         ::wil::shared_hkey local_key{};
         open_key(subKey, local_key, access);
@@ -864,7 +864,7 @@ namespace reg_view_details
     }
 #endif
 
-        typename err_policy::result create_key(_In_ PCWSTR subKey, ::wil::unique_hkey& hkey, ::wil::registry::key_access access = ::wil::registry::key_access::read, _In_opt_ PCWSTR security_descriptor = nullptr) const
+        typename err_policy::result create_key(_In_opt_ PCWSTR subKey, ::wil::unique_hkey& hkey, ::wil::registry::key_access access = ::wil::registry::key_access::read, _In_opt_ PCWSTR security_descriptor = nullptr) const
         {
             hkey.reset();
 
@@ -880,7 +880,7 @@ namespace reg_view_details
         }
 
 #if defined(__WIL_WINREG_STL)
-    typename err_policy::result create_key(_In_ PCWSTR subKey, ::wil::shared_hkey& hkey, ::wil::registry::key_access access = ::wil::registry::key_access::read, _In_opt_ PCWSTR security_descriptor = nullptr) const
+    typename err_policy::result create_key(_In_opt_ PCWSTR subKey, ::wil::shared_hkey& hkey, ::wil::registry::key_access access = ::wil::registry::key_access::read, _In_opt_ PCWSTR security_descriptor = nullptr) const
     {
         hkey.reset();
 
@@ -896,7 +896,7 @@ namespace reg_view_details
     }
 #endif
 
-        ::wil::unique_hkey create_unique_key(_In_ PCWSTR subKey, ::wil::registry::key_access access = ::wil::registry::key_access::read, _In_opt_ PCWSTR security_descriptor = nullptr) const
+        ::wil::unique_hkey create_unique_key(_In_opt_ PCWSTR subKey, ::wil::registry::key_access access = ::wil::registry::key_access::read, _In_opt_ PCWSTR security_descriptor = nullptr) const
         {
             ::wil::unique_hkey local_key{};
             create_key(subKey, local_key, access, security_descriptor);
@@ -904,7 +904,7 @@ namespace reg_view_details
         }
 
 #if defined(__WIL_WINREG_STL)
-    ::wil::shared_hkey create_shared_key(_In_ PCWSTR subKey, ::wil::registry::key_access access = ::wil::registry::key_access::read, _In_opt_ PCWSTR security_descriptor = nullptr) const
+    ::wil::shared_hkey create_shared_key(_In_opt_ PCWSTR subKey, ::wil::registry::key_access access = ::wil::registry::key_access::read, _In_opt_ PCWSTR security_descriptor = nullptr) const
     {
         ::wil::shared_hkey local_key{};
         create_key(subKey, local_key, access, security_descriptor);
@@ -922,13 +922,13 @@ namespace reg_view_details
             return err_policy::HResult(HRESULT_FROM_WIN32(error));
         }
 
-        typename err_policy::result delete_value(HKEY key, _In_ PCWSTR value_name) WI_NOEXCEPT
+        typename err_policy::result delete_value(HKEY key, _In_opt_ PCWSTR value_name) WI_NOEXCEPT
         {
             return err_policy::HResult(HRESULT_FROM_WIN32(RegDeleteValueW(key, value_name)));
         }
 
         template <typename R>
-        typename err_policy::result get_value(_In_opt_ PCWSTR subkey, _In_ PCWSTR value_name, optional_value<R>& return_value, DWORD type = ::wil::registry::reg_view_details::get_value_type<R>()) const
+        typename err_policy::result get_value(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, optional_value<R>& return_value, DWORD type = ::wil::registry::reg_view_details::get_value_type<R>()) const
         {
             for (;;)
             {
@@ -970,14 +970,14 @@ namespace reg_view_details
         }
 
         template <typename R>
-        typename err_policy::result get_value(_In_ PCWSTR value_name, optional_value<R>& return_value, DWORD type = ::wil::registry::reg_view_details::get_value_type<R>()) const
+        typename err_policy::result get_value(_In_opt_ PCWSTR value_name, optional_value<R>& return_value, DWORD type = ::wil::registry::reg_view_details::get_value_type<R>()) const
         {
             return get_value(nullptr, value_name, return_value, type);
         }
 
         // intended for err_exception_policy as err_returncode_policy will not get an error code
         template <typename R>
-        optional_value<R> get_value(_In_ PCWSTR value_name) const
+        optional_value<R> get_value(_In_opt_ PCWSTR value_name) const
         {
             optional_value<R> value;
             get_value(value_name, value);
@@ -997,6 +997,7 @@ namespace reg_view_details
             return err_policy::HResult(HRESULT_FROM_WIN32(error));
         }
 
+        // TODO: just call set_value with nullptr subkey?
         template <typename R>
         typename err_policy::result set_value(_In_opt_ PCWSTR value_name, const R& value) const
         {
@@ -1012,7 +1013,29 @@ namespace reg_view_details
 
 #ifdef WIL_ENABLE_EXCEPTIONS
         template <typename R>
-        typename err_policy::result set_value_multisz(_In_ PCWSTR value_name, const R& data) const try
+        typename err_policy::result set_value_multisz(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const R& data) const try
+        {
+            const auto multiSzWcharVector(::wil::registry::details::get_multisz_from_wstrings(::std::begin(data), ::std::end(data)));
+
+            const auto* byteArray = reinterpret_cast<const BYTE*>(&multiSzWcharVector[0]);
+            const auto byteArrayLength = static_cast<DWORD>(multiSzWcharVector.size() * sizeof(wchar_t));
+            const auto error = ::RegSetKeyValueW(
+                ::wil::registry::details::get_key(m_key),
+                subkey,
+                value_name,
+                REG_MULTI_SZ,
+                byteArray,
+                byteArrayLength);
+            return err_policy::HResult(HRESULT_FROM_WIN32(error));
+        }
+        catch (...)
+        {
+            return err_policy::HResult(::wil::ResultFromCaughtException());
+        }
+
+        // TODO: just call set_value_multisz with nullptr subkey?
+        template <typename R>
+        typename err_policy::result set_value_multisz(_In_opt_ PCWSTR value_name, const R& data) const try
         {
             const auto multiSzWcharVector(::wil::registry::details::get_multisz_from_wstrings(::std::begin(data), ::std::end(data)));
 
@@ -1220,33 +1243,53 @@ inline void set_value_dword(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR va
     return regview.set_value(subkey, value_name, data);
 }
 
-inline void set_value_dword(HKEY key, _In_ PCWSTR value_name, DWORD data)
+inline void set_value_dword(HKEY key, _In_opt_ PCWSTR value_name, DWORD data)
 {
     return set_value_dword(key, nullptr, value_name, data);
 }
 
-inline void set_value_qword(HKEY key, _In_ PCWSTR value_name, uint64_t data)
+inline void set_value_qword(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, uint64_t data)
 {
     const reg_view_details::reg_view regview{key};
-    return regview.set_value(value_name, data);
+    return regview.set_value(subkey, value_name, data);
 }
 
-inline void set_value_multisz(HKEY key, _In_ PCWSTR value_name, const ::std::vector<::std::wstring>& data)
+inline void set_value_qword(HKEY key, _In_opt_ PCWSTR value_name, uint64_t data)
 {
-    const reg_view_details::reg_view regview{key};
-    return regview.set_value_multisz(value_name, data);
+    return set_value_qword(key, nullptr, value_name, data);
 }
 
-inline void set_value_string(HKEY key, _In_ PCWSTR value_name, _In_ PCWSTR data)
+inline void set_value_string(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _In_ PCWSTR data)
 {
     const reg_view_details::reg_view regview{key};
-    return regview.set_value(value_name, data);
+    return regview.set_value(subkey, value_name, data);
 }
 
-inline void set_value_multisz(HKEY key, _In_ PCWSTR value_name, const ::std::list<::std::wstring>& data)
+inline void set_value_string(HKEY key, _In_opt_ PCWSTR value_name, _In_ PCWSTR data)
+{
+    return set_value_string(key, nullptr, value_name, data);
+}
+
+inline void set_value_multisz(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const ::std::vector<::std::wstring>& data)
 {
     const reg_view_details::reg_view regview{key};
-    return regview.set_value_multisz(value_name, data);
+    return regview.set_value_multisz(subkey, value_name, data);
+}
+
+inline void set_value_multisz(HKEY key, _In_opt_ PCWSTR value_name, const ::std::vector<::std::wstring>& data)
+{
+    return set_value_multisz(key, nullptr, value_name, data);
+}
+
+inline void set_value_multisz(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const ::std::list<::std::wstring>& data)
+{
+    const reg_view_details::reg_view regview{key};
+    return regview.set_value_multisz(subkey, value_name, data);
+}
+
+inline void set_value_multisz(HKEY key, _In_opt_ PCWSTR value_name, const ::std::list<::std::wstring>& data)
+{
+    return set_value_multisz(key, nullptr, value_name, data);
 }
 #endif
 
@@ -1340,33 +1383,33 @@ inline optional_value<::std::wstring> get_value_expanded_string(HKEY key, _In_ P
 }
 #endif
 
-inline HRESULT get_value_dword_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_ PCWSTR value_name, _In_ DWORD* return_value) WI_NOEXCEPT
+inline HRESULT get_value_dword_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _In_ DWORD* return_value) WI_NOEXCEPT
 {
     DWORD data_size_bytes{sizeof *return_value};
     return HRESULT_FROM_WIN32(RegGetValueW(key, subkey, value_name, ::wil::registry::details::get_value_flags_from_value_type(REG_DWORD), nullptr, return_value, &data_size_bytes));
 }
 
-inline HRESULT get_value_dword_nothrow(HKEY key, _In_ PCWSTR value_name, _In_ DWORD* return_value) WI_NOEXCEPT
+inline HRESULT get_value_dword_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _In_ DWORD* return_value) WI_NOEXCEPT
 {
     return get_value_dword_nothrow(key, nullptr, value_name, return_value);
 }
 
-inline HRESULT get_value_qword_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_ PCWSTR value_name, _In_ DWORD64* return_value) WI_NOEXCEPT
+inline HRESULT get_value_qword_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _In_ DWORD64* return_value) WI_NOEXCEPT
 {
     DWORD data_size_bytes{sizeof *return_value};
     return HRESULT_FROM_WIN32(RegGetValueW(key, subkey, value_name, ::wil::registry::details::get_value_flags_from_value_type(REG_QWORD), nullptr, return_value, &data_size_bytes));
 }
 
-inline HRESULT get_value_qword_nothrow(HKEY key, _In_ PCWSTR value_name, _In_ DWORD64* return_value) WI_NOEXCEPT
+inline HRESULT get_value_qword_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _In_ DWORD64* return_value) WI_NOEXCEPT
 {
     return get_value_qword_nothrow(key, nullptr, value_name, return_value);
 }
 
-inline HRESULT get_value_byte_vector_nothrow(HKEY key, _In_ PCWSTR value_name, DWORD type, ::std::vector<BYTE>& data) WI_NOEXCEPT
+inline HRESULT get_value_byte_vector_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, DWORD type, ::std::vector<BYTE>& data) WI_NOEXCEPT
 {
     const reg_view_details::reg_view_nothrow regview{key};
     optional_value<::std::vector<BYTE>> optionalvalue;
-    const auto hr = regview.get_value<::std::vector<BYTE>>(value_name, optionalvalue, type);
+    const auto hr = regview.get_value<::std::vector<BYTE>>(subkey, value_name, optionalvalue, type);
     RETURN_IF_FAILED(hr);
 
     if (optionalvalue.type != optional_value_status::has_value)
@@ -1376,14 +1419,19 @@ inline HRESULT get_value_byte_vector_nothrow(HKEY key, _In_ PCWSTR value_name, D
 
     std::swap(data, optionalvalue.value);
     return S_OK;
+}
+
+inline HRESULT get_value_byte_vector_nothrow(HKEY key, _In_opt_ PCWSTR value_name, DWORD type, ::std::vector<BYTE>& data) WI_NOEXCEPT
+{
+    return get_value_byte_vector_nothrow(key, nullptr, value_name, type, data);
 }
 
 #if defined(__WIL_STL_INCLUDED) && defined(WIL_ENABLE_EXCEPTIONS)
-inline HRESULT get_value_string_nothrow(HKEY key, _In_ PCWSTR value_name, ::std::wstring& data) WI_NOEXCEPT try
+inline HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, ::std::wstring& data) WI_NOEXCEPT try
 {
     const reg_view_details::reg_view_nothrow regview{key};
     optional_value<::std::wstring> optionalvalue;
-    const auto hr = regview.get_value<::std::wstring>(value_name, optionalvalue);
+    const auto hr = regview.get_value<::std::wstring>(subkey, value_name, optionalvalue);
     RETURN_IF_FAILED(hr);
 
     if (optionalvalue.type != optional_value_status::has_value)
@@ -1396,11 +1444,16 @@ inline HRESULT get_value_string_nothrow(HKEY key, _In_ PCWSTR value_name, ::std:
 }
 CATCH_RETURN()
 
-inline HRESULT get_value_expanded_string_nothrow(HKEY key, _In_ PCWSTR value_name, ::std::wstring& data) WI_NOEXCEPT try
+inline HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, ::std::wstring& data) WI_NOEXCEPT
+{
+    return get_value_string_nothrow(key, nullptr, value_name, data);
+}
+
+inline HRESULT get_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, ::std::wstring& data) WI_NOEXCEPT try
 {
     const reg_view_details::reg_view_nothrow regview{key};
     optional_value<::std::wstring> optionalvalue;
-    const auto hr = regview.get_value<::std::wstring>(value_name, optionalvalue, REG_EXPAND_SZ);
+    const auto hr = regview.get_value<::std::wstring>(subkey, value_name, optionalvalue, REG_EXPAND_SZ);
     RETURN_IF_FAILED(hr);
 
     if (optionalvalue.type != optional_value_status::has_value)
@@ -1413,12 +1466,17 @@ inline HRESULT get_value_expanded_string_nothrow(HKEY key, _In_ PCWSTR value_nam
 }
 CATCH_RETURN()
 
-inline HRESULT get_value_multistring_wstring_nothrow(HKEY key, _In_ PCWSTR value_name, ::std::vector<::std::wstring>* return_value) WI_NOEXCEPT try
+inline HRESULT get_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, ::std::wstring& data) WI_NOEXCEPT
+{
+    return get_value_expanded_string_nothrow(key, nullptr, value_name, data);
+}
+
+inline HRESULT get_value_multistring_wstring_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, ::std::vector<::std::wstring>* return_value) WI_NOEXCEPT try
 {
     return_value->clear();
 
     ::std::vector<BYTE> rawData;
-    RETURN_IF_FAILED(get_value_byte_vector_nothrow(key, value_name, REG_MULTI_SZ, rawData));
+    RETURN_IF_FAILED(get_value_byte_vector_nothrow(key, subkey, value_name, REG_MULTI_SZ, rawData));
     if (!rawData.empty())
     {
         auto* const begin = reinterpret_cast<wchar_t*>(rawData.data());
@@ -1429,10 +1487,15 @@ inline HRESULT get_value_multistring_wstring_nothrow(HKEY key, _In_ PCWSTR value
 }
 CATCH_RETURN()
 
-inline optional_value<::std::vector<::std::wstring>> get_value_multistring_wstring(HKEY key, _In_ PCWSTR value_name)
+inline HRESULT get_value_multistring_wstring_nothrow(HKEY key, _In_opt_ PCWSTR value_name, ::std::vector<::std::wstring>* return_value) WI_NOEXCEPT try
+{
+    return get_value_multistring_wstring_nothrow(key, nullptr, value_name, return_value);
+}
+
+inline optional_value<::std::vector<::std::wstring>> get_value_multistring_wstring(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
 {
     ::std::vector<::std::wstring> local_value;
-    const auto hr = get_value_multistring_wstring_nothrow(key, value_name, &local_value);
+    const auto hr = get_value_multistring_wstring_nothrow(key, subkey, value_name, &local_value);
     if (SUCCEEDED(hr))
     {
         optional_value<::std::vector<::std::wstring>> return_value;
@@ -1446,19 +1509,31 @@ inline optional_value<::std::vector<::std::wstring>> get_value_multistring_wstri
     }
     THROW_HR(hr);
 }
+
+inline optional_value<::std::vector<::std::wstring>> get_value_multistring_wstring(HKEY key, _In_opt_ PCWSTR value_name)
+{
+    return get_value_multistring_wstring(key, nullptr, value_name);
+}
+
 #endif
 
 template <size_t Length>
-HRESULT get_value_string_nothrow(HKEY key, _In_ PCWSTR value_name, wchar_t return_value[Length], _Out_opt_ DWORD* pRequiredBytes = nullptr) WI_NOEXCEPT
+HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, wchar_t return_value[Length], _Out_opt_ DWORD* pRequiredBytes = nullptr) WI_NOEXCEPT
 {
     // don't allocate, just use their buffer
     DWORD data_size_bytes{Length * sizeof(wchar_t)};
-    const auto error = RegGetValueW(key, nullptr, value_name, ::wil::registry::details::get_value_flags_from_value_type(REG_SZ), nullptr, return_value, &data_size_bytes);
+    const auto error = RegGetValueW(key, subkey, value_name, ::wil::registry::details::get_value_flags_from_value_type(REG_SZ), nullptr, return_value, &data_size_bytes);
     if (pRequiredBytes && error == ERROR_MORE_DATA)
     {
         *pRequiredBytes = data_size_bytes;
     }
     return HRESULT_FROM_WIN32(error);
+}
+
+template <size_t Length>
+HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, wchar_t return_value[Length], _Out_opt_ DWORD* pRequiredBytes = nullptr) WI_NOEXCEPT
+{
+    return get_value_string_nothrow(key, nullptr, value_name, return_value, pRequiredBytes);
 }
 } // namespace registry
 } // namespace wil
