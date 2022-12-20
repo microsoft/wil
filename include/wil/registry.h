@@ -69,7 +69,7 @@ namespace wil
     /// @cond
     namespace details
     {
-        template <typename err_policy, typename result = err_policy::result>
+        template <typename err_policy, typename result = typename err_policy::result>
         inline result set_registry_dword(HKEY hkey, LPCWSTR subkey, LPCWSTR regValueName, DWORD value)
         {
             // TODO: support little endian and big endian?
@@ -172,7 +172,7 @@ namespace wil
     /// @cond
     namespace details
     {
-        template <typename err_policy, typename result = err_policy::result>
+        template <typename err_policy, typename result = typename err_policy::result>
         inline result set_registry_string(HKEY hkey, LPCWSTR subkey, LPCWSTR regValueName, const std::wstring& value)
         {
             static_assert(wistd::is_same_v<std::wstring::value_type, wchar_t>, "We assume a wstring is made of wchar_ts");
