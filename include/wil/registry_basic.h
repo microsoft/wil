@@ -136,7 +136,8 @@ namespace details
         while (current != data.end())
         {
             const auto next = ::std::find(current, data.end(), L'\0');
-            if (::std::wstring tempString(current, next); !tempString.empty())
+            ::std::wstring tempString(current, next);
+            if (!tempString.empty())
             {
                 strings.emplace_back(::std::move(tempString));
             }
@@ -204,12 +205,10 @@ namespace details
         return h.get();
     }
 #endif
+
+    // should_return_not_found needs a well-known error policy for T.
     template <typename T>
-    constexpr bool should_return_not_found()
-    {
-        static_assert(false);
-        return false;
-    }
+    constexpr bool should_return_not_found();
 
     template <>
     constexpr bool should_return_not_found<::wil::err_returncode_policy>()
@@ -561,7 +560,7 @@ namespace reg_view_details
     template <typename T>
     constexpr DWORD get_buffer_size(const optional_value<T>) WI_NOEXCEPT
     {
-        return sizeof T;
+        return sizeof(T);
     }
 
     inline DWORD get_buffer_size(const std::vector<BYTE>& buffer) WI_NOEXCEPT
@@ -640,6 +639,7 @@ namespace reg_view_details
         return false;
     }
 
+#ifdef WIL_ENABLE_EXCEPTIONS
     inline bool grow_buffer(std::vector<BYTE>& buffer, DWORD byteSize) WI_NOEXCEPT
     {
         try
@@ -667,6 +667,8 @@ namespace reg_view_details
         }
         return true;
     }
+#endif
+
 #if defined(__WIL_OLEAUTO_H_)
     inline bool grow_buffer(optional_value<::wil::unique_bstr>& string, DWORD byteSize) WI_NOEXCEPT
     {
@@ -698,18 +700,16 @@ namespace reg_view_details
 
     inline void trim_buffer(optional_value<::std::wstring>& buffer)
     {
-        if (const auto offset = buffer.value.find_first_of(L'\0'); offset != std::wstring::npos)
+        const auto offset = buffer.value.find_first_of(L'\0');
+        if (offset != std::wstring::npos)
         {
             buffer.value.resize(offset);
         }
     }
 
+    // get_value_type requires a well-known type for T
     template <typename T>
-    DWORD get_value_type() WI_NOEXCEPT
-    {
-        static_assert(false);
-        return 0;
-    }
+    DWORD get_value_type() WI_NOEXCEPT;
 
     template <>
     constexpr DWORD get_value_type<int32_t>() WI_NOEXCEPT
@@ -814,7 +814,7 @@ namespace reg_view_details
         return REG_SZ;
     }
 
-// type T is the owning type for storing a key: HKEY, wil::unique_hkey, wil::shared_hkey
+    // type T is the owning type for storing a key: HKEY, wil::unique_hkey, wil::shared_hkey
     template <typename T, typename err_policy = err_exception_policy>
     class reg_view_t
     {
@@ -997,6 +997,7 @@ namespace reg_view_details
             return err_policy::HResult(HRESULT_FROM_WIN32(error));
         }
 
+#ifdef WIL_ENABLE_EXCEPTIONS
         template <typename R>
         typename err_policy::result set_value_multisz(_In_ PCWSTR value_name, const R& data) const try
         {
@@ -1018,63 +1019,62 @@ namespace reg_view_details
             return err_policy::HResult(::wil::ResultFromCaughtException());
         }
 
-#ifdef WIL_ENABLE_EXCEPTIONS
-    struct key_enumerator
-    {
-        explicit key_enumerator(HKEY key) :
-            m_hkey(key)
+        struct key_enumerator
         {
+            explicit key_enumerator(HKEY key) :
+                m_hkey(key)
+            {
+            }
+
+            [[nodiscard]] ::wil::registry::details::key_iterator begin() const
+            {
+                return ::wil::registry::details::key_iterator(m_hkey, ::wil::registry::details::iterator_creation_flag::begin);
+            }
+
+            [[nodiscard]] ::wil::registry::details::key_iterator end() const WI_NOEXCEPT
+            {
+                return ::wil::registry::details::key_iterator(m_hkey, ::wil::registry::details::iterator_creation_flag::end);
+            }
+
+        private:
+            friend class reg_view_t;
+            // non-owning resource (just get a copy from the owner)
+            HKEY m_hkey;
+        };
+
+        struct value_enumerator
+        {
+            explicit value_enumerator(HKEY key) :
+                m_hkey(key)
+            {
+            }
+
+            // begin() will throw Registry::Exception on error 
+            [[nodiscard]] ::wil::registry::details::value_iterator begin() const
+            {
+                return ::wil::registry::details::value_iterator(m_hkey, ::wil::registry::details::iterator_creation_flag::begin);
+            }
+
+            [[nodiscard]] ::wil::registry::details::value_iterator end() const WI_NOEXCEPT
+            {
+                return ::wil::registry::details::value_iterator(m_hkey, ::wil::registry::details::iterator_creation_flag::end);
+            }
+
+        private:
+            friend class reg_view_t;
+            // non-owning resource (just get a copy from the owner)
+            HKEY m_hkey;
+        };
+
+        [[nodiscard]] key_enumerator reg_enum_keys() const
+        {
+            return key_enumerator(::wil::registry::details::get_key(m_key));
         }
 
-        [[nodiscard]] ::wil::registry::details::key_iterator begin() const
+        [[nodiscard]] value_enumerator reg_enum_values() const
         {
-            return ::wil::registry::details::key_iterator(m_hkey, ::wil::registry::details::iterator_creation_flag::begin);
+            return value_enumerator(::wil::registry::details::get_key(m_key));
         }
-
-        [[nodiscard]] ::wil::registry::details::key_iterator end() const WI_NOEXCEPT
-        {
-            return ::wil::registry::details::key_iterator(m_hkey, ::wil::registry::details::iterator_creation_flag::end);
-        }
-
-    private:
-        friend class reg_view_t;
-        // non-owning resource (just get a copy from the owner)
-        HKEY m_hkey;
-    };
-
-    struct value_enumerator
-    {
-        explicit value_enumerator(HKEY key) :
-            m_hkey(key)
-        {
-        }
-
-        // begin() will throw Registry::Exception on error 
-        [[nodiscard]] ::wil::registry::details::value_iterator begin() const
-        {
-            return ::wil::registry::details::value_iterator(m_hkey, ::wil::registry::details::iterator_creation_flag::begin);
-        }
-
-        [[nodiscard]] ::wil::registry::details::value_iterator end() const WI_NOEXCEPT
-        {
-            return ::wil::registry::details::value_iterator(m_hkey, ::wil::registry::details::iterator_creation_flag::end);
-        }
-
-    private:
-        friend class reg_view_t;
-        // non-owning resource (just get a copy from the owner)
-        HKEY m_hkey;
-    };
-
-    [[nodiscard]] key_enumerator reg_enum_keys() const
-    {
-        return key_enumerator(::wil::registry::details::get_key(m_key));
-    }
-
-    [[nodiscard]] value_enumerator reg_enum_values() const
-    {
-        return value_enumerator(::wil::registry::details::get_key(m_key));
-    }
 #endif
 
     private:
@@ -1250,17 +1250,18 @@ inline HRESULT set_value_string_nothrow(HKEY key, _In_ PCWSTR value_name, _In_ P
     return regview.set_value(value_name, data);
 }
 
-inline HRESULT set_value_multisz_nothrow(HKEY key, _In_ PCWSTR value_name, const ::std::vector<::std::wstring>& data) WI_NOEXCEPT
-{
-    const reg_view_details::reg_view_nothrow regview{key};
-    return regview.set_value_multisz(value_name, data);
-}
-
-inline HRESULT set_value_multisz_nothrow(HKEY key, _In_ PCWSTR value_name, const ::std::list<::std::wstring>& data) WI_NOEXCEPT
-{
-    const reg_view_details::reg_view_nothrow regview{key};
-    return regview.set_value_multisz(value_name, data);
-}
+// TODO: write multisz setters that don't throw.
+//inline HRESULT set_value_multisz_nothrow(HKEY key, _In_ PCWSTR value_name, const ::std::vector<::std::wstring>& data) WI_NOEXCEPT
+//{
+//    const reg_view_details::reg_view_nothrow regview{key};
+//    return regview.set_value_multisz(value_name, data);
+//}
+//
+//inline HRESULT set_value_multisz_nothrow(HKEY key, _In_ PCWSTR value_name, const ::std::list<::std::wstring>& data) WI_NOEXCEPT
+//{
+//    const reg_view_details::reg_view_nothrow regview{key};
+//    return regview.set_value_multisz(value_name, data);
+//}
 
 //  Registry get* functions, both throwing and non-throwing
 
@@ -1418,3 +1419,4 @@ HRESULT get_value_string_nothrow(HKEY key, _In_ PCWSTR value_name, wchar_t retur
 }
 } // namespace registry
 } // namespace wil
+#endif // __WIL_REGISTRY_BASIC_INCLUDED
