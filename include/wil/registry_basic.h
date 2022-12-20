@@ -1221,10 +1221,15 @@ inline HRESULT reg_get_child_value_count_nothrow(HKEY key, _Out_ DWORD* numSubVa
 // Registry Set* functions, both throwing and non-throwing
 
 #ifdef WIL_ENABLE_EXCEPTIONS
-inline void set_value_dword(HKEY key, _In_ PCWSTR value_name, DWORD data)
+inline void set_value_dword(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, DWORD data)
 {
     const reg_view_details::reg_view regview{key};
-    return regview.set_value(value_name, data);
+    return regview.set_value(subkey, value_name, data);
+}
+
+inline void set_value_dword(HKEY key, _In_ PCWSTR value_name, DWORD data)
+{
+    return set_value_dword(key, nullptr, value_name, data);
 }
 
 inline void set_value_qword(HKEY key, _In_ PCWSTR value_name, uint64_t data)
@@ -1252,7 +1257,7 @@ inline void set_value_multisz(HKEY key, _In_ PCWSTR value_name, const ::std::lis
 }
 #endif
 
-inline HRESULT set_value_dword_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_ PCWSTR value_name, DWORD data) WI_NOEXCEPT
+inline HRESULT set_value_dword_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, DWORD data) WI_NOEXCEPT
 {
     const reg_view_details::reg_view_nothrow regview{key};
     return regview.set_value(subkey, value_name, data);
