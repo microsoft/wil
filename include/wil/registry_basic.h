@@ -935,14 +935,14 @@ namespace reg_view_details
         }
 
         template <typename R>
-        typename err_policy::result get_value(_In_ PCWSTR value_name, optional_value<R>& return_value, DWORD type = ::wil::registry::reg_view_details::get_value_type<R>()) const
+        typename err_policy::result get_value(_In_opt_ PCWSTR subkey, _In_ PCWSTR value_name, optional_value<R>& return_value, DWORD type = ::wil::registry::reg_view_details::get_value_type<R>()) const
         {
             for (;;)
             {
                 DWORD data_size_bytes{::wil::registry::reg_view_details::get_buffer_size(return_value)};
                 auto error = ::RegGetValueW(
                     ::wil::registry::details::get_key(m_key),
-                    nullptr,
+                    subkey,
                     value_name,
                     ::wil::registry::details::get_value_flags_from_value_type(type),
                     nullptr,
@@ -976,6 +976,12 @@ namespace reg_view_details
             return err_policy::HResult(S_OK);
         }
 
+        template <typename R>
+        typename err_policy::result get_value(_In_ PCWSTR value_name, optional_value<R>& return_value, DWORD type = ::wil::registry::reg_view_details::get_value_type<R>()) const
+        {
+            return get_value(nullptr, value_name, return_value, type);
+        }
+
         // intended for err_exception_policy as err_returncode_policy will not get an error code
         template <typename R>
         optional_value<R> get_value(_In_ PCWSTR value_name) const
@@ -986,7 +992,20 @@ namespace reg_view_details
         }
 
         template <typename R>
-        typename err_policy::result set_value(_In_ PCWSTR value_name, const R& value) const
+        typename err_policy::result set_value(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const R& value) const
+        {
+            const auto error = ::RegSetKeyValueW(
+                ::wil::registry::details::get_key(m_key),
+                subkey,
+                value_name,
+                ::wil::registry::reg_view_details::set_value_type(value),
+                static_cast<BYTE*>(::wil::registry::reg_view_details::get_buffer(value)),
+                ::wil::registry::reg_view_details::get_buffer_size(value));
+            return err_policy::HResult(HRESULT_FROM_WIN32(error));
+        }
+
+        template <typename R>
+        typename err_policy::result set_value(_In_opt_ PCWSTR value_name, const R& value) const
         {
             const auto error = RegSetValueExW(
                 ::wil::registry::details::get_key(m_key),
@@ -1233,22 +1252,37 @@ inline void set_value_multisz(HKEY key, _In_ PCWSTR value_name, const ::std::lis
 }
 #endif
 
-inline HRESULT set_value_dword_nothrow(HKEY key, _In_ PCWSTR value_name, DWORD data) WI_NOEXCEPT
+inline HRESULT set_value_dword_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_ PCWSTR value_name, DWORD data) WI_NOEXCEPT
 {
     const reg_view_details::reg_view_nothrow regview{key};
-    return regview.set_value(value_name, data);
+    return regview.set_value(subkey, value_name, data);
 }
 
-inline HRESULT set_value_qword_nothrow(HKEY key, _In_ PCWSTR value_name, uint64_t data) WI_NOEXCEPT
+inline HRESULT set_value_dword_nothrow(HKEY key, _In_opt_ PCWSTR value_name, DWORD data) WI_NOEXCEPT
 {
-    const reg_view_details::reg_view_nothrow regview{key};
-    return regview.set_value(value_name, data);
+    return set_value_dword_nothrow(key, nullptr, value_name, data);
 }
 
-inline HRESULT set_value_string_nothrow(HKEY key, _In_ PCWSTR value_name, _In_ PCWSTR data) WI_NOEXCEPT
+inline HRESULT set_value_qword_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, uint64_t data) WI_NOEXCEPT
 {
     const reg_view_details::reg_view_nothrow regview{key};
-    return regview.set_value(value_name, data);
+    return regview.set_value(subkey, value_name, data);
+}
+
+inline HRESULT set_value_qword_nothrow(HKEY key, _In_opt_ PCWSTR value_name, uint64_t data) WI_NOEXCEPT
+{
+    return set_value_qword_nothrow(key, nullptr, value_name, data);
+}
+
+inline HRESULT set_value_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _In_ PCWSTR data) WI_NOEXCEPT
+{
+    const reg_view_details::reg_view_nothrow regview{key};
+    return regview.set_value(subkey, value_name, data);
+}
+
+inline HRESULT set_value_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _In_ PCWSTR data) WI_NOEXCEPT
+{
+    return set_value_string_nothrow(key, nullptr, value_name, data);
 }
 
 // TODO: write multisz setters that don't throw.
@@ -1308,16 +1342,26 @@ inline optional_value<::std::wstring> get_value_expanded_string(HKEY key, _In_ P
 }
 #endif
 
-inline HRESULT get_value_dword_nothrow(HKEY key, _In_ PCWSTR value_name, _In_ DWORD* return_value) WI_NOEXCEPT
+inline HRESULT get_value_dword_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_ PCWSTR value_name, _In_ DWORD* return_value) WI_NOEXCEPT
 {
     DWORD data_size_bytes{sizeof *return_value};
-    return HRESULT_FROM_WIN32(RegGetValueW(key, nullptr, value_name, ::wil::registry::details::get_value_flags_from_value_type(REG_DWORD), nullptr, return_value, &data_size_bytes));
+    return HRESULT_FROM_WIN32(RegGetValueW(key, subkey, value_name, ::wil::registry::details::get_value_flags_from_value_type(REG_DWORD), nullptr, return_value, &data_size_bytes));
+}
+
+inline HRESULT get_value_dword_nothrow(HKEY key, _In_ PCWSTR value_name, _In_ DWORD* return_value) WI_NOEXCEPT
+{
+    return get_value_dword_nothrow(key, nullptr, value_name, return_value);
+}
+
+inline HRESULT get_value_qword_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_ PCWSTR value_name, _In_ DWORD64* return_value) WI_NOEXCEPT
+{
+    DWORD data_size_bytes{sizeof *return_value};
+    return HRESULT_FROM_WIN32(RegGetValueW(key, subkey, value_name, ::wil::registry::details::get_value_flags_from_value_type(REG_QWORD), nullptr, return_value, &data_size_bytes));
 }
 
 inline HRESULT get_value_qword_nothrow(HKEY key, _In_ PCWSTR value_name, _In_ DWORD64* return_value) WI_NOEXCEPT
 {
-    DWORD data_size_bytes{sizeof *return_value};
-    return HRESULT_FROM_WIN32(RegGetValueW(key, nullptr, value_name, ::wil::registry::details::get_value_flags_from_value_type(REG_QWORD), nullptr, return_value, &data_size_bytes));
+    return get_value_qword_nothrow(key, nullptr, value_name, return_value);
 }
 
 inline HRESULT get_value_byte_vector_nothrow(HKEY key, _In_ PCWSTR value_name, DWORD type, ::std::vector<BYTE>& data) WI_NOEXCEPT

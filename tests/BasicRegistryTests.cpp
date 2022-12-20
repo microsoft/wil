@@ -28,21 +28,20 @@ TEST_CASE("BasicRegistryTests::Dwords", "[registry][get_registry_dword]")
     SECTION("get and set with string key and value name, nothrow")
     {
         DWORD value = 4;
-        //TODO: use wil::registry::set_value_dword_nothrow() (AND for all other tests)
-        REQUIRE_SUCCEEDED(wil::set_registry_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, value));
+        REQUIRE_SUCCEEDED(wil::registry::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, value));
 
         DWORD result{ 0 };
-        REQUIRE_SUCCEEDED(wil::get_registry_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, &result));
+        REQUIRE_SUCCEEDED(wil::registry::get_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, &result));
         REQUIRE(result == value);
 
         value = 1;
-        REQUIRE_SUCCEEDED(wil::set_registry_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, value));
-        REQUIRE_SUCCEEDED(wil::get_registry_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, &result));
+        REQUIRE_SUCCEEDED(wil::registry::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, value));
+        REQUIRE_SUCCEEDED(wil::registry::get_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, &result));
         REQUIRE(result == value);
 
         value = 0;
-        REQUIRE_SUCCEEDED(wil::set_registry_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, value));
-        REQUIRE_SUCCEEDED(wil::get_registry_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, &result));
+        REQUIRE_SUCCEEDED(wil::registry::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, value));
+        REQUIRE_SUCCEEDED(wil::registry::get_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, &result));
         REQUIRE(result == value);
     }
 
@@ -51,6 +50,7 @@ TEST_CASE("BasicRegistryTests::Dwords", "[registry][get_registry_dword]")
     {
         for (DWORD&& value : { 4, 1, 0 })
         {
+            //TODO: use wil::registry::set_value_dword_nothrow() (AND for all other tests)
             wil::set_registry_dword(HKEY_CURRENT_USER, testSubkey, dwordValueName, value);
             const auto result = wil::get_registry_dword(HKEY_CURRENT_USER, testSubkey, dwordValueName);
             REQUIRE(result == value);
