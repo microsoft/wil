@@ -2557,7 +2557,10 @@ TEST_CASE("WindowsInternalTests::RectHelperTests", "[win32_helpers]")
     REQUIRE_FALSE(wil::rect_contains_point(nonNormalizedRect, insidePoint));
 
     auto rectFromSize = wil::rect_from_size<RECT>(50, 100, 150, 200);
-    REQUIRE(!!EqualRect(&rectFromSize, &rect));
+    REQUIRE(rectFromSize.left == rect.left);
+    REQUIRE(rectFromSize.top == rect.top);
+    REQUIRE(rectFromSize.right == rect.right);
+    REQUIRE(rectFromSize.bottom == rect.bottom);
 }
 
 TEST_CASE("WindowsInternalTests::InitOnceNonTests")
