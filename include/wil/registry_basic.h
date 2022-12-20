@@ -451,32 +451,25 @@ enum class optional_value_status
 {
     no_value,
     has_value,
-    has_default_value
 };
 
 template <typename T>
 struct optional_value
 {
+    constexpr bool empty() const WI_NOEXCEPT
+    {
+        return type == optional_value_status::no_value;
+    }
+
     constexpr explicit operator bool() const WI_NOEXCEPT
     {
-        return type != optional_value_status::no_value;
+        return !empty();
     }
 
     template <typename F>
     [[nodiscard]] constexpr const T& value_or(const F& f) const
     {
         return type != optional_value_status::no_value ? value : f;
-    }
-
-    template <typename F>
-    constexpr optional_value& default_value(F&& f)
-    {
-        if (type != optional_value_status::has_value)
-        {
-            type = optional_value_status::has_default_value;
-            value = std::forward<F>(f);
-        }
-        return *this;
     }
 
     T value{};
