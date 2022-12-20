@@ -20,6 +20,7 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
+#include <list>
 
 #include <Windows.h>
 #include <sddl.h>
@@ -1219,7 +1220,7 @@ inline void set_value_multisz(HKEY key, _In_ PCWSTR value_name, const ::std::vec
     return regview.set_value_multisz(value_name, data);
 }
 
-inline HRESULT set_value_string(HKEY key, _In_ PCWSTR value_name, _In_ PCWSTR data)
+inline void set_value_string(HKEY key, _In_ PCWSTR value_name, _In_ PCWSTR data)
 {
     const reg_view_details::reg_view regview{key};
     return regview.set_value(value_name, data);
