@@ -864,7 +864,7 @@ namespace reg_view_details
     }
 #endif
 
-        typename err_policy::result create_key(_In_opt_ PCWSTR subKey, ::wil::unique_hkey& hkey, ::wil::registry::key_access access = ::wil::registry::key_access::read, _In_opt_ PCWSTR security_descriptor = nullptr) const
+        typename err_policy::result create_key(_In_ PCWSTR subKey, ::wil::unique_hkey& hkey, ::wil::registry::key_access access = ::wil::registry::key_access::read, _In_opt_ PCWSTR security_descriptor = nullptr) const
         {
             hkey.reset();
 
@@ -880,7 +880,7 @@ namespace reg_view_details
         }
 
 #if defined(__WIL_WINREG_STL)
-    typename err_policy::result create_key(_In_opt_ PCWSTR subKey, ::wil::shared_hkey& hkey, ::wil::registry::key_access access = ::wil::registry::key_access::read, _In_opt_ PCWSTR security_descriptor = nullptr) const
+    typename err_policy::result create_key(_In_ PCWSTR subKey, ::wil::shared_hkey& hkey, ::wil::registry::key_access access = ::wil::registry::key_access::read, _In_opt_ PCWSTR security_descriptor = nullptr) const
     {
         hkey.reset();
 
@@ -896,7 +896,7 @@ namespace reg_view_details
     }
 #endif
 
-        ::wil::unique_hkey create_unique_key(_In_opt_ PCWSTR subKey, ::wil::registry::key_access access = ::wil::registry::key_access::read, _In_opt_ PCWSTR security_descriptor = nullptr) const
+        ::wil::unique_hkey create_unique_key(_In_ PCWSTR subKey, ::wil::registry::key_access access = ::wil::registry::key_access::read, _In_opt_ PCWSTR security_descriptor = nullptr) const
         {
             ::wil::unique_hkey local_key{};
             create_key(subKey, local_key, access, security_descriptor);
@@ -904,7 +904,7 @@ namespace reg_view_details
         }
 
 #if defined(__WIL_WINREG_STL)
-    ::wil::shared_hkey create_shared_key(_In_opt_ PCWSTR subKey, ::wil::registry::key_access access = ::wil::registry::key_access::read, _In_opt_ PCWSTR security_descriptor = nullptr) const
+    ::wil::shared_hkey create_shared_key(_In_ PCWSTR subKey, ::wil::registry::key_access access = ::wil::registry::key_access::read, _In_opt_ PCWSTR security_descriptor = nullptr) const
     {
         ::wil::shared_hkey local_key{};
         create_key(subKey, local_key, access, security_descriptor);
@@ -1123,7 +1123,7 @@ namespace reg_view_details
         return reg_view_t<T, err_policy>(std::forward<T>(t));
     }
 
-// reg_view with the raw HKEY type is non-owning
+    // reg_view with the raw HKEY type is non-owning
     using reg_view_nothrow = reg_view_details::reg_view_t<HKEY, ::wil::err_returncode_policy>;
     using reg_view_unique_hkey_nothrow = reg_view_details::reg_view_t<::wil::unique_hkey, ::wil::err_returncode_policy>;
 #if defined(__WIL_WINREG_STL)
@@ -1149,7 +1149,7 @@ inline ::wil::unique_hkey open_unique_key(HKEY key, _In_opt_ PCWSTR path, ::wil:
     return regview.open_unique_key(path, access);
 }
 
-inline ::wil::unique_hkey create_unique_key(HKEY key, _In_opt_ PCWSTR path, ::wil::registry::key_access access = ::wil::registry::key_access::read, _In_opt_ PCWSTR security_descriptor = nullptr)
+inline ::wil::unique_hkey create_unique_key(HKEY key, _In_ PCWSTR path, ::wil::registry::key_access access = ::wil::registry::key_access::read, _In_opt_ PCWSTR security_descriptor = nullptr)
 {
     const reg_view_details::reg_view regview{key};
     return regview.create_unique_key(path, access, security_descriptor);
@@ -1162,7 +1162,7 @@ inline ::wil::shared_hkey open_shared_key(HKEY key, _In_opt_ PCWSTR path, ::wil:
     return regview.open_shared_key(path, access);
 }
 
-inline ::wil::shared_hkey create_shared_key(HKEY key, _In_opt_ PCWSTR path, ::wil::registry::key_access access = ::wil::registry::key_access::read, _In_opt_ PCWSTR security_descriptor = nullptr)
+inline ::wil::shared_hkey create_shared_key(HKEY key, _In_ PCWSTR path, ::wil::registry::key_access access = ::wil::registry::key_access::read, _In_opt_ PCWSTR security_descriptor = nullptr)
 {
     const reg_view_details::reg_view regview{key};
     return regview.create_shared_key(path, access, security_descriptor);
@@ -1184,14 +1184,14 @@ inline HRESULT open_key_nothrow(HKEY key, _In_opt_ PCWSTR path, ::wil::shared_hk
 }
 #endif
 
-inline HRESULT create_key_nothrow(HKEY key, _In_opt_ PCWSTR path, ::wil::unique_hkey& hkey, ::wil::registry::key_access access = ::wil::registry::key_access::read, _In_opt_ PCWSTR security_descriptor = nullptr)
+inline HRESULT create_key_nothrow(HKEY key, _In_ PCWSTR path, ::wil::unique_hkey& hkey, ::wil::registry::key_access access = ::wil::registry::key_access::read, _In_opt_ PCWSTR security_descriptor = nullptr)
 {
     const reg_view_details::reg_view_nothrow regview{key};
     return regview.create_key(path, hkey, access, security_descriptor);
 }
 
 #if defined(__WIL_WINREG_STL)
-inline HRESULT create_key_nothrow(HKEY key, _In_opt_ PCWSTR path, ::wil::shared_hkey& hkey, ::wil::registry::key_access access = ::wil::registry::key_access::read, _In_opt_ PCWSTR security_descriptor = nullptr)
+inline HRESULT create_key_nothrow(HKEY key, _In_ PCWSTR path, ::wil::shared_hkey& hkey, ::wil::registry::key_access access = ::wil::registry::key_access::read, _In_opt_ PCWSTR security_descriptor = nullptr)
 {
     const reg_view_details::reg_view_nothrow regview{key};
     return regview.create_key(path, hkey, access, security_descriptor);

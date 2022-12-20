@@ -156,6 +156,7 @@ TEST_CASE("BasicRegistryTests::Strings", "[registry][get_registry_string]")
         REQUIRE_SUCCEEDED(deleteHr);
     }
 
+    // TODO: no subkey version, too.
     SECTION("get and set with string key and value name, nothrowish")
     {
         std::wstring value{ L"Hello there!" };
