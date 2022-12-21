@@ -123,7 +123,7 @@ TEST_CASE("BasicRegistryTests::Dwords", "[registry][get_registry_dword]")
         for (DWORD&& value : { 4, 1, 0 })
         {
             wil::registry::set_value_dword(HKEY_CURRENT_USER, testSubkey, nullptr, value);
-            const auto result = wil::get_registry_dword(HKEY_CURRENT_USER, testSubkey, nullptr);
+            const auto result = wil::registry::get_value_dword(HKEY_CURRENT_USER, testSubkey, nullptr);
             REQUIRE(result == value);
         }
     }
@@ -131,15 +131,15 @@ TEST_CASE("BasicRegistryTests::Dwords", "[registry][get_registry_dword]")
 #if defined(_OPTIONAL_)
     SECTION("get optional with string key and DEFAULT value name")
     {
-        const auto emptyResult = wil::try_get_registry_dword(HKEY_CURRENT_USER, testSubkey, nullptr);
-        REQUIRE(emptyResult == std::nullopt);
+        const auto emptyResult = wil::registry::try_get_value_dword(HKEY_CURRENT_USER, testSubkey, nullptr);
+        REQUIRE(!emptyResult.has_value()); // TODO: allow comparison to std::nullopt?
 
         for (DWORD&& value : { 4, 1, 0 })
         {
             wil::registry::set_value_dword(HKEY_CURRENT_USER, testSubkey, nullptr, value);
-            const auto result = wil::try_get_registry_dword(HKEY_CURRENT_USER, testSubkey, nullptr);
+            const auto result = wil::registry::try_get_value_dword(HKEY_CURRENT_USER, testSubkey, nullptr);
             REQUIRE(result.has_value());
-            REQUIRE(result == value);
+            REQUIRE(result.value == value); // TODO: support equality operator a la std::optional?
         }
     }
 #endif // defined(_OPTIONAL_)
@@ -160,17 +160,17 @@ TEST_CASE("BasicRegistryTests::Strings", "[registry][get_registry_string]")
     {
         std::wstring value{ L"Hello there!" };
         REQUIRE_SUCCEEDED(wil::registry::set_value_string_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, value.c_str()));
-        auto result = wil::get_registry_string(HKEY_CURRENT_USER, testSubkey, stringValueName);
+        auto result = wil::registry::get_value_string(HKEY_CURRENT_USER, testSubkey, stringValueName);
         REQUIRE(result == value);
 
         value = L"It's over, Anakin!";
         REQUIRE_SUCCEEDED(wil::registry::set_value_string_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, value.c_str()));
-        result = wil::get_registry_string(HKEY_CURRENT_USER, testSubkey, stringValueName);
+        result = wil::registry::get_value_string(HKEY_CURRENT_USER, testSubkey, stringValueName);
         REQUIRE(result == value);
 
         value = L"";
         REQUIRE_SUCCEEDED(wil::registry::set_value_string_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, value.c_str()));
-        result = wil::get_registry_string(HKEY_CURRENT_USER, testSubkey, stringValueName);
+        result = wil::registry::get_value_string(HKEY_CURRENT_USER, testSubkey, stringValueName);
         REQUIRE(result == value);
 
         // TODO: Evil embedded null
@@ -178,7 +178,7 @@ TEST_CASE("BasicRegistryTests::Strings", "[registry][get_registry_string]")
 
         //value = L"I have the \0 high ground";
         //REQUIRE_SUCCEEDED(wil::registry::set_value_string_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, value.c_str()));
-        //result = wil::get_registry_string(HKEY_CURRENT_USER, testSubkey, stringValueName);
+        //result = wil::registry::get_value_string(HKEY_CURRENT_USER, testSubkey, stringValueName);
         //REQUIRE(result == value);
     }
 
@@ -188,7 +188,7 @@ TEST_CASE("BasicRegistryTests::Strings", "[registry][get_registry_string]")
         //std::wstring value = L"something \0 pithy";
         std::wstring value = L"something pithy";
         REQUIRE_SUCCEEDED(wil::registry::set_value_string_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, value.c_str()));
-        auto result = wil::get_registry_string(HKEY_CURRENT_USER, testSubkey, stringValueName);
+        auto result = wil::registry::get_value_string(HKEY_CURRENT_USER, testSubkey, stringValueName);
         REQUIRE(result == value);
     }
 
