@@ -481,10 +481,11 @@ namespace reg_view_details
     // generic functions that can apply to both specialized and non-specialized types
     // that are assigned into optional_value types
 
+    // TODO: do we need a default version, or should we fail for unknown types?
     /*template <typename T>
-    constexpr void* get_buffer(const optional_value<T>& t) WI_NOEXCEPT
+    constexpr void* get_buffer(const T& t) WI_NOEXCEPT
     {
-        return const_cast<T*>(&t.value);
+        return const_cast<T*>(&t);
     }*/
 
     inline void* get_buffer(const std::vector<BYTE>& buffer) WI_NOEXCEPT
