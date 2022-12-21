@@ -481,20 +481,20 @@ namespace reg_view_details
     // generic functions that can apply to both specialized and non-specialized types
     // that are assigned into optional_value types
 
-    template <typename T>
+    /*template <typename T>
     constexpr void* get_buffer(const optional_value<T>& t) WI_NOEXCEPT
     {
         return const_cast<T*>(&t.value);
-    }
+    }*/
 
     inline void* get_buffer(const std::vector<BYTE>& buffer) WI_NOEXCEPT
     {
         return const_cast<BYTE*>(buffer.data());
     }
 
-    inline void* get_buffer(const optional_value<::std::wstring>& string) WI_NOEXCEPT
+    inline void* get_buffer(const ::std::wstring& string) WI_NOEXCEPT
     {
-        return const_cast<wchar_t*>(string.value.data());
+        return const_cast<wchar_t*>(string.data());
     }
 
     constexpr void* get_buffer(const int32_t& value) WI_NOEXCEPT
@@ -532,11 +532,6 @@ namespace reg_view_details
         return const_cast<wchar_t*>(value);
     }
 
-    inline void* get_buffer(const std::wstring& value) WI_NOEXCEPT
-    {
-        return const_cast<wchar_t*>(value.data());
-    }
-
 #if defined(__WIL_OLEAUTO_H_)
     inline void* get_buffer(const wil::unique_bstr& value) WI_NOEXCEPT
     {
@@ -551,20 +546,20 @@ namespace reg_view_details
 #endif
 #endif
 
-    template <typename T>
+    /*template <typename T>
     constexpr DWORD get_buffer_size(const optional_value<T>) WI_NOEXCEPT
     {
         return sizeof(T);
-    }
+    }*/
 
     inline DWORD get_buffer_size(const std::vector<BYTE>& buffer) WI_NOEXCEPT
     {
         return static_cast<DWORD>(buffer.size());
     }
 
-    inline DWORD get_buffer_size(const optional_value<::std::wstring>& string) WI_NOEXCEPT
+    inline DWORD get_buffer_size(const ::std::wstring& string) WI_NOEXCEPT
     {
-        return static_cast<DWORD>(string.value.size() * sizeof(wchar_t));
+        return static_cast<DWORD>(string.size() * sizeof(wchar_t));
     }
 
     constexpr DWORD get_buffer_size(int32_t) WI_NOEXCEPT
@@ -606,11 +601,6 @@ namespace reg_view_details
         return static_cast<DWORD>((::wcslen(value) + 1) * sizeof(wchar_t));
     }
 
-    inline DWORD get_buffer_size(const ::std::wstring& value) WI_NOEXCEPT
-    {
-        return static_cast<DWORD>(value.size() * sizeof(wchar_t));
-    }
-
 #if defined(__WIL_OLEAUTO_H_)
     inline DWORD get_buffer_size(const ::wil::unique_bstr& value) WI_NOEXCEPT
     {
@@ -627,8 +617,9 @@ namespace reg_view_details
 
     // grow_buffer returns true if growing that buffer type is supported, false if growing that type is not supported
     // the caller will call get_buffer_size later to validate if the allocation succeeded
+
     template <typename T>
-    constexpr bool grow_buffer(optional_value<T>&, DWORD) WI_NOEXCEPT
+    constexpr bool grow_buffer(T&, DWORD) WI_NOEXCEPT
     {
         return false;
     }
@@ -648,13 +639,13 @@ namespace reg_view_details
         return true;
     }
 
-    inline bool grow_buffer(optional_value<::std::wstring>& string, DWORD byteSize) WI_NOEXCEPT
+    inline bool grow_buffer(::std::wstring& string, DWORD byteSize) WI_NOEXCEPT
     {
         try
         {
             // reset to size 0 in case resize() throws
-            string.value.clear();
-            string.value.resize(byteSize / 2);
+            string.clear();
+            string.resize(byteSize / 2);
         }
         catch (...)
         {
@@ -664,23 +655,23 @@ namespace reg_view_details
 #endif
 
 #if defined(__WIL_OLEAUTO_H_)
-    inline bool grow_buffer(optional_value<::wil::unique_bstr>& string, DWORD byteSize) WI_NOEXCEPT
+    inline bool grow_buffer(::wil::unique_bstr& string, DWORD byteSize) WI_NOEXCEPT
     {
-        string.value.reset(::SysAllocStringByteLen(nullptr, byteSize));
-        if (string.value)
+        string.reset(::SysAllocStringByteLen(nullptr, byteSize));
+        if (string)
         {
-            ZeroMemory(string.value.get(), byteSize);
+            ZeroMemory(string.get(), byteSize);
         }
         return true;
     }
 
 #if defined(__WIL_OLEAUTO_H_STL)
-    inline bool grow_buffer(optional_value<::wil::shared_bstr>& string, DWORD byteSize) WI_NOEXCEPT
+    inline bool grow_buffer(::wil::shared_bstr& string, DWORD byteSize) WI_NOEXCEPT
     {
-        string.value.reset(::SysAllocStringByteLen(nullptr, byteSize));
-        if (string.value)
+        string.reset(::SysAllocStringByteLen(nullptr, byteSize));
+        if (string)
         {
-            ZeroMemory(string.value.get(), byteSize);
+            ZeroMemory(string.get(), byteSize);
         }
         return true;
     }
@@ -688,16 +679,16 @@ namespace reg_view_details
 #endif
 
     template <typename T>
-    constexpr void trim_buffer(optional_value<T>&) WI_NOEXCEPT
+    constexpr void trim_buffer(T&) WI_NOEXCEPT
     {
     }
 
-    inline void trim_buffer(optional_value<::std::wstring>& buffer)
+    inline void trim_buffer(::std::wstring& buffer)
     {
-        const auto offset = buffer.value.find_first_of(L'\0');
+        const auto offset = buffer.find_first_of(L'\0');
         if (offset != std::wstring::npos)
         {
-            buffer.value.resize(offset);
+            buffer.resize(offset);
         }
     }
 
@@ -927,8 +918,10 @@ namespace reg_view_details
             return err_policy::HResult(HRESULT_FROM_WIN32(RegDeleteValueW(key, value_name)));
         }
 
-        template <typename R>
-        typename err_policy::result get_value(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, optional_value<R>& return_value, DWORD type = ::wil::registry::reg_view_details::get_value_type<R>()) const
+    private:
+
+        template <typename R, typename get_err_policy = err_policy>
+        typename get_err_policy::result get_value_internal(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, R& return_value, DWORD type = ::wil::registry::reg_view_details::get_value_type<R>()) const
         {
             for (;;)
             {
@@ -943,13 +936,12 @@ namespace reg_view_details
                     &data_size_bytes);
                 if (error == ERROR_SUCCESS)
                 {
-                    return_value.type = optional_value_status::has_value;
                     break;
                 }
                 if (error == ERROR_FILE_NOT_FOUND)
                 {
-                    return_value.type = optional_value_status::no_value;
-                    break;
+                    // Simply pass on any not-found errors.
+                    return get_err_policy::HResult(HRESULT_FROM_WIN32(error));
                 }
                 if (error == ERROR_MORE_DATA && ::wil::registry::reg_view_details::grow_buffer(return_value, data_size_bytes))
                 {
@@ -962,26 +954,84 @@ namespace reg_view_details
                     continue;
                 }
 
-                return err_policy::HResult(HRESULT_FROM_WIN32(error));
+                return get_err_policy::HResult(HRESULT_FROM_WIN32(error));
             }
 
             ::wil::registry::reg_view_details::trim_buffer(return_value);
-            return err_policy::HResult(S_OK);
+            return get_err_policy::HResult(S_OK);
+        }
+
+    public:
+
+        template <typename R>
+        typename err_policy::result get_value(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, R& return_value, DWORD type = ::wil::registry::reg_view_details::get_value_type<R>()) const
+        {
+            return get_value_internal(subkey, value_name, return_value, type);
         }
 
         template <typename R>
-        typename err_policy::result get_value(_In_opt_ PCWSTR value_name, optional_value<R>& return_value, DWORD type = ::wil::registry::reg_view_details::get_value_type<R>()) const
+        typename err_policy::result get_value(_In_opt_ PCWSTR value_name, R& return_value, DWORD type = ::wil::registry::reg_view_details::get_value_type<R>()) const
         {
             return get_value(nullptr, value_name, return_value, type);
         }
 
         // intended for err_exception_policy as err_returncode_policy will not get an error code
         template <typename R>
-        optional_value<R> get_value(_In_opt_ PCWSTR value_name) const
+        R get_value(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, DWORD type = ::wil::registry::reg_view_details::get_value_type<R>()) const
         {
-            optional_value<R> value;
-            get_value(value_name, value);
+            R value{};
+            get_value(subkey, value_name, value, type);
             return value;
+        }
+
+        // intended for err_exception_policy as err_returncode_policy will not get an error code
+        template <typename R>
+        R get_value(_In_opt_ PCWSTR value_name, DWORD type = ::wil::registry::reg_view_details::get_value_type<R>()) const
+        {
+            return get_value(nullptr, value_name, type);
+        }
+
+        template <typename R>
+        typename err_policy::result try_get_value(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, optional_value<R>& return_value, DWORD type = ::wil::registry::reg_view_details::get_value_type<R>()) const
+        {
+            const auto hr = get_value_internal<R, err_returncode_policy>(subkey, value_name, return_value.value, type);
+            if (SUCCEEDED(hr))
+            {
+                return_value.type = optional_value_status::has_value;
+                // TODO: set value
+
+                return err_policy::HResult(S_OK);
+            } else if (hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+            {
+                return_value.type = optional_value_status::no_value;
+                // TODO: reset value.
+
+                return err_policy::HResult(S_OK);
+            }
+
+            return err_policy::HResult(HRESULT_FROM_WIN32(hr));
+        }
+
+        template <typename R>
+        typename err_policy::result try_get_value(_In_opt_ PCWSTR value_name, optional_value<R>& return_value, DWORD type = ::wil::registry::reg_view_details::get_value_type<R>()) const
+        {
+            return try_get_value(nullptr, value_name, return_value, type);
+        }
+
+        // intended for err_exception_policy as err_returncode_policy will not get an error code
+        template <typename R>
+        R try_get_value(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, DWORD type = ::wil::registry::reg_view_details::get_value_type<R>()) const
+        {
+            R value{};
+            try_get_value(subkey, value_name, value, type);
+            return value;
+        }
+
+        // intended for err_exception_policy as err_returncode_policy will not get an error code
+        template <typename R>
+        R try_get_value(_In_opt_ PCWSTR value_name, DWORD type = ::wil::registry::reg_view_details::get_value_type<R>()) const
+        {
+            return try_get_value(nullptr, value_name, type);
         }
 
         template <typename R>
@@ -1342,44 +1392,126 @@ inline HRESULT set_value_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _I
 //  Registry get* functions, both throwing and non-throwing
 
 #ifdef WIL_ENABLE_EXCEPTIONS
-inline optional_value<DWORD> get_value_dword(HKEY key, _In_ PCWSTR value_name) WI_NOEXCEPT
+inline DWORD get_value_dword(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name) WI_NOEXCEPT
+{
+    const reg_view_details::reg_view regview{key};
+    return regview.get_value<DWORD>(subkey, value_name);
+}
+
+inline DWORD get_value_dword(HKEY key, _In_opt_ PCWSTR value_name) WI_NOEXCEPT
+{
+    return get_value_dword(key, nullptr, value_name);
+}
+
+inline optional_value<DWORD> try_get_value_dword(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name) WI_NOEXCEPT
 {
     const reg_view_details::reg_view regview{key};
     optional_value<DWORD> value;
-    regview.get_value<DWORD>(value_name, value);
+    regview.try_get_value<DWORD>(subkey, value_name, value);
     return value;
 }
 
-inline optional_value<DWORD64> get_value_qword(HKEY key, _In_ PCWSTR value_name) WI_NOEXCEPT
+inline optional_value<DWORD> try_get_value_dword(HKEY key, _In_opt_ PCWSTR value_name) WI_NOEXCEPT
+{
+    return try_get_value_dword(key, nullptr, value_name);
+}
+
+inline DWORD64 get_value_qword(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name) WI_NOEXCEPT
+{
+    const reg_view_details::reg_view regview{ key };
+    return regview.get_value<DWORD64>(subkey, value_name);
+}
+
+inline DWORD64 get_value_qword(HKEY key, _In_opt_ PCWSTR value_name) WI_NOEXCEPT
+{
+    return get_value_qword(key, nullptr, value_name);
+}
+
+inline optional_value<DWORD64> try_get_value_qword(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name) WI_NOEXCEPT
 {
     const reg_view_details::reg_view regview{key};
     optional_value<DWORD64> value;
-    regview.get_value<DWORD64>(value_name, value);
+    regview.try_get_value<DWORD64>(subkey, value_name, value);
     return value;
 }
 
-inline optional_value<::std::vector<BYTE>> get_value_byte_vector(HKEY key, _In_ PCWSTR value_name, DWORD type)
+inline optional_value<DWORD64> try_get_value_qword(HKEY key, _In_opt_ PCWSTR value_name) WI_NOEXCEPT
+{
+    return try_get_value_qword(key, nullptr, value_name);
+}
+
+inline ::std::vector<BYTE> get_value_byte_vector(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, DWORD type) WI_NOEXCEPT
+{
+    const reg_view_details::reg_view regview{ key };
+    return regview.get_value<::std::vector<BYTE>>(subkey, value_name, type);
+}
+
+inline ::std::vector<BYTE> get_value_byte_vector(HKEY key, _In_opt_ PCWSTR value_name, DWORD type) WI_NOEXCEPT
+{
+    return get_value_byte_vector(key, nullptr, value_name, type);
+}
+
+inline optional_value<::std::vector<BYTE>> try_get_value_byte_vector(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, DWORD type)
 {
     const reg_view_details::reg_view regview{key};
     optional_value<::std::vector<BYTE>> value;
-    regview.get_value<::std::vector<BYTE>>(value_name, value, type);
+    regview.try_get_value<::std::vector<BYTE>>(subkey, value_name, value, type);
     return value;
 }
 
-inline optional_value<::std::wstring> get_value_string(HKEY key, _In_ PCWSTR value_name)
+inline optional_value<::std::vector<BYTE>> try_get_value_byte_vector(HKEY key, _In_opt_ PCWSTR value_name, DWORD type)
+{
+    return try_get_value_byte_vector(key, nullptr, value_name, type);
+}
+
+inline ::std::wstring get_value_string(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name) WI_NOEXCEPT
+{
+    const reg_view_details::reg_view regview{ key };
+    return regview.get_value<::std::wstring>(subkey, value_name);
+}
+
+inline ::std::wstring get_value_string(HKEY key, _In_opt_ PCWSTR value_name) WI_NOEXCEPT
+{
+    return get_value_string(key, nullptr, value_name);
+}
+
+inline optional_value<::std::wstring> try_get_value_string(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
 {
     const reg_view_details::reg_view regview{key};
     optional_value<::std::wstring> optionalvalue;
-    regview.get_value<::std::wstring>(value_name, optionalvalue);
+    regview.try_get_value<::std::wstring>(subkey, value_name, optionalvalue);
     return optionalvalue;
 }
 
-inline optional_value<::std::wstring> get_value_expanded_string(HKEY key, _In_ PCWSTR value_name)
+inline optional_value<::std::wstring> try_get_value_string(HKEY key, _In_opt_ PCWSTR value_name)
+{
+    return try_get_value_string(key, nullptr, value_name);
+}
+
+inline ::std::wstring get_value_expanded_string(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
+{
+    const reg_view_details::reg_view regview{ key };
+    ::std::wstring value;
+    regview.get_value<::std::wstring>(subkey, value_name, value, REG_EXPAND_SZ);
+    return value;
+}
+
+inline ::std::wstring get_value_expanded_string(HKEY key, _In_opt_ PCWSTR value_name)
+{
+    return get_value_expanded_string(key, nullptr, value_name);
+}
+
+inline optional_value<::std::wstring> try_get_value_expanded_string(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
 {
     const reg_view_details::reg_view regview{key};
     optional_value<::std::wstring> optionalvalue;
-    regview.get_value<::std::wstring>(value_name, optionalvalue, REG_EXPAND_SZ);
+    regview.try_get_value<::std::wstring>(subkey, value_name, optionalvalue, REG_EXPAND_SZ);
     return optionalvalue;
+}
+
+inline optional_value<::std::wstring> try_get_value_expanded_string(HKEY key, _In_opt_ PCWSTR value_name)
+{
+    return try_get_value_expanded_string(key, nullptr, value_name);
 }
 #endif
 
@@ -1405,33 +1537,34 @@ inline HRESULT get_value_qword_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _In
     return get_value_qword_nothrow(key, nullptr, value_name, return_value);
 }
 
-inline HRESULT get_value_byte_vector_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, DWORD type, ::std::vector<BYTE>& data) WI_NOEXCEPT
-{
-    const reg_view_details::reg_view_nothrow regview{key};
-    optional_value<::std::vector<BYTE>> optionalvalue;
-    const auto hr = regview.get_value<::std::vector<BYTE>>(subkey, value_name, optionalvalue, type);
-    RETURN_IF_FAILED(hr);
-
-    if (optionalvalue.type != optional_value_status::has_value)
-    {
-        RETURN_WIN32(ERROR_FILE_NOT_FOUND);
-    }
-
-    std::swap(data, optionalvalue.value);
-    return S_OK;
-}
-
-inline HRESULT get_value_byte_vector_nothrow(HKEY key, _In_opt_ PCWSTR value_name, DWORD type, ::std::vector<BYTE>& data) WI_NOEXCEPT
-{
-    return get_value_byte_vector_nothrow(key, nullptr, value_name, type, data);
-}
+// TODO: write value_byte_vector getters that don't throw.
+//inline HRESULT get_value_byte_vector_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, DWORD type, ::std::vector<BYTE>& data) WI_NOEXCEPT
+//{
+//    const reg_view_details::reg_view_nothrow regview{key};
+//    optional_value<::std::vector<BYTE>> optionalvalue;
+//    const auto hr = regview.try_get_value<::std::vector<BYTE>>(subkey, value_name, optionalvalue, type);
+//    RETURN_IF_FAILED(hr);
+//
+//    if (optionalvalue.type != optional_value_status::has_value)
+//    {
+//        RETURN_WIN32(ERROR_FILE_NOT_FOUND);
+//    }
+//
+//    std::swap(data, optionalvalue.value);
+//    return S_OK;
+//}
+//
+//inline HRESULT get_value_byte_vector_nothrow(HKEY key, _In_opt_ PCWSTR value_name, DWORD type, ::std::vector<BYTE>& data) WI_NOEXCEPT
+//{
+//    return get_value_byte_vector_nothrow(key, nullptr, value_name, type, data);
+//}
 
 #if defined(__WIL_STL_INCLUDED) && defined(WIL_ENABLE_EXCEPTIONS)
 inline HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, ::std::wstring& data) WI_NOEXCEPT try
 {
     const reg_view_details::reg_view_nothrow regview{key};
     optional_value<::std::wstring> optionalvalue;
-    const auto hr = regview.get_value<::std::wstring>(subkey, value_name, optionalvalue);
+    const auto hr = regview.try_get_value<::std::wstring>(subkey, value_name, optionalvalue);
     RETURN_IF_FAILED(hr);
 
     if (optionalvalue.type != optional_value_status::has_value)
@@ -1453,7 +1586,7 @@ inline HRESULT get_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR subke
 {
     const reg_view_details::reg_view_nothrow regview{key};
     optional_value<::std::wstring> optionalvalue;
-    const auto hr = regview.get_value<::std::wstring>(subkey, value_name, optionalvalue, REG_EXPAND_SZ);
+    const auto hr = regview.try_get_value<::std::wstring>(subkey, value_name, optionalvalue, REG_EXPAND_SZ);
     RETURN_IF_FAILED(hr);
 
     if (optionalvalue.type != optional_value_status::has_value)

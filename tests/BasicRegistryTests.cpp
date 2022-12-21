@@ -74,8 +74,7 @@ TEST_CASE("BasicRegistryTests::Dwords", "[registry][get_registry_dword]")
         for (DWORD&& value : { 4, 1, 0 })
         {
             wil::registry::set_value_dword(HKEY_CURRENT_USER, testSubkey, dwordValueName, value);
-            // TODO: use new accessors when they are non-optional
-            const auto result = wil::get_registry_dword(HKEY_CURRENT_USER, testSubkey, dwordValueName);
+            const auto result = wil::registry::get_value_dword(HKEY_CURRENT_USER, testSubkey, dwordValueName);
             REQUIRE(result == value);
         }
     }
