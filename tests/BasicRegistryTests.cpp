@@ -83,15 +83,15 @@ TEST_CASE("BasicRegistryTests::Dwords", "[registry][get_registry_dword]")
     SECTION("get optional with string key and value name")
     {
         //TODO: use wil::registry::set_value_dword_nothrow() (AND for all other tests)
-        const auto emptyResult = wil::try_get_registry_dword(HKEY_CURRENT_USER, testSubkey, L"NonExistentKey");
-        REQUIRE(emptyResult == std::nullopt);
+        const auto emptyResult = wil::registry::try_get_value_dword(HKEY_CURRENT_USER, testSubkey, L"NonExistentKey");
+        REQUIRE(!emptyResult.has_value());
 
         for (DWORD&& value : { 4, 1, 0 })
         {
             wil::registry::set_value_dword(HKEY_CURRENT_USER, testSubkey, dwordValueName, value);
-            const auto result = wil::try_get_registry_dword(HKEY_CURRENT_USER, testSubkey, dwordValueName);
+            const auto result = wil::registry::try_get_value_dword(HKEY_CURRENT_USER, testSubkey, dwordValueName);
             REQUIRE(result.has_value());
-            REQUIRE(result == value);
+            REQUIRE(result.value == value); // TODO: support equality operator?
         }
     }
 #endif // defined(_OPTIONAL_)

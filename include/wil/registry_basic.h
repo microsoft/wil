@@ -456,14 +456,14 @@ enum class optional_value_status
 template <typename T>
 struct optional_value
 {
-    constexpr bool empty() const WI_NOEXCEPT
+    constexpr bool has_value() const WI_NOEXCEPT
     {
-        return type == optional_value_status::no_value;
+        return type != optional_value_status::no_value;
     }
 
     constexpr explicit operator bool() const WI_NOEXCEPT
     {
-        return !empty();
+        return has_value();
     }
 
     template <typename F>
