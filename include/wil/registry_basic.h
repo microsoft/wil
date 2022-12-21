@@ -547,8 +547,9 @@ namespace reg_view_details
 #endif
 #endif
 
+    // TODO: do we need a generic version or should we have a compile error?
     /*template <typename T>
-    constexpr DWORD get_buffer_size(const optional_value<T>) WI_NOEXCEPT
+    constexpr DWORD get_buffer_size(const T) WI_NOEXCEPT
     {
         return sizeof(T);
     }*/
