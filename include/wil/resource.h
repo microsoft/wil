@@ -792,7 +792,7 @@ namespace wil
     ~~~
     typedef wil::unique_struct<PROPVARIANT, decltype(&::PropVariantClear), ::PropVariantClear> unique_prop_variant_default_init;
 
-    unique_prop_variant propvariant;
+    unique_prop_variant_default_init propvariant;
     SomeFunction(&propvariant);
     ~~~
 
