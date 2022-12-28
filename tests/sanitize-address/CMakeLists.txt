@@ -16,7 +16,7 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         -DCATCH_CONFIG_DISABLE_EXCEPTIONS
         )
 
-    # Clang ASan on Windows has issues with Windows: https://github.com/google/sanitizers/issues/749
+    # Clang ASan on Windows has issues with exceptions: https://github.com/google/sanitizers/issues/749
     replace_cxx_flag("/EHsc" "/EHs-c-")
 
     if ($ENV{Platform} STREQUAL "x86")
