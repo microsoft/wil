@@ -294,7 +294,7 @@ namespace wil
         }
 
         //! Returns a pointer for the buffer so it can be populated
-        wchar_t *Get() const { return const_cast<wchar_t *>(m_maker.buffer()); }
+        wchar_t* Get() const { return const_cast<wchar_t*>(m_maker.buffer()); }
         //! Used to validate range of buffer when populating.
         ULONG ByteSize() const { return m_characterLength * sizeof(wchar_t); }
 
