@@ -87,13 +87,12 @@ namespace wil
     or privilege-adjustment are examples of uses.
     ~~~~
     wil::unique_handle callerToken;
-    RETURN_IF_FAILED(wil::open_current_access_token_nothrow(&theToken, TOKEN_QUERY | TOKEN_IMPERSONATE, true));
+    RETURN_IF_FAILED(wil::open_current_access_token_nothrow(&theToken, TOKEN_QUERY | TOKEN_IMPERSONATE, OpenThreadTokenAs::Self));
     ~~~~
     @param tokenHandle Receives the token opened during the operation. Must be CloseHandle'd by the caller, or
                 (preferably) stored in a wil::unique_handle
     @param access Bits from the TOKEN_* access mask which are passed to OpenThreadToken/OpenProcessToken
-    @param asSelf When true, and if the thread is impersonating, the thread token is opened using the
-                process token's rights.
+    @param openAs Current to use current thread security context, or Self to use process security context.
     */
     inline HRESULT open_current_access_token_nothrow(_Out_ HANDLE* tokenHandle, unsigned long access = TOKEN_QUERY, OpenThreadTokenAs openAs = OpenThreadTokenAs::Current)
     {

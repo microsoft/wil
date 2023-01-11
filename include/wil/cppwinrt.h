@@ -28,7 +28,7 @@
 namespace wil::details
 {
     // Since the C++/WinRT version macro is a string...
-    // For example: "2.0.210122.3"
+    // For example: "2.0.221104.6"
     inline constexpr int version_from_string(const char* versionString)
     {
         int result = 0;
@@ -282,6 +282,11 @@ namespace wil
     inline auto get_abi(winrt::hstring const& object) noexcept
     {
         return static_cast<HSTRING>(winrt::get_abi(object));
+    }
+
+    inline auto str_raw_ptr(const winrt::hstring& str) noexcept
+    {
+        return str.c_str();
     }
 
     template <typename T>
