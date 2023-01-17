@@ -99,7 +99,7 @@ void TestErrorCallbacks()
             return false;
         });
 
-        size_t const depthCount = 10;
+        constexpr size_t depthCount = 10;
         for (size_t index = 0; index < depthCount; index++)
         {
             LOG_HR(E_ACCESSDENIED);
@@ -149,7 +149,7 @@ void StressErrorCallbacks()
 {
     auto restore = witest::AssignTemporaryValue(&wil::g_fResultOutputDebugString, false);
 
-    size_t const threadCount = 20;
+    constexpr size_t threadCount = 20;
     wil::unique_event eventArray[threadCount];
 
     for (size_t index = 0; index < threadCount; index++)
@@ -3161,12 +3161,12 @@ void ThreadPoolWaitTestHelper(bool requireExactCallbackCount)
     REQUIRE_SUCCEEDED(myContext.Event.create());
 
     WaitResourceT wait;
-    wait.reset(CreateThreadpoolWait(ThreadPoolWaitTestCallback, &myContext, NULL));
+    wait.reset(CreateThreadpoolWait(ThreadPoolWaitTestCallback, &myContext, nullptr));
     REQUIRE(wait);
 
     SetThreadpoolWait(wait.get(), myContext.Event.get(), nullptr);
 
-    const int loopCount = 5;
+    constexpr int loopCount = 5;
     for (int currCallbackCount = 0; currCallbackCount != loopCount; ++currCallbackCount)
     {
         // Signal event.
@@ -3226,10 +3226,10 @@ void ThreadPoolWaitWorkHelper(bool requireExactCallbackCount)
     ThreadPoolWaitWorkContext myContext;
 
     WaitResourceT work;
-    work.reset(CreateThreadpoolWork(ThreadPoolWaitWorkCallback, &myContext, NULL));
+    work.reset(CreateThreadpoolWork(ThreadPoolWaitWorkCallback, &myContext, nullptr));
     REQUIRE(work);
 
-    const int loopCount = 5;
+    constexpr int loopCount = 5;
     for (int itr = 0; itr != loopCount; ++itr)
     {
         SubmitThreadpoolWork(work.get());
@@ -3279,7 +3279,7 @@ void ThreadPoolTimerWorkHelper(SetThreadpoolTimerT const &setThreadpoolTimerFn, 
     timer.reset(CreateThreadpoolTimer(ThreadPoolTimerWorkCallback, &myContext, nullptr));
     REQUIRE(timer);
 
-    const int loopCount = 5;
+    constexpr int loopCount = 5;
     for (int currCallbackCount = 0; currCallbackCount != loopCount; ++currCallbackCount)
     {
         // Schedule timer

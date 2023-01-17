@@ -12,8 +12,6 @@
 #ifndef __WIL_CPPWINRT_HELPERS_DEFINED
 #define __WIL_CPPWINRT_HELPERS_DEFINED
 
-#include <memory>
-
 /// @cond
 namespace wil::details
 {
@@ -59,7 +57,7 @@ namespace wil::details
 {
     struct dispatched_handler_state
     {
-        details::coroutine_handle<> handle;
+        details::coroutine_handle<> handle{};
         bool orphaned = false;
     };
 

@@ -46,7 +46,7 @@ namespace wil
     //! to that value when it is destroyed.
     //!
     //! This is useful in library code that runs during a value's destructor. If the library code could
-    //! inadvertantly change the value of GetLastError (by calling a Win32 API or similar), it should
+    //! inadvertently change the value of GetLastError (by calling a Win32 API or similar), it should
     //! instantiate a value of this type before calling the library function in order to preserve the
     //! GetLastError value the user would expect.
     //!
@@ -689,7 +689,7 @@ namespace wil
             {
             }
 
-            out_param_t(out_param_t&& other) :
+            out_param_t(out_param_t&& other) WI_NOEXCEPT :
                 wrapper(other.wrapper),
                 pRaw(other.pRaw)
             {
@@ -729,7 +729,7 @@ namespace wil
             {
             }
 
-            out_param_ptr_t(out_param_ptr_t&& other) :
+            out_param_ptr_t(out_param_ptr_t&& other) WI_NOEXCEPT :
                 wrapper(other.wrapper),
                 pRaw(other.pRaw)
             {
@@ -1166,7 +1166,7 @@ namespace wil
             {
             }
 
-            size_address_ptr(size_address_ptr&& other) :
+            size_address_ptr(size_address_ptr&& other) WI_NOEXCEPT :
                 wrapper(other.wrapper),
                 size(other.size)
             {
@@ -3335,11 +3335,10 @@ namespace wil
         _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_)
         PCSTR source, size_t length = static_cast<size_t>(-1)) WI_NOEXCEPT
     {
-        // guard against invalid parameters (null source with -1 length)
-        FAIL_FAST_IF(!source && (length == static_cast<size_t>(-1)));
-
         if (length == static_cast<size_t>(-1))
         {
+            // guard against invalid parameters (null source with -1 length)
+            FAIL_FAST_IF(!source);
             length = strlen(source);
         }
         const size_t cb = (length + 1) * sizeof(*source);
@@ -4376,7 +4375,7 @@ namespace wil
     WI_NODISCARD inline unique_couninitialize_call CoInitializeEx_failfast(DWORD coinitFlags = 0 /*COINIT_MULTITHREADED*/)
     {
         FAIL_FAST_IF_FAILED(::CoInitializeEx(nullptr, coinitFlags));
-        return unique_couninitialize_call();
+        return {};
     }
 #endif // __WIL__COMBASEAPI_H_APP
 #if defined(__WIL__COMBASEAPI_H_APP) && defined(WIL_ENABLE_EXCEPTIONS) && !defined(__WIL__COMBASEAPI_H_APPEXCEPTIONAL)
@@ -4384,7 +4383,7 @@ namespace wil
     WI_NODISCARD inline unique_couninitialize_call CoInitializeEx(DWORD coinitFlags = 0 /*COINIT_MULTITHREADED*/)
     {
         THROW_IF_FAILED(::CoInitializeEx(nullptr, coinitFlags));
-        return unique_couninitialize_call();
+        return {};
     }
 #endif
 

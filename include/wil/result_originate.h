@@ -120,6 +120,6 @@ WI_HEADER_INITITALIZATION_FUNCTION(ResultStowedExceptionInitialize, []
     ::wil::SetOriginateErrorCallback(::wil::details::RaiseRoOriginateOnWilExceptions);
     ::wil::SetFailfastWithContextCallback(::wil::details::FailfastWithContextCallback);
     return 1;
-});
+})
 
 #endif // __WIL_RESULT_ORIGINATE_INCLUDED

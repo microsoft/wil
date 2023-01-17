@@ -50,10 +50,10 @@ namespace wil
         {
         };
 
-        typedef wistd::integral_constant<char, 0> tag_com_query;
-        typedef wistd::integral_constant<char, 1> tag_try_com_query;
-        typedef wistd::integral_constant<char, 2> tag_com_copy;
-        typedef wistd::integral_constant<char, 3> tag_try_com_copy;
+        using tag_com_query = wistd::integral_constant<char, 0>;
+        using tag_try_com_query = wistd::integral_constant<char, 1>;
+        using tag_com_copy = wistd::integral_constant<char, 2>;
+        using tag_try_com_copy = wistd::integral_constant<char, 3>;
 
         class default_query_policy
         {
@@ -91,7 +91,7 @@ namespace wil
         template <typename T>
         struct query_policy_helper
         {
-            typedef default_query_policy type;
+            using type = default_query_policy;
         };
 
         class weak_query_policy
@@ -103,7 +103,7 @@ namespace wil
                 *result = nullptr;
 
                 IInspectable* temp;
-                HRESULT hr = ptr->Resolve(__uuidof(IInspectable), reinterpret_cast<IInspectable**>(&temp));
+                HRESULT hr = ptr->Resolve(__uuidof(IInspectable), &temp);
                 if (SUCCEEDED(hr))
                 {
                     if (temp == nullptr)
@@ -148,7 +148,7 @@ namespace wil
         template <>
         struct query_policy_helper<IWeakReference>
         {
-            typedef weak_query_policy type;
+            using type = weak_query_policy;
         };
 
 #if (NTDDI_VERSION >= NTDDI_WINBLUE)
@@ -174,7 +174,7 @@ namespace wil
         template <>
         struct query_policy_helper<IAgileReference>
         {
-            typedef agile_query_policy type;
+            using type = agile_query_policy;
         };
 #endif
 
@@ -194,15 +194,15 @@ namespace wil
     class com_ptr_t
     {
     private:
-        typedef typename wistd::add_lvalue_reference<T>::type element_type_reference;
-        typedef details::query_policy_t<T> query_policy;
+        using element_type_reference = typename wistd::add_lvalue_reference<T>::type;
+        using query_policy = details::query_policy_t<T>;
     public:
         //! The function return result (HRESULT or void) for the given err_policy (see @ref page_errors).
-        typedef typename err_policy::result result;
+        using result = typename err_policy::result;
         //! The template type `T` being held by the com_ptr_t.
-        typedef T element_type;
+        using element_type = T;
         //! A pointer to the template type `T` being held by the com_ptr_t (what `get()` returns).
-        typedef T* pointer;
+        using pointer = T*;
 
         //! @name Constructors
         //! @{
@@ -363,8 +363,7 @@ namespace wil
             m_ptr = other;
             if (ptr)
             {
-                ULONG ref;
-                ref = ptr->Release();
+                ULONG ref = ptr->Release();
                 WI_ASSERT_MSG(((other != ptr) || (ref > 0)), "Bug: Attaching the same already assigned, destructed pointer");
             }
         }
@@ -2774,8 +2773,8 @@ namespace wil
     wil::stream_write_string(target, L"Waffles", 3);
     ~~~~
     @param target The stream to which to write a string
-    @param source The string to write. Can be null if `writeLength` is zero
-    @param writeLength The number of characters to write from source into `target`
+    @param source The string to write. Can be null if `toWriteCch` is zero
+    @param toWriteCch The number of characters to write from source into `target`
     */
     inline void stream_write_string(_In_ ISequentialStream* target, _In_reads_opt_(toWriteCch) const wchar_t*  source, _In_ size_t toWriteCch)
     {
