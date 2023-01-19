@@ -149,8 +149,8 @@ namespace wistd     // ("Windows Implementation" std)
     struct __second_tag {};
 
     template <class _T1, class _T2>
-    class __compressed_pair : private __compressed_pair_elem<_T1, 0>,
-                              private __compressed_pair_elem<_T2, 1> {
+    class __declspec(empty_bases) __compressed_pair : private __compressed_pair_elem<_T1, 0>,
+                                                      private __compressed_pair_elem<_T2, 1> {
       using _Base1 = __compressed_pair_elem<_T1, 0>;
       using _Base2 = __compressed_pair_elem<_T2, 1>;
 
