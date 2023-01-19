@@ -1,12 +1,11 @@
 
-# Compilers often don't use the latest C++ standard as the default. Periodically update this value (possibly conditioned
-# on compiler) as new standards are ratified/support is available
-set(CMAKE_CXX_STANDARD 20)
-
-project(witest.cpplatest)
 add_executable(witest.cpplatest)
 
-if (${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
+# Compilers often don't use the latest C++ standard as the default. Periodically update this value (possibly conditioned
+# on compiler) as new standards are ratified/support is available
+target_compile_features(witest.cpplatest PRIVATE cxx_std_20)
+
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     # Clang is not compatible with the experimental coroutine header, so temporarily disable some headers until full
     # C++20 support is available
     set(COROUTINE_SOURCES)
@@ -15,7 +14,7 @@ else()
         ${CMAKE_CURRENT_SOURCE_DIR}/../ComApartmentVariableTests.cpp)
 endif()
 
-target_sources(witest.cpplatest PUBLIC
+target_sources(witest.cpplatest PRIVATE
     ${COMMON_SOURCES}
     ${COROUTINE_SOURCES}
     ${CMAKE_CURRENT_SOURCE_DIR}/../CppWinRTTests.cpp
