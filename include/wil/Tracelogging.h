@@ -37,6 +37,11 @@
 #pragma warning(push)
 #pragma warning(disable: 26135)   // Missing locking annotation, Caller failing to hold lock
 
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmicrosoft-template-shadow"
+#endif
+
 #ifndef __TRACELOGGING_TEST_HOOK_ERROR
 #define __TRACELOGGING_TEST_HOOK_ERROR(failure)
 #define __TRACELOGGING_TEST_HOOK_ACTIVITY_ERROR(failure)
@@ -461,7 +466,7 @@ namespace wil
         // It will be ran once when the single static singleton instance of this class is created.
         virtual void Initialize() WI_NOEXCEPT {}
 
-        // This method can be overriden by a provider to more tightly control what happens in the event
+        // This method can be overridden by a provider to more tightly control what happens in the event
         // of a failure in a CallContext activity, WatchCurrentThread() object, or attributed to a specific failure.
         virtual void OnErrorReported(bool alreadyReported, FailureInfo const &failure) WI_NOEXCEPT
         {
@@ -479,7 +484,7 @@ namespace wil
         }
 
     public:
-        TraceLoggingHProvider const Provider_() const WI_NOEXCEPT
+        TraceLoggingHProvider Provider_() const WI_NOEXCEPT
         {
             return m_providerHandle;
         }
@@ -516,7 +521,7 @@ namespace wil
         void ReportTelemetryFailure(FailureInfo const &failure) WI_NOEXCEPT
         {
             __TRACELOGGING_TEST_HOOK_ERROR(failure);
-            TraceLoggingWrite(m_providerHandle, "FallbackError", TraceLoggingKeyword(MICROSOFT_KEYWORD_TELEMETRY), TraceLoggingLevel(WINEVENT_LEVEL_ERROR), __RESULT_TELEMETRY_FAILURE_PARAMS(failure));
+            TraceLoggingWrite(m_providerHandle, "FallbackError", TelemetryPrivacyDataTag(PDT_ProductAndServicePerformance), TraceLoggingKeyword(MICROSOFT_KEYWORD_TELEMETRY), TraceLoggingLevel(WINEVENT_LEVEL_ERROR), __RESULT_TELEMETRY_FAILURE_PARAMS(failure));
         }
 
         void ReportTraceLoggingFailure(FailureInfo const &failure) WI_NOEXCEPT
@@ -594,10 +599,8 @@ namespace wil
         class BasicActivity
         : public _TlgActivityBase<BasicActivity<TraceLoggingType, keyword, level, TlgReflectorTag>, keyword, level>
     {
-        typedef
-            _TlgActivityBase<BasicActivity<TraceLoggingType, keyword, level, TlgReflectorTag>, keyword, level>
-            BaseTy;
-        friend class BaseTy;
+        using BaseTy = _TlgActivityBase<BasicActivity<TraceLoggingType, keyword, level, TlgReflectorTag>, keyword, level>;
+        friend BaseTy;
 
         void OnStarted()
         {
@@ -670,10 +673,8 @@ namespace wil
         class BasicThreadActivity
         : public _TlgActivityBase<BasicThreadActivity<TraceLoggingType, keyword, level, TlgReflectorTag>, keyword, level>
     {
-        typedef
-            _TlgActivityBase<BasicThreadActivity<TraceLoggingType, keyword, level, TlgReflectorTag>, keyword, level>
-            BaseTy;
-        friend class BaseTy;
+        using BaseTy = _TlgActivityBase<BasicThreadActivity<TraceLoggingType, keyword, level, TlgReflectorTag>, keyword, level>;
+        friend BaseTy;
 
         void OnStarted()
         {
@@ -742,14 +743,14 @@ namespace wil
         static UINT64 const PrivacyTag = privacyTag;
 
         ActivityBase(PCSTR contextName, bool shouldWatchErrors = false) WI_NOEXCEPT :
-        m_activityData(contextName),
+            m_activityData(contextName),
             m_pActivityData(&m_activityData),
             m_callbackHolder(this, m_activityData.GetCallContext(), shouldWatchErrors)
         {
         }
 
         ActivityBase(ActivityBase &&other, bool shouldWatchErrors) WI_NOEXCEPT :
-        m_activityData(wistd::move(other.m_activityData)),
+            m_activityData(wistd::move(other.m_activityData)),
             m_sharedActivityData(wistd::move(other.m_sharedActivityData)),
             m_callbackHolder(this, nullptr, shouldWatchErrors)
         {
@@ -895,6 +896,10 @@ namespace wil
 
             if (WI_IsFlagClear(failure.flags, FailureFlags::RequestSuppressTelemetry))
             {
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-value"
+#endif
 #pragma warning(push)
 #pragma warning(disable: 6319)
                 if (false, WI_IsFlagSet(options, ActivityOptions::TelemetryOnFailure) && !WasAlreadyReportedToTelemetry(failure.failureId))
@@ -910,6 +915,9 @@ namespace wil
                     __WI_TraceLoggingWriteTagged(*this, "ActivityError", TraceLoggingKeyword(Keyword), TraceLoggingLevel(WINEVENT_LEVEL_ERROR), __ACTIVITY_ERROR_TRACELOGGING_FAILURE_PARAMS(failure));
                 }
 #pragma warning(pop)
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
             }
 
             auto lock = LockExclusive();
@@ -947,7 +955,7 @@ namespace wil
             auto lock = LockExclusive(); m_pActivityData->zInternalStop();
         }
 
-        static TraceLoggingHProvider const Provider() WI_NOEXCEPT
+        static TraceLoggingHProvider Provider() WI_NOEXCEPT
         {
             return ActivityTraceLoggingType::Provider();
         }
@@ -1081,8 +1089,8 @@ namespace wil
             class ActivityData :
             public _TlgActivityBase<ActivityData<ActivityTraceLoggingType, TlgReflectorTag>, keyword, level>
         {
-            typedef _TlgActivityBase<ActivityData<ActivityTraceLoggingType, TlgReflectorTag>, keyword, level> BaseTy;
-            friend class BaseTy;
+            using BaseTy = _TlgActivityBase<ActivityData<ActivityTraceLoggingType, TlgReflectorTag>, keyword, level>;
+            friend BaseTy;
             void OnStarted() {}
             void OnStopped() {}
 
@@ -1116,7 +1124,7 @@ namespace wil
             }
 
             ActivityData(ActivityData &&other) WI_NOEXCEPT :
-            BaseTy(wistd::move(other)),
+                BaseTy(wistd::move(other)),
                 m_callContext(wistd::move(other.m_callContext)),
                 m_result(other.m_result),
                 m_failure(wistd::move(other.m_failure)),
@@ -1152,7 +1160,7 @@ namespace wil
                 return m_lock.lock_exclusive();
             }
 
-            static TraceLoggingHProvider const Provider()
+            static TraceLoggingHProvider Provider()
             {
                 return ActivityTraceLoggingType::Provider();
             }
@@ -1212,16 +1220,16 @@ namespace wil
 
         private:
             details::StoredCallContextInfo m_callContext;
-            int m_stopCountExpected;
             HRESULT m_result;
             StoredFailureInfo m_failure;
+            int m_stopCountExpected;
             wil::srwlock m_lock;
         };
 
-        mutable details::ThreadFailureCallbackHolder m_callbackHolder;
-        mutable ActivityData<ActivityTraceLoggingType, TlgReflectorTag> *m_pActivityData;
         mutable ActivityData<ActivityTraceLoggingType, TlgReflectorTag> m_activityData;
+        mutable ActivityData<ActivityTraceLoggingType, TlgReflectorTag> *m_pActivityData;
         mutable details::shared_object<ActivityData<ActivityTraceLoggingType, TlgReflectorTag>> m_sharedActivityData;
+        mutable details::ThreadFailureCallbackHolder m_callbackHolder;
     };
 
 } // namespace wil
@@ -1886,7 +1894,7 @@ namespace wil
         typedef TraceLoggingProviderOwnerClassName TraceLoggingType; \
         static bool IsEnabled(UCHAR eventLevel = 0 /* WINEVENT_LEVEL_XXX, e.g. WINEVENT_LEVEL_VERBOSE */, ULONGLONG eventKeywords = 0 /* MICROSOFT_KEYWORD_XXX */) WI_NOEXCEPT \
             { return Instance()->IsEnabled_(eventLevel, eventKeywords); } \
-        static TraceLoggingHProvider const Provider() WI_NOEXCEPT \
+        static TraceLoggingHProvider Provider() WI_NOEXCEPT \
             { return static_cast<TraceLoggingProvider *>(Instance())->Provider_(); } \
         static void SetTelemetryEnabled(bool) WI_NOEXCEPT {} \
         static void SetErrorReportingType(wil::ErrorReportingType type) WI_NOEXCEPT \
@@ -1909,7 +1917,7 @@ namespace wil
         static void TraceLoggingError(_Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT \
             { va_list argList; va_start(argList, formatString); return Instance()->ReportTraceLoggingError(formatString, argList); } \
     private: \
-        TraceLoggingHProvider const Provider_() const WI_NOEXCEPT = delete; \
+        TraceLoggingHProvider Provider_() const WI_NOEXCEPT = delete; \
         TraceLoggingClassName() WI_NOEXCEPT {}; \
     protected: \
         static TraceLoggingClassName* Instance() WI_NOEXCEPT \
@@ -2604,7 +2612,7 @@ WIL_WARN_DEPRECATED_1612_PRAGMA("IMPLEMENT_TRACELOGGING_CLASS")
 
 // [Optional] Custom Events
 // Use these macros to define a Custom Event for a Provider.  Use the TraceLoggingClassWrite or TraceLoggingClassWriteTelemetry
-// from within a cusotm event to issue the event.  Methods will be a no-op (and not be called) if the provider is not
+// from within a custom event to issue the event.  Methods will be a no-op (and not be called) if the provider is not
 // enabled.
 
 #define TraceLoggingClassWrite(EventId, ...) \
@@ -3084,9 +3092,9 @@ WIL_WARN_DEPRECATED_1612_PRAGMA("IMPLEMENT_TRACELOGGING_CLASS")
 
 
 // [Optional] Custom Start or Stop Events for Activities
-// Use these macros to define cusotm start or custom stop methods for an activity.  Any activity can
-// have multiple start or stop methods.  To add cusotm start or stop events, define a StartActivity instance
-// method or a Stop instance method within the BEGIN/END pair of a cusotm activity.  Within that function, use
+// Use these macros to define custom start or custom stop methods for an activity.  Any activity can
+// have multiple start or stop methods.  To add custom start or stop events, define a StartActivity instance
+// method or a Stop instance method within the BEGIN/END pair of a custom activity.  Within that function, use
 // TraceLoggingClassWriteStart or TraceLoggingClassWriteStop.
 
 // Params:  (EventId, ...)
@@ -3822,7 +3830,7 @@ namespace wil
                 ScheduleFireEventCallback();
             }
 
-            ~ApiTelemetryLogger() WI_NOEXCEPT
+            ~ApiTelemetryLogger() WI_NOEXCEPT override
             {
                 FireEvent();
 
@@ -3878,7 +3886,7 @@ namespace wil
 //
 // Note: In your DLLMain method, please also add following code snippet
 //
-//		wil::details::g_processShutdownInProgress = (lpReserved == nullptr);
+//      wil::details::g_processShutdownInProgress = (lpReserved == nullptr);
 //
 // Adding this code snippet ensures that during process termination, thread pool timer
 // destructor or SetThreadPoolTimer methods are not called, because they are invalid to call
@@ -3908,6 +3916,10 @@ namespace wil
 
 #define WI_LOG_API_USE(...) \
     WI_MACRO_DISPATCH(__WI_LOG_API_USE, __VA_ARGS__)
+
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
 
 #pragma warning(pop)
 #endif // __WIL_TRACELOGGING_H_INCLUDED
