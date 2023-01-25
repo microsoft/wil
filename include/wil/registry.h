@@ -21,6 +21,7 @@
 
 namespace wil
 {
+/*
     //! The key name includes the absolute path of the key in the registry, always starting at a
     //! base key, for example, HKEY_LOCAL_MACHINE.
     size_t const max_registry_key_name_length = 255;
@@ -192,6 +193,7 @@ namespace wil
     constexpr auto* set_registry_string_nothrow = details::set_registry_string<err_returncode_policy>;
     constexpr auto* set_registry_string_failfast = details::set_registry_string<err_failfast_policy>;
 #endif // defined(_STRING_)
+*/
 
     // unique_registry_watcher/unique_registry_watcher_nothrow/unique_registry_watcher_failfast
     // These classes make it easy to execute a provided function when a
