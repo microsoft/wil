@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <!--
     Copyright (c) Microsoft. All rights reserved.
     This code is licensed under the MIT License.
@@ -6,7 +7,6 @@
     TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
     PARTICULAR PURPOSE AND NONINFRINGEMENT.
 -->
-<?xml version="1.0" encoding="utf-8"?>
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
     <Type Name="wistd::_Func_impl&lt;*&gt;">
         <DisplayString>{_Callee._Object}</DisplayString>
@@ -100,6 +100,15 @@
         <DisplayString>{m_ptr}</DisplayString>
         <Expand>
             <ExpandedItem>m_ptr</ExpandedItem>
+        </Expand>
+    </Type>
+
+    <Type Name="wil::basic_zstring_view&lt;*&gt;">
+        <Intrinsic Name="size" Expression="_Mysize" />
+        <Intrinsic Name="data" Expression="_Mydata" />
+        <DisplayString>{_Mydata,[_Mysize]}</DisplayString>
+        <Expand>
+            <Item Name="[size]" ExcludeView="simple">size()</Item>
         </Expand>
     </Type>
 </AutoVisualizer>

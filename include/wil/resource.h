@@ -42,6 +42,78 @@ namespace Microsoft
 
 namespace wil
 {
+    //! This type copies the current value of GetLastError at construction and resets the last error
+    //! to that value when it is destroyed.
+    //!
+    //! This is useful in library code that runs during a value's destructor. If the library code could
+    //! inadvertently change the value of GetLastError (by calling a Win32 API or similar), it should
+    //! instantiate a value of this type before calling the library function in order to preserve the
+    //! GetLastError value the user would expect.
+    //!
+    //! This construct exists to hide kernel mode/user mode differences in wil library code.
+    //!
+    //! Example usage:
+    //!
+    //!     if (!CreateFile(...))
+    //!     {
+    //!         auto lastError = wil::last_error_context();
+    //!         WriteFile(g_hlog, logdata);
+    //!     }
+    //!
+    class last_error_context
+    {
+#ifndef WIL_KERNEL_MODE
+        bool m_dismissed = false;
+        DWORD m_error = 0;
+    public:
+        last_error_context() WI_NOEXCEPT : last_error_context(::GetLastError())
+        {
+        }
+
+        explicit last_error_context(DWORD error) WI_NOEXCEPT :
+            m_error(error)
+        {
+        }
+
+        last_error_context(last_error_context&& other) WI_NOEXCEPT
+        {
+            operator=(wistd::move(other));
+        }
+
+        last_error_context& operator=(last_error_context&& other) WI_NOEXCEPT
+        {
+            m_dismissed = wistd::exchange(other.m_dismissed, true);
+            m_error = other.m_error;
+
+            return *this;
+        }
+
+        ~last_error_context() WI_NOEXCEPT
+        {
+            if (!m_dismissed)
+            {
+                ::SetLastError(m_error);
+            }
+        }
+
+        //! last_error_context doesn't own a concrete resource, so therefore
+        //! it just disarms its destructor and returns void.
+        void release() WI_NOEXCEPT
+        {
+            WI_ASSERT(!m_dismissed);
+            m_dismissed = true;
+        }
+
+        auto value() const WI_NOEXCEPT
+        {
+            return m_error;
+        }
+#else
+    public:
+        void release() WI_NOEXCEPT { }
+#endif // WIL_KERNEL_MODE
+    };
+
     /// @cond
     namespace details
     {
@@ -617,7 +689,7 @@ namespace wil
             {
             }
 
-            out_param_t(out_param_t&& other) :
+            out_param_t(out_param_t&& other) WI_NOEXCEPT :
                 wrapper(other.wrapper),
                 pRaw(other.pRaw)
             {
@@ -657,7 +729,7 @@ namespace wil
             {
             }
 
-            out_param_ptr_t(out_param_ptr_t&& other) :
+            out_param_ptr_t(out_param_ptr_t&& other) WI_NOEXCEPT :
                 wrapper(other.wrapper),
                 pRaw(other.pRaw)
             {
@@ -720,7 +792,7 @@ namespace wil
     ~~~
     typedef wil::unique_struct<PROPVARIANT, decltype(&::PropVariantClear), ::PropVariantClear> unique_prop_variant_default_init;
 
-    unique_prop_variant propvariant;
+    unique_prop_variant_default_init propvariant;
     SomeFunction(&propvariant);
     ~~~
 
@@ -1094,7 +1166,7 @@ namespace wil
             {
             }
 
-            size_address_ptr(size_address_ptr&& other) :
+            size_address_ptr(size_address_ptr&& other) WI_NOEXCEPT :
                 wrapper(other.wrapper),
                 size(other.size)
             {
@@ -3263,11 +3335,10 @@ namespace wil
         _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_)
         PCSTR source, size_t length = static_cast<size_t>(-1)) WI_NOEXCEPT
     {
-        // guard against invalid parameters (null source with -1 length)
-        FAIL_FAST_IF(!source && (length == static_cast<size_t>(-1)));
-
         if (length == static_cast<size_t>(-1))
         {
+            // guard against invalid parameters (null source with -1 length)
+            FAIL_FAST_IF(!source);
             length = strlen(source);
         }
         const size_t cb = (length + 1) * sizeof(*source);
@@ -4304,7 +4375,7 @@ namespace wil
     WI_NODISCARD inline unique_couninitialize_call CoInitializeEx_failfast(DWORD coinitFlags = 0 /*COINIT_MULTITHREADED*/)
     {
         FAIL_FAST_IF_FAILED(::CoInitializeEx(nullptr, coinitFlags));
-        return unique_couninitialize_call();
+        return {};
     }
 #endif // __WIL__COMBASEAPI_H_APP
 #if defined(__WIL__COMBASEAPI_H_APP) && defined(WIL_ENABLE_EXCEPTIONS) && !defined(__WIL__COMBASEAPI_H_APPEXCEPTIONAL)
@@ -4312,7 +4383,7 @@ namespace wil
     WI_NODISCARD inline unique_couninitialize_call CoInitializeEx(DWORD coinitFlags = 0 /*COINIT_MULTITHREADED*/)
     {
         THROW_IF_FAILED(::CoInitializeEx(nullptr, coinitFlags));
-        return unique_couninitialize_call();
+        return {};
     }
 #endif
 

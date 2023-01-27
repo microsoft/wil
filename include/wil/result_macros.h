@@ -40,7 +40,7 @@
 //       constructible. Therefore, use 'sizeof' for syntax validation. We don't do this universally for all compilers
 //       since lambdas are not allowed in unevaluated contexts prior to C++20, which does not appear to affect __noop
 #if !defined(_MSC_VER) || defined(__clang__)
-#define __WI_ANALYSIS_ASSUME(_exp)                          ((void)sizeof(_exp)) // Validate syntax on non-debug builds
+#define __WI_ANALYSIS_ASSUME(_exp)                          ((void)sizeof(!(_exp))) // Validate syntax on non-debug builds
 #else
 #define __WI_ANALYSIS_ASSUME(_exp)                          __noop(_exp)
 #endif
@@ -1295,19 +1295,32 @@ namespace wil
         // Plugin to call RoFailFastWithErrorContext (WIL use only)
         __declspec(selectany) void(__stdcall* g_pfnFailfastWithContextCallback)(wil::FailureInfo const& failure) WI_PFN_NOEXCEPT = nullptr;
 
-        // Called to tell Appverifier to ignore a particular allocation from leak tracking
-        // If AppVerifier is not enabled, this is a no-op
-        // Desktop/System Only: Automatically setup when building Windows (BUILD_WINDOWS defined)
-        __declspec(selectany) NTSTATUS(__stdcall *g_pfnRtlDisownModuleHeapAllocation)(_In_ HANDLE heapHandle, _In_ PVOID address) WI_PFN_NOEXCEPT = nullptr;
 
         // Allocate and disown the allocation so that Appverifier does not complain about a false leak
-        inline PVOID ProcessHeapAlloc(_In_ DWORD flags, _In_ size_t size)
+        inline PVOID ProcessHeapAlloc(_In_ DWORD flags, _In_ size_t size) WI_NOEXCEPT
         {
-            PVOID allocation = ::HeapAlloc(::GetProcessHeap(), flags, size);
+            const HANDLE processHeap = ::GetProcessHeap();
+            const PVOID allocation = ::HeapAlloc(processHeap, flags, size);
 
-            if (g_pfnRtlDisownModuleHeapAllocation)
+            static bool fetchedRtlDisownModuleHeapAllocation = false;
+            static NTSTATUS (__stdcall *pfnRtlDisownModuleHeapAllocation)(HANDLE, PVOID) WI_PFN_NOEXCEPT = nullptr;
+
+            if (pfnRtlDisownModuleHeapAllocation)
             {
-                (void)g_pfnRtlDisownModuleHeapAllocation(::GetProcessHeap(), allocation);
+                (void)pfnRtlDisownModuleHeapAllocation(processHeap, allocation);
+            }
+            else if (!fetchedRtlDisownModuleHeapAllocation)
+            {
+                if (auto ntdllModule = ::GetModuleHandleW(L"ntdll.dll"))
+                {
+                    pfnRtlDisownModuleHeapAllocation = reinterpret_cast<decltype(pfnRtlDisownModuleHeapAllocation)>(::GetProcAddress(ntdllModule, "RtlDisownModuleHeapAllocation"));
+                }
+                fetchedRtlDisownModuleHeapAllocation = true;
+
+                if (pfnRtlDisownModuleHeapAllocation)
+                {
+                    (void)pfnRtlDisownModuleHeapAllocation(processHeap, allocation);
+                }
             }
 
             return allocation;
@@ -1389,25 +1402,25 @@ namespace wil
         template <ErrorReturn errorReturn, typename T>
         struct return_type
         {
-            typedef tag_return_other type;
+            using type = tag_return_other;
         };
 
         template <>
         struct return_type<ErrorReturn::Auto, HRESULT>
         {
-            typedef tag_return_HRESULT type;
+            using type = tag_return_HRESULT;
         };
 
         template <>
         struct return_type<ErrorReturn::Auto, void>
         {
-            typedef tag_return_void type;
+            using type = tag_return_void;
         };
 
         template <>
         struct return_type<ErrorReturn::None, void>
         {
-            typedef tag_return_void type;
+            using type = tag_return_void;
         };
 
         template <ErrorReturn errorReturn, typename Functor>
@@ -2098,7 +2111,7 @@ __WI_POP_WARNINGS
         _Must_inspect_result_ STRSAFEAPI StringCchLengthA(_In_reads_or_z_(cchMax) STRSAFE_PCNZCH psz, _In_ _In_range_(1, STRSAFE_MAX_CCH) size_t cchMax, _Out_opt_ _Deref_out_range_(<, cchMax) _Deref_out_range_(<= , _String_length_(psz)) size_t* pcchLength)
         {
             HRESULT hr;
-            if ((psz == NULL) || (cchMax > STRSAFE_MAX_CCH))
+            if ((psz == nullptr) || (cchMax > STRSAFE_MAX_CCH))
             {
                 hr = STRSAFE_E_INVALID_PARAMETER;
             }
@@ -2128,11 +2141,10 @@ __WI_POP_WARNINGS
         {
             HRESULT hr = S_OK;
             int iRet;
-            size_t cchMax;
-            size_t cchNewDestLength = 0;
 
             // leave the last space for the null terminator
-            cchMax = cchDest - 1;
+            size_t cchMax = cchDest - 1;
+            size_t cchNewDestLength = 0;
 #undef STRSAFE_USE_SECURE_CRT
 #define STRSAFE_USE_SECURE_CRT 1
         #if (STRSAFE_USE_SECURE_CRT == 1) && !defined(STRSAFE_LIB_IMPL)
@@ -2185,7 +2197,7 @@ __WI_POP_WARNINGS
             {
                 va_list argList;
                 va_start(argList, pszFormat);
-                hr = wil::details::WilStringVPrintfWorkerA(pszDest, cchDest, NULL, pszFormat, argList);
+                hr = wil::details::WilStringVPrintfWorkerA(pszDest, cchDest, nullptr, pszFormat, argList);
                 va_end(argList);
             }
             else if (cchDest > 0)
@@ -2247,78 +2259,6 @@ __WI_POP_WARNINGS
         }
     } // details namespace
     /// @endcond
-
-    //! This type copies the current value of GetLastError at construction and resets the last error
-    //! to that value when it is destroyed.
-    //!
-    //! This is useful in library code that runs during a value's destructor. If the library code could
-    //! inadvertantly change the value of GetLastError (by calling a Win32 API or similar), it should
-    //! instantiate a value of this type before calling the library function in order to preserve the
-    //! GetLastError value the user would expect.
-    //!
-    //! This construct exists to hide kernel mode/user mode differences in wil library code.
-    //!
-    //! Example usage:
-    //!
-    //!     if (!CreateFile(...))
-    //!     {
-    //!         auto lastError = wil::last_error_context();
-    //!         WriteFile(g_hlog, logdata);
-    //!     }
-    //!
-    class last_error_context
-    {
-#ifndef WIL_KERNEL_MODE
-        bool m_dismissed = false;
-        DWORD m_error = 0;
-    public:
-        last_error_context() WI_NOEXCEPT : last_error_context(::GetLastError())
-        {
-        }
-
-        explicit last_error_context(DWORD error) WI_NOEXCEPT :
-            m_error(error)
-        {
-        }
-
-        last_error_context(last_error_context&& other) WI_NOEXCEPT
-        {
-            operator=(wistd::move(other));
-        }
-
-        last_error_context& operator=(last_error_context&& other) WI_NOEXCEPT
-        {
-            m_dismissed = wistd::exchange(other.m_dismissed, true);
-            m_error = other.m_error;
-
-            return *this;
-        }
-
-        ~last_error_context() WI_NOEXCEPT
-        {
-            if (!m_dismissed)
-            {
-                ::SetLastError(m_error);
-            }
-        }
-
-        //! last_error_context doesn't own a concrete resource, so therefore
-        //! it just disarms its destructor and returns void.
-        void release() WI_NOEXCEPT
-        {
-            WI_ASSERT(!m_dismissed);
-            m_dismissed = true;
-        }
-
-        auto value() const WI_NOEXCEPT
-        {
-            return m_error;
-        }
-#else
-    public:
-        void release() WI_NOEXCEPT { }
-#endif // WIL_KERNEL_MODE
-    };
 
     //*****************************************************************************
     // WIL result handling initializers
@@ -3695,7 +3635,7 @@ __WI_POP_WARNINGS
             er.ExceptionCode = static_cast<DWORD>(STATUS_STACK_BUFFER_OVERRUN); // 0xC0000409
             er.ExceptionFlags = EXCEPTION_NONCONTINUABLE;
             er.ExceptionInformation[0] = FAST_FAIL_FATAL_APP_EXIT; // see winnt.h, generated from minkernel\published\base\ntrtl_x.w
-            if (failure.returnAddress == 0)                     // FailureInfo does not have _ReturnAddress, have RaiseFailFastException generate it
+            if (failure.returnAddress == nullptr)                     // FailureInfo does not have _ReturnAddress, have RaiseFailFastException generate it
             {
                 // passing ExceptionCode 0xC0000409 and one param with FAST_FAIL_APP_EXIT will use existing
                 // !analyze functionality to crawl the stack looking for the HRESULT
@@ -4006,24 +3946,28 @@ __WI_SUPPRESS_4127_E
         template<FailureType T>
         __declspec(noinline) inline DWORD ReportFailure_GetLastError(__R_FN_PARAMS_FULL)
         {
-            const last_error_context err { GetLastErrorFail(__R_FN_CALL_FULL) };
-            ReportFailure_Base<T>(__R_FN_CALL_FULL, ResultStatus::FromResult(__HRESULT_FROM_WIN32(err.value())));
-            return err.value();
+            const auto err = GetLastErrorFail(__R_FN_CALL_FULL);
+            const auto hr = __HRESULT_FROM_WIN32(err);
+            ReportFailure_Base<T>(__R_FN_CALL_FULL, ResultStatus::FromResult(hr));
+            ::SetLastError(err);
+            return err;
         }
 
         template<>
         __declspec(noinline) inline RESULT_NORETURN DWORD ReportFailure_GetLastError<FailureType::FailFast>(__R_FN_PARAMS_FULL)
         {
-            const last_error_context err { GetLastErrorFail(__R_FN_CALL_FULL) };
-            ReportFailure_Base<FailureType::FailFast>(__R_FN_CALL_FULL, ResultStatus::FromResult(__HRESULT_FROM_WIN32(err.value())));
+            const auto err = GetLastErrorFail(__R_FN_CALL_FULL);
+            const auto hr = __HRESULT_FROM_WIN32(err);
+            ReportFailure_Base<FailureType::FailFast>(__R_FN_CALL_FULL, ResultStatus::FromResult(hr));
             RESULT_NORETURN_RESULT(err);
         }
 
         template<>
         __declspec(noinline) inline RESULT_NORETURN DWORD ReportFailure_GetLastError<FailureType::Exception>(__R_FN_PARAMS_FULL)
         {
-            const last_error_context err { GetLastErrorFail(__R_FN_CALL_FULL) };
-            ReportFailure_Base<FailureType::Exception>(__R_FN_CALL_FULL, ResultStatus::FromResult(__HRESULT_FROM_WIN32(err.value())));
+            const auto err = GetLastErrorFail(__R_FN_CALL_FULL);
+            const auto hr = __HRESULT_FROM_WIN32(err);
+            ReportFailure_Base<FailureType::Exception>(__R_FN_CALL_FULL, ResultStatus::FromResult(hr));
             RESULT_NORETURN_RESULT(err);
         }
 
@@ -4162,24 +4106,28 @@ __WI_SUPPRESS_4127_E
         template<FailureType T>
         __declspec(noinline) inline DWORD ReportFailure_GetLastErrorMsg(__R_FN_PARAMS_FULL, _Printf_format_string_ PCSTR formatString, va_list argList)
         {
-            const last_error_context err { GetLastErrorFail(__R_FN_CALL_FULL) };
-            ReportFailure_Msg<T>(__R_FN_CALL_FULL, ResultStatus::FromResult(__HRESULT_FROM_WIN32(err.value())), formatString, argList);
-            return err.value();
+            auto err = GetLastErrorFail(__R_FN_CALL_FULL);
+            auto hr = __HRESULT_FROM_WIN32(err);
+            ReportFailure_Msg<T>(__R_FN_CALL_FULL, ResultStatus::FromResult(hr), formatString, argList);
+            ::SetLastError(err);
+            return err;
         }
 
         template<>
         __declspec(noinline) inline RESULT_NORETURN DWORD ReportFailure_GetLastErrorMsg<FailureType::FailFast>(__R_FN_PARAMS_FULL, _Printf_format_string_ PCSTR formatString, va_list argList)
         {
-            const last_error_context err { GetLastErrorFail(__R_FN_CALL_FULL) };
-            ReportFailure_Msg<FailureType::FailFast>(__R_FN_CALL_FULL, ResultStatus::FromResult(__HRESULT_FROM_WIN32(err.value())), formatString, argList);
+            auto err = GetLastErrorFail(__R_FN_CALL_FULL);
+            auto hr = __HRESULT_FROM_WIN32(err);
+            ReportFailure_Msg<FailureType::FailFast>(__R_FN_CALL_FULL, ResultStatus::FromResult(hr), formatString, argList);
             RESULT_NORETURN_RESULT(err);
         }
 
         template<>
         __declspec(noinline) inline RESULT_NORETURN DWORD ReportFailure_GetLastErrorMsg<FailureType::Exception>(__R_FN_PARAMS_FULL, _Printf_format_string_ PCSTR formatString, va_list argList)
         {
-            const last_error_context err { GetLastErrorFail(__R_FN_CALL_FULL) };
-            ReportFailure_Msg<FailureType::Exception>(__R_FN_CALL_FULL, ResultStatus::FromResult(__HRESULT_FROM_WIN32(err.value())), formatString, argList);
+            auto err = GetLastErrorFail(__R_FN_CALL_FULL);
+            auto hr = __HRESULT_FROM_WIN32(err);
+            ReportFailure_Msg<FailureType::Exception>(__R_FN_CALL_FULL, ResultStatus::FromResult(hr), formatString, argList);
             RESULT_NORETURN_RESULT(err);
         }
 
@@ -6189,7 +6137,7 @@ __WI_SUPPRESS_4127_E
     // Intentionally removed logging from this policy as logging is more useful at the caller.
     struct err_returncode_policy
     {
-        typedef HRESULT result;
+        using result = HRESULT;
 
         __forceinline static HRESULT Win32BOOL(BOOL fReturn) { RETURN_IF_WIN32_BOOL_FALSE_EXPECTED(fReturn); return S_OK; }
         __forceinline static HRESULT Win32Handle(HANDLE h, _Out_ HANDLE *ph) { *ph = h; RETURN_LAST_ERROR_IF_NULL_EXPECTED(h); return S_OK; }

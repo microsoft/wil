@@ -240,8 +240,8 @@ void DoHStringDifferentValueComparisonTest(const wchar_t (&lhs)[LhsSize], const 
     DoHStringComparisonTest<InhibitArrayReferences, IgnoreCase>(lhsUniqueStr, rhsUniqueStr, 1);
 
 #ifdef WIL_ENABLE_EXCEPTIONS
-    std::wstring lhsWstr(lhs, 7);
-    std::wstring rhsWstr(rhs, 7);
+    std::wstring lhsWstr(lhs);
+    std::wstring rhsWstr(rhs);
     DoHStringComparisonTest<InhibitArrayReferences, IgnoreCase>(lhsWstr, rhsWstr, 1);
     DoHStringComparisonTest<InhibitArrayReferences, IgnoreCase>(lhsWstr, rhs, 1);
     DoHStringComparisonTest<InhibitArrayReferences, IgnoreCase>(lhsWstr, rhsNonConstArray, 1);
@@ -710,7 +710,7 @@ TEST_CASE("WinRTTests::VectorToVectorTest", "[winrt][to_vector]")
         ComPtr<IInspectable> oneItem;
         THROW_IF_FAILED(ints->GetAt(i, &oneItem));
         REQUIRE(cast_to<UINT32>(vec[i]) == cast_to<UINT32>(oneItem));
-    }    
+    }
 #endif
 }
 
