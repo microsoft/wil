@@ -11,15 +11,17 @@
 #ifndef __WIL_COM_APARTMENT_VARIABLE_INCLUDED
 #define __WIL_COM_APARTMENT_VARIABLE_INCLUDED
 
-#include <unordered_map>
 #include <any>
+#include <objidl.h>
+#include <roapi.h>
 #include <type_traits>
+#include <unordered_map>
+#include <winrt/Windows.Foundation.h>
+
 #include "com.h"
 #include "cppwinrt.h"
-#include <roapi.h>
-#include <objidl.h>
 #include "result_macros.h"
-#include <winrt/Windows.Foundation.h>
+#include "win32_helpers.h"
 
 #ifndef WIL_ENABLE_EXCEPTIONS
 #error This header requires exceptions
@@ -177,7 +179,7 @@ namespace wil
                     {
                         // If you hit this fail fast it means the storage in s_apartmentStorage will be leaked.
                         // For apartment variables used in .exes, this is expected and
-                        // this fail fast should be disabled using 
+                        // this fail fast should be disabled using
                         // wil::apartment_variable<T, wil::apartment_variable_leak_action::ignore>
                         //
                         // For DLLs, if this is expected, disable this fail fast using
