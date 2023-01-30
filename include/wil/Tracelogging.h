@@ -3648,17 +3648,17 @@ namespace wil
                             FAIL_FAST_IF_FAILED(StringCchCatW(apiList.get(), totalApiListLength, node->apiName));
                             if (node->specialization)
                             {
-                                FAIL_FAST_IF_WIN32_ERROR(strncat_s(specializationList.get(), totalSpecializationsLength, node->specialization, strlen(node->specialization)) != 0);
+                                FAIL_FAST_IF(strncat_s(specializationList.get(), totalSpecializationsLength, node->specialization, strlen(node->specialization)) != 0);
                             }
                             else
                             {
-                                FAIL_FAST_IF_WIN32_ERROR(strncat_s(specializationList.get(), totalSpecializationsLength, "-", 1) != 0);
+                                FAIL_FAST_IF(strncat_s(specializationList.get(), totalSpecializationsLength, "-", 1) != 0);
                             }
 
                             if (countArrayIndex != (numCounts - 1))
                             {
                                 FAIL_FAST_IF_FAILED(StringCchCatW(apiList.get(), totalApiListLength, L","));
-                                FAIL_FAST_IF_WIN32_ERROR(strncat_s(specializationList.get(), totalSpecializationsLength, ",", 1) != 0);
+                                FAIL_FAST_IF(strncat_s(specializationList.get(), totalSpecializationsLength, ",", 1) != 0);
                             }
 
                             countArrayIndex++;

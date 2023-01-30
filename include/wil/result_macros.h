@@ -2041,6 +2041,12 @@ __WI_POP_WARNINGS
             return err;
         }
 
+        inline __declspec(noinline) DWORD GetLastErrorFail() WI_NOEXCEPT 
+        {
+            __R_FN_LOCALS_FULL_RA;
+            return GetLastErrorFail(__R_FN_CALL_FULL);
+        }
+
         _Translates_last_error_to_HRESULT_
         inline HRESULT GetLastErrorFailHr(__R_FN_PARAMS_FULL) WI_NOEXCEPT
         {

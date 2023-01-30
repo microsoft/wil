@@ -692,6 +692,22 @@ namespace wil
         static_assert(wistd::is_same<T, long>::value, "Wrong Type: NTSTATUS expected");
         return status;
     }
+
+    /** Verify that `error` is a Win32 error code.
+    Other types will generate an intentional compilation error. Note that this will accept any `long` value as that is
+    the underlying type used for WIN32 error codes, as well as any `DWORD` (`unsigned long`) value since this is the type
+    commonly used when manipulating Win32 error codes.
+    @param error The Win32 error code returning expression
+    @return An Win32 error code representing the evaluation of `error`. */
+    template <typename T>
+    _Post_satisfies_(return == error)
+    inline T verify_win32(T error)
+    {
+        // Note: Win32 error code are defined as 'long' (#define ERROR_SUCCESS 0L), but are more frequently used as DWORD (unsigned long).
+        // This accept both types.
+        static_assert(wistd::is_same<T, long>::value || wistd::is_same<T, unsigned long>::value, "Wrong Type: Win32 error code (long / unsigned long) expected");
+        return error;
+    }
     /// @}      // end type validation routines
 
     /// @cond

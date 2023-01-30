@@ -150,7 +150,7 @@ namespace wil
             typename pointer_access_t = pointer_access_all,                   // all, noaddress or none to control pointer method access
             typename pointer_storage_t = pointer_t,                           // The type used to store the handle (usually the same as the handle itself)
             typename invalid_t = pointer_t,                                   // The invalid handle value type
-            invalid_t invalid = invalid_t(),                                  //      * and its value (default ZERO value)
+            invalid_t invalid = invalid_t{},                                  //      * and its value (default ZERO value)
             typename pointer_invalid_t = wistd::nullptr_t>                    // nullptr_t if the invalid handle value is compatible with nullptr, otherwise pointer
             struct resource_policy : close_invoker<close_fn_t, close_fn, pointer_storage_t>
         {
@@ -436,7 +436,7 @@ namespace wil
         typename pointer_access = details::pointer_access_all,    // all, noaddress or none to control pointer method access
         typename pointer_storage = pointer,                       // The type used to store the handle (usually the same as the handle itself)
         typename invalid_t = pointer,                             // The invalid handle value type
-        invalid_t invalid = invalid_t(),                          //      * and its value (default ZERO value)
+        invalid_t invalid = invalid_t{},                          //      * and its value (default ZERO value)
         typename pointer_invalid = wistd::nullptr_t>              // nullptr_t if the invalid handle value is compatible with nullptr, otherwise pointer
         using unique_any = unique_any_t<details::unique_storage<details::resource_policy<pointer, close_fn_t, close_fn, pointer_access, pointer_storage, invalid_t, invalid, pointer_invalid>>>;
 
