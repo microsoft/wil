@@ -770,6 +770,10 @@ namespace wil
     This allows code to generically convert any enum class to it's corresponding underlying type. */
     template <typename T>
     using integral_from_enum = typename details::variable_size_mapping<T>::type;
+
+    //! Declares a name that intentionally hides a name from an outer scope.
+    //! Use this to prevent accidental use of a parameter or lambda captured variable.
+    using hide_name = void(struct hidden_name);
 } // wil
 
 #pragma warning(pop)
