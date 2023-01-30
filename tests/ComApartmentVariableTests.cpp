@@ -71,7 +71,7 @@ struct mock_platform
         }
         else
         {
-            apt_observers->second.push_back(observer);
+            apt_observers->second.emplace_back(observer);
         }
         return shutdown_type{ reinterpret_cast<APARTMENT_SHUTDOWN_REGISTRATION_COOKIE>(id) };
     }

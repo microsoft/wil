@@ -103,7 +103,7 @@ namespace wil
             std::any(*adapter)(void*);
             void* inner;
 
-            std::any operator()()
+            std::any operator()() const
             {
                 return adapter(inner);
             }
@@ -256,7 +256,7 @@ namespace wil
             template<typename T>
             std::any& get_or_create(any_maker<T> && creator)
             {
-                apartment_variable_storage* variable_storage{};
+                apartment_variable_storage* variable_storage = nullptr;
 
                 { // scope for lock
                     auto lock = winrt::slim_lock_guard(s_lock);

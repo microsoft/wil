@@ -1311,7 +1311,10 @@ namespace wil
             }
             else if (!fetchedRtlDisownModuleHeapAllocation)
             {
-                pfnRtlDisownModuleHeapAllocation = reinterpret_cast<decltype(pfnRtlDisownModuleHeapAllocation)>(::GetProcAddress(::GetModuleHandleW(L"ntdll.dll"), "RtlDisownModuleHeapAllocation"));
+                if (auto ntdllModule = ::GetModuleHandleW(L"ntdll.dll"))
+                {
+                    pfnRtlDisownModuleHeapAllocation = reinterpret_cast<decltype(pfnRtlDisownModuleHeapAllocation)>(::GetProcAddress(ntdllModule, "RtlDisownModuleHeapAllocation"));
+                }
                 fetchedRtlDisownModuleHeapAllocation = true;
 
                 if (pfnRtlDisownModuleHeapAllocation)
@@ -1399,25 +1402,25 @@ namespace wil
         template <ErrorReturn errorReturn, typename T>
         struct return_type
         {
-            typedef tag_return_other type;
+            using type = tag_return_other;
         };
 
         template <>
         struct return_type<ErrorReturn::Auto, HRESULT>
         {
-            typedef tag_return_HRESULT type;
+            using type = tag_return_HRESULT;
         };
 
         template <>
         struct return_type<ErrorReturn::Auto, void>
         {
-            typedef tag_return_void type;
+            using type = tag_return_void;
         };
 
         template <>
         struct return_type<ErrorReturn::None, void>
         {
-            typedef tag_return_void type;
+            using type = tag_return_void;
         };
 
         template <ErrorReturn errorReturn, typename Functor>
@@ -2114,7 +2117,7 @@ __WI_POP_WARNINGS
         _Must_inspect_result_ STRSAFEAPI StringCchLengthA(_In_reads_or_z_(cchMax) STRSAFE_PCNZCH psz, _In_ _In_range_(1, STRSAFE_MAX_CCH) size_t cchMax, _Out_opt_ _Deref_out_range_(<, cchMax) _Deref_out_range_(<= , _String_length_(psz)) size_t* pcchLength)
         {
             HRESULT hr;
-            if ((psz == NULL) || (cchMax > STRSAFE_MAX_CCH))
+            if ((psz == nullptr) || (cchMax > STRSAFE_MAX_CCH))
             {
                 hr = STRSAFE_E_INVALID_PARAMETER;
             }
@@ -2144,11 +2147,10 @@ __WI_POP_WARNINGS
         {
             HRESULT hr = S_OK;
             int iRet;
-            size_t cchMax;
-            size_t cchNewDestLength = 0;
 
             // leave the last space for the null terminator
-            cchMax = cchDest - 1;
+            size_t cchMax = cchDest - 1;
+            size_t cchNewDestLength = 0;
 #undef STRSAFE_USE_SECURE_CRT
 #define STRSAFE_USE_SECURE_CRT 1
         #if (STRSAFE_USE_SECURE_CRT == 1) && !defined(STRSAFE_LIB_IMPL)
@@ -2201,7 +2203,7 @@ __WI_POP_WARNINGS
             {
                 va_list argList;
                 va_start(argList, pszFormat);
-                hr = wil::details::WilStringVPrintfWorkerA(pszDest, cchDest, NULL, pszFormat, argList);
+                hr = wil::details::WilStringVPrintfWorkerA(pszDest, cchDest, nullptr, pszFormat, argList);
                 va_end(argList);
             }
             else if (cchDest > 0)
@@ -3639,7 +3641,7 @@ __WI_POP_WARNINGS
             er.ExceptionCode = static_cast<DWORD>(STATUS_STACK_BUFFER_OVERRUN); // 0xC0000409
             er.ExceptionFlags = EXCEPTION_NONCONTINUABLE;
             er.ExceptionInformation[0] = FAST_FAIL_FATAL_APP_EXIT; // see winnt.h, generated from minkernel\published\base\ntrtl_x.w
-            if (failure.returnAddress == 0)                     // FailureInfo does not have _ReturnAddress, have RaiseFailFastException generate it
+            if (failure.returnAddress == nullptr)                     // FailureInfo does not have _ReturnAddress, have RaiseFailFastException generate it
             {
                 // passing ExceptionCode 0xC0000409 and one param with FAST_FAIL_APP_EXIT will use existing
                 // !analyze functionality to crawl the stack looking for the HRESULT
@@ -6141,7 +6143,7 @@ __WI_SUPPRESS_4127_E
     // Intentionally removed logging from this policy as logging is more useful at the caller.
     struct err_returncode_policy
     {
-        typedef HRESULT result;
+        using result = HRESULT;
 
         __forceinline static HRESULT Win32BOOL(BOOL fReturn) { RETURN_IF_WIN32_BOOL_FALSE_EXPECTED(fReturn); return S_OK; }
         __forceinline static HRESULT Win32Handle(HANDLE h, _Out_ HANDLE *ph) { *ph = h; RETURN_LAST_ERROR_IF_NULL_EXPECTED(h); return S_OK; }
