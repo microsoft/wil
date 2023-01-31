@@ -111,8 +111,8 @@ struct mock_platform
 auto fn() { return 42; };
 auto fn2() { return 43; };
 
-wil::apartment_variable<int, wil::apartment_variable_leak_action::fail_fast, mock_platform> g_v1;
-wil::apartment_variable<int> g_v2;
+wil::apartment_variable<int, wil::apartment_variable_leak_action::ignore, mock_platform> g_v1;
+wil::apartment_variable<int, wil::apartment_variable_leak_action::ignore> g_v2;
 
 template <typename platform = wil::apartment_variable_platform>
 void TestApartmentVariableAllMethods()
