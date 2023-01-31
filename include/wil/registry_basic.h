@@ -119,11 +119,10 @@ namespace reg
                     // back_inserter returns an iterator to enable ::std::copy to write
                     // from begin() to end() at the back_inserter iterator, growing the vector as necessary
                     ::std::copy(::std::begin(wstr), ::std::end(wstr), ::std::back_inserter(multistring));
-                    // null terminator (1 of 2) or separator
-                    multistring.push_back(L'\0');
                 }
+                multistring.push_back(L'\0');
             }
-            // null terminator (2 of 2)
+            // double-null-terminate the last string
             multistring.push_back(L'\0');
             return multistring;
         }
@@ -132,25 +131,30 @@ namespace reg
         {
             ::std::vector<::std::wstring> strings;
 
-            if (data.empty())
+            if (data.size() < 3)
             {
                 return strings;
             }
 
-            auto current = data.begin();
-            while (current != data.end())
+            auto current = data.cbegin();
+            const auto end_iterator = data.cend();
+            const auto lastNull = (end_iterator - 1);
+            while (current != end_iterator)
             {
-                const auto next = ::std::find(current, data.end(), L'\0');
-                ::std::wstring tempString(current, next);
-                if (!tempString.empty())
+                const auto next = ::std::find(current, data.cend(), L'\0');
+                if (next != end_iterator)
                 {
-                    strings.emplace_back(::std::move(tempString));
+                    if (next != lastNull)
+                    {
+                        // don't add an empty string for the final 2nd-null-terminator
+                        strings.emplace_back(current, next);
+                    }
+                    current = next + 1;
                 }
-                if (next == data.end())
+                else
                 {
-                    break;
+                    current = next;
                 }
-                current = next + 1;
             }
             return strings;
         }
@@ -635,8 +639,6 @@ namespace reg
         {
             try
             {
-                // reset to size 0 in case resize() throws
-                buffer.clear();
                 buffer.resize(byteSize);
             }
             catch (...)
@@ -649,8 +651,6 @@ namespace reg
         {
             try
             {
-                // reset to size 0 in case resize() throws
-                string.clear();
                 string.resize(byteSize / sizeof(wchar_t));
             }
             catch (...)
@@ -1001,6 +1001,10 @@ namespace reg
 
                     if (error == ERROR_SUCCESS)
                     {
+                        if (data_size_bytes != ::wil::reg::reg_view_details::get_buffer_size(return_value))
+                        {
+                            ::wil::reg::reg_view_details::grow_buffer_if_supported(return_value, data_size_bytes);
+                        }
                         break;
                     }
 
@@ -1353,6 +1357,12 @@ namespace reg
         const reg_view_details::reg_view regview{ key };
         return regview.set_value(subkey, value_name, data);
     }
+    template <typename T>
+    void set_value(HKEY key, _In_opt_ PCWSTR value_name, const T& data)
+    {
+        const reg_view_details::reg_view regview{ key };
+        return regview.set_value(value_name, data);
+    }
 
     inline void set_value_dword(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, DWORD data)
     {
@@ -1400,13 +1410,13 @@ namespace reg
         return set_value_multistring(key, nullptr, value_name, data);
     }
 
-    inline void set_value_multistring(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const ::std::list<::std::wstring>& data)
+    template <>
+    inline void set_value(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const ::std::vector<::std::wstring>& data)
     {
-        const reg_view_details::reg_view regview{ key };
-        return regview.set_value_multistring(subkey, value_name, data);
+        return set_value_multistring(key, subkey, value_name, data);
     }
-
-    inline void set_value_multistring(HKEY key, _In_opt_ PCWSTR value_name, const ::std::list<::std::wstring>& data)
+    template <>
+    inline void set_value(HKEY key, _In_opt_ PCWSTR value_name, const ::std::vector<::std::wstring>& data)
     {
         return set_value_multistring(key, nullptr, value_name, data);
     }
@@ -1474,14 +1484,17 @@ namespace reg
         return set_value_multistring_nothrow(key, nullptr, value_name, data);
     }
 
-    inline HRESULT set_value_multistring_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_ PCWSTR value_name, const ::std::list<::std::wstring>& data) WI_NOEXCEPT
+    template <>
+    inline HRESULT set_value_nothrow(HKEY key, _In_opt_ PCWSTR value_name, const ::std::vector<::std::wstring>& data) WI_NOEXCEPT
+    {
+        const reg_view_details::reg_view_nothrow regview{ key };
+        return regview.set_value_multistring(value_name, data);
+    }
+    template <>
+    inline HRESULT set_value_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const ::std::vector<::std::wstring>& data) WI_NOEXCEPT
     {
         const reg_view_details::reg_view_nothrow regview{ key };
         return regview.set_value_multistring(subkey, value_name, data);
-    }
-    inline HRESULT set_value_multistring_nothrow(HKEY key, _In_ PCWSTR value_name, const ::std::list<::std::wstring>& data) WI_NOEXCEPT
-    {
-        return set_value_multistring_nothrow(key, nullptr, value_name, data);
     }
 #endif // #if defined(__WIL_WINREG_STL)
 
@@ -1589,6 +1602,25 @@ return return_value;
     inline ::std::wstring get_value_string(HKEY key, _In_opt_ PCWSTR value_name)
     {
         return get_value_string(key, nullptr, value_name);
+    }
+
+    inline ::std::vector<::std::wstring> get_value_multistring(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
+    {
+        ::std::vector<::std::wstring> return_value;
+        ::std::vector<BYTE> rawData{ get_value_byte_vector(key, subkey, value_name, REG_MULTI_SZ) };
+        if (!rawData.empty())
+        {
+            auto* const begin = reinterpret_cast<wchar_t*>(rawData.data());
+            auto* const end = begin + rawData.size() / sizeof(wchar_t);
+            return_value = ::wil::reg::details::get_wstring_vector_from_multistring(::std::vector<wchar_t>(begin, end));
+        }
+
+        return return_value;
+    }
+
+    inline ::std::vector<::std::wstring> get_value_multistring(HKEY key, _In_opt_ PCWSTR value_name)
+    {
+        return get_value_multistring(key, nullptr, value_name);
     }
 
     inline ::wil::reg::optional_value<::std::wstring> try_get_value_string(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
@@ -1715,7 +1747,7 @@ return return_value;
     }
     CATCH_RETURN()
 
-        inline HRESULT get_value_byte_vector_nothrow(HKEY key, _In_opt_ PCWSTR value_name, DWORD type, ::std::vector<BYTE>* data) WI_NOEXCEPT
+    inline HRESULT get_value_byte_vector_nothrow(HKEY key, _In_opt_ PCWSTR value_name, DWORD type, ::std::vector<BYTE>* data) WI_NOEXCEPT
     {
         return get_value_byte_vector_nothrow(key, nullptr, value_name, type, data);
     }
@@ -1731,7 +1763,7 @@ return return_value;
     }
     CATCH_RETURN()
 
-        inline HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, ::std::wstring* data) WI_NOEXCEPT
+    inline HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, ::std::wstring* data) WI_NOEXCEPT
     {
         return get_value_string_nothrow(key, nullptr, value_name, data);
     }
@@ -1747,12 +1779,12 @@ return return_value;
     }
     CATCH_RETURN()
 
-        inline HRESULT get_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, ::std::wstring* data) WI_NOEXCEPT
+    inline HRESULT get_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, ::std::wstring* data) WI_NOEXCEPT
     {
         return get_value_expanded_string_nothrow(key, nullptr, value_name, data);
     }
 
-    inline HRESULT get_value_multistring_wstring_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _In_::std::vector<::std::wstring>* return_value) WI_NOEXCEPT try
+    inline HRESULT get_value_multistring_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _In_::std::vector<::std::wstring>* return_value) WI_NOEXCEPT try
     {
         return_value->clear();
 
@@ -1765,39 +1797,49 @@ return return_value;
             auto* const end = begin + rawData.size() / sizeof(wchar_t);
             *return_value = ::wil::reg::details::get_wstring_vector_from_multistring(::std::vector<wchar_t>(begin, end));
         }
-
         return S_OK;
     }
     CATCH_RETURN()
 
-        inline HRESULT get_value_multistring_wstring_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _In_::std::vector<::std::wstring>* return_value) WI_NOEXCEPT
+    inline HRESULT get_value_multistring_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _In_::std::vector<::std::wstring>* return_value) WI_NOEXCEPT
     {
-        return get_value_multistring_wstring_nothrow(key, nullptr, value_name, return_value);
+        return get_value_multistring_nothrow(key, nullptr, value_name, return_value);
     }
 
-    inline ::wil::reg::optional_value<::std::vector<::std::wstring>> try_get_value_multistring_wstring(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
+    inline ::wil::reg::optional_value<::std::vector<::std::wstring>> try_get_value_multistring(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
     {
-        ::std::vector<::std::wstring> local_value;
-        const auto hr = get_value_multistring_wstring_nothrow(key, subkey, value_name, &local_value);
-        if (SUCCEEDED(hr))
+        ::wil::reg::optional_value<::std::vector<::std::wstring>> return_value;
+        return_value.inner_error = get_value_multistring_nothrow(key, subkey, value_name, &return_value.value);
+        if (SUCCEEDED(return_value.inner_error))
         {
-            ::wil::reg::optional_value<::std::vector<::std::wstring>> return_value;
             return_value.value_assigned = true;
-            ::std::swap(return_value.value, local_value);
             return return_value;
         }
 
-        if (hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+        return_value.value_assigned = false;
+        if (return_value.inner_error == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
         {
-            return {};
+            return_value.value = {};
+            return return_value;
         }
 
-        THROW_HR(hr);
+        THROW_HR(HRESULT_FROM_WIN32(return_value.inner_error));
     }
 
-    inline ::wil::reg::optional_value<::std::vector<::std::wstring>> try_get_value_multistring_wstring(HKEY key, _In_opt_ PCWSTR value_name)
+    inline ::wil::reg::optional_value<::std::vector<::std::wstring>> try_get_value_multistring(HKEY key, _In_opt_ PCWSTR value_name)
     {
-        return try_get_value_multistring_wstring(key, nullptr, value_name);
+        return try_get_value_multistring(key, nullptr, value_name);
+    }
+
+    template<>
+    inline HRESULT get_value_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _In_ ::std::vector<::std::wstring>* return_value) WI_NOEXCEPT
+    {
+        return get_value_multistring_nothrow(key, nullptr, value_name, return_value);
+    }
+    template<>
+    inline HRESULT get_value_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _In_::std::vector<::std::wstring>* return_value) WI_NOEXCEPT
+    {
+        return get_value_multistring_nothrow(key, subkey, value_name, return_value);
     }
 #endif // #if defined(__WIL_WINREG_STL)
 
