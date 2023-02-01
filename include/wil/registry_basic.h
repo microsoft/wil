@@ -14,19 +14,16 @@
 
 // TODO: Yes - we should use feature checks instead of forced imports
 //       We do *not* want to require all users to use the STL
-//       We use the __WIL_WINREG_STL to track if we should support the STL (defined in resource.h)
+//       We use __WIL_WINREG_STL to track if we should support the shared_* types (defined in resource.h)
+//       Include <string> and/or <vector> to use the STL integrated functions
+//       Include sddl.h if wanting to pass security descriptor strings to create keys
+#if defined(_STRING_) || defined (_VECTOR_)
 #include <functional>
 #include <iterator>
-#include <memory>
-#include <string>
 #include <type_traits>
-#include <utility>
-#include <vector>
-#include <list>
+#endif
 
 #include <Windows.h>
-// include sddl.h if wanting to pass 
-#include <sddl.h>
 
 #include "common.h"
 #include "resource.h"
@@ -99,7 +96,7 @@ namespace reg
             }
         }
 
-#if defined(__WIL_WINREG_STL)
+#if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
         template <class InputIt>
         ::std::vector<wchar_t> get_multistring_from_wstrings(InputIt first, InputIt last)
         {
@@ -159,6 +156,10 @@ namespace reg
             return strings;
         }
 
+#endif // #if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
+
+// the registry iterator class requires <vector>
+#if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
         enum class iterator_creation_flag
         {
             begin,
@@ -181,9 +182,9 @@ namespace reg
             ::std::vector<wchar_t> m_nextName;
             uint32_t m_index = iterator_end_offset;
         };
-#endif // #if defined(__WIL_WINREG_STL)
+#endif // #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
 
-#ifdef __SDDL_H__
+#if defined(__SDDL_H__)
         template <typename err_policy>
         ::wil::unique_hlocal_ptr<SECURITY_DESCRIPTOR> create_security_descriptor(_In_opt_ PCWSTR security_descriptor)
         {
@@ -199,7 +200,7 @@ namespace reg
             }
             return securityDescriptor;
         }
-#endif
+#endif // #if defined(__SDDL_H__)
 
         constexpr HKEY get_key(HKEY h) WI_NOEXCEPT
         {
@@ -240,7 +241,7 @@ namespace reg
             return false;
         }
 
-#if defined(__WIL_WINREG_STL)
+#if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
         // These iterator classes facilitates STL iterator semantics to walk a set of subkeys and values
         // within an instantiated Key object. This can be directly constructed passing a unique_hkey
         // but will likely be more commonly constructed from reg_view_t::reg_enum_keys() and reg_view_t::reg_enum_values()
@@ -455,8 +456,8 @@ namespace reg
         {
             return m_data.m_nextType;
         }
-#endif // #if defined(__WIL_WINREG_STL)
-    }
+#endif // #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
+    } // namespace details
 
     template <typename T>
     struct optional_value
@@ -492,17 +493,19 @@ namespace reg
             return const_cast<T*>(&t);
         }*/
 
-#if defined(__WIL_WINREG_STL)
+#if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
         inline void* get_buffer(const ::std::vector<BYTE>& buffer) WI_NOEXCEPT
         {
             return const_cast<BYTE*>(buffer.data());
         }
+#endif // #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
 
+#if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
         inline void* get_buffer(const ::std::wstring& string) WI_NOEXCEPT
         {
             return const_cast<wchar_t*>(string.data());
         }
-#endif // #if defined(__WIL_WINREG_STL)
+#endif // #if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
 
         constexpr void* get_buffer(const int32_t& value) WI_NOEXCEPT
         {
@@ -560,17 +563,19 @@ namespace reg
             return sizeof(T);
         }*/
 
-#if defined(__WIL_WINREG_STL)
+#if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
         inline DWORD get_buffer_size(const ::std::vector<BYTE>& buffer) WI_NOEXCEPT
         {
             return static_cast<DWORD>(buffer.size());
         }
+#endif // #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
 
+#if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
         inline DWORD get_buffer_size(const ::std::wstring& string) WI_NOEXCEPT
         {
             return static_cast<DWORD>(string.size() * sizeof(wchar_t));
         }
-#endif // #if defined(__WIL_WINREG_STL)
+#endif // #if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
 
         constexpr DWORD get_buffer_size(int32_t) WI_NOEXCEPT
         {
@@ -627,14 +632,13 @@ namespace reg
 
         // grow_buffer_if_supported returns true if growing that buffer type is supported, false if growing that type is not supported
         // the caller will call get_buffer_size later to validate if the allocation succeeded
-
         template <typename T>
         constexpr bool grow_buffer_if_supported(T&, DWORD) WI_NOEXCEPT
         {
             return false;
         }
 
-#if defined(__WIL_WINREG_STL)
+#if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
         inline bool grow_buffer_if_supported(::std::vector<BYTE>& buffer, DWORD byteSize) WI_NOEXCEPT
         {
             try
@@ -646,7 +650,9 @@ namespace reg
             }
             return true;
         }
+#endif // #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
 
+#if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
         inline bool grow_buffer_if_supported(::std::wstring& string, DWORD byteSize) WI_NOEXCEPT
         {
             try
@@ -658,7 +664,7 @@ namespace reg
             }
             return true;
         }
-#endif // #if defined(__WIL_WINREG_STL)
+#endif // #if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
 
 #if defined(__WIL_OLEAUTO_H_)
         inline bool grow_buffer_if_supported(::wil::unique_bstr& string, DWORD byteSize) WI_NOEXCEPT
@@ -689,7 +695,7 @@ namespace reg
         {
         }
 
-#if defined(__WIL_WINREG_STL)
+#if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
         inline void trim_buffer(::std::wstring& buffer)
         {
             const auto offset = buffer.find_first_of(L'\0');
@@ -698,7 +704,7 @@ namespace reg
                 buffer.resize(offset);
             }
         }
-#endif // #if defined(__WIL_WINREG_STL)
+#endif // #if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
 
         // get_value_type requires a well-known type for T
         template <typename T>
@@ -746,13 +752,13 @@ namespace reg
             return ::wil::reg::details::get_value_flags_from_value_type(REG_SZ);
         }
 
-#if defined(__WIL_WINREG_STL)
+#if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
         template <>
         constexpr DWORD get_value_type<::std::wstring>() WI_NOEXCEPT
         {
             return ::wil::reg::details::get_value_flags_from_value_type(REG_SZ);
         }
-#endif // #if defined(__WIL_WINREG_STL)
+#endif // #if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
 
 #if defined(__WIL_OLEAUTO_H_)
         template <>
@@ -800,12 +806,12 @@ namespace reg
             return REG_QWORD;
         }
 
-#if defined(__WIL_WINREG_STL)
+#if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
         constexpr DWORD set_value_type(const ::std::wstring&) WI_NOEXCEPT
         {
             return REG_SZ;
         }
-#endif // #if defined(__WIL_WINREG_STL)
+#endif // #if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
 
         constexpr DWORD set_value_type(PCWSTR) WI_NOEXCEPT
         {
@@ -865,7 +871,7 @@ namespace reg
             }
 #endif // #if defined(__WIL_WINREG_STL)
 
-#ifdef __SDDL_H__
+#if defined(__SDDL_H__)
             typename err_policy::result create_key(_In_ PCWSTR subKey, ::wil::unique_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read, _In_opt_ PCWSTR security_descriptor = nullptr) const
             {
                 hkey.reset();
@@ -886,7 +892,7 @@ namespace reg
                 create_key(subKey, local_key, access, security_descriptor);
                 return local_key;
             }
-#else
+#endif // #if defined(__SDDL_H__)
             typename err_policy::result create_key(_In_ PCWSTR subKey, ::wil::unique_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) const
             {
                 hkey.reset();
@@ -902,11 +908,10 @@ namespace reg
                 create_key(subKey, local_key, access);
                 return local_key;
             }
-#endif // #ifdef __SDDL_H__
 
 
 #if defined(__WIL_WINREG_STL)
-#ifdef __SDDL_H__
+#if defined(__SDDL_H__)
             typename err_policy::result create_key(_In_ PCWSTR subKey, ::wil::shared_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read, _In_opt_ PCWSTR security_descriptor = nullptr) const
             {
                 hkey.reset();
@@ -928,7 +933,7 @@ namespace reg
                 create_key(subKey, local_key, access, security_descriptor);
                 return local_key;
             }
-#else
+#endif // #if defined(__SDDL_H__)
             typename err_policy::result create_key(_In_ PCWSTR subKey, ::wil::shared_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) const
             {
                 hkey.reset();
@@ -945,8 +950,6 @@ namespace reg
                 create_key(subKey, local_key, access);
                 return local_key;
             }
-#endif // #ifdef __SDDL_H__
-
 #endif // #if defined(__WIL_WINREG_STL)
 
             typename err_policy::result delete_key(_In_opt_ PCWSTR sub_key) WI_NOEXCEPT
@@ -1081,7 +1084,7 @@ namespace reg
                 return set_value(nullptr, value_name, value);
             }
 
-#if defined(__WIL_WINREG_STL)
+#if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
             template <typename R>
             typename err_policy::result set_value_multistring(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const R& data) const try
             {
@@ -1108,7 +1111,9 @@ namespace reg
             {
                 return set_value_multistring(nullptr, value_name, data);
             }
+#endif // #if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
 
+#if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
             struct key_enumerator
             {
                 explicit key_enumerator(HKEY key) :
@@ -1165,7 +1170,7 @@ namespace reg
             {
                 return value_enumerator(::wil::reg::details::get_key(m_key));
             }
-#endif // #if defined(__WIL_WINREG_STL
+#endif // #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
 
         private:
             T m_key{};
@@ -1214,50 +1219,78 @@ namespace reg
         return regview.open_unique_key(path, access);
     }
 
-    inline ::wil::unique_hkey create_unique_key(HKEY key, _In_ PCWSTR path, ::wil::reg::key_access access = ::wil::reg::key_access::read, _In_opt_ PCWSTR security_descriptor = nullptr)
+    inline ::wil::unique_hkey create_unique_key(HKEY key, _In_ PCWSTR path, ::wil::reg::key_access access = ::wil::reg::key_access::read)
+    {
+        const reg_view_details::reg_view regview{ key };
+        return regview.create_unique_key(path, access);
+    }
+#if defined(__SDDL_H__)
+    inline ::wil::unique_hkey create_unique_key(HKEY key, _In_ PCWSTR path, _In_opt_ PCWSTR security_descriptor, ::wil::reg::key_access access = ::wil::reg::key_access::read)
     {
         const reg_view_details::reg_view regview{ key };
         return regview.create_unique_key(path, access, security_descriptor);
     }
-#endif // #if defined(WIL_ENABLE_EXCEPTIONS)
+#endif // #if defined(__SDDL_H__)
 
-    inline ::wil::unique_hkey try_open_unique_key(HKEY key, _In_opt_ PCWSTR path, ::wil::reg::key_access access = ::wil::reg::key_access::read)
+    inline ::wil::unique_hkey try_open_unique_key(HKEY key, _In_opt_ PCWSTR path, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
     {
         const reg_view_details::reg_view_nothrow regview{ key };
         return regview.open_unique_key(path, access);
     }
 
-    inline ::wil::unique_hkey try_create_unique_key(HKEY key, _In_ PCWSTR path, ::wil::reg::key_access access = ::wil::reg::key_access::read, _In_opt_ PCWSTR security_descriptor = nullptr)
+    inline ::wil::unique_hkey try_create_unique_key(HKEY key, _In_ PCWSTR path, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
+    {
+        const reg_view_details::reg_view_nothrow regview{ key };
+        return regview.create_unique_key(path, access);
+    }
+#if defined(__SDDL_H__)
+    inline ::wil::unique_hkey try_create_unique_key(HKEY key, _In_ PCWSTR path, _In_opt_ PCWSTR security_descriptor, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
     {
         const reg_view_details::reg_view_nothrow regview{ key };
         return regview.create_unique_key(path, access, security_descriptor);
     }
+#endif // #if defined(__SDDL_H__)
+#endif // #if defined(WIL_ENABLE_EXCEPTIONS)
 
-#if defined(__WIL_WINREG_STL)
+#if defined(__WIL_WINREG_STL) && defined(WIL_ENABLE_EXCEPTIONS)
     inline ::wil::shared_hkey open_shared_key(HKEY key, _In_opt_ PCWSTR path, ::wil::reg::key_access access = ::wil::reg::key_access::read)
     {
         const reg_view_details::reg_view regview{ key };
         return regview.open_shared_key(path, access);
     }
 
-    inline ::wil::shared_hkey create_shared_key(HKEY key, _In_ PCWSTR path, ::wil::reg::key_access access = ::wil::reg::key_access::read, _In_opt_ PCWSTR security_descriptor = nullptr)
+    inline ::wil::shared_hkey create_shared_key(HKEY key, _In_ PCWSTR path, ::wil::reg::key_access access = ::wil::reg::key_access::read)
+    {
+        const reg_view_details::reg_view regview{ key };
+        return regview.create_shared_key(path, access);
+    }
+#if defined(__SDDL_H__)
+    inline ::wil::shared_hkey create_shared_key(HKEY key, _In_ PCWSTR path, _In_opt_ PCWSTR security_descriptor, ::wil::reg::key_access access = ::wil::reg::key_access::read)
     {
         const reg_view_details::reg_view regview{ key };
         return regview.create_shared_key(path, access, security_descriptor);
     }
+#endif // #if defined(__SDDL_H__)
 
-    inline ::wil::shared_hkey try_open_shared_key(HKEY key, _In_opt_ PCWSTR path, ::wil::reg::key_access access = ::wil::reg::key_access::read)
+    inline ::wil::shared_hkey try_open_shared_key(HKEY key, _In_opt_ PCWSTR path, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
     {
         const reg_view_details::reg_view_nothrow regview{ key };
         return regview.open_shared_key(path, access);
     }
 
-    inline ::wil::shared_hkey try_create_shared_key(HKEY key, _In_ PCWSTR path, ::wil::reg::key_access access = ::wil::reg::key_access::read, _In_opt_ PCWSTR security_descriptor = nullptr)
+    inline ::wil::shared_hkey try_create_shared_key(HKEY key, _In_ PCWSTR path, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
+    {
+        const reg_view_details::reg_view_nothrow regview{ key };
+        return regview.create_shared_key(path, access);
+    }
+#if defined(__SDDL_H__)
+    inline ::wil::shared_hkey try_create_shared_key(HKEY key, _In_ PCWSTR path, _In_opt_ PCWSTR security_descriptor, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
     {
         const reg_view_details::reg_view_nothrow regview{ key };
         return regview.create_shared_key(path, access, security_descriptor);
     }
-#endif // #if defined(__WIL_WINREG_STL)
+#endif // #if defined(__SDDL_H__)
+#endif // #if defined(__WIL_WINREG_STL) && defined(WIL_ENABLE_EXCEPTIONS)
 
     inline HRESULT open_key_nothrow(HKEY key, _In_opt_ PCWSTR path, ::wil::unique_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
     {
@@ -1273,26 +1306,32 @@ namespace reg
     }
 #endif // #if defined(__WIL_WINREG_STL)
 
-#ifdef __SDDL_H__
-    inline HRESULT create_key_nothrow(HKEY key, _In_ PCWSTR path, ::wil::unique_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read, _In_opt_ PCWSTR security_descriptor = nullptr)
-    {
-        const reg_view_details::reg_view_nothrow regview{ key };
-        return regview.create_key(path, hkey, access, security_descriptor);
-    }
-#else
-    inline HRESULT create_key_nothrow(HKEY key, _In_ PCWSTR path, ::wil::unique_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read)
+    inline HRESULT create_key_nothrow(HKEY key, _In_ PCWSTR path, ::wil::unique_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
     {
         const reg_view_details::reg_view_nothrow regview{ key };
         return regview.create_key(path, hkey, access);
     }
-#endif // #ifdef __SDDL_H__
-
-#if defined(__WIL_WINREG_STL)
-    inline HRESULT create_key_nothrow(HKEY key, _In_ PCWSTR path, ::wil::shared_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read, _In_opt_ PCWSTR security_descriptor = nullptr)
+#if defined(__SDDL_H__)
+    inline HRESULT create_key_nothrow(HKEY key, _In_ PCWSTR path, ::wil::unique_hkey& hkey, _In_opt_ PCWSTR security_descriptor, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
     {
         const reg_view_details::reg_view_nothrow regview{ key };
         return regview.create_key(path, hkey, access, security_descriptor);
     }
+#endif // #if defined(__SDDL_H__)
+
+#if defined(__WIL_WINREG_STL)
+    inline HRESULT create_key_nothrow(HKEY key, _In_ PCWSTR path, ::wil::shared_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
+    {
+        const reg_view_details::reg_view_nothrow regview{ key };
+        return regview.create_key(path, hkey, access);
+    }
+#if defined(__SDDL_H__)
+    inline HRESULT create_key_nothrow(HKEY key, _In_ PCWSTR path, ::wil::shared_hkey& hkey, _In_opt_ PCWSTR security_descriptor, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
+    {
+        const reg_view_details::reg_view_nothrow regview{ key };
+        return regview.create_key(path, hkey, access, security_descriptor);
+    }
+#endif // #if defined(__SDDL_H__)
 #endif // #if defined(__WIL_WINREG_STL)
 
 #if defined(WIL_ENABLE_EXCEPTIONS)
@@ -1398,7 +1437,7 @@ namespace reg
     }
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS)
 
-#if defined(__WIL_WINREG_STL)
+#if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
     inline void set_value_multistring(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const ::std::vector<::std::wstring>& data)
     {
         const reg_view_details::reg_view regview{ key };
@@ -1420,7 +1459,7 @@ namespace reg
     {
         return set_value_multistring(key, nullptr, value_name, data);
     }
-#endif // #if defined(__WIL_WINREG_STL)
+#endif // #if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
 
 
     //
@@ -1439,6 +1478,20 @@ namespace reg
         const reg_view_details::reg_view_nothrow regview{ key };
         return regview.set_value(subkey, value_name, data);
     }
+
+#if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
+    template <>
+    inline HRESULT set_value_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const ::std::vector<::std::wstring>& data) WI_NOEXCEPT
+    {
+        const reg_view_details::reg_view_nothrow regview{ key };
+        return regview.set_value_multistring(subkey, value_name, data);
+    }
+    template <>
+    inline HRESULT set_value_nothrow(HKEY key, _In_opt_ PCWSTR value_name, const ::std::vector<::std::wstring>& data) WI_NOEXCEPT
+    {
+        return set_value_nothrow(key, nullptr, value_name, data);
+    }
+#endif // #if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
 
     inline HRESULT set_value_dword_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, DWORD data) WI_NOEXCEPT
     {
@@ -1473,7 +1526,7 @@ namespace reg
         return set_value_string_nothrow(key, nullptr, value_name, data);
     }
 
-#if defined(__WIL_WINREG_STL)
+#if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
     inline HRESULT set_value_multistring_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_ PCWSTR value_name, const ::std::vector<::std::wstring>& data) WI_NOEXCEPT
     {
         const reg_view_details::reg_view_nothrow regview{ key };
@@ -1483,21 +1536,7 @@ namespace reg
     {
         return set_value_multistring_nothrow(key, nullptr, value_name, data);
     }
-
-    template <>
-    inline HRESULT set_value_nothrow(HKEY key, _In_opt_ PCWSTR value_name, const ::std::vector<::std::wstring>& data) WI_NOEXCEPT
-    {
-        const reg_view_details::reg_view_nothrow regview{ key };
-        return regview.set_value_multistring(value_name, data);
-    }
-    template <>
-    inline HRESULT set_value_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const ::std::vector<::std::wstring>& data) WI_NOEXCEPT
-    {
-        const reg_view_details::reg_view_nothrow regview{ key };
-        return regview.set_value_multistring(subkey, value_name, data);
-    }
-#endif // #if defined(__WIL_WINREG_STL)
-
+#endif // #if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
 
     //
     // get_value* and try_get_value* (throwing) functions
@@ -1519,8 +1558,8 @@ return return_value;
 
     inline DWORD get_value_dword(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
     {
-        const reg_view_details::reg_view regview{ key };
         DWORD return_value{};
+        const reg_view_details::reg_view regview{ key };
         regview.get_value<DWORD>(subkey, value_name, return_value);
         return return_value;
     }
@@ -1543,8 +1582,8 @@ return return_value;
 
     inline DWORD64 get_value_qword(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
     {
-        const reg_view_details::reg_view regview{ key };
         DWORD64 return_value{};
+        const reg_view_details::reg_view regview{ key };
         regview.get_value<DWORD64>(subkey, value_name, return_value);
         return return_value;
     }
@@ -1566,11 +1605,11 @@ return return_value;
     }
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS)
 
-#if defined(__WIL_WINREG_STL)
+#if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
     inline ::std::vector<BYTE> get_value_byte_vector(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, DWORD type)
     {
-        const reg_view_details::reg_view regview{ key };
         ::std::vector<BYTE> return_value{};
+        const reg_view_details::reg_view regview{ key };
         regview.get_value<::std::vector<BYTE>>(subkey, value_name, return_value, type);
         return return_value;
     }
@@ -1590,11 +1629,13 @@ return return_value;
     {
         return try_get_value_byte_vector(key, nullptr, value_name, type);
     }
+#endif // #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
 
+#if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
     inline ::std::wstring get_value_string(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
     {
-        const reg_view_details::reg_view regview{ key };
         ::std::wstring return_value{};
+        const reg_view_details::reg_view regview{ key };
         regview.get_value<::std::wstring>(subkey, value_name, return_value);
         return return_value;
     }
@@ -1603,7 +1644,9 @@ return return_value;
     {
         return get_value_string(key, nullptr, value_name);
     }
+#endif // #if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
 
+#if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
     inline ::std::vector<::std::wstring> get_value_multistring(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
     {
         ::std::vector<::std::wstring> return_value;
@@ -1622,7 +1665,10 @@ return return_value;
     {
         return get_value_multistring(key, nullptr, value_name);
     }
+#endif // #if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
 
+
+#if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
     inline ::wil::reg::optional_value<::std::wstring> try_get_value_string(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
     {
         const reg_view_details::reg_view regview{ key };
@@ -1657,7 +1703,7 @@ return return_value;
     {
         return try_get_value_expanded_string(key, nullptr, value_name);
     }
-#endif // #if defined(__WIL_WINREG_STL)
+#endif // #if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
 
     template <size_t Length>
     HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length], _Out_opt_ DWORD* pRequiredBytes = nullptr) WI_NOEXCEPT
@@ -1679,10 +1725,16 @@ return return_value;
         return get_value_string_nothrow<Length>(key, nullptr, value_name, return_value, pRequiredBytes);
     }
 
-    // enable_if allows the correct get_value_nothrow when passed a WCHAR[] array
-    // e.g.
-    // WCHAR data[100]{};
-    // get_value(hkye, L"valuename", data);
+    // The below  < std::enable_if<!std::is_same<T, wchar_t>::value>::type* = nullptr >
+    // allows the correct get_value_nothrow both when passed a DWORD*, as well as when passed a WCHAR[] array
+    //
+    // e.g. both of the below work correctly
+    // 
+    // WCHAR data1[100]{};
+    // get_value(hkey, L"valuename", data);
+    // //
+    // DWORD data2{};
+    // get_value_nothrow(hkey, L"valuename", &data2);
 
     template<typename T,
         typename std::enable_if<!std::is_same<T, wchar_t>::value>::type* = nullptr>
@@ -1714,29 +1766,26 @@ return return_value;
 
     inline HRESULT get_value_dword_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _In_ DWORD* return_value) WI_NOEXCEPT
     {
-        DWORD data_size_bytes{ sizeof * return_value };
-        return HRESULT_FROM_WIN32(RegGetValueW(key, subkey, value_name, ::wil::reg::details::get_value_flags_from_value_type(REG_DWORD), nullptr, return_value, &data_size_bytes));
+        return get_value_nothrow(key, subkey, value_name, return_value);
     }
 
     inline HRESULT get_value_dword_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _In_ DWORD* return_value) WI_NOEXCEPT
     {
-        return get_value_dword_nothrow(key, nullptr, value_name, return_value);
+        return get_value_nothrow(key, nullptr, value_name, return_value);
     }
 
     inline HRESULT get_value_qword_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _In_ DWORD64* return_value) WI_NOEXCEPT
     {
-        DWORD data_size_bytes{ sizeof * return_value };
-        return HRESULT_FROM_WIN32(RegGetValueW(key, subkey, value_name, ::wil::reg::details::get_value_flags_from_value_type(REG_QWORD), nullptr, return_value, &data_size_bytes));
+        return get_value_nothrow(key, subkey, value_name, return_value);
     }
 
     inline HRESULT get_value_qword_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _In_ DWORD64* return_value) WI_NOEXCEPT
     {
-        return get_value_qword_nothrow(key, nullptr, value_name, return_value);
+        return get_value_nothrow(key, nullptr, value_name, return_value);
     }
 
-#if defined(__WIL_WINREG_STL)
-    inline HRESULT get_value_byte_vector_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, DWORD type, ::std::vector<BYTE>* data) WI_NOEXCEPT
-        try
+#if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
+    inline HRESULT get_value_byte_vector_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, DWORD type, ::std::vector<BYTE>* data) WI_NOEXCEPT try
     {
         const reg_view_details::reg_view_nothrow regview{ key };
         ::wil::reg::optional_value<::std::vector<BYTE>> registry_value{ regview.try_get_value<::std::vector<BYTE>>(subkey, value_name, type) };
@@ -1751,7 +1800,9 @@ return return_value;
     {
         return get_value_byte_vector_nothrow(key, nullptr, value_name, type, data);
     }
+#endif // #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
 
+#if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
     inline HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, ::std::wstring* data) WI_NOEXCEPT try
     {
         const reg_view_details::reg_view_nothrow regview{ key };
@@ -1783,6 +1834,9 @@ return return_value;
     {
         return get_value_expanded_string_nothrow(key, nullptr, value_name, data);
     }
+#endif // #if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
+
+#if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
 
     inline HRESULT get_value_multistring_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _In_::std::vector<::std::wstring>* return_value) WI_NOEXCEPT try
     {
@@ -1841,7 +1895,7 @@ return return_value;
     {
         return get_value_multistring_nothrow(key, subkey, value_name, return_value);
     }
-#endif // #if defined(__WIL_WINREG_STL)
+#endif // #if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
 
 } // namespace reg
 } // namespace wil

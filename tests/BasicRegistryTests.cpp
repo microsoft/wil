@@ -1,5 +1,6 @@
 #include <memory> // For shared_event_watcher
 #include <string>
+#include <vector>
 #include <wil/filesystem.h>
 #include <wil/registry_basic.h>
 #include <wil/resource.h>
