@@ -313,3 +313,40 @@ namespace wil
     }
 }
 #endif
+
+#if defined(WINRT_Windows_UI_H) && defined(_WINDOWS_UI_INTEROP_H_) && !defined(__WIL_CPPWINRT_WINDOWS_UI_INTEROP_HELPERS)
+#define __WIL_CPPWINRT_WINDOWS_UI_INTEROP_HELPERS
+#if !defined(____x_ABI_CWindows_CFoundation_CIClosable_FWD_DEFINED__) && !defined(MIDL_NS_PREFIX)
+#pragma push_macro("ABI")
+#undef ABI
+#define ABI
+#endif
+
+namespace wil
+{
+#if defined(NTDDI_VERSION) && (NTDDI_VERSION >= NTDDI_WIN10_CU)
+    //! The following methods require that you include both <winrt/Windows.UI.h>
+    //! <Windows.UI.Interop.h> before including wil/cppwinrt_helpers.h, and that NTDDI_VERSION
+    //! is at least NTDDI_WIN10_CU. It is okay to include wil\cppwinrt_helpers.h multiple times:
+    //! support will be enabled for any headers that were included since the previous inclusion
+    //! of wil\cppwinrt_headers.h.
+    inline winrt::Windows::UI::WindowId GetWindowIdFromWindow(HWND hwnd)
+    {
+        ABI::Windows::UI::WindowId abiWindowId;
+        winrt::check_hresult(::GetWindowIdFromWindow(hwnd, &abiWindowId));
+        return winrt::Windows::UI::WindowId{ abiWindowId.Value };
+    }
+
+    inline HWND GetWindowFromWindowId(winrt::Windows::UI::WindowId windowId)
+    {
+        HWND hwnd;
+        winrt::check_hresult(::GetWindowFromWindowId({ windowId.Value }, &hwnd));
+        return hwnd;
+    }
+#endif /*defined(NTDDI_VERSION) && (NTDDI_VERSION >= NTDDI_WIN10_CU)*/
+}
+
+#if !defined(____x_ABI_CWindows_CFoundation_CIClosable_FWD_DEFINED__) && !defined(MIDL_NS_PREFIX)
+#pragma pop_macro("ABI")
+#endif
+#endif // __WIL_CPPWINRT_WINDOWS_UI_INTEROP_HELPERS

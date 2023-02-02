@@ -19,6 +19,9 @@
 #if __has_include(<tuple>)
 #include <tuple>
 #endif
+#if __has_include(<type_traits>)
+#include <type_traits>
+#endif
 
 // Forward declaration within WIL (see https://msdn.microsoft.com/en-us/library/br244983.aspx)
 /// @cond
@@ -1988,7 +1991,7 @@ namespace wil
         return CoGetClassObjectNoThrow<Interface>(__uuidof(Class), dwClsContext);
     }
 
-#if __has_include(<tuple>) && (__WI_LIBCPP_STD_VER >= 17)
+#if __cpp_lib_apply && __has_include(<type_traits>)
     namespace details
     {
         template <typename error_policy, typename... Results>
@@ -2011,7 +2014,7 @@ namespace wil
 
             std::apply([i = 0, &multiQis](auto&... a) mutable
             {
-                (a.attach(reinterpret_cast<typename std::remove_reference_t<decltype(a)>::pointer>(multiQis[i++].pItf)), ...);
+                (a.attach(reinterpret_cast<typename std::remove_reference<decltype(a)>::type::pointer>(multiQis[i++].pItf)), ...);
             }, resultTuple);
             return std::tuple<HRESULT, decltype(resultTuple)>(hr, std::move(resultTuple));
         }
@@ -2038,7 +2041,7 @@ namespace wil
                 hr = multiQi->QueryMultipleInterfaces(ARRAYSIZE(multiQis), multiQis);
                 std::apply([i = 0, &multiQis](auto&... a) mutable
                 {
-                    (a.attach(reinterpret_cast<typename std::remove_reference_t<decltype(a)>::pointer>(multiQis[i++].pItf)), ...);
+                    (a.attach(reinterpret_cast<typename std::remove_reference<decltype(a)>::type::pointer>(multiQis[i++].pItf)), ...);
                 }, resultTuple);
             }
             return std::tuple<HRESULT, decltype(resultTuple)>{hr, std::move(resultTuple)};
@@ -2119,7 +2122,7 @@ namespace wil
     }
 #endif
 
-#endif // __has_include(<tuple>)
+#endif // __cpp_lib_apply && __has_include(<type_traits>)
 
 #pragma endregion
 

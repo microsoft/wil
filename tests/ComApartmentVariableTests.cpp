@@ -111,8 +111,8 @@ struct mock_platform
 auto fn() { return 42; };
 auto fn2() { return 43; };
 
-wil::apartment_variable<int, mock_platform> g_v1;
-wil::apartment_variable<int> g_v2;
+wil::apartment_variable<int, wil::apartment_variable_leak_action::ignore, mock_platform> g_v1;
+wil::apartment_variable<int, wil::apartment_variable_leak_action::ignore> g_v2;
 
 template <typename platform = wil::apartment_variable_platform>
 void TestApartmentVariableAllMethods()
@@ -121,7 +121,7 @@ void TestApartmentVariableAllMethods()
 
     std::ignore = g_v1.get_or_create(fn);
 
-    wil::apartment_variable<int, platform> v1;
+    wil::apartment_variable<int, wil::apartment_variable_leak_action::fail_fast, platform> v1;
 
     REQUIRE(v1.get_if() == nullptr);
     REQUIRE(v1.get_or_create(fn) == 42);
@@ -138,7 +138,7 @@ void TestApartmentVariableGetOrCreateForms()
 {
     auto coUninit = platform::CoInitializeEx(COINIT_MULTITHREADED);
 
-    wil::apartment_variable<int, platform> v1;
+    wil::apartment_variable<int, wil::apartment_variable_leak_action::fail_fast, platform> v1;
     REQUIRE(v1.get_or_create(fn) == 42);
     v1.clear();
     REQUIRE(v1.get_or_create([&]
@@ -152,7 +152,7 @@ void TestApartmentVariableGetOrCreateForms()
 template <typename platform = wil::apartment_variable_platform>
 void TestApartmentVariableLifetimes()
 {
-    wil::apartment_variable<int, platform> av1, av2;
+    wil::apartment_variable<int, wil::apartment_variable_leak_action::fail_fast, platform> av1, av2;
 
     {
         auto coUninit = platform::CoInitializeEx(COINIT_MULTITHREADED);
@@ -217,7 +217,7 @@ void TestApartmentVariableLifetimes()
 template <typename platform = wil::apartment_variable_platform>
 void TestMultipleApartments()
 {
-    wil::apartment_variable<int, platform> av1, av2;
+    wil::apartment_variable<int, wil::apartment_variable_leak_action::fail_fast, platform> av1, av2;
 
     wil::unique_event t1Created{ wil::EventOptions::None }, t2Created{ wil::EventOptions::None };
     wil::unique_event t1Shutdown{ wil::EventOptions::None }, t2Shutdown{ wil::EventOptions::None };
@@ -253,7 +253,7 @@ void TestMultipleApartments()
     apt1_thread.join();
     apt2_thread.join();
 
-    REQUIRE((wil::apartment_variable<int, platform>::storage().size() == 0));
+    REQUIRE((wil::apartment_variable<int, wil::apartment_variable_leak_action::fail_fast, platform>::storage().size() == 0));
 }
 
 template <typename platform = wil::apartment_variable_platform>
@@ -261,7 +261,7 @@ void TestWinningApartmentAlreadyRundownRace()
 {
     auto coUninit = platform::CoInitializeEx(COINIT_MULTITHREADED);
 
-    wil::apartment_variable<int, platform> av;
+    wil::apartment_variable<int, wil::apartment_variable_leak_action::fail_fast, platform> av;
 
     std::ignore = av.get_or_create(fn);
     const auto& storage = av.storage(); // for viewing the storage in the debugger
@@ -295,7 +295,7 @@ void TestLosingApartmentAlreadyRundownRace()
 {
     auto coUninit = platform::CoInitializeEx(COINIT_MULTITHREADED);
 
-    wil::apartment_variable<int, platform> av;
+    wil::apartment_variable<int, wil::apartment_variable_leak_action::fail_fast, platform> av;
 
     std::ignore = av.get_or_create(fn);
     const auto& storage = av.storage(); // for viewing the storage in the debugger
