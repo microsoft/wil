@@ -12,11 +12,11 @@
 #ifndef __WIL_REGISTRY_BASIC_INCLUDED
 #define __WIL_REGISTRY_BASIC_INCLUDED
 
-// TODO: Yes - we should use feature checks instead of forced imports
-//       We do *not* want to require all users to use the STL
-//       We use __WIL_WINREG_STL to track if we should support the shared_* types (defined in resource.h)
-//       Include <string> and/or <vector> to use the STL integrated functions
-//       Include sddl.h if wanting to pass security descriptor strings to create keys
+// wil registry does not require the use of the STL - though it does natively support std::vector and std::wstring
+// wil registry uses the __WIL_WINREG_STL define to track support for wil::shared_* types (defined in resource.h)
+// Include <string> and/or <vector> to use the STL integrated functions
+// Include sddl.h if wanting to pass security descriptor strings to create keys
+
 #if defined(_STRING_) || defined (_VECTOR_)
 #include <functional>
 #include <iterator>
@@ -127,7 +127,6 @@ namespace reg
         inline ::std::vector<::std::wstring> get_wstring_vector_from_multistring(const ::std::vector<wchar_t>& data)
         {
             ::std::vector<::std::wstring> strings;
-
             if (data.size() < 3)
             {
                 return strings;
@@ -483,16 +482,6 @@ namespace reg
 
     namespace reg_view_details
     {
-        // generic functions that can apply to both specialized and non-specialized types
-        // that are assigned into ::wil::reg::optional_value types
-
-        // TODO: do we need a default version, or should we fail for unknown types?
-        /*template <typename T>
-        constexpr void* get_buffer(const T& t) WI_NOEXCEPT
-        {
-            return const_cast<T*>(&t);
-        }*/
-
 #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
         inline void* get_buffer(const ::std::vector<BYTE>& buffer) WI_NOEXCEPT
         {
@@ -555,13 +544,6 @@ namespace reg
             return value.get();
         }
 #endif // #if defined(__WIL_OLEAUTO_H_STL)
-
-        // TODO: do we need a generic version or should we have a compile error?
-        /*template <typename T>
-        constexpr DWORD get_buffer_size(const T) WI_NOEXCEPT
-        {
-            return sizeof(T);
-        }*/
 
 #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
         inline DWORD get_buffer_size(const ::std::vector<BYTE>& buffer) WI_NOEXCEPT
@@ -630,7 +612,9 @@ namespace reg
         }
 #endif // #if defined(__WIL_OLEAUTO_H_STL)
 
-        // grow_buffer_if_supported returns true if growing that buffer type is supported, false if growing that type is not supported
+        // grow_buffer_if_supported returns
+        // - true if growing that buffer type is supported
+        // - false if growing that type is not supported
         // the caller will call get_buffer_size later to validate if the allocation succeeded
         template <typename T>
         constexpr bool grow_buffer_if_supported(T&, DWORD) WI_NOEXCEPT
@@ -669,10 +653,14 @@ namespace reg
 #if defined(__WIL_OLEAUTO_H_)
         inline bool grow_buffer_if_supported(::wil::unique_bstr& string, DWORD byteSize) WI_NOEXCEPT
         {
-            string.reset(::SysAllocStringByteLen(nullptr, byteSize));
-            if (string)
+            BSTR newString{ ::SysAllocStringByteLen(nullptr, byteSize) };
+            if (newString)
             {
-                ZeroMemory(string.get(), byteSize);
+                ::memset(newString, 0, byteSize);
+                const auto originalStringByteSize = ::SysStringLen(string.get()) * sizeof(WCHAR);
+                const auto bytesToCopy = originalStringByteSize < byteSize ? originalStringByteSize : byteSize;
+                ::memcpy(newString, string.get(), bytesToCopy);
+                string.reset(newString);
             }
             return true;
         }
@@ -681,10 +669,14 @@ namespace reg
 #if defined(__WIL_OLEAUTO_H_STL)
         inline bool grow_buffer_if_supported(::wil::shared_bstr& string, DWORD byteSize) WI_NOEXCEPT
         {
-            string.reset(::SysAllocStringByteLen(nullptr, byteSize));
-            if (string)
+            BSTR newString{ ::SysAllocStringByteLen(nullptr, byteSize) };
+            if (newString)
             {
-                ZeroMemory(string.get(), byteSize);
+                ::memset(newString, 0, byteSize);
+                const auto originalStringByteSize = ::SysStringLen(string.get()) * sizeof(WCHAR);
+                const auto bytesToCopy = originalStringByteSize < byteSize ? originalStringByteSize : byteSize;
+                ::memcpy(newString, string.get(), bytesToCopy);
+                string.reset(newString);
             }
             return true;
         }
@@ -1032,7 +1024,7 @@ namespace reg
             template <typename R>
             typename err_policy::result get_value(_In_opt_ PCWSTR value_name, R& return_value, DWORD type = ::wil::reg::reg_view_details::get_value_type<R>()) const
             {
-                return get_value(nullptr, value_name, return_value, type);
+                return get_value_internal(nullptr, value_name, return_value, type);
             }
 
             // intended for err_exception_policy as err_returncode_policy will not get an error code
@@ -1399,41 +1391,37 @@ namespace reg
     template <typename T>
     void set_value(HKEY key, _In_opt_ PCWSTR value_name, const T& data)
     {
-        const reg_view_details::reg_view regview{ key };
-        return regview.set_value(value_name, data);
+        return ::wil::reg::set_value(key, nullptr, value_name, data);
     }
 
     inline void set_value_dword(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, DWORD data)
     {
-        const reg_view_details::reg_view regview{ key };
-        return regview.set_value(subkey, value_name, data);
+        return ::wil::reg::set_value(key, subkey, value_name, data);
     }
 
     inline void set_value_dword(HKEY key, _In_opt_ PCWSTR value_name, DWORD data)
     {
-        return set_value_dword(key, nullptr, value_name, data);
+        return ::wil::reg::set_value(key, nullptr, value_name, data);
     }
 
     inline void set_value_qword(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, uint64_t data)
     {
-        const reg_view_details::reg_view regview{ key };
-        return regview.set_value(subkey, value_name, data);
+        return ::wil::reg::set_value(key, subkey, value_name, data);
     }
 
     inline void set_value_qword(HKEY key, _In_opt_ PCWSTR value_name, uint64_t data)
     {
-        return set_value_qword(key, nullptr, value_name, data);
+        return ::wil::reg::set_value(key, nullptr, value_name, data);
     }
 
     inline void set_value_string(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _In_ PCWSTR data)
     {
-        const reg_view_details::reg_view regview{ key };
-        return regview.set_value(subkey, value_name, data);
+        return ::wil::reg::set_value(key, subkey, value_name, data);
     }
 
     inline void set_value_string(HKEY key, _In_opt_ PCWSTR value_name, _In_ PCWSTR data)
     {
-        return set_value_string(key, nullptr, value_name, data);
+        return ::wil::reg::set_value(key, nullptr, value_name, data);
     }
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS)
 
@@ -1446,18 +1434,18 @@ namespace reg
 
     inline void set_value_multistring(HKEY key, _In_opt_ PCWSTR value_name, const ::std::vector<::std::wstring>& data)
     {
-        return set_value_multistring(key, nullptr, value_name, data);
+        return ::wil::reg::set_value_multistring(key, nullptr, value_name, data);
     }
 
     template <>
     inline void set_value(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const ::std::vector<::std::wstring>& data)
     {
-        return set_value_multistring(key, subkey, value_name, data);
+        return ::wil::reg::set_value_multistring(key, subkey, value_name, data);
     }
     template <>
     inline void set_value(HKEY key, _In_opt_ PCWSTR value_name, const ::std::vector<::std::wstring>& data)
     {
-        return set_value_multistring(key, nullptr, value_name, data);
+        return ::wil::reg::set_value_multistring(key, nullptr, value_name, data);
     }
 #endif // #if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
 
@@ -1466,17 +1454,15 @@ namespace reg
     // set_value_*_nothrow functions
     //
     template <typename T>
-    HRESULT set_value_nothrow(HKEY key, _In_opt_ PCWSTR value_name, const T& data) WI_NOEXCEPT
-    {
-        const reg_view_details::reg_view_nothrow regview{ key };
-        return regview.set_value(value_name, data);
-    }
-
-    template <typename T>
     HRESULT set_value_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const T& data) WI_NOEXCEPT
     {
         const reg_view_details::reg_view_nothrow regview{ key };
         return regview.set_value(subkey, value_name, data);
+    }
+    template <typename T>
+    HRESULT set_value_nothrow(HKEY key, _In_opt_ PCWSTR value_name, const T& data) WI_NOEXCEPT
+    {
+        return ::wil::reg::set_value_nothrow(key, nullptr, value_name, data);
     }
 
 #if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
@@ -1489,41 +1475,38 @@ namespace reg
     template <>
     inline HRESULT set_value_nothrow(HKEY key, _In_opt_ PCWSTR value_name, const ::std::vector<::std::wstring>& data) WI_NOEXCEPT
     {
-        return set_value_nothrow(key, nullptr, value_name, data);
+        return ::wil::reg::set_value_nothrow(key, nullptr, value_name, data);
     }
 #endif // #if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
 
     inline HRESULT set_value_dword_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, DWORD data) WI_NOEXCEPT
     {
-        const reg_view_details::reg_view_nothrow regview{ key };
-        return regview.set_value(subkey, value_name, data);
+        return ::wil::reg::set_value_nothrow(key, subkey, value_name, data);
     }
 
     inline HRESULT set_value_dword_nothrow(HKEY key, _In_opt_ PCWSTR value_name, DWORD data) WI_NOEXCEPT
     {
-        return set_value_dword_nothrow(key, nullptr, value_name, data);
+        return ::wil::reg::set_value_nothrow(key, nullptr, value_name, data);
     }
 
     inline HRESULT set_value_qword_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, uint64_t data) WI_NOEXCEPT
     {
-        const reg_view_details::reg_view_nothrow regview{ key };
-        return regview.set_value(subkey, value_name, data);
+        return ::wil::reg::set_value_nothrow(key, subkey, value_name, data);
     }
 
     inline HRESULT set_value_qword_nothrow(HKEY key, _In_opt_ PCWSTR value_name, uint64_t data) WI_NOEXCEPT
     {
-        return set_value_qword_nothrow(key, nullptr, value_name, data);
+        return ::wil::reg::set_value_nothrow(key, nullptr, value_name, data);
     }
 
     inline HRESULT set_value_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _In_ PCWSTR data) WI_NOEXCEPT
     {
-        const reg_view_details::reg_view_nothrow regview{ key };
-        return regview.set_value(subkey, value_name, data);
+        return ::wil::reg::set_value_nothrow(key, subkey, value_name, data);
     }
 
     inline HRESULT set_value_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _In_ PCWSTR data) WI_NOEXCEPT
     {
-        return set_value_string_nothrow(key, nullptr, value_name, data);
+        return ::wil::reg::set_value_nothrow(key, nullptr, value_name, data);
     }
 
 #if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
@@ -1534,14 +1517,14 @@ namespace reg
     }
     inline HRESULT set_value_multistring_nothrow(HKEY key, _In_ PCWSTR value_name, const ::std::vector<::std::wstring>& data) WI_NOEXCEPT
     {
-        return set_value_multistring_nothrow(key, nullptr, value_name, data);
+        return ::wil::reg::set_value_multistring_nothrow(key, nullptr, value_name, data);
     }
 #endif // #if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
+
 
     //
     // get_value* and try_get_value* (throwing) functions
     //
-
 #if defined(WIL_ENABLE_EXCEPTIONS)
 /*
 template <typename T>
