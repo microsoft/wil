@@ -1056,6 +1056,20 @@ namespace reg
             {
                 return try_get_value(nullptr, value_name, type);
             }
+            // , DWORD type = ::wil::reg::reg_view_details::set_value_type(value)
+
+            template <typename R>
+            typename err_policy::result set_value_with_type(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const R& value, DWORD type) const
+            {
+                const auto error = ::RegSetKeyValueW(
+                    ::wil::reg::details::get_key(m_key),
+                    subkey,
+                    value_name,
+                    type,
+                    static_cast<BYTE*>(::wil::reg::reg_view_details::get_buffer(value)),
+                    ::wil::reg::reg_view_details::get_buffer_size(value));
+                return err_policy::HResult(HRESULT_FROM_WIN32(error));
+            }
 
             template <typename R>
             typename err_policy::result set_value(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const R& value) const
@@ -1423,6 +1437,18 @@ namespace reg
     {
         return ::wil::reg::set_value(key, nullptr, value_name, data);
     }
+
+    inline void set_value_expanded_string(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _In_ PCWSTR data) WI_NOEXCEPT
+    {
+        const reg_view_details::reg_view regview{ key };
+        return regview.set_value_with_type(subkey, value_name, data, REG_EXPAND_SZ);
+    }
+
+    inline void set_value_expanded_string(HKEY key, _In_opt_ PCWSTR value_name, _In_ PCWSTR data) WI_NOEXCEPT
+    {
+        return ::wil::reg::set_value_expanded_string(key, nullptr, value_name, data);
+    }
+
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS)
 
 #if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
@@ -1507,6 +1533,17 @@ namespace reg
     inline HRESULT set_value_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _In_ PCWSTR data) WI_NOEXCEPT
     {
         return ::wil::reg::set_value_nothrow(key, nullptr, value_name, data);
+    }
+
+    inline HRESULT set_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _In_ PCWSTR data) WI_NOEXCEPT
+    {
+        const reg_view_details::reg_view_nothrow regview{ key };
+        return regview.set_value_with_type(subkey, value_name, data, REG_EXPAND_SZ);
+    }
+
+    inline HRESULT set_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _In_ PCWSTR data) WI_NOEXCEPT
+    {
+        return ::wil::reg::set_value_expanded_string_nothrow(key, nullptr, value_name, data);
     }
 
 #if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
@@ -1649,26 +1686,26 @@ namespace reg
 
 
 #if defined(_STRING_)
-    inline ::wil::reg::optional_value<::std::wstring> try_get_value_string(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
+    inline ::wil::reg::optional_value<::std::wstring> try_get_value_wstring(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
     {
         const reg_view_details::reg_view regview{ key };
         return regview.try_get_value<::std::wstring>(subkey, value_name);
     }
 
-    inline ::wil::reg::optional_value<::std::wstring> try_get_value_string(HKEY key, _In_opt_ PCWSTR value_name)
+    inline ::wil::reg::optional_value<::std::wstring> try_get_value_wstring(HKEY key, _In_opt_ PCWSTR value_name)
     {
-        return try_get_value_string(key, nullptr, value_name);
+        return try_get_value_wstring(key, nullptr, value_name);
     }
 
-    inline ::wil::reg::optional_value<::std::wstring> try_get_value_expanded_string(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
+    inline ::wil::reg::optional_value<::std::wstring> try_get_value_expanded_wstring(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
     {
         const reg_view_details::reg_view regview{ key };
         return regview.try_get_value<::std::wstring>(subkey, value_name, REG_EXPAND_SZ);
     }
 
-    inline ::wil::reg::optional_value<::std::wstring> try_get_value_expanded_string(HKEY key, _In_opt_ PCWSTR value_name)
+    inline ::wil::reg::optional_value<::std::wstring> try_get_value_expanded_wstring(HKEY key, _In_opt_ PCWSTR value_name)
     {
-        return try_get_value_expanded_string(key, nullptr, value_name);
+        return try_get_value_expanded_wstring(key, nullptr, value_name);
     }
 #endif // #if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS)
@@ -1767,23 +1804,7 @@ namespace reg
     {
         return ::wil::reg::get_value_nothrow(key, nullptr, value_name, return_value);
     }
-
-    inline HRESULT get_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, ::std::wstring* data) WI_NOEXCEPT try
-    {
-        const reg_view_details::reg_view_nothrow regview{ key };
-        ::wil::reg::optional_value<::std::wstring> registry_value{ regview.try_get_value<::std::wstring>(subkey, value_name, REG_EXPAND_SZ) };
-        RETURN_IF_FAILED(registry_value.inner_error);
-
-        data->swap(registry_value.value);
-        return S_OK;
-    }
-    CATCH_RETURN()
-
-    inline HRESULT get_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, ::std::wstring* data) WI_NOEXCEPT
-    {
-        return get_value_expanded_string_nothrow(key, nullptr, value_name, data);
-    }
-#endif // #if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
+#endif
 
 #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
     inline HRESULT get_value_byte_vector_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, DWORD type, ::std::vector<BYTE>* data) WI_NOEXCEPT try
@@ -1797,11 +1818,54 @@ namespace reg
     }
     CATCH_RETURN()
 
-    inline HRESULT get_value_byte_vector_nothrow(HKEY key, _In_opt_ PCWSTR value_name, DWORD type, ::std::vector<BYTE>* data) WI_NOEXCEPT
+        inline HRESULT get_value_byte_vector_nothrow(HKEY key, _In_opt_ PCWSTR value_name, DWORD type, ::std::vector<BYTE>* data) WI_NOEXCEPT
     {
         return ::wil::reg::get_value_byte_vector_nothrow(key, nullptr, value_name, type, data);
     }
 #endif // #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
+
+
+
+    //
+    // get_value_expanded_string_nothrow (throwing) functions
+    //
+    template <size_t Length>
+    HRESULT get_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length], _Out_opt_ DWORD* pRequiredBytes = nullptr) WI_NOEXCEPT
+    {
+        // don't allocate, just use their buffer
+        wil::assign_to_opt_param(pRequiredBytes, 0ul);
+        DWORD data_size_bytes{ Length * sizeof(WCHAR) };
+        const auto error = ::RegGetValueW(key, subkey, value_name, ::wil::reg::details::get_value_flags_from_value_type(REG_EXPAND_SZ), nullptr, return_value, &data_size_bytes);
+        if (error == ERROR_SUCCESS || error == ERROR_MORE_DATA)
+        {
+            wil::assign_to_opt_param(pRequiredBytes, data_size_bytes);
+        }
+        return HRESULT_FROM_WIN32(error);
+    }
+
+    template <size_t Length>
+    HRESULT get_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length], _Out_opt_ DWORD* pRequiredBytes = nullptr) WI_NOEXCEPT
+    {
+        return ::wil::reg::get_value_expanded_string_nothrow<Length>(key, nullptr, value_name, return_value, pRequiredBytes);
+    }
+
+#if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
+    inline HRESULT get_value_expanded_wstring_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, ::std::wstring* data) WI_NOEXCEPT try
+    {
+        const reg_view_details::reg_view_nothrow regview{ key };
+        ::wil::reg::optional_value<::std::wstring> registry_value{ regview.try_get_value<::std::wstring>(subkey, value_name, REG_EXPAND_SZ) };
+        RETURN_IF_FAILED(registry_value.inner_error);
+
+        data->swap(registry_value.value);
+        return S_OK;
+    }
+    CATCH_RETURN()
+
+    inline HRESULT get_value_expanded_wstring_nothrow(HKEY key, _In_opt_ PCWSTR value_name, ::std::wstring* data) WI_NOEXCEPT
+    {
+        return get_value_expanded_wstring_nothrow(key, nullptr, value_name, data);
+    }
+#endif // #if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
 
 
 
