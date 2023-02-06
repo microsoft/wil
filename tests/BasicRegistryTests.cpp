@@ -12,8 +12,8 @@ constexpr auto* dwordValueName = L"MyDwordValue";
 constexpr auto* qwordValueName = L"MyQwordvalue";
 constexpr auto* stringValueName = L"MyStringValue";
 
-constexpr DWORD dwordTestArray[] = { DWORD(-1), 1, 0 };
-constexpr DWORD64 qwordTestArray[] = { DWORD64(-1), 1, 0 };
+constexpr DWORD dwordTestArray[] = { static_cast<DWORD>(-1), 1, 0 };
+constexpr DWORD64 qwordTestArray[] = { static_cast<DWORD64>(-1), 1, 0 };
 const std::wstring stringTestArray[] = { L".", L"", L"Hello there!", L"\0" };
 const std::wstring expandedStringTestArray[] = { L".", L"", L"%WINDIR%", L"\0" };
 const std::vector<std::wstring> multiStringTestArray[]{
@@ -796,7 +796,6 @@ TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
     }
 
-#ifdef WIL_ENABLE_EXCEPTIONS
     SECTION("set_value_string/get_value_string: with open key")
     {
         wil::unique_hkey hkey;
@@ -1018,16 +1017,20 @@ TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
             REQUIRE(result == value);
         }
 
-        WCHAR result[1]{};
+        WCHAR too_small_result[4]{};
         // fail get* if the buffer is too small
         REQUIRE_SUCCEEDED(wil::reg::set_value_string_nothrow(hkey.get(), stringValueName, L"Test"));
         DWORD expectedSize{};
-        auto hr = wil::reg::get_value_string_nothrow(hkey.get(), stringValueName, result, &expectedSize);
+        auto hr = wil::reg::get_value_string_nothrow(hkey.get(), stringValueName, too_small_result, &expectedSize);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_MORE_DATA));
         REQUIRE(expectedSize == 12);
+        WCHAR valid_buffer_result[5]{};
+        REQUIRE_SUCCEEDED(wil::reg::get_value_string_nothrow(hkey.get(), stringValueName, valid_buffer_result, &expectedSize));
+        REQUIRE(expectedSize == 10);
+        REQUIRE(0 == wcscmp(valid_buffer_result, L"Test"));
 
         // fail get* if the value doesn't exist
-        hr = wil::reg::get_value_string_nothrow(hkey.get(), (std::wstring(stringValueName) + L"_not_valid").c_str(), result, &expectedSize);
+        hr = wil::reg::get_value_string_nothrow(hkey.get(), (std::wstring(stringValueName) + L"_not_valid").c_str(), too_small_result, &expectedSize);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
         REQUIRE(expectedSize == 0);
 
@@ -1058,16 +1061,20 @@ TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
             REQUIRE(result == value);
         }
 
-        WCHAR result[1]{};
+        WCHAR too_small_result[4]{};
         // fail get* if the buffer is too small
         REQUIRE_SUCCEEDED(wil::reg::set_value_string_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, L"Test"));
         DWORD expectedSize{};
-        auto hr = wil::reg::get_value_string_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, result, &expectedSize);
+        auto hr = wil::reg::get_value_string_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, too_small_result, &expectedSize);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_MORE_DATA));
-        REQUIRE(expectedSize == 12);
+        REQUIRE(expectedSize == 12); // yes, this is a registry oddity that it returned 2-bytes-more-than-required
+        WCHAR valid_buffer_result[5]{};
+        REQUIRE_SUCCEEDED(wil::reg::get_value_string_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, valid_buffer_result, &expectedSize));
+        REQUIRE(expectedSize == 10);
+        REQUIRE(0 == wcscmp(valid_buffer_result, L"Test"));
 
         // fail get* if the value doesn't exist
-        hr = wil::reg::get_value_string_nothrow(HKEY_CURRENT_USER, testSubkey, (std::wstring(stringValueName) + L"_not_valid").c_str(), result, &expectedSize);
+        hr = wil::reg::get_value_string_nothrow(HKEY_CURRENT_USER, testSubkey, (std::wstring(stringValueName) + L"_not_valid").c_str(), too_small_result, &expectedSize);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
         REQUIRE(expectedSize == 0);
 
@@ -1083,7 +1090,6 @@ TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
             REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
         }
     }
-#endif
 }
 #endif
 
@@ -1188,13 +1194,24 @@ TEST_CASE("BasicRegistryTests::expanded_wstring", "[registry]")
             REQUIRE(std::wstring(result) == std::wstring(expanded_value));
         }
 
-        WCHAR result[1]{};
+        WCHAR result[10]{};
         // fail get* if the buffer is too small
         REQUIRE_SUCCEEDED(wil::reg::set_value_expanded_string_nothrow(hkey.get(), stringValueName, L"%WINDIR%"));
         DWORD expectedSize{};
         auto hr = wil::reg::get_value_expanded_string_nothrow(hkey.get(), stringValueName, result, &expectedSize);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_MORE_DATA));
         REQUIRE(expectedSize == 22);
+        WCHAR valid_buffer_result[11]{};
+        REQUIRE_SUCCEEDED(wil::reg::get_value_expanded_string_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, valid_buffer_result, &expectedSize));
+        REQUIRE(expectedSize == 22);
+
+        expectedSize = 0;
+        WCHAR expanded_value[100]{};
+        const auto expanded_result = ::ExpandEnvironmentStringsW(L"%WINDIR%", expanded_value, 100);
+        REQUIRE(expanded_result != 0);
+        REQUIRE(expanded_result < 100);
+        REQUIRE(0 == wcscmp(valid_buffer_result, expanded_value));
+
 
         // fail get* if the value doesn't exist
         hr = wil::reg::get_value_expanded_string_nothrow(hkey.get(), (std::wstring(stringValueName) + L"_not_valid").c_str(), result);
@@ -1226,13 +1243,24 @@ TEST_CASE("BasicRegistryTests::expanded_wstring", "[registry]")
             REQUIRE(std::wstring(result) == std::wstring(expanded_value));
         }
 
-        WCHAR result[1]{};
+        WCHAR result[10]{};
         // fail get* if the buffer is too small
         REQUIRE_SUCCEEDED(wil::reg::set_value_expanded_string_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, L"%WINDIR%"));
         DWORD expectedSize{};
         auto hr = wil::reg::get_value_expanded_string_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, result, &expectedSize);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_MORE_DATA));
         REQUIRE(expectedSize == 22);
+
+        expectedSize = 0;
+        WCHAR valid_buffer_result[11]{};
+        REQUIRE_SUCCEEDED(wil::reg::get_value_expanded_string_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, valid_buffer_result, &expectedSize));
+        REQUIRE(expectedSize == 22);
+
+        WCHAR expanded_value[100]{};
+        const auto expanded_result = ::ExpandEnvironmentStringsW(L"%WINDIR%", expanded_value, 100);
+        REQUIRE(expanded_result != 0);
+        REQUIRE(expanded_result < 100);
+        REQUIRE(0 == wcscmp(valid_buffer_result, expanded_value));
 
         // fail get* if the value doesn't exist
         hr = wil::reg::get_value_expanded_string_nothrow(HKEY_CURRENT_USER, testSubkey, (std::wstring(stringValueName) + L"_not_valid").c_str(), result);
@@ -1244,8 +1272,7 @@ TEST_CASE("BasicRegistryTests::expanded_wstring", "[registry]")
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
     }
 
-#ifdef WIL_ENABLE_EXCEPTIONS
-    SECTION("set_value_expanded_string/get_value_expanded_string: with open key")
+    SECTION("set_value_expanded_string/get_value_expanded_wstring: with open key")
     {
         wil::unique_hkey hkey;
         REQUIRE_SUCCEEDED(wil::reg::create_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
@@ -1336,7 +1363,6 @@ TEST_CASE("BasicRegistryTests::expanded_wstring", "[registry]")
             REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
         }
     }
-#endif
 }
 #endif
 

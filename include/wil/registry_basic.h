@@ -8,7 +8,6 @@
 //    PARTICULAR PURPOSE AND NONINFRINGEMENT.
 //
 //*********************************************************
-// ReSharper disable CppInconsistentNaming
 #ifndef __WIL_REGISTRY_BASIC_INCLUDED
 #define __WIL_REGISTRY_BASIC_INCLUDED
 
@@ -20,7 +19,6 @@
 #if defined(_STRING_) || defined (_VECTOR_)
 #include <functional>
 #include <iterator>
-#include <type_traits>
 #endif
 
 #include <Windows.h>
@@ -157,7 +155,7 @@ namespace reg
 
 #endif // #if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
 
-// the registry iterator class requires <vector>
+        // the registry iterator class requires <vector>
 #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
         enum class iterator_creation_flag
         {
@@ -190,11 +188,12 @@ namespace reg
             ::wil::unique_hlocal_ptr<SECURITY_DESCRIPTOR> securityDescriptor;
             if (security_descriptor)
             {
+                constexpr PULONG null_StringSecurityDescriptorSize{ nullptr };
                 const auto convert_succeeded = ::ConvertStringSecurityDescriptorToSecurityDescriptorW(
                     security_descriptor,
                     SDDL_REVISION_1,
                     ::wil::out_param_ptr<PSECURITY_DESCRIPTOR*>(securityDescriptor),
-                    nullptr);
+                    null_StringSecurityDescriptorSize);
                 err_policy::LastErrorIfFalse(convert_succeeded);
             }
             return securityDescriptor;
@@ -367,6 +366,11 @@ namespace reg
         {
             for (auto vectorSize = static_cast<DWORD>(m_data.m_nextName.capacity());;)
             {
+                constexpr LPDWORD null_lpReserved{ nullptr };
+                constexpr LPWSTR null_lpClass{ nullptr };
+                constexpr LPDWORD null_lpcchClass{ nullptr };
+                constexpr PFILETIME null_lpftLastWriteTime{ nullptr };
+
                 m_data.m_nextName.resize(vectorSize);
                 auto tempVectorSize = vectorSize;
                 const auto error = ::RegEnumKeyExW(
@@ -374,10 +378,10 @@ namespace reg
                     m_data.m_index,
                     m_data.m_nextName.data(),
                     &tempVectorSize,
-                    nullptr, // reserved
-                    nullptr, // not concerned about class name
-                    nullptr, // not concerned about the size of the class name
-                    nullptr); // not concerned about the last write time
+                    null_lpReserved,
+                    null_lpClass,
+                    null_lpcchClass,
+                    null_lpftLastWriteTime);
 
                 if (error == ERROR_SUCCESS)
                 {
@@ -407,6 +411,10 @@ namespace reg
         {
             for (auto vectorSize = static_cast<DWORD>(m_data.m_nextName.capacity());;)
             {
+                constexpr LPDWORD null_lpReserved{ nullptr };
+                constexpr LPBYTE null_lpData{ nullptr };
+                constexpr LPDWORD null_lpcbData{ nullptr };
+
                 m_data.m_nextName.resize(vectorSize);
                 auto tempVectorSize = vectorSize;
                 const auto error = ::RegEnumValueW(
@@ -414,10 +422,10 @@ namespace reg
                     m_data.m_index,
                     m_data.m_nextName.data(),
                     &tempVectorSize,
-                    nullptr, // reserved
+                    null_lpReserved,
                     &m_data.m_nextType,
-                    nullptr, // not concerned about the data in the value
-                    nullptr); // not concerned about the data in the value
+                    null_lpData,
+                    null_lpcbData);
                 if (error == ERROR_SUCCESS)
                 {
                     break;
@@ -461,7 +469,7 @@ namespace reg
     template <typename T>
     struct optional_value
     {
-        constexpr bool has_value() const WI_NOEXCEPT
+        [[nodiscard]] constexpr bool has_value() const WI_NOEXCEPT
         {
             return value_assigned;
         }
@@ -629,10 +637,8 @@ namespace reg
             {
                 buffer.resize(byteSize);
             }
-            catch (...)
-            {
-            }
-            return true;
+            CATCH_LOG()
+                return true;
         }
 #endif // #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
 
@@ -643,18 +649,15 @@ namespace reg
             {
                 string.resize(byteSize / sizeof(wchar_t));
             }
-            catch (...)
-            {
-            }
-            return true;
+            CATCH_LOG()
+                return true;
         }
 #endif // #if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
 
 #if defined(__WIL_OLEAUTO_H_)
         inline bool grow_buffer_if_supported(::wil::unique_bstr& string, DWORD byteSize) WI_NOEXCEPT
         {
-            BSTR newString{ ::SysAllocStringByteLen(nullptr, byteSize) };
-            if (newString)
+            if (const BSTR newString{ ::SysAllocStringByteLen(nullptr, byteSize) })
             {
                 ::memset(newString, 0, byteSize);
                 const auto originalStringByteSize = ::SysStringLen(string.get()) * sizeof(WCHAR);
@@ -669,8 +672,7 @@ namespace reg
 #if defined(__WIL_OLEAUTO_H_STL)
         inline bool grow_buffer_if_supported(::wil::shared_bstr& string, DWORD byteSize) WI_NOEXCEPT
         {
-            BSTR newString{ ::SysAllocStringByteLen(nullptr, byteSize) };
-            if (newString)
+            if (const BSTR newString{ ::SysAllocStringByteLen(nullptr, byteSize) })
             {
                 ::memset(newString, 0, byteSize);
                 const auto originalStringByteSize = ::SysStringLen(string.get()) * sizeof(WCHAR);
@@ -826,127 +828,134 @@ namespace reg
                 return ::wil::reg::details::get_key(m_key);
             }
 
-            typename err_policy::result open_key(_In_opt_ PCWSTR subKey, ::wil::unique_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) const
+            typename err_policy::result open_key(_In_opt_ PCWSTR subKey, _Out_ HKEY* hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) const
             {
-                auto error = ::RegOpenKeyExW(::wil::reg::details::get_key(m_key), subKey, 0, ::wil::reg::details::get_access_flags(access), ::wil::out_param(hkey));
+                constexpr DWORD zero_ulOptions{ 0 };
+                auto error = ::RegOpenKeyExW(::wil::reg::details::get_key(m_key), subKey, zero_ulOptions, ::wil::reg::details::get_access_flags(access), hkey);
                 if (error == ERROR_FILE_NOT_FOUND && !::wil::reg::details::should_return_not_found<err_policy>())
                 {
                     error = ERROR_SUCCESS;
-                    hkey.reset();
+                    *hkey = nullptr;
                 }
                 return err_policy::HResult(HRESULT_FROM_WIN32(error));
+            }
+
+            typename err_policy::result open_key(_In_opt_ PCWSTR subKey, ::wil::unique_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) const
+            {
+                return open_key(subKey, hkey.addressof(), access);
             }
 
             ::wil::unique_hkey open_unique_key(_In_opt_ PCWSTR subKey, ::wil::reg::key_access access = ::wil::reg::key_access::read) const
             {
                 ::wil::unique_hkey local_key{};
-                open_key(subKey, local_key, access);
+                open_key(subKey, local_key.addressof(), access);
                 return local_key;
             }
 
 #if defined(__WIL_WINREG_STL)
             typename err_policy::result open_key(_In_opt_ PCWSTR subKey, ::wil::shared_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) const
             {
-                auto error = ::RegOpenKeyExW(::wil::reg::details::get_key(m_key), subKey, 0, ::wil::reg::details::get_access_flags(access), ::wil::out_param(hkey));
-                if (error == ERROR_FILE_NOT_FOUND && !::wil::reg::details::should_return_not_found<err_policy>())
-                {
-                    error = ERROR_SUCCESS;
-                    hkey.reset();
-                }
-                return err_policy::HResult(HRESULT_FROM_WIN32(error));
+                return open_key(subKey, hkey.addressof(), access);
             }
+
             ::wil::shared_hkey open_shared_key(_In_opt_ PCWSTR subKey, ::wil::reg::key_access access = ::wil::reg::key_access::read) const
             {
                 ::wil::shared_hkey local_key{};
-                open_key(subKey, local_key, access);
+                open_key(subKey, local_key.addressof(), access);
                 return local_key;
             }
 #endif // #if defined(__WIL_WINREG_STL)
 
-#if defined(__SDDL_H__)
-            typename err_policy::result create_key(_In_ PCWSTR subKey, ::wil::unique_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read, _In_opt_ PCWSTR security_descriptor = nullptr) const
+            typename err_policy::result create_key(_In_ PCWSTR subKey, _Out_ HKEY* hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) const
             {
-                hkey.reset();
+                *hkey = nullptr;
 
-                const ::wil::unique_hlocal_ptr<SECURITY_DESCRIPTOR> securityDescriptor = ::wil::reg::details::create_security_descriptor<err_policy>(security_descriptor);
-                SECURITY_ATTRIBUTES security_attributes{ sizeof security_attributes, nullptr, FALSE };
-                security_attributes.lpSecurityDescriptor = securityDescriptor.get();
-
-                DWORD disposition = 0;
+                constexpr DWORD zero_Reserved{ 0 };
+                constexpr LPWSTR null_lpClass{ nullptr };
+                constexpr DWORD zero_dwOptions{ 0 };
+                constexpr LPSECURITY_ATTRIBUTES null_lpSecurityAttributes{ nullptr };
+                DWORD disposition{ 0 };
                 const auto error =
-                    ::RegCreateKeyExW(::wil::reg::details::get_key(m_key), subKey, 0, nullptr, 0, ::wil::reg::details::get_access_flags(access), security_descriptor ? &security_attributes : nullptr, ::wil::out_param(hkey), &disposition);
+                    ::RegCreateKeyExW(::wil::reg::details::get_key(m_key), subKey, zero_Reserved, null_lpClass, zero_dwOptions, ::wil::reg::details::get_access_flags(access), null_lpSecurityAttributes, hkey, &disposition);
                 return err_policy::HResult(HRESULT_FROM_WIN32(error));
             }
 
-            ::wil::unique_hkey create_unique_key(_In_ PCWSTR subKey, ::wil::reg::key_access access = ::wil::reg::key_access::read, _In_opt_ PCWSTR security_descriptor = nullptr) const
-            {
-                ::wil::unique_hkey local_key{};
-                create_key(subKey, local_key, access, security_descriptor);
-                return local_key;
-            }
-#endif // #if defined(__SDDL_H__)
             typename err_policy::result create_key(_In_ PCWSTR subKey, ::wil::unique_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) const
             {
-                hkey.reset();
-                DWORD disposition = 0;
-                const auto error =
-                    ::RegCreateKeyExW(::wil::reg::details::get_key(m_key), subKey, 0, nullptr, 0, ::wil::reg::details::get_access_flags(access), nullptr, ::wil::out_param(hkey), &disposition);
-                return err_policy::HResult(HRESULT_FROM_WIN32(error));
+                return create_key(subKey, hkey.addressof(), access);
             }
 
             ::wil::unique_hkey create_unique_key(_In_ PCWSTR subKey, ::wil::reg::key_access access = ::wil::reg::key_access::read) const
             {
                 ::wil::unique_hkey local_key{};
-                create_key(subKey, local_key, access);
+                create_key(subKey, local_key.addressof(), access);
                 return local_key;
             }
-
 
 #if defined(__WIL_WINREG_STL)
-#if defined(__SDDL_H__)
-            typename err_policy::result create_key(_In_ PCWSTR subKey, ::wil::shared_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read, _In_opt_ PCWSTR security_descriptor = nullptr) const
-            {
-                hkey.reset();
-
-                const ::wil::unique_hlocal_ptr<SECURITY_DESCRIPTOR> securityDescriptor = ::wil::reg::details::create_security_descriptor<err_policy>(security_descriptor);
-
-                SECURITY_ATTRIBUTES security_attributes{ sizeof security_attributes, nullptr, FALSE };
-                security_attributes.lpSecurityDescriptor = securityDescriptor.get();
-
-                DWORD disposition = 0;
-                const auto error =
-                    ::RegCreateKeyExW(::wil::reg::details::get_key(m_key), subKey, 0, nullptr, 0, ::wil::reg::details::get_access_flags(access), security_descriptor ? &security_attributes : nullptr, ::wil::out_param(hkey), &disposition);
-                return err_policy::HResult(HRESULT_FROM_WIN32(error));
-            }
-
-            ::wil::shared_hkey create_shared_key(_In_ PCWSTR subKey, ::wil::reg::key_access access = ::wil::reg::key_access::read, _In_opt_ PCWSTR security_descriptor = nullptr) const
-            {
-                ::wil::shared_hkey local_key{};
-                create_key(subKey, local_key, access, security_descriptor);
-                return local_key;
-            }
-#endif // #if defined(__SDDL_H__)
             typename err_policy::result create_key(_In_ PCWSTR subKey, ::wil::shared_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) const
             {
-                hkey.reset();
-
-                DWORD disposition = 0;
-                const auto error =
-                    ::RegCreateKeyExW(::wil::reg::details::get_key(m_key), subKey, 0, nullptr, 0, ::wil::reg::details::get_access_flags(access), nullptr, ::wil::out_param(hkey), &disposition);
-                return err_policy::HResult(HRESULT_FROM_WIN32(error));
+                return create_key(subKey, hkey.addressof(), access);
             }
 
             ::wil::shared_hkey create_shared_key(_In_ PCWSTR subKey, ::wil::reg::key_access access = ::wil::reg::key_access::read) const
             {
                 ::wil::shared_hkey local_key{};
-                create_key(subKey, local_key, access);
+                create_key(subKey, local_key.addressof(), access);
                 return local_key;
             }
 #endif // #if defined(__WIL_WINREG_STL)
 
+#if defined(__SDDL_H__)
+            typename err_policy::result create_key(_In_ PCWSTR subKey, _In_opt_ PCWSTR security_descriptor, _Out_ HKEY* hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) const
+            {
+                *hkey = nullptr;
+
+                const ::wil::unique_hlocal_ptr<SECURITY_DESCRIPTOR> securityDescriptor = ::wil::reg::details::create_security_descriptor<err_policy>(security_descriptor);
+                constexpr LPVOID null_lpSecurityDescriptor{ nullptr };
+                constexpr BOOL false_bInheritHandle{ FALSE };
+                SECURITY_ATTRIBUTES security_attributes{ sizeof security_attributes, null_lpSecurityDescriptor, false_bInheritHandle };
+                security_attributes.lpSecurityDescriptor = securityDescriptor.get();
+
+                constexpr DWORD zero_Reserved{ 0 };
+                constexpr LPWSTR null_lpClass{ nullptr };
+                constexpr DWORD zero_dwOptions{ 0 };
+                DWORD disposition{ 0 };
+                const auto error =
+                    ::RegCreateKeyExW(::wil::reg::details::get_key(m_key), subKey, zero_Reserved, null_lpClass, zero_dwOptions, ::wil::reg::details::get_access_flags(access), security_descriptor ? &security_attributes : nullptr, hkey, &disposition);
+                return err_policy::HResult(HRESULT_FROM_WIN32(error));
+            }
+
+            typename err_policy::result create_key(_In_ PCWSTR subKey, _In_opt_ PCWSTR security_descriptor, ::wil::unique_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) const
+            {
+                return create_key(subKey, security_descriptor, hkey.addressof(), access);
+            }
+
+            ::wil::unique_hkey create_unique_key(_In_ PCWSTR subKey, _In_opt_ PCWSTR security_descriptor, ::wil::reg::key_access access = ::wil::reg::key_access::read) const
+            {
+                ::wil::unique_hkey local_key{};
+                create_key(subKey, security_descriptor, local_key.addressof(), access);
+                return local_key;
+            }
+
+#if defined(__WIL_WINREG_STL)
+            typename err_policy::result create_key(_In_ PCWSTR subKey, _In_opt_ PCWSTR security_descriptor, ::wil::shared_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) const
+            {
+                return create_key(subKey, security_descriptor, hkey.addressof(), access);
+            }
+
+            ::wil::shared_hkey create_shared_key(_In_ PCWSTR subKey, _In_opt_ PCWSTR security_descriptor, ::wil::reg::key_access access = ::wil::reg::key_access::read) const
+            {
+                ::wil::shared_hkey local_key{};
+                create_key(subKey, security_descriptor, local_key.addressof(), access);
+                return local_key;
+            }
+#endif // #if defined(__WIL_WINREG_STL)
+#endif // #if defined(__SDDL_H__)
+
             typename err_policy::result delete_key(_In_opt_ PCWSTR sub_key) WI_NOEXCEPT
             {
-                auto error = RegDeleteTreeW(::wil::reg::details::get_key(m_key), sub_key);
+                auto error = ::RegDeleteTreeW(::wil::reg::details::get_key(m_key), sub_key);
                 if (error == ERROR_FILE_NOT_FOUND)
                 {
                     error = ERROR_SUCCESS;
@@ -956,7 +965,7 @@ namespace reg
 
             typename err_policy::result delete_value(_In_opt_ PCWSTR value_name) WI_NOEXCEPT
             {
-                return err_policy::HResult(HRESULT_FROM_WIN32(RegDeleteValueW(::wil::reg::details::get_key(m_key), value_name)));
+                return err_policy::HResult(HRESULT_FROM_WIN32(::RegDeleteValueW(::wil::reg::details::get_key(m_key), value_name)));
             }
 
         private:
@@ -966,15 +975,17 @@ namespace reg
             {
                 for (;;)
                 {
+                    constexpr LPDWORD null_pdwType{ nullptr };
                     DWORD data_size_bytes{ ::wil::reg::reg_view_details::get_buffer_size(return_value) };
                     auto error = ::RegGetValueW(
                         ::wil::reg::details::get_key(m_key),
                         subkey,
                         value_name,
                         ::wil::reg::details::get_value_flags_from_value_type(type),
-                        nullptr,
+                        null_pdwType,
                         ::wil::reg::reg_view_details::get_buffer(return_value),
                         &data_size_bytes);
+
                     // GetRegValueW will indicate the caller allocate the returned number of bytes in one of two cases:
                     // 1. returns ERROR_MORE_DATA
                     // 2. returns ERROR_SUCCESS when we gave it a nullptr for the out buffer
@@ -1032,7 +1043,6 @@ namespace reg
             ::wil::reg::optional_value<R> try_get_value(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, DWORD type = ::wil::reg::reg_view_details::get_value_type<R>()) const
             {
                 ::wil::reg::optional_value<R> return_value;
-
                 return_value.inner_error = get_value_internal<R, ::wil::err_returncode_policy>(subkey, value_name, return_value.value, type);
                 if (SUCCEEDED(return_value.inner_error))
                 {
@@ -1054,9 +1064,8 @@ namespace reg
             template <typename R>
             ::wil::reg::optional_value<R>& try_get_value(_In_opt_ PCWSTR value_name, DWORD type = ::wil::reg::reg_view_details::get_value_type<R>()) const
             {
-                return try_get_value(nullptr, value_name, type);
+                return try_get_value<R>(nullptr, value_name, type);
             }
-            // , DWORD type = ::wil::reg::reg_view_details::set_value_type(value)
 
             template <typename R>
             typename err_policy::result set_value_with_type(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const R& value, DWORD type) const
@@ -1074,14 +1083,7 @@ namespace reg
             template <typename R>
             typename err_policy::result set_value(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const R& value) const
             {
-                const auto error = ::RegSetKeyValueW(
-                    ::wil::reg::details::get_key(m_key),
-                    subkey,
-                    value_name,
-                    ::wil::reg::reg_view_details::set_value_type(value),
-                    static_cast<BYTE*>(::wil::reg::reg_view_details::get_buffer(value)),
-                    ::wil::reg::reg_view_details::get_buffer_size(value));
-                return err_policy::HResult(HRESULT_FROM_WIN32(error));
+                return set_value_with_type(subkey, value_name, value, ::wil::reg::reg_view_details::set_value_type(value));
             }
 
             template <typename R>
@@ -1182,27 +1184,13 @@ namespace reg
             T m_key{};
         };
 
-        template <typename T, typename err_policy = err_exception_policy>
-        static reg_view_t<T, err_policy> create_reg_view(T&& t)
-        {
-            return reg_view_t<T, err_policy>(::wistd::forward<T>(t));
-        }
-
         // reg_view with the raw HKEY type is non-owning
         using reg_view_nothrow = reg_view_details::reg_view_t<HKEY, ::wil::err_returncode_policy>;
-        using reg_view_unique_hkey_nothrow = reg_view_details::reg_view_t<::wil::unique_hkey, ::wil::err_returncode_policy>;
-#if defined(__WIL_WINREG_STL)
-        using reg_view_shared_hkey_nothrow = reg_view_details::reg_view_t<::wil::shared_hkey, ::wil::err_returncode_policy>;
-#endif // #if defined(__WIL_WINREG_STL)
 
 #if defined(WIL_ENABLE_EXCEPTIONS)
         // reg_view with the raw HKEY type is non-owning
         using reg_view = reg_view_details::reg_view_t<HKEY, ::wil::err_exception_policy>;
-        using reg_view_unique_hkey = reg_view_details::reg_view_t<::wil::unique_hkey, ::wil::err_exception_policy>;
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS)
-#if defined(__WIL_WINREG_STL)
-        using reg_view_shared_hkey = reg_view_details::reg_view_t<::wil::shared_hkey, ::wil::err_exception_policy>;
-#endif // #if defined(__WIL_WINREG_STL)
     }
 
     // Registry Open* and Create* functions, both throwing and non-throwing
@@ -1234,7 +1222,7 @@ namespace reg
     inline ::wil::unique_hkey create_unique_key(HKEY key, _In_ PCWSTR path, _In_opt_ PCWSTR security_descriptor, ::wil::reg::key_access access = ::wil::reg::key_access::read)
     {
         const reg_view_details::reg_view regview{ key };
-        return regview.create_unique_key(path, access, security_descriptor);
+        return regview.create_unique_key(path, security_descriptor, access);
     }
 #endif // #if defined(__SDDL_H__)
 
@@ -1253,7 +1241,7 @@ namespace reg
     inline ::wil::unique_hkey try_create_unique_key(HKEY key, _In_ PCWSTR path, _In_opt_ PCWSTR security_descriptor, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
     {
         const reg_view_details::reg_view_nothrow regview{ key };
-        return regview.create_unique_key(path, access, security_descriptor);
+        return regview.create_unique_key(path, security_descriptor, access);
     }
 #endif // #if defined(__SDDL_H__)
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS)
@@ -1274,7 +1262,7 @@ namespace reg
     inline ::wil::shared_hkey create_shared_key(HKEY key, _In_ PCWSTR path, _In_opt_ PCWSTR security_descriptor, ::wil::reg::key_access access = ::wil::reg::key_access::read)
     {
         const reg_view_details::reg_view regview{ key };
-        return regview.create_shared_key(path, access, security_descriptor);
+        return regview.create_shared_key(path, security_descriptor, access);
     }
 #endif // #if defined(__SDDL_H__)
 
@@ -1293,12 +1281,12 @@ namespace reg
     inline ::wil::shared_hkey try_create_shared_key(HKEY key, _In_ PCWSTR path, _In_opt_ PCWSTR security_descriptor, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
     {
         const reg_view_details::reg_view_nothrow regview{ key };
-        return regview.create_shared_key(path, access, security_descriptor);
+        return regview.create_shared_key(path, security_descriptor, access);
     }
 #endif // #if defined(__SDDL_H__)
 #endif // #if defined(__WIL_WINREG_STL) && defined(WIL_ENABLE_EXCEPTIONS)
 
-    inline HRESULT open_key_nothrow(HKEY key, _In_opt_ PCWSTR path, ::wil::unique_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
+    inline HRESULT open_key_nothrow(HKEY key, _In_opt_ PCWSTR path, _Out_ HKEY* hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
     {
         const reg_view_details::reg_view_nothrow regview{ key };
         return regview.open_key(path, hkey, access);
@@ -1307,35 +1295,42 @@ namespace reg
 #if defined(__WIL_WINREG_STL)
     inline HRESULT open_key_nothrow(HKEY key, _In_opt_ PCWSTR path, ::wil::shared_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
     {
-        const reg_view_details::reg_view_nothrow regview{ key };
-        return regview.open_key(path, hkey, access);
+        return open_key_nothrow(key, path, hkey.addressof(), access);
     }
 #endif // #if defined(__WIL_WINREG_STL)
 
-    inline HRESULT create_key_nothrow(HKEY key, _In_ PCWSTR path, ::wil::unique_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
+    inline HRESULT create_key_nothrow(HKEY key, _In_ PCWSTR path, _Out_ HKEY* hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
     {
         const reg_view_details::reg_view_nothrow regview{ key };
         return regview.create_key(path, hkey, access);
     }
+
+    inline HRESULT create_key_nothrow(HKEY key, _In_ PCWSTR path, ::wil::unique_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
+    {
+        return create_key_nothrow(key, path, hkey.addressof(), access);
+    }
 #if defined(__SDDL_H__)
-    inline HRESULT create_key_nothrow(HKEY key, _In_ PCWSTR path, ::wil::unique_hkey& hkey, _In_opt_ PCWSTR security_descriptor, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
+    inline HRESULT create_key_nothrow(HKEY key, _In_ PCWSTR path, _In_opt_ PCWSTR security_descriptor, _Out_ HKEY* hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
     {
         const reg_view_details::reg_view_nothrow regview{ key };
-        return regview.create_key(path, hkey, access, security_descriptor);
+        return regview.create_key(path, security_descriptor, hkey, access);
+    }
+
+    inline HRESULT create_key_nothrow(HKEY key, _In_ PCWSTR path, _In_opt_ PCWSTR security_descriptor, ::wil::unique_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
+    {
+        return create_key_nothrow(key, path, security_descriptor, hkey.addressof(), access);
     }
 #endif // #if defined(__SDDL_H__)
 
 #if defined(__WIL_WINREG_STL)
     inline HRESULT create_key_nothrow(HKEY key, _In_ PCWSTR path, ::wil::shared_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
     {
-        const reg_view_details::reg_view_nothrow regview{ key };
-        return regview.create_key(path, hkey, access);
+        return create_key_nothrow(key, path, hkey.addressof(), access);
     }
 #if defined(__SDDL_H__)
-    inline HRESULT create_key_nothrow(HKEY key, _In_ PCWSTR path, ::wil::shared_hkey& hkey, _In_opt_ PCWSTR security_descriptor, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
+    inline HRESULT create_key_nothrow(HKEY key, _In_ PCWSTR path, _In_opt_ PCWSTR security_descriptor, ::wil::shared_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
     {
-        const reg_view_details::reg_view_nothrow regview{ key };
-        return regview.create_key(path, hkey, access, security_descriptor);
+        return create_key_nothrow(key, path, security_descriptor, hkey.addressof(), access);
     }
 #endif // #if defined(__SDDL_H__)
 #endif // #if defined(__WIL_WINREG_STL)
@@ -1621,7 +1616,6 @@ namespace reg
     {
         return get_value_expanded_wstring(key, nullptr, value_name);
     }
-
 #endif // #if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
 
 #if defined(_VECTOR_)
@@ -1637,7 +1631,7 @@ namespace reg
     {
         return get_value_byte_vector(key, nullptr, value_name, type);
     }
-#endif // #if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
+#endif // #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
 
 
 
@@ -1747,7 +1741,7 @@ namespace reg
     // get_value_nothrow(hkey, L"valuename", &data2);
 
     template<typename T,
-        typename std::enable_if<!std::is_same<T, wchar_t>::value>::type* = nullptr>
+        std::enable_if_t<!std::is_same_v<T, wchar_t>>* = nullptr>
     HRESULT get_value_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _In_ T* return_value) WI_NOEXCEPT
     {
         const reg_view_details::reg_view_nothrow regview{ key };
@@ -1755,7 +1749,7 @@ namespace reg
     }
 
     template<typename T,
-        typename std::enable_if<!std::is_same<T, wchar_t>::value>::type* = nullptr>
+        std::enable_if_t<!std::is_same_v<T, wchar_t>>* = nullptr>
     HRESULT get_value_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _In_ T* return_value) WI_NOEXCEPT
     {
         return ::wil::reg::get_value_nothrow(key, nullptr, value_name, return_value);
@@ -1800,7 +1794,7 @@ namespace reg
     }
     CATCH_RETURN()
 
-    inline HRESULT get_value_wstring_nothrow(HKEY key, _In_opt_ PCWSTR value_name, ::std::wstring* return_value) WI_NOEXCEPT
+        inline HRESULT get_value_wstring_nothrow(HKEY key, _In_opt_ PCWSTR value_name, ::std::wstring* return_value) WI_NOEXCEPT
     {
         return ::wil::reg::get_value_nothrow(key, nullptr, value_name, return_value);
     }
@@ -1861,7 +1855,7 @@ namespace reg
     }
     CATCH_RETURN()
 
-    inline HRESULT get_value_expanded_wstring_nothrow(HKEY key, _In_opt_ PCWSTR value_name, ::std::wstring* data) WI_NOEXCEPT
+        inline HRESULT get_value_expanded_wstring_nothrow(HKEY key, _In_opt_ PCWSTR value_name, ::std::wstring* data) WI_NOEXCEPT
     {
         return get_value_expanded_wstring_nothrow(key, nullptr, value_name, data);
     }
@@ -1892,7 +1886,7 @@ namespace reg
         return get_value_multistring(key, nullptr, value_name);
     }
 
-    inline HRESULT get_value_multistring_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _In_::std::vector<::std::wstring>* return_value) WI_NOEXCEPT try
+    inline HRESULT get_value_multistring_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _Inout_::std::vector<::std::wstring>* return_value) WI_NOEXCEPT try
     {
         return_value->clear();
 
@@ -1909,7 +1903,7 @@ namespace reg
     }
     CATCH_RETURN()
 
-    inline HRESULT get_value_multistring_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _In_::std::vector<::std::wstring>* return_value) WI_NOEXCEPT
+        inline HRESULT get_value_multistring_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _Inout_::std::vector<::std::wstring>* return_value) WI_NOEXCEPT
     {
         return ::wil::reg::get_value_multistring_nothrow(key, nullptr, value_name, return_value);
     }
@@ -1940,12 +1934,12 @@ namespace reg
     }
 
     template<>
-    inline HRESULT get_value_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _In_ ::std::vector<::std::wstring>* return_value) WI_NOEXCEPT
+    inline HRESULT get_value_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _Inout_::std::vector<::std::wstring>* return_value) WI_NOEXCEPT
     {
         return ::wil::reg::get_value_multistring_nothrow(key, nullptr, value_name, return_value);
     }
     template<>
-    inline HRESULT get_value_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _In_::std::vector<::std::wstring>* return_value) WI_NOEXCEPT
+    inline HRESULT get_value_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _Inout_::std::vector<::std::wstring>* return_value) WI_NOEXCEPT
     {
         return ::wil::reg::get_value_multistring_nothrow(key, subkey, value_name, return_value);
     }
