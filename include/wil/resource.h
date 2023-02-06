@@ -4619,16 +4619,12 @@ namespace wil
     inline wil::unique_variant make_variant_bstr_nothrow(PCWSTR source) WI_NOEXCEPT
     {
         wil::unique_variant result{};
-        V_VT(result.addressof()) = VT_BSTR;
         V_UNION(result.addressof(), bstrVal) = ::SysAllocString(source);
         if (V_UNION(result.addressof(), bstrVal) != nullptr)
         {
-            return result;
+            V_VT(result.addressof()) = VT_BSTR;
         }
-        else
-        {
-            return wil::unique_variant{};
-        }
+        return result;
     }
 
     inline wil::unique_variant make_variant_bstr_failfast(PCWSTR source) WI_NOEXCEPT
