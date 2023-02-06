@@ -816,7 +816,7 @@ namespace wil
                 ::wil::unique_hkey open_unique_key(_In_opt_ PCWSTR subKey, ::wil::reg::key_access access = ::wil::reg::key_access::read) const
                 {
                     ::wil::unique_hkey local_key{};
-                    open_key(subKey, local_key.addressof(), access);
+                    open_key(subKey, &local_key, access);
                     return local_key;
                 }
 
@@ -824,7 +824,7 @@ namespace wil
                 ::wil::shared_hkey open_shared_key(_In_opt_ PCWSTR subKey, ::wil::reg::key_access access = ::wil::reg::key_access::read) const
                 {
                     ::wil::shared_hkey local_key{};
-                    open_key(subKey, local_key.addressof(), access);
+                    open_key(subKey, &local_key, access);
                     return local_key;
                 }
 #endif // #if defined(__WIL_WINREG_STL)
@@ -846,7 +846,7 @@ namespace wil
                 ::wil::unique_hkey create_unique_key(_In_ PCWSTR subKey, ::wil::reg::key_access access = ::wil::reg::key_access::read) const
                 {
                     ::wil::unique_hkey local_key{};
-                    create_key(subKey, local_key.addressof(), access);
+                    create_key(subKey, &local_key, access);
                     return local_key;
                 }
 
@@ -854,7 +854,7 @@ namespace wil
                 ::wil::shared_hkey create_shared_key(_In_ PCWSTR subKey, ::wil::reg::key_access access = ::wil::reg::key_access::read) const
                 {
                     ::wil::shared_hkey local_key{};
-                    create_key(subKey, local_key.addressof(), access);
+                    create_key(subKey, &local_key, access);
                     return local_key;
                 }
 #endif // #if defined(__WIL_WINREG_STL)
@@ -882,7 +882,7 @@ namespace wil
                 ::wil::unique_hkey create_unique_key(_In_ PCWSTR subKey, _In_opt_ PCWSTR security_descriptor, ::wil::reg::key_access access = ::wil::reg::key_access::read) const
                 {
                     ::wil::unique_hkey local_key{};
-                    create_key(subKey, security_descriptor, local_key.addressof(), access);
+                    create_key(subKey, security_descriptor, &local_key, access);
                     return local_key;
                 }
 
@@ -890,7 +890,7 @@ namespace wil
                 ::wil::shared_hkey create_shared_key(_In_ PCWSTR subKey, _In_opt_ PCWSTR security_descriptor, ::wil::reg::key_access access = ::wil::reg::key_access::read) const
                 {
                     ::wil::shared_hkey local_key{};
-                    create_key(subKey, security_descriptor, local_key.addressof(), access);
+                    create_key(subKey, security_descriptor, & local_key, access);
                     return local_key;
                 }
 #endif // #if defined(__WIL_WINREG_STL)
@@ -1215,28 +1215,8 @@ namespace wil
             const reg_view_details::reg_view_nothrow regview{ key };
             return regview.create_key(path, security_descriptor, hkey, access);
         }
-
-        inline HRESULT create_key_nothrow(HKEY key, _In_ PCWSTR path, _In_opt_ PCWSTR security_descriptor, ::wil::unique_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
-        {
-            hkey.reset();
-            return create_key_nothrow(key, path, security_descriptor, hkey.addressof(), access);
-        }
 #endif // #if defined(__SDDL_H__)
 
-#if defined(__WIL_WINREG_STL) && defined(WIL_ENABLE_EXCEPTIONS)
-        inline HRESULT create_key_nothrow(HKEY key, _In_ PCWSTR path, ::wil::shared_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
-        {
-            hkey.reset();
-            return create_key_nothrow(key, path, hkey.addressof(), access);
-        }
-#if defined(__SDDL_H__)
-        inline HRESULT create_key_nothrow(HKEY key, _In_ PCWSTR path, _In_opt_ PCWSTR security_descriptor, ::wil::shared_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
-        {
-            hkey.reset();
-            return create_key_nothrow(key, path, security_descriptor, hkey.addressof(), access);
-        }
-#endif // #if defined(__SDDL_H__)
-#endif // #if defined(__WIL_WINREG_STL) && defined(WIL_ENABLE_EXCEPTIONS)
 
 #if defined(WIL_ENABLE_EXCEPTIONS)
         inline size_t get_child_key_count(HKEY key)
