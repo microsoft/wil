@@ -1252,16 +1252,9 @@ TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
         REQUIRE(expectedSize == 0);
 
         // fail if get* requests the wrong type
-        try
-        {
-            wil::reg::try_get_value_dword(hkey.get(), stringValueName);
-            // should throw
-            REQUIRE_FALSE(true);
-        }
-        catch (const wil::ResultException& e)
-        {
-            REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
-        }
+        DWORD dwordValue{};
+        hr = wil::reg::get_value_dword_nothrow(hkey.get(), stringValueName, &dwordValue);
+        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
     }
     SECTION("set_value_nothrow/get_value_string_nothrow: with string key")
     {
@@ -1296,16 +1289,9 @@ TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
         REQUIRE(expectedSize == 0);
 
         // fail if get* requests the wrong type
-        try
-        {
-            wil::reg::try_get_value_dword(HKEY_CURRENT_USER, testSubkey, stringValueName);
-            // should throw
-            REQUIRE_FALSE(true);
-        }
-        catch (const wil::ResultException& e)
-        {
-            REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
-        }
+        DWORD dwordValue{};
+        hr = wil::reg::get_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, &dwordValue);
+        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
     }
 }
 #endif
