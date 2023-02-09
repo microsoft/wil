@@ -1,6 +1,7 @@
-#include <memory> // For shared_event_watcher
+#include <memory>
 #include <string>
 #include <vector>
+#include <optional>
 
 #include <windows.h>
 #include <sddl.h>
@@ -488,6 +489,7 @@ TEST_CASE("BasicRegistryTests::Dwords", "[registry]")
         }
     }
 
+#if defined(__cpp_lib_optional)
     SECTION("set_value/try_get_value_dword: with open key")
     {
         wil::unique_hkey hkey;
@@ -499,21 +501,20 @@ TEST_CASE("BasicRegistryTests::Dwords", "[registry]")
             auto result = wil::reg::try_get_value_dword(hkey.get(), dwordValueName);
             REQUIRE(result);
             REQUIRE(result.has_value());
-            REQUIRE(result.value == value);
+            REQUIRE(result == value);
 
             // and verify default value name
             wil::reg::set_value(hkey.get(), nullptr, value);
             result = wil::reg::try_get_value_dword(hkey.get(), nullptr);
             REQUIRE(result);
             REQUIRE(result.has_value());
-            REQUIRE(result.value == value);
+            REQUIRE(result == value);
         }
 
         // fail get* if the value doesn't exist
         const auto result = wil::reg::try_get_value_dword(hkey.get(), (std::wstring(dwordValueName) + L"_not_valid").c_str());
         REQUIRE(!result);
         REQUIRE(!result.has_value());
-        REQUIRE(result.inner_error == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
 
         // fail if get* requests the wrong type
         try
@@ -535,21 +536,20 @@ TEST_CASE("BasicRegistryTests::Dwords", "[registry]")
             auto result = wil::reg::try_get_value_dword(HKEY_CURRENT_USER, testSubkey, dwordValueName);
             REQUIRE(result);
             REQUIRE(result.has_value());
-            REQUIRE(result.value == value);
+            REQUIRE(result == value);
 
             // and verify default value name
             wil::reg::set_value(HKEY_CURRENT_USER, testSubkey, nullptr, value);
             result = wil::reg::try_get_value_dword(HKEY_CURRENT_USER, testSubkey, nullptr);
             REQUIRE(result);
             REQUIRE(result.has_value());
-            REQUIRE(result.value == value);
+            REQUIRE(result == value);
         }
 
         // fail get* if the value doesn't exist
         const auto result = wil::reg::try_get_value_dword(HKEY_CURRENT_USER, testSubkey, (std::wstring(dwordValueName) + L"_not_valid").c_str());
         REQUIRE(!result);
         REQUIRE(!result.has_value());
-        REQUIRE(result.inner_error == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
 
         // fail if get* requests the wrong type
         try
@@ -563,6 +563,7 @@ TEST_CASE("BasicRegistryTests::Dwords", "[registry]")
             REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
         }
     }
+#endif
 #endif
 }
 
@@ -814,6 +815,7 @@ TEST_CASE("BasicRegistryTests::Qwords", "[registry]")
         }
     }
 
+#if defined(__cpp_lib_optional)
     SECTION("set_value/try_get_value_qword: with open key")
     {
         wil::unique_hkey hkey;
@@ -825,21 +827,20 @@ TEST_CASE("BasicRegistryTests::Qwords", "[registry]")
             auto result = wil::reg::try_get_value_qword(hkey.get(), qwordValueName);
             REQUIRE(result);
             REQUIRE(result.has_value());
-            REQUIRE(result.value == value);
+            REQUIRE(result == value);
 
             // and verify default value name
             wil::reg::set_value(hkey.get(), nullptr, value);
             result = wil::reg::try_get_value_qword(hkey.get(), nullptr);
             REQUIRE(result);
             REQUIRE(result.has_value());
-            REQUIRE(result.value == value);
+            REQUIRE(result == value);
         }
 
         // fail get* if the value doesn't exist
         const auto result = wil::reg::try_get_value_qword(hkey.get(), (std::wstring(qwordValueName) + L"_not_valid").c_str());
         REQUIRE(!result);
         REQUIRE(!result.has_value());
-        REQUIRE(result.inner_error == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
 
         // fail if get* requests the wrong type
         try
@@ -861,21 +862,20 @@ TEST_CASE("BasicRegistryTests::Qwords", "[registry]")
             auto result = wil::reg::try_get_value_qword(HKEY_CURRENT_USER, testSubkey, qwordValueName);
             REQUIRE(result);
             REQUIRE(result.has_value());
-            REQUIRE(result.value == value);
+            REQUIRE(result == value);
 
             // and verify default value name
             wil::reg::set_value(HKEY_CURRENT_USER, testSubkey, nullptr, value);
             result = wil::reg::try_get_value_qword(HKEY_CURRENT_USER, testSubkey, nullptr);
             REQUIRE(result);
             REQUIRE(result.has_value());
-            REQUIRE(result.value == value);
+            REQUIRE(result == value);
         }
 
         // fail get* if the value doesn't exist
         const auto result = wil::reg::try_get_value_qword(HKEY_CURRENT_USER, testSubkey, (std::wstring(qwordValueName) + L"_not_valid").c_str());
         REQUIRE(!result);
         REQUIRE(!result.has_value());
-        REQUIRE(result.inner_error == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
 
         // fail if get* requests the wrong type
         try
@@ -889,6 +889,7 @@ TEST_CASE("BasicRegistryTests::Qwords", "[registry]")
             REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
         }
     }
+#endif
 #endif
 }
 
@@ -1140,6 +1141,7 @@ TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
         }
     }
 
+#if defined(__cpp_lib_optional)
     SECTION("set_value/try_get_value_wstring: with open key")
     {
         wil::unique_hkey hkey;
@@ -1151,21 +1153,20 @@ TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
             auto result = wil::reg::try_get_value_wstring(hkey.get(), stringValueName);
             REQUIRE(result);
             REQUIRE(result.has_value());
-            REQUIRE(result.value == value);
+            REQUIRE(result == value);
 
             // and verify default value name
             wil::reg::set_value(hkey.get(), nullptr, value.c_str());
             result = wil::reg::try_get_value_wstring(hkey.get(), nullptr);
             REQUIRE(result);
             REQUIRE(result.has_value());
-            REQUIRE(result.value == value);
+            REQUIRE(result == value);
         }
 
         // fail get* if the value doesn't exist
         const auto result = wil::reg::try_get_value_wstring(hkey.get(), (std::wstring(stringValueName) + L"_not_valid").c_str());
         REQUIRE(!result);
         REQUIRE(!result.has_value());
-        REQUIRE(result.inner_error == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
 
         // fail if get* requests the wrong type
         try
@@ -1187,21 +1188,20 @@ TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
             auto result = wil::reg::try_get_value_wstring(HKEY_CURRENT_USER, testSubkey, stringValueName);
             REQUIRE(result);
             REQUIRE(result.has_value());
-            REQUIRE(result.value == value);
+            REQUIRE(result == value);
 
             // and verify default value name
             wil::reg::set_value(HKEY_CURRENT_USER, testSubkey, nullptr, value.c_str());
             result = wil::reg::try_get_value_wstring(HKEY_CURRENT_USER, testSubkey, nullptr);
             REQUIRE(result);
             REQUIRE(result.has_value());
-            REQUIRE(result.value == value);
+            REQUIRE(result == value);
         }
 
         // fail get* if the value doesn't exist
         const auto result = wil::reg::try_get_value_wstring(HKEY_CURRENT_USER, testSubkey, (std::wstring(stringValueName) + L"_not_valid").c_str());
         REQUIRE(!result);
         REQUIRE(!result.has_value());
-        REQUIRE(result.inner_error == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
 
         // fail if get* requests the wrong type
         try
@@ -1215,6 +1215,7 @@ TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
             REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
         }
     }
+#endif
 
     SECTION("set_value_nothrow/get_value_string_nothrow: with open key")
     {
@@ -1774,6 +1775,7 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry][get_registry_string]"
         }
     }
 
+#if defined(__cpp_lib_optional)
     SECTION("set_value/try_get_value_multistring: with open key")
     {
         wil::unique_hkey hkey;
@@ -1785,21 +1787,20 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry][get_registry_string]"
             auto result = wil::reg::try_get_value_multistring(hkey.get(), stringValueName);
             REQUIRE(result);
             REQUIRE(result.has_value());
-            REQUIRE(result.value == value);
+            REQUIRE(result == value);
 
             // and verify default value name
             wil::reg::set_value(hkey.get(), nullptr, value);
             result = wil::reg::try_get_value_multistring(hkey.get(), nullptr);
             REQUIRE(result);
             REQUIRE(result.has_value());
-            REQUIRE(result.value == value);
+            REQUIRE(result == value);
         }
 
         // fail get* if the value doesn't exist
         const auto result = wil::reg::try_get_value_multistring(hkey.get(), (std::wstring(stringValueName) + L"_not_valid").c_str());
         REQUIRE(!result);
         REQUIRE(!result.has_value());
-        REQUIRE(result.inner_error == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
 
         // fail if get* requests the wrong type
         try
@@ -1822,21 +1823,20 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry][get_registry_string]"
             auto result = wil::reg::try_get_value_multistring(HKEY_CURRENT_USER, testSubkey, stringValueName);
             REQUIRE(result);
             REQUIRE(result.has_value());
-            REQUIRE(result.value == value);
+            REQUIRE(result == value);
 
             // and verify default value name
             wil::reg::set_value(HKEY_CURRENT_USER, testSubkey, nullptr, value);
             result = wil::reg::try_get_value_multistring(HKEY_CURRENT_USER, testSubkey, nullptr);
             REQUIRE(result);
             REQUIRE(result.has_value());
-            REQUIRE(result.value == value);
+            REQUIRE(result == value);
         }
 
         // fail get* if the value doesn't exist
         const auto result = wil::reg::try_get_value_multistring(HKEY_CURRENT_USER, testSubkey, (std::wstring(stringValueName) + L"_not_valid").c_str());
         REQUIRE(!result);
         REQUIRE(!result.has_value());
-        REQUIRE(result.inner_error == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
 
         // fail if get* requests the wrong type
         try
@@ -1850,6 +1850,7 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry][get_registry_string]"
             REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
         }
     }
+#endif
 #endif
 }
 #endif

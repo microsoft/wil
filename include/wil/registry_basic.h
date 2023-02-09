@@ -16,7 +16,7 @@
 // Include <string> and/or <vector> to use the STL integrated functions
 // Include sddl.h if wanting to pass security descriptor strings to create keys
 
-#if defined(_STRING_) || defined (_VECTOR_)
+#if defined(_STRING_) || defined (_VECTOR_) || (defined (__cpp_lib_optional))
 #include <functional>
 #include <iterator>
 #endif
@@ -38,12 +38,12 @@ namespace wil
 {
     namespace reg
     {
-        constexpr bool is_value_was_not_found(HRESULT hr) WI_NOEXCEPT
+        constexpr bool is_hresult_not_found(HRESULT hr) WI_NOEXCEPT
         {
             return hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND);
         }
 
-        constexpr bool is_value_was_too_large(HRESULT hr) WI_NOEXCEPT
+        constexpr bool is_hresult_buffer_too_small(HRESULT hr) WI_NOEXCEPT
         {
             return hr == HRESULT_FROM_WIN32(ERROR_MORE_DATA);
         }
@@ -56,9 +56,6 @@ namespace wil
 
         namespace details
         {
-            constexpr uint32_t iterator_end_offset = 0xffffffff;
-            constexpr size_t iterator_default_buffer_size = 16;
-
             constexpr DWORD get_value_flags_from_value_type(DWORD type) WI_NOEXCEPT
             {
                 switch (type)
@@ -89,14 +86,13 @@ namespace wil
                     return KEY_READ;
                 case key_access::readwrite:
                     return KEY_ALL_ACCESS;
-                default:
-                    FAIL_FAST();
                 }
+                FAIL_FAST();
             }
 
 #if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
             template <class InputIt>
-            ::std::vector<wchar_t> get_multistring_from_wstrings(InputIt first, InputIt last)
+            ::std::vector<wchar_t> get_multistring_from_wstrings(const InputIt& first, const InputIt& last)
             {
                 ::std::vector<wchar_t> multistring;
 
@@ -152,34 +148,7 @@ namespace wil
                 }
                 return strings;
             }
-
 #endif // #if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
-
-            // the registry iterator class requires <vector>
-#if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
-            enum class iterator_creation_flag
-            {
-                begin,
-                end
-            };
-
-            struct key_iterator_data
-            {
-                // *not* owning the raw HKEY resource
-                HKEY m_hkey{};
-                ::std::vector<wchar_t> m_nextName;
-                uint32_t m_index = iterator_end_offset;
-            };
-
-            struct value_iterator_data
-            {
-                // *not* owning the raw HKEY resource
-                HKEY m_hkey{};
-                DWORD m_nextType = REG_NONE;
-                ::std::vector<wchar_t> m_nextName;
-                uint32_t m_index = iterator_end_offset;
-            };
-#endif // #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
 
 #if defined(__SDDL_H__)
             template <typename err_policy>
@@ -199,272 +168,7 @@ namespace wil
                 return securityDescriptor;
             }
 #endif // #if defined(__SDDL_H__)
-
-            constexpr HKEY get_key(HKEY h) WI_NOEXCEPT
-            {
-                return h;
-            }
-
-            inline HKEY get_key(const ::wil::unique_hkey& h) WI_NOEXCEPT
-            {
-                return h.get();
-            }
-
-#if defined(__WIL_WINREG_STL)
-            inline HKEY get_key(const ::wil::shared_hkey& h) WI_NOEXCEPT
-            {
-                return h.get();
-            }
-#endif // #if defined(__WIL_WINREG_STL)
-
-#if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
-            // These iterator classes facilitates STL iterator semantics to walk a set of subkeys and values
-            // within an instantiated Key object. This can be directly constructed passing a unique_hkey
-            // but will likely be more commonly constructed from reg_view_t::reg_enum_keys() and reg_view_t::reg_enum_values()
-            template <typename T>
-            class iterator_t;
-
-            // The template implementation for registry iterator support 2 types - for keys and values
-            // These typedefs are designed to simplify types for callers and mask the implementation details
-            using key_iterator = iterator_t<::wil::reg::details::key_iterator_data>;
-            using value_iterator = iterator_t<::wil::reg::details::value_iterator_data>;
-
-            template <typename T>
-            class iterator_t
-            {
-            public:
-                // defining iterator_traits allows STL <algorithm> functions to be used with this iterator class.
-                // Notice this is a forward_iterator
-                // - does not support random-access (e.g. vector::iterator)
-                // - does not support bi-directional access (e.g. list::iterator)
-                using iterator_category = ::std::forward_iterator_tag;
-                using value_type = PCWSTR;
-                using difference_type = size_t;
-                using distance_type = size_t;
-                using pointer = PCWSTR*;
-                using reference = PCWSTR;
-
-                iterator_t() = default;
-                ~iterator_t() = default;
-
-                iterator_t(HKEY hkey, ::wil::reg::details::iterator_creation_flag type)
-                {
-                    m_data.m_hkey = hkey;
-                    m_data.m_nextName.resize(type == ::wil::reg::details::iterator_creation_flag::begin ? ::wil::reg::details::iterator_default_buffer_size : 0);
-                    m_data.m_index = type == ::wil::reg::details::iterator_creation_flag::begin ? 0 : ::wil::reg::details::iterator_end_offset;
-
-                    if (type == ::wil::reg::details::iterator_creation_flag::begin)
-                    {
-                        this->enumerate_next();
-                    }
-                }
-
-                // copy construction can throw ::std::bad_alloc
-                iterator_t(const iterator_t&) = default;
-                iterator_t& operator=(const iterator_t&) = default;
-
-                // moves cannot fail/throw
-                iterator_t(iterator_t&& rhs) WI_NOEXCEPT = default;
-                iterator_t& operator=(iterator_t&& rhs) WI_NOEXCEPT = default;
-
-                // operator support
-                PCWSTR operator*() const
-                {
-                    if (::wil::reg::details::iterator_end_offset == m_data.m_index)
-                    {
-                        THROW_WIN32(ERROR_NO_MORE_ITEMS);
-                    }
-                    return m_data.m_nextName.size() < 2 ? L"" : &m_data.m_nextName[0];
-                }
-
-                bool operator==(const iterator_t& rhs) const WI_NOEXCEPT
-                {
-                    if (::wil::reg::details::iterator_end_offset == m_data.m_index || ::wil::reg::details::iterator_end_offset == rhs.m_data.m_index)
-                    {
-                        // if either is not initialized (or end), both must not be initialized (or end) to be equal
-                        return m_data.m_index == rhs.m_data.m_index;
-                    }
-                    return m_data.m_hkey == rhs.m_data.m_hkey && m_data.m_index == rhs.m_data.m_index;
-                }
-
-                bool operator!=(const iterator_t& rhs) const WI_NOEXCEPT
-                {
-                    return !(*this == rhs);
-                }
-
-                // pre-increment
-                iterator_t& operator++()
-                {
-                    this->operator +=(1);
-                    return *this;
-                }
-
-                // increment by integer
-                iterator_t& operator+=(size_t offset)
-                {
-                    // fail on overflow
-                    uint32_t newIndex = m_data.m_index + static_cast<uint32_t>(offset);
-                    if (newIndex < m_data.m_index)
-                    {
-                        THROW_HR(E_INVALIDARG);
-                    }
-                    // fail if this creates an end iterator
-                    if (newIndex == ::wil::reg::details::iterator_end_offset)
-                    {
-                        THROW_HR(E_INVALIDARG);
-                    }
-
-                    m_data.m_index = newIndex;
-                    this->enumerate_next();
-                    return *this;
-                }
-
-                // not supporting post-increment - which would require copy-construction
-                iterator_t operator++(int) = delete;
-
-                // access type information directly off the iterator
-                [[nodiscard]] DWORD type() const WI_NOEXCEPT;
-
-            private:
-                void make_end_iterator()
-                {
-                    T temp;
-                    m_data = temp;
-                }
-
-                // must be specialized per template type
-                void enumerate_next();
-
-                // container based on the class template type
-                T m_data{};
-            };
-
-            template <>
-            inline void iterator_t<::wil::reg::details::key_iterator_data>::enumerate_next()
-            {
-                for (auto vectorSize = static_cast<DWORD>(m_data.m_nextName.capacity());;)
-                {
-                    constexpr LPDWORD null_lpReserved{ nullptr };
-                    constexpr LPWSTR null_lpClass{ nullptr };
-                    constexpr LPDWORD null_lpcchClass{ nullptr };
-                    constexpr PFILETIME null_lpftLastWriteTime{ nullptr };
-
-                    m_data.m_nextName.resize(vectorSize);
-                    auto tempVectorSize = vectorSize;
-                    const auto error = ::RegEnumKeyExW(
-                        m_data.m_hkey,
-                        m_data.m_index,
-                        m_data.m_nextName.data(),
-                        &tempVectorSize,
-                        null_lpReserved,
-                        null_lpClass,
-                        null_lpcchClass,
-                        null_lpftLastWriteTime);
-
-                    if (error == ERROR_SUCCESS)
-                    {
-                        break;
-                    }
-                    if (error == ERROR_NO_MORE_ITEMS)
-                    {
-                        // set the end() iterator
-                        this->make_end_iterator();
-                        break;
-                    }
-                    if (error == ERROR_MORE_DATA)
-                    {
-                        // resize to one-more-than-returned for the null-terminator
-                        // can continue the loop
-                        vectorSize = tempVectorSize + 1;
-                        continue;
-                    }
-
-                    // any other error will throw
-                    THROW_WIN32(error);
-                }
-            }
-
-            template <>
-            inline void iterator_t<::wil::reg::details::value_iterator_data>::enumerate_next()
-            {
-                for (auto vectorSize = static_cast<DWORD>(m_data.m_nextName.capacity());;)
-                {
-                    constexpr LPDWORD null_lpReserved{ nullptr };
-                    constexpr LPBYTE null_lpData{ nullptr };
-                    constexpr LPDWORD null_lpcbData{ nullptr };
-
-                    m_data.m_nextName.resize(vectorSize);
-                    auto tempVectorSize = vectorSize;
-                    const auto error = ::RegEnumValueW(
-                        m_data.m_hkey,
-                        m_data.m_index,
-                        m_data.m_nextName.data(),
-                        &tempVectorSize,
-                        null_lpReserved,
-                        &m_data.m_nextType,
-                        null_lpData,
-                        null_lpcbData);
-                    if (error == ERROR_SUCCESS)
-                    {
-                        break;
-                    }
-
-                    if (error == ERROR_NO_MORE_ITEMS)
-                    {
-                        // set the end() iterator
-                        this->make_end_iterator();
-                        break;
-                    }
-
-                    if (error == ERROR_MORE_DATA)
-                    {
-                        // resize to one-more-than-returned for the null-terminator
-                        // can continue the loop
-                        vectorSize = tempVectorSize + 1;
-                        continue;
-                    }
-
-                    // any other error will throw
-                    THROW_WIN32(error);
-                }
-            }
-
-            // ReSharper disable once CppMemberFunctionMayBeStatic
-            template <>
-            inline DWORD iterator_t<::wil::reg::details::key_iterator_data>::type() const WI_NOEXCEPT
-            {
-                return REG_NONE;
-            }
-
-            template <>
-            inline DWORD iterator_t<::wil::reg::details::value_iterator_data>::type() const WI_NOEXCEPT
-            {
-                return m_data.m_nextType;
-            }
-#endif // #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
         } // namespace details
-
-        template <typename T>
-        struct optional_value
-        {
-            [[nodiscard]] constexpr bool has_value() const WI_NOEXCEPT
-            {
-                return value_assigned;
-            }
-            constexpr explicit operator bool() const WI_NOEXCEPT
-            {
-                return value_assigned;
-            }
-
-            [[nodiscard]] constexpr const T& value_or(const T& left_value) const
-            {
-                return value_assigned ? value : left_value;
-            }
-
-            T value{};
-            bool value_assigned{ false };
-            HRESULT inner_error{ E_NOT_VALID_STATE };
-        };
 
         namespace reg_view_details
         {
@@ -791,25 +495,24 @@ namespace wil
             }
 
             // type T is the owning type for storing a key: HKEY, ::wil::unique_hkey, ::wil::shared_hkey
-            template <typename T, typename err_policy = ::wil::err_exception_policy>
+            template <typename err_policy = ::wil::err_exception_policy>
             class reg_view_t
             {
             public:
-                template <typename K>
-                explicit reg_view_t(K&& key) WI_NOEXCEPT :
-                    m_key(::wistd::forward<K>(key))
+                explicit reg_view_t(HKEY key) WI_NOEXCEPT :
+                    m_key(key)
                 {
                 }
-
-                [[nodiscard]] HKEY get_key() const WI_NOEXCEPT
-                {
-                    return ::wil::reg::details::get_key(m_key);
-                }
+                ~reg_view_t() = default;
+                reg_view_t(const reg_view_t&) = delete;
+                reg_view_t& operator=(const reg_view_t&) = delete;
+                reg_view_t(reg_view_t&&) = delete;
+                reg_view_t& operator=(reg_view_t&&) = delete;
 
                 typename err_policy::result open_key(_In_opt_ PCWSTR subKey, _Out_ HKEY* hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) const
                 {
                     constexpr DWORD zero_ulOptions{ 0 };
-                    auto error = ::RegOpenKeyExW(::wil::reg::details::get_key(m_key), subKey, zero_ulOptions, ::wil::reg::details::get_access_flags(access), hkey);
+                    const auto error = ::RegOpenKeyExW(m_key, subKey, zero_ulOptions, ::wil::reg::details::get_access_flags(access), hkey);
                     return err_policy::HResult(HRESULT_FROM_WIN32(error));
                 }
 
@@ -839,7 +542,7 @@ namespace wil
                     constexpr LPSECURITY_ATTRIBUTES null_lpSecurityAttributes{ nullptr };
                     DWORD disposition{ 0 };
                     const auto error =
-                        ::RegCreateKeyExW(::wil::reg::details::get_key(m_key), subKey, zero_Reserved, null_lpClass, zero_dwOptions, ::wil::reg::details::get_access_flags(access), null_lpSecurityAttributes, hkey, &disposition);
+                        ::RegCreateKeyExW(m_key, subKey, zero_Reserved, null_lpClass, zero_dwOptions, ::wil::reg::details::get_access_flags(access), null_lpSecurityAttributes, hkey, &disposition);
                     return err_policy::HResult(HRESULT_FROM_WIN32(error));
                 }
 
@@ -875,7 +578,7 @@ namespace wil
                     constexpr DWORD zero_dwOptions{ 0 };
                     DWORD disposition{ 0 };
                     const auto error =
-                        ::RegCreateKeyExW(::wil::reg::details::get_key(m_key), subKey, zero_Reserved, null_lpClass, zero_dwOptions, ::wil::reg::details::get_access_flags(access), security_descriptor ? &security_attributes : nullptr, hkey, &disposition);
+                        ::RegCreateKeyExW(m_key, subKey, zero_Reserved, null_lpClass, zero_dwOptions, ::wil::reg::details::get_access_flags(access), security_descriptor ? &security_attributes : nullptr, hkey, &disposition);
                     return err_policy::HResult(HRESULT_FROM_WIN32(error));
                 }
 
@@ -890,7 +593,7 @@ namespace wil
                 ::wil::shared_hkey create_shared_key(_In_ PCWSTR subKey, _In_opt_ PCWSTR security_descriptor, ::wil::reg::key_access access = ::wil::reg::key_access::read) const
                 {
                     ::wil::shared_hkey local_key{};
-                    create_key(subKey, security_descriptor, & local_key, access);
+                    create_key(subKey, security_descriptor, &local_key, access);
                     return local_key;
                 }
 #endif // #if defined(__WIL_WINREG_STL)
@@ -898,7 +601,7 @@ namespace wil
 
                 typename err_policy::result delete_key(_In_opt_ PCWSTR sub_key) WI_NOEXCEPT
                 {
-                    auto error = ::RegDeleteTreeW(::wil::reg::details::get_key(m_key), sub_key);
+                    auto error = ::RegDeleteTreeW(m_key, sub_key);
                     if (error == ERROR_FILE_NOT_FOUND)
                     {
                         error = ERROR_SUCCESS;
@@ -908,11 +611,10 @@ namespace wil
 
                 typename err_policy::result delete_value(_In_opt_ PCWSTR value_name) WI_NOEXCEPT
                 {
-                    return err_policy::HResult(HRESULT_FROM_WIN32(::RegDeleteValueW(::wil::reg::details::get_key(m_key), value_name)));
+                    return err_policy::HResult(HRESULT_FROM_WIN32(::RegDeleteValueW(m_key, value_name)));
                 }
 
             private:
-
                 template <typename R, typename get_value_internal_policy = err_policy>
                 typename get_value_internal_policy::result get_value_internal(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, R& return_value, DWORD type = ::wil::reg::reg_view_details::get_value_type<R>()) const
                 {
@@ -921,7 +623,7 @@ namespace wil
                         constexpr LPDWORD null_pdwType{ nullptr };
                         DWORD data_size_bytes{ ::wil::reg::reg_view_details::get_buffer_size(return_value) };
                         auto error = ::RegGetValueW(
-                            ::wil::reg::details::get_key(m_key),
+                            m_key,
                             subkey,
                             value_name,
                             ::wil::reg::details::get_value_flags_from_value_type(type),
@@ -968,7 +670,6 @@ namespace wil
                 }
 
             public:
-
                 template <typename R>
                 typename err_policy::result get_value(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, R& return_value, DWORD type = ::wil::reg::reg_view_details::get_value_type<R>()) const
                 {
@@ -981,40 +682,40 @@ namespace wil
                     return get_value_internal(nullptr, value_name, return_value, type);
                 }
 
+#if defined(__cpp_lib_optional)
                 // intended for err_exception_policy as err_returncode_policy will not get an error code
                 template <typename R>
-                ::wil::reg::optional_value<R> try_get_value(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, DWORD type = ::wil::reg::reg_view_details::get_value_type<R>()) const
+                ::std::optional<R> try_get_value(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, DWORD type = ::wil::reg::reg_view_details::get_value_type<R>()) const
                 {
-                    ::wil::reg::optional_value<R> return_value;
-                    return_value.inner_error = get_value_internal<R, ::wil::err_returncode_policy>(subkey, value_name, return_value.value, type);
-                    if (SUCCEEDED(return_value.inner_error))
+                    R value{};
+                    const auto hr = get_value_internal<R, ::wil::err_returncode_policy>(subkey, value_name, value, type);
+                    if (SUCCEEDED(hr))
                     {
-                        return_value.value_assigned = true;
-                        return return_value;
+                        return {value};
                     }
 
-                    if (return_value.inner_error == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+                    if (hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
                     {
-                        return_value.value = {};
-                        return return_value;
+                        return ::std::nullopt;
                     }
 
                     // throw if exception policy
-                    err_policy::HResult(HRESULT_FROM_WIN32(return_value.inner_error));
-                    return return_value;
+                    err_policy::HResult(HRESULT_FROM_WIN32(hr));
+                    return ::std::nullopt;
                 }
 
                 template <typename R>
-                ::wil::reg::optional_value<R>& try_get_value(_In_opt_ PCWSTR value_name, DWORD type = ::wil::reg::reg_view_details::get_value_type<R>()) const
+                ::std::optional<R>& try_get_value(_In_opt_ PCWSTR value_name, DWORD type = ::wil::reg::reg_view_details::get_value_type<R>()) const
                 {
                     return try_get_value<R>(nullptr, value_name, type);
                 }
+#endif // #if defined(__cpp_lib_optional)
 
                 template <typename R>
                 typename err_policy::result set_value_with_type(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const R& value, DWORD type) const
                 {
                     const auto error = ::RegSetKeyValueW(
-                        ::wil::reg::details::get_key(m_key),
+                        m_key,
                         subkey,
                         value_name,
                         type,
@@ -1044,7 +745,7 @@ namespace wil
                     const auto* byteArray = reinterpret_cast<const BYTE*>(&multiStringWcharVector[0]);
                     const auto byteArrayLength = static_cast<DWORD>(multiStringWcharVector.size() * sizeof(wchar_t));
                     const auto error = ::RegSetKeyValueW(
-                        ::wil::reg::details::get_key(m_key),
+                        m_key,
                         subkey,
                         value_name,
                         REG_MULTI_SZ,
@@ -1063,79 +764,18 @@ namespace wil
                     return set_value_multistring(nullptr, value_name, data);
                 }
 #endif // #if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
-
-#if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
-                struct key_enumerator
-                {
-                    explicit key_enumerator(HKEY key) :
-                        m_hkey(key)
-                    {
-                    }
-
-                    [[nodiscard]] ::wil::reg::details::key_iterator begin() const
-                    {
-                        return ::wil::reg::details::key_iterator(m_hkey, ::wil::reg::details::iterator_creation_flag::begin);
-                    }
-
-                    [[nodiscard]] ::wil::reg::details::key_iterator end() const WI_NOEXCEPT
-                    {
-                        return ::wil::reg::details::key_iterator(m_hkey, ::wil::reg::details::iterator_creation_flag::end);
-                    }
-
-                private:
-                    friend class reg_view_t;
-                    // non-owning resource (just get a copy from the owner)
-                    HKEY m_hkey;
-                };
-
-                struct value_enumerator
-                {
-                    explicit value_enumerator(HKEY key) :
-                        m_hkey(key)
-                    {
-                    }
-
-                    // begin() will throw Registry::Exception on error 
-                    [[nodiscard]] ::wil::reg::details::value_iterator begin() const
-                    {
-                        return ::wil::reg::details::value_iterator(m_hkey, ::wil::reg::details::iterator_creation_flag::begin);
-                    }
-
-                    [[nodiscard]] ::wil::reg::details::value_iterator end() const WI_NOEXCEPT
-                    {
-                        return ::wil::reg::details::value_iterator(m_hkey, ::wil::reg::details::iterator_creation_flag::end);
-                    }
-
-                private:
-                    friend class reg_view_t;
-                    // non-owning resource (just get a copy from the owner)
-                    HKEY m_hkey;
-                };
-
-                [[nodiscard]] key_enumerator reg_enum_keys() const
-                {
-                    return key_enumerator(::wil::reg::details::get_key(m_key));
-                }
-
-                [[nodiscard]] value_enumerator reg_enum_values() const
-                {
-                    return value_enumerator(::wil::reg::details::get_key(m_key));
-                }
-#endif // #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
-
             private:
-                T m_key{};
+                const HKEY m_key{};
             };
 
             // reg_view with the raw HKEY type is non-owning
-            using reg_view_nothrow = reg_view_details::reg_view_t<HKEY, ::wil::err_returncode_policy>;
+            using reg_view_nothrow = reg_view_details::reg_view_t<::wil::err_returncode_policy>;
 
 #if defined(WIL_ENABLE_EXCEPTIONS)
             // reg_view with the raw HKEY type is non-owning
-            using reg_view = reg_view_details::reg_view_t<HKEY, ::wil::err_exception_policy>;
+            using reg_view = reg_view_details::reg_view_t<::wil::err_exception_policy>;
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS)
         }
-
 
         //
         // open_*_key functions (throwing)
@@ -1154,7 +794,6 @@ namespace wil
             return regview.open_shared_key(path, access);
         }
 #endif // #if defined(__WIL_WINREG_STL)
-
 
         //
         // create_*_key functions (throwing)
@@ -1189,7 +828,6 @@ namespace wil
 #endif // #if defined(__SDDL_H__)
 #endif // #if defined(__WIL_WINREG_STL)
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS)
-
 
         //
         // open_key_nothrow functions
@@ -1254,7 +892,6 @@ namespace wil
             return S_OK;
         }
 
-
         //
         // set_value* (throwing) functions
         //
@@ -1265,6 +902,7 @@ namespace wil
             const reg_view_details::reg_view regview{ key };
             return regview.set_value(subkey, value_name, data);
         }
+
         template <typename T>
         void set_value(HKEY key, _In_opt_ PCWSTR value_name, const T& data)
         {
@@ -1311,7 +949,6 @@ namespace wil
         {
             return ::wil::reg::set_value_expanded_string(key, nullptr, value_name, data);
         }
-
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS)
 
 #if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
@@ -1338,7 +975,6 @@ namespace wil
         }
 #endif // #if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
 
-
         //
         // set_value_*_nothrow functions
         //
@@ -1348,6 +984,7 @@ namespace wil
             const reg_view_details::reg_view_nothrow regview{ key };
             return regview.set_value(subkey, value_name, data);
         }
+
         template <typename T>
         HRESULT set_value_nothrow(HKEY key, _In_opt_ PCWSTR value_name, const T& data) WI_NOEXCEPT
         {
@@ -1361,6 +998,7 @@ namespace wil
             const reg_view_details::reg_view_nothrow regview{ key };
             return regview.set_value_multistring(subkey, value_name, data);
         }
+
         template <>
         inline HRESULT set_value_nothrow(HKEY key, _In_opt_ PCWSTR value_name, const ::std::vector<::std::wstring>& data) WI_NOEXCEPT
         {
@@ -1415,12 +1053,12 @@ namespace wil
             const reg_view_details::reg_view_nothrow regview{ key };
             return regview.set_value_multistring(subkey, value_name, data);
         }
+
         inline HRESULT set_value_multistring_nothrow(HKEY key, _In_ PCWSTR value_name, const ::std::vector<::std::wstring>& data) WI_NOEXCEPT
         {
             return ::wil::reg::set_value_multistring_nothrow(key, nullptr, value_name, data);
         }
 #endif // #if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
-
 
         //
         // get_value* (throwing) functions
@@ -1484,7 +1122,7 @@ namespace wil
         {
             return get_value_expanded_wstring(key, nullptr, value_name);
         }
-#endif // #if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
+#endif // #if defined(_STRING_)
 
 #if defined(_VECTOR_)
         inline ::std::vector<BYTE> get_value_byte_vector(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, DWORD type)
@@ -1499,78 +1137,78 @@ namespace wil
         {
             return get_value_byte_vector(key, nullptr, value_name, type);
         }
-#endif // #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
-
+#endif // #if defined(_VECTOR_)
 
         //
         // try_get_value* (throwing) functions
         //
+#if defined(__cpp_lib_optional)
         template <typename T>
-        ::wil::reg::optional_value<T> try_get_value(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
+        ::std::optional<T> try_get_value(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
         {
             const reg_view_details::reg_view regview{ key };
             return regview.try_get_value<T>(subkey, value_name);
         }
 
-        inline ::wil::reg::optional_value<DWORD> try_get_value_dword(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
+        inline ::std::optional<DWORD> try_get_value_dword(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
         {
             return wil::reg::try_get_value<DWORD>(key, subkey, value_name);
         }
 
-        inline ::wil::reg::optional_value<DWORD> try_get_value_dword(HKEY key, _In_opt_ PCWSTR value_name)
+        inline ::std::optional<DWORD> try_get_value_dword(HKEY key, _In_opt_ PCWSTR value_name)
         {
             return wil::reg::try_get_value<DWORD>(key, nullptr, value_name);
         }
 
-        inline ::wil::reg::optional_value<DWORD64> try_get_value_qword(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
+        inline ::std::optional<DWORD64> try_get_value_qword(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
         {
             return wil::reg::try_get_value<DWORD64>(key, subkey, value_name);
         }
 
-        inline ::wil::reg::optional_value<DWORD64> try_get_value_qword(HKEY key, _In_opt_ PCWSTR value_name)
+        inline ::std::optional<DWORD64> try_get_value_qword(HKEY key, _In_opt_ PCWSTR value_name)
         {
             return wil::reg::try_get_value<DWORD64>(key, nullptr, value_name);
         }
 
 #if defined(_VECTOR_)
-        inline ::wil::reg::optional_value<::std::vector<BYTE>> try_get_value_byte_vector(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, DWORD type)
+        inline ::std::optional<::std::vector<BYTE>> try_get_value_byte_vector(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, DWORD type)
         {
             const reg_view_details::reg_view regview{ key };
             return regview.try_get_value<::std::vector<BYTE>>(subkey, value_name, type);
         }
 
-        inline ::wil::reg::optional_value<::std::vector<BYTE>> try_get_value_byte_vector(HKEY key, _In_opt_ PCWSTR value_name, DWORD type)
+        inline ::std::optional<::std::vector<BYTE>> try_get_value_byte_vector(HKEY key, _In_opt_ PCWSTR value_name, DWORD type)
         {
             return try_get_value_byte_vector(key, nullptr, value_name, type);
         }
-#endif // #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
+#endif // #if defined(_VECTOR_)
 
 
 #if defined(_STRING_)
-        inline ::wil::reg::optional_value<::std::wstring> try_get_value_wstring(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
+        inline ::std::optional<::std::wstring> try_get_value_wstring(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
         {
             const reg_view_details::reg_view regview{ key };
             return regview.try_get_value<::std::wstring>(subkey, value_name);
         }
 
-        inline ::wil::reg::optional_value<::std::wstring> try_get_value_wstring(HKEY key, _In_opt_ PCWSTR value_name)
+        inline ::std::optional<::std::wstring> try_get_value_wstring(HKEY key, _In_opt_ PCWSTR value_name)
         {
             return try_get_value_wstring(key, nullptr, value_name);
         }
 
-        inline ::wil::reg::optional_value<::std::wstring> try_get_value_expanded_wstring(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
+        inline ::std::optional<::std::wstring> try_get_value_expanded_wstring(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
         {
             const reg_view_details::reg_view regview{ key };
             return regview.try_get_value<::std::wstring>(subkey, value_name, REG_EXPAND_SZ);
         }
 
-        inline ::wil::reg::optional_value<::std::wstring> try_get_value_expanded_wstring(HKEY key, _In_opt_ PCWSTR value_name)
+        inline ::std::optional<::std::wstring> try_get_value_expanded_wstring(HKEY key, _In_opt_ PCWSTR value_name)
         {
             return try_get_value_expanded_wstring(key, nullptr, value_name);
         }
-#endif // #if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
+#endif // #if defined(_STRING_)
+#endif // #if defined(__cpp_lib_optional)
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS)
-
 
         //
         // get_value_*_nothrow (throwing) functions
@@ -1660,7 +1298,7 @@ namespace wil
         }
         CATCH_RETURN()
 
-            inline HRESULT get_value_wstring_nothrow(HKEY key, _In_opt_ PCWSTR value_name, ::std::wstring* return_value) WI_NOEXCEPT
+        inline HRESULT get_value_wstring_nothrow(HKEY key, _In_opt_ PCWSTR value_name, ::std::wstring* return_value) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_nothrow(key, nullptr, value_name, return_value);
         }
@@ -1670,20 +1308,19 @@ namespace wil
         inline HRESULT get_value_byte_vector_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, DWORD type, ::std::vector<BYTE>* data) WI_NOEXCEPT try
         {
             const reg_view_details::reg_view_nothrow regview{ key };
-            ::wil::reg::optional_value<::std::vector<BYTE>> registry_value{ regview.try_get_value<::std::vector<BYTE>>(subkey, value_name, type) };
-            RETURN_IF_FAILED(registry_value.inner_error);
+            ::std::vector<BYTE> value{};
+            RETURN_IF_FAILED(regview.get_value<::std::vector<BYTE>>(subkey, value_name, value, type));
 
-            data->swap(registry_value.value);
+            data->swap(value);
             return S_OK;
         }
         CATCH_RETURN()
 
-            inline HRESULT get_value_byte_vector_nothrow(HKEY key, _In_opt_ PCWSTR value_name, DWORD type, ::std::vector<BYTE>* data) WI_NOEXCEPT
+        inline HRESULT get_value_byte_vector_nothrow(HKEY key, _In_opt_ PCWSTR value_name, DWORD type, ::std::vector<BYTE>* data) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_byte_vector_nothrow(key, nullptr, value_name, type, data);
         }
 #endif // #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
-
 
         //
         // get_value_expanded_string_nothrow (throwing) functions
@@ -1712,15 +1349,15 @@ namespace wil
         inline HRESULT get_value_expanded_wstring_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, ::std::wstring* data) WI_NOEXCEPT try
         {
             const reg_view_details::reg_view_nothrow regview{ key };
-            ::wil::reg::optional_value<::std::wstring> registry_value{ regview.try_get_value<::std::wstring>(subkey, value_name, REG_EXPAND_SZ) };
-            RETURN_IF_FAILED(registry_value.inner_error);
+            std::wstring value{};
+            RETURN_IF_FAILED(regview.get_value<::std::wstring>(subkey, value_name, value, REG_EXPAND_SZ));
 
-            data->swap(registry_value.value);
+            data->swap(value);
             return S_OK;
         }
         CATCH_RETURN()
 
-            inline HRESULT get_value_expanded_wstring_nothrow(HKEY key, _In_opt_ PCWSTR value_name, ::std::wstring* data) WI_NOEXCEPT
+        inline HRESULT get_value_expanded_wstring_nothrow(HKEY key, _In_opt_ PCWSTR value_name, ::std::wstring* data) WI_NOEXCEPT
         {
             return get_value_expanded_wstring_nothrow(key, nullptr, value_name, data);
         }
@@ -1767,35 +1404,34 @@ namespace wil
         }
         CATCH_RETURN()
 
-            inline HRESULT get_value_multistring_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _Inout_::std::vector<::std::wstring>* return_value) WI_NOEXCEPT
+        inline HRESULT get_value_multistring_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _Inout_::std::vector<::std::wstring>* return_value) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_multistring_nothrow(key, nullptr, value_name, return_value);
         }
 
-        inline ::wil::reg::optional_value<::std::vector<::std::wstring>> try_get_value_multistring(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
+#if defined(__cpp_lib_optional)
+        inline ::std::optional<::std::vector<::std::wstring>> try_get_value_multistring(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
         {
-            ::wil::reg::optional_value<::std::vector<::std::wstring>> return_value;
-            return_value.inner_error = ::wil::reg::get_value_multistring_nothrow(key, subkey, value_name, &return_value.value);
-            if (SUCCEEDED(return_value.inner_error))
+            ::std::vector<::std::wstring> value;
+            const auto hr = ::wil::reg::get_value_multistring_nothrow(key, subkey, value_name, &value);
+            if (SUCCEEDED(hr))
             {
-                return_value.value_assigned = true;
-                return return_value;
+                return { value };
             }
 
-            return_value.value_assigned = false;
-            if (return_value.inner_error == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+            if (hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
             {
-                return_value.value = {};
-                return return_value;
+                return { ::std::nullopt };
             }
 
-            THROW_HR(HRESULT_FROM_WIN32(return_value.inner_error));
+            THROW_HR(HRESULT_FROM_WIN32(hr));
         }
 
-        inline ::wil::reg::optional_value<::std::vector<::std::wstring>> try_get_value_multistring(HKEY key, _In_opt_ PCWSTR value_name)
+        inline ::std::optional<::std::vector<::std::wstring>> try_get_value_multistring(HKEY key, _In_opt_ PCWSTR value_name)
         {
             return ::wil::reg::try_get_value_multistring(key, nullptr, value_name);
         }
+#endif // #if defined(__cpp_lib_optional)
 
         template<>
         inline HRESULT get_value_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _Inout_::std::vector<::std::wstring>* return_value) WI_NOEXCEPT
