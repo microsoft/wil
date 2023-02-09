@@ -274,8 +274,8 @@ TEST_CASE("BasicRegistryTests::Dwords", "[registry]")
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
 
         // fail if get* requests the wrong type
-        wchar_t stringResult[100]{};
-        hr = wil::reg::get_value_string_nothrow(hkey.get(), dwordValueName, stringResult);
+        REQUIRE_SUCCEEDED(wil::reg::set_value_qword_nothrow(HKEY_CURRENT_USER, testSubkey, qwordValueName, 0ull));
+        hr = wil::reg::get_value_dword_nothrow(hkey.get(), qwordValueName, &result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
     }
     SECTION("set_value_dword_nothrow/get_value_dword_nothrow: with string key")
@@ -300,8 +300,8 @@ TEST_CASE("BasicRegistryTests::Dwords", "[registry]")
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
 
         // fail if get* requests the wrong type
-        wchar_t stringResult[100]{};
-        hr = wil::reg::get_value_string_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, stringResult);
+        REQUIRE_SUCCEEDED(wil::reg::set_value_qword_nothrow(HKEY_CURRENT_USER, testSubkey, qwordValueName, 0ull));
+        hr = wil::reg::get_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, qwordValueName, &result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
     }
 
@@ -330,8 +330,8 @@ TEST_CASE("BasicRegistryTests::Dwords", "[registry]")
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
 
         // fail if get* requests the wrong type
-        wchar_t stringResult[100]{};
-        hr = wil::reg::get_value_nothrow(hkey.get(), dwordValueName, stringResult);
+        REQUIRE_SUCCEEDED(wil::reg::set_value_qword_nothrow(HKEY_CURRENT_USER, testSubkey, qwordValueName, 0ull));
+        hr = wil::reg::get_value_nothrow(hkey.get(), qwordValueName, &result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
     }
     SECTION("set_value_nothrow/get_value_nothrow: with string key")
@@ -356,8 +356,8 @@ TEST_CASE("BasicRegistryTests::Dwords", "[registry]")
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
 
         // fail if get* requests the wrong type
-        wchar_t stringResult[100]{};
-        hr = wil::reg::get_value_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, stringResult);
+        REQUIRE_SUCCEEDED(wil::reg::set_value_qword_nothrow(HKEY_CURRENT_USER, testSubkey, qwordValueName, 0ull));
+        hr = wil::reg::get_value_nothrow(HKEY_CURRENT_USER, testSubkey, qwordValueName, &result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
     }
 
@@ -392,9 +392,10 @@ TEST_CASE("BasicRegistryTests::Dwords", "[registry]")
         }
 
         // fail if get* requests the wrong type
+        wil::reg::set_value_qword(HKEY_CURRENT_USER, testSubkey, qwordValueName, 0ull);
         try
         {
-            wil::reg::get_value_wstring(hkey.get(), dwordValueName);
+            wil::reg::get_value_dword(hkey.get(), qwordValueName);
             // should throw
             REQUIRE_FALSE(true);
         }
@@ -430,9 +431,10 @@ TEST_CASE("BasicRegistryTests::Dwords", "[registry]")
         }
 
         // fail if get* requests the wrong type
+        wil::reg::set_value_qword(HKEY_CURRENT_USER, testSubkey, qwordValueName, 0ull);
         try
         {
-            wil::reg::get_value_wstring(HKEY_CURRENT_USER, testSubkey, dwordValueName);
+            wil::reg::get_value_dword(HKEY_CURRENT_USER, testSubkey, qwordValueName);
             // should throw
             REQUIRE_FALSE(true);
         }
@@ -450,10 +452,11 @@ TEST_CASE("BasicRegistryTests::Dwords", "[registry]")
             const auto result = wil::reg::get_value<DWORD>(HKEY_CURRENT_USER, testSubkey, dwordValueName);
             REQUIRE(result == value);
 
+            wil::reg::set_value_qword(HKEY_CURRENT_USER, testSubkey, qwordValueName, 0ull);
             // reading the wrong type should fail
             try
             {
-                wil::reg::get_value<DWORD64>(HKEY_CURRENT_USER, testSubkey, dwordValueName);
+                wil::reg::get_value<DWORD>(HKEY_CURRENT_USER, testSubkey, qwordValueName);
                 // should throw
                 REQUIRE_FALSE(true);
             }
@@ -476,9 +479,10 @@ TEST_CASE("BasicRegistryTests::Dwords", "[registry]")
             REQUIRE(result == value);
 
             // reading the wrong type should fail
+            wil::reg::set_value_qword(HKEY_CURRENT_USER, testSubkey, qwordValueName, 0ull);
             try
             {
-                wil::reg::get_value<DWORD64>(hkey.get(), dwordValueName);
+                wil::reg::get_value<DWORD>(hkey.get(), qwordValueName);
                 // should throw
                 REQUIRE_FALSE(true);
             }
@@ -517,9 +521,10 @@ TEST_CASE("BasicRegistryTests::Dwords", "[registry]")
         REQUIRE(!result.has_value());
 
         // fail if get* requests the wrong type
+        wil::reg::set_value_qword(HKEY_CURRENT_USER, testSubkey, qwordValueName, 0ull);
         try
         {
-            wil::reg::try_get_value_wstring(hkey.get(), dwordValueName);
+            wil::reg::try_get_value_dword(hkey.get(), qwordValueName);
             // should throw
             REQUIRE_FALSE(true);
         }
@@ -552,9 +557,10 @@ TEST_CASE("BasicRegistryTests::Dwords", "[registry]")
         REQUIRE(!result.has_value());
 
         // fail if get* requests the wrong type
+        wil::reg::set_value_qword(HKEY_CURRENT_USER, testSubkey, qwordValueName, 0ull);
         try
         {
-            wil::reg::try_get_value_wstring(HKEY_CURRENT_USER, testSubkey, dwordValueName);
+            wil::reg::try_get_value_dword(HKEY_CURRENT_USER, testSubkey, qwordValueName);
             // should throw
             REQUIRE_FALSE(true);
         }
@@ -600,8 +606,8 @@ TEST_CASE("BasicRegistryTests::Qwords", "[registry]")
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
 
         // fail if get* requests the wrong type
-        wchar_t stringResult[100]{};
-        hr = wil::reg::get_value_string_nothrow(hkey.get(), qwordValueName, stringResult);
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0ul));
+        hr = wil::reg::get_value_qword_nothrow(hkey.get(), dwordValueName, &result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
     }
     SECTION("set_value_qword_nothrow/get_value_qword_nothrow: with string key")
@@ -626,8 +632,8 @@ TEST_CASE("BasicRegistryTests::Qwords", "[registry]")
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
 
         // fail if get* requests the wrong type
-        wchar_t stringResult[100]{};
-        hr = wil::reg::get_value_string_nothrow(HKEY_CURRENT_USER, testSubkey, qwordValueName, stringResult);
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0ul));
+        hr = wil::reg::get_value_qword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, &result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
     }
 
@@ -656,8 +662,8 @@ TEST_CASE("BasicRegistryTests::Qwords", "[registry]")
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
 
         // fail if get* requests the wrong type
-        wchar_t stringResult[100]{};
-        hr = wil::reg::get_value_nothrow(hkey.get(), qwordValueName, stringResult);
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0ul));
+        hr = wil::reg::get_value_nothrow(hkey.get(), dwordValueName, &result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
     }
     SECTION("set_value_nothrow/get_value_nothrow: with string key")
@@ -682,8 +688,8 @@ TEST_CASE("BasicRegistryTests::Qwords", "[registry]")
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
 
         // fail if get* requests the wrong type
-        wchar_t stringResult[100]{};
-        hr = wil::reg::get_value_nothrow(HKEY_CURRENT_USER, testSubkey, qwordValueName, stringResult);
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0ul));
+        hr = wil::reg::get_value_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, &result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
     }
 
@@ -718,9 +724,10 @@ TEST_CASE("BasicRegistryTests::Qwords", "[registry]")
         }
 
         // fail if get* requests the wrong type
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0ul));
         try
         {
-            wil::reg::get_value_wstring(hkey.get(), qwordValueName);
+            wil::reg::get_value_qword(hkey.get(), dwordValueName);
             // should throw
             REQUIRE_FALSE(true);
         }
@@ -756,9 +763,10 @@ TEST_CASE("BasicRegistryTests::Qwords", "[registry]")
         }
 
         // fail if get* requests the wrong type
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0ul));
         try
         {
-            wil::reg::get_value_wstring(HKEY_CURRENT_USER, testSubkey, qwordValueName);
+            wil::reg::get_value_qword(HKEY_CURRENT_USER, testSubkey, dwordValueName);
             // should throw
             REQUIRE_FALSE(true);
         }
@@ -778,9 +786,10 @@ TEST_CASE("BasicRegistryTests::Qwords", "[registry]")
         }
 
         // reading the wrong type should fail
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0ul));
         try
         {
-            wil::reg::get_value<DWORD>(HKEY_CURRENT_USER, testSubkey, qwordValueName);
+            wil::reg::get_value<DWORD64>(HKEY_CURRENT_USER, testSubkey, dwordValueName);
             // should throw
             REQUIRE_FALSE(true);
         }
@@ -803,9 +812,10 @@ TEST_CASE("BasicRegistryTests::Qwords", "[registry]")
         }
 
         // reading the wrong type should fail
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0ul));
         try
         {
-            wil::reg::get_value<DWORD>(hkey.get(), qwordValueName);
+            wil::reg::get_value<DWORD64>(hkey.get(), dwordValueName);
             // should throw
             REQUIRE_FALSE(true);
         }
@@ -843,9 +853,10 @@ TEST_CASE("BasicRegistryTests::Qwords", "[registry]")
         REQUIRE(!result.has_value());
 
         // fail if get* requests the wrong type
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0ul));
         try
         {
-            wil::reg::try_get_value_wstring(hkey.get(), qwordValueName);
+            wil::reg::try_get_value_qword(hkey.get(), dwordValueName);
             // should throw
             REQUIRE_FALSE(true);
         }
@@ -878,9 +889,10 @@ TEST_CASE("BasicRegistryTests::Qwords", "[registry]")
         REQUIRE(!result.has_value());
 
         // fail if get* requests the wrong type
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0ul));
         try
         {
-            wil::reg::try_get_value_wstring(HKEY_CURRENT_USER, testSubkey, qwordValueName);
+            wil::reg::try_get_value_qword(HKEY_CURRENT_USER, testSubkey, dwordValueName);
             // should throw
             REQUIRE_FALSE(true);
         }
@@ -927,8 +939,8 @@ TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
 
         // fail if get* requests the wrong type
-        DWORD dwordResult{};
-        hr = wil::reg::get_value_dword_nothrow(hkey.get(), stringValueName, &dwordResult);
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0ul));
+        hr = wil::reg::get_value_wstring_nothrow(hkey.get(), dwordValueName, &result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
     }
     SECTION("set_value_string_nothrow/get_value_wstring_nothrow: with string key")
@@ -953,8 +965,8 @@ TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
 
         // fail if get* requests the wrong type
-        DWORD dwordResult{};
-        hr = wil::reg::get_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, &dwordResult);
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0ul));
+        hr = wil::reg::get_value_wstring_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, &result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
     }
 
@@ -983,8 +995,8 @@ TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
 
         // fail if get* requests the wrong type
-        DWORD dwordResult{};
-        hr = wil::reg::get_value_nothrow(hkey.get(), stringValueName, &dwordResult);
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0ul));
+        hr = wil::reg::get_value_nothrow(hkey.get(), dwordValueName, &result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
     }
     SECTION("set_value_nothrow/get_value_nothrow: with string key")
@@ -1009,8 +1021,8 @@ TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
 
         // fail if get* requests the wrong type
-        DWORD dwordResult{};
-        hr = wil::reg::get_value_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, &dwordResult);
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0ul));
+        hr = wil::reg::get_value_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, &result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
     }
 
@@ -1044,9 +1056,10 @@ TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
         }
 
         // fail if get* requests the wrong type
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0ul));
         try
         {
-            wil::reg::get_value_dword(hkey.get(), stringValueName);
+            wil::reg::get_value_wstring(hkey.get(), dwordValueName);
             // should throw
             REQUIRE_FALSE(true);
         }
@@ -1082,9 +1095,10 @@ TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
         }
 
         // fail if get* requests the wrong type
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0ul));
         try
         {
-            wil::reg::get_value_dword(HKEY_CURRENT_USER, testSubkey, stringValueName);
+            wil::reg::get_value_wstring(HKEY_CURRENT_USER, testSubkey, dwordValueName);
             // should throw
             REQUIRE_FALSE(true);
         }
@@ -1104,9 +1118,10 @@ TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
         }
 
         // reading the wrong type should fail
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0ul));
         try
         {
-            wil::reg::get_value<DWORD>(HKEY_CURRENT_USER, testSubkey, stringValueName);
+            wil::reg::get_value<std::wstring>(HKEY_CURRENT_USER, testSubkey, dwordValueName);
             // should throw
             REQUIRE_FALSE(true);
         }
@@ -1129,9 +1144,10 @@ TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
         }
 
         // reading the wrong type should fail
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0ul));
         try
         {
-            wil::reg::get_value<DWORD>(hkey.get(), stringValueName);
+            wil::reg::get_value <std::wstring>(hkey.get(), dwordValueName);
             // should throw
             REQUIRE_FALSE(true);
         }
@@ -1169,9 +1185,10 @@ TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
         REQUIRE(!result.has_value());
 
         // fail if get* requests the wrong type
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0ul));
         try
         {
-            wil::reg::try_get_value_dword(hkey.get(), stringValueName);
+            wil::reg::try_get_value_wstring(hkey.get(), dwordValueName);
             // should throw
             REQUIRE_FALSE(true);
         }
@@ -1204,9 +1221,10 @@ TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
         REQUIRE(!result.has_value());
 
         // fail if get* requests the wrong type
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0ul));
         try
         {
-            wil::reg::try_get_value_dword(HKEY_CURRENT_USER, testSubkey, stringValueName);
+            wil::reg::try_get_value_wstring(HKEY_CURRENT_USER, testSubkey, dwordValueName);
             // should throw
             REQUIRE_FALSE(true);
         }
@@ -1253,8 +1271,8 @@ TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
         REQUIRE(expectedSize == 0);
 
         // fail if get* requests the wrong type
-        DWORD dwordValue{};
-        hr = wil::reg::get_value_dword_nothrow(hkey.get(), stringValueName, &dwordValue);
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0ul));
+        hr = wil::reg::get_value_string_nothrow(hkey.get(), dwordValueName, too_small_result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
     }
     SECTION("set_value_nothrow/get_value_string_nothrow: with string key")
@@ -1290,8 +1308,8 @@ TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
         REQUIRE(expectedSize == 0);
 
         // fail if get* requests the wrong type
-        DWORD dwordValue{};
-        hr = wil::reg::get_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, &dwordValue);
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0ul));
+        hr = wil::reg::get_value_string_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, too_small_result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
     }
 }
@@ -1337,8 +1355,8 @@ TEST_CASE("BasicRegistryTests::expanded_wstring", "[registry]")
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
 
         // fail if get* requests the wrong type
-        DWORD dwordResult{};
-        hr = wil::reg::get_value_dword_nothrow(hkey.get(), stringValueName, &dwordResult);
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0ul));
+        hr = wil::reg::get_value_expanded_wstring_nothrow(hkey.get(), dwordValueName, &result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
     }
     SECTION("set_value_expanded_string_nothrow/get_value_expanded_wstring_nothrow: with string key")
@@ -1369,8 +1387,8 @@ TEST_CASE("BasicRegistryTests::expanded_wstring", "[registry]")
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
 
         // fail if get* requests the wrong type
-        DWORD dwordResult{};
-        hr = wil::reg::get_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, &dwordResult);
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0ul));
+        hr = wil::reg::get_value_expanded_wstring_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, &result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
     }
 
@@ -1422,8 +1440,8 @@ TEST_CASE("BasicRegistryTests::expanded_wstring", "[registry]")
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
 
         // fail if get* requests the wrong type
-        DWORD dwordResult{};
-        hr = wil::reg::get_value_nothrow(hkey.get(), stringValueName, &dwordResult);
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0ul));
+        hr = wil::reg::get_value_expanded_string_nothrow(hkey.get(), dwordValueName, result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
     }
     SECTION("set_value_expanded_string_nothrow/get_value_expanded_string_nothrow: with string key")
@@ -1471,8 +1489,8 @@ TEST_CASE("BasicRegistryTests::expanded_wstring", "[registry]")
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
 
         // fail if get* requests the wrong type
-        DWORD dwordResult{};
-        hr = wil::reg::get_value_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, &dwordResult);
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0ul));
+        hr = wil::reg::get_value_expanded_string_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
     }
 
@@ -1512,9 +1530,10 @@ TEST_CASE("BasicRegistryTests::expanded_wstring", "[registry]")
         }
 
         // fail if get* requests the wrong type
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0ul));
         try
         {
-            wil::reg::get_value_dword(hkey.get(), stringValueName);
+            wil::reg::get_value_expanded_wstring(hkey.get(), dwordValueName);
             // should throw
             REQUIRE_FALSE(true);
         }
@@ -1556,9 +1575,10 @@ TEST_CASE("BasicRegistryTests::expanded_wstring", "[registry]")
         }
 
         // fail if get* requests the wrong type
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0ul));
         try
         {
-            wil::reg::get_value_dword(HKEY_CURRENT_USER, testSubkey, stringValueName);
+            wil::reg::get_value_expanded_wstring(HKEY_CURRENT_USER, testSubkey, dwordValueName);
             // should throw
             REQUIRE_FALSE(true);
         }
@@ -1604,8 +1624,8 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry][get_registry_string]"
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
 
         // fail if get* requests the wrong type
-        DWORD dwordResult{};
-        hr = wil::reg::get_value_dword_nothrow(hkey.get(), stringValueName, &dwordResult);
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0ul));
+        hr = wil::reg::get_value_multistring_nothrow(hkey.get(), dwordValueName, &result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
     }
 
@@ -1631,8 +1651,8 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry][get_registry_string]"
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
 
         // fail if get* requests the wrong type
-        DWORD dwordResult{};
-        hr = wil::reg::get_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, &dwordResult);
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0ul));
+        hr = wil::reg::get_value_multistring_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, &result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
     }
 
@@ -1661,8 +1681,8 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry][get_registry_string]"
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
 
         // fail if get* requests the wrong type
-        DWORD dwordResult{};
-        hr = wil::reg::get_value_nothrow(hkey.get(), stringValueName, &dwordResult);
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0ul));
+        hr = wil::reg::get_value_nothrow(hkey.get(), dwordValueName, &result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
     }
 
@@ -1688,8 +1708,8 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry][get_registry_string]"
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
 
         // fail if get* requests the wrong type
-        DWORD dwordResult{};
-        hr = wil::reg::get_value_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, &dwordResult);
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0ul));
+        hr = wil::reg::get_value_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, &result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
     }
 
@@ -1724,9 +1744,10 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry][get_registry_string]"
         }
 
         // fail if get* requests the wrong type
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0ul));
         try
         {
-            wil::reg::get_value_dword(hkey.get(), stringValueName);
+            wil::reg::get_value_multistring(hkey.get(), dwordValueName);
             // should throw
             REQUIRE_FALSE(true);
         }
@@ -1763,9 +1784,10 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry][get_registry_string]"
         }
 
         // fail if get* requests the wrong type
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0ul));
         try
         {
-            wil::reg::get_value_dword(HKEY_CURRENT_USER, testSubkey, stringValueName);
+            wil::reg::get_value_multistring(HKEY_CURRENT_USER, testSubkey, dwordValueName);
             // should throw
             REQUIRE_FALSE(true);
         }
@@ -1803,9 +1825,10 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry][get_registry_string]"
         REQUIRE(!result.has_value());
 
         // fail if get* requests the wrong type
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0ul));
         try
         {
-            wil::reg::try_get_value_dword(hkey.get(), stringValueName);
+            wil::reg::try_get_value_multistring(hkey.get(), dwordValueName);
             // should throw
             REQUIRE_FALSE(true);
         }
@@ -1839,9 +1862,10 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry][get_registry_string]"
         REQUIRE(!result.has_value());
 
         // fail if get* requests the wrong type
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0ul));
         try
         {
-            wil::reg::try_get_value_dword(HKEY_CURRENT_USER, testSubkey, stringValueName);
+            wil::reg::try_get_value_multistring(HKEY_CURRENT_USER, testSubkey, dwordValueName);
             // should throw
             REQUIRE_FALSE(true);
         }
