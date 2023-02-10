@@ -239,8 +239,8 @@ namespace wil
     //! Detects if one or more embedded null is present in an HSTRING.
     inline bool HasEmbeddedNull(_In_opt_ HSTRING value)
     {
-        BOOL hasEmbeddedNull;
-        WindowsStringHasEmbeddedNull(value, &hasEmbeddedNull);
+        BOOL hasEmbeddedNull = FALSE;
+        (void)WindowsStringHasEmbeddedNull(value, &hasEmbeddedNull);
         return hasEmbeddedNull != FALSE;
     }
 
