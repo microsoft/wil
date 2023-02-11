@@ -33,6 +33,7 @@
 #ifndef TRACELOGGING_SUPPRESS_NEW
 #include <new>
 #endif
+#include <wil/win32_helpers.h>
 
 #pragma warning(push)
 #pragma warning(disable: 26135)   // Missing locking annotation, Caller failing to hold lock
@@ -182,61 +183,29 @@ namespace wil
         public:
             void __cdecl cleanup() WI_NOEXCEPT
             {
-                void* pVoid;
-                BOOL pending;
-
-                // If object is being constructed on another thread, wait until construction completes.
-                // Need a memory barrier here (see get() and ~Completer below) so use the result that we
-                // get from InitOnceBeginInitialize(..., &pVoid, ...)
-                if (::InitOnceBeginInitialize(&m_initOnce, INIT_ONCE_CHECK_ONLY, &pending, &pVoid) && !pending)
+                if (wil::init_once_initialized(m_initOnce))
                 {
-                    static_cast<T*>(pVoid)->~T();
+                    reinterpret_cast<T*>(m_storage)->~T();
                 }
             }
 
             T* get(void(__cdecl *cleanupFunc)(void)) WI_NOEXCEPT
             {
-                void* pVoid{};
-                BOOL pending;
-                if (::InitOnceBeginInitialize(&m_initOnce, 0, &pending, &pVoid) && pending)
+                wil::init_once_failfast(m_initOnce, [=]() -> HRESULT
                 {
-                    // Don't do anything non-trivial from DllMain, fail fast.
-                    // Some 3rd party code in IE calls shell functions this way, so we can only enforce
-                    // this in DEBUG.
-#ifdef DEBUG
-                    FAIL_FAST_IMMEDIATE_IF_IN_LOADER_CALLOUT();
-#endif
+                        ::new (m_storage) T();
+                        atexit(cleanupFunc);
+                        reinterpret_cast<T*>(m_storage)->Create();
+                        return S_OK;
+                    });
 
-                    Completer completer(this);
-                    pVoid = &m_storage;
-                    ::new(pVoid)T();
-                    atexit(cleanupFunc); // ignore failure (that's what the C runtime does, too)
-                    completer.Succeed();
+                return reinterpret_cast<T*>(m_storage);
                 }
-                return static_cast<T*>(pVoid);
-            }
 
         private:
-            INIT_ONCE m_initOnce;
+            INIT_ONCE m_initOnce = INIT_ONCE_STATIC_INIT;
             alignas(T) BYTE m_storage[sizeof(T)];
-            struct Completer
-            {
-                static_lazy *m_pSelf;
-                DWORD m_flags;
-
-                explicit Completer(static_lazy *pSelf) WI_NOEXCEPT : m_pSelf(pSelf), m_flags(INIT_ONCE_INIT_FAILED) { }
-                void Succeed() WI_NOEXCEPT { m_flags = 0; }
-
-                ~Completer() WI_NOEXCEPT
-                {
-                    if (m_flags == 0)
-                    {
-                        reinterpret_cast<T*>(&m_pSelf->m_storage)->Create();
-                    }
-                    ::InitOnceComplete(&m_pSelf->m_initOnce, m_flags, &m_pSelf->m_storage);
-                }
             };
-        };
 
         // This class serves as a simple RAII wrapper around CallContextInfo.  It presumes that
         // the contextName parameter is always a static string, but copies or allocates the
