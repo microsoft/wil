@@ -795,6 +795,7 @@ namespace wil
             va_start(argList, formatString);
             auto lock = LockExclusive();
             GetCallContext()->SetMessage(formatString, argList);
+            va_end(argList);
         }
 
         void SetMessage(_In_opt_ PCWSTR message)
@@ -942,17 +943,20 @@ namespace wil
         template<class OtherTy>
         void SetRelatedActivity(OtherTy const &relatedActivity) WI_NOEXCEPT
         {
-            auto lock = LockExclusive(); m_pActivityData->SetRelatedActivityId(relatedActivity.Id());
+            auto lock = LockExclusive();
+            m_pActivityData->SetRelatedActivityId(relatedActivity.Id());
         }
 
         void SetRelatedActivityId(_In_ const GUID& relatedActivityId) WI_NOEXCEPT
         {
-            auto lock = LockExclusive(); m_pActivityData->SetRelatedActivityId(&relatedActivityId);
+            auto lock = LockExclusive();
+            m_pActivityData->SetRelatedActivityId(&relatedActivityId);
         }
 
         void SetRelatedActivityId(_In_ const GUID* relatedActivityId) WI_NOEXCEPT
         {
-            auto lock = LockExclusive(); m_pActivityData->SetRelatedActivityId(relatedActivityId);
+            auto lock = LockExclusive();
+            m_pActivityData->SetRelatedActivityId(relatedActivityId);
         }
         
         inline bool IsRunning() const WI_NOEXCEPT
@@ -973,12 +977,14 @@ namespace wil
 
         void SetStopResult(HRESULT hr, _Out_opt_ HRESULT *phr = nullptr) WI_NOEXCEPT
         {
-            auto lock = LockExclusive(); m_pActivityData->SetStopResult(hr, phr);
+            auto lock = LockExclusive();
+            m_pActivityData->SetStopResult(hr, phr);
         }
 
         void IncrementExpectedStopCount() WI_NOEXCEPT
         {
-            auto lock = LockExclusive(); m_pActivityData->IncrementExpectedStopCount();
+            auto lock = LockExclusive();
+            m_pActivityData->IncrementExpectedStopCount();
         }
 
         // Locking should not be required on these accessors as we only use this at reporting (which will only happen from
