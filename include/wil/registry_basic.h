@@ -16,7 +16,7 @@
 // Include <string> and/or <vector> to use the STL integrated functions
 // Include sddl.h if wanting to pass security descriptor strings to create keys
 
-#if defined(_STRING_) || defined (_VECTOR_) || (defined (__cpp_lib_optional))
+#if defined(_STRING_) || defined (_VECTOR_) || (defined (__cpp_lib_optional) && defined (_OPTIONAL_))
 #include <functional>
 #include <iterator>
 #endif
@@ -239,6 +239,14 @@ namespace wil
             }
 #endif // defined(__WIL_OBJBASE_H_)
 
+            //
+            // get_buffer_size is needed to call RegGetValue internally
+            // it can return one of 3 values:
+            // - if known, the already-allocated size of the buffer passed
+            // - zero, if nothing has been allocated
+            // - negative one if the type does not track its own buffer intrinsically
+            //
+            constexpr DWORD untracked_buffer_size = 0xffffffff;
 #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
             inline DWORD get_buffer_size(const ::std::vector<BYTE>& buffer) WI_NOEXCEPT
             {
@@ -307,13 +315,11 @@ namespace wil
 #endif // #if defined(__WIL_OLEAUTO_H_)
 
 #if defined(__WIL_OBJBASE_H_)
-            inline DWORD get_buffer_size(const ::wil::unique_cotaskmem_string& value) WI_NOEXCEPT
+            inline DWORD get_buffer_size(const ::wil::unique_cotaskmem_string&) WI_NOEXCEPT
             {
-                if (!value)
-                {
-                    return 0;
-                }
-                return static_cast<DWORD>((::wcslen(value.get()) + 1) * sizeof(wchar_t));
+                // wil::unique_cotaskmem_string does not intrinsically track its internal buffer size
+                // thus the caller must track the buffer size it requested to be allocated
+                return ::wil::reg::reg_view_details::untracked_buffer_size;
             }
 #endif // defined(__WIL_OBJBASE_H_)
 
@@ -550,7 +556,6 @@ namespace wil
             }
 #endif // defined(__WIL_OBJBASE_H_)
 
-            // type T is the owning type for storing a key: HKEY, ::wil::unique_hkey, ::wil::shared_hkey
             template <typename err_policy = ::wil::err_exception_policy>
             class reg_view_t
             {
@@ -674,10 +679,15 @@ namespace wil
                 template <typename R, typename get_value_internal_policy = err_policy>
                 typename get_value_internal_policy::result get_value_internal(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, R& return_value, DWORD type = ::wil::reg::reg_view_details::get_value_type<R>()) const
                 {
+                    DWORD bytes_allocated{};
                     for (;;)
                     {
                         constexpr LPDWORD null_pdwType{ nullptr };
                         DWORD data_size_bytes{ ::wil::reg::reg_view_details::get_buffer_size(return_value) };
+                        if (data_size_bytes == ::wil::reg::reg_view_details::untracked_buffer_size)
+                        {
+                            data_size_bytes = bytes_allocated;
+                        }
                         auto error = ::RegGetValueW(
                             m_key,
                             subkey,
@@ -702,13 +712,15 @@ namespace wil
                             else
                             {
                                 // if it succeeds, continue the for loop to try again
+                                bytes_allocated = data_size_bytes;
                                 continue;
                             }
                         }
 
                         if (error == ERROR_SUCCESS)
                         {
-                            if (data_size_bytes != ::wil::reg::reg_view_details::get_buffer_size(return_value))
+                            const auto current_byte_size = ::wil::reg::reg_view_details::get_buffer_size(return_value);
+                            if (current_byte_size != ::wil::reg::reg_view_details::untracked_buffer_size && current_byte_size != data_size_bytes)
                             {
                                 ::wil::reg::reg_view_details::grow_buffer_if_supported(return_value, data_size_bytes);
                             }
@@ -1192,6 +1204,18 @@ namespace wil
         }
 #endif // #if defined(__WIL_OLEAUTO_H_)
 
+#if defined(__WIL_OBJBASE_H_)
+        inline ::wil::unique_cotaskmem_string get_value_cotaskmem_string(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
+        {
+            return wil::reg::get_value<::wil::unique_cotaskmem_string>(key, subkey, value_name);
+        }
+
+        inline ::wil::unique_cotaskmem_string get_value_cotaskmem_string(HKEY key, _In_opt_ PCWSTR value_name)
+        {
+            return wil::reg::get_value<::wil::unique_cotaskmem_string>(key, nullptr, value_name);
+        }
+#endif // defined(__WIL_OBJBASE_H_)
+
 #if defined(_VECTOR_)
         inline ::std::vector<BYTE> get_value_byte_vector(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, DWORD type)
         {
@@ -1288,6 +1312,19 @@ namespace wil
             return try_get_value_bstr(key, nullptr, value_name);
         }
 #endif // #if defined(__WIL_OLEAUTO_H_)
+
+#if defined(__WIL_OBJBASE_H_)
+        inline ::std::optional<::wil::unique_cotaskmem_string> try_get_value_cotaskmem_string(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
+        {
+            const reg_view_details::reg_view regview{ key };
+            return regview.try_get_value<::wil::unique_cotaskmem_string>(subkey, value_name);
+        }
+
+        inline ::std::optional<::wil::unique_cotaskmem_string> try_get_value_cotaskmem_string(HKEY key, _In_opt_ PCWSTR value_name)
+        {
+            return try_get_value_cotaskmem_string(key, nullptr, value_name);
+        }
+#endif // defined(__WIL_OBJBASE_H_)
 #endif // #if defined (_OPTIONAL_) && defined(__cpp_lib_optional)
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS)
 
@@ -1324,10 +1361,9 @@ namespace wil
         // //
         // DWORD data2{};
         // get_value_nothrow(hkey, L"valuename", &data2);
-
         template<typename T,
             std::enable_if_t<!std::is_same_v<T, wchar_t>>* = nullptr>
-        HRESULT get_value_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _In_ T* return_value) WI_NOEXCEPT
+        HRESULT get_value_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _Out_ T* return_value) WI_NOEXCEPT
         {
             const reg_view_details::reg_view_nothrow regview{ key };
             return regview.get_value<T>(subkey, value_name, *return_value);
@@ -1335,7 +1371,7 @@ namespace wil
 
         template<typename T,
             std::enable_if_t<!std::is_same_v<T, wchar_t>>* = nullptr>
-        HRESULT get_value_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _In_ T* return_value) WI_NOEXCEPT
+        HRESULT get_value_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _Out_ T* return_value) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_nothrow(key, nullptr, value_name, return_value);
         }
@@ -1352,52 +1388,76 @@ namespace wil
             return ::wil::reg::get_value_string_nothrow<Length>(key, nullptr, value_name, return_value, nullptr);
         }
 
-        inline HRESULT get_value_dword_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _In_ DWORD* return_value) WI_NOEXCEPT
+        // ::wil::unique_cotaskmem_string requires its own separate get_value_nothrow because it is forced to pass its out-param by reference
+        // this is because wil::unique_cotaskmem_string has overloaded operator&
+        inline HRESULT get_value_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, ::wil::unique_cotaskmem_string& return_value) WI_NOEXCEPT
         {
-            return ::wil::reg::get_value_nothrow(key, subkey, value_name, return_value);
+            const reg_view_details::reg_view_nothrow regview{ key };
+            return regview.get_value<::wil::unique_cotaskmem_string>(subkey, value_name, return_value);
         }
 
-        inline HRESULT get_value_dword_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _In_ DWORD* return_value) WI_NOEXCEPT
+        inline HRESULT get_value_nothrow(HKEY key, _In_opt_ PCWSTR value_name, ::wil::unique_cotaskmem_string& return_value) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_nothrow(key, nullptr, value_name, return_value);
         }
 
-        inline HRESULT get_value_qword_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _In_ DWORD64* return_value) WI_NOEXCEPT
+        inline HRESULT get_value_dword_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _Out_ DWORD* return_value) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_nothrow(key, subkey, value_name, return_value);
         }
 
-        inline HRESULT get_value_qword_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _In_ DWORD64* return_value) WI_NOEXCEPT
+        inline HRESULT get_value_dword_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _Out_ DWORD* return_value) WI_NOEXCEPT
+        {
+            return ::wil::reg::get_value_nothrow(key, nullptr, value_name, return_value);
+        }
+
+        inline HRESULT get_value_qword_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _Out_ DWORD64* return_value) WI_NOEXCEPT
+        {
+            return ::wil::reg::get_value_nothrow(key, subkey, value_name, return_value);
+        }
+
+        inline HRESULT get_value_qword_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _Out_ DWORD64* return_value) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_nothrow(key, nullptr, value_name, return_value);
         }
 
 #if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
-        inline HRESULT get_value_wstring_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, ::std::wstring* return_value) WI_NOEXCEPT
+        inline HRESULT get_value_wstring_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _Inout_ ::std::wstring* return_value) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_nothrow(key, subkey, value_name, return_value);
         }
 
-        inline HRESULT get_value_wstring_nothrow(HKEY key, _In_opt_ PCWSTR value_name, ::std::wstring* return_value) WI_NOEXCEPT
+        inline HRESULT get_value_wstring_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _Inout_ ::std::wstring* return_value) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_nothrow(key, nullptr, value_name, return_value);
         }
 #endif
 
 #if defined(__WIL_OLEAUTO_H_)
-        inline HRESULT get_value_bstr_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, BSTR* return_value) WI_NOEXCEPT
+        inline HRESULT get_value_bstr_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _Out_ BSTR* return_value) WI_NOEXCEPT
         {
-            return ::wil::reg::get_value_nothrow<BSTR>(key, subkey, value_name, return_value);
+            return ::wil::reg::get_value_nothrow(key, subkey, value_name, return_value);
         }
 
-        inline HRESULT get_value_bstr_nothrow(HKEY key, _In_opt_ PCWSTR value_name, BSTR* return_value) WI_NOEXCEPT
+        inline HRESULT get_value_bstr_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _Out_ BSTR* return_value) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_nothrow(key, nullptr, value_name, return_value);
         }
 #endif // #if defined(__WIL_OLEAUTO_H_)
 
+#if defined(__WIL_OBJBASE_H_)
+        inline HRESULT get_value_cotaskmem_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _Inout_ ::wil::unique_cotaskmem_string& return_value) WI_NOEXCEPT
+        {
+            return ::wil::reg::get_value_nothrow(key, subkey, value_name, return_value);
+        }
+        inline HRESULT get_value_cotaskmem_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _Inout_::wil::unique_cotaskmem_string& return_value) WI_NOEXCEPT
+        {
+            return ::wil::reg::get_value_nothrow(key, nullptr, value_name, return_value);
+        }
+#endif // defined(__WIL_OBJBASE_H_)
+
 #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
-        inline HRESULT get_value_byte_vector_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, DWORD type, ::std::vector<BYTE>* data) WI_NOEXCEPT try
+        inline HRESULT get_value_byte_vector_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, DWORD type, _Inout_ ::std::vector<BYTE>* data) WI_NOEXCEPT try
         {
             const reg_view_details::reg_view_nothrow regview{ key };
             ::std::vector<BYTE> value{};
@@ -1408,7 +1468,7 @@ namespace wil
         }
         CATCH_RETURN()
 
-        inline HRESULT get_value_byte_vector_nothrow(HKEY key, _In_opt_ PCWSTR value_name, DWORD type, ::std::vector<BYTE>* data) WI_NOEXCEPT
+        inline HRESULT get_value_byte_vector_nothrow(HKEY key, _In_opt_ PCWSTR value_name, DWORD type, _Inout_ ::std::vector<BYTE>* data) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_byte_vector_nothrow(key, nullptr, value_name, type, data);
         }
@@ -1438,7 +1498,7 @@ namespace wil
         }
 
 #if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
-        inline HRESULT get_value_expanded_wstring_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, ::std::wstring* data) WI_NOEXCEPT try
+        inline HRESULT get_value_expanded_wstring_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _Inout_ ::std::wstring* data) WI_NOEXCEPT try
         {
             const reg_view_details::reg_view_nothrow regview{ key };
             std::wstring value{};
@@ -1449,7 +1509,7 @@ namespace wil
         }
         CATCH_RETURN()
 
-        inline HRESULT get_value_expanded_wstring_nothrow(HKEY key, _In_opt_ PCWSTR value_name, ::std::wstring* data) WI_NOEXCEPT
+        inline HRESULT get_value_expanded_wstring_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _Inout_ ::std::wstring* data) WI_NOEXCEPT
         {
             return get_value_expanded_wstring_nothrow(key, nullptr, value_name, data);
         }
