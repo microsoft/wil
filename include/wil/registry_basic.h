@@ -315,7 +315,7 @@ namespace wil
 #endif // #if defined(__WIL_OLEAUTO_H_)
 
 #if defined(__WIL_OBJBASE_H_)
-            inline DWORD get_buffer_size(const ::wil::unique_cotaskmem_string&) WI_NOEXCEPT
+            constexpr DWORD get_buffer_size(const ::wil::unique_cotaskmem_string&) WI_NOEXCEPT
             {
                 // wil::unique_cotaskmem_string does not intrinsically track its internal buffer size
                 // thus the caller must track the buffer size it requested to be allocated
@@ -490,7 +490,7 @@ namespace wil
 
 #if defined(__WIL_OBJBASE_H_)
             template <>
-            inline DWORD get_value_type<::wil::unique_cotaskmem_string>() WI_NOEXCEPT
+            constexpr DWORD get_value_type<::wil::unique_cotaskmem_string>() WI_NOEXCEPT
             {
                 return ::wil::reg::details::get_value_flags_from_value_type(REG_SZ);
             }
@@ -550,7 +550,7 @@ namespace wil
 #endif // #if defined(__WIL_OLEAUTO_H_)
 
 #if defined(__WIL_OBJBASE_H_)
-            inline DWORD set_value_type(const ::wil::unique_cotaskmem_string&) WI_NOEXCEPT
+            constexpr DWORD set_value_type(const ::wil::unique_cotaskmem_string&) WI_NOEXCEPT
             {
                 return REG_SZ;
             }
