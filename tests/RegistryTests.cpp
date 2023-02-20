@@ -7,7 +7,7 @@
 #include <sddl.h>
 
 #include <wil/filesystem.h>
-#include <wil/registry_basic.h>
+#include <wil/registry.h>
 #include <wil/resource.h>
 
 #include "common.h"

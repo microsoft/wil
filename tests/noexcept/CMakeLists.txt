@@ -12,7 +12,7 @@ append_cxx_flag("/wd4530")
 
 target_sources(witest.noexcept PUBLIC
     ${COMMON_SOURCES}
-    ${CMAKE_CURRENT_SOURCE_DIR}/../BasicRegistryTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../RegistryTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../TokenHelpersTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../UniqueWinRTEventTokenTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../WatcherTests.cpp
