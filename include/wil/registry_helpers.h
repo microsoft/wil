@@ -8,13 +8,8 @@
 //    PARTICULAR PURPOSE AND NONINFRINGEMENT.
 //
 //*********************************************************
-#ifndef __WIL_REGISTRY_BASIC_INCLUDED
-#define __WIL_REGISTRY_BASIC_INCLUDED
-
-// wil registry does not require the use of the STL - though it does natively support std::vector and std::wstring
-// wil registry uses the __WIL_WINREG_STL define to track support for wil::shared_* types (defined in resource.h)
-// Include <string> and/or <vector> to use the STL integrated functions
-// Include sddl.h if wanting to pass security descriptor strings to create keys
+#ifndef __WIL_REGISTRY_HELPERS_INCLUDED
+#define __WIL_REGISTRY_HELPERS_INCLUDED
 
 #if defined(_STRING_) || defined (_VECTOR_) || (defined (__cpp_lib_optional) && defined (_OPTIONAL_))
 #include <functional>
@@ -22,8 +17,6 @@
 #endif
 
 #include <Windows.h>
-
-#include "common.h"
 #include "resource.h"
 
 #ifdef _KERNEL_MODE
@@ -44,7 +37,7 @@ namespace wil
             readwrite,
         };
 
-        namespace details
+        namespace reg_view_details
         {
             constexpr DWORD get_value_flags_from_value_type(DWORD type) WI_NOEXCEPT
             {
@@ -121,7 +114,7 @@ namespace wil
                 const auto lastNull = (end_iterator - 1);
                 while (current != end_iterator)
                 {
-                    const auto next = ::std::find(current, data.cend(), L'\0');
+                    const auto next = ::std::find(current, end_iterator, L'\0');
                     if (next != end_iterator)
                     {
                         if (next != lastNull)
@@ -158,10 +151,7 @@ namespace wil
                 return securityDescriptor;
             }
 #endif // #if defined(__SDDL_H__)
-        } // namespace details
 
-        namespace reg_view_details
-        {
             template <typename T>
             constexpr bool supports_prepare_buffer(T&) noexcept
             {
@@ -480,50 +470,50 @@ namespace wil
             template <>
             constexpr DWORD get_value_type<int32_t>() WI_NOEXCEPT
             {
-                return ::wil::reg::details::get_value_flags_from_value_type(REG_DWORD);
+                return get_value_flags_from_value_type(REG_DWORD);
             }
 
             template <>
             constexpr DWORD get_value_type<uint32_t>() WI_NOEXCEPT
             {
-                return ::wil::reg::details::get_value_flags_from_value_type(REG_DWORD);
+                return get_value_flags_from_value_type(REG_DWORD);
             }
 
             template <>
             constexpr DWORD get_value_type<long>() WI_NOEXCEPT
             {
-                return ::wil::reg::details::get_value_flags_from_value_type(REG_DWORD);
+                return get_value_flags_from_value_type(REG_DWORD);
             }
 
             template <>
             constexpr DWORD get_value_type<unsigned long>() WI_NOEXCEPT
             {
-                return ::wil::reg::details::get_value_flags_from_value_type(REG_DWORD);
+                return get_value_flags_from_value_type(REG_DWORD);
             }
 
             template <>
             constexpr DWORD get_value_type<int64_t>() WI_NOEXCEPT
             {
-                return ::wil::reg::details::get_value_flags_from_value_type(REG_QWORD);
+                return get_value_flags_from_value_type(REG_QWORD);
             }
 
             template <>
             constexpr DWORD get_value_type<uint64_t>() WI_NOEXCEPT
             {
-                return ::wil::reg::details::get_value_flags_from_value_type(REG_QWORD);
+                return get_value_flags_from_value_type(REG_QWORD);
             }
 
             template <>
             constexpr DWORD get_value_type<PCWSTR>() WI_NOEXCEPT
             {
-                return ::wil::reg::details::get_value_flags_from_value_type(REG_SZ);
+                return get_value_flags_from_value_type(REG_SZ);
             }
 
 #if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
             template <>
             constexpr DWORD get_value_type<::std::wstring>() WI_NOEXCEPT
             {
-                return ::wil::reg::details::get_value_flags_from_value_type(REG_SZ);
+                return get_value_flags_from_value_type(REG_SZ);
             }
 #endif // #if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
 
@@ -531,12 +521,12 @@ namespace wil
             template <>
             constexpr DWORD get_value_type<BSTR>() WI_NOEXCEPT
             {
-                return ::wil::reg::details::get_value_flags_from_value_type(REG_SZ);
+                return get_value_flags_from_value_type(REG_SZ);
             }
             template <>
             constexpr DWORD get_value_type<::wil::unique_bstr>() WI_NOEXCEPT
             {
-                return ::wil::reg::details::get_value_flags_from_value_type(REG_SZ);
+                return get_value_flags_from_value_type(REG_SZ);
             }
 #endif // #if defined(__WIL_OLEAUTO_H_)
 
@@ -544,7 +534,7 @@ namespace wil
             template <>
             constexpr DWORD get_value_type<::wil::unique_cotaskmem_string>() WI_NOEXCEPT
             {
-                return ::wil::reg::details::get_value_flags_from_value_type(REG_SZ);
+                return get_value_flags_from_value_type(REG_SZ);
             }
 #endif // defined(__WIL_OBJBASE_H_)
 
@@ -625,7 +615,7 @@ namespace wil
                 typename err_policy::result open_key(_In_opt_ PCWSTR subKey, _Out_ HKEY* hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) const
                 {
                     constexpr DWORD zero_ulOptions{ 0 };
-                    const auto error = ::RegOpenKeyExW(m_key, subKey, zero_ulOptions, ::wil::reg::details::get_access_flags(access), hkey);
+                    const auto error = ::RegOpenKeyExW(m_key, subKey, zero_ulOptions, get_access_flags(access), hkey);
                     return err_policy::HResult(HRESULT_FROM_WIN32(error));
                 }
 
@@ -655,7 +645,7 @@ namespace wil
                     constexpr LPSECURITY_ATTRIBUTES null_lpSecurityAttributes{ nullptr };
                     DWORD disposition{ 0 };
                     const auto error =
-                        ::RegCreateKeyExW(m_key, subKey, zero_Reserved, null_lpClass, zero_dwOptions, ::wil::reg::details::get_access_flags(access), null_lpSecurityAttributes, hkey, &disposition);
+                        ::RegCreateKeyExW(m_key, subKey, zero_Reserved, null_lpClass, zero_dwOptions, get_access_flags(access), null_lpSecurityAttributes, hkey, &disposition);
                     return err_policy::HResult(HRESULT_FROM_WIN32(error));
                 }
 
@@ -680,7 +670,7 @@ namespace wil
                 {
                     *hkey = nullptr;
 
-                    const ::wil::unique_hlocal_ptr<SECURITY_DESCRIPTOR> securityDescriptor = ::wil::reg::details::create_security_descriptor<err_policy>(security_descriptor);
+                    const ::wil::unique_hlocal_ptr<SECURITY_DESCRIPTOR> securityDescriptor = create_security_descriptor<err_policy>(security_descriptor);
                     constexpr LPVOID null_lpSecurityDescriptor{ nullptr };
                     constexpr BOOL false_bInheritHandle{ FALSE };
                     SECURITY_ATTRIBUTES security_attributes{ sizeof security_attributes, null_lpSecurityDescriptor, false_bInheritHandle };
@@ -691,7 +681,7 @@ namespace wil
                     constexpr DWORD zero_dwOptions{ 0 };
                     DWORD disposition{ 0 };
                     const auto error =
-                        ::RegCreateKeyExW(m_key, subKey, zero_Reserved, null_lpClass, zero_dwOptions, ::wil::reg::details::get_access_flags(access), security_descriptor ? &security_attributes : nullptr, hkey, &disposition);
+                        ::RegCreateKeyExW(m_key, subKey, zero_Reserved, null_lpClass, zero_dwOptions, get_access_flags(access), security_descriptor ? &security_attributes : nullptr, hkey, &disposition);
                     return err_policy::HResult(HRESULT_FROM_WIN32(error));
                 }
 
@@ -756,7 +746,7 @@ namespace wil
                             m_key,
                             subkey,
                             value_name,
-                            ::wil::reg::details::get_value_flags_from_value_type(type),
+                            get_value_flags_from_value_type(type),
                             null_pdwType,
                             ::wil::reg::reg_view_details::get_buffer(return_value),
                             &data_size_bytes));
@@ -885,7 +875,7 @@ namespace wil
                 template <typename R>
                 typename err_policy::result set_value_multistring(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const R& data) const try
                 {
-                    const auto multiStringWcharVector(::wil::reg::details::get_multistring_from_wstrings(::std::begin(data), ::std::end(data)));
+                    const auto multiStringWcharVector(get_multistring_from_wstrings(::std::begin(data), ::std::end(data)));
 
                     const auto* byteArray = reinterpret_cast<const BYTE*>(&multiStringWcharVector[0]);
                     const auto byteArrayLength = static_cast<DWORD>(multiStringWcharVector.size() * sizeof(wchar_t));
@@ -921,7 +911,6 @@ namespace wil
             using reg_view = reg_view_details::reg_view_t<::wil::err_exception_policy>;
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS)
         }
-
     } // namespace reg
 } // namespace wil
-#endif // __WIL_REGISTRY_BASIC_INCLUDED
+#endif // __WIL_REGISTRY_HELPERS_INCLUDED

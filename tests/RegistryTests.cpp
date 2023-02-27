@@ -1268,6 +1268,13 @@ TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
             REQUIRE(result.has_value());
             REQUIRE(result == value);
 
+            // verify ways to copy or move values out of the returned value
+            const auto copy_result = result.value_or(L"Test");
+            const auto move_result = wil::reg::try_get_value_wstring(hkey.get(), stringValueName).value_or(L"test");
+
+            // potentially moves out of result - cannot use result afterwards
+            const auto move_result2 = static_cast<std::optional<std::wstring>&&>(result).value_or(L"Test");
+
             // and verify default value name
             wil::reg::set_value(hkey.get(), nullptr, value.c_str());
             result = wil::reg::try_get_value_wstring(hkey.get(), nullptr);
@@ -1675,6 +1682,15 @@ TEST_CASE("BasicRegistryTests::bstrs", "[registry]")
             REQUIRE(result);
             REQUIRE(result.has_value());
             REQUIRE(AreStringsEqual(result.value(), value));
+
+            // verify ways to copy or move values out of the returned value
+
+            // this will try to copy, so it will fail because we use unique_bstr
+            // auto copy_result = result.value_or(wil::make_bstr(L"test"));
+            const auto move_result = wil::reg::try_get_value_bstr(hkey.get(), stringValueName).value_or(wil::make_bstr(L"Test"));
+            // potentially moves out of result - cannot use result afterwards
+            const auto move_result2 = static_cast<std::optional<wil::unique_bstr>&&>(result).value_or(wil::make_bstr(L"Test"));
+
 
             // and verify default value name
             wil::reg::set_value(hkey.get(), nullptr, value.c_str());
@@ -2611,8 +2627,6 @@ TEST_CASE("BasicRegistryTests::expanded_bstr", "[registry]")
         }
     }
 
-    /*
-     * TODO 
 #if defined(__cpp_lib_optional)
     SECTION("set_value/try_get_value_expanded_bstr: with open key")
     {
@@ -2631,14 +2645,14 @@ TEST_CASE("BasicRegistryTests::expanded_bstr", "[registry]")
             auto result = wil::reg::try_get_value_expanded_bstr(hkey.get(), stringValueName);
             REQUIRE(result);
             REQUIRE(result.has_value());
-            REQUIRE(result == expanded_value);
+            REQUIRE(AreStringsEqual(result.value(), expanded_value));
 
             // and verify default value name
             wil::reg::set_value(hkey.get(), nullptr, value.c_str());
             result = wil::reg::try_get_value_expanded_bstr(hkey.get(), nullptr);
             REQUIRE(result);
             REQUIRE(result.has_value());
-            REQUIRE(result == expanded_value);
+            REQUIRE(AreStringsEqual(result.value(), expanded_value));
         }
 
         // fail get* if the value doesn't exist
@@ -2673,14 +2687,14 @@ TEST_CASE("BasicRegistryTests::expanded_bstr", "[registry]")
             auto result = wil::reg::try_get_value_expanded_bstr(HKEY_CURRENT_USER, testSubkey, stringValueName);
             REQUIRE(result);
             REQUIRE(result.has_value());
-            REQUIRE(result == expanded_value);
+            REQUIRE(AreStringsEqual(result.value(), expanded_value));
 
             // and verify default value name
             wil::reg::set_value(HKEY_CURRENT_USER, testSubkey, nullptr, value.c_str());
             result = wil::reg::try_get_value_expanded_bstr(HKEY_CURRENT_USER, testSubkey, nullptr);
             REQUIRE(result);
             REQUIRE(result.has_value());
-            REQUIRE(result == expanded_value);
+            REQUIRE(AreStringsEqual(result.value(), expanded_value));
         }
 
         // fail get* if the value doesn't exist
@@ -2702,7 +2716,6 @@ TEST_CASE("BasicRegistryTests::expanded_bstr", "[registry]")
         }
     }
 #endif
-*/
 }
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS) && defined(__WIL_OLEAUTO_H_)
 

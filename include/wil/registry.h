@@ -24,6 +24,11 @@
 #error This is required for ::wil::unique_hkey support
 #endif
 
+// wil registry does not require the use of the STL or C++ exceptions
+// wil registry natively supports std::vector and std::wstring when preferring those types
+// wil registry uses the __WIL_WINREG_STL define to enable support for wil::shared_* types (defined in resource.h)
+// include sddl.h if wanting to pass security descriptor strings when creating keys
+
 namespace wil
 {
     namespace reg
@@ -330,7 +335,7 @@ namespace wil
         }
 
         /**
-         * \brief Writes a REG_DWORD value to the specific value name from a uint32_t
+         * \brief Writes a REG_DWORD value from a uint32_t
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param subkey A string to append to the HKEY to attempt to write
          *        can be nullptr if not needed
@@ -345,7 +350,7 @@ namespace wil
         }
 
         /**
-         * \brief Writes a REG_DWORD value to the specific value name from a uint32_t
+         * \brief Writes a REG_DWORD value from a uint32_t
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param value_name A string specifying the name of the registry value to write
          *        can be nullptr to write to the unnamed default registry value
@@ -358,7 +363,7 @@ namespace wil
         }
 
         /**
-         * \brief Writes a REG_QWORD value to the specific value name from a uint64_t
+         * \brief Writes a REG_QWORD value from a uint64_t
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param subkey A string to append to the HKEY to attempt to write
          *        can be nullptr if not needed
@@ -373,7 +378,7 @@ namespace wil
         }
 
         /**
-         * \brief Writes a REG_QWORD value to the specific value name from a uint64_t
+         * \brief Writes a REG_QWORD value from a uint64_t
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param value_name A string specifying the name of the registry value to write
          *        can be nullptr to write to the unnamed default registry value
@@ -386,7 +391,7 @@ namespace wil
         }
 
         /**
-         * \brief Writes a REG_SZ value to the specific value name from a null-terminated string
+         * \brief Writes a REG_SZ value from a null-terminated string
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param subkey A string to append to the HKEY to attempt to write
          *        can be nullptr if not needed
@@ -401,7 +406,7 @@ namespace wil
         }
 
         /**
-         * \brief Writes a REG_SZ value to the specific value name from a null-terminated string
+         * \brief Writes a REG_SZ value from a null-terminated string
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param value_name A string specifying the name of the registry value to write
          *        can be nullptr to write to the unnamed default registry value
@@ -414,7 +419,7 @@ namespace wil
         }
 
         /**
-         * \brief Writes a REG_EXPAND_SZ value to the specific value name from a null-terminated string
+         * \brief Writes a REG_EXPAND_SZ value from a null-terminated string
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param subkey A string to append to the HKEY to attempt to write
          *        can be nullptr if not needed
@@ -430,7 +435,7 @@ namespace wil
         }
 
         /**
-         * \brief Writes a REG_EXPAND_SZ value to the specific value name from a null-terminated string
+         * \brief Writes a REG_EXPAND_SZ value from a null-terminated string
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param value_name A string specifying the name of the registry value to write
          *        can be nullptr to write to the unnamed default registry value
@@ -445,7 +450,7 @@ namespace wil
 
 #if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
         /**
-         * \brief Writes a REG_MULTI_SZ value to the specific value name from a std::vector<std::wstring>
+         * \brief Writes a REG_MULTI_SZ value from a std::vector<std::wstring>
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param subkey A string to append to the HKEY to attempt to write
          *        can be nullptr if not needed
@@ -464,7 +469,7 @@ namespace wil
         }
 
         /**
-         * \brief Writes a REG_MULTI_SZ value to the specific value name from a std::vector<std::wstring>
+         * \brief Writes a REG_MULTI_SZ value from a std::vector<std::wstring>
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param value_name A string specifying the name of the registry value to write
          *        can be nullptr to write to the unnamed default registry value
@@ -480,7 +485,7 @@ namespace wil
         }
 
         /**
-         * \brief The generic set_value template function to write a REG_MULTI_SZ value to the specific value name from a std::vector<std::wstring>
+         * \brief The generic set_value template function to write a REG_MULTI_SZ value from a std::vector<std::wstring>
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param subkey A string to append to the HKEY to attempt to write
          *        can be nullptr if not needed
@@ -503,7 +508,7 @@ namespace wil
         }
 
         /**
-         * \brief The generic set_value template function to write a REG_MULTI_SZ value to the specific value name from a std::vector<std::wstring>
+         * \brief The generic set_value template function to write a REG_MULTI_SZ value from a std::vector<std::wstring>
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param value_name A string specifying the name of the registry value to write
          *        can be nullptr to write to the unnamed default registry value
@@ -526,7 +531,7 @@ namespace wil
 
 #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
         /**
-         * \brief Writes a registry value of the specified type to the specific value name from a std::vector<BYTE>
+         * \brief Writes a registry value of the specified type from a std::vector<BYTE>
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param subkey A string to append to the HKEY to attempt to write
          *        can be nullptr if not needed
@@ -547,7 +552,7 @@ namespace wil
         }
 
         /**
-         * \brief Writes a registry value of the specified type to the specific value name from a std::vector<BYTE>
+         * \brief Writes a registry value of the specified type from a std::vector<BYTE>
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param value_name A string specifying the name of the registry value to write
          *        can be nullptr to write to the unnamed default registry value
@@ -616,7 +621,7 @@ namespace wil
 
 #if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
         /**
-         * \brief A set_value_nothrow template function to write a REG_MULTI_SZ value to the specific value name from a std::vector<std::wstring>
+         * \brief A set_value_nothrow template function to write a REG_MULTI_SZ value from a std::vector<std::wstring>
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param subkey A string to append to the HKEY to attempt to write
          *        can be nullptr if not needed
@@ -641,7 +646,7 @@ namespace wil
         }
 
         /**
-         * \brief A set_value_nothrow template function to write a REG_MULTI_SZ value to the specific value name from a std::vector<std::wstring>
+         * \brief A set_value_nothrow template function to write a REG_MULTI_SZ value from a std::vector<std::wstring>
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param value_name A string specifying the name of the registry value to write
          *        can be nullptr to write to the unnamed default registry value
@@ -664,7 +669,7 @@ namespace wil
 #endif // #if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
 
         /**
-         * \brief Writes a REG_DWORD value to the specific value name from a uint32_t
+         * \brief Writes a REG_DWORD value from a uint32_t
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param subkey A string to append to the HKEY to attempt to write
          *        can be nullptr if not needed
@@ -680,7 +685,7 @@ namespace wil
         }
 
         /**
-         * \brief Writes a REG_DWORD value to the specific value name from a uint32_t
+         * \brief Writes a REG_DWORD value from a uint32_t
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param value_name A string specifying the name of the registry value to write
          *        can be nullptr to write to the unnamed default registry value
@@ -694,7 +699,7 @@ namespace wil
         }
 
         /**
-         * \brief Writes a REG_QWORD value to the specific value name from a uint64_t
+         * \brief Writes a REG_QWORD value from a uint64_t
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param subkey A string to append to the HKEY to attempt to write
          *        can be nullptr if not needed
@@ -710,7 +715,7 @@ namespace wil
         }
 
         /**
-         * \brief Writes a REG_QWORD value to the specific value name from a uint64_t
+         * \brief Writes a REG_QWORD value from a uint64_t
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param value_name A string specifying the name of the registry value to write
          *        can be nullptr to write to the unnamed default registry value
@@ -724,7 +729,7 @@ namespace wil
         }
 
         /**
-         * \brief Writes a REG_SZ value to the specific value name from a null-terminated string
+         * \brief Writes a REG_SZ value from a null-terminated string
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param subkey A string to append to the HKEY to attempt to write
          *        can be nullptr if not needed
@@ -740,7 +745,7 @@ namespace wil
         }
 
         /**
-         * \brief Writes a REG_SZ value to the specific value name from a null-terminated string
+         * \brief Writes a REG_SZ value from a null-terminated string
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param value_name A string specifying the name of the registry value to write
          *        can be nullptr to write to the unnamed default registry value
@@ -754,7 +759,7 @@ namespace wil
         }
 
         /**
-         * \brief Writes a REG_EXPAND_SZ value to the specific value name from a null-terminated string
+         * \brief Writes a REG_EXPAND_SZ value from a null-terminated string
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param subkey A string to append to the HKEY to attempt to write
          *        can be nullptr if not needed
@@ -771,7 +776,7 @@ namespace wil
         }
 
         /**
-         * \brief Writes a REG_EXPAND_SZ value to the specific value name from a null-terminated string
+         * \brief Writes a REG_EXPAND_SZ value from a null-terminated string
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param value_name A string specifying the name of the registry value to write
          *        can be nullptr to write to the unnamed default registry value
@@ -785,7 +790,7 @@ namespace wil
         }
 #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
         /**
-         * \brief Writes a registry value of the specified type to the specific value name from a std::vector<BYTE>
+         * \brief Writes a registry value of the specified type from a std::vector<BYTE>
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param subkey A string to append to the HKEY to attempt to write
          *        can be nullptr if not needed
@@ -807,7 +812,7 @@ namespace wil
         }
 
         /**
-         * \brief Writes a registry value of the specified type to the specific value name from a std::vector<BYTE>
+         * \brief Writes a registry value of the specified type from a std::vector<BYTE>
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param value_name A string specifying the name of the registry value to write
          *        can be nullptr to write to the unnamed default registry value
@@ -828,7 +833,7 @@ namespace wil
 
 #if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
         /**
-         * \brief Writes a REG_MULTI_SZ value to the specific value name from a std::vector<std::wstring>
+         * \brief Writes a REG_MULTI_SZ value from a std::vector<std::wstring>
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param subkey A string to append to the HKEY to attempt to write
          *        can be nullptr if not needed
@@ -848,7 +853,7 @@ namespace wil
         }
 
         /**
-         * \brief Writes a REG_MULTI_SZ value to the specific value name from a std::vector<std::wstring>
+         * \brief Writes a REG_MULTI_SZ value from a std::vector<std::wstring>
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param value_name A string specifying the name of the registry value to write
          *        can be nullptr to write to the unnamed default registry value
@@ -868,7 +873,7 @@ namespace wil
 #if defined(WIL_ENABLE_EXCEPTIONS)
         /**
          * \brief Reads a value under a specified key, the required registry type based off the templated type passed as data
-         * \tparam T The type capturing the data being set
+         * \tparam T The type capturing the data being read
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
@@ -902,7 +907,7 @@ namespace wil
 
         /**
          * \brief Reads a value under a specified key, the required registry type based off the templated type passed as data
-         * \tparam T The type capturing the data being set
+         * \tparam T The type capturing the data being read
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
@@ -930,7 +935,7 @@ namespace wil
         }
 
         /**
-         * \brief Reads a REG_DWORD value from the specific value name, returning a DWORD
+         * \brief Reads a REG_DWORD value, returning a DWORD
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
@@ -946,7 +951,7 @@ namespace wil
         }
 
         /**
-         * \brief Reads a REG_DWORD value from the specific value name, returning a DWORD
+         * \brief Reads a REG_DWORD value, returning a DWORD
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
@@ -960,7 +965,7 @@ namespace wil
         }
 
         /**
-         * \brief Reads a REG_QWORD value from the specific value name, returning a DWORD64
+         * \brief Reads a REG_QWORD value, returning a DWORD64
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
@@ -976,7 +981,7 @@ namespace wil
         }
 
         /**
-         * \brief Reads a REG_QWORD value from the specific value name, returning a DWORD64
+         * \brief Reads a REG_QWORD value, returning a DWORD64
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
@@ -991,7 +996,7 @@ namespace wil
 
 #if defined(_STRING_)
         /**
-         * \brief Reads a REG_SZ value from the specific value name, returning a std::wstring
+         * \brief Reads a REG_SZ value, returning a std::wstring
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
@@ -1009,7 +1014,7 @@ namespace wil
         }
 
         /**
-         * \brief Reads a REG_SZ value from the specific value name, returning a std::wstring
+         * \brief Reads a REG_SZ value, returning a std::wstring
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
@@ -1026,7 +1031,7 @@ namespace wil
         }
 
         /**
-         * \brief Reads a REG_EXPAND_SZ value from the specific value name, returning a std::wstring
+         * \brief Reads a REG_EXPAND_SZ value, returning a std::wstring
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
@@ -1048,7 +1053,7 @@ namespace wil
         }
 
         /**
-         * \brief Reads a REG_EXPAND_SZ value from the specific value name, returning a std::wstring
+         * \brief Reads a REG_EXPAND_SZ value, returning a std::wstring
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
@@ -1067,7 +1072,7 @@ namespace wil
 
 #if defined(__WIL_OLEAUTO_H_)
         /**
-         * \brief Reads a REG_SZ value from the specific value name, returning a wil::unique_bstr
+         * \brief Reads a REG_SZ value, returning a wil::unique_bstr
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
@@ -1086,7 +1091,7 @@ namespace wil
         }
 
         /**
-         * \brief Reads a REG_SZ value from the specific value name, returning a wil::unique_bstr
+         * \brief Reads a REG_SZ value, returning a wil::unique_bstr
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
@@ -1103,7 +1108,7 @@ namespace wil
         }
 
         /**
-         * \brief Reads a REG_EXPAND_SZ value from the specific value name, returning a wil::unqiue_bstr
+         * \brief Reads a REG_EXPAND_SZ value, returning a wil::unqiue_bstr
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
@@ -1126,7 +1131,7 @@ namespace wil
         }
 
         /**
-         * \brief Reads a REG_EXPAND_SZ value from the specific value name, returning a wil::unique_bstr
+         * \brief Reads a REG_EXPAND_SZ value, returning a wil::unique_bstr
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
@@ -1146,7 +1151,7 @@ namespace wil
 
 #if defined(__WIL_OBJBASE_H_)
         /**
-         * \brief Reads a REG_SZ value from the specific value name, returning a wil::unique_cotaskmem_string
+         * \brief Reads a REG_SZ value, returning a wil::unique_cotaskmem_string
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
@@ -1165,7 +1170,7 @@ namespace wil
         }
 
         /**
-         * \brief Reads a REG_SZ value from the specific value name, returning a wil::unique_cotaskmem_string
+         * \brief Reads a REG_SZ value, returning a wil::unique_cotaskmem_string
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
@@ -1182,7 +1187,7 @@ namespace wil
         }
 
         /**
-         * \brief Reads a REG_EXPAND_SZ value from the specific value name, returning a wil::unique_cotaskmem_string
+         * \brief Reads a REG_EXPAND_SZ value, returning a wil::unique_cotaskmem_string
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
@@ -1205,7 +1210,7 @@ namespace wil
         }
 
         /**
-         * \brief Reads a REG_EXPAND_SZ value from the specific value name, returning a wil::unique_cotaskmem_string
+         * \brief Reads a REG_EXPAND_SZ value, returning a wil::unique_cotaskmem_string
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
@@ -1225,7 +1230,7 @@ namespace wil
 
 #if defined(_VECTOR_)
         /**
-         * \brief Reads a registry value of the specified type from the specific value name, returning a std::vector<BYTE>
+         * \brief Reads a registry value of the specified type, returning a std::vector<BYTE>
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
@@ -1247,7 +1252,7 @@ namespace wil
         }
 
         /**
-         * \brief Reads a registry value of the specified type from the specific value name, returning a std::vector<BYTE>
+         * \brief Reads a registry value of the specified type, returning a std::vector<BYTE>
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
@@ -1264,10 +1269,36 @@ namespace wil
         }
 #endif // #if defined(_VECTOR_)
 
-        //
-        // try_get_value* (throwing) functions
-        //
 #if defined (_OPTIONAL_) && defined(__cpp_lib_optional)
+        /**
+         * \brief Reads a value under a specified key, the required registry type based off the templated return type
+         * \tparam T The type capturing the data being read into a std::optional
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param subkey A string to append to the HKEY to attempt to read from
+         *        can be nullptr if not needed
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \return The value read from the registry value of the template type std::optional<T>
+         *         note - will return std::nullopt if the value does not exist
+         * \exception std::exception will be thrown on failure (including wil::ResultException)
+         *            note - will not throw if the value does not exist
+         *
+         * \remark Note the type of registry value is determined by the template type T of data given
+         *
+         * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
+         *         try
+         *         {
+         *             // reads a REG_DWORD from L"value_name" - will return 0 if the value doesn't exist
+         *             DWORD dword_value = wil::reg::try_get_value<DWORD>(key, L"subkey", L"value_name").value_or(0);
+         *
+         *             // reads a REG_SZ value from L"value_name" - will default to L"default" if the value doesn't exist
+         *             std::wstring string_value = wil::reg::get_value<std::wstring>(key, L"subkey", L"value_name").value_or(L"default");
+         *             .
+         *             .
+         *         }
+         *         CATCH_RETURN()
+         *         // in this example, returns the HRESULT error code if anything fails reading the registry values other than value not found
+         */
         template <typename T>
         ::std::optional<T> try_get_value(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
         {
@@ -1275,33 +1306,200 @@ namespace wil
             return regview.try_get_value<T>(subkey, value_name);
         }
 
+        /**
+         * \brief Reads a value under a specified key, the required registry type based off the templated return type
+         * \tparam T The type capturing the data being read into a std::optional
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \return The value read from the registry value of the template type std::optional<T>
+         *         note - will return std::nullopt if the value does not exist
+         * \exception std::exception will be thrown on failure (including wil::ResultException)
+         *            note - will not throw if the value does not exist
+         *
+         * \remark Note the type of registry value is determined by the template type T of data given
+         *
+         * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
+         *         try
+         *         {
+         *             // reads a REG_DWORD from L"value_name" - will return 0 if the value doesn't exist
+         *             DWORD dword_value = wil::reg::try_get_value<DWORD>(key, L"value_name").value_or(0);
+         *
+         *             // reads a REG_SZ value from L"value_name" - will default to L"default" if the value doesn't exist
+         *             std::wstring string_value = wil::reg::get_value<std::wstring>(key, L"value_name").value_or(L"default");
+         *             .
+         *             .
+         *         }
+         *         CATCH_RETURN()
+         *         // in this example, returns the HRESULT error code if anything fails reading the registry values other than value not found
+         */
+        template <typename T>
+        ::std::optional<T> try_get_value(HKEY key, _In_opt_ PCWSTR value_name)
+        {
+            return try_get_value<T>(key, nullptr, value_name);
+        }
+
+        /**
+         * \brief Reads a DWORD value under a specified key, requiring a REG_DWORD value type
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param subkey A string to append to the HKEY to attempt to read from
+         *        can be nullptr if not needed
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \return The value read from the registry value of the template type std::optional<DWORD>
+         *         note - will return std::nullopt if the value does not exist
+         * \exception std::exception will be thrown on failure (including wil::ResultException)
+         *            note - will not throw if the value does not exist
+         *
+         * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
+         *         try
+         *         {
+         *             // reads a REG_DWORD from L"value_name" - will return 0 if the value doesn't exist
+         *             DWORD dword_value = wil::reg::try_get_value_dword(key, L"subkey", L"value_name").value_or(0);
+         *             .
+         *             .
+         *         }
+         *         CATCH_RETURN()
+         *         // in this example, returns the HRESULT error code if anything fails reading the registry values other than value not found
+         */
         inline ::std::optional<DWORD> try_get_value_dword(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
         {
             return wil::reg::try_get_value<DWORD>(key, subkey, value_name);
         }
 
+        /**
+         * \brief Reads a DWORD value under a specified key, requiring a REG_DWORD value type
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \return The value read from the registry value of the template type std::optional<DWORD>
+         *         note - will return std::nullopt if the value does not exist
+         * \exception std::exception will be thrown on failure (including wil::ResultException)
+         *            note - will not throw if the value does not exist
+         *
+         * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
+         *         try
+         *         {
+         *             // reads a REG_DWORD from L"value_name" - will return 0 if the value doesn't exist
+         *             DWORD dword_value = wil::reg::try_get_value_dword(key, L"value_name").value_or(0);
+         *             .
+         *             .
+         *         }
+         *         CATCH_RETURN()
+         *         // in this example, returns the HRESULT error code if anything fails reading the registry values other than value not found
+         */
         inline ::std::optional<DWORD> try_get_value_dword(HKEY key, _In_opt_ PCWSTR value_name)
         {
             return wil::reg::try_get_value<DWORD>(key, nullptr, value_name);
         }
 
+        /**
+         * \brief Reads a DWORD64 value under a specified key, requiring a REG_QWORD value type
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param subkey A string to append to the HKEY to attempt to read from
+         *        can be nullptr if not needed
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \return The value read from the registry value of the template type std::optional<DWORD64>
+         *         note - will return std::nullopt if the value does not exist
+         * \exception std::exception will be thrown on failure (including wil::ResultException)
+         *            note - will not throw if the value does not exist
+         *
+         * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
+         *         try
+         *         {
+         *             // reads a REG_QWORD from L"value_name" - will return 0 if the value doesn't exist
+         *             DWORD64 dword_value = wil::reg::try_get_value_qword(key, L"subkey", L"value_name").value_or(0ull);
+         *             .
+         *             .
+         *         }
+         *         CATCH_RETURN()
+         *         // in this example, returns the HRESULT error code if anything fails reading the registry values other than value not found
+         */
         inline ::std::optional<DWORD64> try_get_value_qword(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
         {
             return wil::reg::try_get_value<DWORD64>(key, subkey, value_name);
         }
 
+        /**
+         * \brief Reads a DWORD64 value under a specified key, requiring a REG_QWORD value type
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \return The value read from the registry value stored in a std::optional<DWORD64>
+         *         note - will return std::nullopt if the value does not exist
+         * \exception std::exception will be thrown on failure (including wil::ResultException)
+         *            note - will not throw if the value does not exist
+         *
+         * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
+         *         try
+         *         {
+         *             // reads a REG_QWORD from L"value_name" - will return 0 if the value doesn't exist
+         *             DWORD64 dword_value = wil::reg::try_get_value_qword(key, L"value_name").value_or(0ull);
+         *             .
+         *             .
+         *         }
+         *         CATCH_RETURN()
+         *         // in this example, returns the HRESULT error code if anything fails reading the registry values other than value not found
+         */
         inline ::std::optional<DWORD64> try_get_value_qword(HKEY key, _In_opt_ PCWSTR value_name)
         {
             return wil::reg::try_get_value<DWORD64>(key, nullptr, value_name);
         }
 
 #if defined(_VECTOR_)
+        /**
+         * \brief Reads a std::vector<BYTE> value under a specified key, requiring the specified value type
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param subkey A string to append to the HKEY to attempt to read from
+         *        can be nullptr if not needed
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \param type The required registry type to be read
+         * \return The raw bytes read from the registry value stored in a std::optional<std::vector<BYTE>>
+         *         note - will return std::nullopt if the value does not exist
+         * \exception std::exception will be thrown on failure (including wil::ResultException)
+         *            note - will not throw if the value does not exist
+         *
+         * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
+         *         try
+         *         {
+         *             // reads a REG_QWORD from L"value_name" - will return 0 if the value doesn't exist
+         *             DWORD64 dword_value = wil::reg::try_get_value_qword(key, L"subkey", L"value_name").value_or(0ull);
+         *             .
+         *             .
+         *         }
+         *         CATCH_RETURN()
+         *         // in this example, returns the HRESULT error code if anything fails reading the registry values other than value not found
+         */
         inline ::std::optional<::std::vector<BYTE>> try_get_value_byte_vector(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, DWORD type)
         {
             const reg_view_details::reg_view regview{ key };
             return regview.try_get_value<::std::vector<BYTE>>(subkey, value_name, type);
         }
 
+        /**
+         * \brief Reads a std::vector<BYTE> value under a specified key, requiring the specified value type
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \param type The required registry type to be read
+         * \return The raw bytes read from the registry value stored in a std::optional<std::vector<BYTE>>
+         *         note - will return std::nullopt if the value does not exist
+         * \exception std::exception will be thrown on failure (including wil::ResultException)
+         *            note - will not throw if the value does not exist
+         *
+         * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
+         *         try
+         *         {
+         *             // reads a REG_QWORD from L"value_name" - will return 0 if the value doesn't exist
+         *             DWORD64 dword_value = wil::reg::try_get_value_qword(key, L"value_name").value_or(0ull);
+         *             .
+         *             .
+         *         }
+         *         CATCH_RETURN()
+         *         // in this example, returns the HRESULT error code if anything fails reading the registry values other than value not found
+         */
         inline ::std::optional<::std::vector<BYTE>> try_get_value_byte_vector(HKEY key, _In_opt_ PCWSTR value_name, DWORD type)
         {
             return try_get_value_byte_vector(key, nullptr, value_name, type);
@@ -1310,23 +1508,111 @@ namespace wil
 
 
 #if defined(_STRING_)
+        /**
+         * \brief Reads a std::wstring value under a specified key, requiring a REG_SZ value type
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param subkey A string to append to the HKEY to attempt to read from
+         *        can be nullptr if not needed
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \return The value read from the registry value of the template type std::optional<std::wstring>
+         *         note - will return std::nullopt if the value does not exist
+         * \exception std::exception will be thrown on failure (including wil::ResultException)
+         *            note - will not throw if the value does not exist
+         *
+         * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
+         *         try
+         *         {
+         *             // reads a REG_SZ from L"value_name" - will return L"default" if the value doesn't exist
+         *             std::wstring string_value = wil::reg::try_get_value_wstring(key, L"subkey", L"value_name").value_or(L"default");
+         *             .
+         *             .
+         *         }
+         *         CATCH_RETURN()
+         *         // in this example, returns the HRESULT error code if anything fails reading the registry values other than value not found
+         */
         inline ::std::optional<::std::wstring> try_get_value_wstring(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
         {
             const reg_view_details::reg_view regview{ key };
             return regview.try_get_value<::std::wstring>(subkey, value_name);
         }
 
+        /**
+         * \brief Reads a std::wstring value under a specified key, requiring a REG_SZ value type
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \return The value read from the registry value of the template type std::optional<std::wstring>
+         *         note - will return std::nullopt if the value does not exist
+         * \exception std::exception will be thrown on failure (including wil::ResultException)
+         *            note - will not throw if the value does not exist
+         *
+         * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
+         *         try
+         *         {
+         *             // reads a REG_SZ from L"value_name" - will return L"default" if the value doesn't exist
+         *             std::wstring string_value = wil::reg::try_get_value_wstring(key, L"value_name").value_or(L"default");
+         *             .
+         *             .
+         *         }
+         *         CATCH_RETURN()
+         *         // in this example, returns the HRESULT error code if anything fails reading the registry values other than value not found
+         */
         inline ::std::optional<::std::wstring> try_get_value_wstring(HKEY key, _In_opt_ PCWSTR value_name)
         {
             return try_get_value_wstring(key, nullptr, value_name);
         }
 
+        /**
+         * \brief Reads a std::wstring value under a specified key, requiring a REG_EXPAND_SZ value type
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param subkey A string to append to the HKEY to attempt to read from
+         *        can be nullptr if not needed
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \return The value read from the registry value of the template type std::optional<std::wstring>
+         *         note - will return std::nullopt if the value does not exist
+         * \exception std::exception will be thrown on failure (including wil::ResultException)
+         *            note - will not throw if the value does not exist
+         *
+         * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
+         *         try
+         *         {
+         *             // reads a REG_SZ from L"value_name" - will return L"default" if the value doesn't exist
+         *             std::wstring string_value = wil::reg::try_get_value_expanded_wstring(key, L"subkey", L"value_name").value_or(L"default");
+         *             .
+         *             .
+         *         }
+         *         CATCH_RETURN()
+         *         // in this example, returns the HRESULT error code if anything fails reading the registry values other than value not found
+         */
         inline ::std::optional<::std::wstring> try_get_value_expanded_wstring(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
         {
             const reg_view_details::reg_view regview{ key };
             return regview.try_get_value<::std::wstring>(subkey, value_name, REG_EXPAND_SZ);
         }
 
+        /**
+         * \brief Reads a std::wstring value under a specified key, requiring a REG_EXPAND_SZ value type
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \return The value read from the registry value of the template type std::optional<std::wstring>
+         *         note - will return std::nullopt if the value does not exist
+         * \exception std::exception will be thrown on failure (including wil::ResultException)
+         *            note - will not throw if the value does not exist
+         *
+         * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
+         *         try
+         *         {
+         *             // reads a REG_SZ from L"value_name" - will return L"default" if the value doesn't exist
+         *             std::wstring string_value = wil::reg::try_get_value_expanded_wstring(key, L"value_name").value_or(L"default");
+         *             .
+         *             .
+         *         }
+         *         CATCH_RETURN()
+         *         // in this example, returns the HRESULT error code if anything fails reading the registry values other than value not found
+         */
         inline ::std::optional<::std::wstring> try_get_value_expanded_wstring(HKEY key, _In_opt_ PCWSTR value_name)
         {
             return try_get_value_expanded_wstring(key, nullptr, value_name);
@@ -1334,15 +1620,116 @@ namespace wil
 #endif // #if defined(_STRING_)
 
 #if defined(__WIL_OLEAUTO_H_)
+        /**
+         * \brief Reads a wil::unique_bstr value under a specified key, requiring a REG_SZ value type
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param subkey A string to append to the HKEY to attempt to read from
+         *        can be nullptr if not needed
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \return The value read from the registry value of the template type std::optional<wil::unique_bstr>
+         *         note - will return std::nullopt if the value does not exist
+         * \exception std::exception will be thrown on failure (including wil::ResultException)
+         *            note - will not throw if the value does not exist
+         *
+         * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
+         *         try
+         *         {
+         *             // reads a REG_SZ from L"value_name" - will return L"default" if the value doesn't exist
+         *             wil::unique_bstr string_value = wil::reg::try_get_value_bstr(key, L"subkey", L"value_name").value_or(wil::make_bstr(L"default"));
+         *             .
+         *             .
+         *         }
+         *         CATCH_RETURN()
+         *         // in this example, returns the HRESULT error code if anything fails reading the registry values other than value not found
+         */
         inline ::std::optional<::wil::unique_bstr> try_get_value_bstr(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
         {
             const reg_view_details::reg_view regview{ key };
             return regview.try_get_value<::wil::unique_bstr>(subkey, value_name);
         }
 
+        /**
+         * \brief Reads a wil::unique_bstr value under a specified key, requiring a REG_SZ value type
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param subkey A string to append to the HKEY to attempt to read from
+         *        can be nullptr if not needed
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \return The value read from the registry value of the template type std::optional<wil::unique_bstr>
+         *         note - will return std::nullopt if the value does not exist
+         * \exception std::exception will be thrown on failure (including wil::ResultException)
+         *            note - will not throw if the value does not exist
+         *
+         * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
+         *         try
+         *         {
+         *             // reads a REG_SZ from L"value_name" - will return L"default" if the value doesn't exist
+         *             wil::unique_bstr string_value = wil::reg::try_get_value_bstr(key, L"value_name").value_or(wil::make_bstr(L"default"));
+         *             .
+         *             .
+         *         }
+         *         CATCH_RETURN()
+         *         // in this example, returns the HRESULT error code if anything fails reading the registry values other than value not found
+         */
         inline ::std::optional<::wil::unique_bstr> try_get_value_bstr(HKEY key, _In_opt_ PCWSTR value_name)
         {
             return try_get_value_bstr(key, nullptr, value_name);
+        }
+
+        /**
+         * \brief Reads a wil::unique_bstr value under a specified key, requiring a REG_EXPAND_SZ value type
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param subkey A string to append to the HKEY to attempt to read from
+         *        can be nullptr if not needed
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \return The value read from the registry value of the template type std::optional<wil::unique_bstr>
+         *         note - will return std::nullopt if the value does not exist
+         * \exception std::exception will be thrown on failure (including wil::ResultException)
+         *            note - will not throw if the value does not exist
+         *
+         * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
+         *         try
+         *         {
+         *             // reads a REG_SZ from L"value_name" - will return L"default" if the value doesn't exist
+         *             ::wil::unique_bstr string_value = wil::reg::try_get_value_expanded_bstr(key, L"subkey", L"value_name").value_or(wil::make_bstr(L"default"));
+         *             .
+         *             .
+         *         }
+         *         CATCH_RETURN()
+         *         // in this example, returns the HRESULT error code if anything fails reading the registry values other than value not found
+         */
+        inline ::std::optional<::wil::unique_bstr> try_get_value_expanded_bstr(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
+        {
+            const reg_view_details::reg_view regview{ key };
+            return regview.try_get_value<::wil::unique_bstr>(subkey, value_name, REG_EXPAND_SZ);
+        }
+
+        /**
+         * \brief Reads a wil::unique_bstr value under a specified key, requiring a REG_EXPAND_SZ value type
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \return The value read from the registry value of the template type std::optional<wil::unique_bstr>
+         *         note - will return std::nullopt if the value does not exist
+         * \exception std::exception will be thrown on failure (including wil::ResultException)
+         *            note - will not throw if the value does not exist
+         *
+         * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
+         *         try
+         *         {
+         *             // reads a REG_SZ from L"value_name" - will return L"default" if the value doesn't exist
+         *             ::wil::unique_bstr string_value = wil::reg::try_get_value_expanded_bstr(key, L"value_name").value_or(wil::make_bstr(L"default"));
+         *             .
+         *             .
+         *         }
+         *         CATCH_RETURN()
+         *         // in this example, returns the HRESULT error code if anything fails reading the registry values other than value not found
+         */
+        inline ::std::optional<::wil::unique_bstr> try_get_value_expanded_bstr(HKEY key, _In_opt_ PCWSTR value_name)
+        {
+            return try_get_value_expanded_bstr(key, nullptr, value_name);
         }
 #endif // #if defined(__WIL_OLEAUTO_H_)
 
@@ -1370,7 +1757,7 @@ namespace wil
             // don't allocate, just use their buffer
             wil::assign_to_opt_param(pRequiredBytes, 0ul);
             DWORD data_size_bytes{ Length * sizeof(WCHAR) };
-            const auto error = ::RegGetValueW(key, subkey, value_name, ::wil::reg::details::get_value_flags_from_value_type(REG_SZ), nullptr, return_value, &data_size_bytes);
+            const auto error = ::RegGetValueW(key, subkey, value_name, ::wil::reg::reg_view_details::get_value_flags_from_value_type(REG_SZ), nullptr, return_value, &data_size_bytes);
             if (error == ERROR_SUCCESS || error == ERROR_MORE_DATA)
             {
                 wil::assign_to_opt_param(pRequiredBytes, data_size_bytes);
@@ -1516,7 +1903,7 @@ namespace wil
             // don't allocate, just use their buffer
             wil::assign_to_opt_param(pRequiredBytes, 0ul);
             DWORD data_size_bytes{ Length * sizeof(WCHAR) };
-            const auto error = ::RegGetValueW(key, subkey, value_name, ::wil::reg::details::get_value_flags_from_value_type(REG_EXPAND_SZ), nullptr, return_value, &data_size_bytes);
+            const auto error = ::RegGetValueW(key, subkey, value_name, ::wil::reg::reg_view_details::get_value_flags_from_value_type(REG_EXPAND_SZ), nullptr, return_value, &data_size_bytes);
             if (error == ERROR_SUCCESS || error == ERROR_MORE_DATA)
             {
                 wil::assign_to_opt_param(pRequiredBytes, data_size_bytes);
@@ -1561,7 +1948,7 @@ namespace wil
             {
                 auto* const begin = reinterpret_cast<wchar_t*>(rawData.data());
                 auto* const end = begin + rawData.size() / sizeof(wchar_t);
-                return_value = ::wil::reg::details::get_wstring_vector_from_multistring(::std::vector<wchar_t>(begin, end));
+                return_value = ::wil::reg::reg_view_details::get_wstring_vector_from_multistring(::std::vector<wchar_t>(begin, end));
             }
 
             return return_value;
@@ -1583,7 +1970,7 @@ namespace wil
             {
                 auto* const begin = reinterpret_cast<wchar_t*>(rawData.data());
                 auto* const end = begin + rawData.size() / sizeof(wchar_t);
-                *return_value = ::wil::reg::details::get_wstring_vector_from_multistring(::std::vector<wchar_t>(begin, end));
+                *return_value = ::wil::reg::reg_view_details::get_wstring_vector_from_multistring(::std::vector<wchar_t>(begin, end));
             }
             return S_OK;
         }
