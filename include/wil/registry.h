@@ -1523,8 +1523,8 @@ namespace wil
          * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
          *         try
          *         {
-         *             // reads a REG_SZ from L"value_name" - will return L"default" if the value doesn't exist
-         *             std::wstring string_value = wil::reg::try_get_value_wstring(key, L"subkey", L"value_name").value_or(L"default");
+         *             // reads a REG_SZ from L"value_name" - will return an empty std::wstring if the value doesn't exist
+         *             std::wstring string_value = wil::reg::try_get_value_wstring(key, L"subkey", L"value_name").value_or(std::wstring{});
          *             .
          *             .
          *         }
@@ -1550,8 +1550,8 @@ namespace wil
          * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
          *         try
          *         {
-         *             // reads a REG_SZ from L"value_name" - will return L"default" if the value doesn't exist
-         *             std::wstring string_value = wil::reg::try_get_value_wstring(key, L"value_name").value_or(L"default");
+         *             // reads a REG_SZ from L"value_name" - will return an empty std::wstring if the value doesn't exist
+         *             std::wstring string_value = wil::reg::try_get_value_wstring(key, L"value_name").value_or(std::wstring{});
          *             .
          *             .
          *         }
@@ -1578,8 +1578,8 @@ namespace wil
          * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
          *         try
          *         {
-         *             // reads a REG_SZ from L"value_name" - will return L"default" if the value doesn't exist
-         *             std::wstring string_value = wil::reg::try_get_value_expanded_wstring(key, L"subkey", L"value_name").value_or(L"default");
+         *             // reads a REG_SZ from L"value_name" - will return an empty std::wstring if the value doesn't exist
+         *             std::wstring string_value = wil::reg::try_get_value_expanded_wstring(key, L"subkey", L"value_name").value_or(std::wstring{});
          *             .
          *             .
          *         }
@@ -1605,8 +1605,8 @@ namespace wil
          * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
          *         try
          *         {
-         *             // reads a REG_SZ from L"value_name" - will return L"default" if the value doesn't exist
-         *             std::wstring string_value = wil::reg::try_get_value_expanded_wstring(key, L"value_name").value_or(L"default");
+         *             // reads a REG_SZ from L"value_name" - will return an empty std::wstring if the value doesn't exist
+         *             std::wstring string_value = wil::reg::try_get_value_expanded_wstring(key, L"value_name").value_or(std::wstring{});
          *             .
          *             .
          *         }
@@ -1635,8 +1635,8 @@ namespace wil
          * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
          *         try
          *         {
-         *             // reads a REG_SZ from L"value_name" - will return L"default" if the value doesn't exist
-         *             wil::unique_bstr string_value = wil::reg::try_get_value_bstr(key, L"subkey", L"value_name").value_or(wil::make_bstr(L"default"));
+         *             // reads a REG_SZ from L"value_name" - will return am empty wil::unique_bstr if the value doesn't exist
+         *             wil::unique_bstr string_value = wil::reg::try_get_value_bstr(key, L"subkey", L"value_name").value_or(wil::unique_bstr{});
          *             .
          *             .
          *         }
@@ -1664,8 +1664,8 @@ namespace wil
          * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
          *         try
          *         {
-         *             // reads a REG_SZ from L"value_name" - will return L"default" if the value doesn't exist
-         *             wil::unique_bstr string_value = wil::reg::try_get_value_bstr(key, L"value_name").value_or(wil::make_bstr(L"default"));
+         *             // reads a REG_SZ from L"value_name" - will return am empty wil::unique_bstr if the value doesn't exist
+         *             wil::unique_bstr string_value = wil::reg::try_get_value_bstr(key, L"value_name").value_or(wil::unique_bstr{});
          *             .
          *             .
          *         }
@@ -1692,8 +1692,8 @@ namespace wil
          * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
          *         try
          *         {
-         *             // reads a REG_SZ from L"value_name" - will return L"default" if the value doesn't exist
-         *             ::wil::unique_bstr string_value = wil::reg::try_get_value_expanded_bstr(key, L"subkey", L"value_name").value_or(wil::make_bstr(L"default"));
+         *             // reads a REG_SZ from L"value_name" - will return am empty wil::unique_bstr if the value doesn't exist
+         *             wil::unique_bstr string_value = wil::reg::try_get_value_expanded_bstr(key, L"subkey", L"value_name").value_or(wil::unique_bstr{});
          *             .
          *             .
          *         }
@@ -1719,8 +1719,8 @@ namespace wil
          * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
          *         try
          *         {
-         *             // reads a REG_SZ from L"value_name" - will return L"default" if the value doesn't exist
-         *             ::wil::unique_bstr string_value = wil::reg::try_get_value_expanded_bstr(key, L"value_name").value_or(wil::make_bstr(L"default"));
+         *             // reads a REG_SZ from L"value_name" - will return am empty wil::unique_bstr if the value doesn't exist
+         *             wil::unique_bstr string_value = wil::reg::try_get_value_expanded_bstr(key, L"value_name").value_or(wil::unique_bstr{});
          *             .
          *             .
          *         }
@@ -1734,15 +1734,115 @@ namespace wil
 #endif // #if defined(__WIL_OLEAUTO_H_)
 
 #if defined(__WIL_OBJBASE_H_)
+        /**
+         * \brief Reads a wil::unique_cotaskmem_string under a specified key, requiring a REG_SZ value type
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param subkey A string to append to the HKEY to attempt to read from
+         *        can be nullptr if not needed
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \return The value read from the registry value of the template type std::optional<wil::unique_cotaskmem_string>
+         *         note - will return std::nullopt if the value does not exist
+         * \exception std::exception will be thrown on failure (including wil::ResultException)
+         *            note - will not throw if the value does not exist
+         *
+         * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
+         *         try
+         *         {
+         *             // reads a REG_SZ from L"value_name" - will return am empty wil::unique_cotaskmem_string if the value doesn't exist
+         *             wil::unique_cotaskmem_string string_value = wil::reg::try_get_value_cotaskmem_string(key, L"subkey", L"value_name").value_or(wil::unique_cotaskmem_string{});
+         *             .
+         *             .
+         *         }
+         *         CATCH_RETURN()
+         *         // in this example, returns the HRESULT error code if anything fails reading the registry values other than value not found
+         */
         inline ::std::optional<::wil::unique_cotaskmem_string> try_get_value_cotaskmem_string(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
         {
             const reg_view_details::reg_view regview{ key };
             return regview.try_get_value<::wil::unique_cotaskmem_string>(subkey, value_name);
         }
 
+        /**
+         * \brief Reads a wil::unique_cotaskmem_string under a specified key, requiring a REG_SZ value type
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \return The value read from the registry value of the template type std::optional<wil::unique_cotaskmem_string>
+         *         note - will return std::nullopt if the value does not exist
+         * \exception std::exception will be thrown on failure (including wil::ResultException)
+         *            note - will not throw if the value does not exist
+         *
+         * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
+         *         try
+         *         {
+         *             // reads a REG_SZ from L"value_name" - will return am empty wil::unique_cotaskmem_string if the value doesn't exist
+         *             wil::unique_cotaskmem_string string_value = wil::reg::try_get_value_cotaskmem_string(key, L"value_name").value_or(wil::unique_cotaskmem_string{});
+         *             .
+         *             .
+         *         }
+         *         CATCH_RETURN()
+         *         // in this example, returns the HRESULT error code if anything fails reading the registry values other than value not found
+         */
         inline ::std::optional<::wil::unique_cotaskmem_string> try_get_value_cotaskmem_string(HKEY key, _In_opt_ PCWSTR value_name)
         {
             return try_get_value_cotaskmem_string(key, nullptr, value_name);
+        }
+
+
+        /**
+         * \brief Reads a wil::unique_cotaskmem_string value under a specified key, requiring a REG_EXPAND_SZ value type
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param subkey A string to append to the HKEY to attempt to read from
+         *        can be nullptr if not needed
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \return The value read from the registry value of the template type std::optional<:wil::unique_cotaskmem_string>
+         *         note - will return std::nullopt if the value does not exist
+         * \exception std::exception will be thrown on failure (including wil::ResultException)
+         *            note - will not throw if the value does not exist
+         *
+         * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
+         *         try
+         *         {
+         *             // reads a REG_SZ from L"value_name" - will return am empty wil::unique_cotaskmem_string if the value doesn't exist
+         *             wil::unique_cotaskmem_string string_value = wil::reg::try_get_value_expanded_cotaskmem_string(key, L"subkey", L"value_name").value_or(wil::unique_cotaskmem_string{});
+         *             .
+         *             .
+         *         }
+         *         CATCH_RETURN()
+         *         // in this example, returns the HRESULT error code if anything fails reading the registry values other than value not found
+         */
+        inline ::std::optional<::wil::unique_cotaskmem_string> try_get_value_expanded_cotaskmem_string(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
+        {
+            const reg_view_details::reg_view regview{ key };
+            return regview.try_get_value<::wil::unique_cotaskmem_string>(subkey, value_name, REG_EXPAND_SZ);
+        }
+
+        /**
+         * \brief Reads a wil::unique_cotaskmem_string value under a specified key, requiring a REG_EXPAND_SZ value type
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \return The value read from the registry value of the template type std::optional<wil::unique_cotaskmem_string>
+         *         note - will return std::nullopt if the value does not exist
+         * \exception std::exception will be thrown on failure (including wil::ResultException)
+         *            note - will not throw if the value does not exist
+         *
+         * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
+         *         try
+         *         {
+         *             // reads a REG_SZ from L"value_name" - will return am empty wil::unique_cotaskmem_string if the value doesn't exist
+         *             wil::unique_cotaskmem_string string_value = wil::reg::try_get_value_expanded_cotaskmem_string(key, L"value_name").value_or(wil::unique_cotaskmem_string{});
+         *             .
+         *             .
+         *         }
+         *         CATCH_RETURN()
+         *         // in this example, returns the HRESULT error code if anything fails reading the registry values other than value not found
+         */
+        inline ::std::optional<::wil::unique_cotaskmem_string> try_get_value_expanded_cotaskmem_string(HKEY key, _In_opt_ PCWSTR value_name)
+        {
+            return try_get_value_expanded_cotaskmem_string(key, nullptr, value_name);
         }
 #endif // defined(__WIL_OBJBASE_H_)
 #endif // #if defined (_OPTIONAL_) && defined(__cpp_lib_optional)
