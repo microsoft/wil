@@ -2261,7 +2261,7 @@ __WI_POP_WARNINGS
         {
             size_t cchLen = UntrustedStringLength(reinterpret_cast<TString>(pStart), (pEnd - pStart) / sizeof((*ppszBufferString)[0]));
             *ppszBufferString = (cchLen > 0) ? reinterpret_cast<TString>(pStart) : nullptr;
-            auto pReturn = min(pEnd, pStart + ((cchLen + 1) * sizeof((*ppszBufferString)[0])));
+            auto pReturn = (wistd::min)(pEnd, pStart + ((cchLen + 1) * sizeof((*ppszBufferString)[0])));
             __analysis_assume((pReturn >= pStart) && (pReturn <= pEnd));
             return pReturn;
         }
