@@ -14,8 +14,8 @@
 #include "result_macros.h"
 
 // Helpers for return macros
-#define __NT_RETURN_NTSTATUS(status, str)                    __WI_SUPPRESS_4127_S do { NTSTATUS __status = (status); if (FAILED_NTSTATUS(__status)) { __R_FN(Return_NtStatus)(__R_INFO(str) __status); } return __status; } while ((void)0, 0)
-#define __NT_RETURN_NTSTATUS_MSG(status, str, fmt, ...)      __WI_SUPPRESS_4127_S do { NTSTATUS __status = (status); if (FAILED_NTSTATUS(__status)) { __R_FN(Return_NtStatusMsg)(__R_INFO(str) __status, fmt, ##__VA_ARGS__); } return __status; } while ((void)0, 0)
+#define __NT_RETURN_NTSTATUS(status, str)                    __WI_SUPPRESS_4127_S do { NTSTATUS __status = (status); if (FAILED_NTSTATUS(__status)) { __R_FN(Return_NtStatus)(__R_INFO(str) __status); } return __status; } __WI_SUPPRESS_4127_E while ((void)0, 0)
+#define __NT_RETURN_NTSTATUS_MSG(status, str, fmt, ...)      __WI_SUPPRESS_4127_S do { NTSTATUS __status = (status); if (FAILED_NTSTATUS(__status)) { __R_FN(Return_NtStatusMsg)(__R_INFO(str) __status, fmt, ##__VA_ARGS__); } return __status; } __WI_SUPPRESS_4127_E while ((void)0, 0)
 
 //*****************************************************************************
 // Macros for returning failures as NTSTATUS

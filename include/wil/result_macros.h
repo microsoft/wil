@@ -1222,21 +1222,23 @@ namespace wil
 
         struct ResultStatus
         {
+            enum Kind : unsigned int { HResult, NtStatus };
+
             static ResultStatus FromResult(const HRESULT _hr)
             {
-                return { _hr, wil::details::HrToNtStatus(_hr), false };
+                return { _hr, wil::details::HrToNtStatus(_hr), Kind::HResult };
             }
             static ResultStatus FromStatus(const NTSTATUS _status)
             {
-                return { wil::details::NtStatusToHr(_status), _status, true };
+                return { wil::details::NtStatusToHr(_status), _status, Kind::NtStatus };
             }
             static ResultStatus FromFailureInfo(const FailureInfo& _failure)
             {
-                return { _failure.hr, _failure.status, WI_IsFlagSet(_failure.flags, FailureFlags::NtStatus) };
+                return { _failure.hr, _failure.status, WI_IsFlagSet(_failure.flags, FailureFlags::NtStatus) ? Kind::NtStatus : Kind::HResult };
             }
             HRESULT hr = S_OK;
             NTSTATUS status = STATUS_SUCCESS;
-            bool isNtStatus = false;
+            Kind kind = Kind::NtStatus;
         };
 
         // Fallback telemetry provider callback (set with wil::SetResultTelemetryFallback)
@@ -1402,25 +1404,25 @@ namespace wil
         template <ErrorReturn errorReturn, typename T>
         struct return_type
         {
-            typedef tag_return_other type;
+            using type = tag_return_other;
         };
 
         template <>
         struct return_type<ErrorReturn::Auto, HRESULT>
         {
-            typedef tag_return_HRESULT type;
+            using type = tag_return_HRESULT;
         };
 
         template <>
         struct return_type<ErrorReturn::Auto, void>
         {
-            typedef tag_return_void type;
+            using type = tag_return_void;
         };
 
         template <>
         struct return_type<ErrorReturn::None, void>
         {
-            typedef tag_return_void type;
+            using type = tag_return_void;
         };
 
         template <ErrorReturn errorReturn, typename Functor>
@@ -2044,6 +2046,12 @@ __WI_POP_WARNINGS
             return err;
         }
 
+        inline __declspec(noinline) DWORD GetLastErrorFail() WI_NOEXCEPT 
+        {
+            __R_FN_LOCALS_FULL_RA;
+            return GetLastErrorFail(__R_FN_CALL_FULL);
+        }
+
         _Translates_last_error_to_HRESULT_
         inline HRESULT GetLastErrorFailHr(__R_FN_PARAMS_FULL) WI_NOEXCEPT
         {
@@ -2111,7 +2119,7 @@ __WI_POP_WARNINGS
         _Must_inspect_result_ STRSAFEAPI StringCchLengthA(_In_reads_or_z_(cchMax) STRSAFE_PCNZCH psz, _In_ _In_range_(1, STRSAFE_MAX_CCH) size_t cchMax, _Out_opt_ _Deref_out_range_(<, cchMax) _Deref_out_range_(<= , _String_length_(psz)) size_t* pcchLength)
         {
             HRESULT hr;
-            if ((psz == NULL) || (cchMax > STRSAFE_MAX_CCH))
+            if ((psz == nullptr) || (cchMax > STRSAFE_MAX_CCH))
             {
                 hr = STRSAFE_E_INVALID_PARAMETER;
             }
@@ -2141,11 +2149,10 @@ __WI_POP_WARNINGS
         {
             HRESULT hr = S_OK;
             int iRet;
-            size_t cchMax;
-            size_t cchNewDestLength = 0;
 
             // leave the last space for the null terminator
-            cchMax = cchDest - 1;
+            size_t cchMax = cchDest - 1;
+            size_t cchNewDestLength = 0;
 #undef STRSAFE_USE_SECURE_CRT
 #define STRSAFE_USE_SECURE_CRT 1
         #if (STRSAFE_USE_SECURE_CRT == 1) && !defined(STRSAFE_LIB_IMPL)
@@ -2198,7 +2205,7 @@ __WI_POP_WARNINGS
             {
                 va_list argList;
                 va_start(argList, pszFormat);
-                hr = wil::details::WilStringVPrintfWorkerA(pszDest, cchDest, NULL, pszFormat, argList);
+                hr = wil::details::WilStringVPrintfWorkerA(pszDest, cchDest, nullptr, pszFormat, argList);
                 va_end(argList);
             }
             else if (cchDest > 0)
@@ -2254,7 +2261,7 @@ __WI_POP_WARNINGS
         {
             size_t cchLen = UntrustedStringLength(reinterpret_cast<TString>(pStart), (pEnd - pStart) / sizeof((*ppszBufferString)[0]));
             *ppszBufferString = (cchLen > 0) ? reinterpret_cast<TString>(pStart) : nullptr;
-            auto pReturn = min(pEnd, pStart + ((cchLen + 1) * sizeof((*ppszBufferString)[0])));
+            auto pReturn = (wistd::min)(pEnd, pStart + ((cchLen + 1) * sizeof((*ppszBufferString)[0])));
             __analysis_assume((pReturn >= pStart) && (pReturn <= pEnd));
             return pReturn;
         }
@@ -3518,7 +3525,7 @@ __WI_POP_WARNINGS
 
             failure->type = type;
             failure->flags = FailureFlags::None;
-            WI_SetFlagIf(failure->flags, FailureFlags::NtStatus, resultPair.isNtStatus);
+            WI_SetFlagIf(failure->flags, FailureFlags::NtStatus, resultPair.kind == ResultStatus::Kind::NtStatus);
             failure->failureId = ::InterlockedIncrementNoFence(&s_failureId);
             failure->pszMessage = ((message != nullptr) && (message[0] != L'\0')) ? message : nullptr;
             failure->threadId = ::GetCurrentThreadId();
@@ -3636,7 +3643,7 @@ __WI_POP_WARNINGS
             er.ExceptionCode = static_cast<DWORD>(STATUS_STACK_BUFFER_OVERRUN); // 0xC0000409
             er.ExceptionFlags = EXCEPTION_NONCONTINUABLE;
             er.ExceptionInformation[0] = FAST_FAIL_FATAL_APP_EXIT; // see winnt.h, generated from minkernel\published\base\ntrtl_x.w
-            if (failure.returnAddress == 0)                     // FailureInfo does not have _ReturnAddress, have RaiseFailFastException generate it
+            if (failure.returnAddress == nullptr)                     // FailureInfo does not have _ReturnAddress, have RaiseFailFastException generate it
             {
                 // passing ExceptionCode 0xC0000409 and one param with FAST_FAIL_APP_EXIT will use existing
                 // !analyze functionality to crawl the stack looking for the HRESULT
@@ -6138,7 +6145,7 @@ __WI_SUPPRESS_4127_E
     // Intentionally removed logging from this policy as logging is more useful at the caller.
     struct err_returncode_policy
     {
-        typedef HRESULT result;
+        using result = HRESULT;
 
         __forceinline static HRESULT Win32BOOL(BOOL fReturn) { RETURN_IF_WIN32_BOOL_FALSE_EXPECTED(fReturn); return S_OK; }
         __forceinline static HRESULT Win32Handle(HANDLE h, _Out_ HANDLE *ph) { *ph = h; RETURN_LAST_ERROR_IF_NULL_EXPECTED(h); return S_OK; }

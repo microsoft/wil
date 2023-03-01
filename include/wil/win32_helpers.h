@@ -136,21 +136,21 @@ namespace wil
 {
     //! Strictly a function of the file system but this is the value for all known file system, NTFS, FAT.
     //! CDFs has a limit of 254.
-    size_t const max_path_segment_length = 255;
+    constexpr size_t max_path_segment_length = 255;
 
     //! Character length not including the null, MAX_PATH (260) includes the null.
-    size_t const max_path_length = 259;
+    constexpr size_t max_path_length = 259;
 
     //! 32743 Character length not including the null. This is a system defined limit.
     //! The 24 is for the expansion of the roots from "C:" to "\Device\HarddiskVolume4"
     //! It will be 25 when there are more than 9 disks.
-    size_t const max_extended_path_length = 0x7FFF - 24;
+    constexpr size_t max_extended_path_length = 0x7FFF - 24;
 
     //! For {guid} string form. Includes space for the null terminator.
-    size_t const guid_string_buffer_length = 39;
+    constexpr size_t guid_string_buffer_length = 39;
 
     //! For {guid} string form. Not including the null terminator.
-    size_t const guid_string_length = 38;
+    constexpr size_t guid_string_length = 38;
 
 #pragma region String and identifier comparisons
     // Using CompareStringOrdinal functions:
