@@ -1048,7 +1048,7 @@ namespace wil
         {
             ::std::wstring value;
             const reg_view_details::reg_view regview{ key };
-            regview.get_value<::std::wstring>(subkey, value_name, value, REG_EXPAND_SZ);
+            regview.get_value(subkey, value_name, value, REG_EXPAND_SZ);
             return value;
         }
 
@@ -1126,7 +1126,7 @@ namespace wil
         {
             ::wil::unique_bstr value;
             const reg_view_details::reg_view regview{ key };
-            regview.get_value<::wil::unique_bstr >(subkey, value_name, value, REG_EXPAND_SZ);
+            regview.get_value(subkey, value_name, value, REG_EXPAND_SZ);
             return value;
         }
 
@@ -1205,7 +1205,7 @@ namespace wil
         {
             ::wil::unique_cotaskmem_string value;
             const reg_view_details::reg_view regview{ key };
-            regview.get_value<::wil::unique_cotaskmem_string >(subkey, value_name, value, REG_EXPAND_SZ);
+            regview.get_value(subkey, value_name, value, REG_EXPAND_SZ);
             return value;
         }
 
@@ -1247,7 +1247,7 @@ namespace wil
         {
             ::std::vector<BYTE> return_value{};
             const reg_view_details::reg_view regview{ key };
-            regview.get_value<::std::vector<BYTE>>(subkey, value_name, return_value, type);
+            regview.get_value(subkey, value_name, return_value, type);
             return return_value;
         }
 
@@ -1848,39 +1848,35 @@ namespace wil
 #endif // #if defined (_OPTIONAL_) && defined(__cpp_lib_optional)
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS)
 
-        //
-        // get_value_*_nothrow (throwing) functions
-        //
-        template <size_t Length>
-        HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length], _Out_opt_ DWORD* pRequiredBytes = nullptr) WI_NOEXCEPT
-        {
-            // don't allocate, just use their buffer
-            wil::assign_to_opt_param(pRequiredBytes, 0ul);
-            DWORD data_size_bytes{ Length * sizeof(WCHAR) };
-            const auto error = ::RegGetValueW(key, subkey, value_name, ::wil::reg::reg_view_details::get_value_flags_from_value_type(REG_SZ), nullptr, return_value, &data_size_bytes);
-            if (error == ERROR_SUCCESS || error == ERROR_MORE_DATA)
-            {
-                wil::assign_to_opt_param(pRequiredBytes, data_size_bytes);
-            }
-            return HRESULT_FROM_WIN32(error);
-        }
+        /**
+         * \brief Reads a value under a specified key, the registry type based off the templated type passed as data
+         * \tparam T The type capturing the data being set
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param subkey A string to append to the HKEY to attempt to read from
+         *        can be nullptr if not needed
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \param[out] return_value The pointer-to-T receiving the value read from the registry
+         * \return HRESULT error code indicating success or failure
+         *         does not throw C++ exceptions
+         *
+         * \remark Note the required type of registry value being read from is determined by the template type T
+         *
+         * \remark The below std::enable_if<!std::is_same<T, wchar_t>::value>::type* = nullptr
+         *         allows for the correct get_value_nothrow to be called when passed a WCHAR[] array vs. a pointer to another type
+         *         e.g., both of the below work correctly
+         *
+         *         WCHAR data1[100]{};
+         *         get_value(hkey, L"valuename", data);
+         *         DWORD data2{};
+         *         get_value_nothrow(hkey, L"valuename", &data2);
 
-        template <size_t Length>
-        HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length], _Out_opt_ DWORD* pRequiredBytes = nullptr) WI_NOEXCEPT
-        {
-            return ::wil::reg::get_value_string_nothrow<Length>(key, nullptr, value_name, return_value, pRequiredBytes);
-        }
-
-        // The below  < std::enable_if<!std::is_same<T, wchar_t>::value>::type* = nullptr >
-        // allows the correct get_value_nothrow both when passed a DWORD*, as well as when passed a WCHAR[] array
-        //
-        // e.g. both of the below work correctly
-        // 
-        // WCHAR data1[100]{};
-        // get_value(hkey, L"valuename", data);
-        // //
-        // DWORD data2{};
-        // get_value_nothrow(hkey, L"valuename", &data2);
+         * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
+         *         DWORD dword_value{};
+         *         hr = wil::reg::get_value_nothrow(key, nullptr, L"value_name", &dword_value); // reads from value_name into dword_value, requiring a REG_DWORD value
+         *         std::wstring string_value{};
+         *         hr = wil::reg::get_value_nothrow(key, nullptr, L"value_name", &string_value); // reads from value_name into string_value, requiring a REG_SZ value
+         */
         template<typename T,
             std::enable_if_t<!std::is_same_v<T, wchar_t>>* = nullptr>
         HRESULT get_value_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _Out_ T* return_value) WI_NOEXCEPT
@@ -1889,6 +1885,24 @@ namespace wil
             return regview.get_value<T>(subkey, value_name, *return_value);
         }
 
+        /**
+         * \brief Reads a value under a specified key, the registry type based off the templated type passed as data
+         * \tparam T The type capturing the data being set
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \param[out] return_value The pointer-to-T receiving the value read from the registry
+         * \return HRESULT error code indicating success or failure
+         *         does not throw C++ exceptions
+         *
+         * \remark Note the required type of registry value being read from is determined by the template type T
+         *
+         * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
+         *         DWORD dword_value{};
+         *         hr = wil::reg::get_value_nothrow(key, L"value_name", &dword_value); // reads from value_name into dword_value, requiring a REG_DWORD value
+         *         std::wstring string_value{};
+         *         hr = wil::reg::get_value_nothrow(key, L"value_name", &string_value); // reads from value_name into string_value, requiring a REG_SZ value
+         */
         template<typename T,
             std::enable_if_t<!std::is_same_v<T, wchar_t>>* = nullptr>
         HRESULT get_value_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _Out_ T* return_value) WI_NOEXCEPT
@@ -1896,30 +1910,100 @@ namespace wil
             return ::wil::reg::get_value_nothrow(key, nullptr, value_name, return_value);
         }
 
+        /**
+         * \brief Reads a REG_SZ value under a specified key
+         * \tparam Length The length of the WCHAR array passed as an OUT parameter
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param subkey A string to append to the HKEY to attempt to read from
+         *        can be nullptr if not needed
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \param[out] return_value The WCHAR array receiving the value read from the registry
+         * \param[out] requiredBytes An optional pointer to a DWORD to receive the required bytes of the string to be read
+         * \return HRESULT error code indicating success or failure
+         *         does not throw C++ exceptions
+         *
+         * \remark Will write to the WCHAR array the string value read from the registry, guaranteeing null-termination
+         * \remark Note will fail if the array is not large enough to contain the string + a null-termination character
+         *         If the length is too small, will store the necessary size in the requiredBytes [out] parameter
+         * \remark Example of cannonical usage - note the template type does not need to be explicitly specified
+         *         WCHAR string_value[100]{};
+         *         DWORD requiredBytes{};
+         *         hr = wil::reg::get_value_string_nothrow(key, nullptr, L"value_name", string_value, &requiredBytes);
+         */
+        template <size_t Length>
+        HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length], _Out_opt_ DWORD* requiredBytes = nullptr) WI_NOEXCEPT
+        {
+            const reg_view_details::reg_view_nothrow regview{ key };
+            return regview.get_value_char_array(subkey, value_name, return_value, REG_SZ, requiredBytes);
+        }
+
+        template <size_t Length>
+        HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length], _Out_opt_ DWORD* requiredBytes = nullptr) WI_NOEXCEPT
+        {
+            return ::wil::reg::get_value_string_nothrow<Length>(key, nullptr, value_name, return_value, requiredBytes);
+        }
+
+        /**
+         * \brief Reads a REG_SZ value under a specified key
+         * \tparam Length The length of the WCHAR array passed as an OUT parameter
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param subkey A string to append to the HKEY to attempt to read from
+         *        can be nullptr if not needed
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \param[out] return_value The WCHAR array receiving the value read from the registry
+         * \return HRESULT error code indicating success or failure
+         *         does not throw C++ exceptions
+         *
+         * \remark Will write to the WCHAR array the string value read from the registry, guaranteeing null-termination
+         * \remark Note will fail if the array is not large enough to contain the string + a null-termination character
+         * \remark Example of cannonical usage - note the template type does not need to be explicitly specified
+         *         WCHAR string_value[100]{};
+         *         hr = wil::reg::get_value_nothrow(key, nullptr, L"value_name", string_value); // reads from value_name into string_value, requiring a REG_SZ value
+         */
         template <size_t Length>
         HRESULT get_value_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length]) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_string_nothrow<Length>(key, subkey, value_name, return_value, nullptr);
         }
 
+        /**
+         * \brief Reads a REG_SZ value under a specified key
+         * \tparam Length The length of the WCHAR array passed as an OUT parameter
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \param[out] return_value The WCHAR array receiving the value read from the registry
+         * \return HRESULT error code indicating success or failure
+         *         does not throw C++ exceptions
+         *
+         * \remark Will write to the WCHAR array the string value read from the registry, guaranteeing null-termination
+         * \remark Note will fail if the array is not large enough to contain the string + a null-termination character
+         * \remark Example of cannonical usage - note the template type does not need to be explicitly specified
+         *         WCHAR string_value[100]{};
+         *         hr = wil::reg::get_value_nothrow(key, nullptr, L"value_name", string_value); // reads from value_name into string_value, requiring a REG_SZ value
+         */
         template <size_t Length>
         HRESULT get_value_nothrow(HKEY key, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length]) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_string_nothrow<Length>(key, nullptr, value_name, return_value, nullptr);
         }
 
+#if defined(__WIL_OBJBASE_H_)
         // ::wil::unique_cotaskmem_string requires its own separate get_value_nothrow because it is forced to pass its out-param by reference
         // this is because wil::unique_cotaskmem_string has overloaded operator&
         inline HRESULT get_value_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, ::wil::unique_cotaskmem_string& return_value) WI_NOEXCEPT
         {
             const reg_view_details::reg_view_nothrow regview{ key };
-            return regview.get_value<::wil::unique_cotaskmem_string>(subkey, value_name, return_value);
+            return regview.get_value(subkey, value_name, return_value);
         }
 
         inline HRESULT get_value_nothrow(HKEY key, _In_opt_ PCWSTR value_name, ::wil::unique_cotaskmem_string& return_value) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_nothrow(key, nullptr, value_name, return_value);
         }
+#endif // #if defined(__WIL_OBJBASE_H_)
 
         inline HRESULT get_value_dword_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _Out_ DWORD* return_value) WI_NOEXCEPT
         {
@@ -1998,17 +2082,10 @@ namespace wil
         // get_value_expanded_string_nothrow (throwing) functions
         //
         template <size_t Length>
-        HRESULT get_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length], _Out_opt_ DWORD* pRequiredBytes = nullptr) WI_NOEXCEPT
+        HRESULT get_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length], _Out_opt_ DWORD* requiredBytes = nullptr) WI_NOEXCEPT
         {
-            // don't allocate, just use their buffer
-            wil::assign_to_opt_param(pRequiredBytes, 0ul);
-            DWORD data_size_bytes{ Length * sizeof(WCHAR) };
-            const auto error = ::RegGetValueW(key, subkey, value_name, ::wil::reg::reg_view_details::get_value_flags_from_value_type(REG_EXPAND_SZ), nullptr, return_value, &data_size_bytes);
-            if (error == ERROR_SUCCESS || error == ERROR_MORE_DATA)
-            {
-                wil::assign_to_opt_param(pRequiredBytes, data_size_bytes);
-            }
-            return HRESULT_FROM_WIN32(error);
+            const reg_view_details::reg_view_nothrow regview{ key };
+            return regview.get_value_char_array(subkey, value_name, return_value, REG_EXPAND_SZ, requiredBytes);
         }
 
         template <size_t Length>
@@ -2362,6 +2439,6 @@ namespace wil
         return unique_registry_watcher(wistd::move(keyToWatch), isRecursive, wistd::move(callback));
     }
 #endif // WIL_ENABLE_EXCEPTIONS
-} // namespace wil
+            } // namespace wil
 
 #endif
