@@ -302,8 +302,8 @@ namespace wil
          * \remark Note the type of registry value is determined by the template type T of data given
          *
          * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
-         *         wil::reg::set_value(key, nullptr, L"value_name", 0); // writes REG_DWORD value of 0
-         *         wil::reg::set_value(key, nullptr, L"value_name", L"hello"); // writes REG_SZ value of L"hello"
+         *         wil::reg::set_value(key, L"subkey", L"value_name", 0); // writes REG_DWORD value of 0
+         *         wil::reg::set_value(key, L"subkey", L"value_name", L"hello"); // writes REG_SZ value of L"hello"
          */
         template <typename T>
         void set_value(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const T& data)
@@ -343,6 +343,9 @@ namespace wil
          *        can be nullptr to write to the unnamed default registry value
          * \param data The 32-bit value to write to the specified registry value
          * \exception std::exception will be thrown on failure (including wil::ResultException)
+         *
+         * \remark Example of cannonical usage
+         *         wil::reg::set_value_dword(key, L"subkey", L"value_name", 0); // writes REG_DWORD value of 0
          */
         inline void set_value_dword(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, uint32_t data)
         {
@@ -356,6 +359,9 @@ namespace wil
          *        can be nullptr to write to the unnamed default registry value
          * \param data The 32-bit value to write to the specified registry value
          * \exception std::exception will be thrown on failure (including wil::ResultException)
+         *
+         * \remark Example of cannonical usage
+         *         wil::reg::set_value_dword(key, L"value_name", 0); // writes REG_DWORD value of 0
          */
         inline void set_value_dword(HKEY key, _In_opt_ PCWSTR value_name, uint32_t data)
         {
@@ -371,6 +377,9 @@ namespace wil
          *        can be nullptr to write to the unnamed default registry value
          * \param data The 64-bit value to write to the specified registry value
          * \exception std::exception will be thrown on failure (including wil::ResultException)
+         *
+         * \remark Example of cannonical usage
+         *         wil::reg::set_value_qword(key, L"subkey", L"value_name", 0ull); // writes REG_QWORD value of 0
          */
         inline void set_value_qword(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, uint64_t data)
         {
@@ -384,6 +393,9 @@ namespace wil
          *        can be nullptr to write to the unnamed default registry value
          * \param data The 64-bit value to write to the specified registry value
          * \exception std::exception will be thrown on failure (including wil::ResultException)
+         *
+         * \remark Example of cannonical usage
+         *         wil::reg::set_value_qword(key, L"value_name", 0ull); // writes REG_QWORD value of 0
          */
         inline void set_value_qword(HKEY key, _In_opt_ PCWSTR value_name, uint64_t data)
         {
@@ -399,6 +411,9 @@ namespace wil
          *        can be nullptr to write to the unnamed default registry value
          * \param data The null-terminated string value to write to the specified registry value
          * \exception std::exception will be thrown on failure (including wil::ResultException)
+         *
+         * \remark Example of cannonical usage
+         *         wil::reg::set_value_string(key, L"subkey", L"value_name", L"test value"); // writes REG_SZ value of L"test value"
          */
         inline void set_value_string(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, PCWSTR data)
         {
@@ -412,6 +427,9 @@ namespace wil
          *        can be nullptr to write to the unnamed default registry value
          * \param data The null-terminated string value to write to the specified registry value
          * \exception std::exception will be thrown on failure (including wil::ResultException)
+         *
+         * \remark Example of cannonical usage
+         *         wil::reg::set_value_string(key, L"value_name", L"test value"); // writes REG_SZ value of L"test value"
          */
         inline void set_value_string(HKEY key, _In_opt_ PCWSTR value_name, PCWSTR data)
         {
@@ -427,6 +445,9 @@ namespace wil
          *        can be nullptr to write to the unnamed default registry value
          * \param data The null-terminated string value to write to the specified registry value
          * \exception std::exception will be thrown on failure (including wil::ResultException)
+         *
+         * \remark Example of cannonical usage
+         *         wil::reg::set_value_expanded_string(key, L"subkey", L"value_name", L"%testvalue%"); // writes REG_SZ value of L"%testvalue%"
          */
         inline void set_value_expanded_string(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, PCWSTR data) WI_NOEXCEPT
         {
@@ -441,6 +462,9 @@ namespace wil
          *        can be nullptr to write to the unnamed default registry value
          * \param data The null-terminated string value to write to the specified registry value
          * \exception std::exception will be thrown on failure (including wil::ResultException)
+         *
+         * \remark Example of cannonical usage
+         *         wil::reg::set_value_expanded_string(key, L"value_name", L"%testvalue%"); // writes REG_SZ value of L"%testvalue%"
          */
         inline void set_value_expanded_string(HKEY key, _In_opt_ PCWSTR value_name, PCWSTR data) WI_NOEXCEPT
         {
@@ -461,6 +485,10 @@ namespace wil
          * \exception std::exception will be thrown on failure (including wil::ResultException)
          *
          * \remark Because the data to be written is a std::vector<std::wstring> both the <vector> and <string> headers must be previously included
+         *
+         * \remark Example of cannonical usage
+         *         std::vector<std::wstring> data { L"string1", L"string2", L"string3" };
+         *         wil::reg::set_value_multistring(key, L"subkey", L"value_name", data); // writes REG_MULTI_SZ value of L"string1\0string2\0string3\0\0"
          */
         inline void set_value_multistring(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const ::std::vector<::std::wstring>& data)
         {
@@ -478,6 +506,10 @@ namespace wil
          * \exception std::exception will be thrown on failure (including wil::ResultException)
          *
          * \remark Because the data to be written is a std::vector<std::wstring> both the <vector> and <string> headers must be previously included
+         *
+         * \remark Example of cannonical usage
+         *         std::vector<std::wstring> data { L"string1", L"string2", L"string3" };
+         *         wil::reg::set_value_multistring(key, L"value_name", data); // writes REG_MULTI_SZ value of L"string1\0string2\0string3\0\0"
          */
         inline void set_value_multistring(HKEY key, _In_opt_ PCWSTR value_name, const ::std::vector<::std::wstring>& data)
         {
@@ -499,7 +531,7 @@ namespace wil
          *
          * \remark An example of cannonical usage - note the template type does not need to be explicitly specified
          *         std::vector<std::wstring> data { L"string1", L"string2", L"string3" };
-         *         wil::reg::set_value(key, nullptr, L"value_name", data); // writes REG_MULTI_SZ value of L"string1\0string2\0string3\0\0"
+         *         wil::reg::set_value(key, L"subkey", L"value_name", data); // writes REG_MULTI_SZ value of L"string1\0string2\0string3\0\0"
          */
         template <>
         inline void set_value(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const ::std::vector<::std::wstring>& data)
@@ -544,6 +576,10 @@ namespace wil
          * \exception std::exception will be thrown on failure (including wil::ResultException)
          *
          * \remark Because the data to be written is a std::vector<BYTE> the <vector> header must be previously included
+         *
+         * \remark An example of cannonical usage - note the template type does not need to be explicitly specified
+         *         std::vector<BYTE> data { 0x00, 0xff, 0xee, 0xdd, 0xcc };
+         *         wil::reg::set_value_byte_vector(key, L"subkey", L"value_name", REG_BINARY, data); // writes REG_BINARY value from the data vector
          */
         inline void set_value_byte_vector(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, DWORD type, const ::std::vector<BYTE>& data) WI_NOEXCEPT
         {
@@ -563,6 +599,10 @@ namespace wil
          * \exception std::exception will be thrown on failure (including wil::ResultException)
          *
          * \remark Because the data to be written is a std::vector<BYTE> the <vector> header must be previously included
+         *
+         * \remark An example of cannonical usage - note the template type does not need to be explicitly specified
+         *         std::vector<BYTE> data { 0x00, 0xff, 0xee, 0xdd, 0xcc };
+         *         wil::reg::set_value_byte_vector(key, L"value_name", REG_BINARY, data); // writes REG_BINARY value from the data vector
          */
         inline void set_value_byte_vector(HKEY key, _In_opt_ PCWSTR value_name, DWORD type, const ::std::vector<BYTE>& data) WI_NOEXCEPT
         {
@@ -586,8 +626,8 @@ namespace wil
          * \remark Note the type of registry value is determined by the template type T of data given
          *
          * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
-         *         hr = wil::reg::set_value_nothrow(key, nullptr, L"value_name", 0); // writes REG_DWORD value of 0
-         *         hr = wil::reg::set_value_nothrow(key, nullptr, L"value_name", L"hello"); // writes REG_SZ value of L"hello"
+         *         hr = wil::reg::set_value_nothrow(key, L"subkey", L"value_name", 0); // writes REG_DWORD value of 0
+         *         hr = wil::reg::set_value_nothrow(key, L"subkey", L"value_name", L"hello"); // writes REG_SZ value of L"hello"
          */
         template <typename T>
         HRESULT set_value_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const T& data) WI_NOEXCEPT
@@ -610,8 +650,8 @@ namespace wil
          * \remark Note the type of registry value is determined by the template type T of data given
          *
          * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
-         *         hr = wil::reg::set_value_nothrow(key, nullptr, L"value_name", 0); // writes REG_DWORD value of 0
-         *         hr = wil::reg::set_value_nothrow(key, nullptr, L"value_name", L"hello"); // writes REG_SZ value of L"hello"
+         *         hr = wil::reg::set_value_nothrow(key, L"subkey", L"value_name", 0); // writes REG_DWORD value of 0
+         *         hr = wil::reg::set_value_nothrow(key, L"subkey", L"value_name", L"hello"); // writes REG_SZ value of L"hello"
          */
         template <typename T>
         HRESULT set_value_nothrow(HKEY key, _In_opt_ PCWSTR value_name, const T& data) WI_NOEXCEPT
@@ -636,7 +676,7 @@ namespace wil
          *
          * \remark An example of cannonical usage - note the template type does not need to be explicitly specified
          *         std::vector<std::wstring> data { L"string1", L"string2", L"string3" };
-         *         hr = wil::reg::set_value_nothrow(key, nullptr, L"value_name", data); // writes REG_MULTI_SZ value of L"string1\0string2\0string3\0\0"
+         *         hr = wil::reg::set_value_nothrow(key, L"subkey", L"value_name", data); // writes REG_MULTI_SZ value of L"string1\0string2\0string3\0\0"
          */
         template <>
         inline HRESULT set_value_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const ::std::vector<::std::wstring>& data) WI_NOEXCEPT
@@ -659,7 +699,7 @@ namespace wil
          *
          * \remark An example of cannonical usage - note the template type does not need to be explicitly specified
          *         std::vector<std::wstring> data { L"string1", L"string2", L"string3" };
-         *         hr = wil::reg::set_value_nothrow(key, nullptr, L"value_name", data); // writes REG_MULTI_SZ value of L"string1\0string2\0string3\0\0"
+         *         hr = wil::reg::set_value_nothrow(key, L"subkey", L"value_name", data); // writes REG_MULTI_SZ value of L"string1\0string2\0string3\0\0"
          */
         template <>
         inline HRESULT set_value_nothrow(HKEY key, _In_opt_ PCWSTR value_name, const ::std::vector<::std::wstring>& data) WI_NOEXCEPT
@@ -678,6 +718,9 @@ namespace wil
          * \param data The 32-bit value to write to the specified registry value
          * \return HRESULT error code indicating success or failure
          *         does not throw C++ exceptions
+         *
+         * \remark Example of cannonical usage
+         *         hr = wil::reg::set_value_dword_nothrow(key, L"subkey", L"value_name", 0); // writes REG_DWORD value of 0
          */
         inline HRESULT set_value_dword_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, uint32_t data) WI_NOEXCEPT
         {
@@ -692,6 +735,9 @@ namespace wil
          * \param data The 32-bit value to write to the specified registry value
          * \return HRESULT error code indicating success or failure
          *         does not throw C++ exceptions
+         *
+         * \remark Example of cannonical usage
+         *         hr = wil::reg::set_value_dword_nothrow(key, L"value_name", 0); // writes REG_DWORD value of 0
          */
         inline HRESULT set_value_dword_nothrow(HKEY key, _In_opt_ PCWSTR value_name, uint32_t data) WI_NOEXCEPT
         {
@@ -708,6 +754,9 @@ namespace wil
          * \param data The 64-bit value to write to the specified registry value
          * \return HRESULT error code indicating success or failure
          *         does not throw C++ exceptions
+         *
+         * \remark Example of cannonical usage
+         *         hr = wil::reg::set_value_qword_nothrow(key, L"subkey", L"value_name", 0ull); // writes REG_QWORD value of 0
          */
         inline HRESULT set_value_qword_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, uint64_t data) WI_NOEXCEPT
         {
@@ -722,6 +771,9 @@ namespace wil
          * \param data The 64-bit value to write to the specified registry value
          * \return HRESULT error code indicating success or failure
          *         does not throw C++ exceptions
+         *
+         * \remark Example of cannonical usage
+         *         hr = wil::reg::set_value_qword_nothrow(key, L"value_name", 0ull); // writes REG_QWORD value of 0
          */
         inline HRESULT set_value_qword_nothrow(HKEY key, _In_opt_ PCWSTR value_name, uint64_t data) WI_NOEXCEPT
         {
@@ -738,6 +790,9 @@ namespace wil
          * \param data The null-terminated string value to write to the specified registry value
          * \return HRESULT error code indicating success or failure
          *         does not throw C++ exceptions
+         *
+         * \remark Example of cannonical usage
+         *         hr = wil::reg::set_value_string_nothrow(key, L"subkey", L"value_name", L"test value"); // writes REG_SZ value of L"test value"
          */
         inline HRESULT set_value_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, PCWSTR data) WI_NOEXCEPT
         {
@@ -752,6 +807,9 @@ namespace wil
          * \param data The null-terminated string value to write to the specified registry value
          * \return HRESULT error code indicating success or failure
          *         does not throw C++ exceptions
+         *
+         * \remark Example of cannonical usage
+         *         hr = wil::reg::set_value_string_nothrow(key, L"subkey", L"value_name", L"test value"); // writes REG_SZ value of L"test value"
          */
         inline HRESULT set_value_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, PCWSTR data) WI_NOEXCEPT
         {
@@ -768,6 +826,9 @@ namespace wil
          * \param data The null-terminated string value to write to the specified registry value
          * \return HRESULT error code indicating success or failure
          *         does not throw C++ exceptions
+         *
+         * \remark Example of cannonical usage
+         *         hr = wil::reg::set_value_expanded_string_nothrow(key, L"subkey", L"value_name", L"%testvalue%"); // writes REG_SZ value of L"%testvalue%"
          */
         inline HRESULT set_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, PCWSTR data) WI_NOEXCEPT
         {
@@ -783,6 +844,9 @@ namespace wil
          * \param data The null-terminated string value to write to the specified registry value
          * \return HRESULT error code indicating success or failure
          *         does not throw C++ exceptions
+         *
+         * \remark Example of cannonical usage
+         *         hr = wil::reg::set_value_expanded_string_nothrow(key, L"value_name", L"%testvalue%"); // writes REG_SZ value of L"%testvalue%"
          */
         inline HRESULT set_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, PCWSTR data) WI_NOEXCEPT
         {
@@ -804,6 +868,10 @@ namespace wil
          *         does not throw C++ exceptions
          *
          * \remark Because the data to be written is a std::vector<BYTE> the <vector> header must be previously included
+         *
+         * \remark An example of cannonical usage - note the template type does not need to be explicitly specified
+         *         std::vector<BYTE> data { 0x00, 0xff, 0xee, 0xdd, 0xcc };
+         *         hr = wil::reg::set_value_byte_vector_nothrow(key, L"subkey", L"value_name", REG_BINARY, data); // writes REG_BINARY value from the data vector
          */
         inline HRESULT set_value_byte_vector_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, DWORD type, const ::std::vector<BYTE>& data) WI_NOEXCEPT
         {
@@ -824,6 +892,10 @@ namespace wil
          *         does not throw C++ exceptions
          *
          * \remark Because the data to be written is a std::vector<BYTE> the <vector> header must be previously included
+         *
+         * \remark An example of cannonical usage - note the template type does not need to be explicitly specified
+         *         std::vector<BYTE> data { 0x00, 0xff, 0xee, 0xdd, 0xcc };
+         *         hr = wil::reg::set_value_byte_vector_nothrow(key, L"value_name", REG_BINARY, data); // writes REG_BINARY value from the data vector
          */
         inline HRESULT set_value_byte_vector_nothrow(HKEY key, _In_opt_ PCWSTR value_name, DWORD type, const ::std::vector<BYTE>& data) WI_NOEXCEPT
         {
@@ -845,6 +917,10 @@ namespace wil
          *         does not throw C++ exceptions
          *
          * \remark Because the data to be written is a std::vector<std::wstring> both the <vector> and <string> headers must be previously included
+         *
+         * \remark Example of cannonical usage
+         *         std::vector<std::wstring> data { L"string1", L"string2", L"string3" };
+         *         hr = wil::reg::set_value_multistring_nothrow(key, L"subkey", L"value_name", data); // writes REG_MULTI_SZ value of L"string1\0string2\0string3\0\0"
          */
         inline HRESULT set_value_multistring_nothrow(HKEY key, _In_opt_ PCWSTR subkey, PCWSTR value_name, const ::std::vector<::std::wstring>& data) WI_NOEXCEPT
         {
@@ -863,6 +939,10 @@ namespace wil
          *         does not throw C++ exceptions
          *
          * \remark Because the data to be written is a std::vector<std::wstring> both the <vector> and <string> headers must be previously included
+         *
+         * \remark Example of cannonical usage
+         *         std::vector<std::wstring> data { L"string1", L"string2", L"string3" };
+         *         hr = wil::reg::set_value_multistring_nothrow(key, L"value_name", data); // writes REG_MULTI_SZ value of L"string1\0string2\0string3\0\0"
          */
         inline HRESULT set_value_multistring_nothrow(HKEY key, PCWSTR value_name, const ::std::vector<::std::wstring>& data) WI_NOEXCEPT
         {
@@ -885,12 +965,11 @@ namespace wil
          *
          * \remark Note the type of registry value is determined by the template type T of data given
          *
-         * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
+         * \remark Example of cannonical usage
          *         try
          *         {
-         *             DWORD dword_value = wil::reg::get_value<DWORD>(key, L"value_name"); // reads a REG_DWORD from L"value_name"
-         *             std::wstring string_value = wil::reg::get_value<std::wstring>(key, L"value_name"); // reads a REG_SZ value from L"value_name"
-         *             .
+         *             DWORD dword_value = wil::reg::get_value<DWORD>(key, L"subkey", L"value_name"); // reads a REG_DWORD from L"value_name"
+         *             std::wstring string_value = wil::reg::get_value<std::wstring>(key, L"subkey", L"value_name"); // reads a REG_SZ value from L"value_name"
          *             .
          *             .
          *         }
@@ -899,8 +978,8 @@ namespace wil
         template <typename T>
         T get_value(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
         {
-            const reg_view_details::reg_view regview{ key };
             T return_value{};
+            const reg_view_details::reg_view regview{ key };
             regview.get_value<T>(subkey, value_name, return_value);
             return return_value;
         }
@@ -917,12 +996,11 @@ namespace wil
          *
          * \remark Note the type of registry value is determined by the template type T of data given
          *
-         * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
+         * \remark Example of cannonical usage
          *         try
          *         {
          *             DWORD dword_value = wil::reg::get_value<DWORD>(key, L"value_name"); // reads a REG_DWORD from L"value_name"
          *             std::wstring string_value = wil::reg::get_value<std::wstring>(key, L"value_name"); // reads a REG_SZ value from L"value_name"
-         *             .
          *             .
          *             .
          *         }
@@ -944,6 +1022,15 @@ namespace wil
          * \return The DWORD value read from the registry
          * \exception std::exception will be thrown on failure (including wil::ResultException)
          *            note - will throw a C++ exception for all errors, including registry value not found
+         *
+         * \remark Example of cannonical usage
+         *         try
+         *         {
+         *             DWORD dword_value = wil::reg::get_value_dword(key, L"subkey", L"value_name"); // reads a REG_DWORD from L"value_name"
+         *             .
+         *             .
+         *         }
+         *         CATCH_RETURN() // in this example, returns the HRESULT error code if anything fails reading the registry values
          */
         inline DWORD get_value_dword(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
         {
@@ -958,6 +1045,15 @@ namespace wil
          * \return The DWORD value read from the registry
          * \exception std::exception will be thrown on failure (including wil::ResultException)
          *            note - will throw a C++ exception for all errors, including registry value not found
+         *
+         * \remark Example of cannonical usage
+         *         try
+         *         {
+         *             DWORD dword_value = wil::reg::get_value_dword(key, L"value_name"); // reads a REG_DWORD from L"value_name"
+         *             .
+         *             .
+         *         }
+         *         CATCH_RETURN() // in this example, returns the HRESULT error code if anything fails reading the registry values
          */
         inline DWORD get_value_dword(HKEY key, _In_opt_ PCWSTR value_name)
         {
@@ -974,6 +1070,15 @@ namespace wil
          * \return The DWORD64 value read from the registry
          * \exception std::exception will be thrown on failure (including wil::ResultException)
          *            note - will throw a C++ exception for all errors, including registry value not found
+         *
+         * \remark Example of cannonical usage
+         *         try
+         *         {
+         *             DWORD64 qword_value = wil::reg::get_value_qword(key, L"subkey", L"value_name"); // reads a REG_QWORD from L"value_name"
+         *             .
+         *             .
+         *         }
+         *         CATCH_RETURN() // in this example, returns the HRESULT error code if anything fails reading the registry values
          */
         inline DWORD64 get_value_qword(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
         {
@@ -988,6 +1093,15 @@ namespace wil
          * \return The DWORD64 value read from the registry
          * \exception std::exception will be thrown on failure (including wil::ResultException)
          *            note - will throw a C++ exception for all errors, including registry value not found
+         *
+         * \remark Example of cannonical usage
+         *         try
+         *         {
+         *             DWORD64 qword_value = wil::reg::get_value_qword(key, L"value_name"); // reads a REG_QWORD from L"value_name"
+         *             .
+         *             .
+         *         }
+         *         CATCH_RETURN() // in this example, returns the HRESULT error code if anything fails reading the registry values
          */
         inline DWORD64 get_value_qword(HKEY key, _In_opt_ PCWSTR value_name)
         {
@@ -1007,6 +1121,15 @@ namespace wil
          *            note - will throw a C++ exception for all errors, including registry value not found
          *
          * \remark Because the data to be returned is a wstring the <string> header must be previously included
+         *
+         * \remark Example of cannonical usage
+         *         try
+         *         {
+         *             std::wstring string_value = wil::reg::get_value_wstring(key, L"subkey", L"value_name"); // reads a REG_SZ value from L"value_name"
+         *             .
+         *             .
+         *         }
+         *         CATCH_RETURN() // in this example, returns the HRESULT error code if anything fails reading the registry values
          */
         inline ::std::wstring get_value_wstring(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
         {
@@ -1024,6 +1147,15 @@ namespace wil
          *            note - will throw a C++ exception for all errors, including registry value not found
          *
          * \remark Because the data to be returned is a wstring the <string> header must be previously included
+         *
+         * \remark Example of cannonical usage
+         *         try
+         *         {
+         *             std::wstring string_value = wil::reg::get_value_wstring(key, L"value_name"); // reads a REG_SZ value from L"value_name"
+         *             .
+         *             .
+         *         }
+         *         CATCH_RETURN() // in this example, returns the HRESULT error code if anything fails reading the registry values
          */
         inline ::std::wstring get_value_wstring(HKEY key, _In_opt_ PCWSTR value_name)
         {
@@ -1043,6 +1175,16 @@ namespace wil
          *            note - will throw a C++ exception for all errors, including registry value not found
          *
          * \remark Because the data to be returned is a wstring the <string> header must be previously included
+         *
+         * \remark Example of cannonical usage
+         *         try
+         *         {
+         *             // reads a REG_EXPAND_SZ value from L"value_name_with_environment_variables"
+         *             std::wstring string_value = wil::reg::get_value_wstring(key, L"subkey", L"value_name_with_environment_variables");
+         *             .
+         *             .
+         *         }
+         *         CATCH_RETURN() // in this example, returns the HRESULT error code if anything fails reading the registry values
          */
         inline ::std::wstring get_value_expanded_wstring(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
         {
@@ -1063,6 +1205,16 @@ namespace wil
          *            note - will throw a C++ exception for all errors, including registry value not found
          *
          * \remark Because the data to be returned is a wstring the <string> header must be previously included
+         *
+         * \remark Example of cannonical usage
+         *         try
+         *         {
+         *             // reads a REG_EXPAND_SZ value from L"value_name_with_environment_variables"
+         *             std::wstring string_value = wil::reg::get_value_wstring(key, L"value_name_with_environment_variables");
+         *             .
+         *             .
+         *         }
+         *         CATCH_RETURN() // in this example, returns the HRESULT error code if anything fails reading the registry values
          */
         inline ::std::wstring get_value_expanded_wstring(HKEY key, _In_opt_ PCWSTR value_name)
         {
@@ -1084,6 +1236,15 @@ namespace wil
          *
          * \remark Because the data to be returned is a wil::unique_bstr the "resource.h" wil header must be previously included
          *         as well as the <oleauto.h> Win32 header
+         *
+         * \remark Example of cannonical usage
+         *         try
+         *         {
+         *             wil::unique_bstr { wil::reg::get_value_bstr(key, L"subkey", L"value_name") }; // reads a REG_SZ value from L"value_name"
+         *             .
+         *             .
+         *         }
+         *         CATCH_RETURN() // in this example, returns the HRESULT error code if anything fails reading the registry values
          */
         inline ::wil::unique_bstr get_value_bstr(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
         {
@@ -1101,6 +1262,15 @@ namespace wil
          *
          * \remark Because the data to be returned is a wil::unique_bstr the "resource.h" wil header must be previously included
          *         as well as the <oleauto.h> Win32 header
+         *
+         * \remark Example of cannonical usage
+         *         try
+         *         {
+         *             wil::unique_bstr { wil::reg::get_value_bstr(key, L"value_name") }; // reads a REG_SZ value from L"value_name"
+         *             .
+         *             .
+         *         }
+         *         CATCH_RETURN() // in this example, returns the HRESULT error code if anything fails reading the registry values
          */
         inline ::wil::unique_bstr get_value_bstr(HKEY key, _In_opt_ PCWSTR value_name)
         {
@@ -1121,6 +1291,16 @@ namespace wil
          *
          * \remark Because the data to be returned is a wil::unique_bstr the "resource.h" wil header must be previously included
          *         as well as the <oleauto.h> Win32 header
+         *
+         * \remark Example of cannonical usage
+         *         try
+         *         {
+         *             // reads a REG_EXPAND_SZ value from L"value_name_with_environment_variables"
+         *             wil::unique_bstr string_value { wil::reg::get_value_expanded_bstr(key, L"subkey", L"value_name_with_environment_variables") };
+         *             .
+         *             .
+         *         }
+         *         CATCH_RETURN() // in this example, returns the HRESULT error code if anything fails reading the registry values
          */
         inline ::wil::unique_bstr get_value_expanded_bstr(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
         {
@@ -1142,6 +1322,16 @@ namespace wil
          *
          * \remark Because the data to be returned is a wil::unique_bstr the "resource.h" wil header must be previously included
          *         as well as the <oleauto.h> Win32 header
+         *
+         * \remark Example of cannonical usage
+         *         try
+         *         {
+         *             // reads a REG_EXPAND_SZ value from L"value_name_with_environment_variables"
+         *             wil::unique_bstr string_value { wil::reg::get_value_expanded_bstr(key, L"value_name_with_environment_variables") };
+         *             .
+         *             .
+         *         }
+         *         CATCH_RETURN() // in this example, returns the HRESULT error code if anything fails reading the registry values
          */
         inline ::wil::unique_bstr get_value_expanded_bstr(HKEY key, _In_opt_ PCWSTR value_name)
         {
@@ -1163,6 +1353,15 @@ namespace wil
          *
          * \remark Because the data to be returned is a wil::unique_bstr the "resource.h" wil header must be previously included
          *         as well as the <objbase.h> Win32 header
+         *
+         * \remark Example of cannonical usage
+         *         try
+         *         {
+         *             wil::unique_cotaskmem_string { wil::reg::get_value_cotaskmem_string(key, L"subkey", L"value_name") }; // reads a REG_SZ value from L"value_name"
+         *             .
+         *             .
+         *         }
+         *         CATCH_RETURN() // in this example, returns the HRESULT error code if anything fails reading the registry values
          */
         inline ::wil::unique_cotaskmem_string get_value_cotaskmem_string(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
         {
@@ -1180,6 +1379,15 @@ namespace wil
          *
          * \remark Because the data to be returned is a wil::unique_bstr the "resource.h" wil header must be previously included
          *         as well as the <objbase.h> Win32 header
+         *
+         * \remark Example of cannonical usage
+         *         try
+         *         {
+         *             wil::unique_cotaskmem_string { wil::reg::get_value_cotaskmem_string(key, L"value_name") }; // reads a REG_SZ value from L"value_name"
+         *             .
+         *             .
+         *         }
+         *         CATCH_RETURN() // in this example, returns the HRESULT error code if anything fails reading the registry values
          */
         inline ::wil::unique_cotaskmem_string get_value_cotaskmem_string(HKEY key, _In_opt_ PCWSTR value_name)
         {
@@ -1200,6 +1408,16 @@ namespace wil
          *
          * \remark Because the data to be returned is a wil::unique_bstr the "resource.h" wil header must be previously included
          *         as well as the <objbase.h> Win32 header
+         *
+         * \remark Example of cannonical usage
+         *         try
+         *         {
+         *             // reads a REG_EXPAND_SZ value from L"value_name_with_environment_variables"
+         *             wil::unique_cotaskmem_string string_value { wil::reg::get_value_expanded_cotaskmem_string(key, L"subkey", L"value_name_with_environment_variables") };
+         *             .
+         *             .
+         *         }
+         *         CATCH_RETURN() // in this example, returns the HRESULT error code if anything fails reading the registry values
          */
         inline ::wil::unique_cotaskmem_string get_value_expanded_cotaskmem_string(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
         {
@@ -1221,6 +1439,16 @@ namespace wil
          *
          * \remark Because the data to be returned is a wil::unique_bstr the "resource.h" wil header must be previously included
          *         as well as the <objbase.h> Win32 header
+         *
+         * \remark Example of cannonical usage
+         *         try
+         *         {
+         *             // reads a REG_EXPAND_SZ value from L"value_name_with_environment_variables"
+         *             wil::unique_cotaskmem_string string_value { wil::reg::get_value_expanded_cotaskmem_string(key, L"value_name_with_environment_variables") };
+         *             .
+         *             .
+         *         }
+         *         CATCH_RETURN() // in this example, returns the HRESULT error code if anything fails reading the registry values
          */
         inline ::wil::unique_cotaskmem_string get_value_expanded_cotaskmem_string(HKEY key, _In_opt_ PCWSTR value_name)
         {
@@ -1242,6 +1470,16 @@ namespace wil
          * \exception std::exception will be thrown on failure (including wil::ResultException)
          *
          * \remark Because the data to be written into is a std::vector<BYTE> the <vector> header must be previously included
+         *
+         * \remark Example of cannonical usage
+         *         try
+         *         {
+         *             // reads the raw bytes from the REG_BINARY value L"value_name"
+         *             std::vector<BYTE> data = wil::reg::set_value_byte_vector_nothrow(key, L"subkey", L"value_name", REG_BINARY);
+         *             .
+         *             .
+         *         }
+         *         CATCH_RETURN() // in this example, returns the HRESULT error code if anything fails reading the registry values
          */
         inline ::std::vector<BYTE> get_value_byte_vector(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, DWORD type)
         {
@@ -1262,6 +1500,16 @@ namespace wil
          * \exception std::exception will be thrown on failure (including wil::ResultException)
          *
          * \remark Because the data to be written into is a std::vector<BYTE> the <vector> header must be previously included
+         *
+         * \remark Example of cannonical usage
+         *         try
+         *         {
+         *             // reads the raw bytes from the REG_BINARY value L"value_name"
+         *             std::vector<BYTE> data = wil::reg::set_value_byte_vector_nothrow(key, L"value_name", REG_BINARY);
+         *             .
+         *             .
+         *         }
+         *         CATCH_RETURN() // in this example, returns the HRESULT error code if anything fails reading the registry values
          */
         inline ::std::vector<BYTE> get_value_byte_vector(HKEY key, _In_opt_ PCWSTR value_name, DWORD type)
         {
@@ -1285,7 +1533,7 @@ namespace wil
          *
          * \remark Note the type of registry value is determined by the template type T of data given
          *
-         * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
+         * \remark Example of cannonical usage
          *         try
          *         {
          *             // reads a REG_DWORD from L"value_name" - will return 0 if the value doesn't exist
@@ -1319,7 +1567,7 @@ namespace wil
          *
          * \remark Note the type of registry value is determined by the template type T of data given
          *
-         * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
+         * \remark Example of cannonical usage
          *         try
          *         {
          *             // reads a REG_DWORD from L"value_name" - will return 0 if the value doesn't exist
@@ -1351,7 +1599,7 @@ namespace wil
          * \exception std::exception will be thrown on failure (including wil::ResultException)
          *            note - will not throw if the value does not exist
          *
-         * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
+         * \remark Example of cannonical usage
          *         try
          *         {
          *             // reads a REG_DWORD from L"value_name" - will return 0 if the value doesn't exist
@@ -1377,7 +1625,7 @@ namespace wil
          * \exception std::exception will be thrown on failure (including wil::ResultException)
          *            note - will not throw if the value does not exist
          *
-         * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
+         * \remark Example of cannonical usage
          *         try
          *         {
          *             // reads a REG_DWORD from L"value_name" - will return 0 if the value doesn't exist
@@ -1405,7 +1653,7 @@ namespace wil
          * \exception std::exception will be thrown on failure (including wil::ResultException)
          *            note - will not throw if the value does not exist
          *
-         * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
+         * \remark Example of cannonical usage
          *         try
          *         {
          *             // reads a REG_QWORD from L"value_name" - will return 0 if the value doesn't exist
@@ -1431,7 +1679,7 @@ namespace wil
          * \exception std::exception will be thrown on failure (including wil::ResultException)
          *            note - will not throw if the value does not exist
          *
-         * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
+         * \remark Example of cannonical usage
          *         try
          *         {
          *             // reads a REG_QWORD from L"value_name" - will return 0 if the value doesn't exist
@@ -1461,7 +1709,7 @@ namespace wil
          * \exception std::exception will be thrown on failure (including wil::ResultException)
          *            note - will not throw if the value does not exist
          *
-         * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
+         * \remark Example of cannonical usage
          *         try
          *         {
          *             // reads a REG_QWORD from L"value_name" - will return 0 if the value doesn't exist
@@ -1489,7 +1737,7 @@ namespace wil
          * \exception std::exception will be thrown on failure (including wil::ResultException)
          *            note - will not throw if the value does not exist
          *
-         * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
+         * \remark Example of cannonical usage
          *         try
          *         {
          *             // reads a REG_QWORD from L"value_name" - will return 0 if the value doesn't exist
@@ -1520,7 +1768,7 @@ namespace wil
          * \exception std::exception will be thrown on failure (including wil::ResultException)
          *            note - will not throw if the value does not exist
          *
-         * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
+         * \remark Example of cannonical usage
          *         try
          *         {
          *             // reads a REG_SZ from L"value_name" - will return an empty std::wstring if the value doesn't exist
@@ -1547,7 +1795,7 @@ namespace wil
          * \exception std::exception will be thrown on failure (including wil::ResultException)
          *            note - will not throw if the value does not exist
          *
-         * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
+         * \remark Example of cannonical usage
          *         try
          *         {
          *             // reads a REG_SZ from L"value_name" - will return an empty std::wstring if the value doesn't exist
@@ -1575,7 +1823,7 @@ namespace wil
          * \exception std::exception will be thrown on failure (including wil::ResultException)
          *            note - will not throw if the value does not exist
          *
-         * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
+         * \remark Example of cannonical usage
          *         try
          *         {
          *             // reads a REG_SZ from L"value_name" - will return an empty std::wstring if the value doesn't exist
@@ -1602,7 +1850,7 @@ namespace wil
          * \exception std::exception will be thrown on failure (including wil::ResultException)
          *            note - will not throw if the value does not exist
          *
-         * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
+         * \remark Example of cannonical usage
          *         try
          *         {
          *             // reads a REG_SZ from L"value_name" - will return an empty std::wstring if the value doesn't exist
@@ -1632,7 +1880,7 @@ namespace wil
          * \exception std::exception will be thrown on failure (including wil::ResultException)
          *            note - will not throw if the value does not exist
          *
-         * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
+         * \remark Example of cannonical usage
          *         try
          *         {
          *             // reads a REG_SZ from L"value_name" - will return am empty wil::unique_bstr if the value doesn't exist
@@ -1661,7 +1909,7 @@ namespace wil
          * \exception std::exception will be thrown on failure (including wil::ResultException)
          *            note - will not throw if the value does not exist
          *
-         * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
+         * \remark Example of cannonical usage
          *         try
          *         {
          *             // reads a REG_SZ from L"value_name" - will return am empty wil::unique_bstr if the value doesn't exist
@@ -1689,7 +1937,7 @@ namespace wil
          * \exception std::exception will be thrown on failure (including wil::ResultException)
          *            note - will not throw if the value does not exist
          *
-         * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
+         * \remark Example of cannonical usage
          *         try
          *         {
          *             // reads a REG_SZ from L"value_name" - will return am empty wil::unique_bstr if the value doesn't exist
@@ -1716,7 +1964,7 @@ namespace wil
          * \exception std::exception will be thrown on failure (including wil::ResultException)
          *            note - will not throw if the value does not exist
          *
-         * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
+         * \remark Example of cannonical usage
          *         try
          *         {
          *             // reads a REG_SZ from L"value_name" - will return am empty wil::unique_bstr if the value doesn't exist
@@ -1746,7 +1994,7 @@ namespace wil
          * \exception std::exception will be thrown on failure (including wil::ResultException)
          *            note - will not throw if the value does not exist
          *
-         * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
+         * \remark Example of cannonical usage
          *         try
          *         {
          *             // reads a REG_SZ from L"value_name" - will return am empty wil::unique_cotaskmem_string if the value doesn't exist
@@ -1773,7 +2021,7 @@ namespace wil
          * \exception std::exception will be thrown on failure (including wil::ResultException)
          *            note - will not throw if the value does not exist
          *
-         * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
+         * \remark Example of cannonical usage
          *         try
          *         {
          *             // reads a REG_SZ from L"value_name" - will return am empty wil::unique_cotaskmem_string if the value doesn't exist
@@ -1802,7 +2050,7 @@ namespace wil
          * \exception std::exception will be thrown on failure (including wil::ResultException)
          *            note - will not throw if the value does not exist
          *
-         * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
+         * \remark Example of cannonical usage
          *         try
          *         {
          *             // reads a REG_SZ from L"value_name" - will return am empty wil::unique_cotaskmem_string if the value doesn't exist
@@ -1829,7 +2077,7 @@ namespace wil
          * \exception std::exception will be thrown on failure (including wil::ResultException)
          *            note - will not throw if the value does not exist
          *
-         * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
+         * \remark Example of cannonical usage
          *         try
          *         {
          *             // reads a REG_SZ from L"value_name" - will return am empty wil::unique_cotaskmem_string if the value doesn't exist
@@ -1873,9 +2121,9 @@ namespace wil
 
          * \remark Examples of cannonical usage - note the template type does not need to be explicitly specified
          *         DWORD dword_value{};
-         *         hr = wil::reg::get_value_nothrow(key, nullptr, L"value_name", &dword_value); // reads from value_name into dword_value, requiring a REG_DWORD value
+         *         hr = wil::reg::get_value_nothrow(key, L"subkey", L"value_name", &dword_value); // reads from value_name into dword_value, requiring a REG_DWORD value
          *         std::wstring string_value{};
-         *         hr = wil::reg::get_value_nothrow(key, nullptr, L"value_name", &string_value); // reads from value_name into string_value, requiring a REG_SZ value
+         *         hr = wil::reg::get_value_nothrow(key, L"subkey", L"value_name", &string_value); // reads from value_name into string_value, requiring a REG_SZ value
          */
         template<typename T,
             std::enable_if_t<!std::is_same_v<T, wchar_t>>* = nullptr>
@@ -1926,10 +2174,10 @@ namespace wil
          * \remark Will write to the WCHAR array the string value read from the registry, guaranteeing null-termination
          * \remark Note will fail if the array is not large enough to contain the string + a null-termination character
          *         If the length is too small, will store the necessary size in the requiredBytes [out] parameter
-         * \remark Example of cannonical usage - note the template type does not need to be explicitly specified
+         * \remark Example of cannonical usage - note the template value does not need to be explicitly specified
          *         WCHAR string_value[100]{};
          *         DWORD requiredBytes{};
-         *         hr = wil::reg::get_value_string_nothrow(key, nullptr, L"value_name", string_value, &requiredBytes);
+         *         hr = wil::reg::get_value_string_nothrow(key, L"subkey", L"value_name", string_value, &requiredBytes);
          */
         template <size_t Length>
         HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length], _Out_opt_ DWORD* requiredBytes = nullptr) WI_NOEXCEPT
@@ -1938,6 +2186,25 @@ namespace wil
             return regview.get_value_char_array(subkey, value_name, return_value, REG_SZ, requiredBytes);
         }
 
+        /**
+         * \brief Reads a REG_SZ value under a specified key
+         * \tparam Length The length of the WCHAR array passed as an OUT parameter
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \param[out] return_value The WCHAR array receiving the value read from the registry
+         * \param[out] requiredBytes An optional pointer to a DWORD to receive the required bytes of the string to be read
+         * \return HRESULT error code indicating success or failure
+         *         does not throw C++ exceptions
+         *
+         * \remark Will write to the WCHAR array the string value read from the registry, guaranteeing null-termination
+         * \remark Note will fail if the array is not large enough to contain the string + a null-termination character
+         *         If the length is too small, will store the necessary size in the requiredBytes [out] parameter
+         * \remark Example of cannonical usage - note the template value does not need to be explicitly specified
+         *         WCHAR string_value[100]{};
+         *         DWORD requiredBytes{};
+         *         hr = wil::reg::get_value_string_nothrow(key, L"value_name", string_value, &requiredBytes);
+         */
         template <size_t Length>
         HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length], _Out_opt_ DWORD* requiredBytes = nullptr) WI_NOEXCEPT
         {
@@ -1958,9 +2225,9 @@ namespace wil
          *
          * \remark Will write to the WCHAR array the string value read from the registry, guaranteeing null-termination
          * \remark Note will fail if the array is not large enough to contain the string + a null-termination character
-         * \remark Example of cannonical usage - note the template type does not need to be explicitly specified
+         * \remark Example of cannonical usage - note the template value does not need to be explicitly specified
          *         WCHAR string_value[100]{};
-         *         hr = wil::reg::get_value_nothrow(key, nullptr, L"value_name", string_value); // reads from value_name into string_value, requiring a REG_SZ value
+         *         hr = wil::reg::get_value_nothrow(key, L"subkey", L"value_name", string_value); // reads from value_name into string_value, requiring a REG_SZ value
          */
         template <size_t Length>
         HRESULT get_value_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length]) WI_NOEXCEPT
@@ -1980,9 +2247,9 @@ namespace wil
          *
          * \remark Will write to the WCHAR array the string value read from the registry, guaranteeing null-termination
          * \remark Note will fail if the array is not large enough to contain the string + a null-termination character
-         * \remark Example of cannonical usage - note the template type does not need to be explicitly specified
+         * \remark Example of cannonical usage - note the template value does not need to be explicitly specified
          *         WCHAR string_value[100]{};
-         *         hr = wil::reg::get_value_nothrow(key, nullptr, L"value_name", string_value); // reads from value_name into string_value, requiring a REG_SZ value
+         *         hr = wil::reg::get_value_nothrow(key, L"value_name", string_value); // reads from value_name into string_value, requiring a REG_SZ value
          */
         template <size_t Length>
         HRESULT get_value_nothrow(HKEY key, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length]) WI_NOEXCEPT
@@ -1991,46 +2258,160 @@ namespace wil
         }
 
 #if defined(__WIL_OBJBASE_H_)
-        // ::wil::unique_cotaskmem_string requires its own separate get_value_nothrow because it is forced to pass its out-param by reference
-        // this is because wil::unique_cotaskmem_string has overloaded operator&
+        /**
+         * \brief Reads a REG_SZ value under a specified key
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param subkey A string to append to the HKEY to attempt to read from
+         *        can be nullptr if not needed
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \param[out] return_value The wil::unique_cotaskmem_string receiving the value read from the registry
+         * \return HRESULT error code indicating success or failure
+         *         does not throw C++ exceptions
+         *
+         * \remark wil::unique_cotaskmem_string requires its own separate get_value_nothrow because it is forced to pass its out-param by reference
+         *         this is because wil::unique_cotaskmem_string has overloaded operator&
+         * \remark Example of cannonical usage
+         *         wil::unique_cotaskmem_string string_value{};
+         *         hr = wil::reg::get_value_nothrow(key, L"subkey", L"value_name", string_value); // reads from value_name into string_value, requiring a REG_SZ value
+         */
         inline HRESULT get_value_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, ::wil::unique_cotaskmem_string& return_value) WI_NOEXCEPT
         {
             const reg_view_details::reg_view_nothrow regview{ key };
             return regview.get_value(subkey, value_name, return_value);
         }
 
+        /**
+         * \brief Reads a REG_SZ value under a specified key
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \param[out] return_value The wil::unique_cotaskmem_string receiving the value read from the registry
+         * \return HRESULT error code indicating success or failure
+         *         does not throw C++ exceptions
+         *
+         * \remark wil::unique_cotaskmem_string requires its own separate get_value_nothrow because it is forced to pass its out-param by reference
+         *         this is because wil::unique_cotaskmem_string has overloaded operator&
+         * \remark Example of cannonical usage
+         *         wil::unique_cotaskmem_string string_value{};
+         *         hr = wil::reg::get_value_nothrow(key, L"value_name", string_value); // reads from value_name into string_value, requiring a REG_SZ value
+         */
         inline HRESULT get_value_nothrow(HKEY key, _In_opt_ PCWSTR value_name, ::wil::unique_cotaskmem_string& return_value) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_nothrow(key, nullptr, value_name, return_value);
         }
 #endif // #if defined(__WIL_OBJBASE_H_)
 
+        /**
+         * \brief Reads a REG_DWORD value under a specified key
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param subkey A string to append to the HKEY to attempt to read from
+         *        can be nullptr if not needed
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \param[out] return_value The DWORD receiving the value read from the registry
+         * \return HRESULT error code indicating success or failure
+         *         does not throw C++ exceptions
+         *
+         * \remark Example of cannonical usage
+         *         DWORD dword_value{};
+         *         hr = wil::reg::get_value_dword_nothrow(key, L"subkey", L"value_name", &dword_value); // reads from value_name into dword_value, requiring a REG_DWORD value
+         */
         inline HRESULT get_value_dword_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _Out_ DWORD* return_value) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_nothrow(key, subkey, value_name, return_value);
         }
 
+        /**
+         * \brief Reads a REG_DWORD value under a specified key
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \param[out] return_value The DWORD receiving the value read from the registry
+         * \return HRESULT error code indicating success or failure
+         *         does not throw C++ exceptions
+         *
+         * \remark Example of cannonical usage
+         *         DWORD dword_value{};
+         *         hr = wil::reg::get_value_dword_nothrow(key, L"value_name", &dword_value); // reads from value_name into dword_value, requiring a REG_DWORD value
+         */
         inline HRESULT get_value_dword_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _Out_ DWORD* return_value) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_nothrow(key, nullptr, value_name, return_value);
         }
 
+        /**
+         * \brief Reads a REG_QWORD value under a specified key
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param subkey A string to append to the HKEY to attempt to read from
+         *        can be nullptr if not needed
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \param[out] return_value The DWORD64 receiving the value read from the registry
+         * \return HRESULT error code indicating success or failure
+         *         does not throw C++ exceptions
+         *
+         * \remark Example of cannonical usage
+         *         DWORD64 qword_value{};
+         *         hr = wil::reg::get_value_qword_nothrow(key, L"subkey", L"value_name", &qword_value); // reads from value_name into dword_value, requiring a REG_QWORD value
+         */
         inline HRESULT get_value_qword_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _Out_ DWORD64* return_value) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_nothrow(key, subkey, value_name, return_value);
         }
 
+        /**
+         * \brief Reads a REG_QWORD value under a specified key
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \param[out] return_value The DWORD64 receiving the value read from the registry
+         * \return HRESULT error code indicating success or failure
+         *         does not throw C++ exceptions
+         *
+         * \remark Example of cannonical usage
+         *         DWORD64 qword_value{};
+         *         hr = wil::reg::get_value_qword_nothrow(key, L"value_name", &qword_value); // reads from value_name into dword_value, requiring a REG_QWORD value
+         */
         inline HRESULT get_value_qword_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _Out_ DWORD64* return_value) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_nothrow(key, nullptr, value_name, return_value);
         }
 
 #if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
+        /**
+         * \brief Reads a REG_SZ value under a specified key
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param subkey A string to append to the HKEY to attempt to read from
+         *        can be nullptr if not needed
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \param[out] return_value The std::wstring receiving the value read from the registry
+         * \return HRESULT error code indicating success or failure
+         *         does not throw C++ exceptions
+         *
+         * \remark Example of cannonical usage
+         *         std::wstring string_value{};
+         *         hr = wil::reg::get_value_wstring_nothrow(key, L"subkey", L"value_name", &string_value); // reads from value_name into string_value, requiring a REG_SZ value
+         */
         inline HRESULT get_value_wstring_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _Inout_::std::wstring* return_value) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_nothrow(key, subkey, value_name, return_value);
         }
 
+        /**
+         * \brief Reads a REG_SZ value under a specified key
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \param[out] return_value The std::wstring receiving the value read from the registry
+         * \return HRESULT error code indicating success or failure
+         *         does not throw C++ exceptions
+         *
+         * \remark Example of cannonical usage
+         *         std::wstring string_value{};
+         *         hr = wil::reg::get_value_wstring_nothrow(key, L"value_name", &string_value); // reads from value_name into string_value, requiring a REG_SZ value
+         */
         inline HRESULT get_value_wstring_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _Inout_::std::wstring* return_value) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_nothrow(key, nullptr, value_name, return_value);
@@ -2038,11 +2419,39 @@ namespace wil
 #endif
 
 #if defined(__WIL_OLEAUTO_H_)
+        /**
+         * \brief Reads a REG_SZ value under a specified key
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param subkey A string to append to the HKEY to attempt to read from
+         *        can be nullptr if not needed
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \param[out] return_value The std::wstring receiving the value read from the registry
+         * \return HRESULT error code indicating success or failure
+         *         does not throw C++ exceptions
+         *
+         * \remark Example of cannonical usage
+         *         wil::unique_bstr string_value{};
+         *         hr = wil::reg::get_value_bstr_nothrow(key, L"subkey", L"value_name", &string_value); // reads from value_name into string_value, requiring a REG_SZ value
+         */
         inline HRESULT get_value_bstr_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _Out_ BSTR* return_value) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_nothrow(key, subkey, value_name, return_value);
         }
 
+        /**
+         * \brief Reads a REG_SZ value under a specified key
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \param[out] return_value The std::wstring receiving the value read from the registry
+         * \return HRESULT error code indicating success or failure
+         *         does not throw C++ exceptions
+         *
+         * \remark Example of cannonical usage
+         *         wil::unique_bstr string_value{};
+         *         hr = wil::reg::get_value_bstr_nothrow(key, L"value_name", &string_value); // reads from value_name into string_value, requiring a REG_SZ value
+         */
         inline HRESULT get_value_bstr_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _Out_ BSTR* return_value) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_nothrow(key, nullptr, value_name, return_value);
@@ -2050,10 +2459,43 @@ namespace wil
 #endif // #if defined(__WIL_OLEAUTO_H_)
 
 #if defined(__WIL_OBJBASE_H_)
+        /**
+         * \brief Reads a REG_SZ value under a specified key
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param subkey A string to append to the HKEY to attempt to read from
+         *        can be nullptr if not needed
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \param[out] return_value The wil::unique_cotaskmem_string receiving the value read from the registry
+         * \return HRESULT error code indicating success or failure
+         *         does not throw C++ exceptions
+         *
+         * \remark wil::unique_cotaskmem_string is forced to pass its out-param by reference instead of by address like the related functions
+         *         this is because wil::unique_cotaskmem_string has overloaded operator&
+         * \remark Example of cannonical usage
+         *         wil::unique_cotaskmem_string string_value{};
+         *         hr = wil::reg::get_value_cotaskmem_string_nothrow(key, L"subkey", L"value_name", string_value); // reads from value_name into string_value, requiring a REG_SZ value
+         */
         inline HRESULT get_value_cotaskmem_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _Inout_::wil::unique_cotaskmem_string& return_value) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_nothrow(key, subkey, value_name, return_value);
         }
+
+        /**
+         * \brief Reads a REG_SZ value under a specified key
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \param[out] return_value The wil::unique_cotaskmem_string receiving the value read from the registry
+         * \return HRESULT error code indicating success or failure
+         *         does not throw C++ exceptions
+         *
+         * \remark wil::unique_cotaskmem_string is forced to pass its out-param by reference instead of by address like the related functions
+         *         this is because wil::unique_cotaskmem_string has overloaded operator&
+         * \remark Example of cannonical usage
+         *         wil::unique_cotaskmem_string string_value{};
+         *         hr = wil::reg::get_value_cotaskmem_string_nothrow(key, L"value_name", string_value); // reads from value_name into string_value, requiring a REG_SZ value
+         */
         inline HRESULT get_value_cotaskmem_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _Inout_::wil::unique_cotaskmem_string& return_value) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_nothrow(key, nullptr, value_name, return_value);
@@ -2061,10 +2503,25 @@ namespace wil
 #endif // defined(__WIL_OBJBASE_H_)
 
 #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
+        /**
+         * \brief Reads the raw bytes from a registry value under a specified key of the specified type
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param subkey A string to append to the HKEY to attempt to read from
+         *        can be nullptr if not needed
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \param[out] return_value The std::vector<BYTE> receiving the value read from the registry
+         * \return HRESULT error code indicating success or failure
+         *         does not throw C++ exceptions
+         *
+         * \remark Example of cannonical usage
+         *         std::vector<BYTE> raw_value{};
+         *         hr = wil::reg::get_value_byte_vector_nothrow(key, L"subkey", L"value_name", REG_BINARY, &raw_value); // reads the raw bytes from value_name into raw_value
+         */
         inline HRESULT get_value_byte_vector_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, DWORD type, _Inout_::std::vector<BYTE>* data) WI_NOEXCEPT try
         {
-            const reg_view_details::reg_view_nothrow regview{ key };
             ::std::vector<BYTE> value{};
+            const reg_view_details::reg_view_nothrow regview{ key };
             RETURN_IF_FAILED(regview.get_value<::std::vector<BYTE>>(subkey, value_name, value, type));
 
             data->swap(value);
@@ -2072,15 +2529,46 @@ namespace wil
         }
         CATCH_RETURN()
 
-            inline HRESULT get_value_byte_vector_nothrow(HKEY key, _In_opt_ PCWSTR value_name, DWORD type, _Inout_::std::vector<BYTE>* data) WI_NOEXCEPT
+        /**
+         * \brief Reads the raw bytes from a registry value under a specified key of the specified type
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \param[out] return_value The std::vector<BYTE> receiving the value read from the registry
+         * \return HRESULT error code indicating success or failure
+         *         does not throw C++ exceptions
+         *
+         * \remark Example of cannonical usage
+         *         std::vector<BYTE> raw_value{};
+         *         hr = wil::reg::get_value_byte_vector_nothrow(key, L"value_name", REG_BINARY, &raw_value); // reads the raw bytes from value_name into raw_value
+         */
+        inline HRESULT get_value_byte_vector_nothrow(HKEY key, _In_opt_ PCWSTR value_name, DWORD type, _Inout_::std::vector<BYTE>* data) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_byte_vector_nothrow(key, nullptr, value_name, type, data);
         }
 #endif // #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
 
-        //
-        // get_value_expanded_string_nothrow (throwing) functions
-        //
+        /**
+         * \brief Reads a REG_EXPAND_SZ value under a specified key
+         * \tparam Length The length of the WCHAR array passed as an OUT parameter
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param subkey A string to append to the HKEY to attempt to read from
+         *        can be nullptr if not needed
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \param[out] return_value The WCHAR array receiving the value read from the registry
+         * \param[out] requiredBytes An optional pointer to a DWORD to receive the required bytes of the string to be read
+         * \return HRESULT error code indicating success or failure
+         *         does not throw C++ exceptions
+         *
+         * \remark Will write to the WCHAR array the string value read from the registry, guaranteeing null-termination
+         * \remark Note will fail if the array is not large enough to contain the string + a null-termination character
+         *         If the length is too small, will store the necessary size in the requiredBytes [out] parameter
+         * \remark Example of cannonical usage - note the template value does not need to be explicitly specified
+         *         WCHAR string_value[100]{};
+         *         DWORD requiredBytes{};
+         *         hr = wil::reg::get_value_expanded_string_nothrow(key, L"subkey", L"value_name", string_value, &requiredBytes);
+         */
         template <size_t Length>
         HRESULT get_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length], _Out_opt_ DWORD* requiredBytes = nullptr) WI_NOEXCEPT
         {
@@ -2088,17 +2576,51 @@ namespace wil
             return regview.get_value_char_array(subkey, value_name, return_value, REG_EXPAND_SZ, requiredBytes);
         }
 
+        /**
+         * \brief Reads a REG_EXPAND_SZ value under a specified key
+         * \tparam Length The length of the WCHAR array passed as an OUT parameter
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \param[out] return_value The WCHAR array receiving the value read from the registry
+         * \param[out] requiredBytes An optional pointer to a DWORD to receive the required bytes of the string to be read
+         * \return HRESULT error code indicating success or failure
+         *         does not throw C++ exceptions
+         *
+         * \remark Will write to the WCHAR array the string value read from the registry, guaranteeing null-termination
+         * \remark Note will fail if the array is not large enough to contain the string + a null-termination character
+         *         If the length is too small, will store the necessary size in the requiredBytes [out] parameter
+         * \remark Example of cannonical usage - note the template value does not need to be explicitly specified
+         *         WCHAR string_value[100]{};
+         *         DWORD requiredBytes{};
+         *         hr = wil::reg::get_value_expanded_string_nothrow(key, L"value_name", string_value, &requiredBytes);
+         */
         template <size_t Length>
-        HRESULT get_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length], _Out_opt_ DWORD* pRequiredBytes = nullptr) WI_NOEXCEPT
+        HRESULT get_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length], _Out_opt_ DWORD* requiredBytes = nullptr) WI_NOEXCEPT
         {
-            return ::wil::reg::get_value_expanded_string_nothrow<Length>(key, nullptr, value_name, return_value, pRequiredBytes);
+            return ::wil::reg::get_value_expanded_string_nothrow<Length>(key, nullptr, value_name, return_value, requiredBytes);
         }
 
 #if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
+        /**
+         * \brief Reads a REG_EXPAND_SZ value under a specified key
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param subkey A string to append to the HKEY to attempt to read from
+         *        can be nullptr if not needed
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \param[out] return_value The std::wstring receiving the value read from the registry
+         * \return HRESULT error code indicating success or failure
+         *         does not throw C++ exceptions
+         *
+         * \remark Example of cannonical usage
+         *         std::wstring string_value{};
+         *         hr = wil::reg::get_value_wstring_nothrow(key, L"subkey", L"value_name", &string_value); // reads from value_name into string_value, requiring a REG_SZ value
+         */
         inline HRESULT get_value_expanded_wstring_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _Inout_::std::wstring* data) WI_NOEXCEPT try
         {
-            const reg_view_details::reg_view_nothrow regview{ key };
             std::wstring value{};
+            const reg_view_details::reg_view_nothrow regview{ key };
             RETURN_IF_FAILED(regview.get_value<::std::wstring>(subkey, value_name, value, REG_EXPAND_SZ));
 
             data->swap(value);
@@ -2106,7 +2628,22 @@ namespace wil
         }
         CATCH_RETURN()
 
-            inline HRESULT get_value_expanded_wstring_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _Inout_::std::wstring* data) WI_NOEXCEPT
+        /**
+         * \brief Reads a REG_EXPAND_SZ value under a specified key
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param subkey A string to append to the HKEY to attempt to read from
+         *        can be nullptr if not needed
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \param[out] return_value The std::wstring receiving the value read from the registry
+         * \return HRESULT error code indicating success or failure
+         *         does not throw C++ exceptions
+         *
+         * \remark Example of cannonical usage
+         *         std::wstring string_value{};
+         *         hr = wil::reg::get_value_wstring_nothrow(key, L"value_name", &string_value); // reads from value_name into string_value, requiring a REG_SZ value
+         */
+        inline HRESULT get_value_expanded_wstring_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _Inout_::std::wstring* data) WI_NOEXCEPT
         {
             return get_value_expanded_wstring_nothrow(key, nullptr, value_name, data);
         }
@@ -2153,7 +2690,7 @@ namespace wil
         }
         CATCH_RETURN()
 
-            inline HRESULT get_value_multistring_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _Inout_::std::vector<::std::wstring>* return_value) WI_NOEXCEPT
+        inline HRESULT get_value_multistring_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _Inout_::std::vector<::std::wstring>* return_value) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_multistring_nothrow(key, nullptr, value_name, return_value);
         }
@@ -2193,7 +2730,7 @@ namespace wil
             return ::wil::reg::get_value_multistring_nothrow(key, subkey, value_name, return_value);
         }
 #endif // #if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
-    }
+}
 
     // unique_registry_watcher/unique_registry_watcher_nothrow/unique_registry_watcher_failfast
     // These classes make it easy to execute a provided function when a
