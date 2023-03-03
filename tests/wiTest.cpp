@@ -2526,6 +2526,43 @@ TEST_CASE("WindowsInternalTests::Win32HelperTests", "[win32_helpers]")
     REQUIRE(systemTimePlusOneHour64 == (systemTime64 + wil::filetime_duration::one_hour));
 }
 
+TEST_CASE("WindowsInternalTests::RectHelperTests", "[win32_helpers]")
+{
+    RECT rect{ 50, 100, 200, 300 };
+    POINT leftEdgePoint{ 50, 150 };
+    POINT topEdgePoint{ 100, 100 };
+    POINT rightEdgePoint{ 200, 150 };
+    POINT bottomEdgePoint{ 100, 300 };
+    POINT insidePoint{ 150, 150};
+
+    RECT emptyRectAtOrigin{};
+    RECT emptyRectNotAtOrigin{ 50, 50, 50, 50 };
+    RECT nonNormalizedRect{ 300, 300, 0, 0 };
+
+    REQUIRE(wil::rect_width(rect) == 150);
+    REQUIRE(wil::rect_height(rect) == 200);
+
+    // rect_is_empty should work like user32's IsRectEmpty
+    REQUIRE_FALSE(wil::rect_is_empty(rect));
+    REQUIRE(wil::rect_is_empty(emptyRectAtOrigin));
+    REQUIRE(wil::rect_is_empty(emptyRectNotAtOrigin));
+    REQUIRE(wil::rect_is_empty(nonNormalizedRect));
+
+    // rect_contains_point should work like user32's PtInRect
+    REQUIRE(wil::rect_contains_point(rect, insidePoint));
+    REQUIRE(wil::rect_contains_point(rect, leftEdgePoint));
+    REQUIRE(wil::rect_contains_point(rect, topEdgePoint));
+    REQUIRE_FALSE(wil::rect_contains_point(rect, rightEdgePoint));
+    REQUIRE_FALSE(wil::rect_contains_point(rect, bottomEdgePoint));
+    REQUIRE_FALSE(wil::rect_contains_point(nonNormalizedRect, insidePoint));
+
+    auto rectFromSize = wil::rect_from_size<RECT>(50, 100, 150, 200);
+    REQUIRE(rectFromSize.left == rect.left);
+    REQUIRE(rectFromSize.top == rect.top);
+    REQUIRE(rectFromSize.right == rect.right);
+    REQUIRE(rectFromSize.bottom == rect.bottom);
+}
+
 TEST_CASE("WindowsInternalTests::InitOnceNonTests")
 {
     bool called = false;
