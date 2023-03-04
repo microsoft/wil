@@ -28,15 +28,14 @@
 namespace wil::details
 {
     // Since the C++/WinRT version macro is a string...
-    // For example: "2.0.210122.3"
+    // For example: "2.0.221104.6"
     inline constexpr int version_from_string(const char* versionString)
     {
         int result = 0;
-        auto str = versionString;
-        while ((*str >= '0') && (*str <= '9'))
+        while ((*versionString >= '0') && (*versionString <= '9'))
         {
-            result = result * 10 + (*str - '0');
-            ++str;
+            result = result * 10 + (*versionString - '0');
+            ++versionString;
         }
 
         return result;
@@ -49,28 +48,22 @@ namespace wil::details
 
     inline constexpr int minor_version_from_string(const char* versionString)
     {
-        auto str = versionString;
         int dotCount = 0;
-        while ((*str != '\0'))
+        while ((*versionString != '\0'))
         {
-            if (*str == '.')
+            if (*versionString == '.')
             {
                 ++dotCount;
             }
 
-            ++str;
+            ++versionString;
             if (dotCount == 2)
             {
-                break;
+                return version_from_string(versionString);
             }
         }
 
-        if (*str == '\0')
-        {
-            return 0;
-        }
-
-        return version_from_string(str);
+        return 0;
     }
 }
 /// @endcond
@@ -241,12 +234,12 @@ namespace wil
         {
             WI_ASSERT(winrt_to_hresult_handler == nullptr);
             winrt_to_hresult_handler = winrt_to_hresult;
-        }
 
-        if constexpr ((details::major_version_from_string(CPPWINRT_VERSION) >= 2) && (details::minor_version_from_string(CPPWINRT_VERSION) >= 210122))
-        {
-            WI_ASSERT(winrt_throw_hresult_handler == nullptr);
-            winrt_throw_hresult_handler = winrt_throw_hresult;
+            if constexpr (details::minor_version_from_string(CPPWINRT_VERSION) >= 210122)
+            {
+                WI_ASSERT(winrt_throw_hresult_handler == nullptr);
+                winrt_throw_hresult_handler = winrt_throw_hresult;
+            }
         }
     }
 
@@ -282,6 +275,11 @@ namespace wil
     inline auto get_abi(winrt::hstring const& object) noexcept
     {
         return static_cast<HSTRING>(winrt::get_abi(object));
+    }
+
+    inline auto str_raw_ptr(const winrt::hstring& str) noexcept
+    {
+        return str.c_str();
     }
 
     template <typename T>

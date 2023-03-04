@@ -36,25 +36,156 @@
 #include "wistd_functional.h"
 #include "wistd_type_traits.h"
 
+#if _HAS_CXX20 && defined(_STRING_VIEW_) && defined(_COMPARE_)
+// If we're using c++20, then <compare> must be included to use the string ordinal functions
+#  define __WI_DEFINE_STRING_ORDINAL_FUNCTIONS
+#elif !_HAS_CXX20 && defined(_STRING_VIEW_)
+#  define __WI_DEFINE_STRING_ORDINAL_FUNCTIONS
+#endif
+
+namespace wistd
+{
+#if defined(__WI_DEFINE_STRING_ORDINAL_FUNCTIONS)
+
+#if _HAS_CXX20
+    
+    using weak_ordering = std::weak_ordering;
+    
+#else // _HAS_CXX20
+
+    struct weak_ordering
+    {
+        static const weak_ordering less;
+        static const weak_ordering equivalent;
+        static const weak_ordering greater;
+
+        [[nodiscard]] friend constexpr bool operator==(const weak_ordering left, std::nullptr_t) noexcept
+        {
+            return left.m_value == 0;
+        }
+
+        [[nodiscard]] friend constexpr bool operator!=(const weak_ordering left, std::nullptr_t) noexcept
+        {
+            return left.m_value != 0;
+        }
+
+        [[nodiscard]] friend constexpr bool operator<(const weak_ordering left, std::nullptr_t) noexcept
+        {
+            return left.m_value < 0;
+        }
+
+        [[nodiscard]] friend constexpr bool operator>(const weak_ordering left, std::nullptr_t) noexcept
+        {
+            return left.m_value > 0;
+        }
+
+        [[nodiscard]] friend constexpr bool operator<=(const weak_ordering left, std::nullptr_t) noexcept
+        {
+            return left.m_value <= 0;
+        }
+
+        [[nodiscard]] friend constexpr bool operator>=(const weak_ordering left, std::nullptr_t) noexcept
+        {
+            return left.m_value >= 0;
+        }
+
+        [[nodiscard]] friend constexpr bool operator==(std::nullptr_t, const weak_ordering right) noexcept
+        {
+            return right == 0;
+        }
+
+        [[nodiscard]] friend constexpr bool operator!=(std::nullptr_t, const weak_ordering right) noexcept
+        {
+            return right != 0;
+        }
+
+        [[nodiscard]] friend constexpr bool operator<(std::nullptr_t, const weak_ordering right) noexcept
+        {
+            return right > 0;
+        }
+
+        [[nodiscard]] friend constexpr bool operator>(std::nullptr_t, const weak_ordering right) noexcept
+        {
+            return right < 0;
+        }
+
+        [[nodiscard]] friend constexpr bool operator<=(std::nullptr_t, const weak_ordering right) noexcept
+        {
+            return right >= 0;
+        }
+
+        [[nodiscard]] friend constexpr bool operator>=(std::nullptr_t, const weak_ordering right) noexcept
+        {
+            return right <= 0;
+        }
+
+        signed char m_value;
+    };
+
+    inline constexpr weak_ordering weak_ordering::less{static_cast<signed char>(-1)};
+    inline constexpr weak_ordering weak_ordering::equivalent{static_cast<signed char>(0)};
+    inline constexpr weak_ordering weak_ordering::greater{static_cast<signed char>(1)};
+
+#endif // !_HAS_CXX20
+
+#endif // defined(__WI_DEFINE_STRING_ORDINAL_FUNCTIONS)
+
+}
+
 namespace wil
 {
     //! Strictly a function of the file system but this is the value for all known file system, NTFS, FAT.
     //! CDFs has a limit of 254.
-    size_t const max_path_segment_length = 255;
+    constexpr size_t max_path_segment_length = 255;
 
     //! Character length not including the null, MAX_PATH (260) includes the null.
-    size_t const max_path_length = 259;
+    constexpr size_t max_path_length = 259;
 
     //! 32743 Character length not including the null. This is a system defined limit.
     //! The 24 is for the expansion of the roots from "C:" to "\Device\HarddiskVolume4"
     //! It will be 25 when there are more than 9 disks.
-    size_t const max_extended_path_length = 0x7FFF - 24;
+    constexpr size_t max_extended_path_length = 0x7FFF - 24;
 
     //! For {guid} string form. Includes space for the null terminator.
-    size_t const guid_string_buffer_length = 39;
+    constexpr size_t guid_string_buffer_length = 39;
 
     //! For {guid} string form. Not including the null terminator.
-    size_t const guid_string_length = 38;
+    constexpr size_t guid_string_length = 38;
+
+#pragma region String and identifier comparisons
+    // Using CompareStringOrdinal functions:
+    //
+    // Indentifiers require a locale-less (ordinal), and often case-insensitive, comparison (filenames, registry keys, XML node names, etc).
+    // DO NOT use locale-sensitive (lexical) comparisons for resource identifiers (e.g.wcs*() functions in the CRT).
+    
+#if defined(__WI_DEFINE_STRING_ORDINAL_FUNCTIONS)
+
+    namespace details
+    {
+        [[nodiscard]] inline int CompareStringOrdinal(std::wstring_view left, std::wstring_view right, bool caseInsensitive) WI_NOEXCEPT
+        {
+            // Casting from size_t (unsigned) to int (signed) should be safe from overrun to a negative,
+            // merely truncating the string.  CompareStringOrdinal should be resilient to negatives.
+            return ::CompareStringOrdinal(left.data(), static_cast<int>(left.size()), right.data(), static_cast<int>(right.size()), caseInsensitive);
+        }
+    }
+
+    [[nodiscard]] inline wistd::weak_ordering compare_string_ordinal(std::wstring_view left, std::wstring_view right, bool caseInsensitive) WI_NOEXCEPT
+    {
+        switch (wil::details::CompareStringOrdinal(left, right, caseInsensitive))
+        {
+        case CSTR_LESS_THAN:
+            return wistd::weak_ordering::less;
+        case CSTR_GREATER_THAN:
+            return wistd::weak_ordering::greater;
+        default:
+            return wistd::weak_ordering::equivalent;
+        }
+    }
+
+#endif // defined(__WI_DEFINE_STRING_ORDINAL_FUNCTIONS)
+
+#pragma endregion
 
 #pragma region FILETIME helpers
     // FILETIME duration values. FILETIME is in 100 nanosecond units.
@@ -120,7 +251,7 @@ namespace wil
             return timeMsec * filetime_duration::one_millisecond;
         }
 
-#if defined(_APISETREALTIME_)
+#if defined(_APISETREALTIME_) && (_WIN32_WINNT >= _WIN32_WINNT_WIN7)
         /// Returns the current unbiased interrupt-time count, in units of 100 nanoseconds. The unbiased interrupt-time count does not include time the system spends in sleep or hibernation.
         ///
         /// This API avoids prematurely shortcircuiting timing loops due to system sleep/hibernation.
@@ -152,6 +283,43 @@ namespace wil
             return convert_100ns_to_msec(QueryUnbiasedInterruptTimeAs100ns());
         }
 #endif // _APISETREALTIME_
+    }
+#pragma endregion
+
+#pragma region RECT helpers
+    template<typename rect_type>
+    constexpr auto rect_width(rect_type const& rect)
+    {
+        return rect.right - rect.left;
+    }
+
+    template<typename rect_type>
+    constexpr auto rect_height(rect_type const& rect)
+    {
+        return rect.bottom - rect.top;
+    }
+
+    template<typename rect_type>
+    constexpr auto rect_is_empty(rect_type const& rect)
+    {
+        return (rect.left >= rect.right) || (rect.top >= rect.bottom);
+    }
+
+    template<typename rect_type, typename point_type>
+    constexpr auto rect_contains_point(rect_type const& rect, point_type const& point)
+    {
+        return (point.x >= rect.left) && (point.x < rect.right) && (point.y >= rect.top) && (point.y < rect.bottom);
+    }
+
+    template<typename rect_type, typename length_type>
+    constexpr rect_type rect_from_size(length_type x, length_type y, length_type width, length_type height)
+    {
+        rect_type rect;
+        rect.left = x;
+        rect.top = y;
+        rect.right = x + width;
+        rect.bottom = y + height;
+        return rect;
     }
 #pragma endregion
 

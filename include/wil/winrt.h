@@ -46,6 +46,12 @@ namespace std
 #pragma warning(pop)
 #endif
 #endif
+#if defined(WIL_ENABLE_EXCEPTIONS) && defined(__has_include)
+#if __has_include(<vector>)
+#define __WI_HAS_STD_VECTOR 1
+#include <vector>
+#endif
+#endif
 /// @endcond
 
 // This enables this code to be used in code that uses the ABI prefix or not.
@@ -61,8 +67,8 @@ namespace std
 namespace wil
 {
     // time_t is the number of 1 - second intervals since January 1, 1970.
-    long long const SecondsToStartOf1970 = 0x2b6109100;
-    long long const HundredNanoSecondsInSecond = 10000000LL;
+    constexpr long long SecondsToStartOf1970 = 0x2b6109100;
+    constexpr long long HundredNanoSecondsInSecond = 10000000LL;
 
     inline __time64_t DateTime_to_time_t(ABI::Windows::Foundation::DateTime dateTime)
     {
@@ -235,8 +241,8 @@ namespace wil
     //! Detects if one or more embedded null is present in an HSTRING.
     inline bool HasEmbeddedNull(_In_opt_ HSTRING value)
     {
-        BOOL hasEmbeddedNull;
-        WindowsStringHasEmbeddedNull(value, &hasEmbeddedNull);
+        BOOL hasEmbeddedNull = FALSE;
+        (void)WindowsStringHasEmbeddedNull(value, &hasEmbeddedNull);
         return hasEmbeddedNull != FALSE;
     }
 
@@ -440,8 +446,8 @@ namespace wil
             #pragma warning(disable:4702) // https://github.com/Microsoft/wil/issues/2
             struct type // T holder
             {
-                type() {};
-                type(T&& value) : m_value(wistd::forward<T>(value)) {};
+                type() = default;
+                type(T&& value) : m_value(wistd::forward<T>(value)) {}
                 operator T() const { return m_value; }
                 type& operator=(T&& value) { m_value = wistd::forward<T>(value); return *this; }
                 T Get() const { return m_value; }
@@ -741,7 +747,7 @@ namespace wil
         vector_range_nothrow(const vector_range_nothrow&) = delete;
         vector_range_nothrow& operator=(const vector_range_nothrow&) = delete;
 
-        vector_range_nothrow(vector_range_nothrow&& other) :
+        vector_range_nothrow(vector_range_nothrow&& other) WI_NOEXCEPT :
             m_v(other.m_v), m_size(other.m_size), m_result(other.m_result), m_resultStorage(other.m_resultStorage),
             m_currentElement(wistd::move(other.m_currentElement))
         {
@@ -996,6 +1002,39 @@ namespace wil
     };
 #pragma endregion
 
+#if defined(__WI_HAS_STD_VECTOR)
+    /** Converts WinRT vectors to std::vector by requesting the collection's data in a single
+    operation. This can be more efficient in terms of IPC cost than iteratively processing it.
+    ~~~
+    ComPtr<IVector<IPropertyValue*>> values = GetValues();
+    std::vector<ComPtr<IPropertyValue>> allData = wil::to_vector(values);
+    for (ComPtr<IPropertyValue> const& item : allData)
+    {
+        // use item
+    }
+    Can be used for ABI::Windows::Foundation::Collections::IVector<T> and
+    ABI::Windows::Foundation::Collections::IVectorView<T>
+    */
+    template<typename VectorType> auto to_vector(VectorType* src)
+    {
+        using TResult = typename details::MapVectorResultType<VectorType>::type;
+        using TSmart = typename details::MapToSmartType<TResult>::type;
+        static_assert(sizeof(TResult) == sizeof(TSmart), "result and smart sizes are different");
+        std::vector<TSmart> output;
+        UINT32 expected = 0;
+        THROW_IF_FAILED(src->get_Size(&expected));
+        if (expected > 0)
+        {
+            output.resize(expected + 1);
+            UINT32 fetched = 0;
+            THROW_IF_FAILED(src->GetMany(0, static_cast<UINT32>(output.size()), reinterpret_cast<TResult*>(output.data()), &fetched));
+            THROW_HR_IF(E_CHANGED_STATE, fetched > expected);
+            output.resize(fetched);
+        }
+        return output;
+    }
+#endif
+
 #pragma region error code base IIterable<>
     template <typename T>
     class iterable_range_nothrow
@@ -1009,7 +1048,7 @@ namespace wil
         iterable_range_nothrow& operator=(const iterable_range_nothrow&) = delete;
         iterable_range_nothrow& operator=(iterable_range_nothrow &&) = delete;
 
-        iterable_range_nothrow(iterable_range_nothrow&& other) :
+        iterable_range_nothrow(iterable_range_nothrow&& other) WI_NOEXCEPT :
             m_iterator(wistd::move(other.m_iterator)), m_element(wistd::move(other.m_element)),
             m_resultStorage(other.m_resultStorage)
         {

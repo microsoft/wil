@@ -46,7 +46,7 @@ namespace wil
     //! to that value when it is destroyed.
     //!
     //! This is useful in library code that runs during a value's destructor. If the library code could
-    //! inadvertantly change the value of GetLastError (by calling a Win32 API or similar), it should
+    //! inadvertently change the value of GetLastError (by calling a Win32 API or similar), it should
     //! instantiate a value of this type before calling the library function in order to preserve the
     //! GetLastError value the user would expect.
     //!
@@ -63,18 +63,16 @@ namespace wil
     class last_error_context
     {
 #ifndef WIL_KERNEL_MODE
-        bool m_dismissed;
-        DWORD m_error;
+        bool m_dismissed = false;
+        DWORD m_error = 0;
     public:
-        last_error_context() WI_NOEXCEPT :
-            m_dismissed(false),
-            m_error(::GetLastError())
+        last_error_context() WI_NOEXCEPT : last_error_context(::GetLastError())
         {
         }
 
-        auto value() const
+        explicit last_error_context(DWORD error) WI_NOEXCEPT :
+            m_error(error)
         {
-            return m_error;
         }
 
         last_error_context(last_error_context&& other) WI_NOEXCEPT
@@ -82,7 +80,7 @@ namespace wil
             operator=(wistd::move(other));
         }
 
-        last_error_context & operator=(last_error_context&& other) WI_NOEXCEPT
+        last_error_context& operator=(last_error_context&& other) WI_NOEXCEPT
         {
             m_dismissed = wistd::exchange(other.m_dismissed, true);
             m_error = other.m_error;
@@ -104,6 +102,11 @@ namespace wil
         {
             WI_ASSERT(!m_dismissed);
             m_dismissed = true;
+        }
+
+        auto value() const WI_NOEXCEPT
+        {
+            return m_error;
         }
 #else
     public:
@@ -147,7 +150,7 @@ namespace wil
             typename pointer_access_t = pointer_access_all,                   // all, noaddress or none to control pointer method access
             typename pointer_storage_t = pointer_t,                           // The type used to store the handle (usually the same as the handle itself)
             typename invalid_t = pointer_t,                                   // The invalid handle value type
-            invalid_t invalid = invalid_t(),                                  //      * and its value (default ZERO value)
+            invalid_t invalid = invalid_t{},                                  //      * and its value (default ZERO value)
             typename pointer_invalid_t = wistd::nullptr_t>                    // nullptr_t if the invalid handle value is compatible with nullptr, otherwise pointer
             struct resource_policy : close_invoker<close_fn_t, close_fn, pointer_storage_t>
         {
@@ -174,6 +177,7 @@ namespace wil
             typedef typename policy::pointer pointer;
             typedef unique_storage<policy> base_storage;
 
+        public:
             unique_storage() WI_NOEXCEPT :
             m_ptr(policy::invalid_value())
             {
@@ -198,13 +202,6 @@ namespace wil
                 }
             }
 
-            void replace(unique_storage &&other) WI_NOEXCEPT
-            {
-                reset(other.m_ptr);
-                other.m_ptr = policy::invalid_value();
-            }
-
-        public:
             bool is_valid() const WI_NOEXCEPT
             {
                 return policy::is_valid(m_ptr);
@@ -244,6 +241,13 @@ namespace wil
                 return &m_ptr;
             }
 
+        protected:
+            void replace(unique_storage &&other) WI_NOEXCEPT
+            {
+                reset(other.m_ptr);
+                other.m_ptr = policy::invalid_value();
+            }
+
         private:
             pointer_storage m_ptr;
         };
@@ -273,7 +277,8 @@ namespace wil
 
         // forwarding constructor: forwards all 'explicit' and multi-arg constructors to the base class
         template <typename arg1, typename... args_t>
-        explicit unique_any_t(arg1 && first, args_t&&... args) :  // should not be WI_NOEXCEPT (may forward to a throwing constructor)
+        explicit unique_any_t(arg1 && first, args_t&&... args)
+            __WI_NOEXCEPT_((wistd::is_nothrow_constructible_v<storage_t, arg1, args_t...>)) :
             storage_t(wistd::forward<arg1>(first), wistd::forward<args_t>(args)...)
         {
             static_assert(wistd::is_same<typename policy::pointer_access, details::pointer_access_none>::value ||
@@ -431,7 +436,7 @@ namespace wil
         typename pointer_access = details::pointer_access_all,    // all, noaddress or none to control pointer method access
         typename pointer_storage = pointer,                       // The type used to store the handle (usually the same as the handle itself)
         typename invalid_t = pointer,                             // The invalid handle value type
-        invalid_t invalid = invalid_t(),                          //      * and its value (default ZERO value)
+        invalid_t invalid = invalid_t{},                          //      * and its value (default ZERO value)
         typename pointer_invalid = wistd::nullptr_t>              // nullptr_t if the invalid handle value is compatible with nullptr, otherwise pointer
         using unique_any = unique_any_t<details::unique_storage<details::resource_policy<pointer, close_fn_t, close_fn, pointer_access, pointer_storage, invalid_t, invalid, pointer_invalid>>>;
 
@@ -684,7 +689,7 @@ namespace wil
             {
             }
 
-            out_param_t(out_param_t&& other) :
+            out_param_t(out_param_t&& other) WI_NOEXCEPT :
                 wrapper(other.wrapper),
                 pRaw(other.pRaw)
             {
@@ -724,7 +729,7 @@ namespace wil
             {
             }
 
-            out_param_ptr_t(out_param_ptr_t&& other) :
+            out_param_ptr_t(out_param_ptr_t&& other) WI_NOEXCEPT :
                 wrapper(other.wrapper),
                 pRaw(other.pRaw)
             {
@@ -762,7 +767,7 @@ namespace wil
     }
 
     /** Use to retrieve raw out parameter pointers (with a required cast) into smart pointers that do not support the '&' operator.
-    Use only when the smart pointer's &handle is not equal to the output type a function requries, necessitating a cast.
+    Use only when the smart pointer's &handle is not equal to the output type a function requires, necessitating a cast.
     Example: `wil::out_param_ptr<PSECURITY_DESCRIPTOR*>(securityDescriptor)` */
     template <typename Tcast, typename T>
     details::out_param_ptr_t<Tcast, T> out_param_ptr(T& p)
@@ -787,7 +792,7 @@ namespace wil
     ~~~
     typedef wil::unique_struct<PROPVARIANT, decltype(&::PropVariantClear), ::PropVariantClear> unique_prop_variant_default_init;
 
-    unique_prop_variant propvariant;
+    unique_prop_variant_default_init propvariant;
     SomeFunction(&propvariant);
     ~~~
 
@@ -1161,7 +1166,7 @@ namespace wil
             {
             }
 
-            size_address_ptr(size_address_ptr&& other) :
+            size_address_ptr(size_address_ptr&& other) WI_NOEXCEPT :
                 wrapper(other.wrapper),
                 size(other.size)
             {
@@ -1884,6 +1889,7 @@ namespace wil {
             typedef typename policy::pointer pointer;
             typedef shared_storage<unique_t> base_storage;
 
+        public:
             shared_storage() = default;
 
             explicit shared_storage(pointer_storage ptr)
@@ -1923,12 +1929,6 @@ namespace wil {
             {
             }
 
-            void replace(shared_storage &&other) WI_NOEXCEPT
-            {
-                m_ptr = wistd::move(other.m_ptr);
-            }
-
-        public:
             bool is_valid() const WI_NOEXCEPT
             {
                 return (m_ptr && m_ptr->is_valid());
@@ -1978,6 +1978,12 @@ namespace wil {
                 return m_ptr.use_count();
             }
 
+        protected:
+            void replace(shared_storage &&other) WI_NOEXCEPT
+            {
+                m_ptr = wistd::move(other.m_ptr);
+            }
+
         private:
             template <typename storage_t>
             friend class ::wil::weak_any;
@@ -2002,7 +2008,8 @@ namespace wil {
 
         // default and forwarding constructor: forwards default, all 'explicit' and multi-arg constructors to the base class
         template <typename... args_t>
-        explicit shared_any_t(args_t&&... args) :  // should not be WI_NOEXCEPT (may forward to a throwing constructor)
+        explicit shared_any_t(args_t&&... args)
+            __WI_NOEXCEPT_((wistd::is_nothrow_constructible_v<storage_t, args_t...>)) :
             storage_t(wistd::forward<args_t>(args)...)
         {
         }
@@ -2426,7 +2433,7 @@ namespace wil
         // Non-RTL implementation for threadpool_t parameter of DestroyThreadPoolTimer<>
         struct SystemThreadPoolMethods
         {
-            static void WINAPI SetThreadpoolTimer(_Inout_ PTP_TIMER Timer, _In_opt_ PFILETIME DueTime, _In_ DWORD Period, _In_opt_ DWORD WindowLength) WI_NOEXCEPT
+            static void WINAPI SetThreadpoolTimer(_Inout_ PTP_TIMER Timer, _In_opt_ PFILETIME DueTime, _In_ DWORD Period, _In_ DWORD WindowLength) WI_NOEXCEPT
             {
                 ::SetThreadpoolTimer(Timer, DueTime, Period, WindowLength);
             }
@@ -2667,23 +2674,23 @@ namespace wil
         }
 
         // Tries to create a named event -- returns false if unable to do so (gle may still be inspected with return=false)
-        bool try_create(EventOptions options, PCWSTR name, _In_opt_ LPSECURITY_ATTRIBUTES pSecurity = nullptr, _Out_opt_ bool *pAlreadyExists = nullptr)
+        bool try_create(EventOptions options, PCWSTR name, _In_opt_ LPSECURITY_ATTRIBUTES securityAttributes = nullptr, _Out_opt_ bool *alreadyExists = nullptr)
         {
-            auto handle = ::CreateEventExW(pSecurity, name, (WI_IsFlagSet(options, EventOptions::ManualReset) ? CREATE_EVENT_MANUAL_RESET : 0) | (WI_IsFlagSet(options, EventOptions::Signaled) ? CREATE_EVENT_INITIAL_SET : 0), EVENT_ALL_ACCESS);
+            auto handle = ::CreateEventExW(securityAttributes, name, (WI_IsFlagSet(options, EventOptions::ManualReset) ? CREATE_EVENT_MANUAL_RESET : 0) | (WI_IsFlagSet(options, EventOptions::Signaled) ? CREATE_EVENT_INITIAL_SET : 0), EVENT_ALL_ACCESS);
             if (!handle)
             {
-                assign_to_opt_param(pAlreadyExists, false);
+                assign_to_opt_param(alreadyExists, false);
                 return false;
             }
-            assign_to_opt_param(pAlreadyExists, (::GetLastError() == ERROR_ALREADY_EXISTS));
+            assign_to_opt_param(alreadyExists, (::GetLastError() == ERROR_ALREADY_EXISTS));
             storage_t::reset(handle);
             return true;
         }
 
         // Returns HRESULT for unique_event_nothrow, void with exceptions for shared_event and unique_event
-        result create(EventOptions options = EventOptions::None, PCWSTR name = nullptr, _In_opt_ LPSECURITY_ATTRIBUTES pSecurity = nullptr, _Out_opt_ bool *pAlreadyExists = nullptr)
+        result create(EventOptions options = EventOptions::None, PCWSTR name = nullptr, _In_opt_ LPSECURITY_ATTRIBUTES securityAttributes = nullptr, _Out_opt_ bool *alreadyExists = nullptr)
         {
-            return err_policy::LastErrorIfFalse(try_create(options, name, pSecurity, pAlreadyExists));
+            return err_policy::LastErrorIfFalse(try_create(options, name, securityAttributes, alreadyExists));
         }
 
         // Tries to open the named event -- returns false if unable to do so (gle may still be inspected with return=false)
@@ -2927,21 +2934,25 @@ namespace wil
         }
 
         // Tries to create a named mutex -- returns false if unable to do so (gle may still be inspected with return=false)
-        bool try_create(_In_opt_ PCWSTR name, DWORD dwFlags = 0, DWORD desiredAccess = MUTEX_ALL_ACCESS, _In_opt_ PSECURITY_ATTRIBUTES pMutexAttributes = nullptr)
+        bool try_create(_In_opt_ PCWSTR name, DWORD dwFlags = 0, DWORD desiredAccess = MUTEX_ALL_ACCESS,
+                        _In_opt_ PSECURITY_ATTRIBUTES mutexAttributes = nullptr, _Out_opt_ bool* alreadyExists = nullptr)
         {
-            auto handle = ::CreateMutexExW(pMutexAttributes, name, dwFlags, desiredAccess);
+            auto handle = ::CreateMutexExW(mutexAttributes, name, dwFlags, desiredAccess);
             if (handle == nullptr)
             {
+                assign_to_opt_param(alreadyExists, false);
                 return false;
             }
+            assign_to_opt_param(alreadyExists, (::GetLastError() == ERROR_ALREADY_EXISTS));
             storage_t::reset(handle);
             return true;
         }
 
         // Returns HRESULT for unique_mutex_nothrow, void with exceptions for shared_mutex and unique_mutex
-        result create(_In_opt_ PCWSTR name = nullptr, DWORD dwFlags = 0, DWORD desiredAccess = MUTEX_ALL_ACCESS, _In_opt_ PSECURITY_ATTRIBUTES pMutexAttributes = nullptr)
+        result create(_In_opt_ PCWSTR name = nullptr, DWORD dwFlags = 0, DWORD desiredAccess = MUTEX_ALL_ACCESS,
+                      _In_opt_ PSECURITY_ATTRIBUTES mutexAttributes = nullptr, _Out_opt_ bool* alreadyExists = nullptr)
         {
-            return err_policy::LastErrorIfFalse(try_create(name, dwFlags, desiredAccess, pMutexAttributes));
+            return err_policy::LastErrorIfFalse(try_create(name, dwFlags, desiredAccess, mutexAttributes, alreadyExists));
         }
 
         // Tries to open a named mutex -- returns false if unable to do so (gle may still be inspected with return=false)
@@ -3018,21 +3029,23 @@ namespace wil
         }
 
         // Tries to create a named event -- returns false if unable to do so (gle may still be inspected with return=false)
-        bool try_create(LONG lInitialCount, LONG lMaximumCount, _In_opt_ PCWSTR name, DWORD desiredAccess = SEMAPHORE_ALL_ACCESS, _In_opt_ PSECURITY_ATTRIBUTES pSemaphoreAttributes = nullptr)
+        bool try_create(LONG lInitialCount, LONG lMaximumCount, _In_opt_ PCWSTR name, DWORD desiredAccess = SEMAPHORE_ALL_ACCESS, _In_opt_ PSECURITY_ATTRIBUTES pSemaphoreAttributes = nullptr, _Out_opt_ bool *alreadyExists = nullptr)
         {
             auto handle = ::CreateSemaphoreExW(pSemaphoreAttributes, lInitialCount, lMaximumCount, name, 0, desiredAccess);
             if (handle == nullptr)
             {
+                assign_to_opt_param(alreadyExists, false);
                 return false;
             }
+            assign_to_opt_param(alreadyExists, (::GetLastError() == ERROR_ALREADY_EXISTS));
             storage_t::reset(handle);
             return true;
         }
 
         // Returns HRESULT for unique_semaphore_nothrow, void with exceptions for shared_event and unique_event
-        result create(LONG lInitialCount, LONG lMaximumCount, _In_opt_ PCWSTR name = nullptr, DWORD desiredAccess = SEMAPHORE_ALL_ACCESS, _In_opt_ PSECURITY_ATTRIBUTES pSemaphoreAttributes = nullptr)
+        result create(LONG lInitialCount, LONG lMaximumCount, _In_opt_ PCWSTR name = nullptr, DWORD desiredAccess = SEMAPHORE_ALL_ACCESS, _In_opt_ PSECURITY_ATTRIBUTES pSemaphoreAttributes = nullptr, _Out_opt_ bool *alreadyExists = nullptr)
         {
-            return err_policy::LastErrorIfFalse(try_create(lInitialCount, lMaximumCount, name, desiredAccess, pSemaphoreAttributes));
+            return err_policy::LastErrorIfFalse(try_create(lInitialCount, lMaximumCount, name, desiredAccess, pSemaphoreAttributes, alreadyExists));
         }
 
         // Tries to open the named semaphore -- returns false if unable to do so (gle may still be inspected with return=false)
@@ -3322,11 +3335,10 @@ namespace wil
         _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_)
         PCSTR source, size_t length = static_cast<size_t>(-1)) WI_NOEXCEPT
     {
-        // guard against invalid parameters (null source with -1 length)
-        FAIL_FAST_IF(!source && (length == static_cast<size_t>(-1)));
-
         if (length == static_cast<size_t>(-1))
         {
+            // guard against invalid parameters (null source with -1 length)
+            FAIL_FAST_IF(!source);
             length = strlen(source);
         }
         const size_t cb = (length + 1) * sizeof(*source);
@@ -4249,6 +4261,14 @@ namespace wil
 #if !defined(NOWINABLE)
     typedef unique_any<HWINEVENTHOOK, decltype(&::UnhookWinEvent), ::UnhookWinEvent> unique_hwineventhook;
 #endif
+#if !defined(NOCLIPBOARD)
+    using unique_close_clipboard_call = unique_call<decltype(::CloseClipboard), &::CloseClipboard>;
+
+    inline unique_close_clipboard_call open_clipboard(HWND hwnd)
+    {
+        return unique_close_clipboard_call { OpenClipboard(hwnd) != FALSE };
+    }
+#endif
 #endif // __WIL__WINUSER_
 
 #if !defined(NOGDI) && !defined(NODESKTOP)
@@ -4355,7 +4375,7 @@ namespace wil
     WI_NODISCARD inline unique_couninitialize_call CoInitializeEx_failfast(DWORD coinitFlags = 0 /*COINIT_MULTITHREADED*/)
     {
         FAIL_FAST_IF_FAILED(::CoInitializeEx(nullptr, coinitFlags));
-        return unique_couninitialize_call();
+        return {};
     }
 #endif // __WIL__COMBASEAPI_H_APP
 #if defined(__WIL__COMBASEAPI_H_APP) && defined(WIL_ENABLE_EXCEPTIONS) && !defined(__WIL__COMBASEAPI_H_APPEXCEPTIONAL)
@@ -4363,7 +4383,7 @@ namespace wil
     WI_NODISCARD inline unique_couninitialize_call CoInitializeEx(DWORD coinitFlags = 0 /*COINIT_MULTITHREADED*/)
     {
         THROW_IF_FAILED(::CoInitializeEx(nullptr, coinitFlags));
-        return unique_couninitialize_call();
+        return {};
     }
 #endif
 
@@ -4592,6 +4612,33 @@ namespace wil
     {
         wil::unique_bstr result(make_bstr_nothrow(source));
         THROW_IF_NULL_ALLOC(result);
+        return result;
+    }
+#endif // WIL_ENABLE_EXCEPTIONS
+
+    inline wil::unique_variant make_variant_bstr_nothrow(PCWSTR source) WI_NOEXCEPT
+    {
+        wil::unique_variant result{};
+        V_UNION(result.addressof(), bstrVal) = ::SysAllocString(source);
+        if (V_UNION(result.addressof(), bstrVal) != nullptr)
+        {
+            V_VT(result.addressof()) = VT_BSTR;
+        }
+        return result;
+    }
+
+    inline wil::unique_variant make_variant_bstr_failfast(PCWSTR source) WI_NOEXCEPT
+    {
+        auto result{make_variant_bstr_nothrow(source)};
+        FAIL_FAST_HR_IF(E_OUTOFMEMORY, V_VT(result.addressof()) == VT_EMPTY);
+        return result;
+    }
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+    inline wil::unique_variant make_variant_bstr(PCWSTR source)
+    {
+        auto result{make_variant_bstr_nothrow(source)};
+        THROW_HR_IF(E_OUTOFMEMORY, V_VT(result.addressof()) == VT_EMPTY);
         return result;
     }
 #endif // WIL_ENABLE_EXCEPTIONS

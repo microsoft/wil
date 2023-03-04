@@ -339,9 +339,28 @@ namespace wil
         {
             if (deleteHandle != INVALID_HANDLE_VALUE)
             {
-                FILE_DISPOSITION_INFO fileInfo{};
-                fileInfo.DeleteFile = TRUE;
-                RETURN_IF_WIN32_BOOL_FALSE(SetFileInformationByHandle(deleteHandle, FileDispositionInfo, &fileInfo, sizeof(fileInfo)));
+#if (NTDDI_VERSION >= NTDDI_WIN10_RS1)
+                // DeleteFile and RemoveDirectory use POSIX delete, falling back to non-POSIX on most errors. Do the same here.
+                FILE_DISPOSITION_INFO_EX fileInfoEx{};
+                fileInfoEx.Flags = FILE_DISPOSITION_FLAG_DELETE | FILE_DISPOSITION_FLAG_POSIX_SEMANTICS;
+                if (!SetFileInformationByHandle(deleteHandle, FileDispositionInfoEx, &fileInfoEx, sizeof(fileInfoEx)))
+                {
+                    auto const err = ::GetLastError();
+                    // The real error we're looking for is STATUS_CANNOT_DELETE, but that's mapped to ERROR_ACCESS_DENIED.
+                    if (err != ERROR_ACCESS_DENIED)
+                    {
+#endif
+                        FILE_DISPOSITION_INFO fileInfo{};
+                        fileInfo.DeleteFile = TRUE;
+                        RETURN_IF_WIN32_BOOL_FALSE(SetFileInformationByHandle(deleteHandle, FileDispositionInfo, &fileInfo, sizeof(fileInfo)));
+#if (NTDDI_VERSION >= NTDDI_WIN10_RS1)
+                    }
+                    else
+                    {
+                        RETURN_WIN32(err);
+                    }
+                }
+#endif
             }
             else
             {
@@ -646,7 +665,7 @@ namespace wil
             OVERLAPPED m_overlapped{};
             TP_IO *m_tpIo = __nullptr;
             srwlock m_cancelLock;
-            char m_readBuffer[4096]; // Consider alternative buffer sizes. With 512 byte buffer i was not able to observe overflow.
+            unsigned char m_readBuffer[4096]; // Consider alternative buffer sizes. With 512 byte buffer i was not able to observe overflow.
         };
 
         inline void delete_folder_change_reader_state(_In_opt_ folder_change_reader_state *storage) { delete storage; }
@@ -690,7 +709,6 @@ namespace wil
             auto readerState = static_cast<details::folder_change_reader_state *>(context);
             // WI_ASSERT(overlapped == &readerState->m_overlapped);
 
-            bool requeue = true;
             if (result == ERROR_SUCCESS)
             {
                 for (auto const& info : create_next_entry_offset_iterator(reinterpret_cast<FILE_NOTIFY_INFORMATION *>(readerState->m_readBuffer)))
@@ -707,19 +725,17 @@ namespace wil
             }
             else
             {
-                requeue = false;
+                // No need to requeue
+                return;
             }
 
-            if (requeue)
+            // If the lock is held non-shared or the TP IO is nullptr, this
+            // structure is being torn down. Otherwise, monitor for further
+            // changes.
+            auto autoLock = readerState->m_cancelLock.try_lock_shared();
+            if (autoLock && readerState->m_tpIo)
             {
-                // If the lock is held non-shared or the TP IO is nullptr, this
-                // structure is being torn down. Otherwise, monitor for further
-                // changes.
-                auto autoLock = readerState->m_cancelLock.try_lock_shared();
-                if (autoLock && readerState->m_tpIo)
-                {
-                    readerState->StartIo(); // ignoring failure here
-                }
+                readerState->StartIo(); // ignoring failure here
             }
         }
 
@@ -892,7 +908,7 @@ namespace wil
 
         // Type unsafe version used in the implementation to avoid template bloat.
         inline HRESULT GetFileInfo(HANDLE fileHandle, FILE_INFO_BY_HANDLE_CLASS infoClass, size_t allocationSize,
-            _Outptr_result_nullonfailure_ void **result)
+            _Outptr_result_maybenull_ void **result)
         {
             *result = nullptr;
 
