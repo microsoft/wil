@@ -184,9 +184,9 @@ namespace wil
 
                     return S_OK;
                 }
-                CATCH_RETURN()
+                CATCH_RETURN();
 
-                    inline void* get_buffer(const ::std::vector<BYTE>& buffer) WI_NOEXCEPT
+                inline void* get_buffer(const ::std::vector<BYTE>& buffer) WI_NOEXCEPT
                 {
                     return const_cast<BYTE*>(buffer.data());
                 }
@@ -252,12 +252,26 @@ namespace wil
                 }
 #endif // #if defined(__WIL_OLEAUTO_H_)
 
+#if defined(__WIL_OLEAUTO_H_STL)
+                inline void* get_buffer(const ::wil::shared_bstr& value) WI_NOEXCEPT
+                {
+                    return value.get();
+                }
+#endif // #if defined(__WIL_OLEAUTO_H_STL)
+
 #if defined(__WIL_OBJBASE_H_)
                 inline void* get_buffer(const ::wil::unique_cotaskmem_string& value) WI_NOEXCEPT
                 {
                     return value.get();
                 }
 #endif // defined(__WIL_OBJBASE_H_)
+
+#if defined(__WIL_OBJBASE_H_STL)
+                inline void* get_buffer(const ::wil::shared_cotaskmem_string& value) WI_NOEXCEPT
+                {
+                    return value.get();
+                }
+#endif // #if defined(__WIL_OBJBASE_H_STL)
 
 #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
                 inline DWORD get_buffer_size(const ::std::vector<BYTE>& value) WI_NOEXCEPT
@@ -330,15 +344,16 @@ namespace wil
 
                 inline DWORD get_buffer_size(const ::wil::unique_bstr& value) WI_NOEXCEPT
                 {
-                    auto length = ::SysStringLen(value.get());
-                    if (length > 0)
-                    {
-                        // SysStringLen does not count the null-terminator
-                        length += 1;
-                    }
-                    return length * sizeof(wchar_t);
+                    return get_buffer_size(value.get());
                 }
 #endif // #if defined(__WIL_OLEAUTO_H_)
+
+#if defined(__WIL_OLEAUTO_H_STL)
+                inline DWORD get_buffer_size(const ::wil::shared_bstr& value) WI_NOEXCEPT
+                {
+                    return get_buffer_size(value.get());
+                }
+#endif // #if defined(__WIL_OLEAUTO_H_STL)
 
 #if defined(__WIL_OBJBASE_H_)
                 constexpr DWORD get_buffer_size(const ::wil::unique_cotaskmem_string&) WI_NOEXCEPT
@@ -349,6 +364,14 @@ namespace wil
                 }
 #endif // defined(__WIL_OBJBASE_H_)
 
+#if defined(__WIL_OBJBASE_H_STL)
+                constexpr DWORD get_buffer_size(const ::wil::shared_cotaskmem_string&) WI_NOEXCEPT
+                {
+                    // wil::shared_cotaskmem_string does not intrinsically track its internal buffer size
+                    // thus the caller must track the buffer size it requested to be allocated
+                    return 0;
+                }
+#endif // #if defined(__WIL_OBJBASE_H_STL)
 
                 template <typename T>
                 constexpr bool supports_resize_buffer() WI_NOEXCEPT
@@ -372,11 +395,11 @@ namespace wil
                     buffer.resize(byteSize);
                     return S_OK;
                 }
-                CATCH_RETURN()
+                CATCH_RETURN();
 #endif // #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
 
 #if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
-                    template <>
+                template <>
                 constexpr bool supports_resize_buffer<::std::wstring>() WI_NOEXCEPT
                 {
                     return true;
@@ -386,28 +409,33 @@ namespace wil
                     string.resize(byteSize / sizeof(wchar_t));
                     return S_OK;
                 }
-                CATCH_RETURN()
+                CATCH_RETURN();
 #endif // #if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
 
 #if defined(__WIL_OLEAUTO_H_)
-                    template <>
+                template <>
                 constexpr bool supports_resize_buffer<BSTR>() WI_NOEXCEPT
                 {
                     return true;
                 }
-                inline HRESULT resize_buffer(BSTR& string, DWORD byteSize) WI_NOEXCEPT
+                // transferringOwnership is only set to false if this is a 'shallow' copy of the BSTR
+                // and the caller maintained ownership of the original BSTR to
+                inline HRESULT resize_buffer(BSTR& string, DWORD byteSize, bool transferringOwnership = true) WI_NOEXCEPT
                 {
-                    // convert back to length (number of WCHARs)
+                    // convert bytes to length (number of WCHARs)
                     DWORD length = byteSize / sizeof(WCHAR);
-                    // SysAllocStringLen adds a null, so subtract a wchar_t from the input byteSize
+                    // SysAllocStringLen adds a null, so subtract a wchar_t from the input length
                     length = length > 0 ? length - 1 : length;
-                    const BSTR newString{ ::SysAllocStringLen(string, length) };
-                    if (!newString)
+                    const BSTR new_bstr{ ::SysAllocStringLen(string, length) };
+                    RETURN_IF_NULL_ALLOC(new_bstr);
+
+                    // if not transferring ownership, the caller will still own the original BSTR
+                    if (transferringOwnership)
                     {
-                        return E_OUTOFMEMORY;
+                        ::SysFreeString(string);
                     }
-                    ::SysFreeString(string);
-                    string = newString;
+
+                    string = new_bstr;
                     return S_OK;
                 }
 
@@ -418,16 +446,39 @@ namespace wil
                 }
                 inline HRESULT resize_buffer(::wil::unique_bstr& string, DWORD byteSize) WI_NOEXCEPT
                 {
-                    BSTR newBstr = string.release();
-                    // pass the raw bstr to copy whatever was in the original bstr
-                    const auto hr = resize_buffer(newBstr, byteSize);
+                    BSTR temp_bstr = string.get();
 
-                    // if hr failed, put the original bstr back in the unique_bstr because resize_buffer() did not free it
-                    // if hr succeeded, resize_buffer() freed the bstr we passed it and returned a new bstr
-                    string.reset(newBstr);
-                    return hr;
+                    // not transferring ownership of the BSTR within 'string' to resize_buffer()
+                    // resize_buffer() will overwrite temp_bstr with a newly-allocated BSTR
+                    constexpr bool transferringOwnership = false;
+                    RETURN_IF_FAILED(resize_buffer(temp_bstr, byteSize, transferringOwnership));
+
+                    // if succeeded in creating a new BSTR, move ownership of the new BSTR into string 
+                    string.reset(temp_bstr);
+                    return S_OK;
                 }
 #endif // #if defined(__WIL_OLEAUTO_H_)
+
+#if defined(__WIL_OLEAUTO_H_STL)
+                template<>
+                constexpr bool supports_resize_buffer<::wil::shared_bstr>() WI_NOEXCEPT
+                {
+                    return true;
+                }
+                inline HRESULT resize_buffer(::wil::shared_bstr& string, DWORD byteSize) WI_NOEXCEPT
+                {
+                    BSTR temp_bstr = string.get();
+
+                    // not transferring ownership of the BSTR within 'string' to resize_buffer()
+                    // resize_buffer() will overwrite temp_bstr with a newly-allocated BSTR
+                    constexpr bool transferringOwnership = false;
+                    RETURN_IF_FAILED(resize_buffer(temp_bstr, byteSize, transferringOwnership));
+
+                    // if succeeded in creating a new BSTR, move ownership of the new BSTR into string 
+                    string.reset(temp_bstr);
+                    return S_OK;
+                }
+#endif // #if defined(__WIL_OLEAUTO_H_STL)
 
 #if defined(__WIL_OBJBASE_H_)
                 template<>
@@ -437,18 +488,37 @@ namespace wil
                 }
                 inline HRESULT resize_buffer(::wil::unique_cotaskmem_string& string, DWORD byteSize) WI_NOEXCEPT
                 {
+                    // convert bytes to length (number of WCHARs)
                     size_t length = byteSize / sizeof(wchar_t);
-                    // subtracting 1 wchar_t in length because ::wil::make_unique_string_nothrow adds one to the length when it allocates
-                    length -= 1;
-                    auto newString = ::wil::make_unique_string_nothrow<::wil::unique_cotaskmem_string>(string.get(), length);
-                    if (!newString)
-                    {
-                        return E_OUTOFMEMORY;
-                    }
-                    string = std::move(newString);
+                    // ::wil::make_unique_string_nothrow adds one to the length when it allocates, so subtracting 1 from the input length
+                    length = length > 0 ? length - 1 : length;
+                    auto new_string = ::wil::make_unique_string_nothrow<::wil::unique_cotaskmem_string>(string.get(), length);
+                    RETURN_IF_NULL_ALLOC(new_string.get());
+
+                    string = ::std::move(new_string);
                     return S_OK;
                 }
 #endif // defined(__WIL_OBJBASE_H_)
+
+#if defined(__WIL_OBJBASE_H_STL)
+                template<>
+                constexpr bool supports_resize_buffer<::wil::shared_cotaskmem_string>() WI_NOEXCEPT
+                {
+                    return true;
+                }
+                inline HRESULT resize_buffer(::wil::shared_cotaskmem_string& string, DWORD byteSize) WI_NOEXCEPT try
+                {
+                    size_t length = byteSize / sizeof(wchar_t);
+                    // ::wil::make_unique_string_nothrow adds one to the length when it allocates, so subtracting 1 from the input length
+                    length = length > 0 ? length - 1 : length;
+                    auto new_string = ::wil::make_unique_string_nothrow<::wil::unique_cotaskmem_string>(string.get(), length);
+                    RETURN_IF_NULL_ALLOC(new_string.get());
+
+                    string = ::std::move(new_string);
+                    return S_OK;
+                }
+                CATCH_RETURN();
+#endif // #if defined(__WIL_OBJBASE_H_STL)
 
                 template <typename T>
                 constexpr bool supports_trim_buffer() WI_NOEXCEPT
@@ -543,6 +613,15 @@ namespace wil
                 }
 #endif // #if defined(__WIL_OLEAUTO_H_)
 
+#if defined(__WIL_OLEAUTO_H_STL)
+
+                template <>
+                constexpr DWORD get_value_type<::wil::shared_bstr>() WI_NOEXCEPT
+                {
+                    return get_value_flags_from_value_type(REG_SZ);
+                }
+#endif // #if defined(__WIL_OLEAUTO_H_STL)
+
 #if defined(__WIL_OBJBASE_H_)
                 template <>
                 constexpr DWORD get_value_type<::wil::unique_cotaskmem_string>() WI_NOEXCEPT
@@ -550,6 +629,14 @@ namespace wil
                     return get_value_flags_from_value_type(REG_SZ);
                 }
 #endif // defined(__WIL_OBJBASE_H_)
+
+#if defined(__WIL_OBJBASE_H_STL)
+                template <>
+                constexpr DWORD get_value_type<::wil::shared_cotaskmem_string>() WI_NOEXCEPT
+                {
+                    return get_value_flags_from_value_type(REG_SZ);
+                }
+#endif // #if defined(__WIL_OBJBASE_H_STL)
 
                 constexpr DWORD set_value_type(int32_t) WI_NOEXCEPT
                 {
@@ -604,12 +691,26 @@ namespace wil
                 }
 #endif // #if defined(__WIL_OLEAUTO_H_)
 
+#if defined(__WIL_OLEAUTO_H_STL)
+                constexpr DWORD set_value_type(const ::wil::shared_bstr&) WI_NOEXCEPT
+                {
+                    return REG_SZ;
+                }
+#endif // #if defined(__WIL_OLEAUTO_H_STL)
+
 #if defined(__WIL_OBJBASE_H_)
                 constexpr DWORD set_value_type(const ::wil::unique_cotaskmem_string&) WI_NOEXCEPT
                 {
                     return REG_SZ;
                 }
 #endif // defined(__WIL_OBJBASE_H_)
+
+#if defined(__WIL_OBJBASE_H_STL)
+                constexpr DWORD set_value_type(const ::wil::shared_cotaskmem_string&) WI_NOEXCEPT
+                {
+                    return REG_SZ;
+                }
+#endif // #if defined(__WIL_OBJBASE_H_STL)
             }
 
             template <typename err_policy = ::wil::err_exception_policy>
@@ -914,7 +1015,7 @@ namespace wil
 #endif // #if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
             private:
                 const HKEY m_key{};
-            };
+                    };
 
             // reg_view with the raw HKEY type is non-owning
             using reg_view_nothrow = reg_view_details::reg_view_t<::wil::err_returncode_policy>;
@@ -923,7 +1024,7 @@ namespace wil
             // reg_view with the raw HKEY type is non-owning
             using reg_view = reg_view_details::reg_view_t<::wil::err_exception_policy>;
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS)
-        }
-    } // namespace reg
-} // namespace wil
+                }
+            } // namespace reg
+        } // namespace wil
 #endif // __WIL_REGISTRY_HELPERS_INCLUDED
