@@ -1206,7 +1206,11 @@ namespace wil
          * \remark Example usage:
          *         // ensure the code handles a possible std::exception that will be thrown on all errors
          *
-         *         wil::unique_bstr { wil::reg::get_value_bstr(key, L"subkey", L"value_name") };
+         *         wil::unique_bstr unique_value { wil::reg::get_value_bstr(key, L"subkey", L"value_name") };
+         *
+         *         // note that the return can also be stored in a wil::shared_bstr
+         *         // as wil::shared_bstr has a c'tor taking a wil::unique_bstr
+         *         wil::shared_bstr shared_value { wil::reg::get_value_bstr(key, L"subkey", L"value_name") };
          */
         inline ::wil::unique_bstr get_value_bstr(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
         {
@@ -1228,7 +1232,11 @@ namespace wil
          * \remark Example usage:
          *         // ensure the code handles a possible std::exception that will be thrown on all errors
          *
-         *         wil::unique_bstr { wil::reg::get_value_bstr(key, L"value_name") };
+         *         wil::unique_bstr unique_value { wil::reg::get_value_bstr(key, L"value_name") };
+         *
+         *         // note that the return can also be stored in a wil::shared_bstr
+         *         // as wil::shared_bstr has a c'tor taking a wil::unique_bstr
+         *         wil::shared_bstr shared_value { wil::reg::get_value_bstr(key, L"value_name") };
          */
         inline ::wil::unique_bstr get_value_bstr(HKEY key, _In_opt_ PCWSTR value_name)
         {
@@ -1253,7 +1261,12 @@ namespace wil
          * \remark Example usage:
          *         // ensure the code handles a possible std::exception that will be thrown on all errors
          *
-         *         wil::unique_bstr string_value {
+         *         wil::unique_bstr unique_value {
+         *             wil::reg::get_value_expanded_bstr(key, L"subkey", L"value_name_with_environment_variables") };
+         *
+         *         // note that the return can also be stored in a wil::shared_bstr
+         *         // as wil::shared_bstr has a c'tor taking a wil::unique_bstr
+         *         wil::shared_bstr shared_value {
          *             wil::reg::get_value_expanded_bstr(key, L"subkey", L"value_name_with_environment_variables") };
          */
         inline ::wil::unique_bstr get_value_expanded_bstr(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
@@ -1282,6 +1295,11 @@ namespace wil
          *
          *         wil::unique_bstr string_value {
          *             wil::reg::get_value_expanded_bstr(key, L"value_name_with_environment_variables") };
+         *
+         *         // note that the return can also be stored in a wil::shared_bstr
+         *         // as wil::shared_bstr has a c'tor taking a wil::unique_bstr
+         *         wil::shared_bstr shared_value {
+         *             wil::reg::get_value_expanded_bstr(key, L"value_name_with_environment_variables") };
          */
         inline ::wil::unique_bstr get_value_expanded_bstr(HKEY key, _In_opt_ PCWSTR value_name)
         {
@@ -1307,7 +1325,12 @@ namespace wil
          * \remark Example usage:
          *         // ensure the code handles a possible std::exception that will be thrown on all errors
          *
-         *         wil::unique_cotaskmem_string {
+         *         wil::unique_cotaskmem_string unique_value {
+         *             wil::reg::get_value_cotaskmem_string(key, L"subkey", L"value_name") };
+         *
+         *         // note that the return can also be stored in a wil::shared_cotaskmem_string
+         *         // as wil::shared_cotaskmem_string has a c'tor taking a wil::unique_cotaskmem_string
+         *         wil::shared_cotaskmem_string shared_value {
          *             wil::reg::get_value_cotaskmem_string(key, L"subkey", L"value_name") };
          */
         inline ::wil::unique_cotaskmem_string get_value_cotaskmem_string(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
@@ -1330,7 +1353,12 @@ namespace wil
          * \remark Example usage:
          *         // ensure the code handles a possible std::exception that will be thrown on all errors
          *
-         *         wil::unique_cotaskmem_string { wil::reg::get_value_cotaskmem_string(key, L"value_name") };
+         *         wil::unique_cotaskmem_string unique_value { wil::reg::get_value_cotaskmem_string(key, L"value_name") };
+         *
+         *         // note that the return can also be stored in a wil::shared_cotaskmem_string
+         *         // as wil::shared_cotaskmem_string has a c'tor taking a wil::unique_cotaskmem_string
+         *         wil::shared_cotaskmem_string shared_value {
+         *             wil::reg::get_value_cotaskmem_string(key, L"value_name") };
          */
         inline ::wil::unique_cotaskmem_string get_value_cotaskmem_string(HKEY key, _In_opt_ PCWSTR value_name)
         {
@@ -1355,7 +1383,12 @@ namespace wil
          * \remark Example usage:
          *         // ensure the code handles a possible std::exception that will be thrown on all errors
          *
-         *         wil::unique_cotaskmem_string string_value {
+         *         wil::unique_cotaskmem_string unique_value {
+         *             wil::reg::get_value_expanded_cotaskmem_string(key, L"subkey", L"value_name_with_environment_variables") };
+         *
+         *         // note that the return can also be stored in a wil::shared_cotaskmem_string
+         *         // as wil::shared_cotaskmem_string has a c'tor taking a wil::unique_cotaskmem_string
+         *         wil::shared_cotaskmem_string shared_value {
          *             wil::reg::get_value_expanded_cotaskmem_string(key, L"subkey", L"value_name_with_environment_variables") };
          */
         inline ::wil::unique_cotaskmem_string get_value_expanded_cotaskmem_string(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
@@ -1382,7 +1415,12 @@ namespace wil
          * \remark Example usage:
          *         // ensure the code handles a possible std::exception that will be thrown on all errors
          *
-         *         wil::unique_cotaskmem_string string_value {
+         *         wil::unique_cotaskmem_string unique_value {
+         *             wil::reg::get_value_expanded_cotaskmem_string(key, L"value_name_with_environment_variables") };
+         *
+         *         // note that the return can also be stored in a wil::shared_cotaskmem_string
+         *         // as wil::shared_cotaskmem_string has a c'tor taking a wil::unique_cotaskmem_string
+         *         wil::shared_cotaskmem_string shared_value {
          *             wil::reg::get_value_expanded_cotaskmem_string(key, L"value_name_with_environment_variables") };
          */
         inline ::wil::unique_cotaskmem_string get_value_expanded_cotaskmem_string(HKEY key, _In_opt_ PCWSTR value_name)
