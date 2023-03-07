@@ -1755,6 +1755,15 @@ TEST_CASE("WindowsInternalTests::HandleWrappers", "[resource][unique_any]")
     auto unique_bstr_nothrow2 = wil::make_bstr_nothrow(L"");
     REQUIRE(wcscmp(L"", unique_bstr_nothrow2.get()) == 0);
 
+    auto unique_variant_bstr_failfast1 = wil::make_variant_bstr_failfast(L"Foo");
+    REQUIRE(wcscmp(L"Foo", V_UNION(unique_variant_bstr_failfast1.addressof(), bstrVal)) == 0);
+
+    auto unique_variant_bstr_nothrow1 = wil::make_variant_bstr_nothrow(L"Foo");
+    REQUIRE(wcscmp(L"Foo", V_UNION(unique_variant_bstr_nothrow1.addressof(), bstrVal)) == 0);
+
+    auto unique_variant_bstr_nothrow2 = wil::make_variant_bstr_nothrow(L"");
+    REQUIRE(wcscmp(L"", V_UNION(unique_variant_bstr_nothrow2.addressof(), bstrVal)) == 0);
+
 #ifdef WIL_ENABLE_EXCEPTIONS
     auto unique_bstr_te1 = wil::make_bstr(L"Foo");
     REQUIRE(wcscmp(L"Foo", unique_bstr_te1.get()) == 0);
@@ -1762,6 +1771,11 @@ TEST_CASE("WindowsInternalTests::HandleWrappers", "[resource][unique_any]")
     auto unique_bstr_te2 = wil::make_bstr(L"");
     REQUIRE(wcscmp(L"", unique_bstr_te2.get()) == 0);
 
+    auto unique_variant_bstr_te1 = wil::make_variant_bstr(L"Foo");
+    REQUIRE(wcscmp(L"Foo", V_UNION(unique_variant_bstr_te1.addressof(), bstrVal)) == 0);
+
+    auto unique_variant_bstr_te2 = wil::make_variant_bstr(L"");
+    REQUIRE(wcscmp(L"", V_UNION(unique_variant_bstr_te2.addressof(), bstrVal)) == 0);
 
     auto testString = wil::make_cotaskmem_string(L"Foo");
     {

@@ -4616,6 +4616,33 @@ namespace wil
     }
 #endif // WIL_ENABLE_EXCEPTIONS
 
+    inline wil::unique_variant make_variant_bstr_nothrow(PCWSTR source) WI_NOEXCEPT
+    {
+        wil::unique_variant result{};
+        V_UNION(result.addressof(), bstrVal) = ::SysAllocString(source);
+        if (V_UNION(result.addressof(), bstrVal) != nullptr)
+        {
+            V_VT(result.addressof()) = VT_BSTR;
+        }
+        return result;
+    }
+
+    inline wil::unique_variant make_variant_bstr_failfast(PCWSTR source) WI_NOEXCEPT
+    {
+        auto result{make_variant_bstr_nothrow(source)};
+        FAIL_FAST_HR_IF(E_OUTOFMEMORY, V_VT(result.addressof()) == VT_EMPTY);
+        return result;
+    }
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+    inline wil::unique_variant make_variant_bstr(PCWSTR source)
+    {
+        auto result{make_variant_bstr_nothrow(source)};
+        THROW_HR_IF(E_OUTOFMEMORY, V_VT(result.addressof()) == VT_EMPTY);
+        return result;
+    }
+#endif // WIL_ENABLE_EXCEPTIONS
+
 #endif // __WIL_OLEAUTO_H_
 #if defined(__WIL_OLEAUTO_H_) && !defined(__WIL_OLEAUTO_H_STL) && defined(WIL_RESOURCE_STL)
 #define __WIL_OLEAUTO_H_STL
