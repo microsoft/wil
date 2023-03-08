@@ -54,13 +54,33 @@ C:\vcpkg> vcpkg install wil:x64-windows
 Note that even though WIL is a header-only library, you still need to install the package for all architectures/platforms you wish to use it with. Otherwise, WIL won't be added to the include path for the missing architectures/platforms. Execute `vcpkg help triplet` for a list of available options.
 
 # Building/Testing
-To get started testing WIL, first make sure that you have a recent version of [Visual Studio](https://visualstudio.microsoft.com/downloads/) and the most recent [Windows SDK](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk) installed. If you are doing
-any non-trivial work, also be sure to have a recent version of [Clang](http://releases.llvm.org/download.html) installed. Once everything is installed, open a VS
-native command window (e.g. "x64 Native Tools Command Prompt for VS 2022"). If you are familiar with CMake you can get started building normally. Otherwise, or if you prefer to skip all of the boilerplate, you can use one of the scripts in the [scripts](scripts) directory:
-```cmd
-C:\wil> scripts\init.cmd -c clang -g ninja -b debug
-```
-You can execute `init.cmd --help` for a summary of available options. The scripts use a common directory pattern of `build/$(compiler)$(arch)$(type)` for the build output root. E.g. `build/clang64debug` when using Clang as the compiler, x64 as the architecture, and Debug as the build type. It is this directory where you will want to build from. For example, if you initialized using the command above, you can build the tests like so:
+
+To get started contributing to WIL, first make sure that you have:
+
+* a recent version of [Visual Studio](https://visualstudio.microsoft.com/downloads/)
+* the most recent [Windows SDK](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk)
+* [Nuget](https://www.nuget.org/downloads)
+
+If you are doing any non-trivial work, also be sure to have:
+
+* a recent version of [Clang](http://releases.llvm.org/download.html)
+ 
+Once everything is installed, open a VS native command window (e.g. `x64 Native Tools Command Prompt for VS 2022` \[_not_ `Developer Command Prompt for VS2022`]).
+
+* If you are familiar with CMake you can get started building normally.
+* Otherwise, or if you prefer to skip all of the boilerplate, you can use one of the scripts in the [scripts](scripts) directory:
+  ```cmd
+  C:\wil> scripts\init.cmd -c clang -g ninja -b debug
+  ```
+* To generate a Visual Studio solution with IntelliSense:
+  ```cmd
+  C:\wil> scripts\init.cmd -c msvc -g msbuild
+  ```
+  That will create a `.sln` file in the corresponding`build/` subdirectory. You can also invoke MSBuild directly to build.
+
+You can execute `init.cmd --help` for a summary of available options.
+
+The scripts use a common directory pattern of `build/$(compiler)$(arch)$(type)` for the build output root. E.g. `build/clang64debug` when using Clang as the compiler, x64 as the architecture, and Debug as the build type. It is this directory where you will want to build from. For example, if you initialized using the command above, you can build the tests like so:
 ```cmd
 C:\wil\build\clang64debug> ninja
 ```
@@ -68,8 +88,6 @@ Or, if you want to only build a single test (e.g. for improved compile times):
 ```cmd
 C:\wil\build\clang64debug> ninja witest.noexcept
 ```
-If you initialized using MSBuild as the generator, there will be a `.sln` file in the root of the build directory. You
-can either open the solution in Visual Studio or invoke MSBuild directly to build.
 
 The output is a number of test executables. If you used the initialization script(s) mentioned above, or if you followed
 the same directory naming convention of those scripts, you can use the [runtests.cmd](scripts/runtests.cmd) script,
@@ -82,7 +100,7 @@ C:\wil> scripts\build_all.cmd
 C:\wil> scripts\runtests.cmd
 ```
 Note that this will only test for the architecture that corresponds to the command window you opened. You will want to
-repeat this process for the other architecture (e.g. by using the "x86 Native Tools Command Prompt for VS 2022")
+repeat this process for the other architecture (e.g. by using the `x86 Native Tools Command Prompt for VS 2022` in addition to `x64`).
 
 # Contributing
 
