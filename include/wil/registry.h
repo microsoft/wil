@@ -71,17 +71,7 @@ namespace wil
         }
 
 #if defined(__WIL_WINREG_STL)
-        /**
-         * \brief Opens a new HKEY to the specified path
-         *        see RegOpenKeyExW
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
-         * \param path A string to append to the HKEY to attempt to open
-         *        can be nullptr if not needed
-         * \param access The requested access desired for the opened key
-         * \return A shared_hkey containing the resulting opened HKEY
-         * \exception std::exception will be thrown on failure (including wil::ResultException)
-         */
-        inline ::wil::shared_hkey open_shared_key(HKEY key, _In_opt_ PCWSTR path, ::wil::reg::key_access access = ::wil::reg::key_access::read)
+        inline ::wil::shared_hkey open_shared_key(HKEY key, PCWSTR path, ::wil::reg::key_access access = ::wil::reg::key_access::read)
         {
             const reg_view_details::reg_view regview{ key };
             return regview.open_shared_key(path, access);
@@ -95,7 +85,7 @@ namespace wil
          * \param path A string to append to the HKEY to attempt to open
          *        can be nullptr if not needed
          * \param access The requested access desired for the opened key
-         * \return A unique_hkey containing the resulting opened HKEY
+         * \return A wil::unique_hkey or wil::shared_hkey containing the resulting opened HKEY
          * \exception std::exception will be thrown on failure (including wil::ResultException)
          */
         inline ::wil::unique_hkey create_unique_key(HKEY key, PCWSTR path, ::wil::reg::key_access access = ::wil::reg::key_access::read)
@@ -103,6 +93,13 @@ namespace wil
             const reg_view_details::reg_view regview{ key };
             return regview.create_unique_key(path, access);
         }
+#if defined(__WIL_WINREG_STL)
+        inline ::wil::shared_hkey create_shared_key(HKEY key, PCWSTR path, ::wil::reg::key_access access = ::wil::reg::key_access::read)
+        {
+            const reg_view_details::reg_view regview{ key };
+            return regview.create_shared_key(path, access);
+        }
+#endif // #if defined(__WIL_WINREG_STL)
 
 #if defined(__SDDL_H__)
         /**
@@ -114,50 +111,19 @@ namespace wil
          * \param security_descriptor A string-format security descriptor specifying the security descriptor for the new HKEY
          *        see ConvertStringSecurityDescriptorToSecurityDescriptorW
          * \param access The requested access desired for the opened key
-         * \return A unique_hkey containing the resulting opened HKEY
+         * \return A wil::unique_hkey or wil::shared_hkey containing the resulting opened HKEY
          * \exception std::exception will be thrown on failure (including wil::ResultException)
          *
          * \remark Because security functions and types are referenced, the <sddl.h> header must be previously included
+         *
+         * \remark note the returned wil::unique_hkey can be stored in a wil::shared_hkey
          */
         inline ::wil::unique_hkey create_unique_key(HKEY key, PCWSTR path, _In_opt_ PCWSTR security_descriptor, ::wil::reg::key_access access = ::wil::reg::key_access::read)
         {
             const reg_view_details::reg_view regview{ key };
             return regview.create_unique_key(path, security_descriptor, access);
         }
-#endif // #if defined(__SDDL_H__)
-
 #if defined(__WIL_WINREG_STL)
-        /**
-         * \brief Creates a new HKEY to the specified path
-         *        see RegCreateKeyExW
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
-         * \param path A string to append to the HKEY to attempt to open
-         *        can be nullptr if not needed
-         * \param access The requested access desired for the opened key
-         * \return A shared_hkey containing the resulting opened HKEY
-         * \exception std::exception will be thrown on failure (including wil::ResultException)
-         */
-        inline ::wil::shared_hkey create_shared_key(HKEY key, PCWSTR path, ::wil::reg::key_access access = ::wil::reg::key_access::read)
-        {
-            const reg_view_details::reg_view regview{ key };
-            return regview.create_shared_key(path, access);
-        }
-
-#if defined(__SDDL_H__)
-        /**
-         * \brief Creates a new HKEY to the specified path
-         *        see RegCreateKeyExW
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
-         * \param path A string to append to the HKEY to attempt to open
-         *        can be nullptr if not needed
-         * \param security_descriptor A string-format security descriptor specifying the security descriptor for the new HKEY
-         *        see ConvertStringSecurityDescriptorToSecurityDescriptorW
-         * \param access The requested access desired for the opened key
-         * \return A shared_hkey containing the resulting opened HKEY
-         * \exception std::exception will be thrown on failure (including wil::ResultException)
-         *
-         * \remark Because security functions and types are referenced, the <sddl.h> header must be previously included
-         */
         inline ::wil::shared_hkey create_shared_key(HKEY key, PCWSTR path, _In_opt_ PCWSTR security_descriptor, ::wil::reg::key_access access = ::wil::reg::key_access::read)
         {
             const reg_view_details::reg_view regview{ key };
@@ -173,16 +139,25 @@ namespace wil
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param path A string to append to the HKEY to attempt to open
          *        can be nullptr if not needed
-         * \param[out] hkey A pointer to an HKEY parameter to receive the opened HKEY
+         * \param[out] hkey A reference to a wil::unique_hkey or wil::shared_hkey parameter to receive the opened HKEY
          * \param access The requested access desired for the opened key
          * \return HRESULT error code indicating success or failure
          *         does not throw C++ exceptions
          */
-        inline HRESULT open_key_nothrow(HKEY key, _In_opt_ PCWSTR path, _Out_ HKEY* hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
+        inline HRESULT open_unique_key_nothrow(HKEY key, _In_opt_ PCWSTR path, _Out_::wil::unique_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
         {
+            hkey.reset();
             const reg_view_details::reg_view_nothrow regview{ key };
-            return regview.open_key(path, hkey, access);
+            return regview.open_key(path, hkey.addressof(), access);
         }
+#if defined(__WIL_WINREG_STL)
+        inline HRESULT open_shared_key_nothrow(HKEY key, _In_opt_ PCWSTR path, _Out_::wil::shared_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
+        {
+            hkey.reset();
+            const reg_view_details::reg_view_nothrow regview{ key };
+            return regview.open_key(path, hkey.addressof(), access);
+        }
+#endif // #define __WIL_WINREG_STL
 
         /**
          * \brief Creates a new HKEY to the specified path
@@ -195,11 +170,20 @@ namespace wil
          * \return HRESULT error code indicating success or failure
          *         does not throw C++ exceptions
          */
-        inline HRESULT create_key_nothrow(HKEY key, PCWSTR path, _Out_ HKEY* hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
+        inline HRESULT create_unique_key_nothrow(HKEY key, PCWSTR path, _Out_::wil::unique_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
         {
+            hkey.reset();
             const reg_view_details::reg_view_nothrow regview{ key };
-            return regview.create_key(path, hkey, access);
+            return regview.create_key(path, hkey.addressof(), access);
         }
+#if defined(__WIL_WINREG_STL)
+        inline HRESULT create_shared_key_nothrow(HKEY key, _In_opt_ PCWSTR path, _Out_::wil::shared_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
+        {
+            hkey.reset();
+            const reg_view_details::reg_view_nothrow regview{ key };
+            return regview.create_key(path, hkey.addressof(), access);
+        }
+#endif // #define __WIL_WINREG_STL
 
 #if defined(__SDDL_H__)
         /**
@@ -210,18 +194,27 @@ namespace wil
          *        can be nullptr if not needed
          * \param security_descriptor A string-format security descriptor specifying the security descriptor for the new HKEY
          *        see ConvertStringSecurityDescriptorToSecurityDescriptorW
-         * \param[out] hkey A pointer to an HKEY parameter to receive the opened HKEY
+         * \param[out] hkey A pointer to an wil::unique_hkey or wil::shared_hkey parameter to receive the opened HKEY
          * \param access The requested access desired for the opened key
          * \return HRESULT error code indicating success or failure
          *         does not throw C++ exceptions
          *
          * \remark Because security functions and types are referenced, the <sddl.h> header must be previously included
          */
-        inline HRESULT create_key_nothrow(HKEY key, PCWSTR path, _In_opt_ PCWSTR security_descriptor, _Out_ HKEY* hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
+        inline HRESULT create_unique_key_nothrow(HKEY key, PCWSTR path, _In_opt_ PCWSTR security_descriptor, _Out_::wil::unique_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
         {
+            hkey.reset();
             const reg_view_details::reg_view_nothrow regview{ key };
-            return regview.create_key(path, security_descriptor, hkey, access);
+            return regview.create_key(path, security_descriptor, hkey.addressof(), access);
         }
+#if defined(__WIL_WINREG_STL)
+        inline HRESULT create_shared_key_nothrow(HKEY key, PCWSTR path, _In_opt_ PCWSTR security_descriptor, _Out_::wil::shared_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
+        {
+            hkey.reset();
+            const reg_view_details::reg_view_nothrow regview{ key };
+            return regview.create_key(path, security_descriptor, hkey.addressof(), access);
+        }
+#endif // #if defined(__WIL_WINREG_STL)
 #endif // #if defined(__SDDL_H__)
 
 
@@ -2583,7 +2576,7 @@ namespace wil
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
-         * \param[out] return_value The BSTR receiving the value read from the registry
+         * \param[out] return_value The unique_bstr or shared_bstr receiving the value read from the registry
          * \return HRESULT error code indicating success or failure
          *         does not throw C++ exceptions
          *
@@ -2591,28 +2584,47 @@ namespace wil
          *         wil::unique_bstr string_value{};
          *         hr = wil::reg::get_value_bstr_nothrow(key, L"subkey", L"value_name", &string_value);
          */
-        inline HRESULT get_value_bstr_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _Out_ BSTR* return_value) WI_NOEXCEPT
+        inline HRESULT get_value_bstr_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, ::wil::unique_bstr& return_value) WI_NOEXCEPT
         {
-            return ::wil::reg::get_value_nothrow(key, subkey, value_name, return_value);
+            return_value.reset();
+            return ::wil::reg::get_value_nothrow(key, subkey, value_name, return_value.addressof());
         }
+#if defined(__WIL_OLEAUTO_H_STL)
+        inline HRESULT get_value_bstr_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, ::wil::shared_bstr& return_value) WI_NOEXCEPT try
+        {
+            return_value.reset();
+            return ::wil::reg::get_value_nothrow(key, subkey, value_name, return_value.addressof());
+        }
+        CATCH_RETURN();
+#endif // #if defined(__WIL_OLEAUTO_H_STL)
 
         /**
          * \brief Reads a REG_SZ value under a specified key
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
-         * \param[out] return_value The BSTR receiving the value read from the registry
+         * \param[out] return_value The unique_bstr or shared_bstr receiving the value read from the registry
          * \return HRESULT error code indicating success or failure
          *         does not throw C++ exceptions
          *
          * \remark Example usage:
          *         wil::unique_bstr string_value{};
-         *         hr = wil::reg::get_value_bstr_nothrow(key, L"value_name", &string_value);
+         *         hr = wil::reg::get_value_bstr_nothrow(key, L"value_name", string_value);
+         *
+         *         wil::shared_bstr shared_string_value{};
+         *         hr = wil::reg::get_value_bstr_nothrow(key, L"value_name", shared_string_value);
          */
-        inline HRESULT get_value_bstr_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _Out_ BSTR* return_value) WI_NOEXCEPT
+        inline HRESULT get_value_bstr_nothrow(HKEY key, _In_opt_ PCWSTR value_name, ::wil::unique_bstr& return_value) WI_NOEXCEPT
         {
-            return ::wil::reg::get_value_nothrow(key, nullptr, value_name, return_value);
+            return get_value_bstr_nothrow(key, nullptr, value_name, return_value);
         }
+#if defined(__WIL_OLEAUTO_H_STL)
+        inline HRESULT get_value_bstr_nothrow(HKEY key, _In_opt_ PCWSTR value_name, ::wil::shared_bstr& return_value) WI_NOEXCEPT try
+        {
+            return get_value_bstr_nothrow(key, nullptr, value_name, return_value);
+        }
+        CATCH_RETURN();
+#endif // #if defined(__WIL_OLEAUTO_H_STL)
 #endif // #if defined(__WIL_OLEAUTO_H_)
 
 #if defined(__WIL_OBJBASE_H_)
@@ -2816,41 +2828,57 @@ namespace wil
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
-         * \param[out] return_value The BSTR receiving the value read from the registry
+         * \param[out] return_value The unique_bstr or shared_bstr receiving the value read from the registry
          * \return HRESULT error code indicating success or failure
          *         does not throw C++ exceptions
          *
          * \remark Example usage:
          *         wil::unique_bstr string_value{};
-         *         hr = wil::reg::get_value_bstr_nothrow(key, L"subkey", L"value_name", &string_value);
+         *         hr = wil::reg::get_value_expanded_bstr_nothrow(key, L"subkey", L"value_name", string_value);
+         *
+         *         wil::shared_bstr shared_string_value{};
+         *         hr = wil::reg::get_value_expanded_bstr_nothrow(key, L"subkey", L"value_name", shared_string_value);
          */
-        inline HRESULT get_value_expanded_bstr_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _Out_ BSTR* return_value) WI_NOEXCEPT
+        inline HRESULT get_value_expanded_bstr_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, ::wil::unique_bstr& return_value) WI_NOEXCEPT
         {
-            ::wil::unique_bstr value;
+            return_value.reset();
             const reg_view_details::reg_view_nothrow regview{ key };
-            RETURN_IF_FAILED(regview.get_value<::wil::unique_bstr>(subkey, value_name, value, REG_EXPAND_SZ));
-
-            *return_value = value.release();
-            return S_OK;
+            return regview.get_value<::wil::unique_bstr>(subkey, value_name, return_value, REG_EXPAND_SZ);
         }
+#if defined(__WIL_OLEAUTO_H_STL)
+        inline HRESULT get_value_expanded_bstr_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, ::wil::shared_bstr& return_value) WI_NOEXCEPT try
+        {
+            return_value.reset();
+            const reg_view_details::reg_view_nothrow regview{ key };
+            return regview.get_value<::wil::shared_bstr>(subkey, value_name, return_value, REG_EXPAND_SZ);
+        }
+        CATCH_RETURN();
+#endif // #if defined(__WIL_OLEAUTO_H_STL)
 
         /**
          * \brief Reads a REG_EXPAND_SZ value under a specified key
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
-         * \param[out] return_value The BSTR receiving the value read from the registry
+         * \param[out] return_value The unique_bstr or shared_bstr receiving the value read from the registry
          * \return HRESULT error code indicating success or failure
          *         does not throw C++ exceptions
          *
          * \remark Example usage:
          *         wil::unique_bstr string_value{};
-         *         hr = wil::reg::get_value_bstr_nothrow(key, L"subkey", L"value_name", &string_value);
+         *         hr = wil::reg::get_value_expanded_bstr_nothrow(key, L"subkey", L"value_name", string_value);
          */
-        inline HRESULT get_value_expanded_bstr_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _Out_ BSTR* return_value) WI_NOEXCEPT
+        inline HRESULT get_value_expanded_bstr_nothrow(HKEY key, _In_opt_ PCWSTR value_name, ::wil::unique_bstr& return_value) WI_NOEXCEPT
         {
             return get_value_expanded_bstr_nothrow(key, nullptr, value_name, return_value);
         }
+#if defined(__WIL_OLEAUTO_H_STL)
+        inline HRESULT get_value_expanded_bstr_nothrow(HKEY key, _In_opt_ PCWSTR value_name, ::wil::shared_bstr& return_value) WI_NOEXCEPT try
+        {
+            return get_value_expanded_bstr_nothrow(key, nullptr, value_name, return_value);
+        }
+        CATCH_RETURN();
+#endif // #if defined(__WIL_OLEAUTO_H_STL)
 #endif // #if defined(__WIL_OLEAUTO_H_)
 
 #if defined(__WIL_OBJBASE_H_)
