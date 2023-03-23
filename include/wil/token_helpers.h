@@ -55,6 +55,15 @@ namespace wil
         template<> struct MapTokenStructToInfoClass<TOKEN_TYPE> { static constexpr TOKEN_INFORMATION_CLASS infoClass = TokenType; static constexpr bool FixedSize = true; };
         template<> struct MapTokenStructToInfoClass<SECURITY_IMPERSONATION_LEVEL> { static constexpr TOKEN_INFORMATION_CLASS infoClass = TokenImpersonationLevel;  static constexpr bool FixedSize = true; };
         template<> struct MapTokenStructToInfoClass<TOKEN_ELEVATION> { static constexpr TOKEN_INFORMATION_CLASS infoClass = TokenElevation; static constexpr bool FixedSize = true; };
+    
+        struct token_info_deleter
+        {
+            template<typename T> void operator()(T* p) const
+            {
+                static_assert(wistd::is_trivially_destructible_v<T>, "do not use with nontrivial types");
+                ::operator delete(p);
+            }
+        };
     }
     /// @endcond
 
@@ -134,19 +143,19 @@ namespace wil
 
     /** Fetches information about a token.
     See GetTokenInformation on MSDN for what this method can return. For variable sized structs the information
-    is returned to the caller as a wistd::unique_ptr<T> (like TOKEN_ORIGIN, TOKEN_USER, TOKEN_ELEVATION, etc.). For
+    is returned to the caller as a wil::unique_tokeninfo_ptr<T> (like TOKEN_ORIGIN, TOKEN_USER, TOKEN_ELEVATION, etc.). For
     fixed sized, the struct is returned directly.
     The caller must have access to read the information from the provided token. This method works with both real
     (e.g. OpenCurrentAccessToken) and pseudo (e.g. GetCurrentThreadToken) token handles.
     ~~~~
     // Retrieve the TOKEN_USER structure for the current process
-    wistd::unique_ptr<TOKEN_USER> user;
+    wil::unique_tokeninfo_ptr<TOKEN_USER> user;
     RETURN_IF_FAILED(wil::get_token_information_nothrow(user, GetCurrentProcessToken()));
     RETURN_IF_FAILED(ConsumeSid(user->User.Sid));
     ~~~~
     Not specifying the token handle is the same as specifying 'nullptr' and retrieves information about the effective token.
     ~~~~
-    wistd::unique_ptr<TOKEN_PRIVILEGES> privileges;
+    wil::unique_tokeninfo_ptr<TOKEN_PRIVILEGES> privileges;
     RETURN_IF_FAILED(wil::get_token_information_nothrow(privileges));
     for (auto const& privilege : wil::GetRange(privileges->Privileges, privileges->PrivilegeCount))
     {
@@ -159,8 +168,10 @@ namespace wil
     @return S_OK on success, a FAILED hresult containing the win32 error from querying the token otherwise.
     */
 
+    template <typename Q> using unique_tokeninfo_ptr = wistd::unique_ptr<Q, details::token_info_deleter>;
+
     template <typename T, wistd::enable_if_t<!details::MapTokenStructToInfoClass<T>::FixedSize>* = nullptr>
-    inline HRESULT get_token_information_nothrow(wistd::unique_ptr<T>& tokenInfo, HANDLE tokenHandle = nullptr)
+    inline HRESULT get_token_information_nothrow(unique_tokeninfo_ptr<T>& tokenInfo, HANDLE tokenHandle = nullptr)
     {
         tokenInfo.reset();
         tokenHandle = GetCurrentThreadEffectiveTokenWithOverride(tokenHandle);
@@ -169,11 +180,10 @@ namespace wil
         const auto infoClass = details::MapTokenStructToInfoClass<T>::infoClass;
         RETURN_LAST_ERROR_IF(!((!GetTokenInformation(tokenHandle, infoClass, nullptr, 0, &tokenInfoSize)) &&
             (::GetLastError() == ERROR_INSUFFICIENT_BUFFER)));
-        wistd::unique_ptr<char> tokenInfoClose(
-            static_cast<char*>(operator new(tokenInfoSize, std::nothrow)));
-        RETURN_IF_NULL_ALLOC(tokenInfoClose.get());
+        unique_tokeninfo_ptr<T> tokenInfoClose{ static_cast<T*>(::operator new(tokenInfoSize, std::nothrow)) };
+        RETURN_IF_NULL_ALLOC(tokenInfoClose);
         RETURN_IF_WIN32_BOOL_FALSE(GetTokenInformation(tokenHandle, infoClass, tokenInfoClose.get(), tokenInfoSize, &tokenInfoSize));
-        tokenInfo.reset(reinterpret_cast<T *>(tokenInfoClose.release()));
+        tokenInfo = wistd::move(tokenInfoClose);
 
         return S_OK;
     }
@@ -194,9 +204,9 @@ namespace wil
     namespace details
     {
         template<typename T, typename policy, wistd::enable_if_t<!details::MapTokenStructToInfoClass<T>::FixedSize>* = nullptr>
-        wistd::unique_ptr<T> GetTokenInfoWrap(HANDLE token = nullptr)
+        unique_tokeninfo_ptr<T> GetTokenInfoWrap(HANDLE token = nullptr)
         {
-            wistd::unique_ptr<T> temp;
+            unique_tokeninfo_ptr<T> temp;
             policy::HResult(get_token_information_nothrow(temp, token));
             return temp;
         }
