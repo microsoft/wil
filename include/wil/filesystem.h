@@ -867,7 +867,6 @@ namespace wil
     // TODO: add support for these and other similar APIs.
     // GetShortPathNameW()
     // GetLongPathNameW()
-    // GetWindowsDirectory()
     // GetTempDirectory()
 
     /// @cond
