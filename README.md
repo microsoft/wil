@@ -57,9 +57,9 @@ Note that even though WIL is a header-only library, you still need to install th
 
 To get started contributing to WIL, first make sure that you have:
 
-* a recent version of [Visual Studio](https://visualstudio.microsoft.com/downloads/)
-* the most recent [Windows SDK](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk)
-* [Nuget](https://www.nuget.org/downloads)
+* A recent version of [Visual Studio](https://visualstudio.microsoft.com/downloads/)
+* The most recent [Windows SDK](https://developer.microsoft.com/windows/downloads/windows-sdk)
+* [Nuget](https://www.nuget.org/downloads) downloaded and added to `PATH` (see [Install NuGet client tools](https://learn.microsoft.com/nuget/install-nuget-client-tools))
 
 If you are doing any non-trivial work, also be sure to have:
 
