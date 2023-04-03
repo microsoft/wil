@@ -4,7 +4,6 @@
 #include <optional>
 
 #include <windows.h>
-#include <sddl.h>
 
 #include <wil/filesystem.h>
 #include <wil/registry.h>
@@ -1754,6 +1753,53 @@ TEST_CASE("BasicRegistryTests::bstrs", "[registry]")
     }
 
 #if defined(__WIL_OLEAUTO_H_STL)
+    SECTION("get and set with string key and value name, template versions")
+    {
+        for (const auto& value : stringTestArray)
+        {
+            wil::reg::set_value(HKEY_CURRENT_USER, testSubkey, stringValueName, value);
+            const auto result = wil::reg::get_value<wil::shared_bstr>(HKEY_CURRENT_USER, testSubkey, stringValueName);
+            REQUIRE(AreStringsEqual(result, value));
+        }
+
+        // reading the wrong type should fail
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0ul));
+        try
+        {
+            wil::reg::get_value<wil::shared_bstr>(HKEY_CURRENT_USER, testSubkey, dwordValueName);
+            // should throw
+            REQUIRE_FALSE(true);
+        }
+        catch (const wil::ResultException& e)
+        {
+            REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
+        }
+    }
+    SECTION("get and set with string key and value name, template versions: with open key")
+    {
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
+
+        for (const auto& value : stringTestArray)
+        {
+            wil::reg::set_value(hkey.get(), stringValueName, value);
+            const auto result = wil::reg::get_value<wil::shared_bstr>(hkey.get(), stringValueName);
+            REQUIRE(AreStringsEqual(result, value));
+        }
+
+        // reading the wrong type should fail
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0ul));
+        try
+        {
+            wil::reg::get_value <wil::shared_bstr>(hkey.get(), dwordValueName);
+            // should throw
+            REQUIRE_FALSE(true);
+        }
+        catch (const wil::ResultException& e)
+        {
+            REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
+        }
+    }
     SECTION("set_value_string_nothrow/get_value_bstr_nothrow: shared_bstr with opened key")
     {
         wil::unique_hkey hkey;
@@ -2015,6 +2061,119 @@ TEST_CASE("BasicRegistryTests::cotaskmem_string", "[registry]")
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
     }
 
+#if defined(__WIL_OBJBASE_H_STL)
+    SECTION("set_value_string_nothrow/get_value_cotaskmem_string_nothrow: with opened key")
+    {
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
+
+        for (const auto& value : stringTestArray)
+        {
+            REQUIRE_SUCCEEDED(wil::reg::set_value_string_nothrow(hkey.get(), stringValueName, value.c_str()));
+            wil::shared_cotaskmem_string result{};
+            REQUIRE_SUCCEEDED(wil::reg::get_value_cotaskmem_string_nothrow(hkey.get(), nullptr, stringValueName, result));
+            REQUIRE(AreStringsEqual(result, value));
+
+            // and verify default value name
+            REQUIRE_SUCCEEDED(wil::reg::set_value_string_nothrow(hkey.get(), nullptr, value.c_str()));
+            result = {};
+            REQUIRE_SUCCEEDED(wil::reg::get_value_cotaskmem_string_nothrow(hkey.get(), nullptr, nullptr, result));
+            REQUIRE(AreStringsEqual(result, value));
+        }
+
+        // fail get* if the value doesn't exist
+        wil::shared_cotaskmem_string result{};
+        auto hr = wil::reg::get_value_cotaskmem_string_nothrow(hkey.get(), nullptr, (std::wstring(stringValueName) + L"_not_valid").c_str(), result);
+        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
+
+        // fail if get* requests the wrong type
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0ul));
+        hr = wil::reg::get_value_cotaskmem_string_nothrow(hkey.get(), nullptr, dwordValueName, result);
+        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
+    }
+    SECTION("set_value_string_nothrow/get_value_cotaskmem_string_nothrow: with string key")
+    {
+        for (const auto& value : stringTestArray)
+        {
+            REQUIRE_SUCCEEDED(wil::reg::set_value_string_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, value.c_str()));
+            wil::shared_cotaskmem_string result{};
+            REQUIRE_SUCCEEDED(wil::reg::get_value_cotaskmem_string_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, result));
+            REQUIRE(AreStringsEqual(result, value));
+
+            // and verify default value name
+            REQUIRE_SUCCEEDED(wil::reg::set_value_string_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, value.c_str()));
+            result = {};
+            REQUIRE_SUCCEEDED(wil::reg::get_value_cotaskmem_string_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, result));
+            REQUIRE(AreStringsEqual(result, value));
+        }
+
+        // fail get* if the value doesn't exist
+        wil::shared_cotaskmem_string result{};
+        auto hr = wil::reg::get_value_cotaskmem_string_nothrow(HKEY_CURRENT_USER, testSubkey, (std::wstring(stringValueName) + L"_not_valid").c_str(), result);
+        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
+
+        // fail if get* requests the wrong type
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0ul));
+        hr = wil::reg::get_value_cotaskmem_string_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, result);
+        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
+    }
+    SECTION("set_value_nothrow/get_value_nothrow: with opened key")
+    {
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
+
+        for (const auto& value : stringTestArray)
+        {
+            REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(hkey.get(), stringValueName, value.c_str()));
+            wil::shared_cotaskmem_string result{};
+            REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(hkey.get(), stringValueName, result));
+            REQUIRE(AreStringsEqual(result, value));
+
+            // and verify default value name
+            REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(hkey.get(), nullptr, value.c_str()));
+            result = {};
+            REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(hkey.get(), nullptr, result));
+            REQUIRE(AreStringsEqual(result, value));
+        }
+
+        // fail get* if the value doesn't exist
+        wil::shared_cotaskmem_string result{};
+        auto hr = wil::reg::get_value_nothrow(hkey.get(), (std::wstring(stringValueName) + L"_not_valid").c_str(), result);
+        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
+
+        // fail if get* requests the wrong type
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0ul));
+        hr = wil::reg::get_value_nothrow(hkey.get(), dwordValueName, result);
+        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
+    }
+    SECTION("set_value_nothrow/get_value_nothrow: with string key")
+    {
+        for (const auto& value : stringTestArray)
+        {
+            REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, value.c_str()));
+            wil::shared_cotaskmem_string result{};
+            REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, result));
+            REQUIRE(AreStringsEqual(result, value));
+
+            // and verify default value name
+            REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, value.c_str()));
+            result = {};
+            REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, result));
+            REQUIRE(AreStringsEqual(result, value));
+        }
+
+        // fail get* if the value doesn't exist
+        wil::shared_cotaskmem_string result{};
+        auto hr = wil::reg::get_value_nothrow(HKEY_CURRENT_USER, testSubkey, (std::wstring(stringValueName) + L"_not_valid").c_str(), result);
+        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
+
+        // fail if get* requests the wrong type
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0ul));
+        hr = wil::reg::get_value_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, result);
+        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
+    }
+#endif // #if defined(__WIL_OBJBASE_H_STL)
+
 #if defined(WIL_ENABLE_EXCEPTIONS)
     SECTION("set_value_string/get_value_cotaskmem_string: with open key")
     {
@@ -2146,6 +2305,54 @@ TEST_CASE("BasicRegistryTests::cotaskmem_string", "[registry]")
     }
 
 #if defined(__WIL_OBJBASE_H_STL)
+    SECTION("get and set with string key and value name, template versions")
+    {
+        for (const auto& value : stringTestArray)
+        {
+            wil::reg::set_value(HKEY_CURRENT_USER, testSubkey, stringValueName, value);
+            const auto result = wil::reg::get_value<wil::shared_cotaskmem_string>(HKEY_CURRENT_USER, testSubkey, stringValueName);
+            REQUIRE(AreStringsEqual(result, value));
+        }
+
+        // reading the wrong type should fail
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0ul));
+        try
+        {
+            wil::reg::get_value<wil::shared_cotaskmem_string>(HKEY_CURRENT_USER, testSubkey, dwordValueName);
+            // should throw
+            REQUIRE_FALSE(true);
+        }
+        catch (const wil::ResultException& e)
+        {
+            REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
+        }
+    }
+    SECTION("get and set with string key and value name, template versions: with open key")
+    {
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
+
+        for (const auto& value : stringTestArray)
+        {
+            wil::reg::set_value(hkey.get(), stringValueName, value);
+            const auto result = wil::reg::get_value<wil::shared_cotaskmem_string>(hkey.get(), stringValueName);
+            REQUIRE(AreStringsEqual(result, value));
+        }
+
+        // reading the wrong type should fail
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0ul));
+        try
+        {
+            wil::reg::get_value <wil::shared_cotaskmem_string>(hkey.get(), dwordValueName);
+            // should throw
+            REQUIRE_FALSE(true);
+        }
+        catch (const wil::ResultException& e)
+        {
+            REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
+        }
+    }
+
 #if defined(__cpp_lib_optional)
     SECTION("set_value/try_get_value_cotaskmem_string: with open key")
     {
@@ -2671,7 +2878,7 @@ TEST_CASE("BasicRegistryTests::expanded_bstr", "[registry]")
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
     }
 
-#if defined(__WIL_OBJBASE_H_STL)
+#if defined(__WIL_OLEAUTO_H_STL)
     SECTION("set_value_expanded_string_nothrow/get_value_expanded_bstr_nothrow: with opened key")
     {
         wil::unique_hkey hkey;
@@ -2739,7 +2946,7 @@ TEST_CASE("BasicRegistryTests::expanded_bstr", "[registry]")
         hr = wil::reg::get_value_expanded_bstr_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, shared_result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
     }
-#endif // #if defined(__WIL_OBJBASE_H_STL)
+#endif // #if defined(__WIL_OLEAUTO_H_STL)
 
     SECTION("set_value_expanded_string/get_value_expanded_bstr: with open key")
     {
@@ -3003,6 +3210,76 @@ TEST_CASE("BasicRegistryTests::expanded_cotaskmem_string", "[registry]")
         hr = wil::reg::get_value_expanded_cotaskmem_string_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
     }
+
+#if defined(__WIL_OBJBASE_H_STL)
+    SECTION("set_value_expanded_string_nothrow/get_value_expanded_cotaskmem_string_nothrow: with opened key")
+    {
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
+
+        for (const auto& value : expandedStringTestArray)
+        {
+            // verify the expanded string
+            WCHAR expanded_value[100]{};
+            const auto expanded_result = ::ExpandEnvironmentStringsW(value.c_str(), expanded_value, 100);
+            REQUIRE(expanded_result != 0);
+            REQUIRE(expanded_result < 100);
+
+            REQUIRE_SUCCEEDED(wil::reg::set_value_expanded_string_nothrow(hkey.get(), stringValueName, value.c_str()));
+            wil::shared_cotaskmem_string result{};
+            REQUIRE_SUCCEEDED(wil::reg::get_value_expanded_cotaskmem_string_nothrow(hkey.get(), stringValueName, result));
+            REQUIRE(AreStringsEqual(result, expanded_value));
+
+            // and verify default value name
+            REQUIRE_SUCCEEDED(wil::reg::set_value_expanded_string_nothrow(hkey.get(), nullptr, value.c_str()));
+            result = {};
+            REQUIRE_SUCCEEDED(wil::reg::get_value_expanded_cotaskmem_string_nothrow(hkey.get(), nullptr, result));
+            REQUIRE(AreStringsEqual(result, expanded_value));
+        }
+
+        // fail get* if the value doesn't exist
+        wil::shared_cotaskmem_string result{};
+        auto hr = wil::reg::get_value_expanded_cotaskmem_string_nothrow(hkey.get(), (std::wstring(stringValueName) + L"_not_valid").c_str(), result);
+        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
+
+        // fail if get* requests the wrong type
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0ul));
+        hr = wil::reg::get_value_expanded_cotaskmem_string_nothrow(hkey.get(), dwordValueName, result);
+        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
+    }
+    SECTION("set_value_expanded_string_nothrow/get_value_expanded_cotaskmem_string_nothrow: with string key")
+    {
+        for (const auto& value : expandedStringTestArray)
+        {
+            // verify the expanded string
+            WCHAR expanded_value[100]{};
+            const auto expanded_result = ::ExpandEnvironmentStringsW(value.c_str(), expanded_value, 100);
+            REQUIRE(expanded_result != 0);
+            REQUIRE(expanded_result < 100);
+
+            REQUIRE_SUCCEEDED(wil::reg::set_value_expanded_string_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, value.c_str()));
+            wil::shared_cotaskmem_string result{};
+            REQUIRE_SUCCEEDED(wil::reg::get_value_expanded_cotaskmem_string_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, result));
+            REQUIRE(AreStringsEqual(result, expanded_value));
+
+            // and verify default value name
+            REQUIRE_SUCCEEDED(wil::reg::set_value_expanded_string_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, value.c_str()));
+            result = {};
+            REQUIRE_SUCCEEDED(wil::reg::get_value_expanded_cotaskmem_string_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, result));
+            REQUIRE(AreStringsEqual(result, expanded_value));
+        }
+
+        // fail get* if the value doesn't exist
+        wil::shared_cotaskmem_string result{};
+        auto hr = wil::reg::get_value_expanded_cotaskmem_string_nothrow(HKEY_CURRENT_USER, testSubkey, (std::wstring(stringValueName) + L"_not_valid").c_str(), result);
+        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
+
+        // fail if get* requests the wrong type
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0ul));
+        hr = wil::reg::get_value_expanded_cotaskmem_string_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, result);
+        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
+    }
+#endif
 
     SECTION("set_value_expanded_string/get_value_expanded_cotaskmem_string: with open key")
     {
