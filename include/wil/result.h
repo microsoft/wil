@@ -612,7 +612,7 @@ namespace wil
                 errors[errorCurrentIndex].Set(info, ::InterlockedIncrementNoFence(failureSequenceId));
             }
 
-            bool GetLastError(_Inout_ wil::FailureInfo& info, unsigned int minSequenceId, HRESULT matchRequirement) const
+            WI_NODISCARD bool GetLastError(_Inout_ wil::FailureInfo& info, unsigned int minSequenceId, HRESULT matchRequirement) const
             {
                 if (!errors)
                 {
@@ -959,7 +959,7 @@ namespace wil
                 m_ppThreadList = nullptr;
             }
 
-            bool IsWatching() const
+            WI_NODISCARD bool IsWatching() const
             {
                 return (m_threadId != 0);
             }
@@ -1249,12 +1249,12 @@ namespace wil
             m_callbackHolder.StopWatching();
         }
 
-        FailureInfo const *GetFailure()
+        FailureInfo const* GetFailure()
         {
             return (FAILED(m_failure.GetFailureInfo().hr) ? &(m_failure.GetFailureInfo()) : nullptr);
         }
 
-        bool NotifyFailure(FailureInfo const &failure) WI_NOEXCEPT override
+        bool NotifyFailure(FailureInfo const& failure) WI_NOEXCEPT override
         {
             // When we "cache" a failure, we bias towards trying to find the origin of the last HRESULT
             // generated, so we ignore subsequent failures on the same error code (assuming propagation).

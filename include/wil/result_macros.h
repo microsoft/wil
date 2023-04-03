@@ -1559,7 +1559,7 @@ namespace wil
                 return create(nullptr, cbData);
             }
 
-            void* get(_Out_opt_ size_t *pSize = nullptr) const WI_NOEXCEPT
+            WI_NODISCARD void* get(_Out_opt_ size_t *pSize = nullptr) const WI_NOEXCEPT
             {
                 if (pSize != nullptr)
                 {
@@ -1568,17 +1568,17 @@ namespace wil
                 return (m_pCopy == nullptr) ? nullptr : (m_pCopy + 1);
             }
 
-            size_t size() const WI_NOEXCEPT
+            WI_NODISCARD size_t size() const WI_NOEXCEPT
             {
                 return m_size;
             }
 
-            explicit operator bool() const WI_NOEXCEPT
+            WI_NODISCARD explicit operator bool() const WI_NOEXCEPT
             {
                 return (m_pCopy != nullptr);
             }
 
-            bool unique() const WI_NOEXCEPT
+            WI_NODISCARD bool unique() const WI_NOEXCEPT
             {
                 return ((m_pCopy != nullptr) && (*m_pCopy == 1));
             }
@@ -1706,22 +1706,22 @@ namespace wil
                 return true;
             }
 
-            object_t* get() const WI_NOEXCEPT
+            WI_NODISCARD object_t* get() const WI_NOEXCEPT
             {
                 return (m_pCopy == nullptr) ? nullptr : &m_pCopy->m_object;
             }
 
-            explicit operator bool() const WI_NOEXCEPT
+            WI_NODISCARD explicit operator bool() const WI_NOEXCEPT
             {
                 return (m_pCopy != nullptr);
             }
 
-            bool unique() const WI_NOEXCEPT
+            WI_NODISCARD bool unique() const WI_NOEXCEPT
             {
                 return ((m_pCopy != nullptr) && (m_pCopy->m_refCount == 1));
             }
 
-            object_t *operator->() const WI_NOEXCEPT
+            WI_NODISCARD object_t* operator->() const WI_NOEXCEPT
             {
                 return get();
             }
@@ -2044,7 +2044,7 @@ __WI_POP_WARNINGS
             return err;
         }
 
-        inline __declspec(noinline) DWORD GetLastErrorFail() WI_NOEXCEPT 
+        inline __declspec(noinline) DWORD GetLastErrorFail() WI_NOEXCEPT
         {
             __R_FN_LOCALS_FULL_RA;
             return GetLastErrorFail(__R_FN_CALL_FULL);
@@ -2530,7 +2530,7 @@ __WI_POP_WARNINGS
             SetFailureInfo(other);
         }
 
-        FailureInfo const & GetFailureInfo() const WI_NOEXCEPT
+        WI_NODISCARD FailureInfo const& GetFailureInfo() const WI_NOEXCEPT
         {
             return m_failureInfo;
         }
@@ -2606,7 +2606,7 @@ __WI_POP_WARNINGS
         }
 
         //! Returns the failed HRESULT that this exception represents.
-        _Always_(_Post_satisfies_(return < 0)) HRESULT GetErrorCode() const WI_NOEXCEPT
+        _Always_(_Post_satisfies_(return < 0)) WI_NODISCARD HRESULT GetErrorCode() const WI_NOEXCEPT
         {
             HRESULT const hr = m_failure.GetFailureInfo().hr;
             __analysis_assume(hr < 0);
@@ -2614,7 +2614,7 @@ __WI_POP_WARNINGS
         }
 
         //! Returns the failed NTSTATUS that this exception represents.
-        _Always_(_Post_satisfies_(return < 0)) NTSTATUS GetStatusCode() const WI_NOEXCEPT
+        _Always_(_Post_satisfies_(return < 0)) WI_NODISCARD NTSTATUS GetStatusCode() const WI_NOEXCEPT
         {
             NTSTATUS const status = m_failure.GetFailureInfo().status;
             __analysis_assume(status < 0);
@@ -2622,7 +2622,7 @@ __WI_POP_WARNINGS
         }
 
         //! Get a reference to the stored FailureInfo.
-        FailureInfo const & GetFailureInfo() const WI_NOEXCEPT
+        WI_NODISCARD FailureInfo const& GetFailureInfo() const WI_NOEXCEPT
         {
             return m_failure.GetFailureInfo();
         }
@@ -2634,7 +2634,7 @@ __WI_POP_WARNINGS
         }
 
         //! Provides a string representing the FailureInfo from this exception.
-        inline const char * __CLR_OR_THIS_CALL what() const WI_NOEXCEPT override
+        WI_NODISCARD inline const char* __CLR_OR_THIS_CALL what() const WI_NOEXCEPT override
         {
             if (!m_what)
             {

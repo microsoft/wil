@@ -1968,7 +1968,7 @@ TEST_CASE("WindowsInternalTests::WistdTests", "[resource][wistd]")
     sp->Method();
     decltype(sp) sp2;
     sp2 = wistd::move(sp);
-    sp2.get();
+    (void)sp2.get();
 
     wistd::unique_ptr<int> spConstruct;
     wistd::unique_ptr<int> spConstruct2 = nullptr;
@@ -1981,7 +1981,7 @@ TEST_CASE("WindowsInternalTests::WistdTests", "[resource][wistd]")
     spConstruct = std::move(spConstruct2);
     spConstruct.swap(spConstruct2);
     REQUIRE(*spConstruct4 == 4);
-    spConstruct4.get();
+    (void)spConstruct4.get();
     if (spConstruct4)
     {
     }
