@@ -1222,21 +1222,23 @@ namespace wil
 
         struct ResultStatus
         {
+            enum Kind : unsigned int { HResult, NtStatus };
+
             static ResultStatus FromResult(const HRESULT _hr)
             {
-                return { _hr, wil::details::HrToNtStatus(_hr), false };
+                return { _hr, wil::details::HrToNtStatus(_hr), Kind::HResult };
             }
             static ResultStatus FromStatus(const NTSTATUS _status)
             {
-                return { wil::details::NtStatusToHr(_status), _status, true };
+                return { wil::details::NtStatusToHr(_status), _status, Kind::NtStatus };
             }
             static ResultStatus FromFailureInfo(const FailureInfo& _failure)
             {
-                return { _failure.hr, _failure.status, WI_IsFlagSet(_failure.flags, FailureFlags::NtStatus) };
+                return { _failure.hr, _failure.status, WI_IsFlagSet(_failure.flags, FailureFlags::NtStatus) ? Kind::NtStatus : Kind::HResult };
             }
             HRESULT hr = S_OK;
             NTSTATUS status = STATUS_SUCCESS;
-            bool isNtStatus = false;
+            Kind kind = Kind::NtStatus;
         };
 
         // Fallback telemetry provider callback (set with wil::SetResultTelemetryFallback)
@@ -2259,7 +2261,7 @@ __WI_POP_WARNINGS
         {
             size_t cchLen = UntrustedStringLength(reinterpret_cast<TString>(pStart), (pEnd - pStart) / sizeof((*ppszBufferString)[0]));
             *ppszBufferString = (cchLen > 0) ? reinterpret_cast<TString>(pStart) : nullptr;
-            auto pReturn = min(pEnd, pStart + ((cchLen + 1) * sizeof((*ppszBufferString)[0])));
+            auto pReturn = (wistd::min)(pEnd, pStart + ((cchLen + 1) * sizeof((*ppszBufferString)[0])));
             __analysis_assume((pReturn >= pStart) && (pReturn <= pEnd));
             return pReturn;
         }
@@ -3523,7 +3525,7 @@ __WI_POP_WARNINGS
 
             failure->type = type;
             failure->flags = FailureFlags::None;
-            WI_SetFlagIf(failure->flags, FailureFlags::NtStatus, resultPair.isNtStatus);
+            WI_SetFlagIf(failure->flags, FailureFlags::NtStatus, resultPair.kind == ResultStatus::Kind::NtStatus);
             failure->failureId = ::InterlockedIncrementNoFence(&s_failureId);
             failure->pszMessage = ((message != nullptr) && (message[0] != L'\0')) ? message : nullptr;
             failure->threadId = ::GetCurrentThreadId();

@@ -4616,6 +4616,33 @@ namespace wil
     }
 #endif // WIL_ENABLE_EXCEPTIONS
 
+    inline wil::unique_variant make_variant_bstr_nothrow(PCWSTR source) WI_NOEXCEPT
+    {
+        wil::unique_variant result{};
+        V_UNION(result.addressof(), bstrVal) = ::SysAllocString(source);
+        if (V_UNION(result.addressof(), bstrVal) != nullptr)
+        {
+            V_VT(result.addressof()) = VT_BSTR;
+        }
+        return result;
+    }
+
+    inline wil::unique_variant make_variant_bstr_failfast(PCWSTR source) WI_NOEXCEPT
+    {
+        auto result{make_variant_bstr_nothrow(source)};
+        FAIL_FAST_HR_IF(E_OUTOFMEMORY, V_VT(result.addressof()) == VT_EMPTY);
+        return result;
+    }
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+    inline wil::unique_variant make_variant_bstr(PCWSTR source)
+    {
+        auto result{make_variant_bstr_nothrow(source)};
+        THROW_HR_IF(E_OUTOFMEMORY, V_VT(result.addressof()) == VT_EMPTY);
+        return result;
+    }
+#endif // WIL_ENABLE_EXCEPTIONS
+
 #endif // __WIL_OLEAUTO_H_
 #if defined(__WIL_OLEAUTO_H_) && !defined(__WIL_OLEAUTO_H_STL) && defined(WIL_RESOURCE_STL)
 #define __WIL_OLEAUTO_H_STL
@@ -5407,6 +5434,11 @@ namespace wil
     typedef unique_any<void*, decltype(&::DestroyEnvironmentBlock), ::DestroyEnvironmentBlock> unique_environment_block;
 #endif // __WIL_INC_USERENV
 #pragma warning(pop)
+
+#if defined(__WINEVT_H__) && !defined(__WIL_INC_EVT_HANDLE) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_PKG_EVENTLOGSERVICE) && !defined(WIL_KERNEL_MODE)
+#define __WIL_INC_EVT_HANDLE
+    typedef unique_any<EVT_HANDLE, decltype(&::EvtClose), ::EvtClose> unique_evt_handle;
+#endif // __WIL_INC_EVT_HANDLE
 
 #if defined(_WINSVC_) && !defined(__WIL_HANDLE_H_WINSVC) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && !defined(WIL_KERNEL_MODE)
 #define __WIL_HANDLE_H_WINSVC
