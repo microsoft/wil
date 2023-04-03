@@ -93,6 +93,8 @@ C:\wil> scripts\init.cmd -c msvc -g msbuild
 
 That will create a `.sln` file in the corresponding`build/` subdirectory. You can also invoke MSBuild directly to build.
 
+You can also get decent IntelliSense just by opening the repo directory in Visual Studio; VS should auto-detect CMake. You'll have to compile and run test in a terminal window, though.
+
 ## Inner loop
 
 The scripts use a common directory pattern of `build/$(compiler)$(arch)$(type)` for the build output root. E.g. `build/clang64debug` when using Clang as the compiler, x64 as the architecture, and Debug as the build type. It is this directory where you will want to build from.
