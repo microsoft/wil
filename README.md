@@ -93,7 +93,7 @@ C:\wil> scripts\init.cmd -c msvc -g msbuild
 
 That will create a `.sln` file in the corresponding`build/` subdirectory. You can also invoke MSBuild directly to build.
 
-You can also get decent IntelliSense just by opening the repo directory in Visual Studio; VS should auto-detect CMake. You'll have to compile and run test in a terminal window, though.
+You can also get decent IntelliSense just by opening the repo directory in Visual Studio; VS should auto-detect CMake. You'll have to compile and run tests in a terminal window, though.
 
 ## Inner loop
 
