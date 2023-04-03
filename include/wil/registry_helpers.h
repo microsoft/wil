@@ -788,8 +788,8 @@ namespace wil
                 }
 
             private:
-                template <typename R, typename get_value_internal_policy = err_policy>
-                typename get_value_internal_policy::result get_value_internal(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, R& return_value, DWORD type = reg_value_type_info::get_value_type<R>()) const
+                template <typename R, typename get_value_with_type_policy = err_policy>
+                typename get_value_with_type_policy::result get_value_with_type(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, R& return_value, DWORD type = reg_value_type_info::get_value_type<R>()) const
                 {
                     HRESULT hr = S_OK;
 
@@ -803,7 +803,7 @@ namespace wil
                         hr = reg_value_type_info::prepare_buffer(return_value);
                         if (FAILED(hr))
                         {
-                            return get_value_internal_policy::HResult(hr);
+                            return get_value_with_type_policy::HResult(hr);
                         }
                     }
 
@@ -871,20 +871,20 @@ namespace wil
                     }
 
 
-                    return get_value_internal_policy::HResult(hr);
+                    return get_value_with_type_policy::HResult(hr);
                 }
 
             public:
                 template <typename R>
                 typename err_policy::result get_value(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, R& return_value, DWORD type = reg_value_type_info::get_value_type<R>()) const
                 {
-                    return get_value_internal(subkey, value_name, return_value, type);
+                    return get_value_with_type(subkey, value_name, return_value, type);
                 }
 
                 template <typename R>
                 typename err_policy::result get_value(_In_opt_ PCWSTR value_name, R& return_value, DWORD type = reg_value_type_info::get_value_type<R>()) const
                 {
-                    return get_value_internal(nullptr, value_name, return_value, type);
+                    return get_value_with_type(nullptr, value_name, return_value, type);
                 }
 
                 template <size_t Length>
@@ -906,10 +906,10 @@ namespace wil
                 ::std::optional<R> try_get_value(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, DWORD type = reg_value_type_info::get_value_type<R>()) const
                 {
                     R value{};
-                    const auto hr = get_value_internal<R, ::wil::err_returncode_policy>(subkey, value_name, value, type);
+                    const auto hr = get_value_with_type<R, ::wil::err_returncode_policy>(subkey, value_name, value, type);
                     if (SUCCEEDED(hr))
                     {
-                        return std::optional(std::move(value));
+                        return ::std::optional(::std::move(value));
                     }
 
                     if (hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
@@ -955,29 +955,25 @@ namespace wil
                 }
 
 #if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
-                template <>
-                typename err_policy::result set_value<::std::vector<::std::wstring>>(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const ::std::vector<::std::wstring>& data) const
+                typename err_policy::result set_value(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const ::std::vector<::std::wstring>& data) const
                 {
                     const auto multiStringWcharVector(get_multistring_from_wstrings(::std::begin(data), ::std::end(data)));
                     return set_value_with_type(subkey, value_name, multiStringWcharVector, REG_MULTI_SZ);
                 }
 
-                template <>
-                typename err_policy::result set_value<::std::vector<::std::wstring>>(_In_opt_ PCWSTR value_name, const ::std::vector<::std::wstring>& data) const
+                typename err_policy::result set_value(_In_opt_ PCWSTR value_name, const ::std::vector<::std::wstring>& data) const
                 {
                     return set_value(nullptr, value_name, data);
                 }
 #endif // #if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
+
             private:
                 const HKEY m_key{};
             };
 
-            // reg_view with the raw HKEY type is non-owning
-            using reg_view_nothrow = reg_view_details::reg_view_t<::wil::err_returncode_policy>;
-
+            using reg_view_nothrow = ::wil::reg::reg_view_details::reg_view_t<::wil::err_returncode_policy>;
 #if defined(WIL_ENABLE_EXCEPTIONS)
-            // reg_view with the raw HKEY type is non-owning
-            using reg_view = reg_view_details::reg_view_t<::wil::err_exception_policy>;
+            using reg_view = ::wil::reg::reg_view_details::reg_view_t<::wil::err_exception_policy>;
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS)
         }
     } // namespace reg
