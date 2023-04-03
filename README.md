@@ -55,32 +55,49 @@ Note that even though WIL is a header-only library, you still need to install th
 
 # Building/Testing
 
+## Prerequisites
+
 To get started contributing to WIL, first make sure that you have:
 
 * A recent version of [Visual Studio](https://visualstudio.microsoft.com/downloads/)
 * The most recent [Windows SDK](https://developer.microsoft.com/windows/downloads/windows-sdk)
-* [Nuget](https://www.nuget.org/downloads) downloaded and added to `PATH` (see [Install NuGet client tools](https://learn.microsoft.com/nuget/install-nuget-client-tools))
+* [Nuget](https://www.nuget.org/downloads) downloaded and added to `PATH`
+  * (`winget install nuget`; see [Install NuGet client tools](https://learn.microsoft.com/nuget/install-nuget-client-tools))
 
 If you are doing any non-trivial work, also be sure to have:
 
 * a recent version of [Clang](http://releases.llvm.org/download.html)
- 
-Once everything is installed, open a VS native command window (e.g. `x64 Native Tools Command Prompt for VS 2022` \[_not_ `Developer Command Prompt for VS2022`]).
+  * (`winget install -i llvm.llvm` and select `Add LLVM to the system path for all users`)
+
+## Initial configuration
+
+Once everything is installed (you'll need to reboot if you updated `PATH`), open a VS native command window (e.g. `x64 Native Tools Command Prompt for VS 2022` \[_not_ `Developer Command Prompt for VS2022`]).
 
 * If you are familiar with CMake you can get started building normally.
-* Otherwise, or if you prefer to skip all of the boilerplate, you can use one of the scripts in the [scripts](scripts) directory:
-  ```cmd
-  C:\wil> scripts\init.cmd -c clang -g ninja -b debug
-  ```
-* To generate a Visual Studio solution with IntelliSense:
-  ```cmd
-  C:\wil> scripts\init.cmd -c msvc -g msbuild
-  ```
-  That will create a `.sln` file in the corresponding`build/` subdirectory. You can also invoke MSBuild directly to build.
+* Otherwise, or if you prefer to skip all of the boilerplate, you can use one of the scripts in the [scripts](scripts) directory, like `scripts\init.cmd [optional arguments]`
+  * For example:
+    ```cmd
+    C:\wil> scripts\init.cmd -c clang -g ninja -b debug
+    ```
+
+To set up IDEs with IntelliSense, see below.
 
 You can execute `init.cmd --help` for a summary of available options.
 
-The scripts use a common directory pattern of `build/$(compiler)$(arch)$(type)` for the build output root. E.g. `build/clang64debug` when using Clang as the compiler, x64 as the architecture, and Debug as the build type. It is this directory where you will want to build from. For example, if you initialized using the command above, you can build the tests like so:
+### Visual Studio setup
+
+To generate a Visual Studio solution with IntelliSense:
+```cmd
+C:\wil> scripts\init.cmd -c msvc -g msbuild
+```
+
+That will create a `.sln` file in the corresponding`build/` subdirectory. You can also invoke MSBuild directly to build.
+
+## Inner loop
+
+The scripts use a common directory pattern of `build/$(compiler)$(arch)$(type)` for the build output root. E.g. `build/clang64debug` when using Clang as the compiler, x64 as the architecture, and Debug as the build type. It is this directory where you will want to build from.
+
+For example, if you initialized using the command above (`scripts\init.cmd -c clang -g ninja -b debug`), you can build the tests like so:
 ```cmd
 C:\wil\build\clang64debug> ninja
 ```
@@ -93,7 +110,11 @@ The output is a number of test executables. If you used the initialization scrip
 the same directory naming convention of those scripts, you can use the [runtests.cmd](scripts/runtests.cmd) script,
 which will execute any test executables that have been built, erroring out - and preserving the exit code - if any test
 fails. Note that MSBuild will modify the output directory names, so this script is only compatible with using Ninja as the
-generator. If you are at the tail end of of a change, you can execute the following to get a wide range of coverage:
+generator.
+
+## Build everything
+
+If you are at the tail end of of a change, you can execute the following to get a wide range of coverage:
 ```cmd
 C:\wil> scripts\init_all.cmd
 C:\wil> scripts\build_all.cmd
