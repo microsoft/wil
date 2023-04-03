@@ -66,7 +66,7 @@ To get started contributing to WIL, first make sure that you have:
 
 If you are doing any non-trivial work, also be sure to have:
 
-* a recent version of [Clang](http://releases.llvm.org/download.html)
+* A recent version of [Clang](http://releases.llvm.org/download.html)
   * (`winget install -i llvm.llvm` and select `Add LLVM to the system path for all users`)
 
 ## Initial configuration
