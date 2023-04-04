@@ -158,13 +158,13 @@ namespace wil
             : std::basic_string_view<TChar>(&str[0], str.size()) {}
 
         // basic_string_view [] precondition won't let us read view[view.size()]; so we define our own.
-        constexpr const TChar& operator[](size_type idx) const noexcept
+        WI_NODISCARD constexpr const TChar& operator[](size_type idx) const noexcept
         {
             WI_ASSERT(idx <= this->size() && this->data() != nullptr);
             return this->data()[idx];
         }
 
-        constexpr const TChar* c_str() const noexcept
+        WI_NODISCARD constexpr const TChar* c_str() const noexcept
         {
             WI_ASSERT(this->data() == nullptr || this->data()[this->size()] == 0);
             return this->data();
