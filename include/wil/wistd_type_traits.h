@@ -116,10 +116,10 @@ namespace wistd     // ("Windows Implementation" std)
         static __WI_LIBCPP_CONSTEXPR const _Tp      value = __v;
         typedef _Tp               value_type;
         typedef integral_constant type;
-        __WI_LIBCPP_INLINE_VISIBILITY
+        __WI_LIBCPP_NODISCARD_ATTRIBUTE __WI_LIBCPP_INLINE_VISIBILITY
             __WI_LIBCPP_CONSTEXPR operator value_type() const WI_NOEXCEPT {return value;}
 #if __WI_LIBCPP_STD_VER > 11
-        __WI_LIBCPP_INLINE_VISIBILITY
+        __WI_LIBCPP_NODISCARD_ATTRIBUTE __WI_LIBCPP_INLINE_VISIBILITY
             constexpr value_type operator ()() const WI_NOEXCEPT {return value;}
 #endif
     };
@@ -2004,7 +2004,7 @@ namespace wistd     // ("Windows Implementation" std)
 #endif
      struct __WI_LIBCPP_TEMPLATE_VIS less : binary_function<_Tp, _Tp, bool>
      {
-     __WI_LIBCPP_CONSTEXPR_AFTER_CXX11 __WI_LIBCPP_INLINE_VISIBILITY
+     __WI_LIBCPP_NODISCARD_ATTRIBUTE __WI_LIBCPP_CONSTEXPR_AFTER_CXX11 __WI_LIBCPP_INLINE_VISIBILITY
      bool operator()(const _Tp& __x, const _Tp& __y) const
           {return __x < __y;}
      };
@@ -2014,7 +2014,7 @@ namespace wistd     // ("Windows Implementation" std)
     struct __WI_LIBCPP_TEMPLATE_VIS less<void>
     {
         template <class _T1, class _T2>
-        __WI_LIBCPP_CONSTEXPR_AFTER_CXX11 __WI_LIBCPP_INLINE_VISIBILITY
+        __WI_LIBCPP_NODISCARD_ATTRIBUTE __WI_LIBCPP_CONSTEXPR_AFTER_CXX11 __WI_LIBCPP_INLINE_VISIBILITY
         auto operator()(_T1&& __t, _T2&& __u) const
         __WI_NOEXCEPT_(noexcept(wistd::forward<_T1>(__t) < wistd::forward<_T2>(__u)))
         -> decltype        (wistd::forward<_T1>(__t) < wistd::forward<_T2>(__u))
