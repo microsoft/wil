@@ -71,7 +71,7 @@ If you are doing any non-trivial work, also be sure to have:
 
 ## Initial configuration
 
-Once everything is installed (you'll need to reboot if you updated `PATH`), open a VS native command window (e.g. `x64 Native Tools Command Prompt for VS 2022` \[_not_ `Developer Command Prompt for VS2022`]).
+Once everything is installed (you'll need to restart Terminal if you updated `PATH` and don't have [this 2023 fix](https://github.com/microsoft/terminal/pull/14999)), open a VS native command window (e.g. `x64 Native Tools Command Prompt for VS 2022` \[_not_ `Developer Command Prompt for VS2022`]).
 
 * If you are familiar with CMake you can get started building normally.
 * Otherwise, or if you prefer to skip all of the boilerplate, you can use one of the scripts in the [scripts](scripts) directory, like `scripts\init.cmd [optional arguments]`
