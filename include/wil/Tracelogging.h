@@ -448,7 +448,7 @@ namespace wil
         }
 
     public:
-        TraceLoggingHProvider Provider_() const WI_NOEXCEPT
+        WI_NODISCARD TraceLoggingHProvider Provider_() const WI_NOEXCEPT
         {
             return m_providerHandle;
         }
@@ -464,7 +464,7 @@ namespace wil
             }
         }
 
-        bool IsEnabled_(UCHAR eventLevel /* WINEVENT_LEVEL_XXX, e.g. WINEVENT_LEVEL_VERBOSE */, ULONGLONG eventKeywords /* MICROSOFT_KEYWORD_XXX */) const WI_NOEXCEPT
+        WI_NODISCARD bool IsEnabled_(UCHAR eventLevel /* WINEVENT_LEVEL_XXX, e.g. WINEVENT_LEVEL_VERBOSE */, ULONGLONG eventKeywords /* MICROSOFT_KEYWORD_XXX */) const WI_NOEXCEPT
         {
             return ((m_providerHandle != nullptr) && TraceLoggingProviderEnabled(m_providerHandle, eventLevel, eventKeywords)) || __TRACELOGGING_TEST_HOOK_SET_ENABLED;
         }
@@ -594,7 +594,7 @@ namespace wil
         /*
         Returns a handle to the TraceLogging provider associated with this activity.
         */
-        TraceLoggingHProvider Provider() const
+        WI_NODISCARD TraceLoggingHProvider Provider() const
         {
             return TraceLoggingType::Provider();
         }
@@ -670,7 +670,7 @@ namespace wil
         /*
         Returns a handle to the TraceLogging provider associated with this activity.
         */
-        TraceLoggingHProvider Provider() const
+        WI_NODISCARD TraceLoggingHProvider Provider() const
         {
             return TraceLoggingType::Provider();
         }
@@ -905,7 +905,7 @@ namespace wil
         // In addition, for TlgReflector to work correctly, it must be possible for
         // TlgReflector to statically map from typeof(activity) to hProvider.
 
-        GUID const* zInternalRelatedId() const WI_NOEXCEPT
+        WI_NODISCARD GUID const* zInternalRelatedId() const WI_NOEXCEPT
         {
             return m_pActivityData->zInternalRelatedId();
         }
@@ -925,12 +925,12 @@ namespace wil
             return ActivityTraceLoggingType::Provider();
         }
 
-        GUID const* Id() const WI_NOEXCEPT
+        WI_NODISCARD GUID const* Id() const WI_NOEXCEPT
         {
             return m_pActivityData->Id();
         }
 
-        GUID const* providerGuid() const WI_NOEXCEPT
+        WI_NODISCARD GUID const* providerGuid() const WI_NOEXCEPT
         {
             return m_pActivityData->providerGuid();
         }
@@ -953,8 +953,8 @@ namespace wil
             auto lock = LockExclusive();
             m_pActivityData->SetRelatedActivityId(relatedActivityId);
         }
-        
-        inline bool IsRunning() const WI_NOEXCEPT
+
+        WI_NODISCARD inline bool IsRunning() const WI_NOEXCEPT
         {
             return m_pActivityData->NeedsStopped();
         }
@@ -985,17 +985,17 @@ namespace wil
         // Locking should not be required on these accessors as we only use this at reporting (which will only happen from
         // the final stop)
 
-        FailureInfo const * GetFailureInfo() WI_NOEXCEPT
+        FailureInfo const* GetFailureInfo() WI_NOEXCEPT
         {
             return m_pActivityData->GetFailureInfo();
         }
 
-        inline HRESULT GetResult() const WI_NOEXCEPT
+        WI_NODISCARD inline HRESULT GetResult() const WI_NOEXCEPT
         {
             return m_pActivityData->GetResult();
         }
 
-        details::StoredCallContextInfo *GetCallContext() const WI_NOEXCEPT
+        WI_NODISCARD details::StoredCallContextInfo* GetCallContext() const WI_NOEXCEPT
         {
             return m_pActivityData->GetCallContext();
         }
@@ -1135,7 +1135,7 @@ namespace wil
                 return ActivityTraceLoggingType::Provider();
             }
 
-            bool NeedsStopped() const WI_NOEXCEPT
+            WI_NODISCARD bool NeedsStopped() const WI_NOEXCEPT
             {
                 return BaseTy::IsStarted();
             }
@@ -1173,12 +1173,12 @@ namespace wil
                 m_stopCountExpected++;
             }
 
-            FailureInfo const *GetFailureInfo() const WI_NOEXCEPT
+            WI_NODISCARD FailureInfo const* GetFailureInfo() const WI_NOEXCEPT
             {
                 return (FAILED(m_result) && (m_result == m_failure.GetFailureInfo().hr)) ? &m_failure.GetFailureInfo() : nullptr;
             }
 
-            inline HRESULT GetResult() const WI_NOEXCEPT
+            WI_NODISCARD inline HRESULT GetResult() const WI_NOEXCEPT
             {
                 return m_result;
             }
@@ -1315,7 +1315,7 @@ namespace wil
             { ActivityBase::operator=(other); return *this; } \
         ActivityClassName& operator=(ActivityClassName &&other) WI_NOEXCEPT \
             { auto localActivity(wistd::move(*this)); ActivityBase::operator=(wistd::move(other)); return *this; } \
-        explicit operator bool() const WI_NOEXCEPT \
+        WI_NODISCARD explicit operator bool() const WI_NOEXCEPT \
             { return IsRunning(); } \
         void StopWithResult(HRESULT hr) \
             { ActivityBase::Stop(hr); } \
@@ -2799,7 +2799,7 @@ WIL_WARN_DEPRECATED_1612_PRAGMA("IMPLEMENT_TRACELOGGING_CLASS")
         } \
         ActivityClassName(const ActivityClassName &) = default; \
         ActivityClassName(ActivityClassName &&) = default; \
-        TraceLoggingHProvider Provider() const \
+        WI_NODISCARD TraceLoggingHProvider Provider() const \
         { \
             return TraceLoggingType::Provider(); \
         } \
