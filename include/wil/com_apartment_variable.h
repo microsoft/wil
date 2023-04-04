@@ -105,7 +105,7 @@ namespace wil
             std::any(*adapter)(void*);
             void* inner;
 
-            std::any operator()() const
+            WI_NODISCARD std::any operator()() const
             {
                 return adapter(inner);
             }
