@@ -74,7 +74,29 @@
         </Expand>
     </Type>
 
+    <Type Name="wistd::unique_ptr&lt;wchar_t[*],*&gt;">
+        <DisplayString Condition="__ptr_.first() == 0">empty</DisplayString>
+        <DisplayString Condition="__ptr_.first() != 0">{__ptr_.first(),su}</DisplayString>
+        <StringView>__ptr_.first()</StringView>
+        <Expand>
+            <Item Name="[ptr]" Condition="__ptr_.first() != 0">__ptr_.first()</Item>
+            <Item Name="[length]" Condition="__ptr_.first() != 0">wcslen(__ptr_.first())</Item>
+            <Item Name="[deleter]" Condition="__ptr_.first() != 0">__ptr_.second()</Item>
+        </Expand>
+    </Type>
+
     <Type Name="wistd::unique_ptr&lt;char[],*&gt;">
+        <DisplayString Condition="__ptr_.first() == 0">empty</DisplayString>
+        <DisplayString Condition="__ptr_.first() != 0">{__ptr_.first(),s}</DisplayString>
+        <StringView>__ptr_.first()</StringView>
+        <Expand>
+            <Item Name="[ptr]" Condition="__ptr_.first() != 0">__ptr_.first()</Item>
+            <Item Name="[length]" Condition="__ptr_.first() != 0">strlen(__ptr_.first())</Item>
+            <Item Name="[deleter]" Condition="__ptr_.first() != 0">__ptr_.second()</Item>
+        </Expand>
+    </Type>
+
+    <Type Name="wistd::unique_ptr&lt;char[*],*&gt;">
         <DisplayString Condition="__ptr_.first() == 0">empty</DisplayString>
         <DisplayString Condition="__ptr_.first() != 0">{__ptr_.first(),s}</DisplayString>
         <StringView>__ptr_.first()</StringView>
