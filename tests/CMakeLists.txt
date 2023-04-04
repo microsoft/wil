@@ -62,6 +62,8 @@ set(COMMON_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/../natvis/wil.natvis
     )
 
+add_link_options(/NATVIS:${CMAKE_SOURCE_DIR}/natvis/wil.natvis)
+
 add_subdirectory(app)
 add_subdirectory(cpplatest)
 add_subdirectory(noexcept)
