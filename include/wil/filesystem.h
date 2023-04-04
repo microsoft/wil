@@ -401,7 +401,7 @@ namespace wil
 
         // range based for requires operator!=, operator++ and operator* to do its work
         // on the type returned from begin() and end(), provide those here.
-        bool operator!=(const next_entry_offset_iterator& other) const { return current_ != other.current_; }
+        WI_NODISCARD bool operator!=(const next_entry_offset_iterator& other) const { return current_ != other.current_; }
 
         next_entry_offset_iterator& operator++()
         {
@@ -418,8 +418,8 @@ namespace wil
             return copy;
         }
 
-        reference operator*() const WI_NOEXCEPT { return *current_; }
-        pointer operator->() const WI_NOEXCEPT { return current_; }
+        WI_NODISCARD reference operator*() const WI_NOEXCEPT { return *current_; }
+        WI_NODISCARD pointer operator->() const WI_NOEXCEPT { return current_; }
 
         next_entry_offset_iterator<T> begin() { return *this; }
         next_entry_offset_iterator<T> end()   { return next_entry_offset_iterator<T>(); }
