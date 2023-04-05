@@ -2547,7 +2547,7 @@ namespace wil
     }
 
     template <ULONG flags = 0>
-    using unique_private_namespace = unique_any_handle_null_only<decltype(details::ClosePrivateNamespaceHelper<flags>), &details::ClosePrivateNamespaceHelper<flags>>;
+    using unique_private_namespace = unique_any_handle_null_only<void(__stdcall*)(HANDLE) WI_PFN_NOEXCEPT, &details::ClosePrivateNamespaceHelper<flags>>;
 
     using unique_private_namespace_close = unique_private_namespace<>;
     using unique_private_namespace_destroy = unique_private_namespace<PRIVATE_NAMESPACE_FLAG_DESTROY>;
