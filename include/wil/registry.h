@@ -65,7 +65,9 @@ namespace wil
         inline ::wil::unique_hkey open_unique_key(HKEY key, _In_opt_ PCWSTR path, ::wil::reg::key_access access = ::wil::reg::key_access::read)
         {
             const reg_view_details::reg_view regview{ key };
-            return regview.open_unique_key(path, access);
+            ::wil::unique_hkey return_value;
+            regview.open_key(path, &return_value, access);
+            return return_value;
         }
 
         /**
@@ -80,7 +82,9 @@ namespace wil
         inline ::wil::unique_hkey create_unique_key(HKEY key, PCWSTR path, ::wil::reg::key_access access = ::wil::reg::key_access::read)
         {
             const reg_view_details::reg_view regview{ key };
-            return regview.create_unique_key(path, access);
+            ::wil::unique_hkey return_value;
+            regview.create_key(path, &return_value, access);
+            return return_value;
         }
 
 #if defined(__WIL_WINREG_STL)
@@ -96,7 +100,9 @@ namespace wil
         inline ::wil::shared_hkey open_shared_key(HKEY key, PCWSTR path, ::wil::reg::key_access access = ::wil::reg::key_access::read)
         {
             const reg_view_details::reg_view regview{ key };
-            return regview.open_shared_key(path, access);
+            ::wil::shared_hkey return_value;
+            regview.open_key(path, &return_value, access);
+            return return_value;
         }
 
         /**
@@ -111,7 +117,9 @@ namespace wil
         inline ::wil::shared_hkey create_shared_key(HKEY key, PCWSTR path, ::wil::reg::key_access access = ::wil::reg::key_access::read)
         {
             const reg_view_details::reg_view regview{ key };
-            return regview.create_shared_key(path, access);
+            ::wil::shared_hkey return_value;
+            regview.create_key(path, &return_value, access);
+            return return_value;
         }
 #endif // #if defined(__WIL_WINREG_STL)
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS)

@@ -721,56 +721,24 @@ namespace wil
 
                 typename err_policy::result open_key(_In_opt_ PCWSTR subKey, _Out_ HKEY* hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) const
                 {
-                    constexpr DWORD zero_ulOptions{ 0 };
-                    const auto error = ::RegOpenKeyExW(m_key, subKey, zero_ulOptions, get_access_flags(access), hkey);
+                    constexpr DWORD zero_options{ 0 };
+                    const auto error = ::RegOpenKeyExW(m_key, subKey, zero_options, get_access_flags(access), hkey);
                     return err_policy::HResult(HRESULT_FROM_WIN32(error));
                 }
-
-                ::wil::unique_hkey open_unique_key(_In_opt_ PCWSTR subKey, ::wil::reg::key_access access = ::wil::reg::key_access::read) const
-                {
-                    ::wil::unique_hkey local_key{};
-                    open_key(subKey, &local_key, access);
-                    return local_key;
-                }
-
-#if defined(__WIL_WINREG_STL)
-                ::wil::shared_hkey open_shared_key(_In_opt_ PCWSTR subKey, ::wil::reg::key_access access = ::wil::reg::key_access::read) const
-                {
-                    ::wil::shared_hkey local_key{};
-                    open_key(subKey, &local_key, access);
-                    return local_key;
-                }
-#endif // #if defined(__WIL_WINREG_STL)
 
                 typename err_policy::result create_key(PCWSTR subKey, _Out_ HKEY* hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) const
                 {
                     *hkey = nullptr;
 
-                    constexpr DWORD zero_Reserved{ 0 };
-                    constexpr LPWSTR null_lpClass{ nullptr };
-                    constexpr DWORD zero_dwOptions{ 0 };
-                    constexpr LPSECURITY_ATTRIBUTES null_lpSecurityAttributes{ nullptr };
+                    constexpr DWORD zero_reserved{ 0 };
+                    constexpr PWSTR null_class{ nullptr };
+                    constexpr DWORD zero_options{ 0 };
+                    constexpr PSECURITY_ATTRIBUTES null_security_attributes{ nullptr };
                     DWORD disposition{ 0 };
                     const auto error =
-                        ::RegCreateKeyExW(m_key, subKey, zero_Reserved, null_lpClass, zero_dwOptions, get_access_flags(access), null_lpSecurityAttributes, hkey, &disposition);
+                        ::RegCreateKeyExW(m_key, subKey, zero_reserved, null_class, zero_options, get_access_flags(access), null_security_attributes, hkey, &disposition);
                     return err_policy::HResult(HRESULT_FROM_WIN32(error));
                 }
-
-                ::wil::unique_hkey create_unique_key(PCWSTR subKey, ::wil::reg::key_access access = ::wil::reg::key_access::read) const
-                {
-                    ::wil::unique_hkey local_key{};
-                    create_key(subKey, &local_key, access);
-                    return local_key;
-                }
-
-#if defined(__WIL_WINREG_STL)
-                ::wil::shared_hkey create_shared_key(PCWSTR subKey, ::wil::reg::key_access access = ::wil::reg::key_access::read) const
-                {
-                    ::wil::shared_hkey local_key{};
-                    create_key(subKey, &local_key, access);
-                    return local_key;
-                }
-#endif // #if defined(__WIL_WINREG_STL)
 
                 typename err_policy::result delete_key(_In_opt_ PCWSTR sub_key) WI_NOEXCEPT
                 {
@@ -810,14 +778,14 @@ namespace wil
                     DWORD bytes_allocated{ reg_value_type_info::get_buffer_size(return_value) };
                     for (;;)
                     {
-                        constexpr LPDWORD null_pdwType{ nullptr };
+                        constexpr PDWORD null_type{ nullptr };
                         DWORD data_size_bytes{ bytes_allocated };
                         hr = HRESULT_FROM_WIN32(::RegGetValueW(
                             m_key,
                             subkey,
                             value_name,
                             get_value_flags_from_value_type(type),
-                            null_pdwType,
+                            null_type,
                             reg_value_type_info::get_buffer(return_value),
                             &data_size_bytes));
 
@@ -881,12 +849,6 @@ namespace wil
                     return get_value_with_type(subkey, value_name, return_value, type);
                 }
 
-                template <typename R>
-                typename err_policy::result get_value(_In_opt_ PCWSTR value_name, R& return_value, DWORD type = reg_value_type_info::get_value_type<R>()) const
-                {
-                    return get_value_with_type(nullptr, value_name, return_value, type);
-                }
-
                 template <size_t Length>
                 typename err_policy::result get_value_char_array(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length], DWORD type, _Out_opt_ DWORD* requiredBytes = nullptr) const
                 {
@@ -921,12 +883,6 @@ namespace wil
                     err_policy::HResult(HRESULT_FROM_WIN32(hr));
                     return ::std::nullopt;
                 }
-
-                template <typename R>
-                ::std::optional<R>& try_get_value(_In_opt_ PCWSTR value_name, DWORD type = reg_value_type_info::get_value_type<R>()) const
-                {
-                    return try_get_value<R>(nullptr, value_name, type);
-                }
 #endif // #if defined (_OPTIONAL_) && defined(__cpp_lib_optional)
 
                 template <typename R>
@@ -948,22 +904,11 @@ namespace wil
                     return set_value_with_type(subkey, value_name, value, reg_value_type_info::set_value_type(value));
                 }
 
-                template <typename R>
-                typename err_policy::result set_value(_In_opt_ PCWSTR value_name, const R& value) const
-                {
-                    return set_value(nullptr, value_name, value);
-                }
-
 #if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
                 typename err_policy::result set_value(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const ::std::vector<::std::wstring>& data) const
                 {
                     const auto multiStringWcharVector(get_multistring_from_wstrings(::std::begin(data), ::std::end(data)));
                     return set_value_with_type(subkey, value_name, multiStringWcharVector, REG_MULTI_SZ);
-                }
-
-                typename err_policy::result set_value(_In_opt_ PCWSTR value_name, const ::std::vector<::std::wstring>& data) const
-                {
-                    return set_value(nullptr, value_name, data);
                 }
 #endif // #if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
 
