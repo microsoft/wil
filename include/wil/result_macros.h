@@ -1222,21 +1222,23 @@ namespace wil
 
         struct ResultStatus
         {
+            enum Kind : unsigned int { HResult, NtStatus };
+
             static ResultStatus FromResult(const HRESULT _hr)
             {
-                return { _hr, wil::details::HrToNtStatus(_hr), false };
+                return { _hr, wil::details::HrToNtStatus(_hr), Kind::HResult };
             }
             static ResultStatus FromStatus(const NTSTATUS _status)
             {
-                return { wil::details::NtStatusToHr(_status), _status, true };
+                return { wil::details::NtStatusToHr(_status), _status, Kind::NtStatus };
             }
             static ResultStatus FromFailureInfo(const FailureInfo& _failure)
             {
-                return { _failure.hr, _failure.status, WI_IsFlagSet(_failure.flags, FailureFlags::NtStatus) };
+                return { _failure.hr, _failure.status, WI_IsFlagSet(_failure.flags, FailureFlags::NtStatus) ? Kind::NtStatus : Kind::HResult };
             }
             HRESULT hr = S_OK;
             NTSTATUS status = STATUS_SUCCESS;
-            bool isNtStatus = false;
+            Kind kind = Kind::NtStatus;
         };
 
         // Fallback telemetry provider callback (set with wil::SetResultTelemetryFallback)
@@ -1559,7 +1561,7 @@ namespace wil
                 return create(nullptr, cbData);
             }
 
-            void* get(_Out_opt_ size_t *pSize = nullptr) const WI_NOEXCEPT
+            WI_NODISCARD void* get(_Out_opt_ size_t *pSize = nullptr) const WI_NOEXCEPT
             {
                 if (pSize != nullptr)
                 {
@@ -1568,17 +1570,17 @@ namespace wil
                 return (m_pCopy == nullptr) ? nullptr : (m_pCopy + 1);
             }
 
-            size_t size() const WI_NOEXCEPT
+            WI_NODISCARD size_t size() const WI_NOEXCEPT
             {
                 return m_size;
             }
 
-            explicit operator bool() const WI_NOEXCEPT
+            WI_NODISCARD explicit operator bool() const WI_NOEXCEPT
             {
                 return (m_pCopy != nullptr);
             }
 
-            bool unique() const WI_NOEXCEPT
+            WI_NODISCARD bool unique() const WI_NOEXCEPT
             {
                 return ((m_pCopy != nullptr) && (*m_pCopy == 1));
             }
@@ -1706,22 +1708,22 @@ namespace wil
                 return true;
             }
 
-            object_t* get() const WI_NOEXCEPT
+            WI_NODISCARD object_t* get() const WI_NOEXCEPT
             {
                 return (m_pCopy == nullptr) ? nullptr : &m_pCopy->m_object;
             }
 
-            explicit operator bool() const WI_NOEXCEPT
+            WI_NODISCARD explicit operator bool() const WI_NOEXCEPT
             {
                 return (m_pCopy != nullptr);
             }
 
-            bool unique() const WI_NOEXCEPT
+            WI_NODISCARD bool unique() const WI_NOEXCEPT
             {
                 return ((m_pCopy != nullptr) && (m_pCopy->m_refCount == 1));
             }
 
-            object_t *operator->() const WI_NOEXCEPT
+            WI_NODISCARD object_t* operator->() const WI_NOEXCEPT
             {
                 return get();
             }
@@ -2044,7 +2046,7 @@ __WI_POP_WARNINGS
             return err;
         }
 
-        inline __declspec(noinline) DWORD GetLastErrorFail() WI_NOEXCEPT 
+        inline __declspec(noinline) DWORD GetLastErrorFail() WI_NOEXCEPT
         {
             __R_FN_LOCALS_FULL_RA;
             return GetLastErrorFail(__R_FN_CALL_FULL);
@@ -2259,7 +2261,7 @@ __WI_POP_WARNINGS
         {
             size_t cchLen = UntrustedStringLength(reinterpret_cast<TString>(pStart), (pEnd - pStart) / sizeof((*ppszBufferString)[0]));
             *ppszBufferString = (cchLen > 0) ? reinterpret_cast<TString>(pStart) : nullptr;
-            auto pReturn = min(pEnd, pStart + ((cchLen + 1) * sizeof((*ppszBufferString)[0])));
+            auto pReturn = (wistd::min)(pEnd, pStart + ((cchLen + 1) * sizeof((*ppszBufferString)[0])));
             __analysis_assume((pReturn >= pStart) && (pReturn <= pEnd));
             return pReturn;
         }
@@ -2530,7 +2532,7 @@ __WI_POP_WARNINGS
             SetFailureInfo(other);
         }
 
-        FailureInfo const & GetFailureInfo() const WI_NOEXCEPT
+        WI_NODISCARD FailureInfo const& GetFailureInfo() const WI_NOEXCEPT
         {
             return m_failureInfo;
         }
@@ -2606,7 +2608,7 @@ __WI_POP_WARNINGS
         }
 
         //! Returns the failed HRESULT that this exception represents.
-        _Always_(_Post_satisfies_(return < 0)) HRESULT GetErrorCode() const WI_NOEXCEPT
+        _Always_(_Post_satisfies_(return < 0)) WI_NODISCARD HRESULT GetErrorCode() const WI_NOEXCEPT
         {
             HRESULT const hr = m_failure.GetFailureInfo().hr;
             __analysis_assume(hr < 0);
@@ -2614,7 +2616,7 @@ __WI_POP_WARNINGS
         }
 
         //! Returns the failed NTSTATUS that this exception represents.
-        _Always_(_Post_satisfies_(return < 0)) NTSTATUS GetStatusCode() const WI_NOEXCEPT
+        _Always_(_Post_satisfies_(return < 0)) WI_NODISCARD NTSTATUS GetStatusCode() const WI_NOEXCEPT
         {
             NTSTATUS const status = m_failure.GetFailureInfo().status;
             __analysis_assume(status < 0);
@@ -2622,7 +2624,7 @@ __WI_POP_WARNINGS
         }
 
         //! Get a reference to the stored FailureInfo.
-        FailureInfo const & GetFailureInfo() const WI_NOEXCEPT
+        WI_NODISCARD FailureInfo const& GetFailureInfo() const WI_NOEXCEPT
         {
             return m_failure.GetFailureInfo();
         }
@@ -2634,7 +2636,7 @@ __WI_POP_WARNINGS
         }
 
         //! Provides a string representing the FailureInfo from this exception.
-        inline const char * __CLR_OR_THIS_CALL what() const WI_NOEXCEPT override
+        WI_NODISCARD inline const char* __CLR_OR_THIS_CALL what() const WI_NOEXCEPT override
         {
             if (!m_what)
             {
@@ -3523,7 +3525,7 @@ __WI_POP_WARNINGS
 
             failure->type = type;
             failure->flags = FailureFlags::None;
-            WI_SetFlagIf(failure->flags, FailureFlags::NtStatus, resultPair.isNtStatus);
+            WI_SetFlagIf(failure->flags, FailureFlags::NtStatus, resultPair.kind == ResultStatus::Kind::NtStatus);
             failure->failureId = ::InterlockedIncrementNoFence(&s_failureId);
             failure->pszMessage = ((message != nullptr) && (message[0] != L'\0')) ? message : nullptr;
             failure->threadId = ::GetCurrentThreadId();

@@ -1755,6 +1755,15 @@ TEST_CASE("WindowsInternalTests::HandleWrappers", "[resource][unique_any]")
     auto unique_bstr_nothrow2 = wil::make_bstr_nothrow(L"");
     REQUIRE(wcscmp(L"", unique_bstr_nothrow2.get()) == 0);
 
+    auto unique_variant_bstr_failfast1 = wil::make_variant_bstr_failfast(L"Foo");
+    REQUIRE(wcscmp(L"Foo", V_UNION(unique_variant_bstr_failfast1.addressof(), bstrVal)) == 0);
+
+    auto unique_variant_bstr_nothrow1 = wil::make_variant_bstr_nothrow(L"Foo");
+    REQUIRE(wcscmp(L"Foo", V_UNION(unique_variant_bstr_nothrow1.addressof(), bstrVal)) == 0);
+
+    auto unique_variant_bstr_nothrow2 = wil::make_variant_bstr_nothrow(L"");
+    REQUIRE(wcscmp(L"", V_UNION(unique_variant_bstr_nothrow2.addressof(), bstrVal)) == 0);
+
 #ifdef WIL_ENABLE_EXCEPTIONS
     auto unique_bstr_te1 = wil::make_bstr(L"Foo");
     REQUIRE(wcscmp(L"Foo", unique_bstr_te1.get()) == 0);
@@ -1762,6 +1771,11 @@ TEST_CASE("WindowsInternalTests::HandleWrappers", "[resource][unique_any]")
     auto unique_bstr_te2 = wil::make_bstr(L"");
     REQUIRE(wcscmp(L"", unique_bstr_te2.get()) == 0);
 
+    auto unique_variant_bstr_te1 = wil::make_variant_bstr(L"Foo");
+    REQUIRE(wcscmp(L"Foo", V_UNION(unique_variant_bstr_te1.addressof(), bstrVal)) == 0);
+
+    auto unique_variant_bstr_te2 = wil::make_variant_bstr(L"");
+    REQUIRE(wcscmp(L"", V_UNION(unique_variant_bstr_te2.addressof(), bstrVal)) == 0);
 
     auto testString = wil::make_cotaskmem_string(L"Foo");
     {
@@ -1968,7 +1982,7 @@ TEST_CASE("WindowsInternalTests::WistdTests", "[resource][wistd]")
     sp->Method();
     decltype(sp) sp2;
     sp2 = wistd::move(sp);
-    sp2.get();
+    (void)sp2.get();
 
     wistd::unique_ptr<int> spConstruct;
     wistd::unique_ptr<int> spConstruct2 = nullptr;
@@ -1981,7 +1995,7 @@ TEST_CASE("WindowsInternalTests::WistdTests", "[resource][wistd]")
     spConstruct = std::move(spConstruct2);
     spConstruct.swap(spConstruct2);
     REQUIRE(*spConstruct4 == 4);
-    spConstruct4.get();
+    (void)spConstruct4.get();
     if (spConstruct4)
     {
     }
@@ -2524,6 +2538,43 @@ TEST_CASE("WindowsInternalTests::Win32HelperTests", "[win32_helpers]")
     auto systemTimePlusOneHour = wil::filetime::add(systemTime, wil::filetime_duration::one_hour);
     auto systemTimePlusOneHour64 = wil::filetime::to_int64(systemTimePlusOneHour);
     REQUIRE(systemTimePlusOneHour64 == (systemTime64 + wil::filetime_duration::one_hour));
+}
+
+TEST_CASE("WindowsInternalTests::RectHelperTests", "[win32_helpers]")
+{
+    RECT rect{ 50, 100, 200, 300 };
+    POINT leftEdgePoint{ 50, 150 };
+    POINT topEdgePoint{ 100, 100 };
+    POINT rightEdgePoint{ 200, 150 };
+    POINT bottomEdgePoint{ 100, 300 };
+    POINT insidePoint{ 150, 150};
+
+    RECT emptyRectAtOrigin{};
+    RECT emptyRectNotAtOrigin{ 50, 50, 50, 50 };
+    RECT nonNormalizedRect{ 300, 300, 0, 0 };
+
+    REQUIRE(wil::rect_width(rect) == 150);
+    REQUIRE(wil::rect_height(rect) == 200);
+
+    // rect_is_empty should work like user32's IsRectEmpty
+    REQUIRE_FALSE(wil::rect_is_empty(rect));
+    REQUIRE(wil::rect_is_empty(emptyRectAtOrigin));
+    REQUIRE(wil::rect_is_empty(emptyRectNotAtOrigin));
+    REQUIRE(wil::rect_is_empty(nonNormalizedRect));
+
+    // rect_contains_point should work like user32's PtInRect
+    REQUIRE(wil::rect_contains_point(rect, insidePoint));
+    REQUIRE(wil::rect_contains_point(rect, leftEdgePoint));
+    REQUIRE(wil::rect_contains_point(rect, topEdgePoint));
+    REQUIRE_FALSE(wil::rect_contains_point(rect, rightEdgePoint));
+    REQUIRE_FALSE(wil::rect_contains_point(rect, bottomEdgePoint));
+    REQUIRE_FALSE(wil::rect_contains_point(nonNormalizedRect, insidePoint));
+
+    auto rectFromSize = wil::rect_from_size<RECT>(50, 100, 150, 200);
+    REQUIRE(rectFromSize.left == rect.left);
+    REQUIRE(rectFromSize.top == rect.top);
+    REQUIRE(rectFromSize.right == rect.right);
+    REQUIRE(rectFromSize.bottom == rect.bottom);
 }
 
 TEST_CASE("WindowsInternalTests::InitOnceNonTests")

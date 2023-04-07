@@ -43,7 +43,7 @@ TEST_CASE("TokenHelpersTests::VerifyGetTokenInformationNoThrow", "[token_helpers
 {
     SECTION("Passing a null token")
     {
-        wistd::unique_ptr<TOKEN_USER> tokenInfo;
+        wil::unique_tokeninfo_ptr<TOKEN_USER> tokenInfo;
         REQUIRE_SUCCEEDED(wil::get_token_information_nothrow(tokenInfo, nullptr));
         REQUIRE(tokenInfo != nullptr);
     }
@@ -51,7 +51,7 @@ TEST_CASE("TokenHelpersTests::VerifyGetTokenInformationNoThrow", "[token_helpers
     SECTION("Passing a non null token, since it a fake token there is no tokenInfo and hence should fail, code path is correct")
     {
         HANDLE faketoken = GetStdHandle(STD_INPUT_HANDLE);
-        wistd::unique_ptr<TOKEN_USER> tokenInfo;
+        wil::unique_tokeninfo_ptr<TOKEN_USER> tokenInfo;
         REQUIRE_FAILED(wil::get_token_information_nothrow(tokenInfo, faketoken));
     }
 }
@@ -60,7 +60,7 @@ TEST_CASE("TokenHelpersTests::VerifyGetTokenInformationNoThrow", "[token_helpers
 // making use more efficient.
 TEST_CASE("TokenHelpersTests::DemonstrateUseWithPseudoTokens", "[token_helpers]")
 {
-    wistd::unique_ptr<TOKEN_USER> tokenInfo;
+    wil::unique_tokeninfo_ptr<TOKEN_USER> tokenInfo;
     REQUIRE_SUCCEEDED(wil::get_token_information_nothrow(tokenInfo, GetCurrentProcessToken()));
     REQUIRE(tokenInfo != nullptr);
 
@@ -76,7 +76,7 @@ TEST_CASE("TokenHelpersTests::DemonstrateUseWithPseudoTokens", "[token_helpers]"
 TEST_CASE("TokenHelpersTests::VerifyGetTokenInformation", "[token_helpers]")
 {
     // Passing a null token
-    wistd::unique_ptr<TOKEN_USER> tokenInfo(wil::get_token_information<TOKEN_USER>(nullptr));
+    wil::unique_tokeninfo_ptr<TOKEN_USER> tokenInfo(wil::get_token_information<TOKEN_USER>(nullptr));
     REQUIRE(tokenInfo != nullptr);
 }
 #endif
@@ -192,7 +192,7 @@ TEST_CASE("TokenHelpersTests::VerifyResetThreadToken", "[token_helpers]")
 template <typename T, wistd::enable_if_t<!wil::details::MapTokenStructToInfoClass<T>::FixedSize>* = nullptr>
 void TestGetTokenInfoForCurrentThread()
 {
-    wistd::unique_ptr<T> tokenInfo;
+    wil::unique_tokeninfo_ptr<T> tokenInfo;
     const auto hr = wil::get_token_information_nothrow(tokenInfo, nullptr);
     REQUIRE(S_OK == hr);
 }

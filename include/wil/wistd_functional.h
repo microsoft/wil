@@ -325,7 +325,7 @@ namespace wistd     // ("Windows Implementation" std)
         void swap(function&);
 
         // function capacity:
-        __WI_LIBCPP_INLINE_VISIBILITY
+        __WI_LIBCPP_NODISCARD_ATTRIBUTE __WI_LIBCPP_INLINE_VISIBILITY
             __WI_LIBCPP_EXPLICIT operator bool() const WI_NOEXCEPT {return __f_;}
 
         // deleted overloads close possible hole in the type system

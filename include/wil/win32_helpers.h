@@ -286,6 +286,43 @@ namespace wil
     }
 #pragma endregion
 
+#pragma region RECT helpers
+    template<typename rect_type>
+    constexpr auto rect_width(rect_type const& rect)
+    {
+        return rect.right - rect.left;
+    }
+
+    template<typename rect_type>
+    constexpr auto rect_height(rect_type const& rect)
+    {
+        return rect.bottom - rect.top;
+    }
+
+    template<typename rect_type>
+    constexpr auto rect_is_empty(rect_type const& rect)
+    {
+        return (rect.left >= rect.right) || (rect.top >= rect.bottom);
+    }
+
+    template<typename rect_type, typename point_type>
+    constexpr auto rect_contains_point(rect_type const& rect, point_type const& point)
+    {
+        return (point.x >= rect.left) && (point.x < rect.right) && (point.y >= rect.top) && (point.y < rect.bottom);
+    }
+
+    template<typename rect_type, typename length_type>
+    constexpr rect_type rect_from_size(length_type x, length_type y, length_type width, length_type height)
+    {
+        rect_type rect;
+        rect.left = x;
+        rect.top = y;
+        rect.right = x + width;
+        rect.bottom = y + height;
+        return rect;
+    }
+#pragma endregion
+
     // Use to adapt Win32 APIs that take a fixed size buffer into forms that return
     // an allocated buffer. Supports many types of string representation.
     // See comments below on the expected behavior of the callback.
@@ -566,6 +603,14 @@ namespace wil
     {
         string_type result;
         THROW_IF_FAILED((wil::GetModuleFileNameExW<string_type, initialBufferLength>(process, module, result)));
+        return result;
+    }
+
+    template <typename string_type = wil::unique_cotaskmem_string, size_t stackBufferLength = 256>
+    string_type GetSystemDirectoryW()
+    {
+        string_type result;
+        THROW_IF_FAILED((wil::GetSystemDirectoryW<string_type, stackBufferLength>(result)));
         return result;
     }
 
