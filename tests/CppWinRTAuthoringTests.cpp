@@ -1,13 +1,14 @@
 #include "common.h"
+#undef GetCurrentTime
 // check if at least C++17
 #if _MSVC_LANG >= 201703L
 #include <winrt/Windows.Foundation.h>
 #include <winrt/Windows.UI.Xaml.Data.h>
 #endif
 
-#include <wil/property.h>
+#include <wil/cppwinrt_authoring.h>
 
-TEST_CASE("PropertyTests::ReadOnly", "[property]")
+TEST_CASE("CppWinRTAuthoringTests::ReadOnly", "[property]")
 {
     int value = 42;
     wil::read_only_property<int> prop(value);
@@ -23,7 +24,7 @@ TEST_CASE("PropertyTests::ReadOnly", "[property]")
     REQUIRE(prop2 == prop);
 }
 
-TEST_CASE("PropertyTests::ReadWrite", "[property]")
+TEST_CASE("CppWinRTAuthoringTests::ReadWrite", "[property]")
 {
     int value = 42;
     wil::read_write_property<int> prop(value);
@@ -46,7 +47,7 @@ TEST_CASE("PropertyTests::ReadWrite", "[property]")
     REQUIRE(prop2 == prop2);
 }
 
-TEST_CASE("PropertyTests::ReadWriteFromReadOnly", "[property]")
+TEST_CASE("CppWinRTAuthoringTests::ReadWriteFromReadOnly", "[property]")
 {
     int value = 42;
     wil::read_only_property<int> prop(value);
@@ -69,7 +70,7 @@ TEST_CASE("PropertyTests::ReadWriteFromReadOnly", "[property]")
     REQUIRE(prop2 == prop2);
 }
 
-TEST_CASE("PropertyTests::InStruct", "[property]")
+TEST_CASE("CppWinRTAuthoringTests::InStruct", "[property]")
 {
     struct TestStruct
     {
@@ -99,7 +100,7 @@ TEST_CASE("PropertyTests::InStruct", "[property]")
 }
 
 #ifdef WINRT_Windows_Foundation_H
-TEST_CASE("PropertyTests::Events", "[property]")
+TEST_CASE("CppWinRTAuthoringTests::Events", "[property]")
 {
     struct Test
     {
@@ -123,15 +124,13 @@ TEST_CASE("PropertyTests::Events", "[property]")
 
 #include <winrt/Windows.UI.Xaml.Hosting.h>
 
-TEST_CASE("PropertyTests::NotifyPropertyChanged", "[property]")
+TEST_CASE("CppWinRTAuthoringTests::NotifyPropertyChanged", "[property]")
 {
-  winrt::init_apartment(winrt::apartment_type::single_threaded);
+    winrt::init_apartment(winrt::apartment_type::single_threaded);
 
-  // We need to initialize the XAML core in order to instantiate a PropertyChangedEventArgs [sigh].
-  // This is a bit of a hack, but it works.
-  winrt::Windows::UI::Xaml::Hosting::DesktopWindowXamlSource dwxs;
-
-  
+    // We need to initialize the XAML core in order to instantiate a PropertyChangedEventArgs [sigh].
+    // This is a bit of a hack, but it works.
+    winrt::Windows::UI::Xaml::Hosting::DesktopWindowXamlSource dwxs;
 
     struct Test : winrt::implements<Test, winrt::Windows::UI::Xaml::Data::INotifyPropertyChanged>, wil::notify_property_changed_base<Test>
     {
@@ -143,15 +142,14 @@ TEST_CASE("PropertyTests::NotifyPropertyChanged", "[property]")
     auto testImpl = winrt::get_self<Test>(test);
 
     auto token = test.PropertyChanged([&](winrt::Windows::Foundation::IInspectable, winrt::Windows::UI::Xaml::Data::PropertyChangedEventArgs args)
-      {
+    {
         REQUIRE(args.PropertyName() == L"MyProperty");
         REQUIRE(testImpl->MyProperty() == 43);
-      });
+    });
 
     testImpl->MyProperty(43);
+    test.PropertyChanged(token);
 
-
-  winrt::uninit_apartment();
-
+    winrt::uninit_apartment();
 }
 #endif // msvc

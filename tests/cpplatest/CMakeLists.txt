@@ -23,7 +23,7 @@ target_sources(witest.cpplatest PRIVATE
     ${COROUTINE_SOURCES}
     ${CMAKE_CURRENT_SOURCE_DIR}/../CppWinRTTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../CppWinRT20Tests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../PropertyTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../CppWinRTAuthoringTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../StlTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../TokenHelpersTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../UniqueWinRTEventTokenTests.cpp
