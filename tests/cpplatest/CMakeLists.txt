@@ -14,11 +14,16 @@ else()
         ${CMAKE_CURRENT_SOURCE_DIR}/../ComApartmentVariableTests.cpp)
 endif()
 
+if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+    target_link_options(witest.cpplatest PRIVATE /manifestinput:${CMAKE_CURRENT_SOURCE_DIR}/app.manifest)
+endif()
+
 target_sources(witest.cpplatest PRIVATE
     ${COMMON_SOURCES}
     ${COROUTINE_SOURCES}
     ${CMAKE_CURRENT_SOURCE_DIR}/../CppWinRTTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../CppWinRT20Tests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../PropertyTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../StlTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../TokenHelpersTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../UniqueWinRTEventTokenTests.cpp
