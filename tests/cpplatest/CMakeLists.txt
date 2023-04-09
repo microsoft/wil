@@ -15,7 +15,7 @@ else()
 endif()
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-    target_link_options(witest.cpplatest PRIVATE /manifestinput:${CMAKE_CURRENT_SOURCE_DIR}/app.manifest)
+    target_link_options(witest.cpplatest PRIVATE /manifest:embed /manifestinput:${CMAKE_CURRENT_SOURCE_DIR}/app.manifest)
 endif()
 
 target_sources(witest.cpplatest PRIVATE
