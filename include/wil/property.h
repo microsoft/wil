@@ -151,11 +151,6 @@ public:
    * @param name The name of the property
    * @return
    * @details Usage example\n
-   * XAML file
-   * @code{.xml}
-   * <!-- XAML file... -->
-   * <Image Source="ms-appx:///assets/skulogo2_client.png" Height="{x:Bind MyInt, Mode=OneWay}" />
-   * @endcode
    * C++
    * @code
    * void MyPage::DoSomething() {
@@ -172,9 +167,6 @@ public:
   }
 protected:
   winrt::event<Xaml_Data_PropertyChangedEventHandler> m_propertyChanged;
-
-  template<typename TProperty>
-  friend struct readonly_property;
 };
 
 /**
