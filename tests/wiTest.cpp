@@ -2870,7 +2870,7 @@ interface __declspec(uuid("EDCA4ADC-DF46-442A-A69D-FDFD8BC37B31")) IFakeObject :
    STDMETHOD_(void, DoStuff)() = 0;
 };
 
-class ArrayTestObject : witest::AllocatedObject,
+class __declspec(empty_bases) ArrayTestObject : witest::AllocatedObject,
     public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::RuntimeClassType::ClassicCom>, IFakeObject>
 {
 public:
