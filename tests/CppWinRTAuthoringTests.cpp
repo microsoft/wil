@@ -7,6 +7,7 @@
 #endif
 
 #include <wil/cppwinrt_authoring.h>
+#include <wil/winrt.h>
 
 TEST_CASE("CppWinRTAuthoringTests::ReadOnly", "[property]")
 {
@@ -126,7 +127,8 @@ TEST_CASE("CppWinRTAuthoringTests::Events", "[property]")
 
 TEST_CASE("CppWinRTAuthoringTests::NotifyPropertyChanged", "[property]")
 {
-    winrt::init_apartment(winrt::apartment_type::single_threaded);
+#if defined(WIL_ENABLE_EXCEPTIONS)
+    auto init = wil::RoInitialize_failfast();
 
     // We need to initialize the XAML core in order to instantiate a PropertyChangedEventArgs [sigh].
     // This is a bit of a hack, but it works.
@@ -149,7 +151,6 @@ TEST_CASE("CppWinRTAuthoringTests::NotifyPropertyChanged", "[property]")
 
     testImpl->MyProperty(43);
     test.PropertyChanged(token);
-
-    winrt::uninit_apartment();
+#endif
 }
 #endif // msvc
