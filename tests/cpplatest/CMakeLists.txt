@@ -14,10 +14,6 @@ else()
         ${CMAKE_CURRENT_SOURCE_DIR}/../ComApartmentVariableTests.cpp)
 endif()
 
-if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-    target_link_options(witest.cpplatest PRIVATE /manifest:embed /manifestinput:${CMAKE_CURRENT_SOURCE_DIR}/app.manifest)
-endif()
-
 target_sources(witest.cpplatest PRIVATE
     ${COMMON_SOURCES}
     ${COROUTINE_SOURCES}
@@ -30,4 +26,5 @@ target_sources(witest.cpplatest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../WatcherTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../WinRTTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../WinVerifyTrustTest.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/app.manifest
     )
