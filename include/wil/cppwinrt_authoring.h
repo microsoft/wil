@@ -16,62 +16,61 @@
 namespace wil
 {
     template <typename T>
-    struct read_only_property
+    struct single_threaded_ro_property
     {
-        read_only_property(T value) : m_value(value) { }
+        single_threaded_ro_property(T value) : m_value(value) { }
 
         operator T() const noexcept { return m_value; }
         const T& operator()() const noexcept { return m_value; }
 
-        read_only_property(const read_only_property& other) noexcept : m_value(other.m_value) { }
-        read_only_property(read_only_property&& other) noexcept : m_value(std::move(other.m_value)) { }
+        single_threaded_ro_property(const single_threaded_ro_property& other) noexcept : m_value(other.m_value) { }
+        single_threaded_ro_property(single_threaded_ro_property&& other) noexcept : m_value(std::move(other.m_value)) { }
 
         template<typename... TArgs>
-        read_only_property(TArgs&&... args) : m_value(std::forward<TArgs>(args)...) { }
+        single_threaded_ro_property(TArgs&&... args) : m_value(std::forward<TArgs>(args)...) { }
 
     protected:
         T m_value;
     };
 
     template <typename T>
-    struct read_write_property : read_only_property<T>
+    struct single_threaded_rw_property : single_threaded_ro_property<T>
     {
-        read_write_property(T value) : read_only_property<T>(value) { }
+        single_threaded_rw_property(T value) : single_threaded_ro_property<T>(value) { }
 
         template<typename... TArgs>
-        read_write_property(TArgs&&... args) : read_only_property<T>(std::forward<TArgs>(args)...) { }
+        single_threaded_rw_property(TArgs&&... args) : single_threaded_ro_property<T>(std::forward<TArgs>(args)...) { }
 
-        using read_only_property<T>::operator T;
-        using read_only_property<T>::operator();
-        read_write_property& operator()(const T& value) noexcept
+        using single_threaded_ro_property<T>::operator T;
+        using single_threaded_ro_property<T>::operator();
+        single_threaded_rw_property& operator()(const T& value) noexcept
         {
             this->m_value = value;
             return *this;
         }
 
-        read_write_property& operator=(T value) noexcept
+        single_threaded_rw_property& operator=(T value) noexcept
         {
             this->m_value = value;
             return *this;
         }
 
         template<typename U, typename = std::enable_if_t<std::is_convertible_v<U, T>>>
-        read_write_property& operator=(const read_only_property<U>& other) noexcept
+        single_threaded_rw_property& operator=(const single_threaded_ro_property<U>& other) noexcept
         {
             this->m_value = other.m_value;
             return *this;
         }
 
         template<typename U, typename = std::enable_if_t<std::is_convertible_v<U, T>>>
-        read_write_property& operator=(read_write_property<U>&& other) noexcept
+        single_threaded_rw_property& operator=(single_threaded_rw_property<U>&& other) noexcept
         {
             this->m_value = std::move(other.m_value);
             return *this;
         }
     };
 
-#pragma region WinRT / XAML helpers
-#ifdef WINRT_Windows_Foundation_H
+#ifdef WINRT_Windows_Foundation_H // WinRT / XAML helpers
 
     namespace details {
         template<typename T>
@@ -111,10 +110,8 @@ namespace wil
     struct typed_event : details::event_base<winrt::Windows::Foundation::TypedEventHandler<TSender, TArgs>> {};
 
 #endif
-#pragma endregion
 
-#pragma region INotifyPropertyChanged helpers
-#ifdef WINRT_Windows_UI_Xaml_Data_H
+#ifdef WINRT_Windows_UI_Xaml_Data_H // INotifyPropertyChanged helpers
 
     /**
      * @brief Helper base class to inherit from to have a simple implementation of [INotifyPropertyChanged](https://docs.microsoft.com/uwp/api/windows.ui.xaml.data.inotifypropertychanged).
@@ -122,7 +119,7 @@ namespace wil
      * @details When you declare your class, make this class a base class and pass your class as a template parameter:
      * @code
      * struct MyPage : MyPageT<MyPage>, wil::notify_property_changed_base<MyPage> {
-     *      wil::property_with_notify<int> MyInt;
+     *      wil::single_threaded_notifying_property<int> MyInt;
      *
      *      MyPage() : INIT_PROPERTY(MyInt, 42) { }
      * };
@@ -176,33 +173,33 @@ namespace wil
     template<typename T,
         typename Xaml_Data_PropertyChangedEventHandler = winrt::Windows::UI::Xaml::Data::PropertyChangedEventHandler,
         typename Xaml_Data_PropertyChangedEventArgs = winrt::Windows::UI::Xaml::Data::PropertyChangedEventArgs>
-    struct property_with_notify : read_write_property<T> {
+    struct single_threaded_notifying_property : single_threaded_rw_property<T> {
         using Type = T;
 
-        using read_write_property<T>::operator();
+        using single_threaded_rw_property<T>::operator();
 
         void operator()(const T& value) {
-            if (value != operator()()) {
-                read_write_property<T>::operator()(value);
+            if (value != this->m_value) {
+                single_threaded_rw_property<T>::operator()(value);
                 if (m_npc) {
                     (*m_npc)(m_sender, Xaml_Data_PropertyChangedEventArgs{ m_name });
                 }
             }
         }
         template<typename... TArgs>
-        property_with_notify(
+        single_threaded_notifying_property(
             winrt::event<Xaml_Data_PropertyChangedEventHandler>* npc,
             winrt::Windows::Foundation::IInspectable sender,
             std::wstring_view name,
             TArgs&&... args) :
-            read_write_property<T>(std::forward<TArgs...>(args)...) {
+            single_threaded_rw_property<T>(std::forward<TArgs...>(args)...) {
             m_name = name;
             m_npc = npc;
             m_sender = sender;
         }
 
-        property_with_notify(const property_with_notify&) = default;
-        property_with_notify(property_with_notify&&) = default;
+        single_threaded_notifying_property(const single_threaded_notifying_property&) = default;
+        single_threaded_notifying_property(single_threaded_notifying_property&&) = default;
     private:
         std::wstring m_name;
         winrt::event<Xaml_Data_PropertyChangedEventHandler>* m_npc;
@@ -211,12 +208,12 @@ namespace wil
 
     /**
     * @def INIT_NOTIFY_PROPERTY
-    * @brief use this to initialize a wil::property_with_notify in your class constructor.
+    * @brief use this to initialize a wil::single_threaded_notifying_property in your class constructor.
     */
 #define INIT_NOTIFY_PROPERTY(NAME, VALUE)  \
         NAME(&m_propertyChanged, *this, std::wstring_view{ L#NAME }, VALUE)
 
 #endif // WINRT_Windows_UI_Xaml_Data_H
-#pragma endregion // INotifyPropertyChanged helpers
+
 } // namespace wil
 #endif // __WIL_CPPWINRT_AUTHORING_INCLUDED

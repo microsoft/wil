@@ -11,13 +11,13 @@
 TEST_CASE("CppWinRTAuthoringTests::ReadOnly", "[property]")
 {
     int value = 42;
-    wil::read_only_property<int> prop(value);
+    wil::single_threaded_ro_property<int> prop(value);
     REQUIRE(prop == value);
     REQUIRE(prop() == value);
     REQUIRE(prop == prop());
     REQUIRE(prop == prop);
 
-    wil::read_only_property<int> prop2 = prop;
+    wil::single_threaded_ro_property<int> prop2 = prop;
     REQUIRE(prop2 == value);
     REQUIRE(prop2() == value);
     REQUIRE(prop2 == prop());
@@ -27,13 +27,13 @@ TEST_CASE("CppWinRTAuthoringTests::ReadOnly", "[property]")
 TEST_CASE("CppWinRTAuthoringTests::ReadWrite", "[property]")
 {
     int value = 42;
-    wil::read_write_property<int> prop(value);
+    wil::single_threaded_rw_property<int> prop(value);
     REQUIRE(prop == value);
     REQUIRE(prop() == value);
     REQUIRE(prop == prop());
     REQUIRE(prop == prop);
 
-    wil::read_write_property<int> prop2 = prop;
+    wil::single_threaded_rw_property<int> prop2 = prop;
     REQUIRE(prop2 == value);
     REQUIRE(prop2() == value);
     REQUIRE(prop2 == prop());
@@ -50,13 +50,13 @@ TEST_CASE("CppWinRTAuthoringTests::ReadWrite", "[property]")
 TEST_CASE("CppWinRTAuthoringTests::ReadWriteFromReadOnly", "[property]")
 {
     int value = 42;
-    wil::read_only_property<int> prop(value);
+    wil::single_threaded_ro_property<int> prop(value);
     REQUIRE(prop == value);
     REQUIRE(prop() == value);
     REQUIRE(prop == prop());
     REQUIRE(prop == prop);
 
-    wil::read_write_property<int> prop2 = prop;
+    wil::single_threaded_rw_property<int> prop2 = prop;
     REQUIRE(prop2 == value);
     REQUIRE(prop2() == value);
     REQUIRE(prop2 == prop());
@@ -74,13 +74,13 @@ TEST_CASE("CppWinRTAuthoringTests::InStruct", "[property]")
 {
     struct TestStruct
     {
-        wil::read_only_property<int> Prop1{ 42 };
-        wil::read_write_property<int> Prop2{ 1 };
-        wil::read_only_property<int> Prop3{ 44 };
+        wil::single_threaded_ro_property<int> Prop1{ 42 };
+        wil::single_threaded_rw_property<int> Prop2{ 1 };
+        wil::single_threaded_ro_property<int> Prop3{ 44 };
     };
 
     TestStruct test;
-    static_assert(!std::is_assignable_v<wil::read_only_property<int>, int>, "cannot assign to a readonly property");
+    static_assert(!std::is_assignable_v<wil::single_threaded_ro_property<int>, int>, "cannot assign to a readonly property");
 
     test.Prop2 = 43;
     static_assert(!std::is_assignable_v<decltype(test.Prop3), decltype(44)>, "cannot assign to a readonly property");
@@ -135,7 +135,7 @@ TEST_CASE("CppWinRTAuthoringTests::NotifyPropertyChanged", "[property]")
     struct Test : winrt::implements<Test, winrt::Windows::UI::Xaml::Data::INotifyPropertyChanged>, wil::notify_property_changed_base<Test>
     {
       using wil::notify_property_changed_base<Test>::PropertyChanged;
-      wil::property_with_notify<int> MyProperty;
+      wil::single_threaded_notifying_property<int> MyProperty;
       Test() : INIT_NOTIFY_PROPERTY(MyProperty, 42) {}
     };
     auto test = winrt::make<Test>();
