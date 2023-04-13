@@ -9,12 +9,11 @@
 //
 //*********************************************************
 
-#pragma once
+namespace wil
+{
 #ifndef __WIL_CPPWINRT_AUTHORING_INCLUDED
 #define __WIL_CPPWINRT_AUTHORING_INCLUDED
 
-namespace wil
-{
     template <typename T>
     struct single_threaded_ro_property
     {
@@ -70,8 +69,10 @@ namespace wil
         }
     };
 
-#ifdef WINRT_Windows_Foundation_H // WinRT / XAML helpers
+#endif // __WIL_CPPWINRT_AUTHORING_INCLUDED
 
+#if !defined(__WIL_CPPWINRT_AUTHORING_INCLUDED_FOUNDATION) && defined(WINRT_Windows_Foundation_H) // WinRT / XAML helpers
+#define __WIL_CPPWINRT_AUTHORING_INCLUDED_FOUNDATION
     namespace details {
         template<typename T>
         struct event_base {
@@ -109,10 +110,10 @@ namespace wil
     template<typename TSender, typename TArgs>
     struct typed_event : details::event_base<winrt::Windows::Foundation::TypedEventHandler<TSender, TArgs>> {};
 
-#endif
+#endif // !defined(__WIL_CPPWINRT_AUTHORING_INCLUDED_FOUNDATION) && defined(WINRT_Windows_Foundation_H)
 
-#ifdef WINRT_Windows_UI_Xaml_Data_H // INotifyPropertyChanged helpers
-
+#if !defined(__WIL_CPPWINRT_AUTHORING_INCLUDED_XAML_DATA) && defined(WINRT_Windows_UI_Xaml_Data_H) // INotifyPropertyChanged helpers
+#define __WIL_CPPWINRT_AUTHORING_INCLUDED_XAML_DATA
     /**
      * @brief Helper base class to inherit from to have a simple implementation of [INotifyPropertyChanged](https://docs.microsoft.com/uwp/api/windows.ui.xaml.data.inotifypropertychanged).
      * @tparam T CRTP type
@@ -213,7 +214,6 @@ namespace wil
 #define INIT_NOTIFY_PROPERTY(NAME, VALUE)  \
         NAME(&m_propertyChanged, *this, std::wstring_view{ L#NAME }, VALUE)
 
-#endif // WINRT_Windows_UI_Xaml_Data_H
+#endif // !defined(__WIL_CPPWINRT_AUTHORING_INCLUDED_XAML_DATA) && defined(WINRT_Windows_UI_Xaml_Data_H)
 
 } // namespace wil
-#endif // __WIL_CPPWINRT_AUTHORING_INCLUDED
