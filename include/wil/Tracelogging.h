@@ -33,7 +33,6 @@
 #ifndef TRACELOGGING_SUPPRESS_NEW
 #include <new>
 #endif
-#include <wil/win32_helpers.h>
 
 #pragma warning(push)
 #pragma warning(disable: 26135)   // Missing locking annotation, Caller failing to hold lock
@@ -177,28 +176,60 @@ namespace wil
         public:
             void __cdecl cleanup() WI_NOEXCEPT
             {
-                if (wil::init_once_initialized(m_initOnce))
+                void* pVoid;
+                BOOL pending;
+
+                // If object is being constructed on another thread, wait until construction completes.
+                // Need a memory barrier here (see get() and ~Completer below) so use the result that we
+                // get from InitOnceBeginInitialize(..., &pVoid, ...)
+                if (::InitOnceBeginInitialize(&m_initOnce, INIT_ONCE_CHECK_ONLY, &pending, &pVoid) && !pending)
                 {
-                    reinterpret_cast<T*>(m_storage)->~T();
+                    static_cast<T*>(pVoid)->~T();
                 }
             }
 
             T* get(void(__cdecl *cleanupFunc)(void)) WI_NOEXCEPT
             {
-                wil::init_once_failfast(m_initOnce, [=]() -> HRESULT
-                    {
-                        ::new (m_storage) T();
-                        atexit(cleanupFunc);
-                        reinterpret_cast<T*>(m_storage)->Create();
-                        return S_OK;
-                    });
+                void* pVoid{};
+                BOOL pending;
+                if (::InitOnceBeginInitialize(&m_initOnce, 0, &pending, &pVoid) && pending)
+                {
+                    // Don't do anything non-trivial from DllMain, fail fast.
+                    // Some 3rd party code in IE calls shell functions this way, so we can only enforce
+                    // this in DEBUG.
+#ifdef DEBUG
+                    FAIL_FAST_IMMEDIATE_IF_IN_LOADER_CALLOUT();
+#endif
 
-                return reinterpret_cast<T*>(m_storage);
+                    Completer completer(this);
+                    pVoid = &m_storage;
+                    ::new(pVoid)T();
+                    atexit(cleanupFunc); // ignore failure (that's what the C runtime does, too)
+                    completer.Succeed();
+                }
+                return static_cast<T*>(pVoid);
             }
 
         private:
-            INIT_ONCE m_initOnce = INIT_ONCE_STATIC_INIT;
+            INIT_ONCE m_initOnce;
             alignas(T) BYTE m_storage[sizeof(T)];
+            struct Completer
+            {
+                static_lazy *m_pSelf;
+                DWORD m_flags;
+
+                explicit Completer(static_lazy *pSelf) WI_NOEXCEPT : m_pSelf(pSelf), m_flags(INIT_ONCE_INIT_FAILED) { }
+                void Succeed() WI_NOEXCEPT { m_flags = 0; }
+
+                ~Completer() WI_NOEXCEPT
+                {
+                    if (m_flags == 0)
+                    {
+                        reinterpret_cast<T*>(&m_pSelf->m_storage)->Create();
+                    }
+                    ::InitOnceComplete(&m_pSelf->m_initOnce, m_flags, &m_pSelf->m_storage);
+                }
+            };
         };
 
         // This class serves as a simple RAII wrapper around CallContextInfo.  It presumes that
@@ -1377,7 +1408,9 @@ namespace wil
     };
 
 #ifdef _GENERIC_PARTB_FIELDS_ENABLED
-#define _TLGWRITE_GENERIC_PARTB_FIELDS  _GENERIC_PARTB_FIELDS_ENABLED,
+#define _TLGWRITE_GENERIC_PARTB_FIELDS  , _GENERIC_PARTB_FIELDS_ENABLED
+#else
+#define _TLGWRITE_GENERIC_PARTB_FIELDS
 #endif
 
 #define DEFINE_TAGGED_TRACELOGGING_EVENT(EventId, ...) \
@@ -1388,14 +1421,14 @@ namespace wil
 
 #define DEFINE_TAGGED_TRACELOGGING_EVENT_CV(EventId, ...) \
     void EventId(PCSTR correlationVector) \
-    { __WI_TraceLoggingWriteTagged(*this, #EventId, _TLGWRITE_GENERIC_PARTB_FIELDS TraceLoggingString(correlationVector, "__TlgCV__"), __VA_ARGS__); }
+    { __WI_TraceLoggingWriteTagged(*this, #EventId _TLGWRITE_GENERIC_PARTB_FIELDS, TraceLoggingString(correlationVector, "__TlgCV__"), __VA_ARGS__); }
 
 #define DEFINE_TAGGED_TRACELOGGING_EVENT_PARAM1(EventId, VarType1, varName1, ...) \
     template<typename T1> void EventId(T1 &&varName1) \
     { \
         __WI_TraceLoggingWriteTagged(*this, #EventId, \
-            TraceLoggingValue(static_cast<VarType1>(wistd::forward<T1>(varName1)), _wiltlg_STRINGIZE(varName1)), \
-            _TLGWRITE_GENERIC_PARTB_FIELDS \
+            TraceLoggingValue(static_cast<VarType1>(wistd::forward<T1>(varName1)), _wiltlg_STRINGIZE(varName1)) \
+            _TLGWRITE_GENERIC_PARTB_FIELDS, \
             __VA_ARGS__); \
     }
 
@@ -1403,8 +1436,8 @@ namespace wil
     template<typename T1> void EventId(T1 &&varName1, PCSTR correlationVector) \
     { \
         __WI_TraceLoggingWriteTagged(*this, #EventId, \
-            TraceLoggingValue(static_cast<VarType1>(wistd::forward<T1>(varName1)), _wiltlg_STRINGIZE(varName1)), \
-            _TLGWRITE_GENERIC_PARTB_FIELDS \
+            TraceLoggingValue(static_cast<VarType1>(wistd::forward<T1>(varName1)), _wiltlg_STRINGIZE(varName1)) \
+            _TLGWRITE_GENERIC_PARTB_FIELDS, \
             TraceLoggingString(correlationVector, "__TlgCV__"), __VA_ARGS__); \
     }
 
@@ -1413,8 +1446,8 @@ namespace wil
     { \
         __WI_TraceLoggingWriteTagged(*this, #EventId, \
             TraceLoggingValue(static_cast<VarType1>(wistd::forward<T1>(varName1)), _wiltlg_STRINGIZE(varName1)), \
-            TraceLoggingValue(static_cast<VarType2>(wistd::forward<T2>(varName2)), _wiltlg_STRINGIZE(varName2)), \
-            _TLGWRITE_GENERIC_PARTB_FIELDS \
+            TraceLoggingValue(static_cast<VarType2>(wistd::forward<T2>(varName2)), _wiltlg_STRINGIZE(varName2)) \
+            _TLGWRITE_GENERIC_PARTB_FIELDS, \
             __VA_ARGS__); \
     }
 
@@ -1423,8 +1456,8 @@ namespace wil
     { \
         __WI_TraceLoggingWriteTagged(*this, #EventId, \
             TraceLoggingValue(static_cast<VarType1>(wistd::forward<T1>(varName1)), _wiltlg_STRINGIZE(varName1)), \
-            TraceLoggingValue(static_cast<VarType2>(wistd::forward<T2>(varName2)), _wiltlg_STRINGIZE(varName2)), \
-            _TLGWRITE_GENERIC_PARTB_FIELDS \
+            TraceLoggingValue(static_cast<VarType2>(wistd::forward<T2>(varName2)), _wiltlg_STRINGIZE(varName2)) \
+            _TLGWRITE_GENERIC_PARTB_FIELDS, \
             TraceLoggingString(correlationVector, "__TlgCV__"), __VA_ARGS__); \
     }
 
@@ -1434,8 +1467,8 @@ namespace wil
         __WI_TraceLoggingWriteTagged(*this, #EventId, \
             TraceLoggingValue(static_cast<VarType1>(wistd::forward<T1>(varName1)), _wiltlg_STRINGIZE(varName1)), \
             TraceLoggingValue(static_cast<VarType2>(wistd::forward<T2>(varName2)), _wiltlg_STRINGIZE(varName2)), \
-            TraceLoggingValue(static_cast<VarType3>(wistd::forward<T3>(varName3)), _wiltlg_STRINGIZE(varName3)), \
-            _TLGWRITE_GENERIC_PARTB_FIELDS \
+            TraceLoggingValue(static_cast<VarType3>(wistd::forward<T3>(varName3)), _wiltlg_STRINGIZE(varName3)) \
+            _TLGWRITE_GENERIC_PARTB_FIELDS, \
             __VA_ARGS__); \
     }
 
@@ -1445,8 +1478,8 @@ namespace wil
         __WI_TraceLoggingWriteTagged(*this, #EventId, \
         TraceLoggingValue(static_cast<VarType1>(wistd::forward<T1>(varName1)), _wiltlg_STRINGIZE(varName1)), \
         TraceLoggingValue(static_cast<VarType2>(wistd::forward<T2>(varName2)), _wiltlg_STRINGIZE(varName2)), \
-        TraceLoggingValue(static_cast<VarType3>(wistd::forward<T3>(varName3)), _wiltlg_STRINGIZE(varName3)), \
-        _TLGWRITE_GENERIC_PARTB_FIELDS \
+        TraceLoggingValue(static_cast<VarType3>(wistd::forward<T3>(varName3)), _wiltlg_STRINGIZE(varName3)) \
+        _TLGWRITE_GENERIC_PARTB_FIELDS, \
         TraceLoggingString(correlationVector, "__TlgCV__"), __VA_ARGS__); \
     }
 
@@ -1457,8 +1490,8 @@ namespace wil
             TraceLoggingValue(static_cast<VarType1>(wistd::forward<T1>(varName1)), _wiltlg_STRINGIZE(varName1)), \
             TraceLoggingValue(static_cast<VarType2>(wistd::forward<T2>(varName2)), _wiltlg_STRINGIZE(varName2)), \
             TraceLoggingValue(static_cast<VarType3>(wistd::forward<T3>(varName3)), _wiltlg_STRINGIZE(varName3)), \
-            TraceLoggingValue(static_cast<VarType4>(wistd::forward<T4>(varName4)), _wiltlg_STRINGIZE(varName4)), \
-            _TLGWRITE_GENERIC_PARTB_FIELDS \
+            TraceLoggingValue(static_cast<VarType4>(wistd::forward<T4>(varName4)), _wiltlg_STRINGIZE(varName4)) \
+            _TLGWRITE_GENERIC_PARTB_FIELDS, \
             __VA_ARGS__); \
     }
 
@@ -1470,8 +1503,8 @@ namespace wil
             TraceLoggingValue(static_cast<VarType1>(wistd::forward<T1>(varName1)), _wiltlg_STRINGIZE(varName1)), \
             TraceLoggingValue(static_cast<VarType2>(wistd::forward<T2>(varName2)), _wiltlg_STRINGIZE(varName2)), \
             TraceLoggingValue(static_cast<VarType3>(wistd::forward<T3>(varName3)), _wiltlg_STRINGIZE(varName3)), \
-            TraceLoggingValue(static_cast<VarType4>(wistd::forward<T4>(varName4)), _wiltlg_STRINGIZE(varName4)), \
-            _TLGWRITE_GENERIC_PARTB_FIELDS \
+            TraceLoggingValue(static_cast<VarType4>(wistd::forward<T4>(varName4)), _wiltlg_STRINGIZE(varName4)) \
+            _TLGWRITE_GENERIC_PARTB_FIELDS, \
             TraceLoggingString(correlationVector, "__TlgCV__"), __VA_ARGS__); \
     }
 
@@ -1483,8 +1516,8 @@ namespace wil
             TraceLoggingValue(static_cast<VarType2>(wistd::forward<T2>(varName2)), _wiltlg_STRINGIZE(varName2)), \
             TraceLoggingValue(static_cast<VarType3>(wistd::forward<T3>(varName3)), _wiltlg_STRINGIZE(varName3)), \
             TraceLoggingValue(static_cast<VarType4>(wistd::forward<T4>(varName4)), _wiltlg_STRINGIZE(varName4)), \
-            TraceLoggingValue(static_cast<VarType5>(wistd::forward<T5>(varName5)), _wiltlg_STRINGIZE(varName5)), \
-            _TLGWRITE_GENERIC_PARTB_FIELDS \
+            TraceLoggingValue(static_cast<VarType5>(wistd::forward<T5>(varName5)), _wiltlg_STRINGIZE(varName5)) \
+            _TLGWRITE_GENERIC_PARTB_FIELDS, \
             __VA_ARGS__); \
     }
 
@@ -1496,8 +1529,8 @@ namespace wil
             TraceLoggingValue(static_cast<VarType2>(wistd::forward<T2>(varName2)), _wiltlg_STRINGIZE(varName2)), \
             TraceLoggingValue(static_cast<VarType3>(wistd::forward<T3>(varName3)), _wiltlg_STRINGIZE(varName3)), \
             TraceLoggingValue(static_cast<VarType4>(wistd::forward<T4>(varName4)), _wiltlg_STRINGIZE(varName4)), \
-            TraceLoggingValue(static_cast<VarType5>(wistd::forward<T5>(varName5)), _wiltlg_STRINGIZE(varName5)), \
-            _TLGWRITE_GENERIC_PARTB_FIELDS \
+            TraceLoggingValue(static_cast<VarType5>(wistd::forward<T5>(varName5)), _wiltlg_STRINGIZE(varName5)) \
+            _TLGWRITE_GENERIC_PARTB_FIELDS, \
             TraceLoggingString(correlationVector, "__TlgCV__"), __VA_ARGS__); \
     }
 
@@ -1510,8 +1543,8 @@ namespace wil
             TraceLoggingValue(static_cast<VarType3>(wistd::forward<T3>(varName3)), _wiltlg_STRINGIZE(varName3)), \
             TraceLoggingValue(static_cast<VarType4>(wistd::forward<T4>(varName4)), _wiltlg_STRINGIZE(varName4)), \
             TraceLoggingValue(static_cast<VarType5>(wistd::forward<T5>(varName5)), _wiltlg_STRINGIZE(varName5)), \
-            TraceLoggingValue(static_cast<VarType6>(wistd::forward<T6>(varName6)), _wiltlg_STRINGIZE(varName6)), \
-            _TLGWRITE_GENERIC_PARTB_FIELDS \
+            TraceLoggingValue(static_cast<VarType6>(wistd::forward<T6>(varName6)), _wiltlg_STRINGIZE(varName6)) \
+            _TLGWRITE_GENERIC_PARTB_FIELDS, \
             __VA_ARGS__); \
     }
 
@@ -1539,8 +1572,8 @@ namespace wil
             TraceLoggingValue(static_cast<VarType4>(wistd::forward<T4>(varName4)), _wiltlg_STRINGIZE(varName4)), \
             TraceLoggingValue(static_cast<VarType5>(wistd::forward<T5>(varName5)), _wiltlg_STRINGIZE(varName5)), \
             TraceLoggingValue(static_cast<VarType6>(wistd::forward<T6>(varName6)), _wiltlg_STRINGIZE(varName6)), \
-            TraceLoggingValue(static_cast<VarType7>(wistd::forward<T7>(varName7)), _wiltlg_STRINGIZE(varName7)), \
-            _TLGWRITE_GENERIC_PARTB_FIELDS \
+            TraceLoggingValue(static_cast<VarType7>(wistd::forward<T7>(varName7)), _wiltlg_STRINGIZE(varName7)) \
+            _TLGWRITE_GENERIC_PARTB_FIELDS, \
             __VA_ARGS__); \
     }
 
@@ -1554,8 +1587,8 @@ namespace wil
             TraceLoggingValue(static_cast<VarType4>(wistd::forward<T4>(varName4)), _wiltlg_STRINGIZE(varName4)), \
             TraceLoggingValue(static_cast<VarType5>(wistd::forward<T5>(varName5)), _wiltlg_STRINGIZE(varName5)), \
             TraceLoggingValue(static_cast<VarType6>(wistd::forward<T6>(varName6)), _wiltlg_STRINGIZE(varName6)), \
-            TraceLoggingValue(static_cast<VarType7>(wistd::forward<T7>(varName7)), _wiltlg_STRINGIZE(varName7)), \
-            _TLGWRITE_GENERIC_PARTB_FIELDS \
+            TraceLoggingValue(static_cast<VarType7>(wistd::forward<T7>(varName7)), _wiltlg_STRINGIZE(varName7)) \
+            _TLGWRITE_GENERIC_PARTB_FIELDS, \
             TraceLoggingString(correlationVector, "__TlgCV__"), __VA_ARGS__); \
     }
 
@@ -1570,8 +1603,8 @@ namespace wil
             TraceLoggingValue(static_cast<VarType5>(wistd::forward<T5>(varName5)), _wiltlg_STRINGIZE(varName5)), \
             TraceLoggingValue(static_cast<VarType6>(wistd::forward<T6>(varName6)), _wiltlg_STRINGIZE(varName6)), \
             TraceLoggingValue(static_cast<VarType7>(wistd::forward<T7>(varName7)), _wiltlg_STRINGIZE(varName7)), \
-            TraceLoggingValue(static_cast<VarType8>(wistd::forward<T8>(varName8)), _wiltlg_STRINGIZE(varName8)), \
-            _TLGWRITE_GENERIC_PARTB_FIELDS \
+            TraceLoggingValue(static_cast<VarType8>(wistd::forward<T8>(varName8)), _wiltlg_STRINGIZE(varName8)) \
+            _TLGWRITE_GENERIC_PARTB_FIELDS, \
             __VA_ARGS__); \
     }
 
@@ -1586,8 +1619,8 @@ namespace wil
             TraceLoggingValue(static_cast<VarType5>(wistd::forward<T5>(varName5)), _wiltlg_STRINGIZE(varName5)), \
             TraceLoggingValue(static_cast<VarType6>(wistd::forward<T6>(varName6)), _wiltlg_STRINGIZE(varName6)), \
             TraceLoggingValue(static_cast<VarType7>(wistd::forward<T7>(varName7)), _wiltlg_STRINGIZE(varName7)), \
-            TraceLoggingValue(static_cast<VarType8>(wistd::forward<T8>(varName8)), _wiltlg_STRINGIZE(varName8)), \
-            _TLGWRITE_GENERIC_PARTB_FIELDS \
+            TraceLoggingValue(static_cast<VarType8>(wistd::forward<T8>(varName8)), _wiltlg_STRINGIZE(varName8)) \
+            _TLGWRITE_GENERIC_PARTB_FIELDS, \
             TraceLoggingString(correlationVector, "__TlgCV__"), __VA_ARGS__); \
     }
 
@@ -1603,8 +1636,8 @@ namespace wil
             TraceLoggingValue(static_cast<VarType6>(wistd::forward<T6>(varName6)), _wiltlg_STRINGIZE(varName6)), \
             TraceLoggingValue(static_cast<VarType7>(wistd::forward<T7>(varName7)), _wiltlg_STRINGIZE(varName7)), \
             TraceLoggingValue(static_cast<VarType8>(wistd::forward<T8>(varName8)), _wiltlg_STRINGIZE(varName8)), \
-            TraceLoggingValue(static_cast<VarType9>(wistd::forward<T9>(varName9)), _wiltlg_STRINGIZE(varName9)), \
-            _TLGWRITE_GENERIC_PARTB_FIELDS \
+            TraceLoggingValue(static_cast<VarType9>(wistd::forward<T9>(varName9)), _wiltlg_STRINGIZE(varName9)) \
+            _TLGWRITE_GENERIC_PARTB_FIELDS, \
             __VA_ARGS__); \
     }
 
@@ -1719,16 +1752,16 @@ namespace wil
 
 #define DEFINE_TRACELOGGING_EVENT(EventId, ...) \
     static void EventId() { \
-        TraceLoggingWrite(TraceLoggingType::Provider(), #EventId, \
-            _TLGWRITE_GENERIC_PARTB_FIELDS \
+        TraceLoggingWrite(TraceLoggingType::Provider(), #EventId \
+            _TLGWRITE_GENERIC_PARTB_FIELDS, \
             __VA_ARGS__); \
     }
 
 #define DEFINE_TRACELOGGING_EVENT_CV(EventId, ...) \
     static void EventId(PCSTR correlationVector) \
     { \
-        TraceLoggingWrite(TraceLoggingType::Provider(), #EventId, \
-            _TLGWRITE_GENERIC_PARTB_FIELDS \
+        TraceLoggingWrite(TraceLoggingType::Provider(), #EventId \
+            _TLGWRITE_GENERIC_PARTB_FIELDS, \
             TraceLoggingString(correlationVector, "__TlgCV__"), \
             __VA_ARGS__); \
     }
@@ -1737,8 +1770,8 @@ namespace wil
     template<typename T1> static void EventId(T1 &&varName1) \
     { \
         TraceLoggingWrite(TraceLoggingType::Provider(), #EventId, \
-            TraceLoggingValue(static_cast<VarType1>(wistd::forward<T1>(varName1)), _wiltlg_STRINGIZE(varName1)), \
-            _TLGWRITE_GENERIC_PARTB_FIELDS \
+            TraceLoggingValue(static_cast<VarType1>(wistd::forward<T1>(varName1)), _wiltlg_STRINGIZE(varName1)) \
+            _TLGWRITE_GENERIC_PARTB_FIELDS, \
             __VA_ARGS__); \
     }
 
@@ -1746,8 +1779,8 @@ namespace wil
     template<typename T1> static void EventId(T1 &&varName1, PCSTR correlationVector) \
     { \
         TraceLoggingWrite(TraceLoggingType::Provider(), #EventId, \
-            TraceLoggingValue(static_cast<VarType1>(wistd::forward<T1>(varName1)), _wiltlg_STRINGIZE(varName1)), \
-            _TLGWRITE_GENERIC_PARTB_FIELDS \
+            TraceLoggingValue(static_cast<VarType1>(wistd::forward<T1>(varName1)), _wiltlg_STRINGIZE(varName1)) \
+            _TLGWRITE_GENERIC_PARTB_FIELDS, \
             TraceLoggingString(correlationVector, "__TlgCV__"), \
             __VA_ARGS__); \
     }
@@ -1757,8 +1790,8 @@ namespace wil
     { \
         TraceLoggingWrite(TraceLoggingType::Provider(), #EventId, \
             TraceLoggingValue(static_cast<VarType1>(wistd::forward<T1>(varName1)), _wiltlg_STRINGIZE(varName1)), \
-            TraceLoggingValue(static_cast<VarType2>(wistd::forward<T2>(varName2)), _wiltlg_STRINGIZE(varName2)), \
-            _TLGWRITE_GENERIC_PARTB_FIELDS \
+            TraceLoggingValue(static_cast<VarType2>(wistd::forward<T2>(varName2)), _wiltlg_STRINGIZE(varName2)) \
+            _TLGWRITE_GENERIC_PARTB_FIELDS, \
             __VA_ARGS__); \
     }
 
@@ -1767,8 +1800,8 @@ namespace wil
     { \
         TraceLoggingWrite(TraceLoggingType::Provider(), #EventId, \
             TraceLoggingValue(static_cast<VarType1>(wistd::forward<T1>(varName1)), _wiltlg_STRINGIZE(varName1)), \
-            TraceLoggingValue(static_cast<VarType2>(wistd::forward<T2>(varName2)), _wiltlg_STRINGIZE(varName2)), \
-            _TLGWRITE_GENERIC_PARTB_FIELDS \
+            TraceLoggingValue(static_cast<VarType2>(wistd::forward<T2>(varName2)), _wiltlg_STRINGIZE(varName2)) \
+            _TLGWRITE_GENERIC_PARTB_FIELDS, \
             TraceLoggingString(correlationVector, "__TlgCV__"), \
             __VA_ARGS__); \
     }
@@ -1779,8 +1812,8 @@ namespace wil
         TraceLoggingWrite(TraceLoggingType::Provider(), #EventId, \
             TraceLoggingValue(static_cast<VarType1>(wistd::forward<T1>(varName1)), _wiltlg_STRINGIZE(varName1)), \
             TraceLoggingValue(static_cast<VarType2>(wistd::forward<T2>(varName2)), _wiltlg_STRINGIZE(varName2)), \
-            TraceLoggingValue(static_cast<VarType3>(wistd::forward<T3>(varName3)), _wiltlg_STRINGIZE(varName3)), \
-            _TLGWRITE_GENERIC_PARTB_FIELDS \
+            TraceLoggingValue(static_cast<VarType3>(wistd::forward<T3>(varName3)), _wiltlg_STRINGIZE(varName3)) \
+            _TLGWRITE_GENERIC_PARTB_FIELDS, \
             __VA_ARGS__); \
     }
 
@@ -1790,8 +1823,8 @@ namespace wil
         TraceLoggingWrite(TraceLoggingType::Provider(), #EventId, \
             TraceLoggingValue(static_cast<VarType1>(wistd::forward<T1>(varName1)), _wiltlg_STRINGIZE(varName1)), \
             TraceLoggingValue(static_cast<VarType2>(wistd::forward<T2>(varName2)), _wiltlg_STRINGIZE(varName2)), \
-            TraceLoggingValue(static_cast<VarType3>(wistd::forward<T3>(varName3)), _wiltlg_STRINGIZE(varName3)), \
-            _TLGWRITE_GENERIC_PARTB_FIELDS \
+            TraceLoggingValue(static_cast<VarType3>(wistd::forward<T3>(varName3)), _wiltlg_STRINGIZE(varName3)) \
+            _TLGWRITE_GENERIC_PARTB_FIELDS, \
             TraceLoggingString(correlationVector, "__TlgCV__"), \
             __VA_ARGS__); \
     }
@@ -1803,8 +1836,8 @@ namespace wil
             TraceLoggingValue(static_cast<VarType1>(wistd::forward<T1>(varName1)), _wiltlg_STRINGIZE(varName1)), \
             TraceLoggingValue(static_cast<VarType2>(wistd::forward<T2>(varName2)), _wiltlg_STRINGIZE(varName2)), \
             TraceLoggingValue(static_cast<VarType3>(wistd::forward<T3>(varName3)), _wiltlg_STRINGIZE(varName3)), \
-            TraceLoggingValue(static_cast<VarType4>(wistd::forward<T4>(varName4)), _wiltlg_STRINGIZE(varName4)), \
-            _TLGWRITE_GENERIC_PARTB_FIELDS \
+            TraceLoggingValue(static_cast<VarType4>(wistd::forward<T4>(varName4)), _wiltlg_STRINGIZE(varName4)) \
+            _TLGWRITE_GENERIC_PARTB_FIELDS, \
             __VA_ARGS__); \
     }
 
@@ -1815,8 +1848,8 @@ namespace wil
             TraceLoggingValue(static_cast<VarType1>(wistd::forward<T1>(varName1)), _wiltlg_STRINGIZE(varName1)), \
             TraceLoggingValue(static_cast<VarType2>(wistd::forward<T2>(varName2)), _wiltlg_STRINGIZE(varName2)), \
             TraceLoggingValue(static_cast<VarType3>(wistd::forward<T3>(varName3)), _wiltlg_STRINGIZE(varName3)), \
-            TraceLoggingValue(static_cast<VarType4>(wistd::forward<T4>(varName4)), _wiltlg_STRINGIZE(varName4)), \
-            _TLGWRITE_GENERIC_PARTB_FIELDS \
+            TraceLoggingValue(static_cast<VarType4>(wistd::forward<T4>(varName4)), _wiltlg_STRINGIZE(varName4)) \
+            _TLGWRITE_GENERIC_PARTB_FIELDS, \
             TraceLoggingString(correlationVector, "__TlgCV__"), \
             __VA_ARGS__); \
     }
@@ -1829,8 +1862,8 @@ namespace wil
             TraceLoggingValue(static_cast<VarType2>(wistd::forward<T2>(varName2)), _wiltlg_STRINGIZE(varName2)), \
             TraceLoggingValue(static_cast<VarType3>(wistd::forward<T3>(varName3)), _wiltlg_STRINGIZE(varName3)), \
             TraceLoggingValue(static_cast<VarType4>(wistd::forward<T4>(varName4)), _wiltlg_STRINGIZE(varName4)), \
-            TraceLoggingValue(static_cast<VarType5>(wistd::forward<T5>(varName5)), _wiltlg_STRINGIZE(varName5)), \
-            _TLGWRITE_GENERIC_PARTB_FIELDS \
+            TraceLoggingValue(static_cast<VarType5>(wistd::forward<T5>(varName5)), _wiltlg_STRINGIZE(varName5)) \
+            _TLGWRITE_GENERIC_PARTB_FIELDS, \
             __VA_ARGS__); \
     }
 
@@ -1842,8 +1875,8 @@ namespace wil
             TraceLoggingValue(static_cast<VarType2>(wistd::forward<T2>(varName2)), _wiltlg_STRINGIZE(varName2)), \
             TraceLoggingValue(static_cast<VarType3>(wistd::forward<T3>(varName3)), _wiltlg_STRINGIZE(varName3)), \
             TraceLoggingValue(static_cast<VarType4>(wistd::forward<T4>(varName4)), _wiltlg_STRINGIZE(varName4)), \
-            TraceLoggingValue(static_cast<VarType5>(wistd::forward<T5>(varName5)), _wiltlg_STRINGIZE(varName5)), \
-            _TLGWRITE_GENERIC_PARTB_FIELDS \
+            TraceLoggingValue(static_cast<VarType5>(wistd::forward<T5>(varName5)), _wiltlg_STRINGIZE(varName5)) \
+            _TLGWRITE_GENERIC_PARTB_FIELDS, \
             TraceLoggingString(correlationVector, "__TlgCV__"), __VA_ARGS__); \
     }
 
@@ -1856,8 +1889,8 @@ namespace wil
             TraceLoggingValue(static_cast<VarType3>(wistd::forward<T3>(varName3)), _wiltlg_STRINGIZE(varName3)), \
             TraceLoggingValue(static_cast<VarType4>(wistd::forward<T4>(varName4)), _wiltlg_STRINGIZE(varName4)), \
             TraceLoggingValue(static_cast<VarType5>(wistd::forward<T5>(varName5)), _wiltlg_STRINGIZE(varName5)), \
-            TraceLoggingValue(static_cast<VarType6>(wistd::forward<T6>(varName6)), _wiltlg_STRINGIZE(varName6)), \
-            _TLGWRITE_GENERIC_PARTB_FIELDS \
+            TraceLoggingValue(static_cast<VarType6>(wistd::forward<T6>(varName6)), _wiltlg_STRINGIZE(varName6)) \
+            _TLGWRITE_GENERIC_PARTB_FIELDS, \
             __VA_ARGS__); \
     }
 
@@ -1870,8 +1903,8 @@ namespace wil
             TraceLoggingValue(static_cast<VarType3>(wistd::forward<T3>(varName3)), _wiltlg_STRINGIZE(varName3)), \
             TraceLoggingValue(static_cast<VarType4>(wistd::forward<T4>(varName4)), _wiltlg_STRINGIZE(varName4)), \
             TraceLoggingValue(static_cast<VarType5>(wistd::forward<T5>(varName5)), _wiltlg_STRINGIZE(varName5)), \
-            TraceLoggingValue(static_cast<VarType6>(wistd::forward<T6>(varName6)), _wiltlg_STRINGIZE(varName6)), \
-            _TLGWRITE_GENERIC_PARTB_FIELDS \
+            TraceLoggingValue(static_cast<VarType6>(wistd::forward<T6>(varName6)), _wiltlg_STRINGIZE(varName6)) \
+            _TLGWRITE_GENERIC_PARTB_FIELDS, \
             TraceLoggingString(correlationVector, "__TlgCV__"), __VA_ARGS__); \
     }
 
@@ -1885,8 +1918,8 @@ namespace wil
             TraceLoggingValue(static_cast<VarType4>(wistd::forward<T4>(varName4)), _wiltlg_STRINGIZE(varName4)), \
             TraceLoggingValue(static_cast<VarType5>(wistd::forward<T5>(varName5)), _wiltlg_STRINGIZE(varName5)), \
             TraceLoggingValue(static_cast<VarType6>(wistd::forward<T6>(varName6)), _wiltlg_STRINGIZE(varName6)), \
-            TraceLoggingValue(static_cast<VarType7>(wistd::forward<T7>(varName7)), _wiltlg_STRINGIZE(varName7)), \
-            _TLGWRITE_GENERIC_PARTB_FIELDS \
+            TraceLoggingValue(static_cast<VarType7>(wistd::forward<T7>(varName7)), _wiltlg_STRINGIZE(varName7)) \
+            _TLGWRITE_GENERIC_PARTB_FIELDS, \
             __VA_ARGS__); \
     }
 
@@ -1900,8 +1933,8 @@ namespace wil
             TraceLoggingValue(static_cast<VarType4>(wistd::forward<T4>(varName4)), _wiltlg_STRINGIZE(varName4)), \
             TraceLoggingValue(static_cast<VarType5>(wistd::forward<T5>(varName5)), _wiltlg_STRINGIZE(varName5)), \
             TraceLoggingValue(static_cast<VarType6>(wistd::forward<T6>(varName6)), _wiltlg_STRINGIZE(varName6)), \
-            TraceLoggingValue(static_cast<VarType7>(wistd::forward<T7>(varName7)), _wiltlg_STRINGIZE(varName7)), \
-            _TLGWRITE_GENERIC_PARTB_FIELDS \
+            TraceLoggingValue(static_cast<VarType7>(wistd::forward<T7>(varName7)), _wiltlg_STRINGIZE(varName7)) \
+            _TLGWRITE_GENERIC_PARTB_FIELDS, \
             TraceLoggingString(correlationVector, "__TlgCV__"), __VA_ARGS__); \
     }
 
@@ -1916,8 +1949,8 @@ namespace wil
             TraceLoggingValue(static_cast<VarType5>(wistd::forward<T5>(varName5)), _wiltlg_STRINGIZE(varName5)), \
             TraceLoggingValue(static_cast<VarType6>(wistd::forward<T6>(varName6)), _wiltlg_STRINGIZE(varName6)), \
             TraceLoggingValue(static_cast<VarType7>(wistd::forward<T7>(varName7)), _wiltlg_STRINGIZE(varName7)), \
-            TraceLoggingValue(static_cast<VarType8>(wistd::forward<T8>(varName8)), _wiltlg_STRINGIZE(varName8)), \
-            _TLGWRITE_GENERIC_PARTB_FIELDS \
+            TraceLoggingValue(static_cast<VarType8>(wistd::forward<T8>(varName8)), _wiltlg_STRINGIZE(varName8)) \
+            _TLGWRITE_GENERIC_PARTB_FIELDS, \
             __VA_ARGS__); \
     }
 
@@ -1932,8 +1965,8 @@ namespace wil
             TraceLoggingValue(static_cast<VarType5>(wistd::forward<T5>(varName5)), _wiltlg_STRINGIZE(varName5)), \
             TraceLoggingValue(static_cast<VarType6>(wistd::forward<T6>(varName6)), _wiltlg_STRINGIZE(varName6)), \
             TraceLoggingValue(static_cast<VarType7>(wistd::forward<T7>(varName7)), _wiltlg_STRINGIZE(varName7)), \
-            TraceLoggingValue(static_cast<VarType8>(wistd::forward<T8>(varName8)), _wiltlg_STRINGIZE(varName8)), \
-            _TLGWRITE_GENERIC_PARTB_FIELDS \
+            TraceLoggingValue(static_cast<VarType8>(wistd::forward<T8>(varName8)), _wiltlg_STRINGIZE(varName8)) \
+            _TLGWRITE_GENERIC_PARTB_FIELDS, \
             TraceLoggingString(correlationVector, "__TlgCV__"), __VA_ARGS__); \
     }
 
@@ -1949,8 +1982,8 @@ namespace wil
             TraceLoggingValue(static_cast<VarType6>(wistd::forward<T6>(varName6)), _wiltlg_STRINGIZE(varName6)), \
             TraceLoggingValue(static_cast<VarType7>(wistd::forward<T7>(varName7)), _wiltlg_STRINGIZE(varName7)), \
             TraceLoggingValue(static_cast<VarType8>(wistd::forward<T8>(varName8)), _wiltlg_STRINGIZE(varName8)), \
-            TraceLoggingValue(static_cast<VarType9>(wistd::forward<T9>(varName9)), _wiltlg_STRINGIZE(varName9)), \
-            _TLGWRITE_GENERIC_PARTB_FIELDS \
+            TraceLoggingValue(static_cast<VarType9>(wistd::forward<T9>(varName9)), _wiltlg_STRINGIZE(varName9)) \
+            _TLGWRITE_GENERIC_PARTB_FIELDS, \
             __VA_ARGS__); \
     }
 
@@ -1966,8 +1999,8 @@ namespace wil
             TraceLoggingValue(static_cast<VarType6>(wistd::forward<T6>(varName6)), _wiltlg_STRINGIZE(varName6)), \
             TraceLoggingValue(static_cast<VarType7>(wistd::forward<T7>(varName7)), _wiltlg_STRINGIZE(varName7)), \
             TraceLoggingValue(static_cast<VarType8>(wistd::forward<T8>(varName8)), _wiltlg_STRINGIZE(varName8)), \
-            TraceLoggingValue(static_cast<VarType9>(wistd::forward<T9>(varName9)), _wiltlg_STRINGIZE(varName9)), \
-            _TLGWRITE_GENERIC_PARTB_FIELDS \
+            TraceLoggingValue(static_cast<VarType9>(wistd::forward<T9>(varName9)), _wiltlg_STRINGIZE(varName9)) \
+            _TLGWRITE_GENERIC_PARTB_FIELDS, \
             TraceLoggingString(correlationVector, "__TlgCV__"), __VA_ARGS__); \
     }
 
@@ -1984,8 +2017,8 @@ namespace wil
             TraceLoggingValue(static_cast<VarType7>(wistd::forward<T7>(varName7)), _wiltlg_STRINGIZE(varName7)), \
             TraceLoggingValue(static_cast<VarType8>(wistd::forward<T8>(varName8)), _wiltlg_STRINGIZE(varName8)), \
             TraceLoggingValue(static_cast<VarType9>(wistd::forward<T9>(varName9)), _wiltlg_STRINGIZE(varName9)), \
-            TraceLoggingValue(static_cast<VarType10>(wistd::forward<T10>(varName10)), _wiltlg_STRINGIZE(varName10)), \
-            _TLGWRITE_GENERIC_PARTB_FIELDS \
+            TraceLoggingValue(static_cast<VarType10>(wistd::forward<T10>(varName10)), _wiltlg_STRINGIZE(varName10)) \
+            _TLGWRITE_GENERIC_PARTB_FIELDS, \
             __VA_ARGS__); \
     }
 
