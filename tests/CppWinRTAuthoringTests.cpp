@@ -9,6 +9,7 @@
 
 #include <wil/cppwinrt_authoring.h>
 #include <wil/winrt.h>
+#include <wil/resource.h>
 
 TEST_CASE("CppWinRTAuthoringTests::ReadOnly", "[property]")
 {
@@ -130,8 +131,9 @@ TEST_CASE("CppWinRTAuthoringTests::NotifyPropertyChanged", "[property]")
 {
 #if defined(WIL_ENABLE_EXCEPTIONS)
     auto uninit = wil::RoInitialize_failfast(RO_INIT_SINGLETHREADED);
-
-    // We need to initialize the XAML core in order to instantiate a PropertyChangedEventArgs [sigh].
+    // We need to initialize the XAML core in order to instantiate a PropertyChangedEventArgs.
+    // XAML needs to be unloaded before COM rundown.
+    auto xaml = wil::unique_hmodule(::LoadLibraryExW(L"Windows.UI.Xaml.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32));
     auto manager = winrt::Windows::UI::Xaml::Hosting::WindowsXamlManager::InitializeForCurrentThread();
 
     struct Test : winrt::implements<Test, winrt::Windows::UI::Xaml::Data::INotifyPropertyChanged>, wil::notify_property_changed_base<Test>
