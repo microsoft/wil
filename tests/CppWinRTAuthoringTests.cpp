@@ -1,3 +1,4 @@
+#define WINAPI_PARTITION_DESKTOP 1 // for RO_INIT_SINGLETHREADED
 #include "common.h"
 #undef GetCurrentTime
 // check if at least C++17
@@ -128,11 +129,10 @@ TEST_CASE("CppWinRTAuthoringTests::Events", "[property]")
 TEST_CASE("CppWinRTAuthoringTests::NotifyPropertyChanged", "[property]")
 {
 #if defined(WIL_ENABLE_EXCEPTIONS)
-    auto init = wil::RoInitialize_failfast();
+    auto uninit = wil::RoInitialize_failfast(RO_INIT_SINGLETHREADED);
 
-    // We need to initialize the XAML core in order to instantiate a PropertyChangedEventArgs [sigh].
-    // This is a bit of a hack, but it works.
-    winrt::Windows::UI::Xaml::Hosting::DesktopWindowXamlSource dwxs;
+    // We need to initialize the XAML core in order to instantiate a PropertyChangedEventArgs.
+    auto manager = winrt::Windows::UI::Xaml::Hosting::WindowsXamlManager::InitializeForCurrentThread();
 
     struct Test : winrt::implements<Test, winrt::Windows::UI::Xaml::Data::INotifyPropertyChanged>, wil::notify_property_changed_base<Test>
     {
@@ -151,6 +151,9 @@ TEST_CASE("CppWinRTAuthoringTests::NotifyPropertyChanged", "[property]")
 
     testImpl->MyProperty(43);
     test.PropertyChanged(token);
+
+    manager.Close();
+
 #endif
 }
 #endif // msvc
