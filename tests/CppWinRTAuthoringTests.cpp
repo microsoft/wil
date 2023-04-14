@@ -127,13 +127,13 @@ TEST_CASE("CppWinRTAuthoringTests::Events", "[property]")
 
 #include <winrt/Windows.UI.Xaml.Hosting.h>
 
-TEST_CASE("CppWinRTAuthoringTests::NotifyPropertyChanged", "[property]")
+// This test cannot run in the same process as the malloc spies tests in wiTest.cpp
+// MSFT_internal: https://task.ms/44191550
+TEST_CASE("CppWinRTAuthoringTests::NotifyPropertyChanged", "[property][LocalOnly]")
 {
 #if defined(WIL_ENABLE_EXCEPTIONS)
     auto uninit = wil::RoInitialize_failfast(RO_INIT_SINGLETHREADED);
     // We need to initialize the XAML core in order to instantiate a PropertyChangedEventArgs.
-    // XAML needs to be unloaded before COM rundown.
-    auto xaml = wil::unique_hmodule(::LoadLibraryExW(L"Windows.UI.Xaml.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32));
     auto manager = winrt::Windows::UI::Xaml::Hosting::WindowsXamlManager::InitializeForCurrentThread();
 
     struct Test : winrt::implements<Test, winrt::Windows::UI::Xaml::Data::INotifyPropertyChanged>, wil::notify_property_changed_base<Test>
