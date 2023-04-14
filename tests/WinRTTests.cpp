@@ -1,4 +1,4 @@
-#define WINAPI_PARTITION_DESKTOP 1 // for RO_INIT_SINGLETHREADED
+
 #include <wil/winrt.h>
 
 #ifdef WIL_ENABLE_EXCEPTIONS
@@ -699,7 +699,7 @@ template<typename T> auto cast_to(ComPtr<IInspectable> const& src)
 TEST_CASE("WinRTTests::VectorToVectorTest", "[winrt][to_vector]")
 {
 #if defined(WIL_ENABLE_EXCEPTIONS)
-    auto uninit = wil::RoInitialize_failfast(RO_INIT_SINGLETHREADED);
+    auto uninit = wil::RoInitialize_failfast();
     auto ints = MakeSampleInspectableVector(100);
     auto vec = wil::to_vector(ints.Get());
     UINT32 size;
@@ -716,7 +716,7 @@ TEST_CASE("WinRTTests::VectorToVectorTest", "[winrt][to_vector]")
 
 TEST_CASE("WinRTTests::VectorRangeTest", "[winrt][vector_range]")
 {
-    auto uninit = wil::RoInitialize_failfast(RO_INIT_SINGLETHREADED);
+    auto uninit = wil::RoInitialize_failfast();
 
     auto inspectables = MakeSampleInspectableVector();
     unsigned count = 0;
@@ -865,7 +865,7 @@ unsigned long GetComObjectRefCount(IUnknown* unk) { unk->AddRef(); return unk->R
 
 TEST_CASE("WinRTTests::VectorRangeLeakTest", "[winrt][vector_range]")
 {
-    auto uninit = wil::RoInitialize_failfast(RO_INIT_SINGLETHREADED);
+    auto uninit = wil::RoInitialize_failfast();
 
     auto inspectables = MakeSampleInspectableVector();
     ComPtr<IInspectable> verifyNotLeaked;

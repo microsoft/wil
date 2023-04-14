@@ -131,7 +131,7 @@ TEST_CASE("CppWinRTAuthoringTests::NotifyPropertyChanged", "[property]")
 #if defined(WIL_ENABLE_EXCEPTIONS)
     auto uninit = wil::RoInitialize_failfast(RO_INIT_SINGLETHREADED);
 
-    // We need to initialize the XAML core in order to instantiate a PropertyChangedEventArgs.
+    // We need to initialize the XAML core in order to instantiate a PropertyChangedEventArgs [sigh].
     auto manager = winrt::Windows::UI::Xaml::Hosting::WindowsXamlManager::InitializeForCurrentThread();
 
     struct Test : winrt::implements<Test, winrt::Windows::UI::Xaml::Data::INotifyPropertyChanged>, wil::notify_property_changed_base<Test>
@@ -153,7 +153,6 @@ TEST_CASE("CppWinRTAuthoringTests::NotifyPropertyChanged", "[property]")
     test.PropertyChanged(token);
 
     manager.Close();
-
 #endif
 }
 #endif // msvc
