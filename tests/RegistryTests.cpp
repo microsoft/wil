@@ -472,12 +472,6 @@ TEST_CASE("BasicRegistryTests::ReadWrite", "[registry]")
         verify_nothrow<DWORD*, uint32_t>(
             dwordTestArray,
             dwordValueName,
-            static_cast<HRESULT(*)(HKEY, PCWSTR, DWORD*)>(wil::reg::get_value_dword_nothrow),
-            static_cast<HRESULT(*)(HKEY, PCWSTR, uint32_t)>(wil::reg::set_value_dword_nothrow));
-
-        verify_nothrow<DWORD*, uint32_t>(
-            dwordTestArray,
-            dwordValueName,
             [](HKEY key, PCWSTR valueName, DWORD* output) -> HRESULT { return wil::reg::get_value_dword_nothrow(key, valueName, output); },
             [](HKEY key, PCWSTR valueName, uint32_t input) -> HRESULT { return wil::reg::set_value_dword_nothrow(key, valueName, input); });
         verify_nothrow<DWORD*, uint32_t>(
@@ -491,6 +485,18 @@ TEST_CASE("BasicRegistryTests::ReadWrite", "[registry]")
             qwordValueName,
             static_cast<HRESULT(*)(HKEY, PCWSTR, DWORD64*)>(wil::reg::get_value_qword_nothrow),
             static_cast<HRESULT(*)(HKEY, PCWSTR, uint64_t)>(wil::reg::set_value_qword_nothrow));
+
+        verify_nothrow<DWORD64*, uint64_t>(
+            qwordTestArray,
+            qwordValueName,
+            [](HKEY key, PCWSTR valueName, DWORD64* output) -> HRESULT { return wil::reg::get_value_qword_nothrow(key, valueName, output); },
+            [](HKEY key, PCWSTR valueName, uint64_t input) -> HRESULT { return wil::reg::set_value_qword_nothrow(key, valueName, input); });
+        verify_nothrow<DWORD64*, uint64_t>(
+            qwordTestArray,
+            qwordValueName,
+            [](HKEY, PCWSTR valueName, DWORD64* output) -> HRESULT { return wil::reg::get_value_qword_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, output); },
+            [](HKEY, PCWSTR valueName, uint64_t input) -> HRESULT { return wil::reg::set_value_qword_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, input); });
+
 #if defined(WIL_ENABLE_EXCEPTIONS)
         // TODO: strings should not require exceptions.
         /*verify_nothrow<std::wstring&, PCWSTR, std::wstring>(
