@@ -400,6 +400,7 @@ namespace
         REQUIRE(result == value);
     }
 
+#ifdef WIL_ENABLE_EXCEPTIONS
     template<typename GetOutputT, typename SetT, typename GetInputT = GetOutputT>
     void verify_good(
         PCWSTR valueName,
@@ -416,6 +417,7 @@ namespace
         result = getFn(nullptr);
         REQUIRE(result == value);
     }
+#endif
 
     template<typename GetOutputT, typename GetT>
     void verify_not_exist_nothrow(
@@ -426,6 +428,25 @@ namespace
         const HRESULT hr = getFn(invalidValueName, &result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
     };
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+    template<typename GetOutputT>
+    void verify_not_exist(std::function<GetOutputT(PCWSTR)> getFn)
+    {
+        // fail get* if the value doesn't exist
+        try
+        {
+            const auto ignored = getFn(invalidValueName);
+            ignored;
+            // should throw
+            REQUIRE_FALSE(true);
+        }
+        catch (const wil::ResultException& e)
+        {
+            REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
+        }
+    };
+#endif
 
     template<typename GetT, typename WrongSetT>
     void verify_wrong_type_nothrow(
@@ -439,6 +460,30 @@ namespace
         const HRESULT hr = getFn(valueName, &result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
     }
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+    template<typename GetT, typename WrongSetT>
+    void verify_wrong_type(
+        PCWSTR valueName,
+        WrongSetT value,
+        std::function<GetT(PCWSTR)> getFn,
+        std::function<void(PCWSTR, typename type_identity<WrongSetT>::type)> setFn)
+    {
+        // fail if get* requests the wrong type
+        setFn(valueName, value);
+        try
+        {
+            const auto ignored = getFn(valueName);
+            ignored;
+            // should throw
+            REQUIRE_FALSE(true);
+        }
+        catch (const wil::ResultException& e)
+        {
+            REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
+        }
+    }
+#endif
 }
 
 TEST_CASE("BasicRegistryTests::ReadWrite", "[registry]")
@@ -805,92 +850,67 @@ TEST_CASE("BasicRegistryTests::ReadWrite", "[registry]")
         wil::unique_hkey hkey;
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
 
+        // Lifted for testing wrong type set
+        const auto qwordSetFn = [&hkey](PCWSTR valueName, uint64_t input) -> void { wil::reg::set_value_qword(hkey.get(), valueName, input); };
+
         // DWORDs
+        const auto dwordGetFn = [&hkey](PCWSTR valueName) -> DWORD { return wil::reg::get_value_dword(hkey.get(), valueName); };
+        const auto dwordSetFn = [&hkey](PCWSTR valueName, uint32_t input) -> void { wil::reg::set_value_dword(hkey.get(), valueName, input); };
         for (const auto& value : dwordTestArray)
         {
             verify_good<DWORD, uint32_t>(
                 dwordValueName,
                 value,
-                [&hkey](PCWSTR valueName) -> DWORD { return wil::reg::get_value_dword(hkey.get(), valueName); },
-                [&hkey](PCWSTR valueName, uint32_t input) -> void { wil::reg::set_value_dword(hkey.get(), valueName, input); });
+                dwordGetFn,
+                dwordSetFn);
         }
-        //verify_not_exist_nothrow<DWORD*, DWORD>(
-        //    [&hkey](PCWSTR valueName, DWORD* output) -> HRESULT { return wil::reg::get_value_dword_nothrow(hkey.get(), valueName, output); });
-        //verify_wrong_type_nothrow<DWORD>(
-        //    qwordValueName,
-        //    test_qword_zero,
-        //    [&hkey](PCWSTR valueName, DWORD* output) -> HRESULT { return wil::reg::get_value_dword_nothrow(hkey.get(), valueName, output); },
-        //    [&hkey](PCWSTR valueName, uint64_t input) -> HRESULT { return wil::reg::set_value_qword_nothrow(hkey.get(), valueName, input); });
+        verify_not_exist<DWORD>(dwordGetFn);
+        verify_wrong_type<DWORD, uint64_t>(qwordValueName, test_qword_zero, dwordGetFn, qwordSetFn);
 
         // QWORDs
+        const auto qwordGetFn = [&hkey](PCWSTR valueName) -> DWORD64 { return wil::reg::get_value_qword(hkey.get(), valueName); };
         for (const auto& value : qwordTestArray)
         {
             verify_good<DWORD64, uint64_t>(
                 qwordValueName,
                 value,
-                [&hkey](PCWSTR valueName) -> DWORD64 { return wil::reg::get_value_qword(hkey.get(), valueName); },
-                [&hkey](PCWSTR valueName, uint64_t input) -> void { wil::reg::set_value_qword(hkey.get(), valueName, input); });
+                qwordGetFn,
+                qwordSetFn);
         }
-        //verify_not_exist_nothrow<DWORD64*, DWORD64>(
-        //    [&hkey](PCWSTR valueName, DWORD64* output) -> HRESULT { return wil::reg::get_value_qword_nothrow(hkey.get(), valueName, output); });
-        //verify_wrong_type_nothrow<DWORD64>(
-        //    dwordValueName,
-        //    test_dword_zero,
-        //    [&hkey](PCWSTR valueName, DWORD64* output) -> HRESULT { return wil::reg::get_value_qword_nothrow(hkey.get(), valueName, output); },
-        //    [&hkey](PCWSTR valueName, uint32_t input) -> HRESULT { return wil::reg::set_value_dword_nothrow(hkey.get(), valueName, input); });
+        verify_not_exist<DWORD64>(qwordGetFn);
+        verify_wrong_type<DWORD64, uint32_t>(dwordValueName, test_dword_zero, qwordGetFn, dwordSetFn);
+
+        // Elevated for testing wrong type set
+        const auto multistringSetFn = [&hkey](PCWSTR valueName, std::vector<std::wstring> const& input) -> void { wil::reg::set_value_multistring(hkey.get(), valueName, input); };
 
         // TODO: multiple string types
+        const auto stringGetFn = [&hkey](PCWSTR valueName) -> std::wstring { return wil::reg::get_value_string(hkey.get(), valueName); };
+        const auto stringSetFn = [&hkey](PCWSTR valueName, PCWSTR input) -> void { wil::reg::set_value_string(hkey.get(), valueName, input); };
         for (const auto& value : stringTestArray)
         {
             verify_good<std::wstring, PCWSTR>(
                 stringValueName,
                 value.c_str(),
-                [&hkey](PCWSTR valueName) -> std::wstring { return wil::reg::get_value_string(hkey.get(), valueName); },
-                [&hkey](PCWSTR valueName, PCWSTR input) -> void { wil::reg::set_value_string(hkey.get(), valueName, input); });
+                stringGetFn,
+                stringSetFn);
         }
-        //verify_not_exist_nothrow<std::wstring*, std::wstring>(
-        //    [&hkey](PCWSTR valueName, std::wstring* output) -> HRESULT {
-        //        // TODO: should we take a reference or a pointer?
-        //        return wil::reg::get_value_string_nothrow(hkey.get(), valueName, *output);
-        //    });
-        //verify_wrong_type_nothrow<std::wstring>(
-        //    dwordValueName,
-        //    test_dword_zero,
-        //    [&hkey](PCWSTR valueName, std::wstring* output) -> HRESULT {
-        //        // TODO: should we take a reference or a pointer?
-        //        return wil::reg::get_value_string_nothrow(hkey.get(), valueName, *output);
-        //    },
-        //    [&hkey](PCWSTR valueName, uint32_t input) -> HRESULT { return wil::reg::set_value_dword_nothrow(hkey.get(), valueName, input); });
-        //verify_wrong_type_nothrow<std::wstring>(
-        //    multistringValueName,
-        //    test_multistring_empty,
-        //    [&hkey](PCWSTR valueName, std::wstring* output) -> HRESULT {
-        //        // TODO: should we take a reference or a pointer?
-        //        return wil::reg::get_value_string_nothrow(hkey.get(), valueName, *output);
-        //    },
-        //    [&hkey](PCWSTR valueName, std::vector<std::wstring> const& input) -> HRESULT { return wil::reg::set_value_multistring_nothrow(hkey.get(), valueName, input); });
+        verify_not_exist<std::wstring>(stringGetFn);
+        verify_wrong_type<std::wstring, uint32_t>(dwordValueName, test_dword_zero, stringGetFn, dwordSetFn);
+        verify_wrong_type<std::wstring, std::vector<std::wstring>>(multistringValueName, test_multistring_empty, stringGetFn, multistringSetFn);
 
+        const auto multiStringGetFn = [&hkey](PCWSTR valueName) -> std::vector<std::wstring> { return wil::reg::get_value_multistring(hkey.get(), valueName); };
         for (const auto& value : multiStringTestArray)
         {
             verify_good<std::vector<std::wstring>, std::vector<std::wstring>>(
                 multistringValueName,
                 value,
-                [&hkey](PCWSTR valueName) -> std::vector<std::wstring> { return wil::reg::get_value_multistring(hkey.get(), valueName); },
-                [&hkey](PCWSTR valueName, std::vector<std::wstring> const& input) -> void { wil::reg::set_value_multistring(hkey.get(), valueName, input); });
+                multiStringGetFn,
+                multistringSetFn);
         }
-        //verify_not_exist_nothrow<std::vector<std::wstring>*, std::vector<std::wstring>>(
-        //    [&hkey](PCWSTR valueName, std::vector<std::wstring>* output) -> HRESULT { return wil::reg::get_value_multistring_nothrow(hkey.get(), valueName, output); });
-        //verify_wrong_type_nothrow<std::vector<std::wstring>>(
-        //    dwordValueName,
-        //    test_dword_zero,
-        //    [&hkey](PCWSTR valueName, std::vector<std::wstring>* output) -> HRESULT { return wil::reg::get_value_multistring_nothrow(hkey.get(), valueName, output); },
-        //    [&hkey](PCWSTR valueName, uint32_t input) -> HRESULT { return wil::reg::set_value_dword_nothrow(hkey.get(), valueName, input); });
-        //// TODO: std::wstring should be const&
-        //verify_wrong_type_nothrow<std::vector<std::wstring>>(
-        //    stringValueName,
-        //    test_string_empty,
-        //    [&hkey](PCWSTR valueName, std::vector<std::wstring>* output) -> HRESULT { return wil::reg::get_value_multistring_nothrow(hkey.get(), valueName, output); },
-        //    [&hkey](PCWSTR valueName, std::wstring input) -> HRESULT { return wil::reg::set_value_string_nothrow(hkey.get(), valueName, input.c_str()); });
+        verify_not_exist<std::vector<std::wstring>>(multiStringGetFn);
+        verify_wrong_type<std::vector<std::wstring>, uint32_t>(dwordValueName, test_dword_zero, multiStringGetFn, dwordSetFn);
+        // TODO: string c_str()
+        verify_wrong_type<std::vector<std::wstring>, PCWSTR>(stringValueName, test_string_empty.c_str(), multiStringGetFn, stringSetFn);
 
         // TODO: expanded strings
         // TODO: byte vectors
