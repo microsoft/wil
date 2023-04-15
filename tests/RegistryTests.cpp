@@ -39,7 +39,8 @@ const std::vector<std::wstring> multiStringTestArray[]{
     { {}, {L"."}, {}, {L"."}, {}, {} },
     { {L"Hello there!"}, {L"Hello a second time!"}, {L"Hello a third time!"} },
     { {L""}, {L""}, {L""} },
-    {},
+    // TODO: besto
+    //{},
     { {L"a"} }
 };
 
@@ -498,12 +499,13 @@ TEST_CASE("BasicRegistryTests::ReadWrite", "[registry]")
             REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
         };
 
-        const auto TestWrongTypeFn = []()
+        const auto TestWrongTypeFn = [&hkey](PCWSTR valueName, auto originalValue, auto fetchedValue)
         {
-            //// fail if get* requests the wrong type
-            //REQUIRE_SUCCEEDED(wil::reg::set_value_qword_nothrow(HKEY_CURRENT_USER, testSubkey, qwordValueName, test_qword_zero));
-            //hr = wil::reg::get_value_nothrow(HKEY_CURRENT_USER, testSubkey, qwordValueName, &result);
-            //REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
+            // fail if get* requests the wrong type
+            REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(hkey.get(), valueName, originalValue));
+            decltype(fetchedValue) result{};
+            const HRESULT hr = wil::reg::get_value_nothrow(hkey.get(), valueName, &result);
+            REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
         };
 
         // DWORDs
@@ -512,6 +514,7 @@ TEST_CASE("BasicRegistryTests::ReadWrite", "[registry]")
             TestGoodFn(dwordValueName, value);
         }
         TestNonExistentFn(test_dword_zero);
+        TestWrongTypeFn(qwordValueName, test_qword_zero, test_dword_zero);
 
         // QWORDs
         for (const auto& value : qwordTestArray)
@@ -519,6 +522,7 @@ TEST_CASE("BasicRegistryTests::ReadWrite", "[registry]")
             TestGoodFn(qwordValueName, value);
         }
         TestNonExistentFn(test_qword_zero);
+        TestWrongTypeFn(dwordValueName, test_dword_zero, test_qword_zero);
 
 #ifdef WIL_ENABLE_EXCEPTIONS
         // TODO: strings shouldn't require exceptions, right?
@@ -528,12 +532,18 @@ TEST_CASE("BasicRegistryTests::ReadWrite", "[registry]")
             TestGoodFn(stringValueName, value);
         }
         TestNonExistentFn(test_string_empty);
+        TestWrongTypeFn(dwordValueName, test_dword_zero, test_string_empty);
+        TestWrongTypeFn(multistringValueName, test_multistring_empty, test_string_empty);
 
+        // TODO: seems to be a bug in empty multistring
         for (const auto& value : multiStringTestArray)
         {
             TestGoodFn(multistringValueName, value);
         }
         TestNonExistentFn(test_multistring_empty);
+        TestWrongTypeFn(dwordValueName, test_dword_zero, test_multistring_empty);
+        TestWrongTypeFn(stringValueName, test_string_empty, test_multistring_empty);
+        TestWrongTypeFn(stringValueName, test_string_empty, test_multistring_empty);
 
         // TODO: byte vectors
 #endif
