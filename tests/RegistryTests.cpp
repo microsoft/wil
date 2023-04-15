@@ -16,12 +16,16 @@ constexpr auto* testSubkey = L"Software\\Microsoft\\BasicRegistryTest";
 constexpr auto* dwordValueName = L"MyDwordValue";
 constexpr auto* qwordValueName = L"MyQwordvalue";
 constexpr auto* stringValueName = L"MyStringValue";
+constexpr auto* multistringValueName = L"MyMultiStringValue";
 constexpr auto* binaryValueName = L"MyBinaryValue";
+constexpr auto* invalidValueName = L"NonExistentValue";
 
 constexpr uint32_t test_dword_two = 2ul;
 constexpr uint32_t test_dword_three = 3ul;
 constexpr uint32_t test_dword_zero = 0ul;
 constexpr uint64_t test_qword_zero = 0ull;
+const std::wstring test_string_empty{};
+const std::vector<std::wstring> test_multistring_empty{};
 
 constexpr uint32_t test_expanded_string_buffer_size = 100;
 
@@ -431,9 +435,9 @@ namespace
         }
 
         // fail get* if the value doesn't exist
-        const auto invalidValueName = std::wstring(valueName) + L"_not_valid";
+        const auto invalidValueName2 = std::wstring(valueName) + L"_not_valid";
         GetT result{};
-        const HRESULT hr = getFn(hkey.get(), invalidValueName.c_str(), &result);
+        const HRESULT hr = getFn(hkey.get(), invalidValueName2.c_str(), &result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
     }
 
@@ -472,11 +476,11 @@ TEST_CASE("BasicRegistryTests::ReadWrite", "[registry]")
         wil::unique_hkey hkey;
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
 
-        const auto TestFn = [&hkey](auto value)
+        const auto TestGoodFn = [&hkey](PCWSTR valueName, auto value)
         {
-            REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(hkey.get(), dwordValueName, value));
+            REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(hkey.get(), valueName, value));
             decltype(value) result{};
-            REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(hkey.get(), dwordValueName, &result));
+            REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(hkey.get(), valueName, &result));
             REQUIRE(result == value);
 
             // and verify default value name
@@ -486,30 +490,52 @@ TEST_CASE("BasicRegistryTests::ReadWrite", "[registry]")
             REQUIRE(result == value);
         };
 
+        const auto TestNonExistentFn = [&hkey](auto value)
+        {
+            // fail get* if the value doesn't exist
+            decltype(value) result{};
+            const HRESULT hr = wil::reg::get_value_nothrow(hkey.get(), invalidValueName, &result);
+            REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
+        };
+
+        const auto TestWrongTypeFn = []()
+        {
+            //// fail if get* requests the wrong type
+            //REQUIRE_SUCCEEDED(wil::reg::set_value_qword_nothrow(HKEY_CURRENT_USER, testSubkey, qwordValueName, test_qword_zero));
+            //hr = wil::reg::get_value_nothrow(HKEY_CURRENT_USER, testSubkey, qwordValueName, &result);
+            //REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
+        };
+
         // DWORDs
         for (const auto& value : dwordTestArray)
         {
-            TestFn(value);
+            TestGoodFn(dwordValueName, value);
         }
+        TestNonExistentFn(test_dword_zero);
 
         // QWORDs
         for (const auto& value : qwordTestArray)
         {
-            TestFn(value);
+            TestGoodFn(qwordValueName, value);
         }
+        TestNonExistentFn(test_qword_zero);
 
 #ifdef WIL_ENABLE_EXCEPTIONS
         // TODO: strings shouldn't require exceptions, right?
         // TODO: multiple string types
         for (const auto& value : stringTestArray)
         {
-            TestFn(value);
+            TestGoodFn(stringValueName, value);
         }
+        TestNonExistentFn(test_string_empty);
 
         for (const auto& value : multiStringTestArray)
         {
-            TestFn(value);
+            TestGoodFn(multistringValueName, value);
         }
+        TestNonExistentFn(test_multistring_empty);
+
+        // TODO: byte vectors
 #endif
     }
 
