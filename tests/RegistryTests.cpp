@@ -400,6 +400,23 @@ namespace
         REQUIRE(result == value);
     }
 
+    template<typename GetOutputT, typename SetT, typename GetInputT = GetOutputT>
+    void verify_good(
+        PCWSTR valueName,
+        GetInputT value,
+        std::function<GetOutputT(PCWSTR)> getFn,
+        std::function<void(PCWSTR, SetT)> setFn)
+    {
+        setFn(valueName, value);
+        auto result = getFn(valueName);
+        REQUIRE(result == value);
+
+        // and verify default value name
+        setFn(nullptr, value);
+        result = getFn(nullptr);
+        REQUIRE(result == value);
+    }
+
     template<typename GetOutputT, typename GetT>
     void verify_not_exist_nothrow(
         std::function<HRESULT(PCWSTR, GetOutputT)> getFn)
@@ -781,6 +798,104 @@ TEST_CASE("BasicRegistryTests::ReadWrite", "[registry]")
         // TODO: byte vectors
 #endif
     }
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+    SECTION("typed get and set: with opened key")
+    {
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
+
+        // DWORDs
+        for (const auto& value : dwordTestArray)
+        {
+            verify_good<DWORD, uint32_t>(
+                dwordValueName,
+                value,
+                [&hkey](PCWSTR valueName) -> DWORD { return wil::reg::get_value_dword(hkey.get(), valueName); },
+                [&hkey](PCWSTR valueName, uint32_t input) -> void { wil::reg::set_value_dword(hkey.get(), valueName, input); });
+        }
+        //verify_not_exist_nothrow<DWORD*, DWORD>(
+        //    [&hkey](PCWSTR valueName, DWORD* output) -> HRESULT { return wil::reg::get_value_dword_nothrow(hkey.get(), valueName, output); });
+        //verify_wrong_type_nothrow<DWORD>(
+        //    qwordValueName,
+        //    test_qword_zero,
+        //    [&hkey](PCWSTR valueName, DWORD* output) -> HRESULT { return wil::reg::get_value_dword_nothrow(hkey.get(), valueName, output); },
+        //    [&hkey](PCWSTR valueName, uint64_t input) -> HRESULT { return wil::reg::set_value_qword_nothrow(hkey.get(), valueName, input); });
+
+        // QWORDs
+        for (const auto& value : qwordTestArray)
+        {
+            verify_good<DWORD64, uint64_t>(
+                qwordValueName,
+                value,
+                [&hkey](PCWSTR valueName) -> DWORD64 { return wil::reg::get_value_qword(hkey.get(), valueName); },
+                [&hkey](PCWSTR valueName, uint64_t input) -> void { wil::reg::set_value_qword(hkey.get(), valueName, input); });
+        }
+        //verify_not_exist_nothrow<DWORD64*, DWORD64>(
+        //    [&hkey](PCWSTR valueName, DWORD64* output) -> HRESULT { return wil::reg::get_value_qword_nothrow(hkey.get(), valueName, output); });
+        //verify_wrong_type_nothrow<DWORD64>(
+        //    dwordValueName,
+        //    test_dword_zero,
+        //    [&hkey](PCWSTR valueName, DWORD64* output) -> HRESULT { return wil::reg::get_value_qword_nothrow(hkey.get(), valueName, output); },
+        //    [&hkey](PCWSTR valueName, uint32_t input) -> HRESULT { return wil::reg::set_value_dword_nothrow(hkey.get(), valueName, input); });
+
+        // TODO: multiple string types
+        for (const auto& value : stringTestArray)
+        {
+            verify_good<std::wstring, PCWSTR>(
+                stringValueName,
+                value.c_str(),
+                [&hkey](PCWSTR valueName) -> std::wstring { return wil::reg::get_value_string(hkey.get(), valueName); },
+                [&hkey](PCWSTR valueName, PCWSTR input) -> void { wil::reg::set_value_string(hkey.get(), valueName, input); });
+        }
+        //verify_not_exist_nothrow<std::wstring*, std::wstring>(
+        //    [&hkey](PCWSTR valueName, std::wstring* output) -> HRESULT {
+        //        // TODO: should we take a reference or a pointer?
+        //        return wil::reg::get_value_string_nothrow(hkey.get(), valueName, *output);
+        //    });
+        //verify_wrong_type_nothrow<std::wstring>(
+        //    dwordValueName,
+        //    test_dword_zero,
+        //    [&hkey](PCWSTR valueName, std::wstring* output) -> HRESULT {
+        //        // TODO: should we take a reference or a pointer?
+        //        return wil::reg::get_value_string_nothrow(hkey.get(), valueName, *output);
+        //    },
+        //    [&hkey](PCWSTR valueName, uint32_t input) -> HRESULT { return wil::reg::set_value_dword_nothrow(hkey.get(), valueName, input); });
+        //verify_wrong_type_nothrow<std::wstring>(
+        //    multistringValueName,
+        //    test_multistring_empty,
+        //    [&hkey](PCWSTR valueName, std::wstring* output) -> HRESULT {
+        //        // TODO: should we take a reference or a pointer?
+        //        return wil::reg::get_value_string_nothrow(hkey.get(), valueName, *output);
+        //    },
+        //    [&hkey](PCWSTR valueName, std::vector<std::wstring> const& input) -> HRESULT { return wil::reg::set_value_multistring_nothrow(hkey.get(), valueName, input); });
+
+        for (const auto& value : multiStringTestArray)
+        {
+            verify_good<std::vector<std::wstring>, std::vector<std::wstring>>(
+                multistringValueName,
+                value,
+                [&hkey](PCWSTR valueName) -> std::vector<std::wstring> { return wil::reg::get_value_multistring(hkey.get(), valueName); },
+                [&hkey](PCWSTR valueName, std::vector<std::wstring> const& input) -> void { wil::reg::set_value_multistring(hkey.get(), valueName, input); });
+        }
+        //verify_not_exist_nothrow<std::vector<std::wstring>*, std::vector<std::wstring>>(
+        //    [&hkey](PCWSTR valueName, std::vector<std::wstring>* output) -> HRESULT { return wil::reg::get_value_multistring_nothrow(hkey.get(), valueName, output); });
+        //verify_wrong_type_nothrow<std::vector<std::wstring>>(
+        //    dwordValueName,
+        //    test_dword_zero,
+        //    [&hkey](PCWSTR valueName, std::vector<std::wstring>* output) -> HRESULT { return wil::reg::get_value_multistring_nothrow(hkey.get(), valueName, output); },
+        //    [&hkey](PCWSTR valueName, uint32_t input) -> HRESULT { return wil::reg::set_value_dword_nothrow(hkey.get(), valueName, input); });
+        //// TODO: std::wstring should be const&
+        //verify_wrong_type_nothrow<std::vector<std::wstring>>(
+        //    stringValueName,
+        //    test_string_empty,
+        //    [&hkey](PCWSTR valueName, std::vector<std::wstring>* output) -> HRESULT { return wil::reg::get_value_multistring_nothrow(hkey.get(), valueName, output); },
+        //    [&hkey](PCWSTR valueName, std::wstring input) -> HRESULT { return wil::reg::set_value_string_nothrow(hkey.get(), valueName, input.c_str()); });
+
+        // TODO: expanded strings
+        // TODO: byte vectors
+    }
+#endif
 }
 
 TEST_CASE("BasicRegistryTests::Dwords", "[registry]")
