@@ -21,7 +21,7 @@
 #include "resource.h"
 
 #ifndef __WIL_WINREG_
-#error This is required for ::wil::unique_hkey support
+#error __WIL_WINREG_ is required for ::wil::unique_hkey support; ensure the raw registry APIs (like RegCreateKeyExA) are available
 #endif
 
 // wil registry does not require the use of the STL or C++ exceptions (see _nothrow functions)

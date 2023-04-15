@@ -363,6 +363,24 @@ TEST_CASE("BasicRegistryTests::Open", "[registry]")
 #endif
 }
 
+namespace
+{
+    template<typename T>
+    void verify_set_nothrow(HKEY hkey, T value)
+    {
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(hkey, dwordValueName, value));
+        T result{};
+        REQUIRE_SUCCEEDED(wil::reg::get_value_dword_nothrow(hkey, dwordValueName, &result));
+        REQUIRE(result == value);
+
+        // and verify default value name
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(hkey, nullptr, value));
+        result = {};
+        REQUIRE_SUCCEEDED(wil::reg::get_value_dword_nothrow(hkey, nullptr, &result));
+        REQUIRE(result == value);
+    }
+}
+
 TEST_CASE("BasicRegistryTests::Dwords", "[registry]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
@@ -378,6 +396,8 @@ TEST_CASE("BasicRegistryTests::Dwords", "[registry]")
 
         for (const auto& value : dwordTestArray)
         {
+            verify_set_nothrow(hkey.get(), value);
+
             REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(hkey.get(), dwordValueName, value));
             DWORD result{};
             REQUIRE_SUCCEEDED(wil::reg::get_value_dword_nothrow(hkey.get(), dwordValueName, &result));
