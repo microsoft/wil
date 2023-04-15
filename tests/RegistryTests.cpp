@@ -376,17 +376,21 @@ namespace
     };
 
     template<typename RawT, typename InputT>
-    void verify_set_nothrow(HKEY hkey, InputT value, std::function<HRESULT (HKEY, PCWSTR, RawT)> setFn)
+    void verify_set_nothrow(
+        HKEY hkey,
+        InputT value,
+        std::function<HRESULT (HKEY, PCWSTR, std::add_pointer_t<typename type_identity<InputT>::type>)> getFn,
+        std::function<HRESULT(HKEY, PCWSTR, RawT)> setFn)
     {
         REQUIRE_SUCCEEDED(setFn(hkey, dwordValueName, value));
         InputT result{};
-        REQUIRE_SUCCEEDED(wil::reg::get_value_dword_nothrow(hkey, dwordValueName, &result));
+        REQUIRE_SUCCEEDED(getFn(hkey, dwordValueName, &result));
         REQUIRE(result == value);
 
         // and verify default value name
         REQUIRE_SUCCEEDED(setFn(hkey, nullptr, value));
         result = {};
-        REQUIRE_SUCCEEDED(wil::reg::get_value_dword_nothrow(hkey, nullptr, &result));
+        REQUIRE_SUCCEEDED(getFn(hkey, nullptr, &result));
         REQUIRE(result == value);
     }
 }
@@ -406,7 +410,11 @@ TEST_CASE("BasicRegistryTests::Dwords", "[registry]")
 
         for (const auto& value : dwordTestArray)
         {
-            verify_set_nothrow<uint32_t>(hkey.get(), value, static_cast<HRESULT(*)(HKEY, PCWSTR, uint32_t)>(wil::reg::set_value_dword_nothrow));
+            verify_set_nothrow<uint32_t>(
+                hkey.get(),
+                value,
+                static_cast<HRESULT(*)(HKEY, PCWSTR, DWORD*)>(wil::reg::get_value_dword_nothrow),
+                static_cast<HRESULT(*)(HKEY, PCWSTR, uint32_t)>(wil::reg::set_value_dword_nothrow));
 
             REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(hkey.get(), dwordValueName, value));
             DWORD result{};
