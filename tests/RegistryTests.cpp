@@ -474,6 +474,18 @@ TEST_CASE("BasicRegistryTests::ReadWrite", "[registry]")
             dwordValueName,
             static_cast<HRESULT(*)(HKEY, PCWSTR, DWORD*)>(wil::reg::get_value_dword_nothrow),
             static_cast<HRESULT(*)(HKEY, PCWSTR, uint32_t)>(wil::reg::set_value_dword_nothrow));
+
+        verify_nothrow<DWORD*, uint32_t>(
+            dwordTestArray,
+            dwordValueName,
+            [](HKEY key, PCWSTR valueName, DWORD* output) -> HRESULT { return wil::reg::get_value_dword_nothrow(key, valueName, output); },
+            [](HKEY key, PCWSTR valueName, uint32_t input) -> HRESULT { return wil::reg::set_value_dword_nothrow(key, valueName, input); });
+        verify_nothrow<DWORD*, uint32_t>(
+            dwordTestArray,
+            dwordValueName,
+            [](HKEY, PCWSTR valueName, DWORD* output) -> HRESULT { return wil::reg::get_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, output); },
+            [](HKEY, PCWSTR valueName, uint32_t input) -> HRESULT { return wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, input); });
+
         verify_nothrow<DWORD64*, uint64_t>(
             qwordTestArray,
             qwordValueName,
@@ -494,11 +506,6 @@ TEST_CASE("BasicRegistryTests::ReadWrite", "[registry]")
             [](HKEY hkey, PCWSTR valueName, std::vector<BYTE>* output) -> HRESULT { return wil::reg::get_value_byte_vector_nothrow(hkey, valueName, REG_BINARY, output);  },
             [](HKEY hkey, PCWSTR valueName, std::vector<BYTE> const& input) -> HRESULT { return wil::reg::set_value_byte_vector_nothrow(hkey, valueName, REG_BINARY, input);  });
 #endif
-        verify_nothrow<DWORD*, uint32_t>(
-            dwordTestArray,
-            dwordValueName,
-            static_cast<HRESULT(*)(HKEY, PCWSTR, DWORD*)>(wil::reg::get_value_dword_nothrow),
-            static_cast<HRESULT(*)(HKEY, PCWSTR, uint32_t)>(wil::reg::set_value_dword_nothrow));
     }
 
     SECTION("get and set nothrow: with opened key - invalid type")
