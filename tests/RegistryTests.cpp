@@ -682,6 +682,105 @@ TEST_CASE("BasicRegistryTests::ReadWrite", "[registry]")
         // TODO: byte vectors
 #endif
     }
+
+    SECTION("typed get and set nothrow: with string key")
+    {
+        // DWORDs
+        for (const auto& value : dwordTestArray)
+        {
+            verify_set_nothrow<DWORD*, uint32_t>(
+                dwordValueName,
+                value,
+                [](PCWSTR valueName, DWORD* output) -> HRESULT { return wil::reg::get_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, output); },
+                [](PCWSTR valueName, uint32_t input) -> HRESULT { return wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, input); });
+        }
+        verify_not_exist_nothrow<DWORD*, DWORD>(
+            [](PCWSTR valueName, DWORD* output) -> HRESULT { return wil::reg::get_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, output); });
+        verify_wrong_type_nothrow<DWORD>(
+            qwordValueName,
+            test_qword_zero,
+            [](PCWSTR valueName, DWORD* output) -> HRESULT { return wil::reg::get_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, output); },
+            [](PCWSTR valueName, uint64_t input) -> HRESULT { return wil::reg::set_value_qword_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, input); });
+
+        // QWORDs
+        for (const auto& value : qwordTestArray)
+        {
+            verify_set_nothrow<DWORD64*, uint64_t>(
+                qwordValueName,
+                value,
+                [](PCWSTR valueName, DWORD64* output) -> HRESULT { return wil::reg::get_value_qword_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, output); },
+                [](PCWSTR valueName, uint64_t input) -> HRESULT { return wil::reg::set_value_qword_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, input); });
+        }
+        verify_not_exist_nothrow<DWORD64*, DWORD64>(
+            [](PCWSTR valueName, DWORD64* output) -> HRESULT { return wil::reg::get_value_qword_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, output); });
+        verify_wrong_type_nothrow<DWORD64>(
+            dwordValueName,
+            test_dword_zero,
+            [](PCWSTR valueName, DWORD64* output) -> HRESULT { return wil::reg::get_value_qword_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, output); },
+            [](PCWSTR valueName, uint32_t input) -> HRESULT { return wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, input); });
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+        // TODO: strings shouldn't require exceptions, right?
+        // TODO: multiple string types
+        for (const auto& value : stringTestArray)
+        {
+            verify_set_nothrow<std::wstring*, PCWSTR, PCWSTR, std::wstring>(
+                stringValueName,
+                value.c_str(),
+                [](PCWSTR valueName, std::wstring* output) -> HRESULT {
+                    // TODO: should we take a reference or a pointer?
+                    return wil::reg::get_value_string_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, *output);
+                },
+                [](PCWSTR valueName, PCWSTR input) -> HRESULT { return wil::reg::set_value_string_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, input); });
+        }
+        verify_not_exist_nothrow<std::wstring*, std::wstring>(
+            [](PCWSTR valueName, std::wstring* output) -> HRESULT {
+                // TODO: should we take a reference or a pointer?
+                return wil::reg::get_value_string_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, *output);
+            });
+        verify_wrong_type_nothrow<std::wstring>(
+            dwordValueName,
+            test_dword_zero,
+            [](PCWSTR valueName, std::wstring* output) -> HRESULT {
+                // TODO: should we take a reference or a pointer?
+                return wil::reg::get_value_string_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, *output);
+            },
+            [](PCWSTR valueName, uint32_t input) -> HRESULT { return wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, input); });
+        verify_wrong_type_nothrow<std::wstring>(
+            multistringValueName,
+            test_multistring_empty,
+            [](PCWSTR valueName, std::wstring* output) -> HRESULT {
+                // TODO: should we take a reference or a pointer?
+                return wil::reg::get_value_string_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, *output);
+            },
+            [](PCWSTR valueName, std::vector<std::wstring> const& input) -> HRESULT { return wil::reg::set_value_multistring_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, input); });
+
+        for (const auto& value : multiStringTestArray)
+        {
+            verify_set_nothrow<std::vector<std::wstring>*, std::vector<std::wstring>>(
+                multistringValueName,
+                value,
+                [](PCWSTR valueName, std::vector<std::wstring>* output) -> HRESULT { return wil::reg::get_value_multistring_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, output); },
+                [](PCWSTR valueName, std::vector<std::wstring> const& input) -> HRESULT { return wil::reg::set_value_multistring_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, input); });
+        }
+        verify_not_exist_nothrow<std::vector<std::wstring>*, std::vector<std::wstring>>(
+            [](PCWSTR valueName, std::vector<std::wstring>* output) -> HRESULT { return wil::reg::get_value_multistring_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, output); });
+        verify_wrong_type_nothrow<std::vector<std::wstring>>(
+            dwordValueName,
+            test_dword_zero,
+            [](PCWSTR valueName, std::vector<std::wstring>* output) -> HRESULT { return wil::reg::get_value_multistring_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, output); },
+            [](PCWSTR valueName, uint32_t input) -> HRESULT { return wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, input); });
+        // TODO: std::wstring should be const&
+        verify_wrong_type_nothrow<std::vector<std::wstring>>(
+            stringValueName,
+            test_string_empty,
+            [](PCWSTR valueName, std::vector<std::wstring>* output) -> HRESULT { return wil::reg::get_value_multistring_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, output); },
+            [](PCWSTR valueName, std::wstring input) -> HRESULT { return wil::reg::set_value_string_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, input.c_str()); });
+
+        // TODO: expanded strings
+        // TODO: byte vectors
+#endif
+    }
 }
 
 TEST_CASE("BasicRegistryTests::Dwords", "[registry]")
