@@ -381,11 +381,11 @@ namespace
         using type = T;
     };
 
-    template<typename GetOutputT, typename SetT, typename GetT>
+    template<typename GetOutputT, typename SetT, typename GetInputT, typename GetT = GetInputT>
     void verify_set_nothrow(
         HKEY hkey,
         PCWSTR valueName,
-        GetT value,
+        GetInputT value,
         std::function<HRESULT (HKEY, PCWSTR, GetOutputT)> getFn,
         std::function<HRESULT(HKEY, PCWSTR, SetT)> setFn)
     {
@@ -608,7 +608,6 @@ TEST_CASE("BasicRegistryTests::ReadWrite", "[registry]")
         TestWrongTypeFn(dwordValueName, test_dword_zero, test_string_empty);
         TestWrongTypeFn(multistringValueName, test_multistring_empty, test_string_empty);
 
-        // TODO: seems to be a bug in empty multistring
         for (const auto& value : multiStringTestArray)
         {
             TestGoodFn(multistringValueName, value);
@@ -617,6 +616,72 @@ TEST_CASE("BasicRegistryTests::ReadWrite", "[registry]")
         TestWrongTypeFn(dwordValueName, test_dword_zero, test_multistring_empty);
         TestWrongTypeFn(stringValueName, test_string_empty, test_multistring_empty);
         TestWrongTypeFn(stringValueName, test_string_empty, test_multistring_empty);
+
+        // TODO: byte vectors
+#endif
+    }
+
+    // TODO: test throwing get_value
+
+    SECTION("typed get and set nothrow: with opened key")
+    {
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
+
+        // DWORDs
+        for (const auto& value : dwordTestArray)
+        {
+            verify_set_nothrow<DWORD*, uint32_t>(
+                hkey.get(),
+                dwordValueName,
+                value,
+                [](HKEY key, PCWSTR valueName, DWORD* output) -> HRESULT { return wil::reg::get_value_dword_nothrow(key, valueName, output); },
+                [](HKEY key, PCWSTR valueName, uint32_t input) -> HRESULT { return wil::reg::set_value_dword_nothrow(key, valueName, input); });
+        }
+
+        // QWORDs
+        for (const auto& value : qwordTestArray)
+        {
+            verify_set_nothrow<DWORD64*, uint64_t>(
+                hkey.get(),
+                qwordValueName,
+                value,
+                [](HKEY key, PCWSTR valueName, DWORD64* output) -> HRESULT { return wil::reg::get_value_qword_nothrow(key, valueName, output); },
+                [](HKEY key, PCWSTR valueName, uint64_t input) -> HRESULT { return wil::reg::set_value_qword_nothrow(key, valueName, input); });
+        }
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+        // TODO: strings shouldn't require exceptions, right?
+        // TODO: multiple string types
+        for (const auto& value : stringTestArray)
+        {
+            verify_set_nothrow<std::wstring*, PCWSTR, PCWSTR, std::wstring>(
+                hkey.get(),
+                stringValueName,
+                value.c_str(),
+                [](HKEY key, PCWSTR valueName, std::wstring* output) -> HRESULT {
+                    // TODO: should we take a reference or a pointer?
+                    return wil::reg::get_value_string_nothrow(key, valueName, *output);
+                },
+                [](HKEY key, PCWSTR valueName, PCWSTR input) -> HRESULT { return wil::reg::set_value_string_nothrow(key, valueName, input); });
+        }
+        /*TestNonExistentFn(test_string_empty);
+        TestWrongTypeFn(dwordValueName, test_dword_zero, test_string_empty);
+        TestWrongTypeFn(multistringValueName, test_multistring_empty, test_string_empty);*/
+
+        for (const auto& value : multiStringTestArray)
+        {
+            verify_set_nothrow<std::vector<std::wstring>*, std::vector<std::wstring>>(
+                hkey.get(),
+                multistringValueName,
+                value,
+                [](HKEY key, PCWSTR valueName, std::vector<std::wstring>* output) -> HRESULT { return wil::reg::get_value_multistring_nothrow(key, valueName, output); },
+                [](HKEY key, PCWSTR valueName, std::vector<std::wstring> const& input) -> HRESULT { return wil::reg::set_value_multistring_nothrow(key, valueName, input); });
+        }
+        //TestNonExistentFn(test_multistring_empty);
+        //TestWrongTypeFn(dwordValueName, test_dword_zero, test_multistring_empty);
+        //TestWrongTypeFn(stringValueName, test_string_empty, test_multistring_empty);
+        //TestWrongTypeFn(stringValueName, test_string_empty, test_multistring_empty);
 
         // TODO: byte vectors
 #endif
