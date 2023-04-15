@@ -365,16 +365,26 @@ TEST_CASE("BasicRegistryTests::Open", "[registry]")
 
 namespace
 {
+    // Mimic C++20 type_identity to avoid trying to template-deduce in
+    // function pointers.
+    //
+    // https://en.cppreference.com/w/cpp/types/type_identity
     template<typename T>
-    void verify_set_nothrow(HKEY hkey, T value)
+    struct type_identity
     {
-        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(hkey, dwordValueName, value));
-        T result{};
+        using type = T;
+    };
+
+    template<typename RawT, typename InputT>
+    void verify_set_nothrow(HKEY hkey, InputT value, std::function<HRESULT (HKEY, PCWSTR, RawT)> setFn)
+    {
+        REQUIRE_SUCCEEDED(setFn(hkey, dwordValueName, value));
+        InputT result{};
         REQUIRE_SUCCEEDED(wil::reg::get_value_dword_nothrow(hkey, dwordValueName, &result));
         REQUIRE(result == value);
 
         // and verify default value name
-        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(hkey, nullptr, value));
+        REQUIRE_SUCCEEDED(setFn(hkey, nullptr, value));
         result = {};
         REQUIRE_SUCCEEDED(wil::reg::get_value_dword_nothrow(hkey, nullptr, &result));
         REQUIRE(result == value);
@@ -396,7 +406,7 @@ TEST_CASE("BasicRegistryTests::Dwords", "[registry]")
 
         for (const auto& value : dwordTestArray)
         {
-            verify_set_nothrow(hkey.get(), value);
+            verify_set_nothrow<uint32_t>(hkey.get(), value, static_cast<HRESULT(*)(HKEY, PCWSTR, uint32_t)>(wil::reg::set_value_dword_nothrow));
 
             REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(hkey.get(), dwordValueName, value));
             DWORD result{};
