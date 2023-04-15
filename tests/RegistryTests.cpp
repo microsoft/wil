@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <optional>
+#include <array>
 
 #include <windows.h>
 
@@ -23,7 +24,7 @@ constexpr uint64_t test_qword_zero = 0ull;
 
 constexpr uint32_t test_expanded_string_buffer_size = 100;
 
-constexpr DWORD dwordTestArray[] = { static_cast<DWORD>(-1), 1, 0 };
+constexpr std::array<DWORD, 3> dwordTestArray = { static_cast<DWORD>(-1), 1, 0 };
 constexpr DWORD64 qwordTestArray[] = { static_cast<DWORD64>(-1), 1, 0 };
 const std::wstring stringTestArray[] = { L".", L"", L"Hello there!", L"\0" };
 const std::wstring expandedStringTestArray[] = { L".", L"", L"%WINDIR%", L"\0" };
@@ -409,8 +410,9 @@ namespace
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
     }
 
-    template<typename SetT, typename GetT>
+    template<typename SetT, typename GetT, size_t N>
     void verify_nothrow(
+        std::array<GetT, N> testValues,
         PCWSTR valueName,
         std::function<HRESULT(HKEY, PCWSTR, std::add_pointer_t<typename type_identity<GetT>::type>)> getFn,
         std::function<HRESULT(HKEY, PCWSTR, SetT)> setFn)
@@ -418,7 +420,7 @@ namespace
         wil::unique_hkey hkey;
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
 
-        for (const auto& value : dwordTestArray)
+        for (const auto& value : testValues)
         {
             verify_set_nothrow<uint32_t>(
                 hkey.get(),
@@ -440,10 +442,6 @@ namespace
             test_qword_zero,
             getFn,
             static_cast<HRESULT(*)(HKEY, PCWSTR, uint64_t)>(wil::reg::set_value_qword_nothrow));
-
-        REQUIRE_SUCCEEDED(wil::reg::set_value_qword_nothrow(HKEY_CURRENT_USER, testSubkey, qwordValueName, test_qword_zero));
-        hr = getFn(hkey.get(), qwordValueName, &result);
-        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
     }
 
     template<typename SetT, typename GetT>
@@ -479,6 +477,7 @@ TEST_CASE("BasicRegistryTests::Dwords", "[registry]")
     SECTION("set_value_dword_nothrow/get_value_dword_nothrow: with opened key")
     {
         verify_nothrow<uint32_t, DWORD>(
+            dwordTestArray,
             dwordValueName,
             static_cast<HRESULT(*)(HKEY, PCWSTR, DWORD*)>(wil::reg::get_value_dword_nothrow),
             static_cast<HRESULT(*)(HKEY, PCWSTR, uint32_t)>(wil::reg::set_value_dword_nothrow));
