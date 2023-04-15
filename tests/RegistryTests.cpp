@@ -469,6 +469,95 @@ TEST_CASE("BasicRegistryTests::ReadWrite", "[registry]")
 
     SECTION("get and set nothrow: with opened key")
     {
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
+
+        const auto TestFn = [&hkey](auto value)
+        {
+            REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(hkey.get(), dwordValueName, value));
+            decltype(value) result{};
+            REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(hkey.get(), dwordValueName, &result));
+            REQUIRE(result == value);
+
+            // and verify default value name
+            REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(hkey.get(), nullptr, value));
+            result = {};
+            REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(hkey.get(), nullptr, &result));
+            REQUIRE(result == value);
+        };
+
+        // DWORDs
+        for (const auto& value : dwordTestArray)
+        {
+            TestFn(value);
+        }
+
+        // QWORDs
+        for (const auto& value : qwordTestArray)
+        {
+            TestFn(value);
+        }
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+        // TODO: strings shouldn't require exceptions, right?
+        // TODO: multiple string types
+        for (const auto& value : stringTestArray)
+        {
+            TestFn(value);
+        }
+
+        for (const auto& value : multiStringTestArray)
+        {
+            TestFn(value);
+        }
+#endif
+    }
+
+    SECTION("get and set nothrow: with string key")
+    {
+        const auto TestFn = [](auto value)
+        {
+            REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, value));
+            decltype(value) result{};
+            REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, &result));
+            REQUIRE(result == value);
+
+            // and verify default value name
+            REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, value));
+            result = {};
+            REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, &result));
+            REQUIRE(result == value);
+        };
+
+        // DWORDs
+        for (const auto& value : dwordTestArray)
+        {
+            TestFn(value);
+        }
+
+        // QWORDs
+        for (const auto& value : qwordTestArray)
+        {
+            TestFn(value);
+        }
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+        // TODO: strings shouldn't require exceptions, right?
+        // TODO: multiple string types
+        for (const auto& value : stringTestArray)
+        {
+            TestFn(value);
+        }
+
+        for (const auto& value : multiStringTestArray)
+        {
+            TestFn(value);
+        }
+#endif
+    }
+
+    SECTION("TODO get and set nothrow: with opened key")
+    {
         verify_nothrow<DWORD*, uint32_t>(
             dwordTestArray,
             dwordValueName,
