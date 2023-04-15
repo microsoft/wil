@@ -743,75 +743,9 @@ TEST_CASE("BasicRegistryTests::ReadWrite", "[registry]")
             [](HKEY key, PCWSTR valueName, std::vector<std::wstring>* output) -> HRESULT { return wil::reg::get_value_multistring_nothrow(key, valueName, output); },
             [](HKEY key, PCWSTR valueName, std::wstring input) -> HRESULT { return wil::reg::set_value_string_nothrow(key, valueName, input.c_str()); });
 
+        // TODO: expanded strings
         // TODO: byte vectors
 #endif
-    }
-
-    SECTION("TODO get and set nothrow: with opened key")
-    {
-        verify_nothrow<DWORD*, uint32_t>(
-            dwordTestArray,
-            dwordValueName,
-            [](HKEY key, PCWSTR valueName, DWORD* output) -> HRESULT { return wil::reg::get_value_dword_nothrow(key, valueName, output); },
-            [](HKEY key, PCWSTR valueName, uint32_t input) -> HRESULT { return wil::reg::set_value_dword_nothrow(key, valueName, input); });
-        verify_nothrow<DWORD*, uint32_t>(
-            dwordTestArray,
-            dwordValueName,
-            [](HKEY, PCWSTR valueName, DWORD* output) -> HRESULT { return wil::reg::get_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, output); },
-            [](HKEY, PCWSTR valueName, uint32_t input) -> HRESULT { return wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, input); });
-
-        verify_nothrow<DWORD64*, uint64_t>(
-            qwordTestArray,
-            qwordValueName,
-            [](HKEY key, PCWSTR valueName, DWORD64* output) -> HRESULT { return wil::reg::get_value_qword_nothrow(key, valueName, output); },
-            [](HKEY key, PCWSTR valueName, uint64_t input) -> HRESULT { return wil::reg::set_value_qword_nothrow(key, valueName, input); });
-        verify_nothrow<DWORD64*, uint64_t>(
-            qwordTestArray,
-            qwordValueName,
-            [](HKEY, PCWSTR valueName, DWORD64* output) -> HRESULT { return wil::reg::get_value_qword_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, output); },
-            [](HKEY, PCWSTR valueName, uint64_t input) -> HRESULT { return wil::reg::set_value_qword_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, input); });
-
-#if defined(WIL_ENABLE_EXCEPTIONS)
-        // TODO: strings should not require exceptions.
-        /*verify_nothrow<std::wstring&, PCWSTR, std::wstring>(
-            stringTestArray,
-            stringValueName,
-            [](HKEY hkey, PCWSTR valueName, std::wstring& output) -> HRESULT { return wil::reg::get_value_string_nothrow(hkey, valueName, output);  },
-            static_cast<HRESULT(*)(HKEY, PCWSTR, PCWSTR)>(wil::reg::set_value_string_nothrow));*/
-        // TODO: expanded strings
-        // TODO: other string types
-        // TODO: byte vectors should not require exceptions.
-        verify_nothrow<std::vector<BYTE>*, std::vector<BYTE>>(
-            vectorBytesTestArray,
-            binaryValueName,
-            [](HKEY hkey, PCWSTR valueName, std::vector<BYTE>* output) -> HRESULT { return wil::reg::get_value_byte_vector_nothrow(hkey, valueName, REG_BINARY, output);  },
-            [](HKEY hkey, PCWSTR valueName, std::vector<BYTE> const& input) -> HRESULT { return wil::reg::set_value_byte_vector_nothrow(hkey, valueName, REG_BINARY, input);  });
-        verify_nothrow<std::vector<BYTE>*, std::vector<BYTE>>(
-            vectorBytesTestArray,
-            binaryValueName,
-            [](HKEY, PCWSTR valueName, std::vector<BYTE>* output) -> HRESULT { return wil::reg::get_value_byte_vector_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, REG_BINARY, output);  },
-            [](HKEY, PCWSTR valueName, std::vector<BYTE> const& input) -> HRESULT { return wil::reg::set_value_byte_vector_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, REG_BINARY, input);  });
-#endif
-    }
-
-    SECTION("get and set nothrow: with opened key - invalid type")
-    {
-        wil::unique_hkey hkey;
-        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
-
-        // fail if get* requests the wrong type
-        verify_wrong_type_nothrow<DWORD>(
-            hkey.get(),
-            qwordValueName,
-            test_qword_zero,
-            static_cast<HRESULT(*)(HKEY, PCWSTR, DWORD*)>(wil::reg::get_value_dword_nothrow),
-            static_cast<HRESULT(*)(HKEY, PCWSTR, uint64_t)>(wil::reg::set_value_qword_nothrow));
-        verify_wrong_type_nothrow<DWORD64>(
-            hkey.get(),
-            qwordValueName,
-            test_dword_zero,
-            static_cast<HRESULT(*)(HKEY, PCWSTR, DWORD64*)>(wil::reg::get_value_qword_nothrow),
-            static_cast<HRESULT(*)(HKEY, PCWSTR, uint32_t)>(wil::reg::set_value_dword_nothrow));
     }
 }
 
@@ -821,15 +755,6 @@ TEST_CASE("BasicRegistryTests::Dwords", "[registry]")
     if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
     {
         REQUIRE_SUCCEEDED(deleteHr);
-    }
-
-    SECTION("set_value_dword_nothrow/get_value_dword_nothrow: with opened key")
-    {
-        verify_nothrow<DWORD*, uint32_t>(
-            dwordTestArray,
-            dwordValueName,
-            static_cast<HRESULT(*)(HKEY, PCWSTR, DWORD*)>(wil::reg::get_value_dword_nothrow),
-            static_cast<HRESULT(*)(HKEY, PCWSTR, uint32_t)>(wil::reg::set_value_dword_nothrow));
     }
 
     SECTION("set_value_dword_nothrow/get_value_dword_nothrow: with string key")
@@ -1074,35 +999,6 @@ TEST_CASE("BasicRegistryTests::Qwords", "[registry]")
         REQUIRE_SUCCEEDED(deleteHr);
     }
 
-    SECTION("set_value_qword_nothrow/get_value_qword_nothrow: with opened key")
-    {
-        wil::unique_hkey hkey;
-        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
-
-        for (const auto& value : qwordTestArray)
-        {
-            REQUIRE_SUCCEEDED(wil::reg::set_value_qword_nothrow(hkey.get(), qwordValueName, value));
-            DWORD64 result{};
-            REQUIRE_SUCCEEDED(wil::reg::get_value_qword_nothrow(hkey.get(), qwordValueName, &result));
-            REQUIRE(result == value);
-
-            // and verify default value name
-            REQUIRE_SUCCEEDED(wil::reg::set_value_qword_nothrow(hkey.get(), nullptr, value));
-            result = {};
-            REQUIRE_SUCCEEDED(wil::reg::get_value_qword_nothrow(hkey.get(), nullptr, &result));
-            REQUIRE(result == value);
-        }
-
-        // fail get* if the value doesn't exist
-        DWORD64 result{};
-        auto hr = wil::reg::get_value_qword_nothrow(hkey.get(), (std::wstring(qwordValueName) + L"_not_valid").c_str(), &result);
-        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
-
-        // fail if get* requests the wrong type
-        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, test_dword_zero));
-        hr = wil::reg::get_value_qword_nothrow(hkey.get(), dwordValueName, &result);
-        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
-    }
     SECTION("set_value_qword_nothrow/get_value_qword_nothrow: with string key")
     {
         for (const auto& value : qwordTestArray)
@@ -1357,35 +1253,6 @@ TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
         REQUIRE_SUCCEEDED(deleteHr);
     }
 
-    SECTION("set_value_string_nothrow/get_value_string_nothrow: with opened key")
-    {
-        wil::unique_hkey hkey;
-        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
-
-        for (const auto& value : stringTestArray)
-        {
-            REQUIRE_SUCCEEDED(wil::reg::set_value_string_nothrow(hkey.get(), stringValueName, value.c_str()));
-            std::wstring result{};
-            REQUIRE_SUCCEEDED(wil::reg::get_value_string_nothrow(hkey.get(), stringValueName, result));
-            REQUIRE(result == value);
-
-            // and verify default value name
-            REQUIRE_SUCCEEDED(wil::reg::set_value_string_nothrow(hkey.get(), nullptr, value.c_str()));
-            result = {};
-            REQUIRE_SUCCEEDED(wil::reg::get_value_string_nothrow(hkey.get(), nullptr, result));
-            REQUIRE(result == value);
-        }
-
-        // fail get* if the value doesn't exist
-        std::wstring result{};
-        auto hr = wil::reg::get_value_string_nothrow(hkey.get(), (std::wstring(stringValueName) + L"_not_valid").c_str(), result);
-        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
-
-        // fail if get* requests the wrong type
-        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, test_dword_zero));
-        hr = wil::reg::get_value_string_nothrow(hkey.get(), dwordValueName, result);
-        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
-    }
     SECTION("set_value_string_nothrow/get_value_string_nothrow: with string key")
     {
         for (const auto& value : stringTestArray)
@@ -3837,74 +3704,40 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
         REQUIRE_SUCCEEDED(deleteHr);
     }
 
-    SECTION("set_value_multistring_nothrow/get_value_multistring_nothrow: with opened key")
+    SECTION("set_value_multistring_nothrow/get_value_multistring_nothrow: empty array with opened key")
     {
         wil::unique_hkey hkey;
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
 
-        for (const auto& value : multiStringTestArray)
-        {
-            REQUIRE_SUCCEEDED(wil::reg::set_value_multistring_nothrow(hkey.get(), stringValueName, value));
-            std::vector<std::wstring> result{};
-            REQUIRE_SUCCEEDED(wil::reg::get_value_multistring_nothrow(hkey.get(), stringValueName, &result));
-            // if value == empty, we wrote in 2 null-terminators as part of set_value_multistring_nothrow (i.e. a single empty string)
-            // thus the result should have one empty string
-            auto adjustedValue = value;
-            if (adjustedValue.empty())
-            {
-                adjustedValue.resize(1);
-            }
-            REQUIRE(result == adjustedValue);
-
-            // and verify default value name
-            REQUIRE_SUCCEEDED(wil::reg::set_value_multistring_nothrow(hkey.get(), nullptr, value));
-            result = {};
-            REQUIRE_SUCCEEDED(wil::reg::get_value_multistring_nothrow(hkey.get(), nullptr, &result));
-            REQUIRE(result == adjustedValue);
-        }
-
-        // fail get* if the value doesn't exist
+        // When passed an empty array, we write in 2 null-terminators as part of set_value_multistring_nothrow (i.e. a single empty string)
+        // thus the result should have one empty string
+        std::vector<std::wstring> arrayOfOne{ L"" };
+        REQUIRE_SUCCEEDED(wil::reg::set_value_multistring_nothrow(hkey.get(), stringValueName, test_multistring_empty));
         std::vector<std::wstring> result{};
-        auto hr = wil::reg::get_value_multistring_nothrow(hkey.get(), (std::wstring(stringValueName) + L"_not_valid").c_str(), &result);
-        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
+        REQUIRE_SUCCEEDED(wil::reg::get_value_multistring_nothrow(hkey.get(), stringValueName, &result));
+        REQUIRE(result == arrayOfOne);
 
-        // fail if get* requests the wrong type
-        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, test_dword_zero));
-        hr = wil::reg::get_value_multistring_nothrow(hkey.get(), dwordValueName, &result);
-        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
+        // and verify default value name
+        REQUIRE_SUCCEEDED(wil::reg::set_value_multistring_nothrow(hkey.get(), nullptr, test_multistring_empty));
+        result = {};
+        REQUIRE_SUCCEEDED(wil::reg::get_value_multistring_nothrow(hkey.get(), nullptr, &result));
+        REQUIRE(result == arrayOfOne);
     }
-    SECTION("set_value_multistring_nothrow/get_value_multistring_nothrow: with string key")
+    SECTION("set_value_multistring_nothrow/get_value_multistring_nothrow: empty array with string key")
     {
-        for (const auto& value : multiStringTestArray)
-        {
-            REQUIRE_SUCCEEDED(wil::reg::set_value_multistring_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, value));
-            std::vector<std::wstring> result{};
-            REQUIRE_SUCCEEDED(wil::reg::get_value_multistring_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, &result));
-            // if value == empty, we wrote in 2 null-terminators as part of set_value_multistring_nothrow (i.e. a single empty string)
-            // thus the result should have one empty string
-            auto adjustedValue = value;
-            if (adjustedValue.empty())
-            {
-                adjustedValue.resize(1);
-            }
-            REQUIRE(result == adjustedValue);
-
-            // and verify default value name
-            REQUIRE_SUCCEEDED(wil::reg::set_value_multistring_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, value));
-            result = {};
-            REQUIRE_SUCCEEDED(wil::reg::get_value_multistring_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, &result));
-            REQUIRE(result == adjustedValue);
-        }
-
-        // fail get* if the value doesn't exist
+        // When passed an empty array, we write in 2 null-terminators as part of set_value_multistring_nothrow (i.e. a single empty string)
+        // thus the result should have one empty string
+        std::vector<std::wstring> arrayOfOne{ L"" };
+        REQUIRE_SUCCEEDED(wil::reg::set_value_multistring_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, test_multistring_empty));
         std::vector<std::wstring> result{};
-        auto hr = wil::reg::get_value_multistring_nothrow(HKEY_CURRENT_USER, testSubkey, (std::wstring(stringValueName) + L"_not_valid").c_str(), &result);
-        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
+        REQUIRE_SUCCEEDED(wil::reg::get_value_multistring_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, &result));
+        REQUIRE(result == arrayOfOne);
 
-        // fail if get* requests the wrong type
-        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, test_dword_zero));
-        hr = wil::reg::get_value_multistring_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, &result);
-        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
+        // and verify default value name
+        REQUIRE_SUCCEEDED(wil::reg::set_value_multistring_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, test_multistring_empty));
+        result = {};
+        REQUIRE_SUCCEEDED(wil::reg::get_value_multistring_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, &result));
+        REQUIRE(result == arrayOfOne);
     }
 
     SECTION("set_value_nothrow/get_value_nothrow: empty array with opened key")
