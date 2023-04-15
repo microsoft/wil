@@ -25,6 +25,8 @@ constexpr uint32_t test_dword_three = 3ul;
 constexpr uint32_t test_dword_zero = 0ul;
 constexpr uint64_t test_qword_zero = 0ull;
 const std::wstring test_string_empty{};
+
+// The empty multistring array has specific behavior: it will be read as an array with one string.
 const std::vector<std::wstring> test_multistring_empty{};
 
 constexpr uint32_t test_expanded_string_buffer_size = 100;
@@ -39,8 +41,6 @@ const std::vector<std::wstring> multiStringTestArray[]{
     { {}, {L"."}, {}, {L"."}, {}, {} },
     { {L"Hello there!"}, {L"Hello a second time!"}, {L"Hello a third time!"} },
     { {L""}, {L""}, {L""} },
-    // TODO: besto
-    //{},
     { {L"a"} }
 };
 
@@ -535,7 +535,6 @@ TEST_CASE("BasicRegistryTests::ReadWrite", "[registry]")
         TestWrongTypeFn(dwordValueName, test_dword_zero, test_string_empty);
         TestWrongTypeFn(multistringValueName, test_multistring_empty, test_string_empty);
 
-        // TODO: seems to be a bug in empty multistring
         for (const auto& value : multiStringTestArray)
         {
             TestGoodFn(multistringValueName, value);
@@ -3820,15 +3819,14 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
 
         // When passed an empty array, we write in 2 null-terminators as part of set_value_multistring_nothrow (i.e. a single empty string)
         // thus the result should have one empty string
-        std::vector<std::wstring> emptyArray{};
         std::vector<std::wstring> arrayOfOne{ L"" };
-        REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(hkey.get(), stringValueName, emptyArray));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(hkey.get(), stringValueName, test_multistring_empty));
         std::vector<std::wstring> result{};
         REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(hkey.get(), stringValueName, &result));
         REQUIRE(result == arrayOfOne);
 
         // and verify default value name
-        REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(hkey.get(), nullptr, emptyArray));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(hkey.get(), nullptr, test_multistring_empty));
         result = {};
         REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(hkey.get(), nullptr, &result));
         REQUIRE(result == arrayOfOne);
@@ -3837,15 +3835,14 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
     {
         // When passed an empty array, we write in 2 null-terminators as part of set_value_multistring_nothrow (i.e. a single empty string)
         // thus the result should have one empty string
-        std::vector<std::wstring> emptyArray{};
         std::vector<std::wstring> arrayOfOne{ L"" };
-        REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, emptyArray));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, test_multistring_empty));
         std::vector<std::wstring> result{};
         REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, &result));
         REQUIRE(result == arrayOfOne);
 
         // and verify default value name
-        REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, emptyArray));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, test_multistring_empty));
         result = {};
         REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, &result));
         REQUIRE(result == arrayOfOne);
