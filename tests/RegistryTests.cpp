@@ -483,12 +483,6 @@ TEST_CASE("BasicRegistryTests::ReadWrite", "[registry]")
         verify_nothrow<DWORD64*, uint64_t>(
             qwordTestArray,
             qwordValueName,
-            static_cast<HRESULT(*)(HKEY, PCWSTR, DWORD64*)>(wil::reg::get_value_qword_nothrow),
-            static_cast<HRESULT(*)(HKEY, PCWSTR, uint64_t)>(wil::reg::set_value_qword_nothrow));
-
-        verify_nothrow<DWORD64*, uint64_t>(
-            qwordTestArray,
-            qwordValueName,
             [](HKEY key, PCWSTR valueName, DWORD64* output) -> HRESULT { return wil::reg::get_value_qword_nothrow(key, valueName, output); },
             [](HKEY key, PCWSTR valueName, uint64_t input) -> HRESULT { return wil::reg::set_value_qword_nothrow(key, valueName, input); });
         verify_nothrow<DWORD64*, uint64_t>(
@@ -506,11 +500,17 @@ TEST_CASE("BasicRegistryTests::ReadWrite", "[registry]")
             static_cast<HRESULT(*)(HKEY, PCWSTR, PCWSTR)>(wil::reg::set_value_string_nothrow));*/
         // TODO: expanded strings
         // TODO: other string types
+        // TODO: byte vectors should not require exceptions.
         verify_nothrow<std::vector<BYTE>*, std::vector<BYTE>>(
             vectorBytesTestArray,
             binaryValueName,
             [](HKEY hkey, PCWSTR valueName, std::vector<BYTE>* output) -> HRESULT { return wil::reg::get_value_byte_vector_nothrow(hkey, valueName, REG_BINARY, output);  },
             [](HKEY hkey, PCWSTR valueName, std::vector<BYTE> const& input) -> HRESULT { return wil::reg::set_value_byte_vector_nothrow(hkey, valueName, REG_BINARY, input);  });
+        verify_nothrow<std::vector<BYTE>*, std::vector<BYTE>>(
+            vectorBytesTestArray,
+            binaryValueName,
+            [](HKEY, PCWSTR valueName, std::vector<BYTE>* output) -> HRESULT { return wil::reg::get_value_byte_vector_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, REG_BINARY, output);  },
+            [](HKEY, PCWSTR valueName, std::vector<BYTE> const& input) -> HRESULT { return wil::reg::set_value_byte_vector_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, REG_BINARY, input);  });
 #endif
     }
 
@@ -533,6 +533,36 @@ TEST_CASE("BasicRegistryTests::ReadWrite", "[registry]")
             static_cast<HRESULT(*)(HKEY, PCWSTR, DWORD64*)>(wil::reg::get_value_qword_nothrow),
             static_cast<HRESULT(*)(HKEY, PCWSTR, uint32_t)>(wil::reg::set_value_dword_nothrow));
     }
+
+   /* SECTION("get and set")
+    {
+        const auto TestFn = [](auto testArray, auto valueName, auto getFn, auto setFn)
+        {
+
+        };
+
+        verify_nothrow<DWORD*, uint32_t>(
+            dwordTestArray,
+            dwordValueName,
+            [](HKEY key, PCWSTR valueName, DWORD* output) -> HRESULT { return wil::reg::get_value_dword_nothrow(key, valueName, output); },
+            [](HKEY key, PCWSTR valueName, uint32_t input) -> HRESULT { return wil::reg::set_value_dword_nothrow(key, valueName, input); });
+        verify_nothrow<DWORD*, uint32_t>(
+            dwordTestArray,
+            dwordValueName,
+            [](HKEY, PCWSTR valueName, DWORD* output) -> HRESULT { return wil::reg::get_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, output); },
+            [](HKEY, PCWSTR valueName, uint32_t input) -> HRESULT { return wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, input); });
+
+        verify_nothrow<DWORD64*, uint64_t>(
+            qwordTestArray,
+            qwordValueName,
+            [](HKEY key, PCWSTR valueName, DWORD64* output) -> HRESULT { return wil::reg::get_value_qword_nothrow(key, valueName, output); },
+            [](HKEY key, PCWSTR valueName, uint64_t input) -> HRESULT { return wil::reg::set_value_qword_nothrow(key, valueName, input); });
+        verify_nothrow<DWORD64*, uint64_t>(
+            qwordTestArray,
+            qwordValueName,
+            [](HKEY, PCWSTR valueName, DWORD64* output) -> HRESULT { return wil::reg::get_value_qword_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, output); },
+            [](HKEY, PCWSTR valueName, uint64_t input) -> HRESULT { return wil::reg::set_value_qword_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, input); });
+    }*/
 }
 
 TEST_CASE("BasicRegistryTests::Dwords", "[registry]")
@@ -579,6 +609,12 @@ TEST_CASE("BasicRegistryTests::Dwords", "[registry]")
     {
         wil::unique_hkey hkey;
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
+
+        const auto TestFn = [](auto testArray)
+        {
+            testArray;
+        };
+        TestFn(dwordTestArray);
 
         for (const auto& value : dwordTestArray)
         {
