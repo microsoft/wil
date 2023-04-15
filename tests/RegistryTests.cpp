@@ -375,22 +375,44 @@ namespace
         using type = T;
     };
 
-    template<typename RawT, typename InputT>
+    template<typename SetT, typename GetT>
     void verify_set_nothrow(
         HKEY hkey,
-        InputT value,
-        std::function<HRESULT (HKEY, PCWSTR, std::add_pointer_t<typename type_identity<InputT>::type>)> getFn,
-        std::function<HRESULT(HKEY, PCWSTR, RawT)> setFn)
+        PCWSTR valueName,
+        GetT value,
+        std::function<HRESULT (HKEY, PCWSTR, std::add_pointer_t<typename type_identity<GetT>::type>)> getFn,
+        std::function<HRESULT(HKEY, PCWSTR, SetT)> setFn)
     {
-        REQUIRE_SUCCEEDED(setFn(hkey, dwordValueName, value));
-        InputT result{};
-        REQUIRE_SUCCEEDED(getFn(hkey, dwordValueName, &result));
+        REQUIRE_SUCCEEDED(setFn(hkey, valueName, value));
+        GetT result{};
+        REQUIRE_SUCCEEDED(getFn(hkey, valueName, &result));
         REQUIRE(result == value);
 
         // and verify default value name
         REQUIRE_SUCCEEDED(setFn(hkey, nullptr, value));
         result = {};
         REQUIRE_SUCCEEDED(getFn(hkey, nullptr, &result));
+        REQUIRE(result == value);
+    }
+
+    template<typename SetT, typename GetT>
+    void verify_set_subkey_nothrow(
+        HKEY hkey,
+        PCWSTR subkey,
+        PCWSTR valueName,
+        GetT value,
+        std::function<HRESULT(HKEY, PCWSTR, PCWSTR, std::add_pointer_t<typename type_identity<GetT>::type>)> getFn,
+        std::function<HRESULT(HKEY, PCWSTR, PCWSTR, SetT)> setFn)
+    {
+        REQUIRE_SUCCEEDED(setFn(hkey, subkey, valueName, value));
+        GetT result{};
+        REQUIRE_SUCCEEDED(getFn(hkey, subkey, valueName, &result));
+        REQUIRE(result == value);
+
+        // and verify default value name
+        REQUIRE_SUCCEEDED(setFn(hkey, subkey, nullptr, value));
+        result = {};
+        REQUIRE_SUCCEEDED(getFn(hkey, subkey, nullptr, &result));
         REQUIRE(result == value);
     }
 }
@@ -412,20 +434,10 @@ TEST_CASE("BasicRegistryTests::Dwords", "[registry]")
         {
             verify_set_nothrow<uint32_t>(
                 hkey.get(),
+                dwordValueName,
                 value,
                 static_cast<HRESULT(*)(HKEY, PCWSTR, DWORD*)>(wil::reg::get_value_dword_nothrow),
                 static_cast<HRESULT(*)(HKEY, PCWSTR, uint32_t)>(wil::reg::set_value_dword_nothrow));
-
-            REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(hkey.get(), dwordValueName, value));
-            DWORD result{};
-            REQUIRE_SUCCEEDED(wil::reg::get_value_dword_nothrow(hkey.get(), dwordValueName, &result));
-            REQUIRE(result == value);
-
-            // and verify default value name
-            REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(hkey.get(), nullptr, value));
-            result = {};
-            REQUIRE_SUCCEEDED(wil::reg::get_value_dword_nothrow(hkey.get(), nullptr, &result));
-            REQUIRE(result == value);
         }
 
         // fail get* if the value doesn't exist
@@ -442,16 +454,13 @@ TEST_CASE("BasicRegistryTests::Dwords", "[registry]")
     {
         for (const auto& value : dwordTestArray)
         {
-            REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, value));
-            DWORD result{};
-            REQUIRE_SUCCEEDED(wil::reg::get_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, &result));
-            REQUIRE(result == value);
-
-            // and verify default value name
-            REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, value));
-            result = {};
-            REQUIRE_SUCCEEDED(wil::reg::get_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, &result));
-            REQUIRE(result == value);
+            verify_set_subkey_nothrow<uint32_t>(
+                HKEY_CURRENT_USER,
+                testSubkey,
+                dwordValueName,
+                value,
+                static_cast<HRESULT(*)(HKEY, PCWSTR, PCWSTR, DWORD*)>(wil::reg::get_value_dword_nothrow),
+                static_cast<HRESULT(*)(HKEY, PCWSTR, PCWSTR, uint32_t)>(wil::reg::set_value_dword_nothrow));
         }
 
         // fail get* if the value doesn't exist
@@ -771,6 +780,14 @@ TEST_CASE("BasicRegistryTests::Qwords", "[registry]")
     {
         for (const auto& value : qwordTestArray)
         {
+            verify_set_subkey_nothrow<uint64_t>(
+                HKEY_CURRENT_USER,
+                testSubkey,
+                qwordValueName,
+                value,
+                static_cast<HRESULT(*)(HKEY, PCWSTR, PCWSTR, DWORD64*)>(wil::reg::get_value_qword_nothrow),
+                static_cast<HRESULT(*)(HKEY, PCWSTR, PCWSTR, uint64_t)>(wil::reg::set_value_qword_nothrow));
+
             REQUIRE_SUCCEEDED(wil::reg::set_value_qword_nothrow(HKEY_CURRENT_USER, testSubkey, qwordValueName, value));
             DWORD64 result{};
             REQUIRE_SUCCEEDED(wil::reg::get_value_qword_nothrow(HKEY_CURRENT_USER, testSubkey, qwordValueName, &result));
