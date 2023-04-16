@@ -1467,7 +1467,7 @@ TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
 namespace
 {
     template<typename StringT>
-    void verify_good_string_nothrow(HKEY key)
+    void verify_string_nothrow(HKEY key)
     {
         for (const auto& value : stringTestArray)
         {
@@ -1495,7 +1495,7 @@ namespace
     }
 
     template<typename StringT>
-    void verify_good_string_nothrow(HKEY key, PCWSTR subkey)
+    void verify_string_nothrow(HKEY key, PCWSTR subkey)
     {
         for (const auto& value : stringTestArray)
         {
@@ -1521,6 +1521,62 @@ namespace
         hr = wil::reg::get_value_string_nothrow(key, subkey, dwordValueName, result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
     }
+
+    template<typename StringT>
+    void verify_generic_string_nothrow(HKEY key)
+    {
+        for (const auto& value : stringTestArray)
+        {
+            REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(key, stringValueName, value.c_str()));
+            StringT result{};
+            REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(key, stringValueName, &result));
+            REQUIRE(AreStringsEqual(result, value));
+
+            // and verify default value name
+            REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(key, nullptr, value.c_str()));
+            result = {};
+            REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(key, nullptr, &result));
+            REQUIRE(AreStringsEqual(result, value));
+        }
+
+        // fail get* if the value doesn't exist
+        StringT result{};
+        HRESULT hr = wil::reg::get_value_nothrow(key, invalidValueName, &result);
+        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
+
+        // fail if get* requests the wrong type
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(key, dwordValueName, test_dword_zero));
+        hr = wil::reg::get_value_nothrow(key, dwordValueName, &result);
+        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
+    }
+
+    template<typename StringT>
+    void verify_generic_string_nothrow(HKEY key, PCWSTR subkey)
+    {
+        for (const auto& value : stringTestArray)
+        {
+            REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(key, subkey, stringValueName, value.c_str()));
+            StringT result{};
+            REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(key, subkey, stringValueName, &result));
+            REQUIRE(AreStringsEqual(result, value));
+
+            // and verify default value name
+            REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(key, subkey, nullptr, value.c_str()));
+            result = {};
+            REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(key, subkey, nullptr, &result));
+            REQUIRE(AreStringsEqual(result, value));
+        }
+
+        // fail get* if the value doesn't exist
+        StringT result{};
+        HRESULT hr = wil::reg::get_value_nothrow(key, subkey, invalidValueName, &result);
+        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
+
+        // fail if get* requests the wrong type
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(key, subkey, dwordValueName, test_dword_zero));
+        hr = wil::reg::get_value_nothrow(key, subkey, dwordValueName, &result);
+        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
+    }
 }
 
 TEST_CASE("BasicRegistryTests::string types", "[registry]")
@@ -1531,16 +1587,16 @@ TEST_CASE("BasicRegistryTests::string types", "[registry]")
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
 
 #if defined(__WIL_OLEAUTO_H_)
-        verify_good_string_nothrow<wil::unique_bstr>(hkey.get());
+        verify_string_nothrow<wil::unique_bstr>(hkey.get());
 #if defined(__WIL_OLEAUTO_H_STL)
-        verify_good_string_nothrow<wil::shared_bstr>(hkey.get());
+        verify_string_nothrow<wil::shared_bstr>(hkey.get());
 #endif
 #endif
 
 #if defined(__WIL_OBJBASE_H_)
-        verify_good_string_nothrow<wil::unique_cotaskmem_string>(hkey.get());
+        verify_string_nothrow<wil::unique_cotaskmem_string>(hkey.get());
 #if defined(__WIL_OBJBASE_H_STL)
-        verify_good_string_nothrow<wil::shared_cotaskmem_string>(hkey.get());
+        verify_string_nothrow<wil::shared_cotaskmem_string>(hkey.get());
 #endif
 #endif
     }
@@ -1548,16 +1604,53 @@ TEST_CASE("BasicRegistryTests::string types", "[registry]")
     SECTION("set_value_string_nothrow/get_value_string_nothrow: with string key")
     {
 #if defined(__WIL_OLEAUTO_H_)
-        verify_good_string_nothrow<wil::unique_bstr>(HKEY_CURRENT_USER, testSubkey);
+        verify_string_nothrow<wil::unique_bstr>(HKEY_CURRENT_USER, testSubkey);
 #if defined(__WIL_OLEAUTO_H_STL)
-        verify_good_string_nothrow<wil::shared_bstr>(HKEY_CURRENT_USER, testSubkey);
+        verify_string_nothrow<wil::shared_bstr>(HKEY_CURRENT_USER, testSubkey);
 #endif
 #endif
 
 #if defined(__WIL_OBJBASE_H_)
-        verify_good_string_nothrow<wil::unique_cotaskmem_string>(HKEY_CURRENT_USER, testSubkey);
+        verify_string_nothrow<wil::unique_cotaskmem_string>(HKEY_CURRENT_USER, testSubkey);
 #if defined(__WIL_OBJBASE_H_STL)
-        verify_good_string_nothrow<wil::shared_cotaskmem_string>(HKEY_CURRENT_USER, testSubkey);
+        verify_string_nothrow<wil::shared_cotaskmem_string>(HKEY_CURRENT_USER, testSubkey);
+#endif
+#endif
+    }
+
+    SECTION("strings set_value_nothrow/get_value_nothrow: with opened key")
+    {
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
+
+#if defined(__WIL_OLEAUTO_H_)
+        verify_generic_string_nothrow<wil::unique_bstr>(hkey.get());
+#if defined(__WIL_OLEAUTO_H_STL)
+        verify_generic_string_nothrow<wil::shared_bstr>(hkey.get());
+#endif
+#endif
+
+#if defined(__WIL_OBJBASE_H_)
+        verify_generic_string_nothrow<wil::unique_cotaskmem_string>(hkey.get());
+#if defined(__WIL_OBJBASE_H_STL)
+        verify_generic_string_nothrow<wil::shared_cotaskmem_string>(hkey.get());
+#endif
+#endif
+    }
+
+    SECTION("strings set_value_nothrow/get_value_nothrow: with opened key")
+    {
+#if defined(__WIL_OLEAUTO_H_)
+        verify_generic_string_nothrow<wil::unique_bstr>(HKEY_CURRENT_USER, testSubkey);
+#if defined(__WIL_OLEAUTO_H_STL)
+        verify_generic_string_nothrow<wil::shared_bstr>(HKEY_CURRENT_USER, testSubkey);
+#endif
+#endif
+
+#if defined(__WIL_OBJBASE_H_)
+        verify_generic_string_nothrow<wil::unique_cotaskmem_string>(HKEY_CURRENT_USER, testSubkey);
+#if defined(__WIL_OBJBASE_H_STL)
+        verify_generic_string_nothrow<wil::shared_cotaskmem_string>(HKEY_CURRENT_USER, testSubkey);
 #endif
 #endif
     }
