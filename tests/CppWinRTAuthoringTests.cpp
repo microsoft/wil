@@ -152,7 +152,6 @@ TEST_CASE("CppWinRTAuthoringTests::NotifyPropertyChanged", "[property][LocalOnly
 
     struct Test : winrt::implements<Test, winrt::Windows::UI::Xaml::Data::INotifyPropertyChanged>, wil::notify_property_changed_base<Test>
     {
-      using wil::notify_property_changed_base<Test>::PropertyChanged;
       wil::single_threaded_notifying_property<int> MyProperty;
       Test() : INIT_NOTIFY_PROPERTY(MyProperty, 42) {}
     };

@@ -32,7 +32,7 @@ namespace wil
     }
 
     template <typename T>
-    struct single_threaded_ro_property : std::conditional_t<std::is_scalar_v<T>, details::single_threaded_property_storage<T>, T>
+    struct single_threaded_ro_property : std::conditional_t<std::is_scalar_v<T>, wil::details::single_threaded_property_storage<T>, T>
     {
         single_threaded_ro_property() = default;
         single_threaded_ro_property(const T& t) : base_type(t) { }
@@ -43,7 +43,7 @@ namespace wil
         }
         template<typename Q> auto operator=(Q&& q) = delete;
     private:
-        using base_type = std::conditional_t<std::is_scalar_v<T>, details::single_threaded_property_storage<T>, T>;
+        using base_type = std::conditional_t<std::is_scalar_v<T>, wil::details::single_threaded_property_storage<T>, T>;
     };
 
     template <typename T>
@@ -97,7 +97,7 @@ namespace wil
      * @tparam T The event data type.
     */
     template<typename T>
-    struct simple_event : details::event_base<winrt::Windows::Foundation::EventHandler<T>> {};
+    struct simple_event : wil::details::event_base<winrt::Windows::Foundation::EventHandler<T>> {};
 
     /**
      * @brief A default event handler that maps to [Windows.Foundation.TypedEventHandler](https://docs.microsoft.com/uwp/api/windows.foundation.typedeventhandler-2).
@@ -110,7 +110,7 @@ namespace wil
      * @endcode
     */
     template<typename TSender, typename TArgs>
-    struct typed_event : details::event_base<winrt::Windows::Foundation::TypedEventHandler<TSender, TArgs>> {};
+    struct typed_event : wil::details::event_base<winrt::Windows::Foundation::TypedEventHandler<TSender, TArgs>> {};
 
 #endif // !defined(__WIL_CPPWINRT_AUTHORING_INCLUDED_FOUNDATION) && defined(WINRT_Windows_Foundation_H)
 
@@ -187,8 +187,8 @@ namespace details
      * @details Use the #INIT_NOTIFY_PROPERTY macro to initialize this property in your class constructor. This will set up the right property name, and bind it to the `notify_property_changed_base` implementation.
     */
     template<typename T,
-        typename Xaml_Data_PropertyChangedEventHandler = details::Xaml_Data_PropertyChangedEventHandler,
-        typename Xaml_Data_PropertyChangedEventArgs = details::Xaml_Data_PropertyChangedEventArgs>
+        typename Xaml_Data_PropertyChangedEventHandler = wil::details::Xaml_Data_PropertyChangedEventHandler,
+        typename Xaml_Data_PropertyChangedEventArgs = wil::details::Xaml_Data_PropertyChangedEventArgs>
     struct single_threaded_notifying_property : single_threaded_rw_property<T> {
         using Type = T;
 
@@ -228,7 +228,7 @@ namespace details
     * @brief use this to initialize a wil::single_threaded_notifying_property in your class constructor.
     */
 #define INIT_NOTIFY_PROPERTY(NAME, VALUE)  \
-        NAME(&m_propertyChanged, *this, (this->NAME, L#NAME), VALUE)
+        NAME(&m_propertyChanged, *this, L#NAME, VALUE)
 
 #endif // defined(WINRT_Microsoft_UI_Xaml_Data_H) || defined(WINRT_Windows_UI_Xaml_Data_H)
 
