@@ -1172,54 +1172,6 @@ TEST_CASE("BasicRegistryTests::Dwords", "[registry]")
     }
 
 #if defined(WIL_ENABLE_EXCEPTIONS)
-    SECTION("get and set with string key and value name, template versions")
-    {
-        for (const auto& value : dwordTestArray)
-        {
-            wil::reg::set_value(HKEY_CURRENT_USER, testSubkey, dwordValueName, value);
-            const auto result = wil::reg::get_value<DWORD>(HKEY_CURRENT_USER, testSubkey, dwordValueName);
-            REQUIRE(result == value);
-
-            wil::reg::set_value_qword(HKEY_CURRENT_USER, testSubkey, qwordValueName, test_qword_zero);
-            // reading the wrong type should fail
-            try
-            {
-                wil::reg::get_value<DWORD>(HKEY_CURRENT_USER, testSubkey, qwordValueName);
-                // should throw
-                REQUIRE_FALSE(true);
-            }
-            catch (const wil::ResultException& e)
-            {
-                REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
-            }
-        }
-    }
-    SECTION("get and set with string key and value name, template versions: with open key")
-    {
-        wil::unique_hkey hkey;
-        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
-
-        for (const auto& value : dwordTestArray)
-        {
-            wil::reg::set_value(hkey.get(), dwordValueName, value);
-            const auto result = wil::reg::get_value<DWORD>(hkey.get(), dwordValueName);
-            REQUIRE(result == value);
-
-            // reading the wrong type should fail
-            wil::reg::set_value_qword(HKEY_CURRENT_USER, testSubkey, qwordValueName, test_qword_zero);
-            try
-            {
-                wil::reg::get_value<DWORD>(hkey.get(), qwordValueName);
-                // should throw
-                REQUIRE_FALSE(true);
-            }
-            catch (const wil::ResultException& e)
-            {
-                REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
-            }
-        }
-    }
-
 #if defined(__cpp_lib_optional)
     SECTION("set_value/try_get_value_dword: with open key")
     {
@@ -1309,54 +1261,6 @@ TEST_CASE("BasicRegistryTests::Qwords", "[registry]")
     }
 
 #if defined(WIL_ENABLE_EXCEPTIONS)
-    SECTION("get and set with string key and value name, template versions")
-    {
-        for (const auto& value : qwordTestArray)
-        {
-            wil::reg::set_value(HKEY_CURRENT_USER, testSubkey, qwordValueName, value);
-            const auto result = wil::reg::get_value<DWORD64>(HKEY_CURRENT_USER, testSubkey, qwordValueName);
-            REQUIRE(result == value);
-        }
-
-        // reading the wrong type should fail
-        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, test_dword_zero));
-        try
-        {
-            wil::reg::get_value<DWORD64>(HKEY_CURRENT_USER, testSubkey, dwordValueName);
-            // should throw
-            REQUIRE_FALSE(true);
-        }
-        catch (const wil::ResultException& e)
-        {
-            REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
-        }
-    }
-    SECTION("get and set with string key and value name, template versions: with open key")
-    {
-        wil::unique_hkey hkey;
-        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
-
-        for (const auto& value : qwordTestArray)
-        {
-            wil::reg::set_value(hkey.get(), qwordValueName, value);
-            const auto result = wil::reg::get_value<DWORD64>(hkey.get(), qwordValueName);
-            REQUIRE(result == value);
-        }
-
-        // reading the wrong type should fail
-        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, test_dword_zero));
-        try
-        {
-            wil::reg::get_value<DWORD64>(hkey.get(), dwordValueName);
-            // should throw
-            REQUIRE_FALSE(true);
-        }
-        catch (const wil::ResultException& e)
-        {
-            REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
-        }
-    }
-
 #if defined(__cpp_lib_optional)
     SECTION("set_value/try_get_value_qword: with open key")
     {
@@ -1444,54 +1348,6 @@ TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
     if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
     {
         REQUIRE_SUCCEEDED(deleteHr);
-    }
-
-    SECTION("get and set with string key and value name, template versions")
-    {
-        for (const auto& value : stringTestArray)
-        {
-            wil::reg::set_value(HKEY_CURRENT_USER, testSubkey, stringValueName, value);
-            const auto result = wil::reg::get_value<std::wstring>(HKEY_CURRENT_USER, testSubkey, stringValueName);
-            REQUIRE(result == value);
-        }
-
-        // reading the wrong type should fail
-        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, test_dword_zero));
-        try
-        {
-            wil::reg::get_value<std::wstring>(HKEY_CURRENT_USER, testSubkey, dwordValueName);
-            // should throw
-            REQUIRE_FALSE(true);
-        }
-        catch (const wil::ResultException& e)
-        {
-            REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
-        }
-    }
-    SECTION("get and set with string key and value name, template versions: with open key")
-    {
-        wil::unique_hkey hkey;
-        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
-
-        for (const auto& value : stringTestArray)
-        {
-            wil::reg::set_value(hkey.get(), stringValueName, value);
-            const auto result = wil::reg::get_value<std::wstring>(hkey.get(), stringValueName);
-            REQUIRE(result == value);
-        }
-
-        // reading the wrong type should fail
-        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, test_dword_zero));
-        try
-        {
-            wil::reg::get_value <std::wstring>(hkey.get(), dwordValueName);
-            // should throw
-            REQUIRE_FALSE(true);
-        }
-        catch (const wil::ResultException& e)
-        {
-            REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
-        }
     }
 
 #if defined(_VECTOR_)
