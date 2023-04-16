@@ -1822,9 +1822,9 @@ TEST_CASE("BasicRegistryTests::string types", "[registry]")
 #endif
 
 #if defined(__WIL_OBJBASE_H_)
-        //verify_string<wil::unique_cotaskmem_string>(hkey.get());
+        verify_string<wil::unique_cotaskmem_string>(hkey.get());
 #if defined(__WIL_OBJBASE_H_STL)
-        //verify_string<wil::shared_cotaskmem_string>(hkey.get());
+        verify_string<wil::shared_cotaskmem_string>(hkey.get());
 #endif
 #endif
     }
