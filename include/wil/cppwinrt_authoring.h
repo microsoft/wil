@@ -34,10 +34,16 @@ namespace wil
     template <typename T>
     struct single_threaded_ro_property : std::conditional_t<std::is_scalar_v<T>, details::single_threaded_property_storage<T>, T>
     {
-        auto& operator()()
+        single_threaded_ro_property() = default;
+        single_threaded_ro_property(const T& t) : base_type(t) { }
+        
+        const auto& operator()()
         {
             return *this;
         }
+        template<typename Q> auto operator=(Q&& q) = delete;
+    private:
+        using base_type = std::conditional_t<std::is_scalar_v<T>, details::single_threaded_property_storage<T>, T>;
     };
 
     template <typename T>
@@ -48,6 +54,10 @@ namespace wil
 
         using single_threaded_ro_property<T>::operator();
 
+        auto& operator()()
+        {
+            return *this;
+        }
         template<typename Q> auto& operator()(Q&& q)
         {
             *this = std::forward<Q>(q);
@@ -111,7 +121,7 @@ namespace details
 #ifdef WINRT_Microsoft_UI_Xaml_Data_H
     using Xaml_Data_PropertyChangedEventHandler = winrt::Microsoft::UI::Xaml::Data::PropertyChangedEventHandler;
     using Xaml_Data_PropertyChangedEventArgs = winrt::Microsoft::UI::Xaml::Data::PropertyChangedEventArgs;
-#else if defined(Windows_UI_Xaml_Data_H)
+#elif defined(WINRT_Windows_UI_Xaml_Data_H)
     using Xaml_Data_PropertyChangedEventHandler = winrt::Windows::UI::Xaml::Data::PropertyChangedEventHandler;
     using Xaml_Data_PropertyChangedEventArgs = winrt::Windows::UI::Xaml::Data::PropertyChangedEventArgs;
 #endif
@@ -132,7 +142,7 @@ namespace details
      * @endcode
     */
     template<typename T,
-        typename Xaml_Data_PropertyChangedEventHandler = details::Xaml_Data_PropertyChangedEventHandler
+        typename Xaml_Data_PropertyChangedEventHandler = wil::details::Xaml_Data_PropertyChangedEventHandler
         // , typename = std::enable_if_t<std::is_convertible_v<T, winrt::Windows::Foundation::IInspectable>>
     >
     struct notify_property_changed_base {

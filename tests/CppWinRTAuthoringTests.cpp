@@ -51,6 +51,17 @@ TEST_CASE("CppWinRTAuthoringTests::ReadWrite", "[property]")
     REQUIRE(prop2() == value2);
     REQUIRE(prop2 == prop2());
     REQUIRE(prop2 == prop2);
+
+    wil::single_threaded_rw_property<std::string> prop3("foo");
+    REQUIRE(prop3 == "foo");
+    REQUIRE(prop3() == "foo");
+    REQUIRE(prop3.length() == 3);
+    prop3 = "bar";
+    REQUIRE(prop3 == "bar");
+    auto& prop3alias = prop3("baz");
+    REQUIRE(prop3 == "baz");
+    prop3alias = "foo";
+    REQUIRE(prop3 == "foo");
 }
 
 TEST_CASE("CppWinRTAuthoringTests::ReadWriteFromReadOnly", "[property]")
