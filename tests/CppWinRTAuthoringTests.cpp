@@ -25,6 +25,9 @@ TEST_CASE("CppWinRTAuthoringTests::ReadOnly", "[property]")
     REQUIRE(prop2() == value);
     REQUIRE(prop2 == prop());
     REQUIRE(prop2 == prop);
+
+    wil::single_threaded_ro_property<winrt::hstring> prop3;
+    REQUIRE(prop3.empty());
 }
 
 TEST_CASE("CppWinRTAuthoringTests::ReadWrite", "[property]")

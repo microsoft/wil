@@ -13,59 +13,51 @@ namespace wil
 {
 #ifndef __WIL_CPPWINRT_AUTHORING_INCLUDED
 #define __WIL_CPPWINRT_AUTHORING_INCLUDED
+    namespace details
+    {
+        template<typename T>
+        struct single_threaded_property_storage
+        {
+            T m_value{};
+            single_threaded_property_storage() = default;
+            single_threaded_property_storage(const T& value) : m_value(value) {}
+            operator T& () { return m_value; }
+            operator T const& () const { return m_value; }
+            template<typename Q> auto operator=(Q&& q)
+            {
+                m_value = wistd::forward<Q>(q);
+                return *this;
+            }
+        };
+    }
 
     template <typename T>
-    struct single_threaded_ro_property
+    struct single_threaded_ro_property : std::conditional_t<std::is_scalar_v<T>, details::single_threaded_property_storage<T>, T>
     {
-        single_threaded_ro_property(T value) : m_value(value) { }
-
-        operator T() const noexcept { return m_value; }
-        const T& operator()() const noexcept { return m_value; }
-
-        single_threaded_ro_property(const single_threaded_ro_property& other) noexcept : m_value(other.m_value) { }
-        single_threaded_ro_property(single_threaded_ro_property&& other) noexcept : m_value(std::move(other.m_value)) { }
-
-        template<typename... TArgs>
-        single_threaded_ro_property(TArgs&&... args) : m_value(std::forward<TArgs>(args)...) { }
-
-    protected:
-        T m_value;
+        auto& operator()()
+        {
+            return *this;
+        }
     };
 
     template <typename T>
     struct single_threaded_rw_property : single_threaded_ro_property<T>
     {
-        single_threaded_rw_property(T value) : single_threaded_ro_property<T>(value) { }
-
         template<typename... TArgs>
         single_threaded_rw_property(TArgs&&... args) : single_threaded_ro_property<T>(std::forward<TArgs>(args)...) { }
 
-        using single_threaded_ro_property<T>::operator T;
         using single_threaded_ro_property<T>::operator();
-        single_threaded_rw_property& operator()(const T& value) noexcept
+
+        template<typename Q> auto& operator()(Q&& q)
         {
-            this->m_value = value;
+            *this = std::forward<Q>(q);
             return *this;
         }
 
-        single_threaded_rw_property& operator=(T value) noexcept
-        {
-            this->m_value = value;
-            return *this;
-        }
 
-        template<typename U, typename = std::enable_if_t<std::is_convertible_v<U, T>>>
-        single_threaded_rw_property& operator=(const single_threaded_ro_property<U>& other) noexcept
+        template<typename Q> auto operator=(Q&& q)
         {
-            this->m_value = other.m_value;
-            return *this;
-        }
-
-        template<typename U, typename = std::enable_if_t<std::is_convertible_v<U, T>>>
-        single_threaded_rw_property& operator=(single_threaded_rw_property<U>&& other) noexcept
-        {
-            this->m_value = std::move(other.m_value);
-            return *this;
+            return static_cast<T&>(*this) = std::forward<Q>(q);
         }
     };
 
