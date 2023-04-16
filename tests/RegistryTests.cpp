@@ -609,7 +609,7 @@ TEST_CASE("BasicRegistryTests::ReadWrite", "[registry]")
             wil::reg::set_value(hkey.get(), valueName, originalValue);
             try
             {
-                const auto ignored = wil::reg::get_value<decltype(fetchedValue)>(hkey.get(), qwordValueName);
+                const auto ignored = wil::reg::get_value<decltype(fetchedValue)>(hkey.get(), valueName);
                 ignored;
                 // should throw
                 REQUIRE_FALSE(true);
@@ -695,7 +695,7 @@ TEST_CASE("BasicRegistryTests::ReadWrite", "[registry]")
             wil::reg::set_value(HKEY_CURRENT_USER, testSubkey, valueName, originalValue);
             try
             {
-                const auto ignored = wil::reg::get_value<decltype(fetchedValue)>(HKEY_CURRENT_USER, testSubkey, qwordValueName);
+                const auto ignored = wil::reg::get_value<decltype(fetchedValue)>(HKEY_CURRENT_USER, testSubkey, valueName);
                 ignored;
                 // should throw
                 REQUIRE_FALSE(true);
