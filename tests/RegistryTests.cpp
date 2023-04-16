@@ -2332,12 +2332,12 @@ TEST_CASE("BasicRegistryTests::expanded_wstring", "[registry]")
 namespace
 {
 #if defined(WIL_ENABLE_EXCEPTIONS)
-    template<typename StringT>
-    void verify_expanded_string_nothrow()
+    template<typename StringT, typename SetStringT = PCWSTR>
+    void verify_expanded_string_nothrow(
+        std::function<HRESULT(PCWSTR, typename type_identity<StringT>::type&)> getFn,
+        std::function<HRESULT(PCWSTR, typename type_identity<SetStringT>::type)> setFn,
+        std::function<HRESULT(PCWSTR)> setWrongTypeFn)
     {
-        wil::unique_hkey hkey;
-        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
-
         for (const auto& value : expandedStringTestArray)
         {
             // verify the expanded string
@@ -2346,27 +2346,39 @@ namespace
             REQUIRE(expanded_result != ERROR_SUCCESS);
             REQUIRE(expanded_result < test_expanded_string_buffer_size);
 
-            REQUIRE_SUCCEEDED(wil::reg::set_value_expanded_string_nothrow(hkey.get(), stringValueName, value.c_str()));
+            REQUIRE_SUCCEEDED(setFn(stringValueName, value.c_str()));
             StringT result{};
-            REQUIRE_SUCCEEDED(wil::reg::get_value_expanded_string_nothrow(hkey.get(), stringValueName, result));
+            REQUIRE_SUCCEEDED(getFn(stringValueName, result));
             REQUIRE(AreStringsEqual(result, expanded_value));
 
             // and verify default value name
-            REQUIRE_SUCCEEDED(wil::reg::set_value_expanded_string_nothrow(hkey.get(), nullptr, value.c_str()));
+            REQUIRE_SUCCEEDED(setFn(nullptr, value.c_str()));
             result = {};
-            REQUIRE_SUCCEEDED(wil::reg::get_value_expanded_string_nothrow(hkey.get(), nullptr, result));
+            REQUIRE_SUCCEEDED(getFn(nullptr, result));
             REQUIRE(AreStringsEqual(result, expanded_value));
         }
 
         // fail get* if the value doesn't exist
         StringT result{};
-        HRESULT hr = wil::reg::get_value_expanded_string_nothrow(hkey.get(), invalidValueName, result);
+        auto hr = getFn(invalidValueName, result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
 
         // fail if get* requests the wrong type
-        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(hkey.get(), dwordValueName, test_dword_zero));
-        hr = wil::reg::get_value_expanded_string_nothrow(hkey.get(), dwordValueName, result);
+        REQUIRE_SUCCEEDED(setWrongTypeFn(dwordValueName));
+        hr = getFn(dwordValueName, result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
+    }
+
+    template<typename StringT>
+    void verify_expanded_string_nothrow()
+    {
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
+
+        verify_expanded_string_nothrow<StringT>(
+            [&hkey](PCWSTR valueName, StringT& output) { return wil::reg::get_value_expanded_string_nothrow(hkey.get(), valueName, output); },
+            [&hkey](PCWSTR valueName, PCWSTR input) { return wil::reg::set_value_expanded_string_nothrow(hkey.get(), valueName, input); },
+            [&hkey](PCWSTR valueName) { return wil::reg::set_value_dword_nothrow(hkey.get(), valueName, test_dword_zero); });
     }
 
     template<typename StringT>
