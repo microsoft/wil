@@ -1329,7 +1329,7 @@ TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
         }
 
         // fail get* if the value doesn't exist
-        const auto result = wil::reg::try_get_value_string(hkey.get(), (std::wstring(stringValueName) + L"_not_valid").c_str());
+        const auto result = wil::reg::try_get_value_string(hkey.get(), invalidValueName);
         REQUIRE(!result);
         REQUIRE(!result.has_value());
 
@@ -1365,7 +1365,7 @@ TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
         }
 
         // fail get* if the value doesn't exist
-        const auto result = wil::reg::try_get_value_string(HKEY_CURRENT_USER, testSubkey, (std::wstring(stringValueName) + L"_not_valid").c_str());
+        const auto result = wil::reg::try_get_value_string(HKEY_CURRENT_USER, testSubkey, invalidValueName);
         REQUIRE(!result);
         REQUIRE(!result.has_value());
 
@@ -1415,7 +1415,7 @@ TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
         REQUIRE(0 == wcscmp(valid_buffer_result, L"Test"));
 
         // fail get* if the value doesn't exist
-        hr = wil::reg::get_value_string_nothrow(hkey.get(), (std::wstring(stringValueName) + L"_not_valid").c_str(), too_small_result, &expectedSize);
+        hr = wil::reg::get_value_string_nothrow(hkey.get(), invalidValueName, too_small_result, &expectedSize);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
         REQUIRE(expectedSize == 0);
 
@@ -1452,7 +1452,7 @@ TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
         REQUIRE(0 == wcscmp(valid_buffer_result, L"Test"));
 
         // fail get* if the value doesn't exist
-        hr = wil::reg::get_value_string_nothrow(HKEY_CURRENT_USER, testSubkey, (std::wstring(stringValueName) + L"_not_valid").c_str(), too_small_result, &expectedSize);
+        hr = wil::reg::get_value_string_nothrow(HKEY_CURRENT_USER, testSubkey, invalidValueName, too_small_result, &expectedSize);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
         REQUIRE(expectedSize == 0);
 
@@ -2071,7 +2071,7 @@ TEST_CASE("BasicRegistryTests::expanded_wstring", "[registry]")
 
         // fail get* if the value doesn't exist
         std::wstring result{};
-        auto hr = wil::reg::get_value_expanded_string_nothrow(hkey.get(), (std::wstring(stringValueName) + L"_not_valid").c_str(), result);
+        auto hr = wil::reg::get_value_expanded_string_nothrow(hkey.get(), invalidValueName, result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
 
         // fail if get* requests the wrong type
@@ -2103,7 +2103,7 @@ TEST_CASE("BasicRegistryTests::expanded_wstring", "[registry]")
 
         // fail get* if the value doesn't exist
         std::wstring result{};
-        auto hr = wil::reg::get_value_expanded_string_nothrow(HKEY_CURRENT_USER, testSubkey, (std::wstring(stringValueName) + L"_not_valid").c_str(), result);
+        auto hr = wil::reg::get_value_expanded_string_nothrow(HKEY_CURRENT_USER, testSubkey, invalidValueName, result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
 
         // fail if get* requests the wrong type
@@ -2155,7 +2155,7 @@ TEST_CASE("BasicRegistryTests::expanded_wstring", "[registry]")
 
 
         // fail get* if the value doesn't exist
-        hr = wil::reg::get_value_expanded_string_nothrow(hkey.get(), (std::wstring(stringValueName) + L"_not_valid").c_str(), result);
+        hr = wil::reg::get_value_expanded_string_nothrow(hkey.get(), invalidValueName, result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
 
         // fail if get* requests the wrong type
@@ -2204,7 +2204,7 @@ TEST_CASE("BasicRegistryTests::expanded_wstring", "[registry]")
         REQUIRE(0 == wcscmp(valid_buffer_result, expanded_value));
 
         // fail get* if the value doesn't exist
-        hr = wil::reg::get_value_expanded_string_nothrow(HKEY_CURRENT_USER, testSubkey, (std::wstring(stringValueName) + L"_not_valid").c_str(), result);
+        hr = wil::reg::get_value_expanded_string_nothrow(HKEY_CURRENT_USER, testSubkey, invalidValueName, result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
 
         // fail if get* requests the wrong type
@@ -2238,7 +2238,7 @@ TEST_CASE("BasicRegistryTests::expanded_wstring", "[registry]")
         // fail get* if the value doesn't exist
         try
         {
-            wil::reg::get_value_expanded_string(hkey.get(), (std::wstring(stringValueName) + L"_not_valid").c_str());
+            wil::reg::get_value_expanded_string(hkey.get(), invalidValueName);
             // should throw
             REQUIRE_FALSE(true);
         }
@@ -2283,7 +2283,7 @@ TEST_CASE("BasicRegistryTests::expanded_wstring", "[registry]")
         // fail get* if the value doesn't exist
         try
         {
-            wil::reg::get_value_expanded_string(HKEY_CURRENT_USER, testSubkey, (std::wstring(stringValueName) + L"_not_valid").c_str());
+            wil::reg::get_value_expanded_string(HKEY_CURRENT_USER, testSubkey, invalidValueName);
             // should throw
             REQUIRE_FALSE(true);
         }
@@ -2335,7 +2335,7 @@ TEST_CASE("BasicRegistryTests::expanded_wstring", "[registry]")
         }
 
         // fail get* if the value doesn't exist
-        const auto result = wil::reg::try_get_value_expanded_string(hkey.get(), (std::wstring(stringValueName) + L"_not_valid").c_str());
+        const auto result = wil::reg::try_get_value_expanded_string(hkey.get(), invalidValueName);
         REQUIRE(!result);
         REQUIRE(!result.has_value());
 
@@ -2377,7 +2377,7 @@ TEST_CASE("BasicRegistryTests::expanded_wstring", "[registry]")
         }
 
         // fail get* if the value doesn't exist
-        const auto result = wil::reg::try_get_value_expanded_string(HKEY_CURRENT_USER, testSubkey, (std::wstring(stringValueName) + L"_not_valid").c_str());
+        const auto result = wil::reg::try_get_value_expanded_string(HKEY_CURRENT_USER, testSubkey, invalidValueName);
         REQUIRE(!result);
         REQUIRE(!result.has_value());
 
@@ -2434,7 +2434,7 @@ TEST_CASE("BasicRegistryTests::expanded_bstr", "[registry]")
 
         // fail get* if the value doesn't exist
         wil::unique_bstr result{};
-        auto hr = wil::reg::get_value_expanded_string_nothrow(hkey.get(), (std::wstring(stringValueName) + L"_not_valid").c_str(), result);
+        auto hr = wil::reg::get_value_expanded_string_nothrow(hkey.get(), invalidValueName, result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
 
         // fail if get* requests the wrong type
@@ -2466,7 +2466,7 @@ TEST_CASE("BasicRegistryTests::expanded_bstr", "[registry]")
 
         // fail get* if the value doesn't exist
         wil::unique_bstr result{};
-        auto hr = wil::reg::get_value_expanded_string_nothrow(HKEY_CURRENT_USER, testSubkey, (std::wstring(stringValueName) + L"_not_valid").c_str(), result);
+        auto hr = wil::reg::get_value_expanded_string_nothrow(HKEY_CURRENT_USER, testSubkey, invalidValueName, result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
 
         // fail if get* requests the wrong type
@@ -2503,7 +2503,7 @@ TEST_CASE("BasicRegistryTests::expanded_bstr", "[registry]")
 
         // fail get* if the value doesn't exist
         wil::shared_bstr shared_result{};
-        auto hr = wil::reg::get_value_expanded_string_nothrow(hkey.get(), (std::wstring(stringValueName) + L"_not_valid").c_str(), shared_result);
+        auto hr = wil::reg::get_value_expanded_string_nothrow(hkey.get(), invalidValueName, shared_result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
 
         // fail if get* requests the wrong type
@@ -2535,7 +2535,7 @@ TEST_CASE("BasicRegistryTests::expanded_bstr", "[registry]")
 
         // fail get* if the value doesn't exist
         wil::shared_bstr shared_result{};
-        auto hr = wil::reg::get_value_expanded_string_nothrow(HKEY_CURRENT_USER, testSubkey, (std::wstring(stringValueName) + L"_not_valid").c_str(), shared_result);
+        auto hr = wil::reg::get_value_expanded_string_nothrow(HKEY_CURRENT_USER, testSubkey, invalidValueName, shared_result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
 
         // fail if get* requests the wrong type
@@ -2571,7 +2571,7 @@ TEST_CASE("BasicRegistryTests::expanded_bstr", "[registry]")
         // fail get* if the value doesn't exist
         try
         {
-            wil::reg::get_value_expanded_string<wil::unique_bstr>(hkey.get(), (std::wstring(stringValueName) + L"_not_valid").c_str());
+            wil::reg::get_value_expanded_string<wil::unique_bstr>(hkey.get(), invalidValueName);
             // should throw
             REQUIRE_FALSE(true);
         }
@@ -2616,7 +2616,7 @@ TEST_CASE("BasicRegistryTests::expanded_bstr", "[registry]")
         // fail get* if the value doesn't exist
         try
         {
-            wil::reg::get_value_expanded_string<wil::unique_bstr>(HKEY_CURRENT_USER, testSubkey, (std::wstring(stringValueName) + L"_not_valid").c_str());
+            wil::reg::get_value_expanded_string<wil::unique_bstr>(HKEY_CURRENT_USER, testSubkey, invalidValueName);
             // should throw
             REQUIRE_FALSE(true);
         }
@@ -2668,7 +2668,7 @@ TEST_CASE("BasicRegistryTests::expanded_bstr", "[registry]")
         }
 
         // fail get* if the value doesn't exist
-        const auto result = wil::reg::try_get_value_string<wil::shared_bstr>(hkey.get(), (std::wstring(stringValueName) + L"_not_valid").c_str());
+        const auto result = wil::reg::try_get_value_string<wil::shared_bstr>(hkey.get(), invalidValueName);
         REQUIRE(!result);
         REQUIRE(!result.has_value());
 
@@ -2710,7 +2710,7 @@ TEST_CASE("BasicRegistryTests::expanded_bstr", "[registry]")
         }
 
         // fail get* if the value doesn't exist
-        const auto result = wil::reg::try_get_value_string<wil::shared_bstr>(HKEY_CURRENT_USER, testSubkey, (std::wstring(stringValueName) + L"_not_valid").c_str());
+        const auto result = wil::reg::try_get_value_string<wil::shared_bstr>(HKEY_CURRENT_USER, testSubkey, invalidValueName);
         REQUIRE(!result);
         REQUIRE(!result.has_value());
 
@@ -2767,7 +2767,7 @@ TEST_CASE("BasicRegistryTests::expanded_cotaskmem_string", "[registry]")
 
         // fail get* if the value doesn't exist
         wil::unique_cotaskmem_string result{};
-        auto hr = wil::reg::get_value_expanded_string_nothrow(hkey.get(), (std::wstring(stringValueName) + L"_not_valid").c_str(), result);
+        auto hr = wil::reg::get_value_expanded_string_nothrow(hkey.get(), invalidValueName, result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
 
         // fail if get* requests the wrong type
@@ -2799,7 +2799,7 @@ TEST_CASE("BasicRegistryTests::expanded_cotaskmem_string", "[registry]")
 
         // fail get* if the value doesn't exist
         wil::unique_cotaskmem_string result{};
-        auto hr = wil::reg::get_value_expanded_string_nothrow(HKEY_CURRENT_USER, testSubkey, (std::wstring(stringValueName) + L"_not_valid").c_str(), result);
+        auto hr = wil::reg::get_value_expanded_string_nothrow(HKEY_CURRENT_USER, testSubkey, invalidValueName, result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
 
         // fail if get* requests the wrong type
@@ -2836,7 +2836,7 @@ TEST_CASE("BasicRegistryTests::expanded_cotaskmem_string", "[registry]")
 
         // fail get* if the value doesn't exist
         wil::shared_cotaskmem_string result{};
-        auto hr = wil::reg::get_value_expanded_string_nothrow(hkey.get(), (std::wstring(stringValueName) + L"_not_valid").c_str(), result);
+        auto hr = wil::reg::get_value_expanded_string_nothrow(hkey.get(), invalidValueName, result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
 
         // fail if get* requests the wrong type
@@ -2868,7 +2868,7 @@ TEST_CASE("BasicRegistryTests::expanded_cotaskmem_string", "[registry]")
 
         // fail get* if the value doesn't exist
         wil::shared_cotaskmem_string result{};
-        auto hr = wil::reg::get_value_expanded_string_nothrow(HKEY_CURRENT_USER, testSubkey, (std::wstring(stringValueName) + L"_not_valid").c_str(), result);
+        auto hr = wil::reg::get_value_expanded_string_nothrow(HKEY_CURRENT_USER, testSubkey, invalidValueName, result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
 
         // fail if get* requests the wrong type
@@ -2904,7 +2904,7 @@ TEST_CASE("BasicRegistryTests::expanded_cotaskmem_string", "[registry]")
         // fail get* if the value doesn't exist
         try
         {
-            wil::reg::get_value_expanded_string<wil::unique_cotaskmem_string>(hkey.get(), (std::wstring(stringValueName) + L"_not_valid").c_str());
+            wil::reg::get_value_expanded_string<wil::unique_cotaskmem_string>(hkey.get(), invalidValueName);
             // should throw
             REQUIRE_FALSE(true);
         }
@@ -2949,7 +2949,7 @@ TEST_CASE("BasicRegistryTests::expanded_cotaskmem_string", "[registry]")
         // fail get* if the value doesn't exist
         try
         {
-            wil::reg::get_value_expanded_string<wil::unique_cotaskmem_string>(HKEY_CURRENT_USER, testSubkey, (std::wstring(stringValueName) + L"_not_valid").c_str());
+            wil::reg::get_value_expanded_string<wil::unique_cotaskmem_string>(HKEY_CURRENT_USER, testSubkey, invalidValueName);
             // should throw
             REQUIRE_FALSE(true);
         }
@@ -3001,7 +3001,7 @@ TEST_CASE("BasicRegistryTests::expanded_cotaskmem_string", "[registry]")
         }
 
         // fail get* if the value doesn't exist
-        const auto result = wil::reg::try_get_value_expanded_string<wil::shared_cotaskmem_string>(hkey.get(), (std::wstring(stringValueName) + L"_not_valid").c_str());
+        const auto result = wil::reg::try_get_value_expanded_string<wil::shared_cotaskmem_string>(hkey.get(), invalidValueName);
         REQUIRE(!result);
         REQUIRE(!result.has_value());
 
@@ -3043,7 +3043,7 @@ TEST_CASE("BasicRegistryTests::expanded_cotaskmem_string", "[registry]")
         }
 
         // fail get* if the value doesn't exist
-        const auto result = wil::reg::try_get_value_expanded_string<wil::shared_cotaskmem_string>(HKEY_CURRENT_USER, testSubkey, (std::wstring(stringValueName) + L"_not_valid").c_str());
+        const auto result = wil::reg::try_get_value_expanded_string<wil::shared_cotaskmem_string>(HKEY_CURRENT_USER, testSubkey, invalidValueName);
         REQUIRE(!result);
         REQUIRE(!result.has_value());
 
@@ -3208,7 +3208,7 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
         }
 
         // fail get* if the value doesn't exist
-        const auto result = wil::reg::try_get_value_multistring(hkey.get(), (std::wstring(stringValueName) + L"_not_valid").c_str());
+        const auto result = wil::reg::try_get_value_multistring(hkey.get(), invalidValueName);
         REQUIRE(!result);
         REQUIRE(!result.has_value());
 
@@ -3252,7 +3252,7 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
         }
 
         // fail get* if the value doesn't exist
-        const auto result = wil::reg::try_get_value_multistring(HKEY_CURRENT_USER, testSubkey, (std::wstring(stringValueName) + L"_not_valid").c_str());
+        const auto result = wil::reg::try_get_value_multistring(HKEY_CURRENT_USER, testSubkey, invalidValueName);
         REQUIRE(!result);
         REQUIRE(!result.has_value());
 
@@ -3304,7 +3304,7 @@ TEST_CASE("BasicRegistryTests::vector-bytes", "[registry]]")
 
         // fail get* if the value doesn't exist
         std::vector<BYTE> result{};
-        auto hr = wil::reg::get_value_byte_vector_nothrow(hkey.get(), (std::wstring(stringValueName) + L"_not_valid").c_str(), REG_BINARY, &result);
+        auto hr = wil::reg::get_value_byte_vector_nothrow(hkey.get(), invalidValueName, REG_BINARY, &result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
 
         // fail if get* requests the wrong type
@@ -3340,7 +3340,7 @@ TEST_CASE("BasicRegistryTests::vector-bytes", "[registry]]")
 
         // fail get* if the value doesn't exist
         std::vector<BYTE> result{};
-        auto hr = wil::reg::get_value_byte_vector_nothrow(HKEY_CURRENT_USER, testSubkey, (std::wstring(stringValueName) + L"_not_valid").c_str(), REG_BINARY, &result);
+        auto hr = wil::reg::get_value_byte_vector_nothrow(HKEY_CURRENT_USER, testSubkey, invalidValueName, REG_BINARY, &result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
 
         // fail if get* requests the wrong type
@@ -3378,7 +3378,7 @@ TEST_CASE("BasicRegistryTests::vector-bytes", "[registry]]")
         // fail get* if the value doesn't exist
         try
         {
-            wil::reg::get_value_byte_vector(hkey.get(), (std::wstring(stringValueName) + L"_not_valid").c_str(), REG_BINARY);
+            wil::reg::get_value_byte_vector(hkey.get(), invalidValueName, REG_BINARY);
             // should throw
             REQUIRE_FALSE(true);
         }
@@ -3425,7 +3425,7 @@ TEST_CASE("BasicRegistryTests::vector-bytes", "[registry]]")
         // fail get* if the value doesn't exist
         try
         {
-            wil::reg::get_value_byte_vector(HKEY_CURRENT_USER, testSubkey, (std::wstring(stringValueName) + L"_not_valid").c_str(), REG_BINARY);
+            wil::reg::get_value_byte_vector(HKEY_CURRENT_USER, testSubkey, invalidValueName, REG_BINARY);
             // should throw
             REQUIRE_FALSE(true);
         }
@@ -3466,21 +3466,16 @@ TEST_CASE("BasicRegistryTests::vector-bytes", "[registry]]")
         {
             wil::reg::set_value_byte_vector(hkey.get(), stringValueName, REG_BINARY, value);
             auto result = wil::reg::try_get_value_byte_vector(hkey.get(), stringValueName, REG_BINARY);
-            REQUIRE(result);
-            REQUIRE(result.has_value());
             REQUIRE(result == value);
 
             // and verify default value name
             wil::reg::set_value_byte_vector(hkey.get(), nullptr, REG_BINARY, value);
             result = wil::reg::try_get_value_byte_vector(hkey.get(), nullptr, REG_BINARY);
-            REQUIRE(result);
-            REQUIRE(result.has_value());
             REQUIRE(result == value);
         }
 
         // fail get* if the value doesn't exist
-        auto result = wil::reg::try_get_value_byte_vector(hkey.get(), (std::wstring(stringValueName) + L"_not_valid").c_str(), REG_BINARY);
-        REQUIRE(!result);
+        auto result = wil::reg::try_get_value_byte_vector(hkey.get(), invalidValueName, REG_BINARY);
         REQUIRE(!result.has_value());
 
         // fail if get* requests the wrong type
@@ -3512,21 +3507,16 @@ TEST_CASE("BasicRegistryTests::vector-bytes", "[registry]]")
         {
             wil::reg::set_value_byte_vector(HKEY_CURRENT_USER, testSubkey, stringValueName, REG_BINARY, value);
             auto result = wil::reg::try_get_value_byte_vector(HKEY_CURRENT_USER, testSubkey, stringValueName, REG_BINARY);
-            REQUIRE(result);
-            REQUIRE(result.has_value());
             REQUIRE(result == value);
 
             // and verify default value name
             wil::reg::set_value_byte_vector(HKEY_CURRENT_USER, testSubkey, nullptr, REG_BINARY, value);
             result = wil::reg::try_get_value_byte_vector(HKEY_CURRENT_USER, testSubkey, nullptr, REG_BINARY);
-            REQUIRE(result);
-            REQUIRE(result.has_value());
             REQUIRE(result == value);
         }
 
         // fail get* if the value doesn't exist
-        auto result = wil::reg::try_get_value_byte_vector(HKEY_CURRENT_USER, testSubkey, (std::wstring(stringValueName) + L"_not_valid").c_str(), REG_BINARY);
-        REQUIRE(!result);
+        auto result = wil::reg::try_get_value_byte_vector(HKEY_CURRENT_USER, testSubkey, invalidValueName, REG_BINARY);
         REQUIRE(!result.has_value());
 
         // fail if get* requests the wrong type
