@@ -915,6 +915,74 @@ TEST_CASE("BasicRegistryTests::ReadWrite", "[registry]")
         // TODO: expanded strings
         // TODO: byte vectors
     }
+
+    SECTION("typed get and set: with string key")
+    {
+        // Lifted for testing wrong type set
+        const auto qwordSetFn = [](PCWSTR valueName, uint64_t input) -> void { wil::reg::set_value_qword(HKEY_CURRENT_USER, testSubkey, valueName, input); };
+
+        // DWORDs
+        const auto dwordGetFn = [](PCWSTR valueName) -> DWORD { return wil::reg::get_value_dword(HKEY_CURRENT_USER, testSubkey, valueName); };
+        const auto dwordSetFn = [](PCWSTR valueName, uint32_t input) -> void { wil::reg::set_value_dword(HKEY_CURRENT_USER, testSubkey, valueName, input); };
+        for (const auto& value : dwordTestArray)
+        {
+            verify_good<DWORD, uint32_t>(
+                dwordValueName,
+                value,
+                dwordGetFn,
+                dwordSetFn);
+        }
+        verify_not_exist<DWORD>(dwordGetFn);
+        verify_wrong_type<DWORD, uint64_t>(qwordValueName, test_qword_zero, dwordGetFn, qwordSetFn);
+
+        // QWORDs
+        const auto qwordGetFn = [](PCWSTR valueName) -> DWORD64 { return wil::reg::get_value_qword(HKEY_CURRENT_USER, testSubkey, valueName); };
+        for (const auto& value : qwordTestArray)
+        {
+            verify_good<DWORD64, uint64_t>(
+                qwordValueName,
+                value,
+                qwordGetFn,
+                qwordSetFn);
+        }
+        verify_not_exist<DWORD64>(qwordGetFn);
+        verify_wrong_type<DWORD64, uint32_t>(dwordValueName, test_dword_zero, qwordGetFn, dwordSetFn);
+
+        // Elevated for testing wrong type set
+        const auto multistringSetFn = [](PCWSTR valueName, std::vector<std::wstring> const& input) -> void { wil::reg::set_value_multistring(HKEY_CURRENT_USER, testSubkey, valueName, input); };
+
+        // TODO: multiple string types
+        const auto stringGetFn = [](PCWSTR valueName) -> std::wstring { return wil::reg::get_value_string(HKEY_CURRENT_USER, testSubkey, valueName); };
+        const auto stringSetFn = [](PCWSTR valueName, PCWSTR input) -> void { wil::reg::set_value_string(HKEY_CURRENT_USER, testSubkey, valueName, input); };
+        for (const auto& value : stringTestArray)
+        {
+            verify_good<std::wstring, PCWSTR>(
+                stringValueName,
+                value.c_str(),
+                stringGetFn,
+                stringSetFn);
+        }
+        verify_not_exist<std::wstring>(stringGetFn);
+        verify_wrong_type<std::wstring, uint32_t>(dwordValueName, test_dword_zero, stringGetFn, dwordSetFn);
+        verify_wrong_type<std::wstring, std::vector<std::wstring>>(multistringValueName, test_multistring_empty, stringGetFn, multistringSetFn);
+
+        const auto multiStringGetFn = [](PCWSTR valueName) -> std::vector<std::wstring> { return wil::reg::get_value_multistring(HKEY_CURRENT_USER, testSubkey, valueName); };
+        for (const auto& value : multiStringTestArray)
+        {
+            verify_good<std::vector<std::wstring>, std::vector<std::wstring>>(
+                multistringValueName,
+                value,
+                multiStringGetFn,
+                multistringSetFn);
+        }
+        verify_not_exist<std::vector<std::wstring>>(multiStringGetFn);
+        verify_wrong_type<std::vector<std::wstring>, uint32_t>(dwordValueName, test_dword_zero, multiStringGetFn, dwordSetFn);
+        // TODO: string c_str()
+        verify_wrong_type<std::vector<std::wstring>, PCWSTR>(stringValueName, test_string_empty.c_str(), multiStringGetFn, stringSetFn);
+
+        // TODO: expanded strings
+        // TODO: byte vectors
+    }
 #endif
 }
 
