@@ -569,6 +569,97 @@ TEST_CASE("BasicRegistryTests::ReadWrite", "[registry]")
 #endif
     }
 
+#ifdef WIL_ENABLE_EXCEPTIONS
+    SECTION("get and set: with opened key")
+    {
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
+
+        const auto TestGoodFn = [&hkey](PCWSTR valueName, auto value)
+        {
+            wil::reg::set_value(hkey.get(), valueName, value);
+            const auto result = wil::reg::get_value<decltype(value)>(hkey.get(), valueName);
+            REQUIRE(result == value);
+
+            // and verify default value name
+            wil::reg::set_value(hkey.get(), valueName, value);
+            const auto result2 = wil::reg::get_value<decltype(value)>(hkey.get(), valueName);
+            REQUIRE(result2 == value);
+        };
+
+        const auto TestNonExistentFn = [&hkey](auto value)
+        {
+            // fail get* if the value doesn't exist
+            try
+            {
+                const auto ignored = wil::reg::get_value<decltype(value)>(hkey.get(), invalidValueName);
+                ignored;
+                // should throw
+                REQUIRE_FALSE(true);
+            }
+            catch (const wil::ResultException& e)
+            {
+                REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
+            }
+        };
+
+        const auto TestWrongTypeFn = [&hkey](PCWSTR valueName, auto originalValue, auto fetchedValue)
+        {
+            // reading the wrong type should fail
+            wil::reg::set_value(hkey.get(), valueName, originalValue);
+            try
+            {
+                const auto ignored = wil::reg::get_value<decltype(fetchedValue)>(hkey.get(), qwordValueName);
+                ignored;
+                // should throw
+                REQUIRE_FALSE(true);
+            }
+            catch (const wil::ResultException& e)
+            {
+                REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
+            }
+        };
+
+        // DWORDs
+        for (const auto& value : dwordTestArray)
+        {
+            TestGoodFn(dwordValueName, value);
+        }
+        TestNonExistentFn(test_dword_zero);
+        TestWrongTypeFn(qwordValueName, test_qword_zero, test_dword_zero);
+
+        // QWORDs
+        for (const auto& value : qwordTestArray)
+        {
+            TestGoodFn(qwordValueName, value);
+        }
+        TestNonExistentFn(test_qword_zero);
+        TestWrongTypeFn(dwordValueName, test_dword_zero, test_qword_zero);
+
+        // TODO: strings shouldn't require exceptions, right?
+        // TODO: multiple string types
+        for (const auto& value : stringTestArray)
+        {
+            // TODO: avoid string cast
+            TestGoodFn(stringValueName, std::wstring(value));
+        }
+        TestNonExistentFn(test_string_empty);
+        TestWrongTypeFn(dwordValueName, test_dword_zero, test_string_empty);
+        TestWrongTypeFn(multistringValueName, test_multistring_empty, test_string_empty);
+
+        // TODO: besto
+        //for (const auto& value : multiStringTestArray)
+        //{
+        //    TestGoodFn(multistringValueName, value);
+        //}
+        //TestNonExistentFn(test_multistring_empty);
+        //TestWrongTypeFn(dwordValueName, test_dword_zero, test_multistring_empty);
+        //TestWrongTypeFn(stringValueName, test_string_empty, test_multistring_empty);
+
+        // TODO: byte vectors
+    }
+#endif
+
     SECTION("get and set nothrow: with string key")
     {
         const auto TestGoodFn = [](PCWSTR valueName, auto value)
