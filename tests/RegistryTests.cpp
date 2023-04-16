@@ -2330,16 +2330,11 @@ TEST_CASE("BasicRegistryTests::expanded_wstring", "[registry]")
 }
 #endif
 
-#if defined(WIL_ENABLE_EXCEPTIONS) && defined(__WIL_OLEAUTO_H_)
-TEST_CASE("BasicRegistryTests::expanded_bstr", "[registry]")
+namespace
 {
-    const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
-    if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
-    {
-        REQUIRE_SUCCEEDED(deleteHr);
-    }
-
-    SECTION("set_value_expanded_string_nothrow/get_value_expanded_string_nothrow: with opened key")
+#if defined(WIL_ENABLE_EXCEPTIONS)
+    template<typename StringT>
+    void verify_expanded_string_nothrow()
     {
         wil::unique_hkey hkey;
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
@@ -2353,7 +2348,7 @@ TEST_CASE("BasicRegistryTests::expanded_bstr", "[registry]")
             REQUIRE(expanded_result < test_expanded_string_buffer_size);
 
             REQUIRE_SUCCEEDED(wil::reg::set_value_expanded_string_nothrow(hkey.get(), stringValueName, value.c_str()));
-            wil::unique_bstr result{};
+            StringT result{};
             REQUIRE_SUCCEEDED(wil::reg::get_value_expanded_string_nothrow(hkey.get(), stringValueName, result));
             REQUIRE(AreStringsEqual(result, expanded_value));
 
@@ -2365,16 +2360,18 @@ TEST_CASE("BasicRegistryTests::expanded_bstr", "[registry]")
         }
 
         // fail get* if the value doesn't exist
-        wil::unique_bstr result{};
-        auto hr = wil::reg::get_value_expanded_string_nothrow(hkey.get(), invalidValueName, result);
+        StringT result{};
+        HRESULT hr = wil::reg::get_value_expanded_string_nothrow(hkey.get(), invalidValueName, result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
 
         // fail if get* requests the wrong type
-        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, test_dword_zero));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(hkey.get(), dwordValueName, test_dword_zero));
         hr = wil::reg::get_value_expanded_string_nothrow(hkey.get(), dwordValueName, result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
     }
-    SECTION("set_value_expanded_string_nothrow/get_value_expanded_string_nothrow: with string key")
+
+    template<typename StringT>
+    void verify_expanded_string_subkey_nothrow()
     {
         for (const auto& value : expandedStringTestArray)
         {
@@ -2385,7 +2382,7 @@ TEST_CASE("BasicRegistryTests::expanded_bstr", "[registry]")
             REQUIRE(expanded_result < test_expanded_string_buffer_size);
 
             REQUIRE_SUCCEEDED(wil::reg::set_value_expanded_string_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, value.c_str()));
-            wil::unique_bstr result{};
+            StringT result{};
             REQUIRE_SUCCEEDED(wil::reg::get_value_expanded_string_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, result));
             REQUIRE(AreStringsEqual(result, expanded_value));
 
@@ -2397,7 +2394,7 @@ TEST_CASE("BasicRegistryTests::expanded_bstr", "[registry]")
         }
 
         // fail get* if the value doesn't exist
-        wil::unique_bstr result{};
+        StringT result{};
         auto hr = wil::reg::get_value_expanded_string_nothrow(HKEY_CURRENT_USER, testSubkey, invalidValueName, result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
 
@@ -2407,77 +2404,8 @@ TEST_CASE("BasicRegistryTests::expanded_bstr", "[registry]")
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
     }
 
-#if defined(__WIL_OLEAUTO_H_STL)
-    SECTION("set_value_expanded_string_nothrow/get_value_expanded_string_nothrow (wil::shared_bstr): with opened key")
-    {
-        wil::unique_hkey hkey;
-        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
-
-        for (const auto& value : expandedStringTestArray)
-        {
-            // verify the expanded string
-            WCHAR expanded_value[test_expanded_string_buffer_size]{};
-            const auto expanded_result = ::ExpandEnvironmentStringsW(value.c_str(), expanded_value, test_expanded_string_buffer_size);
-            REQUIRE(expanded_result != ERROR_SUCCESS);
-            REQUIRE(expanded_result < test_expanded_string_buffer_size);
-
-            REQUIRE_SUCCEEDED(wil::reg::set_value_expanded_string_nothrow(hkey.get(), stringValueName, value.c_str()));
-            wil::shared_bstr shared_result{};
-            REQUIRE_SUCCEEDED(wil::reg::get_value_expanded_string_nothrow(hkey.get(), stringValueName, shared_result));
-            REQUIRE(AreStringsEqual(shared_result, expanded_value));
-
-            // and verify default value name
-            REQUIRE_SUCCEEDED(wil::reg::set_value_expanded_string_nothrow(hkey.get(), nullptr, value.c_str()));
-            shared_result = {};
-            REQUIRE_SUCCEEDED(wil::reg::get_value_expanded_string_nothrow(hkey.get(), nullptr, shared_result));
-            REQUIRE(AreStringsEqual(shared_result, expanded_value));
-        }
-
-        // fail get* if the value doesn't exist
-        wil::shared_bstr shared_result{};
-        auto hr = wil::reg::get_value_expanded_string_nothrow(hkey.get(), invalidValueName, shared_result);
-        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
-
-        // fail if get* requests the wrong type
-        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, test_dword_zero));
-        hr = wil::reg::get_value_expanded_string_nothrow(hkey.get(), dwordValueName, shared_result);
-        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
-    }
-    SECTION("set_value_expanded_string_nothrow/get_value_expanded_string_nothrow (wil::shared_bstr): with string key")
-    {
-        for (const auto& value : expandedStringTestArray)
-        {
-            // verify the expanded string
-            WCHAR expanded_value[test_expanded_string_buffer_size]{};
-            const auto expanded_result = ::ExpandEnvironmentStringsW(value.c_str(), expanded_value, test_expanded_string_buffer_size);
-            REQUIRE(expanded_result != ERROR_SUCCESS);
-            REQUIRE(expanded_result < test_expanded_string_buffer_size);
-
-            REQUIRE_SUCCEEDED(wil::reg::set_value_expanded_string_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, value.c_str()));
-            wil::shared_bstr shared_result{};
-            REQUIRE_SUCCEEDED(wil::reg::get_value_expanded_string_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, shared_result));
-            REQUIRE(AreStringsEqual(shared_result, expanded_value));
-
-            // and verify default value name
-            REQUIRE_SUCCEEDED(wil::reg::set_value_expanded_string_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, value.c_str()));
-            shared_result = {};
-            REQUIRE_SUCCEEDED(wil::reg::get_value_expanded_string_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, shared_result));
-            REQUIRE(AreStringsEqual(shared_result, expanded_value));
-        }
-
-        // fail get* if the value doesn't exist
-        wil::shared_bstr shared_result{};
-        auto hr = wil::reg::get_value_expanded_string_nothrow(HKEY_CURRENT_USER, testSubkey, invalidValueName, shared_result);
-        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
-
-        // fail if get* requests the wrong type
-        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, test_dword_zero));
-        hr = wil::reg::get_value_expanded_string_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, shared_result);
-        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
-    }
-#endif // #if defined(__WIL_OLEAUTO_H_STL)
-
-    SECTION("set_value_expanded_string/get_value_expanded_string<wil::unique_bstr>: with open key")
+    template<typename StringT>
+    void verify_expanded_string()
     {
         wil::unique_hkey hkey;
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
@@ -2491,41 +2419,31 @@ TEST_CASE("BasicRegistryTests::expanded_bstr", "[registry]")
             REQUIRE(expanded_result < test_expanded_string_buffer_size);
 
             wil::reg::set_value_expanded_string(hkey.get(), stringValueName, value.c_str());
-            auto result = wil::reg::get_value_expanded_string<wil::unique_bstr>(hkey.get(), stringValueName);
+            auto result = wil::reg::get_value_expanded_string<StringT>(hkey.get(), stringValueName);
             REQUIRE(AreStringsEqual(result, expanded_value));
 
             // and verify default value name
             wil::reg::set_value_expanded_string(hkey.get(), nullptr, value.c_str());
-            result = wil::reg::get_value_expanded_string<wil::unique_bstr>(hkey.get(), nullptr);
+            result = wil::reg::get_value_expanded_string<StringT>(hkey.get(), nullptr);
             REQUIRE(AreStringsEqual(result, expanded_value));
         }
 
         // fail get* if the value doesn't exist
-        try
-        {
-            wil::reg::get_value_expanded_string<wil::unique_bstr>(hkey.get(), invalidValueName);
-            // should throw
-            REQUIRE_FALSE(true);
-        }
-        catch (const wil::ResultException& e)
-        {
-            REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
-        }
+        VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND), [&]()
+            {
+                wil::reg::get_value_expanded_string<StringT>(hkey.get(), invalidValueName);
+            });
 
         // fail if get* requests the wrong type
-        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, test_dword_zero));
-        try
-        {
-            wil::reg::get_value_expanded_string<wil::unique_bstr>(hkey.get(), dwordValueName);
-            // should throw
-            REQUIRE_FALSE(true);
-        }
-        catch (const wil::ResultException& e)
-        {
-            REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
-        }
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(hkey.get(), dwordValueName, test_dword_zero));
+        VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
+            {
+                wil::reg::get_value_expanded_string<StringT>(hkey.get(), dwordValueName);
+            });
     }
-    SECTION("set_value_expanded_string/get_value_expanded_string<wil::unique_bstr>: with string key")
+
+    template<typename StringT>
+    void verify_expaned_string_subkey()
     {
         for (const auto& value : expandedStringTestArray)
         {
@@ -2536,39 +2454,70 @@ TEST_CASE("BasicRegistryTests::expanded_bstr", "[registry]")
             REQUIRE(expanded_result < test_expanded_string_buffer_size);
 
             wil::reg::set_value_expanded_string(HKEY_CURRENT_USER, testSubkey, stringValueName, value.c_str());
-            auto result = wil::reg::get_value_expanded_string<wil::unique_bstr>(HKEY_CURRENT_USER, testSubkey, stringValueName);
+            auto result = wil::reg::get_value_expanded_string<StringT>(HKEY_CURRENT_USER, testSubkey, stringValueName);
             REQUIRE(AreStringsEqual(result, expanded_value));
 
             // and verify default value name
             wil::reg::set_value_expanded_string(HKEY_CURRENT_USER, testSubkey, nullptr, value.c_str());
-            result = wil::reg::get_value_expanded_string<wil::unique_bstr>(HKEY_CURRENT_USER, testSubkey, nullptr);
+            result = wil::reg::get_value_expanded_string<StringT>(HKEY_CURRENT_USER, testSubkey, nullptr);
             REQUIRE(AreStringsEqual(result, expanded_value));
         }
 
         // fail get* if the value doesn't exist
-        try
-        {
-            wil::reg::get_value_expanded_string<wil::unique_bstr>(HKEY_CURRENT_USER, testSubkey, invalidValueName);
-            // should throw
-            REQUIRE_FALSE(true);
-        }
-        catch (const wil::ResultException& e)
-        {
-            REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
-        }
+        VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND), [&]()
+            {
+                wil::reg::get_value_expanded_string<StringT>(HKEY_CURRENT_USER, testSubkey, invalidValueName);
+            });
 
         // fail if get* requests the wrong type
         REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, test_dword_zero));
-        try
-        {
-            wil::reg::get_value_expanded_string<wil::unique_bstr>(HKEY_CURRENT_USER, testSubkey, dwordValueName);
-            // should throw
-            REQUIRE_FALSE(true);
-        }
-        catch (const wil::ResultException& e)
-        {
-            REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
-        }
+        VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
+            {
+                wil::reg::get_value_expanded_string<StringT>(HKEY_CURRENT_USER, testSubkey, dwordValueName);
+            });
+    }
+#endif
+}
+
+#if defined(WIL_ENABLE_EXCEPTIONS) && defined(__WIL_OLEAUTO_H_)
+TEST_CASE("BasicRegistryTests::expanded_string types", "[registry]")
+{
+    const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
+    if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+    {
+        REQUIRE_SUCCEEDED(deleteHr);
+    }
+
+    SECTION("set_value_expanded_string_nothrow/get_value_expanded_string_nothrow: with opened key")
+    {
+        verify_expanded_string_nothrow<wil::unique_bstr>();
+#if defined(__WIL_OLEAUTO_H_STL)
+        verify_expanded_string_nothrow<wil::shared_bstr>();
+#endif
+    }
+
+    SECTION("set_value_expanded_string_nothrow/get_value_expanded_string_nothrow: with string key")
+    {
+        verify_expanded_string_subkey_nothrow<wil::unique_bstr>();
+#if defined(__WIL_OLEAUTO_H_STL)
+        verify_expanded_string_subkey_nothrow<wil::shared_bstr>();
+#endif
+    }
+
+    SECTION("set_value_expanded_string/get_value_expanded_string: with opened key")
+    {
+        verify_expanded_string<wil::unique_bstr>();
+#if defined(__WIL_OLEAUTO_H_STL)
+        verify_expanded_string<wil::shared_bstr>();
+#endif
+    }
+
+    SECTION("set_value_expanded_string/get_value_expanded_string: with string key")
+    {
+        verify_expanded_string<wil::unique_bstr>();
+#if defined(__WIL_OLEAUTO_H_STL)
+        verify_expanded_string<wil::shared_bstr>();
+#endif
     }
 
 #if defined(__cpp_lib_optional)
