@@ -708,7 +708,20 @@ TEST_CASE("BasicRegistryTests::ReadWrite", "[registry]")
                 REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
             }
 
-            // TODO: test try_get
+#if defined(__cpp_lib_optional)
+            // Same for try_get
+            try
+            {
+                const auto ignored = wil::reg::try_get_value<decltype(fetchedValue)>(hkey.get(), valueName);
+                ignored;
+                // should throw
+                REQUIRE_FALSE(true);
+            }
+            catch (const wil::ResultException& e)
+            {
+                REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
+            }
+#endif
         };
 
         // DWORDs
@@ -812,7 +825,20 @@ TEST_CASE("BasicRegistryTests::ReadWrite", "[registry]")
                 REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
             }
 
-            // TODO: test try_get
+#if defined(__cpp_lib_optional)
+            // Same for try_get
+            try
+            {
+                const auto ignored = wil::reg::try_get_value<decltype(fetchedValue)>(HKEY_CURRENT_USER, testSubkey, valueName);
+                ignored;
+                // should throw
+                REQUIRE_FALSE(true);
+            }
+            catch (const wil::ResultException& e)
+            {
+                REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
+            }
+#endif
         };
 
         // DWORDs
