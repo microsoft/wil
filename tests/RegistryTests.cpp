@@ -104,6 +104,22 @@ bool AreStringsEqual(const wil::shared_cotaskmem_string& lhs, const std::wstring
 }
 #endif
 
+#if defined WIL_ENABLE_EXCEPTIONS
+void VerifyThrowsHr(HRESULT hr, std::function<void()> fn)
+{
+    try
+    {
+        fn();
+        // Should not hit this
+        REQUIRE(false);
+    }
+    catch (const wil::ResultException& e)
+    {
+        REQUIRE(e.GetErrorCode() == hr);
+    }
+}
+#endif
+
 TEST_CASE("BasicRegistryTests::Open", "[registry]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
@@ -259,16 +275,10 @@ TEST_CASE("BasicRegistryTests::Open", "[registry]")
         REQUIRE(result == test_dword_three);
 
         // fail get* if the value doesn't exist
-        try
-        {
-            wil::unique_hkey invalid_key{ wil::reg::open_unique_key(hkey.get(), (std::wstring(subSubKey) + L"_not_valid").c_str(), wil::reg::key_access::readwrite) };
-            // should throw
-            REQUIRE_FALSE(true);
-        }
-        catch (const wil::ResultException& e)
-        {
-            REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
-        }
+        VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND), [&]()
+            {
+                wil::unique_hkey invalid_key{ wil::reg::open_unique_key(hkey.get(), (std::wstring(subSubKey) + L"_not_valid").c_str(), wil::reg::key_access::readwrite) };
+            });
     }
 
     SECTION("open_unique_key: with string key")
@@ -289,16 +299,10 @@ TEST_CASE("BasicRegistryTests::Open", "[registry]")
         REQUIRE(result == test_dword_three);
 
         // fail get* if the value doesn't exist
-        try
-        {
-            wil::unique_hkey invalid_key{ wil::reg::open_unique_key(HKEY_CURRENT_USER, (std::wstring(testSubkey) + L"_not_valid").c_str(), wil::reg::key_access::readwrite) };
-            // should throw
-            REQUIRE_FALSE(true);
-        }
-        catch (const wil::ResultException& e)
-        {
-            REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
-        }
+        VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND), [&]()
+            {
+                wil::unique_hkey invalid_key{ wil::reg::open_unique_key(HKEY_CURRENT_USER, (std::wstring(testSubkey) + L"_not_valid").c_str(), wil::reg::key_access::readwrite) };
+            });
     }
 
 #if defined(__WIL_WINREG_STL)
@@ -324,16 +328,10 @@ TEST_CASE("BasicRegistryTests::Open", "[registry]")
         REQUIRE(result == test_dword_three);
 
         // fail get* if the value doesn't exist
-        try
-        {
-            wil::shared_hkey invalid_key{ wil::reg::open_shared_key(hkey.get(), (std::wstring(subSubKey) + L"_not_valid").c_str(), wil::reg::key_access::readwrite) };
-            // should throw
-            REQUIRE_FALSE(true);
-        }
-        catch (const wil::ResultException& e)
-        {
-            REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
-        }
+        VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND), [&]()
+            {
+                wil::shared_hkey invalid_key{ wil::reg::open_shared_key(hkey.get(), (std::wstring(subSubKey) + L"_not_valid").c_str(), wil::reg::key_access::readwrite) };
+            });
     }
 
     SECTION("open_shared_key: with string key")
@@ -354,16 +352,10 @@ TEST_CASE("BasicRegistryTests::Open", "[registry]")
         REQUIRE(result == test_dword_three);
 
         // fail get* if the value doesn't exist
-        try
-        {
-            wil::shared_hkey invalid_key{ wil::reg::open_shared_key(HKEY_CURRENT_USER, (std::wstring(testSubkey) + L"_not_valid").c_str(), wil::reg::key_access::readwrite) };
-            // should throw
-            REQUIRE_FALSE(true);
-        }
-        catch (const wil::ResultException& e)
-        {
-            REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
-        }
+        VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND), [&]()
+            {
+                wil::shared_hkey invalid_key{ wil::reg::open_shared_key(HKEY_CURRENT_USER, (std::wstring(testSubkey) + L"_not_valid").c_str(), wil::reg::key_access::readwrite) };
+            });
     }
 #endif
 #endif
@@ -434,17 +426,11 @@ namespace
     void verify_not_exist(std::function<GetOutputT(PCWSTR)> getFn)
     {
         // fail get* if the value doesn't exist
-        try
-        {
-            const auto ignored = getFn(invalidValueName);
-            ignored;
-            // should throw
-            REQUIRE_FALSE(true);
-        }
-        catch (const wil::ResultException& e)
-        {
-            REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
-        }
+        VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND), [&]()
+            {
+                const auto ignored = getFn(invalidValueName);
+                ignored;
+            });
     };
 #endif
 
@@ -471,17 +457,11 @@ namespace
     {
         // fail if get* requests the wrong type
         setFn(valueName, value);
-        try
-        {
-            const auto ignored = getFn(valueName);
-            ignored;
-            // should throw
-            REQUIRE_FALSE(true);
-        }
-        catch (const wil::ResultException& e)
-        {
-            REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
-        }
+        VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
+            {
+                const auto ignored = getFn(valueName);
+                ignored;
+            });
     }
 #endif
 }
@@ -673,17 +653,11 @@ TEST_CASE("BasicRegistryTests::ReadWrite", "[registry]")
         const auto TestNonExistentFn = [&hkey](auto value)
         {
             // fail get* if the value doesn't exist
-            try
-            {
-                const auto ignored = wil::reg::get_value<decltype(value)>(hkey.get(), invalidValueName);
-                ignored;
-                // should throw
-                REQUIRE_FALSE(true);
-            }
-            catch (const wil::ResultException& e)
-            {
-                REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
-            }
+            VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND), [&]()
+                {
+                    const auto ignored = wil::reg::get_value<decltype(value)>(hkey.get(), invalidValueName);
+                    ignored;
+                });
 
 #if defined(__cpp_lib_optional)
             // try_get should simply return nullopt
@@ -696,31 +670,19 @@ TEST_CASE("BasicRegistryTests::ReadWrite", "[registry]")
         {
             // reading the wrong type should fail
             wil::reg::set_value(hkey.get(), valueName, originalValue);
-            try
-            {
-                const auto ignored = wil::reg::get_value<decltype(fetchedValue)>(hkey.get(), valueName);
-                ignored;
-                // should throw
-                REQUIRE_FALSE(true);
-            }
-            catch (const wil::ResultException& e)
-            {
-                REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
-            }
+            VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
+                {
+                    const auto ignored = wil::reg::get_value<decltype(fetchedValue)>(hkey.get(), valueName);
+                    ignored;
+                });
 
 #if defined(__cpp_lib_optional)
             // Same for try_get
-            try
-            {
-                const auto ignored = wil::reg::try_get_value<decltype(fetchedValue)>(hkey.get(), valueName);
-                ignored;
-                // should throw
-                REQUIRE_FALSE(true);
-            }
-            catch (const wil::ResultException& e)
-            {
-                REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
-            }
+            VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
+                {
+                    const auto ignored = wil::reg::try_get_value<decltype(fetchedValue)>(hkey.get(), valueName);
+                    ignored;
+                });
 #endif
         };
 
@@ -790,17 +752,11 @@ TEST_CASE("BasicRegistryTests::ReadWrite", "[registry]")
         const auto TestNonExistentFn = [](auto value)
         {
             // fail get* if the value doesn't exist
-            try
-            {
-                const auto ignored = wil::reg::get_value<decltype(value)>(HKEY_CURRENT_USER, testSubkey, invalidValueName);
-                ignored;
-                // should throw
-                REQUIRE_FALSE(true);
-            }
-            catch (const wil::ResultException& e)
-            {
-                REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
-            }
+            VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND), [&]()
+                {
+                    const auto ignored = wil::reg::get_value<decltype(value)>(HKEY_CURRENT_USER, testSubkey, invalidValueName);
+                    ignored;
+                });
 
 #if defined(__cpp_lib_optional)
             // try_get should simply return nullopt
@@ -813,31 +769,19 @@ TEST_CASE("BasicRegistryTests::ReadWrite", "[registry]")
         {
             // reading the wrong type should fail
             wil::reg::set_value(HKEY_CURRENT_USER, testSubkey, valueName, originalValue);
-            try
-            {
-                const auto ignored = wil::reg::get_value<decltype(fetchedValue)>(HKEY_CURRENT_USER, testSubkey, valueName);
-                ignored;
-                // should throw
-                REQUIRE_FALSE(true);
-            }
-            catch (const wil::ResultException& e)
-            {
-                REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
-            }
+            VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
+                {
+                    const auto ignored = wil::reg::get_value<decltype(fetchedValue)>(HKEY_CURRENT_USER, testSubkey, valueName);
+                    ignored;
+                });
 
 #if defined(__cpp_lib_optional)
             // Same for try_get
-            try
-            {
-                const auto ignored = wil::reg::try_get_value<decltype(fetchedValue)>(HKEY_CURRENT_USER, testSubkey, valueName);
-                ignored;
-                // should throw
-                REQUIRE_FALSE(true);
-            }
-            catch (const wil::ResultException& e)
-            {
-                REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
-            }
+            VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
+                {
+                    const auto ignored = wil::reg::try_get_value<decltype(fetchedValue)>(HKEY_CURRENT_USER, testSubkey, valueName);
+                    ignored;
+                });
 #endif
         };
 
@@ -1335,16 +1279,10 @@ TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
 
         // fail if get* requests the wrong type
         REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, test_dword_zero));
-        try
-        {
-            wil::reg::try_get_value_string(hkey.get(), dwordValueName);
-            // should throw
-            REQUIRE_FALSE(true);
-        }
-        catch (const wil::ResultException& e)
-        {
-            REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
-        }
+        VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
+            {
+                wil::reg::try_get_value_string(hkey.get(), dwordValueName);
+            });
     }
     SECTION("set_value/try_get_value_string: with string key")
     {
@@ -1371,16 +1309,10 @@ TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
 
         // fail if get* requests the wrong type
         REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, test_dword_zero));
-        try
-        {
-            wil::reg::try_get_value_string(HKEY_CURRENT_USER, testSubkey, dwordValueName);
-            // should throw
-            REQUIRE_FALSE(true);
-        }
-        catch (const wil::ResultException& e)
-        {
-            REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
-        }
+        VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
+            {
+                wil::reg::try_get_value_string(HKEY_CURRENT_USER, testSubkey, dwordValueName);
+            });
     }
 #endif
 
@@ -3214,16 +3146,10 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
 
         // fail if get* requests the wrong type
         REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, test_dword_zero));
-        try
-        {
-            wil::reg::try_get_value_multistring(hkey.get(), dwordValueName);
-            // should throw
-            REQUIRE_FALSE(true);
-        }
-        catch (const wil::ResultException& e)
-        {
-            REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
-        }
+        VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
+            {
+                wil::reg::try_get_value_multistring(hkey.get(), dwordValueName);
+            });
     }
 
     SECTION("set_value/try_get_value_multistring: with string key")
@@ -3258,16 +3184,10 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
 
         // fail if get* requests the wrong type
         REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, test_dword_zero));
-        try
-        {
-            wil::reg::try_get_value_multistring(HKEY_CURRENT_USER, testSubkey, dwordValueName);
-            // should throw
-            REQUIRE_FALSE(true);
-        }
-        catch (const wil::ResultException& e)
-        {
-            REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
-        }
+        VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
+            {
+                wil::reg::try_get_value_multistring(HKEY_CURRENT_USER, testSubkey, dwordValueName);
+            });
     }
 #endif
 #endif
@@ -3376,29 +3296,17 @@ TEST_CASE("BasicRegistryTests::vector-bytes", "[registry]]")
         }
 
         // fail get* if the value doesn't exist
-        try
-        {
-            wil::reg::get_value_byte_vector(hkey.get(), invalidValueName, REG_BINARY);
-            // should throw
-            REQUIRE_FALSE(true);
-        }
-        catch (const wil::ResultException& e)
-        {
-            REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
-        }
+        VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND), [&]()
+            {
+                wil::reg::get_value_byte_vector(hkey.get(), invalidValueName, REG_BINARY);
+            });
 
         // fail if get* requests the wrong type
         REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0xffffffff));
-        try
-        {
-            wil::reg::get_value_byte_vector(hkey.get(), dwordValueName, REG_BINARY);
-            // should throw
-            REQUIRE_FALSE(true);
-        }
-        catch (const wil::ResultException& e)
-        {
-            REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
-        }
+        VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
+            {
+                wil::reg::get_value_byte_vector(hkey.get(), dwordValueName, REG_BINARY);
+            });
 
         // should succeed if we specify the correct type
         auto result = wil::reg::get_value_byte_vector(hkey.get(), dwordValueName, REG_DWORD);
@@ -3423,29 +3331,17 @@ TEST_CASE("BasicRegistryTests::vector-bytes", "[registry]]")
         }
 
         // fail get* if the value doesn't exist
-        try
-        {
-            wil::reg::get_value_byte_vector(HKEY_CURRENT_USER, testSubkey, invalidValueName, REG_BINARY);
-            // should throw
-            REQUIRE_FALSE(true);
-        }
-        catch (const wil::ResultException& e)
-        {
-            REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
-        }
+        VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND), [&]()
+            {
+                wil::reg::get_value_byte_vector(HKEY_CURRENT_USER, testSubkey, invalidValueName, REG_BINARY);
+            });
 
         // fail if get* requests the wrong type
         REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0xffffffff));
-        try
-        {
-            wil::reg::get_value_byte_vector(HKEY_CURRENT_USER, testSubkey, dwordValueName, REG_BINARY);
-            // should throw
-            REQUIRE_FALSE(true);
-        }
-        catch (const wil::ResultException& e)
-        {
-            REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
-        }
+        VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
+            {
+                wil::reg::get_value_byte_vector(HKEY_CURRENT_USER, testSubkey, dwordValueName, REG_BINARY);
+            });
 
         // should succeed if we specify the correct type
         auto result = wil::reg::get_value_byte_vector(HKEY_CURRENT_USER, testSubkey, dwordValueName, REG_DWORD);
@@ -3480,16 +3376,10 @@ TEST_CASE("BasicRegistryTests::vector-bytes", "[registry]]")
 
         // fail if get* requests the wrong type
         REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0xffffffff));
-        try
-        {
-            wil::reg::try_get_value_byte_vector(hkey.get(), dwordValueName, REG_BINARY);
-            // should throw
-            REQUIRE_FALSE(true);
-        }
-        catch (const wil::ResultException& e)
-        {
-            REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
-        }
+        VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
+            {
+                wil::reg::try_get_value_byte_vector(hkey.get(), dwordValueName, REG_BINARY);
+            });
 
         // should succeed if we specify the correct type
         result = wil::reg::try_get_value_byte_vector(hkey.get(), dwordValueName, REG_DWORD);
@@ -3521,16 +3411,10 @@ TEST_CASE("BasicRegistryTests::vector-bytes", "[registry]]")
 
         // fail if get* requests the wrong type
         REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0xffffffff));
-        try
-        {
-            wil::reg::try_get_value_byte_vector(HKEY_CURRENT_USER, testSubkey, dwordValueName, REG_BINARY);
-            // should throw
-            REQUIRE_FALSE(true);
-        }
-        catch (const wil::ResultException& e)
-        {
-            REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
-        }
+        VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
+            {
+                wil::reg::try_get_value_byte_vector(HKEY_CURRENT_USER, testSubkey, dwordValueName, REG_BINARY);
+            });
 
         // should succeed if we specify the correct type
         result = wil::reg::try_get_value_byte_vector(HKEY_CURRENT_USER, testSubkey, dwordValueName, REG_DWORD);
