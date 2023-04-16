@@ -1397,116 +1397,73 @@ TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
 
 namespace
 {
-    template<typename StringT>
-    void verify_string_nothrow(HKEY key)
+    template<typename StringT, typename SetStringT = PCWSTR>
+    void verify_string_nothrow(
+        std::function<HRESULT(PCWSTR, typename type_identity<StringT>::type&)> getFn,
+        std::function<HRESULT(PCWSTR, typename type_identity<SetStringT>::type)> setFn,
+        std::function<HRESULT(PCWSTR)> wrongSetFn)
     {
         for (const auto& value : stringTestArray)
         {
-            REQUIRE_SUCCEEDED(wil::reg::set_value_string_nothrow(key, stringValueName, value.c_str()));
+            REQUIRE_SUCCEEDED(setFn(stringValueName, value.c_str()));
             StringT result{};
-            REQUIRE_SUCCEEDED(wil::reg::get_value_string_nothrow(key, stringValueName, result));
+            REQUIRE_SUCCEEDED(getFn(stringValueName, result));
             REQUIRE(AreStringsEqual(result, value));
 
             // and verify default value name
-            REQUIRE_SUCCEEDED(wil::reg::set_value_string_nothrow(key, nullptr, value.c_str()));
+            REQUIRE_SUCCEEDED(setFn(nullptr, value.c_str()));
             result = {};
-            REQUIRE_SUCCEEDED(wil::reg::get_value_string_nothrow(key, nullptr, result));
+            REQUIRE_SUCCEEDED(getFn(nullptr, result));
             REQUIRE(AreStringsEqual(result, value));
         }
 
         // fail get* if the value doesn't exist
         StringT result{};
-        HRESULT hr = wil::reg::get_value_string_nothrow(key, invalidValueName, result);
+        HRESULT hr = getFn(invalidValueName, result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
 
         // fail if get* requests the wrong type
-        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(key, dwordValueName, test_dword_zero));
-        hr = wil::reg::get_value_string_nothrow(key, dwordValueName, result);
+        REQUIRE_SUCCEEDED(wrongSetFn(dwordValueName));
+        hr = getFn(dwordValueName, result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
+    }
+
+    template<typename StringT>
+    void verify_string_nothrow(HKEY key)
+    {
+        verify_string_nothrow<StringT>(
+            [&key](PCWSTR valueName, StringT& output) { return wil::reg::get_value_string_nothrow(key, valueName, output); },
+            [&key](PCWSTR valueName, PCWSTR input) { return wil::reg::set_value_string_nothrow(key, valueName, input); },
+            [&key](PCWSTR valueName) -> HRESULT { return wil::reg::set_value_dword_nothrow(key, valueName, test_dword_zero); });
     }
 
     template<typename StringT>
     void verify_string_nothrow(HKEY key, PCWSTR subkey)
     {
-        for (const auto& value : stringTestArray)
-        {
-            REQUIRE_SUCCEEDED(wil::reg::set_value_string_nothrow(key, subkey, stringValueName, value.c_str()));
-            StringT result{};
-            REQUIRE_SUCCEEDED(wil::reg::get_value_string_nothrow(key, subkey, stringValueName, result));
-            REQUIRE(AreStringsEqual(result, value));
-
-            // and verify default value name
-            REQUIRE_SUCCEEDED(wil::reg::set_value_string_nothrow(key, subkey, nullptr, value.c_str()));
-            result = {};
-            REQUIRE_SUCCEEDED(wil::reg::get_value_string_nothrow(key, subkey, nullptr, result));
-            REQUIRE(AreStringsEqual(result, value));
-        }
-
-        // fail get* if the value doesn't exist
-        StringT result{};
-        HRESULT hr = wil::reg::get_value_string_nothrow(key, subkey, invalidValueName, result);
-        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
-
-        // fail if get* requests the wrong type
-        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(key, subkey, dwordValueName, test_dword_zero));
-        hr = wil::reg::get_value_string_nothrow(key, subkey, dwordValueName, result);
-        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
+        verify_string_nothrow<StringT>(
+            [&key, &subkey](PCWSTR valueName, StringT& output) { return wil::reg::get_value_string_nothrow(key, subkey, valueName, output); },
+            [&key, &subkey](PCWSTR valueName, PCWSTR input) { return wil::reg::set_value_string_nothrow(key, subkey, valueName, input); },
+            [&key, &subkey](PCWSTR valueName) -> HRESULT { return wil::reg::set_value_dword_nothrow(key, subkey, valueName, test_dword_zero); });
     }
 
     template<typename StringT>
     void verify_generic_string_nothrow(HKEY key)
     {
-        for (const auto& value : stringTestArray)
-        {
-            REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(key, stringValueName, value.c_str()));
-            StringT result{};
-            REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(key, stringValueName, &result));
-            REQUIRE(AreStringsEqual(result, value));
-
-            // and verify default value name
-            REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(key, nullptr, value.c_str()));
-            result = {};
-            REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(key, nullptr, &result));
-            REQUIRE(AreStringsEqual(result, value));
-        }
-
-        // fail get* if the value doesn't exist
-        StringT result{};
-        HRESULT hr = wil::reg::get_value_nothrow(key, invalidValueName, &result);
-        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
-
-        // fail if get* requests the wrong type
-        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(key, dwordValueName, test_dword_zero));
-        hr = wil::reg::get_value_nothrow(key, dwordValueName, &result);
-        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
+        // TODO: this dereferencing loses the wil::unique type
+        verify_string_nothrow<StringT>(
+            [&key](PCWSTR valueName, StringT& output) { return wil::reg::get_value_nothrow(key, valueName, &output); },
+            [&key](PCWSTR valueName, PCWSTR input) { return wil::reg::set_value_nothrow(key, valueName, input); },
+            [&key](PCWSTR valueName) -> HRESULT { return wil::reg::set_value_dword_nothrow(key, valueName, test_dword_zero); });
     }
 
     template<typename StringT>
     void verify_generic_string_nothrow(HKEY key, PCWSTR subkey)
     {
-        for (const auto& value : stringTestArray)
-        {
-            REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(key, subkey, stringValueName, value.c_str()));
-            StringT result{};
-            REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(key, subkey, stringValueName, &result));
-            REQUIRE(AreStringsEqual(result, value));
-
-            // and verify default value name
-            REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(key, subkey, nullptr, value.c_str()));
-            result = {};
-            REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(key, subkey, nullptr, &result));
-            REQUIRE(AreStringsEqual(result, value));
-        }
-
-        // fail get* if the value doesn't exist
-        StringT result{};
-        HRESULT hr = wil::reg::get_value_nothrow(key, subkey, invalidValueName, &result);
-        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
-
-        // fail if get* requests the wrong type
-        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(key, subkey, dwordValueName, test_dword_zero));
-        hr = wil::reg::get_value_nothrow(key, subkey, dwordValueName, &result);
-        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
+        // TODO: this dereferencing loses the wil::unique type
+        verify_string_nothrow<StringT>(
+            [&key, &subkey](PCWSTR valueName, StringT& output) { return wil::reg::get_value_nothrow(key, subkey, valueName, &output); },
+            [&key, &subkey](PCWSTR valueName, PCWSTR input) { return wil::reg::set_value_nothrow(key, subkey, valueName, input); },
+            [&key, &subkey](PCWSTR valueName) -> HRESULT { return wil::reg::set_value_dword_nothrow(key, subkey, valueName, test_dword_zero); });
     }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
