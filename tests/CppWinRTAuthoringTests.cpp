@@ -153,7 +153,7 @@ TEST_CASE("CppWinRTAuthoringTests::NotifyPropertyChanged", "[property][LocalOnly
 
     testImpl->MyProperty(43);
     test.PropertyChanged(token);
-
+    REQUIRE(testImpl->MyProperty.Name() == L"MyProperty");
     manager.Close();
 #endif
 }

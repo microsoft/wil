@@ -76,14 +76,14 @@ namespace wil
     namespace details {
         template<typename T>
         struct event_base {
-            winrt::event_token operator()(T const& handler) {
-                return m_handler.add(handler);
+            winrt::event_token operator()(T&& handler) {
+                return m_handler.add(std::forward<T>(handler));
             }
             auto operator()(const winrt::event_token& token) noexcept { return m_handler.remove(token); }
 
             template<typename... TArgs>
             auto invoke(TArgs&&... args) {
-                return m_handler(args...);
+                return m_handler(std::forward<TArgs>(args)...);
             }
         private:
             winrt::event<T> m_handler;
@@ -112,8 +112,21 @@ namespace wil
 
 #endif // !defined(__WIL_CPPWINRT_AUTHORING_INCLUDED_FOUNDATION) && defined(WINRT_Windows_Foundation_H)
 
-#if !defined(__WIL_CPPWINRT_AUTHORING_INCLUDED_XAML_DATA) && defined(WINRT_Windows_UI_Xaml_Data_H) // INotifyPropertyChanged helpers
+#if !defined(__WIL_CPPWINRT_AUTHORING_INCLUDED_XAML_DATA) // INotifyPropertyChanged helpers
 #define __WIL_CPPWINRT_AUTHORING_INCLUDED_XAML_DATA
+namespace details
+{
+#ifdef WINRT_Microsoft_UI_Xaml_Data_H
+    using Xaml_Data_PropertyChangedEventHandler = winrt::Microsoft::UI::Xaml::Data::PropertyChangedEventHandler;
+    using Xaml_Data_PropertyChangedEventArgs = winrt::Microsoft::UI::Xaml::Data::PropertyChangedEventArgs;
+#else if defined(Windows_UI_Xaml_Data_H)
+    using Xaml_Data_PropertyChangedEventHandler = winrt::Windows::UI::Xaml::Data::PropertyChangedEventHandler;
+    using Xaml_Data_PropertyChangedEventArgs = winrt::Windows::UI::Xaml::Data::PropertyChangedEventArgs;
+#endif
+}
+
+#if defined(WINRT_Microsoft_UI_Xaml_Data_H) || defined(WINRT_Windows_UI_Xaml_Data_H)
+
     /**
      * @brief Helper base class to inherit from to have a simple implementation of [INotifyPropertyChanged](https://docs.microsoft.com/uwp/api/windows.ui.xaml.data.inotifypropertychanged).
      * @tparam T CRTP type
@@ -127,7 +140,7 @@ namespace wil
      * @endcode
     */
     template<typename T,
-        typename Xaml_Data_PropertyChangedEventHandler = winrt::Windows::UI::Xaml::Data::PropertyChangedEventHandler
+        typename Xaml_Data_PropertyChangedEventHandler = details::Xaml_Data_PropertyChangedEventHandler
         // , typename = std::enable_if_t<std::is_convertible_v<T, winrt::Windows::Foundation::IInspectable>>
     >
     struct notify_property_changed_base {
@@ -172,8 +185,8 @@ namespace wil
      * @details Use the #INIT_NOTIFY_PROPERTY macro to initialize this property in your class constructor. This will set up the right property name, and bind it to the `notify_property_changed_base` implementation.
     */
     template<typename T,
-        typename Xaml_Data_PropertyChangedEventHandler = winrt::Windows::UI::Xaml::Data::PropertyChangedEventHandler,
-        typename Xaml_Data_PropertyChangedEventArgs = winrt::Windows::UI::Xaml::Data::PropertyChangedEventArgs>
+        typename Xaml_Data_PropertyChangedEventHandler = details::Xaml_Data_PropertyChangedEventHandler,
+        typename Xaml_Data_PropertyChangedEventArgs = details::Xaml_Data_PropertyChangedEventArgs>
     struct single_threaded_notifying_property : single_threaded_rw_property<T> {
         using Type = T;
 
@@ -193,16 +206,17 @@ namespace wil
             winrt::Windows::Foundation::IInspectable sender,
             std::wstring_view name,
             TArgs&&... args) :
-            single_threaded_rw_property<T>(std::forward<TArgs...>(args)...) {
-            m_name = name;
-            m_npc = npc;
-            m_sender = sender;
-        }
+            single_threaded_rw_property<T>(std::forward<TArgs...>(args)...),
+            m_name(name),
+            m_npc(npc),
+            m_sender(sender)
+        {}
 
         single_threaded_notifying_property(const single_threaded_notifying_property&) = default;
         single_threaded_notifying_property(single_threaded_notifying_property&&) = default;
+        std::wstring_view Name() const noexcept { return m_name; }
     private:
-        std::wstring m_name;
+        std::wstring_view m_name;
         winrt::event<Xaml_Data_PropertyChangedEventHandler>* m_npc;
         winrt::Windows::Foundation::IInspectable m_sender;
     };
@@ -212,8 +226,9 @@ namespace wil
     * @brief use this to initialize a wil::single_threaded_notifying_property in your class constructor.
     */
 #define INIT_NOTIFY_PROPERTY(NAME, VALUE)  \
-        NAME(&m_propertyChanged, *this, std::wstring_view{ L#NAME }, VALUE)
+        NAME(&m_propertyChanged, *this, (this->NAME, L#NAME), VALUE)
 
-#endif // !defined(__WIL_CPPWINRT_AUTHORING_INCLUDED_XAML_DATA) && defined(WINRT_Windows_UI_Xaml_Data_H)
+#endif // defined(WINRT_Microsoft_UI_Xaml_Data_H) || defined(WINRT_Windows_UI_Xaml_Data_H)
 
+#endif // !defined(__WIL_CPPWINRT_AUTHORING_INCLUDED_XAML_DATA)
 } // namespace wil
