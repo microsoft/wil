@@ -2384,35 +2384,10 @@ namespace
     template<typename StringT>
     void verify_expanded_string_subkey_nothrow()
     {
-        for (const auto& value : expandedStringTestArray)
-        {
-            // verify the expanded string
-            WCHAR expanded_value[test_expanded_string_buffer_size]{};
-            const auto expanded_result = ::ExpandEnvironmentStringsW(value.c_str(), expanded_value, test_expanded_string_buffer_size);
-            REQUIRE(expanded_result != ERROR_SUCCESS);
-            REQUIRE(expanded_result < test_expanded_string_buffer_size);
-
-            REQUIRE_SUCCEEDED(wil::reg::set_value_expanded_string_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, value.c_str()));
-            StringT result{};
-            REQUIRE_SUCCEEDED(wil::reg::get_value_expanded_string_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, result));
-            REQUIRE(AreStringsEqual(result, expanded_value));
-
-            // and verify default value name
-            REQUIRE_SUCCEEDED(wil::reg::set_value_expanded_string_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, value.c_str()));
-            result = {};
-            REQUIRE_SUCCEEDED(wil::reg::get_value_expanded_string_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, result));
-            REQUIRE(AreStringsEqual(result, expanded_value));
-        }
-
-        // fail get* if the value doesn't exist
-        StringT result{};
-        auto hr = wil::reg::get_value_expanded_string_nothrow(HKEY_CURRENT_USER, testSubkey, invalidValueName, result);
-        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
-
-        // fail if get* requests the wrong type
-        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, test_dword_zero));
-        hr = wil::reg::get_value_expanded_string_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, result);
-        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
+        verify_expanded_string_nothrow<StringT>(
+            [](PCWSTR valueName, StringT& output) { return wil::reg::get_value_expanded_string_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, output); },
+            [](PCWSTR valueName, PCWSTR input) { return wil::reg::set_value_expanded_string_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, input); },
+            [](PCWSTR valueName) { return wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, test_dword_zero); });
     }
 
     template<typename StringT>
