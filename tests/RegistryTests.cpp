@@ -2407,73 +2407,61 @@ namespace
     }
 
 #if defined(__cpp_lib_optional)
+    template<typename StringT, typename SetStringT = PCWSTR>
+    void verify_try_expanded_string(
+        std::function<std::optional<typename type_identity<StringT>::type>(PCWSTR)> getFn,
+        std::function<void(PCWSTR, typename type_identity<SetStringT>::type)> setFn,
+        std::function<void(PCWSTR)> setWrongTypeFn)
+    {
+        for (const auto& value : stringTestArray)
+        {
+            // verify the expanded string
+            WCHAR expanded_value[test_expanded_string_buffer_size]{};
+            const auto expanded_result = ::ExpandEnvironmentStringsW(value.c_str(), expanded_value, test_expanded_string_buffer_size);
+            REQUIRE(expanded_result != ERROR_SUCCESS);
+            REQUIRE(expanded_result < test_expanded_string_buffer_size);
+
+            setFn(stringValueName, value.c_str());
+            auto result = getFn(stringValueName);
+            REQUIRE(AreStringsEqual(result.value(), expanded_value));
+
+            // and verify default value name
+            setFn(nullptr, value.c_str());
+            result = getFn(nullptr);
+            REQUIRE(AreStringsEqual(result.value(), expanded_value));
+        }
+
+        // fail get* if the value doesn't exist
+        const auto result = getFn(invalidValueName);
+        REQUIRE(!result.has_value());
+
+        // fail if get* requests the wrong type
+        setWrongTypeFn(dwordValueName);
+        VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
+            {
+                getFn(dwordValueName);
+            });
+    }
+
     template<typename StringT>
     void verify_try_expanded_string()
     {
         wil::unique_hkey hkey;
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
 
-        for (const auto& value : stringTestArray)
-        {
-            // verify the expanded string
-            WCHAR expanded_value[test_expanded_string_buffer_size]{};
-            const auto expanded_result = ::ExpandEnvironmentStringsW(value.c_str(), expanded_value, test_expanded_string_buffer_size);
-            REQUIRE(expanded_result != ERROR_SUCCESS);
-            REQUIRE(expanded_result < test_expanded_string_buffer_size);
-
-            wil::reg::set_value_expanded_string(hkey.get(), stringValueName, value.c_str());
-            auto result = wil::reg::try_get_value_string<StringT>(hkey.get(), stringValueName);
-            REQUIRE(AreStringsEqual(result.value(), expanded_value));
-
-            // and verify default value name
-            wil::reg::set_value(hkey.get(), nullptr, value.c_str());
-            result = wil::reg::try_get_value_string<StringT>(hkey.get(), nullptr);
-            REQUIRE(AreStringsEqual(result.value(), expanded_value));
-        }
-
-        // fail get* if the value doesn't exist
-        const auto result = wil::reg::try_get_value_string<StringT>(hkey.get(), invalidValueName);
-        REQUIRE(!result.has_value());
-
-        // fail if get* requests the wrong type
-        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(hkey.get(), dwordValueName, test_dword_zero));
-        VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
-            {
-                wil::reg::try_get_value_string<StringT>(hkey.get(), dwordValueName);
-            });
+        verify_try_expanded_string<StringT>(
+            [&hkey](PCWSTR valueName) { return wil::reg::try_get_value_expanded_string<StringT>(hkey.get(), valueName); },
+            [&hkey](PCWSTR valueName, PCWSTR input) { wil::reg::set_value_expanded_string(hkey.get(), valueName, input); },
+            [&hkey](PCWSTR valueName) { wil::reg::set_value_dword(hkey.get(), valueName, test_dword_zero); });
     }
 
     template<typename StringT>
     void verify_try_expanded_string_subkey()
     {
-        for (const auto& value : stringTestArray)
-        {
-            // verify the expanded string
-            WCHAR expanded_value[test_expanded_string_buffer_size]{};
-            const auto expanded_result = ::ExpandEnvironmentStringsW(value.c_str(), expanded_value, test_expanded_string_buffer_size);
-            REQUIRE(expanded_result != ERROR_SUCCESS);
-            REQUIRE(expanded_result < test_expanded_string_buffer_size);
-
-            wil::reg::set_value_expanded_string(HKEY_CURRENT_USER, testSubkey, stringValueName, value.c_str());
-            auto result = wil::reg::try_get_value_string<StringT>(HKEY_CURRENT_USER, testSubkey, stringValueName);
-            REQUIRE(AreStringsEqual(result.value(), expanded_value));
-
-            // and verify default value name
-            wil::reg::set_value(HKEY_CURRENT_USER, testSubkey, nullptr, value.c_str());
-            result = wil::reg::try_get_value_string<StringT>(HKEY_CURRENT_USER, testSubkey, nullptr);
-            REQUIRE(AreStringsEqual(result.value(), expanded_value));
-        }
-
-        // fail get* if the value doesn't exist
-        const auto result = wil::reg::try_get_value_string<StringT>(HKEY_CURRENT_USER, testSubkey, invalidValueName);
-        REQUIRE(!result.has_value());
-
-        // fail if get* requests the wrong type
-        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, test_dword_zero));
-        VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
-            {
-                wil::reg::try_get_value_string<wil::shared_bstr>(HKEY_CURRENT_USER, testSubkey, dwordValueName);
-            });
+        verify_try_expanded_string<StringT>(
+            [](PCWSTR valueName) { return wil::reg::try_get_value_expanded_string<StringT>(HKEY_CURRENT_USER, testSubkey, valueName); },
+            [](PCWSTR valueName, PCWSTR input) { wil::reg::set_value_expanded_string(HKEY_CURRENT_USER, testSubkey, valueName, input); },
+            [](PCWSTR valueName) { wil::reg::set_value_dword(HKEY_CURRENT_USER, testSubkey, valueName, test_dword_zero); });
     }
 
     // TODO: test generic try_get_value
