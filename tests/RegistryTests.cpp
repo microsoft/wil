@@ -1253,73 +1253,6 @@ TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
         std::wstring result{ wil::reg::get_value_string(HKEY_CURRENT_USER, testSubkey, stringValueName) };
         REQUIRE(result.empty());
     }
-
-#endif
-
-#if defined(__cpp_lib_optional)
-    SECTION("set_value/try_get_value_string: with open key")
-    {
-        wil::unique_hkey hkey;
-        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
-
-        for (const auto& value : stringTestArray)
-        {
-            wil::reg::set_value(hkey.get(), stringValueName, value.c_str());
-            auto result = wil::reg::try_get_value_string(hkey.get(), stringValueName);
-            REQUIRE(result);
-            REQUIRE(result.has_value());
-            REQUIRE(result == value);
-
-            // and verify default value name
-            wil::reg::set_value(hkey.get(), nullptr, value.c_str());
-            result = wil::reg::try_get_value_string(hkey.get(), nullptr);
-            REQUIRE(result);
-            REQUIRE(result.has_value());
-            REQUIRE(result == value);
-        }
-
-        // fail get* if the value doesn't exist
-        const auto result = wil::reg::try_get_value_string(hkey.get(), invalidValueName);
-        REQUIRE(!result);
-        REQUIRE(!result.has_value());
-
-        // fail if get* requests the wrong type
-        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, test_dword_zero));
-        VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
-            {
-                wil::reg::try_get_value_string(hkey.get(), dwordValueName);
-            });
-    }
-    SECTION("set_value/try_get_value_string: with string key")
-    {
-        for (const auto& value : stringTestArray)
-        {
-            wil::reg::set_value(HKEY_CURRENT_USER, testSubkey, stringValueName, value.c_str());
-            auto result = wil::reg::try_get_value_string(HKEY_CURRENT_USER, testSubkey, stringValueName);
-            REQUIRE(result);
-            REQUIRE(result.has_value());
-            REQUIRE(result == value);
-
-            // and verify default value name
-            wil::reg::set_value(HKEY_CURRENT_USER, testSubkey, nullptr, value.c_str());
-            result = wil::reg::try_get_value_string(HKEY_CURRENT_USER, testSubkey, nullptr);
-            REQUIRE(result);
-            REQUIRE(result.has_value());
-            REQUIRE(result == value);
-        }
-
-        // fail get* if the value doesn't exist
-        const auto result = wil::reg::try_get_value_string(HKEY_CURRENT_USER, testSubkey, invalidValueName);
-        REQUIRE(!result);
-        REQUIRE(!result.has_value());
-
-        // fail if get* requests the wrong type
-        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, test_dword_zero));
-        VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
-            {
-                wil::reg::try_get_value_string(HKEY_CURRENT_USER, testSubkey, dwordValueName);
-            });
-    }
 #endif
 
     SECTION("set_value_nothrow/get_value_string_nothrow: into buffers with open key")
@@ -1776,6 +1709,8 @@ TEST_CASE("BasicRegistryTests::string types", "[registry]")
 #if defined(__cpp_lib_optional)
     SECTION("strings set_value_string/try_get_value_string: with open key")
     {
+        verify_try_string<std::wstring>();
+
 #if defined(__WIL_OLEAUTO_H_)
 #if defined(__WIL_OLEAUTO_H_STL)
         verify_try_string<wil::shared_bstr>();
@@ -1791,6 +1726,8 @@ TEST_CASE("BasicRegistryTests::string types", "[registry]")
 
     SECTION("strings set_value_string/try_get_value_string: with string key")
     {
+        verify_try_string_subkey<std::wstring>();
+
 #if defined(__WIL_OLEAUTO_H_)
 #if defined(__WIL_OLEAUTO_H_STL)
         verify_try_string_subkey<wil::shared_bstr>();
@@ -1807,6 +1744,8 @@ TEST_CASE("BasicRegistryTests::string types", "[registry]")
     // TODO: it's a bug that we support unique here, right?
     SECTION("strings set_value/try_get_value: with open key")
     {
+        verify_try_string_generic_get_value<std::wstring>();
+
 #if defined(__WIL_OLEAUTO_H_)
         verify_try_string_generic_get_value<wil::unique_bstr>();
 #if defined(__WIL_OLEAUTO_H_STL)
@@ -1824,6 +1763,8 @@ TEST_CASE("BasicRegistryTests::string types", "[registry]")
 
     SECTION("strings set_value/try_get_value: with string key")
     {
+        verify_try_string_generic_get_value_subkey<std::wstring>();
+
 #if defined(__WIL_OLEAUTO_H_)
         verify_try_string_generic_get_value_subkey<wil::unique_bstr>();
 #if defined(__WIL_OLEAUTO_H_STL)
@@ -1954,6 +1895,8 @@ TEST_CASE("BasicRegistryTests::expanded_wstring", "[registry]")
         hr = wil::reg::get_value_expanded_string_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
     }
+
+    // TODO: verify string is the default
 }
 #endif
 
@@ -2153,6 +2096,7 @@ TEST_CASE("BasicRegistryTests::expanded_string", "[registry]")
     {
         verify_expanded_string_nothrow<std::wstring>();
 
+// TODO: redundant?
 #if defined(__WIL_OLEAUTO_H_)
         verify_expanded_string_nothrow<wil::unique_bstr>();
 #if defined(__WIL_OLEAUTO_H_STL)
