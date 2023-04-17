@@ -1474,156 +1474,6 @@ namespace
     }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
-    template<typename StringT>
-    void verify_string(HKEY key)
-    {
-        for (const auto& value : stringTestArray)
-        {
-            wil::reg::set_value_string(key, stringValueName, value.c_str());
-            auto result = wil::reg::get_value_string<StringT>(key, stringValueName);
-            REQUIRE(AreStringsEqual(result, value));
-
-            // TODO: optional only supported for shared.
-//#if defined(__cpp_lib_optional)
-//            auto optional_result = wil::reg::try_get_value_string<StringT>(key, stringValueName);
-//            REQUIRE(AreStringsEqual(optional_result.value(), value));
-//#endif
-
-            // and verify default value name
-            wil::reg::set_value_string(key, nullptr, value.c_str());
-            result = wil::reg::get_value_string<StringT>(key, nullptr);
-            REQUIRE(AreStringsEqual(result, value));
-
-//#if defined(__cpp_lib_optional)
-//            optional_result = wil::reg::try_get_value_string<StringT>(key, stringValueName);
-//            REQUIRE(AreStringsEqual(optional_result.value(), value));
-//#endif
-        }
-
-        // fail get* if the value doesn't exist
-        try
-        {
-            const auto ignored = wil::reg::get_value_string<StringT>(key, invalidValueName);
-            ignored;
-            // should throw
-            REQUIRE_FALSE(true);
-        }
-        catch (const wil::ResultException& e)
-        {
-            REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
-        }
-
-//#if defined(__cpp_lib_optional)
-//        // try_get should simply return nullopt
-//        const auto optional_result = wil::reg::try_get_value_string<StringT>(key, invalidValueName);
-//        REQUIRE(optional_result == std::nullopt);
-//#endif
-
-        // fail if get* requests the wrong type
-        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(key, dwordValueName, test_dword_zero));
-        try
-        {
-            const auto ignored = wil::reg::get_value_string<StringT>(key, dwordValueName);
-            ignored;
-            // should throw
-            REQUIRE_FALSE(true);
-        }
-        catch (const wil::ResultException& e)
-        {
-            REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
-        }
-
-//#if defined(__cpp_lib_optional)
-//        // Same for try_get
-//        try
-//        {
-//            const auto ignored = wil::reg::try_get_value_string<StringT>(key, dwordValueName);
-//            ignored;
-//            // should throw
-//            REQUIRE_FALSE(true);
-//        }
-//        catch (const wil::ResultException& e)
-//        {
-//            REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
-//        }
-//#endif
-    }
-
-    template<typename StringT>
-    void verify_string(HKEY key, PCWSTR subkey)
-    {
-        for (const auto& value : stringTestArray)
-        {
-            wil::reg::set_value_string(key, subkey, stringValueName, value.c_str());
-            auto result = wil::reg::get_value_string<StringT>(key, subkey, stringValueName);
-            REQUIRE(AreStringsEqual(result, value));
-
-            // TODO: optional only supported for shared.
-//#if defined(__cpp_lib_optional)
-//            auto optional_result = wil::reg::try_get_value_string<StringT>(key, subkey, stringValueName);
-//            REQUIRE(AreStringsEqual(optional_result.value(), value));
-//#endif
-
-            // and verify default value name
-            wil::reg::set_value_string(key, subkey, nullptr, value.c_str());
-            result = wil::reg::get_value_string<StringT>(key, subkey, nullptr);
-            REQUIRE(AreStringsEqual(result, value));
-
-            //#if defined(__cpp_lib_optional)
-            //            optional_result = wil::reg::try_get_value_string<StringT>(key, subkey, stringValueName);
-            //            REQUIRE(AreStringsEqual(optional_result.value(), value));
-            //#endif
-        }
-
-        // fail get* if the value doesn't exist
-        try
-        {
-            const auto ignored = wil::reg::get_value_string<StringT>(key, subkey, invalidValueName);
-            ignored;
-            // should throw
-            REQUIRE_FALSE(true);
-        }
-        catch (const wil::ResultException& e)
-        {
-            REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
-        }
-
-        //#if defined(__cpp_lib_optional)
-        //        // try_get should simply return nullopt
-        //        const auto optional_result = wil::reg::try_get_value_string<StringT>(key, subkey, invalidValueName);
-        //        REQUIRE(optional_result == std::nullopt);
-        //#endif
-
-                // fail if get* requests the wrong type
-        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(key, subkey, dwordValueName, test_dword_zero));
-        try
-        {
-            const auto ignored = wil::reg::get_value_string<StringT>(key, subkey, dwordValueName);
-            ignored;
-            // should throw
-            REQUIRE_FALSE(true);
-        }
-        catch (const wil::ResultException& e)
-        {
-            REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
-        }
-
-        //#if defined(__cpp_lib_optional)
-        //        // Same for try_get
-        //        try
-        //        {
-        //            const auto ignored = wil::reg::try_get_value_string<StringT>(key, subkey, dwordValueName);
-        //            ignored;
-        //            // should throw
-        //            REQUIRE_FALSE(true);
-        //        }
-        //        catch (const wil::ResultException& e)
-        //        {
-        //            REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
-        //        }
-        //#endif
-    }
-
     template<typename StringT, typename StringSetT = PCWSTR>
     void verify_string_generic_get_value(
         std::function<typename type_identity<StringT>::type(PCWSTR)> getFn,
@@ -1656,6 +1506,27 @@ namespace
                 const auto ignored = getFn(dwordValueName);
                 ignored;
             });
+    }
+
+    template<typename StringT>
+    void verify_string()
+    {
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
+
+        verify_string_generic_get_value<StringT>(
+            [&hkey](PCWSTR valueName) { return wil::reg::get_value_string<StringT>(hkey.get(), valueName); },
+            [&hkey](PCWSTR valueName, PCWSTR value) -> void { wil::reg::set_value_string(hkey.get(), valueName, value); },
+            [&hkey](PCWSTR valueName) { wil::reg::set_value_dword(hkey.get(), valueName, test_dword_zero); });
+    }
+
+    template<typename StringT>
+    void verify_string_subkey()
+    {
+        verify_string_generic_get_value<StringT>(
+            [](PCWSTR valueName) { return wil::reg::get_value_string<StringT>(HKEY_CURRENT_USER, testSubkey, valueName); },
+            [](PCWSTR valueName, PCWSTR value) -> void { wil::reg::set_value_string(HKEY_CURRENT_USER, testSubkey, valueName, value); },
+            [](PCWSTR valueName) { wil::reg::set_value_dword(HKEY_CURRENT_USER, testSubkey, valueName, test_dword_zero); });
     }
 
     template<typename StringT>
@@ -1709,6 +1580,27 @@ namespace
                 const auto ignored = tryGetFn(dwordValueName);
                 ignored;
             });
+    }
+
+    template<typename StringT>
+    void verify_try_string()
+    {
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
+
+        verify_try_string_generic_get_value<StringT>(
+            [&hkey](PCWSTR valueName) { return wil::reg::try_get_value_string<StringT>(hkey.get(), valueName); },
+            [&hkey](PCWSTR valueName, PCWSTR value) -> void { wil::reg::set_value_string(hkey.get(), valueName, value); },
+            [&hkey](PCWSTR valueName) { wil::reg::set_value_dword(hkey.get(), valueName, test_dword_zero); });
+    }
+
+    template<typename StringT>
+    void verify_try_string_subkey()
+    {
+        verify_try_string_generic_get_value<StringT>(
+            [](PCWSTR valueName) { return wil::reg::try_get_value_string<StringT>(HKEY_CURRENT_USER, testSubkey, valueName); },
+            [](PCWSTR valueName, PCWSTR value) -> void { wil::reg::set_value_string(HKEY_CURRENT_USER, testSubkey, valueName, value); },
+            [](PCWSTR valueName) { wil::reg::set_value_dword(HKEY_CURRENT_USER, testSubkey, valueName, test_dword_zero); });
     }
 
     template<typename StringT>
@@ -1815,20 +1707,17 @@ TEST_CASE("BasicRegistryTests::string types", "[registry]")
 #ifdef WIL_ENABLE_EXCEPTIONS
     SECTION("set_value_string/get_value_string: with opened key")
     {
-        wil::unique_hkey hkey;
-        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
-
 #if defined(__WIL_OLEAUTO_H_)
-        verify_string<wil::unique_bstr>(hkey.get());
+        verify_string<wil::unique_bstr>();
 #if defined(__WIL_OLEAUTO_H_STL)
-        verify_string<wil::shared_bstr>(hkey.get());
+        verify_string<wil::shared_bstr>();
 #endif
 #endif
 
 #if defined(__WIL_OBJBASE_H_)
-        verify_string<wil::unique_cotaskmem_string>(hkey.get());
+        verify_string<wil::unique_cotaskmem_string>();
 #if defined(__WIL_OBJBASE_H_STL)
-        verify_string<wil::shared_cotaskmem_string>(hkey.get());
+        verify_string<wil::shared_cotaskmem_string>();
 #endif
 #endif
     }
@@ -1836,16 +1725,16 @@ TEST_CASE("BasicRegistryTests::string types", "[registry]")
     SECTION("set_value_string/get_value_string: with string key")
     {
 #if defined(__WIL_OLEAUTO_H_)
-        verify_string<wil::unique_bstr>(HKEY_CURRENT_USER, testSubkey);
+        verify_string_subkey<wil::unique_bstr>();
 #if defined(__WIL_OLEAUTO_H_STL)
-        verify_string<wil::shared_bstr>(HKEY_CURRENT_USER, testSubkey);
+        verify_string_subkey<wil::shared_bstr>();
 #endif
 #endif
 
 #if defined(__WIL_OBJBASE_H_)
-        verify_string<wil::unique_cotaskmem_string>(HKEY_CURRENT_USER, testSubkey);
+        verify_string_subkey<wil::unique_cotaskmem_string>();
 #if defined(__WIL_OBJBASE_H_STL)
-        verify_string<wil::shared_cotaskmem_string>(HKEY_CURRENT_USER, testSubkey);
+        verify_string_subkey<wil::shared_cotaskmem_string>();
 #endif
 #endif
     }
@@ -1885,6 +1774,37 @@ TEST_CASE("BasicRegistryTests::string types", "[registry]")
     }
 
 #if defined(__cpp_lib_optional)
+    SECTION("strings set_value_string/try_get_value_string: with open key")
+    {
+#if defined(__WIL_OLEAUTO_H_)
+#if defined(__WIL_OLEAUTO_H_STL)
+        verify_try_string<wil::shared_bstr>();
+#endif
+#endif
+
+#if defined(__WIL_OBJBASE_H_)
+#if defined(__WIL_OBJBASE_H_STL)
+        verify_try_string<wil::shared_cotaskmem_string>();
+#endif
+#endif
+    }
+
+    SECTION("strings set_value_string/try_get_value_string: with string key")
+    {
+#if defined(__WIL_OLEAUTO_H_)
+#if defined(__WIL_OLEAUTO_H_STL)
+        verify_try_string_subkey<wil::shared_bstr>();
+#endif
+#endif
+
+#if defined(__WIL_OBJBASE_H_)
+#if defined(__WIL_OBJBASE_H_STL)
+        verify_try_string_subkey<wil::shared_cotaskmem_string>();
+#endif
+#endif
+    }
+
+    // TODO: it's a bug that we support unique here, right?
     SECTION("strings set_value/try_get_value: with open key")
     {
 #if defined(__WIL_OLEAUTO_H_)
