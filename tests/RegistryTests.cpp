@@ -2767,6 +2767,49 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
 #endif
 
 #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
+namespace
+{
+    void verify_byte_vector_nothrow(
+        std::function<HRESULT(PCWSTR, DWORD, std::vector<BYTE>*)> getFn,
+        std::function<HRESULT(PCWSTR, DWORD, const std::vector<BYTE>&)> setFn,
+        std::function<HRESULT(PCWSTR, uint32_t)> setDwordFn)
+    {
+        for (const auto& value : vectorBytesTestArray)
+        {
+            REQUIRE_SUCCEEDED(setFn(stringValueName, REG_BINARY, value));
+            std::vector<BYTE> result{};
+            REQUIRE_SUCCEEDED(getFn(stringValueName, REG_BINARY, &result));
+            REQUIRE(result == value);
+
+            // and verify default value name
+            REQUIRE_SUCCEEDED(setFn(nullptr, REG_BINARY, value));
+            result = {};
+            REQUIRE_SUCCEEDED(getFn(nullptr, REG_BINARY, &result));
+            REQUIRE(result == value);
+        }
+
+        // fail get* if the value doesn't exist
+        std::vector<BYTE> result{};
+        auto hr = getFn(invalidValueName, REG_BINARY, &result);
+        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
+
+        // fail if get* requests the wrong type
+        hr = getFn(stringValueName, REG_SZ, &result);
+        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
+        hr = getFn(stringValueName, REG_DWORD, &result);
+        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
+
+        // should succeed if we specify the correct type
+        REQUIRE_SUCCEEDED(setDwordFn(dwordValueName, 0xffffffff));
+        REQUIRE_SUCCEEDED(getFn(dwordValueName, REG_DWORD, &result));
+        REQUIRE(result.size() == 4);
+        REQUIRE(result[0] == 0xff);
+        REQUIRE(result[1] == 0xff);
+        REQUIRE(result[2] == 0xff);
+        REQUIRE(result[3] == 0xff);
+    }
+}
+
 TEST_CASE("BasicRegistryTests::vector-bytes", "[registry]]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
@@ -2780,75 +2823,17 @@ TEST_CASE("BasicRegistryTests::vector-bytes", "[registry]]")
         wil::unique_hkey hkey;
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
 
-        for (const auto& value : vectorBytesTestArray)
-        {
-            REQUIRE_SUCCEEDED(wil::reg::set_value_byte_vector_nothrow(hkey.get(), stringValueName, REG_BINARY, value));
-            std::vector<BYTE> result{};
-            REQUIRE_SUCCEEDED(wil::reg::get_value_byte_vector_nothrow(hkey.get(), stringValueName, REG_BINARY, &result));
-            REQUIRE(result == value);
-
-            // and verify default value name
-            REQUIRE_SUCCEEDED(wil::reg::set_value_byte_vector_nothrow(hkey.get(), nullptr, REG_BINARY, value));
-            result = {};
-            REQUIRE_SUCCEEDED(wil::reg::get_value_byte_vector_nothrow(hkey.get(), nullptr, REG_BINARY, &result));
-            REQUIRE(result == value);
-        }
-
-        // fail get* if the value doesn't exist
-        std::vector<BYTE> result{};
-        auto hr = wil::reg::get_value_byte_vector_nothrow(hkey.get(), invalidValueName, REG_BINARY, &result);
-        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
-
-        // fail if get* requests the wrong type
-        hr = wil::reg::get_value_byte_vector_nothrow(hkey.get(), stringValueName, REG_SZ, &result);
-        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
-        hr = wil::reg::get_value_byte_vector_nothrow(hkey.get(), stringValueName, REG_DWORD, &result);
-        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
-
-        // should succeed if we specify the correct type
-        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(hkey.get(), dwordValueName, 0xffffffff));
-        REQUIRE_SUCCEEDED(wil::reg::get_value_byte_vector_nothrow(hkey.get(), dwordValueName, REG_DWORD, &result));
-        REQUIRE(result.size() == 4);
-        REQUIRE(result[0] == 0xff);
-        REQUIRE(result[1] == 0xff);
-        REQUIRE(result[2] == 0xff);
-        REQUIRE(result[3] == 0xff);
+        verify_byte_vector_nothrow(
+            [&hkey](PCWSTR valueName, DWORD type, std::vector<BYTE>* output) { return wil::reg::get_value_byte_vector_nothrow(hkey.get(), valueName, type, output); },
+            [&hkey](PCWSTR valueName, DWORD type, const std::vector<BYTE>& input) { return wil::reg::set_value_byte_vector_nothrow(hkey.get(), valueName, type, input); },
+            [&hkey](PCWSTR valueName, DWORD input) { return wil::reg::set_value_dword_nothrow(hkey.get(), valueName, input); });
     }
     SECTION("set_value_byte_vector_nothrow/get_value_byte_vector_nothrow: with string key")
     {
-        for (const auto& value : vectorBytesTestArray)
-        {
-            REQUIRE_SUCCEEDED(wil::reg::set_value_byte_vector_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, REG_BINARY, value));
-            std::vector<BYTE> result{};
-            REQUIRE_SUCCEEDED(wil::reg::get_value_byte_vector_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, REG_BINARY, &result));
-            REQUIRE(result == value);
-
-            // and verify default value name
-            REQUIRE_SUCCEEDED(wil::reg::set_value_byte_vector_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, REG_BINARY, value));
-            result = {};
-            REQUIRE_SUCCEEDED(wil::reg::get_value_byte_vector_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, REG_BINARY, &result));
-            REQUIRE(result == value);
-        }
-
-        // fail get* if the value doesn't exist
-        std::vector<BYTE> result{};
-        auto hr = wil::reg::get_value_byte_vector_nothrow(HKEY_CURRENT_USER, testSubkey, invalidValueName, REG_BINARY, &result);
-        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
-
-        // fail if get* requests the wrong type
-        hr = wil::reg::get_value_byte_vector_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, REG_SZ, &result);
-        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
-        hr = wil::reg::get_value_byte_vector_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, REG_DWORD, &result);
-        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
-
-        // should succeed if we specify the correct type
-        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0xffffffff));
-        REQUIRE_SUCCEEDED(wil::reg::get_value_byte_vector_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, REG_DWORD, &result));
-        REQUIRE(result.size() == 4);
-        REQUIRE(result[0] == 0xff);
-        REQUIRE(result[1] == 0xff);
-        REQUIRE(result[2] == 0xff);
-        REQUIRE(result[3] == 0xff);
+        verify_byte_vector_nothrow(
+            [](PCWSTR valueName, DWORD type, std::vector<BYTE>* output) { return wil::reg::get_value_byte_vector_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, type, output); },
+            [](PCWSTR valueName, DWORD type, const std::vector<BYTE>& input) { return wil::reg::set_value_byte_vector_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, type, input); },
+            [](PCWSTR valueName, DWORD input) { return wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, input); });
     }
     SECTION("set_value_byte_vector/get_value_byte_vector: with opened key")
     {
