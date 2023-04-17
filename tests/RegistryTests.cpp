@@ -2808,6 +2808,85 @@ namespace
         REQUIRE(result[2] == 0xff);
         REQUIRE(result[3] == 0xff);
     }
+
+    void verify_byte_vector(
+        std::function<std::vector<BYTE>(PCWSTR, DWORD)> getFn,
+        std::function<void(PCWSTR, DWORD, const std::vector<BYTE>&)> setFn,
+        std::function<void(PCWSTR, uint32_t)> setDwordFn)
+    {
+        for (const auto& value : vectorBytesTestArray)
+        {
+            setFn(stringValueName, REG_BINARY, value);
+            auto result = getFn(stringValueName, REG_BINARY);
+            REQUIRE(result == value);
+
+            // and verify default value name
+            setFn(nullptr, REG_BINARY, value);
+            result = getFn(nullptr, REG_BINARY);
+            REQUIRE(result == value);
+        }
+
+        // fail get* if the value doesn't exist
+        VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND), [&]()
+            {
+                getFn(invalidValueName, REG_BINARY);
+            });
+
+        // fail if get* requests the wrong type
+        setDwordFn(dwordValueName, 0xffffffff);
+        VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
+            {
+                getFn(dwordValueName, REG_BINARY);
+            });
+
+        // should succeed if we specify the correct type
+        auto result = getFn(dwordValueName, REG_DWORD);
+        REQUIRE(result.size() == 4);
+        REQUIRE(result[0] == 0xff);
+        REQUIRE(result[1] == 0xff);
+        REQUIRE(result[2] == 0xff);
+        REQUIRE(result[3] == 0xff);
+    }
+
+#if defined(__cpp_lib_optional)
+    void verify_try_byte_vector(
+        std::function<std::optional<std::vector<BYTE>>(PCWSTR, DWORD)> tryGetFn,
+        std::function<void(PCWSTR, DWORD, const std::vector<BYTE>&)> setFn,
+        std::function<void(PCWSTR, uint32_t)> setDwordFn)
+    {
+        for (const auto& value : vectorBytesTestArray)
+        {
+            setFn(stringValueName, REG_BINARY, value);
+            auto result = tryGetFn(stringValueName, REG_BINARY);
+            REQUIRE(result == value);
+
+            // and verify default value name
+            setFn(nullptr, REG_BINARY, value);
+            result = tryGetFn(nullptr, REG_BINARY);
+            REQUIRE(result == value);
+        }
+
+        // fail get* if the value doesn't exist
+        auto result = tryGetFn(invalidValueName, REG_BINARY);
+        REQUIRE(!result.has_value());
+
+        // fail if get* requests the wrong type
+        setDwordFn(dwordValueName, 0xffffffff);
+        VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
+            {
+                tryGetFn(dwordValueName, REG_BINARY);
+            });
+
+        // should succeed if we specify the correct type
+        result = tryGetFn(dwordValueName, REG_DWORD);
+        REQUIRE(result.has_value());
+        REQUIRE(result->size() == 4);
+        REQUIRE(result->at(0) == 0xff);
+        REQUIRE(result->at(1) == 0xff);
+        REQUIRE(result->at(2) == 0xff);
+        REQUIRE(result->at(3) == 0xff);
+    }
+#endif
 }
 
 TEST_CASE("BasicRegistryTests::vector-bytes", "[registry]]")
@@ -2840,73 +2919,17 @@ TEST_CASE("BasicRegistryTests::vector-bytes", "[registry]]")
         wil::unique_hkey hkey;
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
 
-        for (const auto& value : vectorBytesTestArray)
-        {
-            wil::reg::set_value_byte_vector(hkey.get(), stringValueName, REG_BINARY, value);
-            auto result = wil::reg::get_value_byte_vector(hkey.get(), stringValueName, REG_BINARY);
-            REQUIRE(result == value);
-
-            // and verify default value name
-            wil::reg::set_value_byte_vector(hkey.get(), nullptr, REG_BINARY, value);
-            result = wil::reg::get_value_byte_vector(hkey.get(), nullptr, REG_BINARY);
-            REQUIRE(result == value);
-        }
-
-        // fail get* if the value doesn't exist
-        VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND), [&]()
-            {
-                wil::reg::get_value_byte_vector(hkey.get(), invalidValueName, REG_BINARY);
-            });
-
-        // fail if get* requests the wrong type
-        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0xffffffff));
-        VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
-            {
-                wil::reg::get_value_byte_vector(hkey.get(), dwordValueName, REG_BINARY);
-            });
-
-        // should succeed if we specify the correct type
-        auto result = wil::reg::get_value_byte_vector(hkey.get(), dwordValueName, REG_DWORD);
-        REQUIRE(result.size() == 4);
-        REQUIRE(result[0] == 0xff);
-        REQUIRE(result[1] == 0xff);
-        REQUIRE(result[2] == 0xff);
-        REQUIRE(result[3] == 0xff);
+        verify_byte_vector(
+            [&hkey](PCWSTR valueName, DWORD type) { return wil::reg::get_value_byte_vector(hkey.get(), valueName, type); },
+            [&hkey](PCWSTR valueName, DWORD type, const std::vector<BYTE>& input) { wil::reg::set_value_byte_vector(hkey.get(), valueName, type, input); },
+            [&hkey](PCWSTR valueName, DWORD input) { wil::reg::set_value_dword(hkey.get(), valueName, input); });
     }
     SECTION("set_value_byte_vector/get_value_byte_vector: with string key")
     {
-        for (const auto& value : vectorBytesTestArray)
-        {
-            wil::reg::set_value_byte_vector(HKEY_CURRENT_USER, testSubkey, stringValueName, REG_BINARY, value);
-            auto result = wil::reg::get_value_byte_vector(HKEY_CURRENT_USER, testSubkey, stringValueName, REG_BINARY);
-            REQUIRE(result == value);
-
-            // and verify default value name
-            wil::reg::set_value_byte_vector(HKEY_CURRENT_USER, testSubkey, nullptr, REG_BINARY, value);
-            result = wil::reg::get_value_byte_vector(HKEY_CURRENT_USER, testSubkey, nullptr, REG_BINARY);
-            REQUIRE(result == value);
-        }
-
-        // fail get* if the value doesn't exist
-        VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND), [&]()
-            {
-                wil::reg::get_value_byte_vector(HKEY_CURRENT_USER, testSubkey, invalidValueName, REG_BINARY);
-            });
-
-        // fail if get* requests the wrong type
-        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0xffffffff));
-        VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
-            {
-                wil::reg::get_value_byte_vector(HKEY_CURRENT_USER, testSubkey, dwordValueName, REG_BINARY);
-            });
-
-        // should succeed if we specify the correct type
-        auto result = wil::reg::get_value_byte_vector(HKEY_CURRENT_USER, testSubkey, dwordValueName, REG_DWORD);
-        REQUIRE(result.size() == 4);
-        REQUIRE(result[0] == 0xff);
-        REQUIRE(result[1] == 0xff);
-        REQUIRE(result[2] == 0xff);
-        REQUIRE(result[3] == 0xff);
+        verify_byte_vector(
+            [](PCWSTR valueName, DWORD type) { return wil::reg::get_value_byte_vector(HKEY_CURRENT_USER, testSubkey, valueName, type); },
+            [](PCWSTR valueName, DWORD type, const std::vector<BYTE>& input) { wil::reg::set_value_byte_vector(HKEY_CURRENT_USER, testSubkey, valueName, type, input); },
+            [](PCWSTR valueName, DWORD input) { wil::reg::set_value_dword(HKEY_CURRENT_USER, testSubkey, valueName, input); });
     }
 
 #if defined(__cpp_lib_optional)
@@ -2915,72 +2938,18 @@ TEST_CASE("BasicRegistryTests::vector-bytes", "[registry]]")
         wil::unique_hkey hkey;
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
 
-        for (const auto& value : vectorBytesTestArray)
-        {
-            wil::reg::set_value_byte_vector(hkey.get(), stringValueName, REG_BINARY, value);
-            auto result = wil::reg::try_get_value_byte_vector(hkey.get(), stringValueName, REG_BINARY);
-            REQUIRE(result == value);
-
-            // and verify default value name
-            wil::reg::set_value_byte_vector(hkey.get(), nullptr, REG_BINARY, value);
-            result = wil::reg::try_get_value_byte_vector(hkey.get(), nullptr, REG_BINARY);
-            REQUIRE(result == value);
-        }
-
-        // fail get* if the value doesn't exist
-        auto result = wil::reg::try_get_value_byte_vector(hkey.get(), invalidValueName, REG_BINARY);
-        REQUIRE(!result.has_value());
-
-        // fail if get* requests the wrong type
-        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0xffffffff));
-        VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
-            {
-                wil::reg::try_get_value_byte_vector(hkey.get(), dwordValueName, REG_BINARY);
-            });
-
-        // should succeed if we specify the correct type
-        result = wil::reg::try_get_value_byte_vector(hkey.get(), dwordValueName, REG_DWORD);
-        REQUIRE(result.has_value());
-        REQUIRE(result->size() == 4);
-        REQUIRE(result->at(0) == 0xff);
-        REQUIRE(result->at(1) == 0xff);
-        REQUIRE(result->at(2) == 0xff);
-        REQUIRE(result->at(3) == 0xff);
+        verify_try_byte_vector(
+            [&hkey](PCWSTR valueName, DWORD type) { return wil::reg::try_get_value_byte_vector(hkey.get(), valueName, type); },
+            [&hkey](PCWSTR valueName, DWORD type, const std::vector<BYTE>& input) { wil::reg::set_value_byte_vector(hkey.get(), valueName, type, input); },
+            [&hkey](PCWSTR valueName, DWORD input) { wil::reg::set_value_dword(hkey.get(), valueName, input); });
     }
 
     SECTION("set_value/try_get_value_byte_vector: with string key")
     {
-        for (const auto& value : vectorBytesTestArray)
-        {
-            wil::reg::set_value_byte_vector(HKEY_CURRENT_USER, testSubkey, stringValueName, REG_BINARY, value);
-            auto result = wil::reg::try_get_value_byte_vector(HKEY_CURRENT_USER, testSubkey, stringValueName, REG_BINARY);
-            REQUIRE(result == value);
-
-            // and verify default value name
-            wil::reg::set_value_byte_vector(HKEY_CURRENT_USER, testSubkey, nullptr, REG_BINARY, value);
-            result = wil::reg::try_get_value_byte_vector(HKEY_CURRENT_USER, testSubkey, nullptr, REG_BINARY);
-            REQUIRE(result == value);
-        }
-
-        // fail get* if the value doesn't exist
-        auto result = wil::reg::try_get_value_byte_vector(HKEY_CURRENT_USER, testSubkey, invalidValueName, REG_BINARY);
-        REQUIRE(!result.has_value());
-
-        // fail if get* requests the wrong type
-        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, 0xffffffff));
-        VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
-            {
-                wil::reg::try_get_value_byte_vector(HKEY_CURRENT_USER, testSubkey, dwordValueName, REG_BINARY);
-            });
-
-        // should succeed if we specify the correct type
-        result = wil::reg::try_get_value_byte_vector(HKEY_CURRENT_USER, testSubkey, dwordValueName, REG_DWORD);
-        REQUIRE(result.has_value());
-        REQUIRE(result->size() == 4);
-        REQUIRE(result->at(0) == 0xff);
-        REQUIRE(result->at(1) == 0xff);
-        REQUIRE(result->at(2) == 0xff);
-        REQUIRE(result->at(3) == 0xff);
+        verify_try_byte_vector(
+            [](PCWSTR valueName, DWORD type) { return wil::reg::try_get_value_byte_vector(HKEY_CURRENT_USER, testSubkey, valueName, type); },
+            [](PCWSTR valueName, DWORD type, const std::vector<BYTE>& input) { wil::reg::set_value_byte_vector(HKEY_CURRENT_USER, testSubkey, valueName, type, input); },
+            [](PCWSTR valueName, DWORD input) { wil::reg::set_value_dword(HKEY_CURRENT_USER, testSubkey, valueName, input); });
     }
 #endif
 }
