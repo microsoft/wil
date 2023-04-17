@@ -1493,7 +1493,7 @@ namespace
         }
 
         // fail get* if the value doesn't exist
-        VerifyThrowsHr(ERROR_FILE_NOT_FOUND, [&]()
+        VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND), [&]()
             {
                 const auto ignored = getFn(invalidValueName);
                 ignored;
@@ -1501,7 +1501,7 @@ namespace
 
         // fail if get* requests the wrong type
         setWrongTypeFn(dwordValueName);
-        VerifyThrowsHr(ERROR_UNSUPPORTED_TYPE, [&]()
+        VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
             {
                 const auto ignored = getFn(dwordValueName);
                 ignored;
@@ -1575,7 +1575,7 @@ namespace
 
         // fail if get* requests the wrong type
         setWrongTypeFn(dwordValueName);
-        VerifyThrowsHr(ERROR_UNSUPPORTED_TYPE, [&]()
+        VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
             {
                 const auto ignored = tryGetFn(dwordValueName);
                 ignored;
