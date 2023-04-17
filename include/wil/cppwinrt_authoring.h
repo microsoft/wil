@@ -197,9 +197,7 @@ namespace details
         void operator()(const T& value) {
             if (value != this->m_value) {
                 single_threaded_rw_property<T>::operator()(value);
-                if (m_npc) {
-                    (*m_npc)(m_sender, Xaml_Data_PropertyChangedEventArgs{ m_name });
-                }
+                Raise();
             }
         }
         template<typename... TArgs>
@@ -217,6 +215,14 @@ namespace details
         single_threaded_notifying_property(const single_threaded_notifying_property&) = default;
         single_threaded_notifying_property(single_threaded_notifying_property&&) = default;
         std::wstring_view Name() const noexcept { return m_name; }
+        auto& Raise()
+        {
+            if (m_npc)
+            {
+                (*m_npc)(m_sender, Xaml_Data_PropertyChangedEventArgs{ m_name });
+            }
+            return *this;
+        }
     private:
         std::wstring_view m_name;
         winrt::event<Xaml_Data_PropertyChangedEventHandler>* m_npc;
@@ -229,6 +235,39 @@ namespace details
     */
 #define INIT_NOTIFY_PROPERTY(NAME, VALUE)  \
         NAME(&m_propertyChanged, *this, L#NAME, VALUE)
+
+    namespace details
+    {
+        template<typename T>
+        inline constexpr bool make_false(T)
+        {
+            return false;
+        }
+    }
+
+#if defined(_MSC_VER)
+// Gets the name of a member (such as a property) as a constexpr string literal. 
+// This is commonly needed when checking which property changed after receiving a PropertyChanged event.
+// It will enforce at compile time that propertyName is a member of typeName, then return propertyName as a string literal. 
+#define WIL_NAMEOF_MEMBER(typeName, propertyName) \
+    __pragma(warning(push)) \
+    __pragma(warning(disable:6237)) \
+    std::wstring_view( \
+        (false && wil::details::make_false(std::add_pointer_t<typeName>{nullptr}->propertyName) \
+        ? L"" : (L"" #propertyName))) \
+    __pragma(warning(pop))
+#elif defined(__clang__)
+// Gets the name of a member (such as a property) as a constexpr string literal. 
+// This is commonly needed when checking which property changed after receiving a PropertyChanged event.
+// It will enforce at compile time that propertyName is a member of typeName, then return propertyName as a string literal. 
+#define WIL_NAMEOF_MEMBER(typeName, propertyName) \
+    _Pragma("clang diagnostic push") \
+    _Pragma("clang diagnostic ignored \"-Wtautological-constant-out-of-range-compare\"") 
+    std::wstring_view( \
+        (false && wil::details::make_false(std::add_pointer_t<typeName>{nullptr}->propertyName) \
+        ? L"" : (L"" #propertyName))) \
+    _Pragma("clang diagnostic pop")
+#endif
 
 #endif // defined(WINRT_Microsoft_UI_Xaml_Data_H) || defined(WINRT_Windows_UI_Xaml_Data_H)
 
