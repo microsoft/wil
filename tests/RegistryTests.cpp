@@ -1773,6 +1773,66 @@ namespace
         //        }
         //#endif
     }
+
+#if defined(__cpp_lib_optional)
+    template<typename StringT, typename StringSetT = PCWSTR>
+    void verify_try_string_generic_get_value(
+        std::function<std::optional<StringT>(PCWSTR)> tryGetFn,
+        std::function<void(PCWSTR, typename type_identity<StringSetT>::type)> setFn,
+        std::function<void(PCWSTR)> setWrongTypeFn)
+    {
+        for (const auto& value : stringTestArray)
+        {
+            setFn(stringValueName, value.c_str());
+            auto result = tryGetFn(stringValueName);
+            REQUIRE(AreStringsEqual(result.value(), value));
+
+            // and verify default value name
+            setFn(nullptr, value.c_str());
+            result = tryGetFn(nullptr);
+            REQUIRE(AreStringsEqual(result.value(), value));
+        }
+
+        // try_get should simply return nullopt
+        const auto result = tryGetFn(invalidValueName);
+        REQUIRE(!result.has_value());
+
+        // fail if get* requests the wrong type
+        setWrongTypeFn(dwordValueName);
+        try
+        {
+            const auto ignored = tryGetFn(dwordValueName);
+            ignored;
+            // should throw
+            REQUIRE_FALSE(true);
+        }
+        catch (const wil::ResultException& e)
+        {
+            REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
+        }
+    }
+
+    template<typename StringT>
+    void verify_try_string_generic_get_value()
+    {
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
+
+        verify_try_string_generic_get_value<StringT>(
+            [&hkey](PCWSTR valueName) { return wil::reg::try_get_value<StringT>(hkey.get(), valueName); },
+            [&hkey](PCWSTR valueName, PCWSTR value) -> void { wil::reg::set_value(hkey.get(), valueName, value); },
+            [&hkey](PCWSTR valueName) { wil::reg::set_value_dword(hkey.get(), valueName, test_dword_zero); });
+    }
+
+    template<typename StringT>
+    void verify_try_string_generic_get_value_subkey()
+    {
+        verify_try_string_generic_get_value<StringT>(
+            [](PCWSTR valueName) { return wil::reg::try_get_value<StringT>(HKEY_CURRENT_USER, testSubkey, valueName); },
+            [](PCWSTR valueName, PCWSTR value) -> void { wil::reg::set_value(HKEY_CURRENT_USER, testSubkey, valueName, value); },
+            [](PCWSTR valueName) { wil::reg::set_value_dword(HKEY_CURRENT_USER, testSubkey, valueName, test_dword_zero); });
+    }
+#endif // defined(__cpp_lib_optional)
 #endif
 }
 
@@ -1927,6 +1987,43 @@ TEST_CASE("BasicRegistryTests::string types", "[registry]")
 #endif
 #endif
     }
+
+#if defined(__cpp_lib_optional)
+    SECTION("strings set_value/try_get_value: with open key")
+    {
+#if defined(__WIL_OLEAUTO_H_)
+        verify_try_string_generic_get_value<wil::unique_bstr>();
+#if defined(__WIL_OLEAUTO_H_STL)
+        verify_try_string_generic_get_value<wil::shared_bstr>();
+#endif
+#endif
+
+#if defined(__WIL_OBJBASE_H_)
+        verify_try_string_generic_get_value<wil::unique_cotaskmem_string>();
+#if defined(__WIL_OBJBASE_H_STL)
+        verify_try_string_generic_get_value<wil::shared_cotaskmem_string>();
+#endif
+#endif
+    }
+
+    SECTION("strings set_value/try_get_value: with string key")
+    {
+#if defined(__WIL_OLEAUTO_H_)
+        verify_try_string_generic_get_value_subkey<wil::unique_bstr>();
+#if defined(__WIL_OLEAUTO_H_STL)
+        verify_try_string_generic_get_value_subkey<wil::shared_bstr>();
+#endif
+#endif
+
+#if defined(__WIL_OBJBASE_H_)
+        verify_try_string_generic_get_value_subkey<wil::unique_cotaskmem_string>();
+#if defined(__WIL_OBJBASE_H_STL)
+        verify_try_string_generic_get_value_subkey<wil::shared_cotaskmem_string>();
+#endif
+#endif
+    }
+#endif // defined(__cpp_lib_optional)
+
 #endif
 }
 
