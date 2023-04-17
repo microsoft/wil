@@ -506,7 +506,7 @@ namespace
 
     template<typename OutT, typename SetT = OutT, size_t N>
     void verify_get_set(
-        HKEY hkey,
+        const wil::unique_hkey& hkey,
         const std::array<SetT, N>& testArray,
         PCWSTR valueName,
         std::function<HRESULT(PCWSTR)> setWrongTypeFn)
@@ -514,8 +514,24 @@ namespace
         verify_get_set<OutT>(
             testArray,
             valueName,
-            [&hkey](PCWSTR valueName, OutT* output) -> HRESULT { return wil::reg::get_value_nothrow(hkey, valueName, output); },
-            [&hkey](PCWSTR valueName, const SetT& input) { return wil::reg::set_value_nothrow(hkey, valueName, input); },
+            [&hkey](PCWSTR valueName, OutT* output) -> HRESULT { return wil::reg::get_value_nothrow(hkey.get(), valueName, output); },
+            [&hkey](PCWSTR valueName, const SetT& input) { return wil::reg::set_value_nothrow(hkey.get(), valueName, input); },
+            setWrongTypeFn);
+    }
+
+    template<typename OutT, typename SetT = OutT, size_t N>
+    void verify_get_set(
+        HKEY hkey,
+        PCWSTR subkey,
+        const std::array<SetT, N>& testArray,
+        PCWSTR valueName,
+        std::function<HRESULT(PCWSTR)> setWrongTypeFn)
+    {
+        verify_get_set<OutT>(
+            testArray,
+            valueName,
+            [&hkey, &subkey](PCWSTR valueName, OutT* output) -> HRESULT { return wil::reg::get_value_nothrow(hkey, subkey, valueName, output); },
+            [&hkey, &subkey](PCWSTR valueName, const SetT& input) { return wil::reg::set_value_nothrow(hkey, subkey, valueName, input); },
             setWrongTypeFn);
     }
 }
@@ -533,47 +549,16 @@ TEST_CASE("BasicRegistryTests::ReadWrite", "[registry]")
         wil::unique_hkey hkey;
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
 
-        const auto TestGoodFn = [&hkey](PCWSTR valueName, auto value)
-        {
-            REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(hkey.get(), valueName, value));
-            decltype(value) result{};
-            REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(hkey.get(), valueName, &result));
-            REQUIRE(result == value);
-
-            // and verify default value name
-            REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(hkey.get(), nullptr, value));
-            result = {};
-            REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(hkey.get(), nullptr, &result));
-            REQUIRE(result == value);
-        };
-
-        const auto TestNonExistentFn = [&hkey](auto value)
-        {
-            // fail get* if the value doesn't exist
-            decltype(value) result{};
-            const HRESULT hr = wil::reg::get_value_nothrow(hkey.get(), invalidValueName, &result);
-            REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
-        };
-
-        const auto TestWrongTypeFn = [&hkey](PCWSTR valueName, auto originalValue, auto fetchedValue)
-        {
-            // fail if get* requests the wrong type
-            REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(hkey.get(), valueName, originalValue));
-            decltype(fetchedValue) result{};
-            const HRESULT hr = wil::reg::get_value_nothrow(hkey.get(), valueName, &result);
-            REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
-        };
-
         // DWORDs
         verify_get_set<DWORD>(
-            hkey.get(),
+            hkey,
             dwordTestArray,
             dwordValueName,
             [&hkey](PCWSTR valueName) -> HRESULT { return wil::reg::set_value_nothrow(hkey.get(), valueName, test_qword_zero); });
 
         // QWORDs
         verify_get_set<DWORD64>(
-            hkey.get(),
+            hkey,
             qwordTestArray,
             qwordValueName,
             [&hkey](PCWSTR valueName) -> HRESULT { return wil::reg::set_value_nothrow(hkey.get(), valueName, test_dword_zero); });
@@ -582,7 +567,7 @@ TEST_CASE("BasicRegistryTests::ReadWrite", "[registry]")
         // TODO: strings shouldn't require exceptions, right?
         // TODO: multiple string types
         verify_get_set<std::wstring>(
-            hkey.get(),
+            hkey,
             stringTestArray,
             stringValueName,
             [&hkey](PCWSTR valueName) -> HRESULT { return wil::reg::set_value_nothrow(hkey.get(), valueName, test_dword_zero); });
@@ -590,14 +575,10 @@ TEST_CASE("BasicRegistryTests::ReadWrite", "[registry]")
         //TestWrongTypeFn(multiStringValueName, test_multistring_empty, test_string_empty);
 
         verify_get_set<std::vector<std::wstring>>(
-            hkey.get(),
+            hkey,
             multiStringTestArray,
             multiStringValueName,
             [&hkey](PCWSTR valueName) -> HRESULT { return wil::reg::set_value_nothrow(hkey.get(), valueName, test_dword_zero); });
-        for (const auto& value : multiStringTestArray)
-        {
-            TestGoodFn(multiStringValueName, value);
-        }
         // TODO:
         //TestWrongTypeFn(stringValueName, test_string_empty, test_multistring_empty);
 
@@ -607,71 +588,42 @@ TEST_CASE("BasicRegistryTests::ReadWrite", "[registry]")
 
     SECTION("get and set nothrow: with string key")
     {
-        const auto TestGoodFn = [](PCWSTR valueName, auto value)
-        {
-            REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, value));
-            decltype(value) result{};
-            REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, &result));
-            REQUIRE(result == value);
-
-            // and verify default value name
-            REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, value));
-            result = {};
-            REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, &result));
-            REQUIRE(result == value);
-        };
-
-        const auto TestNonExistentFn = [](auto value)
-        {
-            // fail get* if the value doesn't exist
-            decltype(value) result{};
-            const HRESULT hr = wil::reg::get_value_nothrow(HKEY_CURRENT_USER, testSubkey, invalidValueName, &result);
-            REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
-        };
-
-        const auto TestWrongTypeFn = [](PCWSTR valueName, auto originalValue, auto fetchedValue)
-        {
-            // fail if get* requests the wrong type
-            REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, originalValue));
-            decltype(fetchedValue) result{};
-            const HRESULT hr = wil::reg::get_value_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, &result);
-            REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
-        };
-
         // DWORDs
-        for (const auto& value : dwordTestArray)
-        {
-            TestGoodFn(dwordValueName, value);
-        }
-        TestNonExistentFn(test_dword_zero);
-        TestWrongTypeFn(qwordValueName, test_qword_zero, test_dword_zero);
+        verify_get_set<DWORD>(
+            HKEY_CURRENT_USER,
+            testSubkey,
+            dwordTestArray,
+            dwordValueName,
+            [](PCWSTR valueName) -> HRESULT { return wil::reg::set_value_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, test_qword_zero); });
 
         // QWORDs
-        for (const auto& value : qwordTestArray)
-        {
-            TestGoodFn(qwordValueName, value);
-        }
-        TestNonExistentFn(test_qword_zero);
-        TestWrongTypeFn(dwordValueName, test_dword_zero, test_qword_zero);
+        verify_get_set<DWORD64>(
+            HKEY_CURRENT_USER,
+            testSubkey,
+            qwordTestArray,
+            qwordValueName,
+            [](PCWSTR valueName) -> HRESULT { return wil::reg::set_value_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, test_dword_zero); });
 
 #ifdef WIL_ENABLE_EXCEPTIONS
         // TODO: strings shouldn't require exceptions, right?
         // TODO: multiple string types
-        for (const auto& value : stringTestArray)
-        {
-            TestGoodFn(stringValueName, value);
-        }
-        TestNonExistentFn(test_string_empty);
-        TestWrongTypeFn(dwordValueName, test_dword_zero, test_string_empty);
-        TestWrongTypeFn(multiStringValueName, test_multistring_empty, test_string_empty);
+        verify_get_set<std::wstring>(
+            HKEY_CURRENT_USER,
+            testSubkey,
+            stringTestArray,
+            stringValueName,
+            [](PCWSTR valueName) -> HRESULT { return wil::reg::set_value_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, test_dword_zero); });
+        // TODO:
+        //TestWrongTypeFn(multiStringValueName, test_multistring_empty, test_string_empty);
 
-        for (const auto& value : multiStringTestArray)
-        {
-            TestGoodFn(multiStringValueName, value);
-        }
-        TestNonExistentFn(test_multistring_empty);
-        TestWrongTypeFn(dwordValueName, test_dword_zero, test_multistring_empty);
-        TestWrongTypeFn(stringValueName, test_string_empty, test_multistring_empty);
+        verify_get_set<std::vector<std::wstring>>(
+            HKEY_CURRENT_USER,
+            testSubkey,
+            multiStringTestArray,
+            multiStringValueName,
+            [](PCWSTR valueName) -> HRESULT { return wil::reg::set_value_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, test_dword_zero); });
+        // TODO:
+        //TestWrongTypeFn(stringValueName, test_string_empty, test_multistring_empty);
 
         // TODO: byte vectors
 #endif
