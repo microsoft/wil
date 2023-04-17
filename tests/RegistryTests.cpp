@@ -1387,7 +1387,7 @@ namespace
     }
 
     template<typename StringT>
-    void verify_generic_string_nothrow(HKEY key)
+    void verify_string_generic_get_value_nothrow(HKEY key)
     {
         // TODO: this dereferencing loses the wil::unique type
         verify_string_nothrow<StringT>(
@@ -1397,7 +1397,7 @@ namespace
     }
 
     template<typename StringT>
-    void verify_generic_string_nothrow(HKEY key, PCWSTR subkey)
+    void verify_string_generic_get_value_nothrow(HKEY key, PCWSTR subkey)
     {
         // TODO: this dereferencing loses the wil::unique type
         verify_string_nothrow<StringT>(
@@ -1408,7 +1408,7 @@ namespace
 
 #ifdef WIL_ENABLE_EXCEPTIONS
     template<typename StringT, typename StringSetT = PCWSTR>
-    void verify_string_generic_get_value(
+    void verify_string(
         std::function<typename type_identity<StringT>::type(PCWSTR)> getFn,
         std::function<void(PCWSTR, typename type_identity<StringSetT>::type)> setFn,
         std::function<void(PCWSTR)> setWrongTypeFn)
@@ -1447,7 +1447,7 @@ namespace
         wil::unique_hkey hkey;
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
 
-        verify_string_generic_get_value<StringT>(
+        verify_string<StringT>(
             [&hkey](PCWSTR valueName) { return wil::reg::get_value_string<StringT>(hkey.get(), valueName); },
             [&hkey](PCWSTR valueName, PCWSTR value) -> void { wil::reg::set_value_string(hkey.get(), valueName, value); },
             [&hkey](PCWSTR valueName) { wil::reg::set_value_dword(hkey.get(), valueName, test_dword_zero); });
@@ -1456,7 +1456,7 @@ namespace
     template<typename StringT>
     void verify_string_subkey()
     {
-        verify_string_generic_get_value<StringT>(
+        verify_string<StringT>(
             [](PCWSTR valueName) { return wil::reg::get_value_string<StringT>(HKEY_CURRENT_USER, testSubkey, valueName); },
             [](PCWSTR valueName, PCWSTR value) -> void { wil::reg::set_value_string(HKEY_CURRENT_USER, testSubkey, valueName, value); },
             [](PCWSTR valueName) { wil::reg::set_value_dword(HKEY_CURRENT_USER, testSubkey, valueName, test_dword_zero); });
@@ -1468,7 +1468,7 @@ namespace
         wil::unique_hkey hkey;
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
 
-        verify_string_generic_get_value<StringT>(
+        verify_string<StringT>(
             [&hkey](PCWSTR valueName) { return wil::reg::get_value<StringT>(hkey.get(), valueName); },
             [&hkey](PCWSTR valueName, PCWSTR value) -> void { wil::reg::set_value(hkey.get(), valueName, value); },
             [&hkey](PCWSTR valueName) { wil::reg::set_value_dword(hkey.get(), valueName, test_dword_zero); });
@@ -1477,7 +1477,7 @@ namespace
     template<typename StringT>
     void verify_string_generic_get_value_subkey()
     {
-        verify_string_generic_get_value<StringT>(
+        verify_string<StringT>(
             [](PCWSTR valueName) { return wil::reg::get_value<StringT>(HKEY_CURRENT_USER, testSubkey, valueName); },
             [](PCWSTR valueName, PCWSTR value) -> void { wil::reg::set_value(HKEY_CURRENT_USER, testSubkey, valueName, value); },
             [](PCWSTR valueName) { wil::reg::set_value_dword(HKEY_CURRENT_USER, testSubkey, valueName, test_dword_zero); });
@@ -1485,7 +1485,7 @@ namespace
 
 #if defined(__cpp_lib_optional)
     template<typename StringT, typename StringSetT = PCWSTR>
-    void verify_try_string_generic_get_value(
+    void verify_try_string(
         std::function<std::optional<StringT>(PCWSTR)> tryGetFn,
         std::function<void(PCWSTR, typename type_identity<StringSetT>::type)> setFn,
         std::function<void(PCWSTR)> setWrongTypeFn)
@@ -1521,7 +1521,7 @@ namespace
         wil::unique_hkey hkey;
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
 
-        verify_try_string_generic_get_value<StringT>(
+        verify_try_string<StringT>(
             [&hkey](PCWSTR valueName) { return wil::reg::try_get_value_string<StringT>(hkey.get(), valueName); },
             [&hkey](PCWSTR valueName, PCWSTR value) -> void { wil::reg::set_value_string(hkey.get(), valueName, value); },
             [&hkey](PCWSTR valueName) { wil::reg::set_value_dword(hkey.get(), valueName, test_dword_zero); });
@@ -1530,7 +1530,7 @@ namespace
     template<typename StringT>
     void verify_try_string_subkey()
     {
-        verify_try_string_generic_get_value<StringT>(
+        verify_try_string<StringT>(
             [](PCWSTR valueName) { return wil::reg::try_get_value_string<StringT>(HKEY_CURRENT_USER, testSubkey, valueName); },
             [](PCWSTR valueName, PCWSTR value) -> void { wil::reg::set_value_string(HKEY_CURRENT_USER, testSubkey, valueName, value); },
             [](PCWSTR valueName) { wil::reg::set_value_dword(HKEY_CURRENT_USER, testSubkey, valueName, test_dword_zero); });
@@ -1542,7 +1542,7 @@ namespace
         wil::unique_hkey hkey;
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
 
-        verify_try_string_generic_get_value<StringT>(
+        verify_try_string<StringT>(
             [&hkey](PCWSTR valueName) { return wil::reg::try_get_value<StringT>(hkey.get(), valueName); },
             [&hkey](PCWSTR valueName, PCWSTR value) -> void { wil::reg::set_value(hkey.get(), valueName, value); },
             [&hkey](PCWSTR valueName) { wil::reg::set_value_dword(hkey.get(), valueName, test_dword_zero); });
@@ -1551,7 +1551,7 @@ namespace
     template<typename StringT>
     void verify_try_string_generic_get_value_subkey()
     {
-        verify_try_string_generic_get_value<StringT>(
+        verify_try_string<StringT>(
             [](PCWSTR valueName) { return wil::reg::try_get_value<StringT>(HKEY_CURRENT_USER, testSubkey, valueName); },
             [](PCWSTR valueName, PCWSTR value) -> void { wil::reg::set_value(HKEY_CURRENT_USER, testSubkey, valueName, value); },
             [](PCWSTR valueName) { wil::reg::set_value_dword(HKEY_CURRENT_USER, testSubkey, valueName, test_dword_zero); });
@@ -1605,17 +1605,17 @@ TEST_CASE("BasicRegistryTests::string types", "[registry]")
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
 
 #if defined(__WIL_OLEAUTO_H_)
-        verify_generic_string_nothrow<wil::unique_bstr>(hkey.get());
+        verify_string_generic_get_value_nothrow<wil::unique_bstr>(hkey.get());
 #if defined(__WIL_OLEAUTO_H_STL)
-        verify_generic_string_nothrow<wil::shared_bstr>(hkey.get());
+        verify_string_generic_get_value_nothrow<wil::shared_bstr>(hkey.get());
 #endif
 #endif
 
         // TODO: crashes?
 #if defined(__WIL_OBJBASE_H_)
-        //verify_generic_string_nothrow<wil::unique_cotaskmem_string>(hkey.get());
+        //verify_string_generic_get_value_nothrow<wil::unique_cotaskmem_string>(hkey.get());
 #if defined(__WIL_OBJBASE_H_STL)
-        //verify_generic_string_nothrow<wil::shared_cotaskmem_string>(hkey.get());
+        //verify_string_generic_get_value_nothrow<wil::shared_cotaskmem_string>(hkey.get());
 #endif
 #endif
     }
@@ -1623,16 +1623,16 @@ TEST_CASE("BasicRegistryTests::string types", "[registry]")
     SECTION("strings set_value_nothrow/get_value_nothrow: with string key")
     {
 #if defined(__WIL_OLEAUTO_H_)
-        verify_generic_string_nothrow<wil::unique_bstr>(HKEY_CURRENT_USER, testSubkey);
+        verify_string_generic_get_value_nothrow<wil::unique_bstr>(HKEY_CURRENT_USER, testSubkey);
 #if defined(__WIL_OLEAUTO_H_STL)
-        verify_generic_string_nothrow<wil::shared_bstr>(HKEY_CURRENT_USER, testSubkey);
+        verify_string_generic_get_value_nothrow<wil::shared_bstr>(HKEY_CURRENT_USER, testSubkey);
 #endif
 #endif
 
 #if defined(__WIL_OBJBASE_H_)
-        //verify_generic_string_nothrow<wil::unique_cotaskmem_string>(HKEY_CURRENT_USER, testSubkey);
+        //verify_string_generic_get_value_nothrow<wil::unique_cotaskmem_string>(HKEY_CURRENT_USER, testSubkey);
 #if defined(__WIL_OBJBASE_H_STL)
-        //verify_generic_string_nothrow<wil::shared_cotaskmem_string>(HKEY_CURRENT_USER, testSubkey);
+        //verify_string_generic_get_value_nothrow<wil::shared_cotaskmem_string>(HKEY_CURRENT_USER, testSubkey);
 #endif
 #endif
     }
