@@ -54,6 +54,11 @@ const std::array<std::vector<BYTE>, 3> vectorBytesTestArray = {
     std::vector<BYTE>{ {0x1}, {0x2}, {0x3}, {0x4}, {0x5}, {0x6},{0x7}, {0x8}, {0x9},{0xa}, {0xb}, {0xc}, {0xd}, {0xe}, {0xf} },
 };
 
+bool AreStringsEqual(const std::wstring& lhs, const std::wstring& rhs) noexcept
+{
+    return lhs == rhs;
+}
+
 bool AreStringsEqual(const wil::unique_bstr& lhs, const std::wstring& rhs) noexcept
 {
     if (!lhs && rhs.empty())
@@ -1167,6 +1172,8 @@ TEST_CASE("BasicRegistryTests::ReadWrite", "[registry]")
 #endif
 }
 
+// TODO: tries
+
 #if defined(WIL_ENABLE_EXCEPTIONS)
 TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
 {
@@ -1924,6 +1931,46 @@ TEST_CASE("BasicRegistryTests::string types", "[registry]")
 }
 
 #if defined(WIL_ENABLE_EXCEPTIONS)
+namespace
+{
+    //// TODO: why does get return ref?
+    //void verify_expanded_string_nothrow(
+    //    std::function<HRESULT(PCWSTR, std::wstring&)> getFn,
+    //    std::function<HRESULT(PCWSTR, PCWSTR)> setFn,
+    //    std::function<HRESULT(PCWSTR)> setWrongTypeFn)
+    //{
+    //    for (const auto& value : expandedStringTestArray)
+    //    {
+    //        // verify the expanded string
+    //        WCHAR expanded_value[test_expanded_string_buffer_size]{};
+    //        const auto expanded_result = ::ExpandEnvironmentStringsW(value.c_str(), expanded_value, test_expanded_string_buffer_size);
+    //        REQUIRE(expanded_result != ERROR_SUCCESS);
+    //        REQUIRE(expanded_result < test_expanded_string_buffer_size);
+
+    //        setFn(stringValueName, value.c_str()));
+    //        std::wstring result{};
+    //        REQUIRE_SUCCEEDED(getFn(stringValueName, result));
+    //        REQUIRE(result == expanded_value);
+
+    //        // and verify default value name
+    //        REQUIRE_SUCCEEDED(setFn(nullptr, value.c_str()));
+    //        result = {};
+    //        REQUIRE_SUCCEEDED(getFn(nullptr, result));
+    //        REQUIRE(result == expanded_value);
+    //    }
+
+    //    // fail get* if the value doesn't exist
+    //    std::wstring result{};
+    //    auto hr = getFn(invalidValueName, result);
+    //    REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
+
+    //    // fail if get* requests the wrong type
+    //    REQUIRE_SUCCEEDED(setWrongTypeFn(dwordValueName));
+    //    hr = getFn(dwordValueName, result);
+    //    REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
+    //}
+}
+
 TEST_CASE("BasicRegistryTests::expanded_wstring", "[registry]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
@@ -1932,41 +1979,14 @@ TEST_CASE("BasicRegistryTests::expanded_wstring", "[registry]")
         REQUIRE_SUCCEEDED(deleteHr);
     }
 
-    SECTION("set_value_expanded_string_nothrow/get_value_expanded_string_nothrow: with opened key")
+    /*SECTION("set_value_expanded_string_nothrow/get_value_expanded_string_nothrow: with opened key")
     {
         wil::unique_hkey hkey;
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
 
-        for (const auto& value : expandedStringTestArray)
-        {
-            // verify the expanded string
-            WCHAR expanded_value[test_expanded_string_buffer_size]{};
-            const auto expanded_result = ::ExpandEnvironmentStringsW(value.c_str(), expanded_value, test_expanded_string_buffer_size);
-            REQUIRE(expanded_result != ERROR_SUCCESS);
-            REQUIRE(expanded_result < test_expanded_string_buffer_size);
-
-            REQUIRE_SUCCEEDED(wil::reg::set_value_expanded_string_nothrow(hkey.get(), stringValueName, value.c_str()));
-            std::wstring result{};
-            REQUIRE_SUCCEEDED(wil::reg::get_value_expanded_string_nothrow(hkey.get(), stringValueName, result));
-            REQUIRE(result == expanded_value);
-
-            // and verify default value name
-            REQUIRE_SUCCEEDED(wil::reg::set_value_expanded_string_nothrow(hkey.get(), nullptr, value.c_str()));
-            result = {};
-            REQUIRE_SUCCEEDED(wil::reg::get_value_expanded_string_nothrow(hkey.get(), nullptr, result));
-            REQUIRE(result == expanded_value);
-        }
-
-        // fail get* if the value doesn't exist
-        std::wstring result{};
-        auto hr = wil::reg::get_value_expanded_string_nothrow(hkey.get(), invalidValueName, result);
-        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
-
-        // fail if get* requests the wrong type
-        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, test_dword_zero));
-        hr = wil::reg::get_value_expanded_string_nothrow(hkey.get(), dwordValueName, result);
-        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
-    }
+        verify_expanded_string_nothrow(
+            [&hkey](PCWSTR valueName, std::wstring& output) { return wil::reg::get_value_expanded_string_nothrow(hkey.get(), valueName, output); });
+    }*/
     SECTION("set_value_expanded_string_nothrow/get_value_expanded_string_nothrow: with string key")
     {
         for (const auto& value : expandedStringTestArray)
@@ -2480,6 +2500,8 @@ TEST_CASE("BasicRegistryTests::expanded_string types", "[registry]")
 
     SECTION("set_value_expanded_string_nothrow/get_value_expanded_string_nothrow: with opened key")
     {
+        verify_expanded_string_nothrow<std::wstring>();
+
         verify_expanded_string_nothrow<wil::unique_bstr>();
 #if defined(__WIL_OLEAUTO_H_STL)
         verify_expanded_string_nothrow<wil::shared_bstr>();
