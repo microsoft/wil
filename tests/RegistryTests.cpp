@@ -37,6 +37,7 @@ const std::vector<DWORD> dwordTestVector = { static_cast<DWORD>(-1), 1, 0 };
 constexpr std::array<DWORD64, 3> qwordTestArray = { static_cast<DWORD64>(-1), 1, 0 };
 const std::vector<DWORD64> qwordTestVector = { static_cast<DWORD64>(-1), 1, 0 };
 const std::array<std::wstring, 4> stringTestArray = { L".", L"", L"Hello there!", L"\0" };
+const std::vector<std::wstring> stringTestVector = { L".", L"", L"Hello there!", L"\0" };
 const std::wstring expandedStringTestArray[] = { L".", L"", L"%WINDIR%", L"\0" };
 const std::array<std::vector<std::wstring>, 6> multiStringTestArray{
     std::vector<std::wstring>{ {} },
@@ -1267,6 +1268,55 @@ namespace
 #if defined(__cpp_lib_optional)
         static std::optional<RetType> try_get(wil::unique_hkey const& key, PCWSTR valueName) { return wil::reg::try_get_value_qword(key.get(), valueName); }
         static std::optional<RetType> try_get(HKEY key, PCWSTR subkey, PCWSTR valueName) { return wil::reg::try_get_value_qword(key, subkey, valueName); }
+#endif // defined(__cpp_lib_optional)
+#endif // defined(WIL_ENABLE_EXCEPTIONS)
+    };
+
+    struct BasicStringFns
+    {
+        // TODO: buffer?
+        using RetType = std::wstring;
+        using SetType = PCWSTR;
+
+        static std::vector<RetType> testValues() { return stringTestVector; }
+        static PCWSTR testValueName() { return stringValueName; }
+
+        static std::vector<std::function<HRESULT(wil::unique_hkey const&, PCWSTR)>> set_wrong_value_fns_openkey()
+        {
+            return {
+                [](wil::unique_hkey const& key, PCWSTR value_name) { return wil::reg::set_value_dword_nothrow(key.get(), value_name, test_dword_zero); },
+#if defined(WIL_ENABLE_EXCEPTIONS)
+                [](wil::unique_hkey const& key, PCWSTR value_name) { return wil::reg::set_value_multistring_nothrow(key.get(), value_name, test_multistring_empty); },
+#endif // defined(WIL_ENABLE_EXCEPTIONS)
+            };
+        }
+
+        static std::vector<std::function<HRESULT(HKEY, PCWSTR, PCWSTR)>> set_wrong_value_fns_subkey()
+        {
+            return {
+                [](HKEY key, PCWSTR subkey, PCWSTR value_name) { return wil::reg::set_value_dword_nothrow(key, subkey, value_name, test_dword_zero); },
+#if defined(WIL_ENABLE_EXCEPTIONS)
+                [](HKEY key, PCWSTR subkey, PCWSTR value_name) { return wil::reg::set_value_multistring_nothrow(key, subkey, value_name, test_multistring_empty); },
+#endif // defined(WIL_ENABLE_EXCEPTIONS)
+            };
+        }
+
+        static HRESULT set_nothrow(wil::unique_hkey const& key, PCWSTR valueName, SetType const& value) { return wil::reg::set_value_string_nothrow(key.get(), valueName, value); }
+        static HRESULT set_nothrow(HKEY key, PCWSTR subkey, PCWSTR valueName, SetType const& value) { return wil::reg::set_value_string_nothrow(key, subkey, valueName, value); }
+
+        static HRESULT get_nothrow(wil::unique_hkey const& key, PCWSTR valueName, RetType* output) { return wil::reg::get_value_string_nothrow(key.get(), valueName, output); }
+        static HRESULT get_nothrow(HKEY key, PCWSTR subkey, PCWSTR valueName, RetType* output) { return wil::reg::get_value_string_nothrow(key, subkey, valueName, output); }
+
+#if defined(WIL_ENABLE_EXCEPTIONS)
+        static void set(wil::unique_hkey const& key, PCWSTR valueName, SetType const& value) { wil::reg::set_value_string(key.get(), valueName, value); }
+        static void set(HKEY key, PCWSTR subkey, PCWSTR valueName, SetType const& value) { wil::reg::set_value_string(key, subkey, valueName, value); }
+
+        static RetType get(wil::unique_hkey const& key, PCWSTR valueName) { return wil::reg::get_value_string(key.get(), valueName); }
+        static RetType get(HKEY key, PCWSTR subkey, PCWSTR valueName) { return wil::reg::get_value_string(key, subkey, valueName); }
+
+#if defined(__cpp_lib_optional)
+        static std::optional<RetType> try_get(wil::unique_hkey const& key, PCWSTR valueName) { return wil::reg::try_get_value_string(key.get(), valueName); }
+        static std::optional<RetType> try_get(HKEY key, PCWSTR subkey, PCWSTR valueName) { return wil::reg::try_get_value_string(key, subkey, valueName); }
 #endif // defined(__cpp_lib_optional)
 #endif // defined(WIL_ENABLE_EXCEPTIONS)
     };

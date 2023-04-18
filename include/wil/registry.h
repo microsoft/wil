@@ -578,7 +578,7 @@ namespace wil
          * \brief Writes a value under a specified key, the registry type based off the templated type passed as data
          * \tparam T The type capturing the data being set
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
-\         * \param value_name A string specifying the name of the registry value to write
+         * \param value_name A string specifying the name of the registry value to write
          *        can be nullptr to write to the unnamed default registry value
          * \param data The value containing the data to be set in the specified key
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
