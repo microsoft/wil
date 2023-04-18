@@ -46,6 +46,14 @@ const std::array<std::vector<std::wstring>, 6> multiStringTestArray{
     std::vector<std::wstring>{ {L""}, {L""}, {L""} },
     std::vector<std::wstring>{ {L"a"} }
 };
+const std::vector<std::vector<std::wstring>> multiStringTestVector{
+    std::vector<std::wstring>{ {} },
+    std::vector<std::wstring>{ {}, {} },
+    std::vector<std::wstring>{ {}, {L"."}, {}, {L"."}, {}, {} },
+    std::vector<std::wstring>{ {L"Hello there!"}, {L"Hello a second time!"}, {L"Hello a third time!"} },
+    std::vector<std::wstring>{ {L""}, {L""}, {L""} },
+    std::vector<std::wstring>{ {L"a"} }
+};
 
 const std::vector<BYTE> emptyStringTestValue{};
 const std::vector<BYTE> nonNullTerminatedString{ {'a'}, {0}, {'b'}, {0}, {'c'}, {0}, {'d'}, {0}, {'e'}, {0}, {'f'}, {0}, {'g'}, {0}, {'h'}, {0}, {'i'}, {0}, {'j'}, {0}, {'k'}, {0}, {'l'}, {0} };
@@ -1263,10 +1271,59 @@ namespace
 #endif // defined(__cpp_lib_optional)
 #endif // defined(WIL_ENABLE_EXCEPTIONS)
     };
-}
 
 #if defined(WIL_ENABLE_EXCEPTIONS)
-TEMPLATE_TEST_CASE("BasicRegistryTests::typed gets/sets/try_gets", "[registry]", DwordFns, QwordFns)
+    struct MultiStringFns
+    {
+        using RetType = std::vector<std::wstring>;
+        using SetType = std::vector<std::wstring>;
+
+        static std::vector<RetType> testValues() { return multiStringTestVector; }
+        static PCWSTR testValueName() { return multiStringValueName; }
+
+        static std::vector<std::function<HRESULT(wil::unique_hkey const&, PCWSTR)>> set_wrong_value_fns_openkey()
+        {
+            return {
+                [](wil::unique_hkey const& key, PCWSTR value_name) { return wil::reg::set_value_dword_nothrow(key.get(), value_name, test_dword_zero); }
+            };
+        }
+
+        static std::vector<std::function<HRESULT(HKEY, PCWSTR, PCWSTR)>> set_wrong_value_fns_subkey()
+        {
+            return {
+                // TODO: will fail
+                [](HKEY key, PCWSTR subkey, PCWSTR value_name) { return wil::reg::set_value_dword_nothrow(key, subkey, value_name, test_dword_zero); }
+            };
+        }
+
+        static HRESULT set_nothrow(wil::unique_hkey const& key, PCWSTR valueName, SetType const& value) { return wil::reg::set_value_multistring_nothrow(key.get(), valueName, value); }
+        static HRESULT set_nothrow(HKEY key, PCWSTR subkey, PCWSTR valueName, SetType const& value) { return wil::reg::set_value_multistring_nothrow(key, subkey, valueName, value); }
+
+        static HRESULT get_nothrow(wil::unique_hkey const& key, PCWSTR valueName, RetType* output) { return wil::reg::get_value_multistring_nothrow(key.get(), valueName, output); }
+        static HRESULT get_nothrow(HKEY key, PCWSTR subkey, PCWSTR valueName, RetType* output) { return wil::reg::get_value_multistring_nothrow(key, subkey, valueName, output); }
+
+        static void set(wil::unique_hkey const& key, PCWSTR valueName, SetType const& value) { wil::reg::set_value_multistring(key.get(), valueName, value); }
+        static void set(HKEY key, PCWSTR subkey, PCWSTR valueName, SetType const& value) { wil::reg::set_value_multistring(key, subkey, valueName, value); }
+
+        static RetType get(wil::unique_hkey const& key, PCWSTR valueName) { return wil::reg::get_value_multistring(key.get(), valueName); }
+        static RetType get(HKEY key, PCWSTR subkey, PCWSTR valueName) { return wil::reg::get_value_multistring(key, subkey, valueName); }
+
+#if defined(__cpp_lib_optional)
+        static std::optional<RetType> try_get(wil::unique_hkey const& key, PCWSTR valueName) { return wil::reg::try_get_value_multistring(key.get(), valueName); }
+        static std::optional<RetType> try_get(HKEY key, PCWSTR subkey, PCWSTR valueName) { return wil::reg::try_get_value_multistring(key, subkey, valueName); }
+#endif // defined(__cpp_lib_optional)
+    };
+#endif // defined(WIL_ENABLE_EXCEPTIONS)
+
+#if defined(WIL_ENABLE_EXCEPTIONS)
+using AllRegistryTypes = std::tuple<DwordFns, QwordFns, MultiStringFns>;
+#endif // defined(WIL_ENABLE_EXCEPTIONS)
+
+using ExceptionSafeTypes = std::tuple<DwordFns, QwordFns>;
+
+}
+
+TEMPLATE_LIST_TEST_CASE("BasicRegistryTests::typed nothrow gets/sets", "[registry]", ExceptionSafeTypes)
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
     if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
@@ -1338,6 +1395,16 @@ TEMPLATE_TEST_CASE("BasicRegistryTests::typed gets/sets/try_gets", "[registry]",
                 REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
             }
         }
+    }
+}
+
+#if defined(WIL_ENABLE_EXCEPTIONS)
+TEMPLATE_LIST_TEST_CASE("BasicRegistryTests::typed gets/sets/try_gets", "[registry]", AllRegistryTypes)
+{
+    const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
+    if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+    {
+        REQUIRE_SUCCEEDED(deleteHr);
     }
 
     SECTION("get")
