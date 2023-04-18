@@ -147,15 +147,18 @@ namespace wil
      * @tparam T CRTP type
      * @details When you declare your class, make this class a base class and pass your class as a template parameter:
      * @code
-     * struct MyPage : MyPageT<MyPage>, wil::notify_property_changed_base<MyPage> {
-     *      wil::single_threaded_notifying_property<int> MyInt;
-     *
-     *      MyPage() : INIT_PROPERTY(MyInt, 42) { }
+     * struct MyPage : MyPageT<MyPage>, wil::notify_property_changed_base<MyPage>
+     * {
+     *     wil::single_threaded_notifying_property<int> MyInt; 
+     *     MyPage() : INIT_NOTIFYING_PROPERTY(MyInt, 42) { } 
+     *     // or
+     *     WIL_NOTIFYING_PROPERTY(int, MyInt, 42);
      * };
      * @endcode
     */
     template<typename T,
-        typename Xaml_Data_PropertyChangedEventHandler = wil::details::Xaml_Data_PropertyChangedEventHandler>
+        typename Xaml_Data_PropertyChangedEventHandler = wil::details::Xaml_Data_PropertyChangedEventHandler,
+        typename Xaml_Data_PropertyChangedEventArgs = wil::details::Xaml_Data_PropertyChangedEventArgs>
     struct notify_property_changed_base
     {
         using Type = T;
@@ -193,7 +196,7 @@ namespace wil
         */
         auto RaisePropertyChanged(std::wstring_view name)
         {
-            return m_propertyChanged(self(), Xaml_Data_PropertyChangedEventHandler{ name });
+            return m_propertyChanged(self(), Xaml_Data_PropertyChangedEventArgs{ name });
         }
     protected:
         winrt::event<Xaml_Data_PropertyChangedEventHandler> m_propertyChanged;
@@ -253,10 +256,28 @@ namespace wil
     };
 
     /**
-    * @def INIT_NOTIFY_PROPERTY
+    * @def WIL_NOTIFYING_PROPERTY
+    * @brief use this to stamp out a property that calls RaisePropertyChanged upon changing its value. This is a zero-storage alternative to wil::single_threaded_notifying_property<T>
+    * @details You can pass an initializer list for the initial property value in the variadic arguments to this macro.
+    */
+#define WIL_NOTIFYING_PROPERTY(type, name, ...)             \
+    type m_##name{__VA_ARGS__};                              \
+    auto name() const noexcept { return m_##name; }         \
+    auto& name(type value)                                  \
+    {                                                       \
+        if (m_##name != value)                              \
+        {                                                   \
+            m_##name = std::move(value);                    \
+            RaisePropertyChanged(L#name);                   \
+        }                                                   \
+        return *this;                                       \
+    }                                                       \
+
+    /**
+    * @def INIT_NOTIFYING_PROPERTY
     * @brief use this to initialize a wil::single_threaded_notifying_property in your class constructor.
     */
-#define INIT_NOTIFY_PROPERTY(NAME, VALUE)  \
+#define INIT_NOTIFYING_PROPERTY(NAME, VALUE)  \
         NAME(&m_propertyChanged, *this, L#NAME, VALUE)
 
 #endif // !defined(__WIL_CPPWINRT_AUTHORING_INCLUDED_XAML_DATA) && (defined(WINRT_Microsoft_UI_Xaml_Data_H) || defined(WINRT_Windows_UI_Xaml_Data_H))
