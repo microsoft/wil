@@ -383,10 +383,13 @@ namespace
 namespace
 {
     // TODO: note about this test matrix
-    // TODO: note about strings; ensure we test all strings, including generic functions
+    // TODO: note about strings; ensure we test all strings, including generic functions and verifying std::string is the default
+    // TODO: invert the string tests to get better errors
     // TODO: expanded strings
     // TODO: byte vectors
     // TODO: fix generic multistring get
+    // TODO: remove redundant OLEAUTO checks in string code
+    // TODO: fix dereferencing losing wil::unique_* in string code
 
     template<typename RetType, typename SetType>
     struct GenericBaseFns
@@ -1228,6 +1231,7 @@ namespace
 #endif
 }
 
+// TODO: remove redundant OLEAUTO checks
 TEST_CASE("BasicRegistryTests::string types", "[registry]")
 {
     SECTION("set_value_string_nothrow/get_value_string_nothrow: with opened key")
@@ -1461,7 +1465,6 @@ TEST_CASE("BasicRegistryTests::expanded_wstring", "[registry]")
         REQUIRE_SUCCEEDED(deleteHr);
     }
 
-    // TODO: wchar arrays
     SECTION("set_value_expanded_string_nothrow/get_value_expanded_string_nothrow: with opened key")
     {
         wil::unique_hkey hkey;
@@ -1503,7 +1506,6 @@ TEST_CASE("BasicRegistryTests::expanded_wstring", "[registry]")
         REQUIRE(expanded_result != ERROR_SUCCESS);
         REQUIRE(expanded_result < test_expanded_string_buffer_size);
         REQUIRE(0 == wcscmp(valid_buffer_result, expanded_value));
-
 
         // fail get* if the value doesn't exist
         hr = wil::reg::get_value_expanded_string_nothrow(hkey.get(), invalidValueName, result);
@@ -1564,7 +1566,7 @@ TEST_CASE("BasicRegistryTests::expanded_wstring", "[registry]")
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
     }
 
-    // TODO: verify string is the default
+    // TODO: verify std::wstring is the default
 }
 #endif
 
@@ -1745,8 +1747,6 @@ namespace
             [](PCWSTR valueName, PCWSTR input) { wil::reg::set_value_expanded_string(HKEY_CURRENT_USER, testSubkey, valueName, input); },
             [](PCWSTR valueName) { wil::reg::set_value_dword(HKEY_CURRENT_USER, testSubkey, valueName, test_dword_zero); });
     }
-
-    // TODO: test generic try_get_value
 #endif // defined(__cpp_lib_optional)
 #endif
 }
@@ -1764,7 +1764,6 @@ TEST_CASE("BasicRegistryTests::expanded_string", "[registry]")
     {
         verify_expanded_string_nothrow<std::wstring>();
 
-// TODO: redundant?
 #if defined(__WIL_OLEAUTO_H_)
         verify_expanded_string_nothrow<wil::unique_bstr>();
 #if defined(__WIL_OLEAUTO_H_STL)
@@ -1869,7 +1868,7 @@ TEST_CASE("BasicRegistryTests::expanded_string", "[registry]")
     }
 #endif
 
-    // TODO: verify string is the default
+    // TODO: verify std::wstring is the default
 }
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS)
 
