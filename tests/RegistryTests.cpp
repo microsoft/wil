@@ -19,6 +19,7 @@ constexpr auto* stringValueName = L"MyStringValue";
 constexpr auto* multiStringValueName = L"MyMultiStringValue";
 constexpr auto* binaryValueName = L"MyBinaryValue";
 constexpr auto* invalidValueName = L"NonExistentValue";
+constexpr auto* wrongTypeValueName = L"InvalidTypeValue";
 
 constexpr uint32_t test_dword_two = 2ul;
 constexpr uint32_t test_dword_three = 3ul;
@@ -1187,6 +1188,13 @@ namespace
         static std::vector<RetType> testValues() { return dwordTestVector; }
         static PCWSTR testValueName() { return dwordValueName; }
 
+        static std::vector<std::function<HRESULT(wil::unique_hkey const&, PCWSTR)>> set_wrong_value_fns()
+        {
+            return {
+                [](wil::unique_hkey const& key, PCWSTR value_name) { return wil::reg::set_value_qword_nothrow(key.get(), value_name, test_qword_zero); }
+            };
+        }
+
 #if defined(WIL_ENABLE_EXCEPTIONS)
         static void set(wil::unique_hkey const& key, PCWSTR valueName, SetType const& value)
         {
@@ -1209,6 +1217,13 @@ namespace
 
         static std::vector<RetType> testValues() { return qwordTestVector; }
         static PCWSTR testValueName() { return qwordValueName; }
+
+        static std::vector<std::function<HRESULT(wil::unique_hkey const&, PCWSTR)>> set_wrong_value_fns()
+        {
+            return {
+                [](wil::unique_hkey const& key, PCWSTR value_name) { return wil::reg::set_value_dword_nothrow(key.get(), value_name, test_dword_zero); }
+            };
+        }
 
 #if defined(WIL_ENABLE_EXCEPTIONS)
         static void set(wil::unique_hkey const& key, PCWSTR valueName, SetType const& value)
@@ -1236,7 +1251,6 @@ TEMPLATE_TEST_CASE("BasicRegistryTests::typed try_gets", "[registry]", DwordFns,
         REQUIRE_SUCCEEDED(deleteHr);
     }
 
-
     SECTION("with opened key")
     {
         wil::unique_hkey hkey;
@@ -1253,8 +1267,22 @@ TEMPLATE_TEST_CASE("BasicRegistryTests::typed try_gets", "[registry]", DwordFns,
             result = TestType::try_get(hkey, nullptr);
             REQUIRE(result.value() == value);
         }
-    }
 
+        // try_get should simply return nullopt
+        const auto result = TestType::try_get(hkey, invalidValueName);
+        REQUIRE(!result.has_value());
+
+        // fail if get* requests the wrong type
+        for (auto& setWrongTypeFn : TestType::set_wrong_value_fns())
+        {
+            setWrongTypeFn(hkey, wrongTypeValueName);
+            VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
+                {
+                    const auto ignored = TestType::try_get(hkey, wrongTypeValueName);
+                    ignored;
+                });
+        }
+    }
 }
 #endif // defined(__cpp_lib_optional)
 #endif // defined(WIL_ENABLE_EXCEPTIONS)
