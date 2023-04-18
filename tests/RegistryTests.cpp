@@ -728,8 +728,7 @@ TEMPLATE_LIST_TEST_CASE("BasicRegistryTests::typed gets/sets/try_gets", "[regist
             // fail if get* requests an invalid value
             VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND), [&]()
                 {
-                    const auto ignored = TestType::get(hkey, invalidValueName);
-                    ignored;
+                    TestType::get(hkey, invalidValueName);
                 });
 
             // fail if get* requests the wrong type
@@ -738,8 +737,7 @@ TEMPLATE_LIST_TEST_CASE("BasicRegistryTests::typed gets/sets/try_gets", "[regist
                 REQUIRE_SUCCEEDED(setWrongTypeFn(hkey, wrongTypeValueName));
                 VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
                     {
-                        const auto ignored = TestType::get(hkey, wrongTypeValueName);
-                        ignored;
+                        TestType::get(hkey, wrongTypeValueName);
                     });
             }
         }
@@ -761,8 +759,7 @@ TEMPLATE_LIST_TEST_CASE("BasicRegistryTests::typed gets/sets/try_gets", "[regist
             // fail if get* requests an invalid value
             VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND), [&]()
                 {
-                    const auto ignored = TestType::get(HKEY_CURRENT_USER, testSubkey, invalidValueName);
-                    ignored;
+                    TestType::get(HKEY_CURRENT_USER, testSubkey, invalidValueName);
                 });
 
             // fail if get* requests the wrong type
@@ -771,8 +768,7 @@ TEMPLATE_LIST_TEST_CASE("BasicRegistryTests::typed gets/sets/try_gets", "[regist
                 REQUIRE_SUCCEEDED(setWrongTypeFn(HKEY_CURRENT_USER, testSubkey, wrongTypeValueName));
                 VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
                     {
-                        const auto ignored = TestType::get(HKEY_CURRENT_USER, testSubkey, wrongTypeValueName);
-                        ignored;
+                        TestType::get(HKEY_CURRENT_USER, testSubkey, wrongTypeValueName);
                     });
             }
         }
@@ -808,8 +804,7 @@ TEMPLATE_LIST_TEST_CASE("BasicRegistryTests::typed gets/sets/try_gets", "[regist
                 REQUIRE_SUCCEEDED(setWrongTypeFn(hkey, wrongTypeValueName));
                 VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
                     {
-                        const auto ignored = TestType::try_get(hkey, wrongTypeValueName);
-                        ignored;
+                        TestType::try_get(hkey, wrongTypeValueName);
                     });
             }
         }
@@ -838,8 +833,7 @@ TEMPLATE_LIST_TEST_CASE("BasicRegistryTests::typed gets/sets/try_gets", "[regist
                 REQUIRE_SUCCEEDED(setWrongTypeFn(HKEY_CURRENT_USER, testSubkey, wrongTypeValueName));
                 VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
                     {
-                        const auto ignored = TestType::try_get(HKEY_CURRENT_USER, testSubkey, wrongTypeValueName);
-                        ignored;
+                        TestType::try_get(HKEY_CURRENT_USER, testSubkey, wrongTypeValueName);
                     });
             }
         }
@@ -1102,16 +1096,14 @@ namespace
         // fail get* if the value doesn't exist
         VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND), [&]()
             {
-                const auto ignored = getFn(invalidValueName);
-                ignored;
+                getFn(invalidValueName);
             });
 
         // fail if get* requests the wrong type
         setWrongTypeFn(dwordValueName);
         VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
             {
-                const auto ignored = getFn(dwordValueName);
-                ignored;
+                getFn(dwordValueName);
             });
     }
 
@@ -1184,8 +1176,7 @@ namespace
         setWrongTypeFn(dwordValueName);
         VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
             {
-                const auto ignored = tryGetFn(dwordValueName);
-                ignored;
+                tryGetFn(dwordValueName);
             });
     }
 
