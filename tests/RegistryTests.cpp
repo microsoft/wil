@@ -21,7 +21,9 @@ constexpr uint32_t test_dword_three = 3ul;
 constexpr uint32_t test_dword_zero = 0ul;
 constexpr uint64_t test_qword_zero = 0ull;
 
+#if defined(WIL_ENABLE_EXCEPTIONS)
 constexpr uint32_t test_expanded_string_buffer_size = 100;
+#endif
 
 constexpr DWORD dwordTestArray[] = { static_cast<DWORD>(-1), 1, 0 };
 constexpr DWORD64 qwordTestArray[] = { static_cast<DWORD64>(-1), 1, 0 };
@@ -76,7 +78,7 @@ bool AreStringsEqual(const wil::shared_bstr& lhs, const std::wstring& rhs) noexc
     }
     return (0 == wcscmp(lhs.get(), rhs.c_str()));
 }
-#endif #if defined(__WIL_OLEAUTO_H_STL)
+#endif
 
 bool AreStringsEqual(const wil::unique_cotaskmem_string& lhs, const std::wstring& rhs) noexcept
 {
