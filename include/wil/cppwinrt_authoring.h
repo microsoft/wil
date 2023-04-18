@@ -11,8 +11,8 @@
 
 namespace wil
 {
-#ifndef __WIL_CPPWINRT_AUTHORING_INCLUDED
-#define __WIL_CPPWINRT_AUTHORING_INCLUDED
+#ifndef __WIL_CPPWINRT_AUTHORING_PROPERTIES_INCLUDED
+#define __WIL_CPPWINRT_AUTHORING_PROPERTIES_INCLUDED
     namespace details
     {
         template<typename T>
@@ -32,10 +32,10 @@ namespace wil
     }
 
     template <typename T>
-    struct single_threaded_ro_property : std::conditional_t<std::is_scalar_v<T>, wil::details::single_threaded_property_storage<T>, T>
+    struct single_threaded_ro_property : std::conditional_t<std::is_scalar_v<T> || std::is_final_v<T>, wil::details::single_threaded_property_storage<T>, T>
     {
         single_threaded_ro_property() = default;
-        single_threaded_ro_property(const T& t) : base_type(t) { }
+        single_threaded_ro_property(T value) : base_type(std::move(value)) { }
         
         const auto& operator()()
         {
@@ -71,17 +71,23 @@ namespace wil
         }
     };
 
-#endif // __WIL_CPPWINRT_AUTHORING_INCLUDED
+#endif // __WIL_CPPWINRT_AUTHORING_PROPERTIES_INCLUDED
 
 #if !defined(__WIL_CPPWINRT_AUTHORING_INCLUDED_FOUNDATION) && defined(WINRT_Windows_Foundation_H) // WinRT / XAML helpers
 #define __WIL_CPPWINRT_AUTHORING_INCLUDED_FOUNDATION
-    namespace details {
+    namespace details
+    {
         template<typename T>
         struct event_base {
-            winrt::event_token operator()(T&& handler) {
+            winrt::event_token operator()(T&& handler)
+            {
                 return m_handler.add(std::forward<T>(handler));
             }
-            auto operator()(const winrt::event_token& token) noexcept { return m_handler.remove(token); }
+
+            auto operator()(const winrt::event_token& token) noexcept
+            {
+                return m_handler.remove(token);
+            }
 
             template<typename... TArgs>
             auto invoke(TArgs&&... args) {
@@ -114,20 +120,18 @@ namespace wil
 
 #endif // !defined(__WIL_CPPWINRT_AUTHORING_INCLUDED_FOUNDATION) && defined(WINRT_Windows_Foundation_H)
 
-#if !defined(__WIL_CPPWINRT_AUTHORING_INCLUDED_XAML_DATA) // INotifyPropertyChanged helpers
+#if !defined(__WIL_CPPWINRT_AUTHORING_INCLUDED_XAML_DATA) && (defined(WINRT_Microsoft_UI_Xaml_Data_H) || defined(WINRT_Windows_UI_Xaml_Data_H)) // INotifyPropertyChanged helpers
 #define __WIL_CPPWINRT_AUTHORING_INCLUDED_XAML_DATA
-namespace details
-{
+    namespace details
+    {
 #ifdef WINRT_Microsoft_UI_Xaml_Data_H
-    using Xaml_Data_PropertyChangedEventHandler = winrt::Microsoft::UI::Xaml::Data::PropertyChangedEventHandler;
-    using Xaml_Data_PropertyChangedEventArgs = winrt::Microsoft::UI::Xaml::Data::PropertyChangedEventArgs;
+        using Xaml_Data_PropertyChangedEventHandler = winrt::Microsoft::UI::Xaml::Data::PropertyChangedEventHandler;
+        using Xaml_Data_PropertyChangedEventArgs = winrt::Microsoft::UI::Xaml::Data::PropertyChangedEventArgs;
 #elif defined(WINRT_Windows_UI_Xaml_Data_H)
-    using Xaml_Data_PropertyChangedEventHandler = winrt::Windows::UI::Xaml::Data::PropertyChangedEventHandler;
-    using Xaml_Data_PropertyChangedEventArgs = winrt::Windows::UI::Xaml::Data::PropertyChangedEventArgs;
+        using Xaml_Data_PropertyChangedEventHandler = winrt::Windows::UI::Xaml::Data::PropertyChangedEventHandler;
+        using Xaml_Data_PropertyChangedEventArgs = winrt::Windows::UI::Xaml::Data::PropertyChangedEventArgs;
 #endif
-}
-
-#if defined(WINRT_Microsoft_UI_Xaml_Data_H) || defined(WINRT_Windows_UI_Xaml_Data_H)
+    }
 
     /**
      * @brief Helper base class to inherit from to have a simple implementation of [INotifyPropertyChanged](https://docs.microsoft.com/uwp/api/windows.ui.xaml.data.inotifypropertychanged).
@@ -142,19 +146,22 @@ namespace details
      * @endcode
     */
     template<typename T,
-        typename Xaml_Data_PropertyChangedEventHandler = wil::details::Xaml_Data_PropertyChangedEventHandler
-        // , typename = std::enable_if_t<std::is_convertible_v<T, winrt::Windows::Foundation::IInspectable>>
-    >
-    struct notify_property_changed_base {
-    public:
+        typename Xaml_Data_PropertyChangedEventHandler = wil::details::Xaml_Data_PropertyChangedEventHandler>
+    struct notify_property_changed_base
+    {
         using Type = T;
-        auto PropertyChanged(Xaml_Data_PropertyChangedEventHandler const& value) {
+        auto PropertyChanged(Xaml_Data_PropertyChangedEventHandler const& value)
+        {
             return m_propertyChanged.add(value);
         }
-        void PropertyChanged(winrt::event_token const& token) {
+        
+        void PropertyChanged(winrt::event_token const& token)
+        {
             m_propertyChanged.remove(token);
         }
-        Type& self() {
+        
+        Type& self()
+        {
             return *static_cast<Type*>(this);
         }
 
@@ -165,12 +172,13 @@ namespace details
          * @details Usage example\n
          * C++
          * @code
-         * void MyPage::DoSomething() {
-         *  // modify MyInt
-         *  // MyInt = ...
+         * void MyPage::DoSomething()
+         * {
+         *     // modify MyInt
+         *     // MyInt = ...
          *
-         *  // now send a notification to update the bound UI elements
-         *  RaisePropertyChanged(L"MyInt");
+         *     // now send a notification to update the bound UI elements
+         *     RaisePropertyChanged(L"MyInt");
          * }
          * @endcode
         */
@@ -189,19 +197,24 @@ namespace details
     template<typename T,
         typename Xaml_Data_PropertyChangedEventHandler = wil::details::Xaml_Data_PropertyChangedEventHandler,
         typename Xaml_Data_PropertyChangedEventArgs = wil::details::Xaml_Data_PropertyChangedEventArgs>
-    struct single_threaded_notifying_property : single_threaded_rw_property<T> {
+    struct single_threaded_notifying_property : single_threaded_rw_property<T>
+    {
         using Type = T;
 
         using single_threaded_rw_property<T>::operator();
 
-        void operator()(const T& value) {
-            if (value != this->m_value) {
+        void operator()(const T& value)
+        {
+            if (value != this->m_value)
+            {
                 single_threaded_rw_property<T>::operator()(value);
-                if (m_npc) {
+                if (m_npc)
+                {
                     (*m_npc)(m_sender, Xaml_Data_PropertyChangedEventArgs{ m_name });
                 }
             }
         }
+
         template<typename... TArgs>
         single_threaded_notifying_property(
             winrt::event<Xaml_Data_PropertyChangedEventHandler>* npc,
@@ -230,7 +243,5 @@ namespace details
 #define INIT_NOTIFY_PROPERTY(NAME, VALUE)  \
         NAME(&m_propertyChanged, *this, L#NAME, VALUE)
 
-#endif // defined(WINRT_Microsoft_UI_Xaml_Data_H) || defined(WINRT_Windows_UI_Xaml_Data_H)
-
-#endif // !defined(__WIL_CPPWINRT_AUTHORING_INCLUDED_XAML_DATA)
+#endif // !defined(__WIL_CPPWINRT_AUTHORING_INCLUDED_XAML_DATA) && (defined(WINRT_Microsoft_UI_Xaml_Data_H) || defined(WINRT_Windows_UI_Xaml_Data_H))
 } // namespace wil

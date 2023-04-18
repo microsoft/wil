@@ -42,8 +42,8 @@ endif()
 # functions not marked 'inline'. The reason we prefer 'RelWithDebInfo' over 'Release' is to get debug info, so manually
 # revert to the desired (and default) inlining behavior as that exercises more interesting code paths
 if (${CMAKE_BUILD_TYPE} STREQUAL "RelWithDebInfo")
-   # TODO: This is currently blocked by an apparent Clang bug: https://github.com/llvm/llvm-project/issues/59690
-   # replace_cxx_flag("/Ob1" "/Ob2")
+    # TODO: This is currently blocked by an apparent Clang bug: https://github.com/llvm/llvm-project/issues/59690
+    # replace_cxx_flag("/Ob1" "/Ob2")
 endif()
 
 set(COMMON_SOURCES
@@ -77,7 +77,7 @@ if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
     set(DEBUG_BUILD TRUE)
     set(HAS_DEBUG_INFO TRUE)
 elseif(${CMAKE_BUILD_TYPE} STREQUAL "RelWithDebInfo")
-   set(HAS_DEBUG_INFO TRUE)
+    set(HAS_DEBUG_INFO TRUE)
 endif()
 
 set(ASAN_AVAILABLE FALSE)
