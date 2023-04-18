@@ -1188,24 +1188,26 @@ namespace
         static std::vector<RetType> testValues() { return dwordTestVector; }
         static PCWSTR testValueName() { return dwordValueName; }
 
-        static std::vector<std::function<HRESULT(wil::unique_hkey const&, PCWSTR)>> set_wrong_value_fns()
+        static std::vector<std::function<HRESULT(wil::unique_hkey const&, PCWSTR)>> set_wrong_value_fns_openkey()
         {
             return {
                 [](wil::unique_hkey const& key, PCWSTR value_name) { return wil::reg::set_value_qword_nothrow(key.get(), value_name, test_qword_zero); }
             };
         }
 
-#if defined(WIL_ENABLE_EXCEPTIONS)
-        static void set(wil::unique_hkey const& key, PCWSTR valueName, SetType const& value)
+        static std::vector<std::function<HRESULT(HKEY, PCWSTR, PCWSTR)>> set_wrong_value_fns_subkey()
         {
-            wil::reg::set_value_dword(key.get(), valueName, value);
+            return {
+                [](HKEY key, PCWSTR subkey, PCWSTR value_name) { return wil::reg::set_value_qword_nothrow(key, subkey, value_name, test_qword_zero); }
+            };
         }
 
+#if defined(WIL_ENABLE_EXCEPTIONS)
+        static void set(wil::unique_hkey const& key, PCWSTR valueName, SetType const& value) { wil::reg::set_value_dword(key.get(), valueName, value); }
+        static void set(HKEY key, PCWSTR subkey, PCWSTR valueName, SetType const& value) { wil::reg::set_value_dword(key, subkey, valueName, value); }
 #if defined(__cpp_lib_optional)
-        static std::optional<RetType> try_get(wil::unique_hkey const& key, PCWSTR valueName)
-        {
-            return wil::reg::try_get_value_dword(key.get(), valueName);
-        }
+        static std::optional<RetType> try_get(wil::unique_hkey const& key, PCWSTR valueName) { return wil::reg::try_get_value_dword(key.get(), valueName); }
+        static std::optional<RetType> try_get(HKEY key, PCWSTR subkey, PCWSTR valueName) { return wil::reg::try_get_value_dword(key, subkey, valueName); }
 #endif // defined(__cpp_lib_optional)
 #endif // defined(WIL_ENABLE_EXCEPTIONS)
     };
@@ -1218,24 +1220,28 @@ namespace
         static std::vector<RetType> testValues() { return qwordTestVector; }
         static PCWSTR testValueName() { return qwordValueName; }
 
-        static std::vector<std::function<HRESULT(wil::unique_hkey const&, PCWSTR)>> set_wrong_value_fns()
+        static std::vector<std::function<HRESULT(wil::unique_hkey const&, PCWSTR)>> set_wrong_value_fns_openkey()
         {
             return {
                 [](wil::unique_hkey const& key, PCWSTR value_name) { return wil::reg::set_value_dword_nothrow(key.get(), value_name, test_dword_zero); }
             };
         }
 
-#if defined(WIL_ENABLE_EXCEPTIONS)
-        static void set(wil::unique_hkey const& key, PCWSTR valueName, SetType const& value)
+        static std::vector<std::function<HRESULT(HKEY, PCWSTR, PCWSTR)>> set_wrong_value_fns_subkey()
         {
-            wil::reg::set_value_qword(key.get(), valueName, value);
+            return {
+                // TODO: will fail
+                [](HKEY key, PCWSTR subkey, PCWSTR value_name) { return wil::reg::set_value_qword_nothrow(key, subkey, value_name, test_qword_zero); }
+            };
         }
 
+#if defined(WIL_ENABLE_EXCEPTIONS)
+        static void set(wil::unique_hkey const& key, PCWSTR valueName, SetType const& value) { wil::reg::set_value_qword(key.get(), valueName, value); }
+        static void set(HKEY key, PCWSTR subkey, PCWSTR valueName, SetType const& value) { wil::reg::set_value_qword(key, subkey, valueName, value); }
+
 #if defined(__cpp_lib_optional)
-        static std::optional<RetType> try_get(wil::unique_hkey const& key, PCWSTR valueName)
-        {
-            return wil::reg::try_get_value_qword(key.get(), valueName);
-        }
+        static std::optional<RetType> try_get(wil::unique_hkey const& key, PCWSTR valueName) { return wil::reg::try_get_value_qword(key.get(), valueName); }
+        static std::optional<RetType> try_get(HKEY key, PCWSTR subkey, PCWSTR valueName) { return wil::reg::try_get_value_qword(key, subkey, valueName); }
 #endif // defined(__cpp_lib_optional)
 #endif // defined(WIL_ENABLE_EXCEPTIONS)
     };
@@ -1273,12 +1279,42 @@ TEMPLATE_TEST_CASE("BasicRegistryTests::typed try_gets", "[registry]", DwordFns,
         REQUIRE(!result.has_value());
 
         // fail if get* requests the wrong type
-        for (auto& setWrongTypeFn : TestType::set_wrong_value_fns())
+        for (auto& setWrongTypeFn : TestType::set_wrong_value_fns_openkey())
         {
             setWrongTypeFn(hkey, wrongTypeValueName);
             VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
                 {
                     const auto ignored = TestType::try_get(hkey, wrongTypeValueName);
+                    ignored;
+                });
+        }
+    }
+
+    SECTION("with string key")
+    {
+        for (auto&& value : TestType::testValues())
+        {
+            TestType::set(HKEY_CURRENT_USER, testSubkey, TestType::testValueName(), value);
+            auto result = TestType::try_get(HKEY_CURRENT_USER, testSubkey, TestType::testValueName());
+            REQUIRE(result.value() == value); // intentional fail
+
+            // and verify default value name
+            TestType::set(HKEY_CURRENT_USER, testSubkey, nullptr, value);
+            result = TestType::try_get(HKEY_CURRENT_USER, testSubkey, nullptr);
+            REQUIRE(result.value() == value);
+        }
+
+        // try_get should simply return nullopt
+        const auto result = TestType::try_get(HKEY_CURRENT_USER, testSubkey, invalidValueName);
+        REQUIRE(!result.has_value());
+
+        // fail if get* requests the wrong type
+        for (auto& setWrongTypeFn : TestType::set_wrong_value_fns_subkey())
+        {
+            setWrongTypeFn(HKEY_CURRENT_USER, testSubkey, wrongTypeValueName);
+            VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
+                {
+                    const auto ignored = TestType::try_get(HKEY_CURRENT_USER, testSubkey, wrongTypeValueName);
                     ignored;
                 });
         }
