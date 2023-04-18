@@ -1299,6 +1299,39 @@ TEMPLATE_TEST_CASE("BasicRegistryTests::typed gets/sets/try_gets", "[registry]",
                     });
             }
         }
+
+        SECTION("with string key")
+        {
+            for (auto&& value : TestType::testValues())
+            {
+                TestType::set(HKEY_CURRENT_USER, testSubkey, TestType::testValueName(), value);
+                auto result = TestType::get(HKEY_CURRENT_USER, testSubkey, TestType::testValueName());
+                REQUIRE(result == value); // intentional fail
+
+                // and verify default value name
+                TestType::set(HKEY_CURRENT_USER, testSubkey, nullptr, value);
+                result = TestType::get(HKEY_CURRENT_USER, testSubkey, nullptr);
+                REQUIRE(result == value);
+            }
+
+            // fail if get* requests an invalid value
+            VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND), [&]()
+                {
+                    const auto ignored = TestType::get(HKEY_CURRENT_USER, testSubkey, invalidValueName);
+                    ignored;
+                });
+
+            // fail if get* requests the wrong type
+            for (auto& setWrongTypeFn : TestType::set_wrong_value_fns_subkey())
+            {
+                setWrongTypeFn(HKEY_CURRENT_USER, testSubkey, wrongTypeValueName);
+                VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
+                    {
+                        const auto ignored = TestType::get(HKEY_CURRENT_USER, testSubkey, wrongTypeValueName);
+                        ignored;
+                    });
+            }
+        }
     }
 
 #if defined(__cpp_lib_optional)
