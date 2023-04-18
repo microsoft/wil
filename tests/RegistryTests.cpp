@@ -1205,6 +1205,9 @@ namespace
 #if defined(WIL_ENABLE_EXCEPTIONS)
         static void set(wil::unique_hkey const& key, PCWSTR valueName, SetType const& value) { wil::reg::set_value_dword(key.get(), valueName, value); }
         static void set(HKEY key, PCWSTR subkey, PCWSTR valueName, SetType const& value) { wil::reg::set_value_dword(key, subkey, valueName, value); }
+
+        static RetType get(wil::unique_hkey const& key, PCWSTR valueName) { return wil::reg::get_value_dword(key.get(), valueName); }
+        static RetType get(HKEY key, PCWSTR subkey, PCWSTR valueName) { return wil::reg::get_value_dword(key, subkey, valueName); }
 #if defined(__cpp_lib_optional)
         static std::optional<RetType> try_get(wil::unique_hkey const& key, PCWSTR valueName) { return wil::reg::try_get_value_dword(key.get(), valueName); }
         static std::optional<RetType> try_get(HKEY key, PCWSTR subkey, PCWSTR valueName) { return wil::reg::try_get_value_dword(key, subkey, valueName); }
@@ -1239,6 +1242,9 @@ namespace
         static void set(wil::unique_hkey const& key, PCWSTR valueName, SetType const& value) { wil::reg::set_value_qword(key.get(), valueName, value); }
         static void set(HKEY key, PCWSTR subkey, PCWSTR valueName, SetType const& value) { wil::reg::set_value_qword(key, subkey, valueName, value); }
 
+        static RetType get(wil::unique_hkey const& key, PCWSTR valueName) { return wil::reg::get_value_qword(key.get(), valueName); }
+        static RetType get(HKEY key, PCWSTR subkey, PCWSTR valueName) { return wil::reg::get_value_qword(key, subkey, valueName); }
+
 #if defined(__cpp_lib_optional)
         static std::optional<RetType> try_get(wil::unique_hkey const& key, PCWSTR valueName) { return wil::reg::try_get_value_qword(key.get(), valueName); }
         static std::optional<RetType> try_get(HKEY key, PCWSTR subkey, PCWSTR valueName) { return wil::reg::try_get_value_qword(key, subkey, valueName); }
@@ -1248,8 +1254,7 @@ namespace
 }
 
 #if defined(WIL_ENABLE_EXCEPTIONS)
-#if defined(__cpp_lib_optional)
-TEMPLATE_TEST_CASE("BasicRegistryTests::typed try_gets", "[registry]", DwordFns, QwordFns)
+TEMPLATE_TEST_CASE("BasicRegistryTests::typed gets/sets/try_gets", "[registry]", DwordFns, QwordFns)
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
     if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
@@ -1257,70 +1262,113 @@ TEMPLATE_TEST_CASE("BasicRegistryTests::typed try_gets", "[registry]", DwordFns,
         REQUIRE_SUCCEEDED(deleteHr);
     }
 
-    SECTION("with opened key")
+    SECTION("get")
     {
-        wil::unique_hkey hkey;
-        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
-
-        for (auto&& value : TestType::testValues())
+        SECTION("with opened key")
         {
-            TestType::set(hkey, TestType::testValueName(), value);
-            auto result = TestType::try_get(hkey, TestType::testValueName());
-            REQUIRE(result.value() == value); // intentional fail
+            wil::unique_hkey hkey;
+            REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
 
-            // and verify default value name
-            TestType::set(hkey, nullptr, value);
-            result = TestType::try_get(hkey, nullptr);
-            REQUIRE(result.value() == value);
-        }
+            for (auto&& value : TestType::testValues())
+            {
+                TestType::set(hkey, TestType::testValueName(), value);
+                auto result = TestType::get(hkey, TestType::testValueName());
+                REQUIRE(result == value); // intentional fail
 
-        // try_get should simply return nullopt
-        const auto result = TestType::try_get(hkey, invalidValueName);
-        REQUIRE(!result.has_value());
+                // and verify default value name
+                TestType::set(hkey, nullptr, value);
+                result = TestType::get(hkey, nullptr);
+                REQUIRE(result == value);
+            }
 
-        // fail if get* requests the wrong type
-        for (auto& setWrongTypeFn : TestType::set_wrong_value_fns_openkey())
-        {
-            setWrongTypeFn(hkey, wrongTypeValueName);
-            VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
+            // fail if get* requests an invalid value
+            VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND), [&]()
                 {
-                    const auto ignored = TestType::try_get(hkey, wrongTypeValueName);
+                    const auto ignored = TestType::get(hkey, invalidValueName);
                     ignored;
                 });
+
+            // fail if get* requests the wrong type
+            for (auto& setWrongTypeFn : TestType::set_wrong_value_fns_openkey())
+            {
+                setWrongTypeFn(hkey, wrongTypeValueName);
+                VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
+                    {
+                        const auto ignored = TestType::get(hkey, wrongTypeValueName);
+                        ignored;
+                    });
+            }
         }
     }
 
-    SECTION("with string key")
+#if defined(__cpp_lib_optional)
+    SECTION("try_get")
     {
-        for (auto&& value : TestType::testValues())
+        SECTION("with opened key")
         {
-            TestType::set(HKEY_CURRENT_USER, testSubkey, TestType::testValueName(), value);
-            auto result = TestType::try_get(HKEY_CURRENT_USER, testSubkey, TestType::testValueName());
-            REQUIRE(result.value() == value); // intentional fail
+            wil::unique_hkey hkey;
+            REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
 
-            // and verify default value name
-            TestType::set(HKEY_CURRENT_USER, testSubkey, nullptr, value);
-            result = TestType::try_get(HKEY_CURRENT_USER, testSubkey, nullptr);
-            REQUIRE(result.value() == value);
+            for (auto&& value : TestType::testValues())
+            {
+                TestType::set(hkey, TestType::testValueName(), value);
+                auto result = TestType::try_get(hkey, TestType::testValueName());
+                REQUIRE(result.value() == value); // intentional fail
+
+                // and verify default value name
+                TestType::set(hkey, nullptr, value);
+                result = TestType::try_get(hkey, nullptr);
+                REQUIRE(result.value() == value);
+            }
+
+            // try_get should simply return nullopt
+            const auto result = TestType::try_get(hkey, invalidValueName);
+            REQUIRE(!result.has_value());
+
+            // fail if try_get* requests the wrong type
+            for (auto& setWrongTypeFn : TestType::set_wrong_value_fns_openkey())
+            {
+                setWrongTypeFn(hkey, wrongTypeValueName);
+                VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
+                    {
+                        const auto ignored = TestType::try_get(hkey, wrongTypeValueName);
+                        ignored;
+                    });
+            }
         }
 
-        // try_get should simply return nullopt
-        const auto result = TestType::try_get(HKEY_CURRENT_USER, testSubkey, invalidValueName);
-        REQUIRE(!result.has_value());
-
-        // fail if get* requests the wrong type
-        for (auto& setWrongTypeFn : TestType::set_wrong_value_fns_subkey())
+        SECTION("with string key")
         {
-            setWrongTypeFn(HKEY_CURRENT_USER, testSubkey, wrongTypeValueName);
-            VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
-                {
-                    const auto ignored = TestType::try_get(HKEY_CURRENT_USER, testSubkey, wrongTypeValueName);
-                    ignored;
-                });
+            for (auto&& value : TestType::testValues())
+            {
+                TestType::set(HKEY_CURRENT_USER, testSubkey, TestType::testValueName(), value);
+                auto result = TestType::try_get(HKEY_CURRENT_USER, testSubkey, TestType::testValueName());
+                REQUIRE(result.value() == value); // intentional fail
+
+                // and verify default value name
+                TestType::set(HKEY_CURRENT_USER, testSubkey, nullptr, value);
+                result = TestType::try_get(HKEY_CURRENT_USER, testSubkey, nullptr);
+                REQUIRE(result.value() == value);
+            }
+
+            // try_get should simply return nullopt
+            const auto result = TestType::try_get(HKEY_CURRENT_USER, testSubkey, invalidValueName);
+            REQUIRE(!result.has_value());
+
+            // fail if try_get* requests the wrong type
+            for (auto& setWrongTypeFn : TestType::set_wrong_value_fns_subkey())
+            {
+                setWrongTypeFn(HKEY_CURRENT_USER, testSubkey, wrongTypeValueName);
+                VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
+                    {
+                        const auto ignored = TestType::try_get(HKEY_CURRENT_USER, testSubkey, wrongTypeValueName);
+                        ignored;
+                    });
+            }
         }
     }
-}
 #endif // defined(__cpp_lib_optional)
+}
 #endif // defined(WIL_ENABLE_EXCEPTIONS)
 
 #if defined(WIL_ENABLE_EXCEPTIONS)
