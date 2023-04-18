@@ -1308,6 +1308,36 @@ TEMPLATE_TEST_CASE("BasicRegistryTests::typed gets/sets/try_gets", "[registry]",
                 REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
             }
         }
+
+        SECTION("with string key")
+        {
+            for (auto&& value : TestType::testValues())
+            {
+                REQUIRE_SUCCEEDED(TestType::set_nothrow(HKEY_CURRENT_USER, testSubkey, TestType::testValueName(), value));
+                typename TestType::RetType result{};
+                REQUIRE_SUCCEEDED(TestType::get_nothrow(HKEY_CURRENT_USER, testSubkey, TestType::testValueName(), &result));
+                REQUIRE(result == value);
+
+                // and verify default value name
+                REQUIRE_SUCCEEDED(TestType::set_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, value));
+                result = {};
+                REQUIRE_SUCCEEDED(TestType::get_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, &result));
+                REQUIRE(result == value);
+            }
+
+            // fail get* if the value doesn't exist
+            typename TestType::RetType result{};
+            HRESULT hr = TestType::get_nothrow(HKEY_CURRENT_USER, testSubkey, invalidValueName, &result);
+            REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
+
+            // fail if get* requests the wrong type
+            for (auto& setWrongTypeFn : TestType::set_wrong_value_fns_subkey())
+            {
+                REQUIRE_SUCCEEDED(setWrongTypeFn(HKEY_CURRENT_USER, testSubkey, wrongTypeValueName));
+                hr = TestType::get_nothrow(HKEY_CURRENT_USER, testSubkey, wrongTypeValueName, &result);
+                REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
+            }
+        }
     }
 
     SECTION("get")
