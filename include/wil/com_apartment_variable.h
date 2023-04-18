@@ -11,15 +11,17 @@
 #ifndef __WIL_COM_APARTMENT_VARIABLE_INCLUDED
 #define __WIL_COM_APARTMENT_VARIABLE_INCLUDED
 
-#include <unordered_map>
 #include <any>
+#include <objidl.h>
+#include <roapi.h>
 #include <type_traits>
+#include <unordered_map>
+#include <winrt/Windows.Foundation.h>
+
 #include "com.h"
 #include "cppwinrt.h"
-#include <roapi.h>
-#include <objidl.h>
 #include "result_macros.h"
-#include <winrt/Windows.Foundation.h>
+#include "win32_helpers.h"
 
 #ifndef WIL_ENABLE_EXCEPTIONS
 #error This header requires exceptions
@@ -75,6 +77,20 @@ namespace wil
         using shutdown_type = wil::unique_apartment_shutdown_registration;
     };
 
+    enum class apartment_variable_leak_action { fail_fast, ignore };
+
+    // "pins" the current module in memory by incrementing the module reference count and leaking that.
+    inline void ensure_module_stays_loaded()
+    {
+        static INIT_ONCE s_initLeakModule{}; // avoiding magic statics
+        wil::init_once_failfast(s_initLeakModule, []()
+        {
+            HMODULE result{};
+            FAIL_FAST_IF(!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_PIN, L"", &result));
+            return S_OK;
+        });
+    }
+
     namespace details
     {
         // For the address of data, you can detect global variables by the ability to resolve the module from the address.
@@ -89,7 +105,7 @@ namespace wil
             std::any(*adapter)(void*);
             void* inner;
 
-            std::any operator()()
+            WI_NODISCARD std::any operator()() const
             {
                 return adapter(inner);
             }
@@ -117,7 +133,8 @@ namespace wil
             }
         };
 
-        template<typename test_hook = apartment_variable_platform>
+        template<apartment_variable_leak_action leak_action = apartment_variable_leak_action::fail_fast,
+            typename test_hook = apartment_variable_platform>
         struct apartment_variable_base
         {
             inline static winrt::slim_mutex s_lock;
@@ -133,14 +150,16 @@ namespace wil
 
                 winrt::apartment_context context;
                 typename test_hook::shutdown_type cookie;
-                std::unordered_map<apartment_variable_base<test_hook>*, std::any> variables;
+                // Variables are stored using the address of the apartment_variable_base<> as the key.
+                std::unordered_map<apartment_variable_base<leak_action, test_hook>*, std::any> variables;
             };
 
-            // Apartment id -> variable storage.
-            // Variables are stored using the address of the global variable as the key.
-            inline static std::unordered_map<unsigned long long, apartment_variable_storage> s_apartmentStorage;
+            // Apartment id -> variables storage.
+            inline static wil::object_without_destructor_on_shutdown<
+                std::unordered_map<unsigned long long, apartment_variable_storage>>
+                s_apartmentStorage;
 
-            apartment_variable_base() = default;
+            constexpr apartment_variable_base() = default;
             ~apartment_variable_base()
             {
                 // Global variables (object with static storage duration)
@@ -148,9 +167,36 @@ namespace wil
                 // dll is unloaded. At these points it is not possible to start
                 // an async operation and the work performed is not needed,
                 // the apartments with variable have been run down already.
-                if (!details::IsGlobalVariable(this))
+                const auto isGlobal = details::IsGlobalVariable(this);
+                if (!isGlobal)
                 {
                     clear_all_apartments_async();
+                }
+
+                if constexpr (leak_action == apartment_variable_leak_action::fail_fast)
+                {
+                    if (isGlobal && !ProcessShutdownInProgress())
+                    {
+                        // If you hit this fail fast it means the storage in s_apartmentStorage will be leaked.
+                        // For apartment variables used in .exes, this is expected and
+                        // this fail fast should be disabled using
+                        // wil::apartment_variable<T, wil::apartment_variable_leak_action::ignore>
+                        //
+                        // For DLLs, if this is expected, disable this fail fast using
+                        // wil::apartment_variable<T, wil::apartment_variable_leak_action::ignore>
+                        //
+                        // Use of apartment variables in DLLs only loaded by COM will never hit this case
+                        // as COM will unload DLLs before apartments are rundown,
+                        // providing the opportunity to empty s_apartmentStorage.
+                        //
+                        // But DLLs loaded and unloaded to call DLL entry points (outside of COM) may
+                        // create variable storage that can't be cleaned up as the DLL lifetime is
+                        // shorter that the COM lifetime. In these cases either
+                        // 1) accept the leaks and disable the fail fast as describe above
+                        // 2) disable module unloading by calling wil::ensure_module_stays_loaded
+                        // 3) CoCreate an object from this DLL to make COM aware of the DLL
+                        FAIL_FAST_IF(!s_apartmentStorage.get().empty());
+                    }
                 }
             }
 
@@ -170,8 +216,8 @@ namespace wil
 
             static apartment_variable_storage* get_current_apartment_variable_storage()
             {
-                auto storage = s_apartmentStorage.find(test_hook::GetApartmentId());
-                if (storage != s_apartmentStorage.end())
+                auto storage = s_apartmentStorage.get().find(test_hook::GetApartmentId());
+                if (storage != s_apartmentStorage.get().end())
                 {
                     return &storage->second;
                 }
@@ -195,7 +241,7 @@ namespace wil
                         auto variables = [apartmentId]()
                         {
                             auto lock = winrt::slim_lock_guard(s_lock);
-                            return s_apartmentStorage.extract(apartmentId);
+                            return s_apartmentStorage.get().extract(apartmentId);
                         }();
                         WI_ASSERT(variables.key() == apartmentId);
                         // The system implicitly releases the shutdown observer
@@ -205,14 +251,14 @@ namespace wil
                     }
                 };
                 auto shutdownRegistration = test_hook::RegisterForApartmentShutdown(winrt::make<ApartmentObserver>().get());
-                return &s_apartmentStorage.insert({ test_hook::GetApartmentId(), apartment_variable_storage(std::move(shutdownRegistration)) }).first->second;
+                return &s_apartmentStorage.get().insert({ test_hook::GetApartmentId(), apartment_variable_storage(std::move(shutdownRegistration)) }).first->second;
             }
 
             // get current value or custom-construct one on demand
             template<typename T>
-            std::any& get_or_create(any_maker<T>&& creator)
+            std::any& get_or_create(any_maker<T> && creator)
             {
-                apartment_variable_storage* variable_storage{};
+                apartment_variable_storage* variable_storage = nullptr;
 
                 { // scope for lock
                     auto lock = winrt::slim_lock_guard(s_lock);
@@ -256,8 +302,8 @@ namespace wil
                 // release value, with the swapped value, outside of the lock
                 {
                     auto lock = winrt::slim_lock_guard(s_lock);
-                    auto storage = s_apartmentStorage.find(test_hook::GetApartmentId());
-                    FAIL_FAST_IF(storage == s_apartmentStorage.end());
+                    auto storage = s_apartmentStorage.get().find(test_hook::GetApartmentId());
+                    FAIL_FAST_IF(storage == s_apartmentStorage.get().end());
                     auto& variable_storage = storage->second;
                     auto variable = variable_storage.variables.find(this);
                     FAIL_FAST_IF(variable == variable_storage.variables.end());
@@ -274,7 +320,7 @@ namespace wil
                     variable_storage->variables.erase(this);
                     if (variable_storage->variables.size() == 0)
                     {
-                        s_apartmentStorage.erase(test_hook::GetApartmentId());
+                        s_apartmentStorage.get().erase(test_hook::GetApartmentId());
                     }
                 }
             }
@@ -289,7 +335,7 @@ namespace wil
                 std::vector<winrt::apartment_context> contexts;
                 { // scope for lock
                     auto lock = winrt::slim_lock_guard(s_lock);
-                    for (auto& [id, storage] : s_apartmentStorage)
+                    for (auto& [id, storage] : s_apartmentStorage.get())
                     {
                         auto variable = storage.variables.find(this);
                         if (variable != storage.variables.end())
@@ -344,7 +390,7 @@ namespace wil
 
             static const auto& storage()
             {
-                return s_apartmentStorage;
+                return s_apartmentStorage.get();
             }
 
             static size_t current_apartment_variable_count()
@@ -372,10 +418,13 @@ namespace wil
     // C++ WinRT objects. This is automatic for DLLs that host C++ WinRT objects
     // but WRL projects will need to be updated to call winrt::get_module_lock().
 
-    template<typename T, typename test_hook = wil::apartment_variable_platform>
-    struct apartment_variable : details::apartment_variable_base<test_hook>
+    template<typename T, apartment_variable_leak_action leak_action = apartment_variable_leak_action::fail_fast,
+        typename test_hook = wil::apartment_variable_platform>
+    struct apartment_variable : details::apartment_variable_base<leak_action, test_hook>
     {
-        using base = details::apartment_variable_base<test_hook>;
+        using base = details::apartment_variable_base<leak_action, test_hook>;
+
+        constexpr apartment_variable() = default;
 
         // Get current value or throw if no value has been set.
         T& get_existing() { return std::any_cast<T&>(base::get_existing()); }

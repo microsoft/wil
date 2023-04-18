@@ -136,21 +136,21 @@ namespace wil
 {
     //! Strictly a function of the file system but this is the value for all known file system, NTFS, FAT.
     //! CDFs has a limit of 254.
-    size_t const max_path_segment_length = 255;
+    constexpr size_t max_path_segment_length = 255;
 
     //! Character length not including the null, MAX_PATH (260) includes the null.
-    size_t const max_path_length = 259;
+    constexpr size_t max_path_length = 259;
 
     //! 32743 Character length not including the null. This is a system defined limit.
     //! The 24 is for the expansion of the roots from "C:" to "\Device\HarddiskVolume4"
     //! It will be 25 when there are more than 9 disks.
-    size_t const max_extended_path_length = 0x7FFF - 24;
+    constexpr size_t max_extended_path_length = 0x7FFF - 24;
 
     //! For {guid} string form. Includes space for the null terminator.
-    size_t const guid_string_buffer_length = 39;
+    constexpr size_t guid_string_buffer_length = 39;
 
     //! For {guid} string form. Not including the null terminator.
-    size_t const guid_string_length = 38;
+    constexpr size_t guid_string_length = 38;
 
 #pragma region String and identifier comparisons
     // Using CompareStringOrdinal functions:
@@ -283,6 +283,43 @@ namespace wil
             return convert_100ns_to_msec(QueryUnbiasedInterruptTimeAs100ns());
         }
 #endif // _APISETREALTIME_
+    }
+#pragma endregion
+
+#pragma region RECT helpers
+    template<typename rect_type>
+    constexpr auto rect_width(rect_type const& rect)
+    {
+        return rect.right - rect.left;
+    }
+
+    template<typename rect_type>
+    constexpr auto rect_height(rect_type const& rect)
+    {
+        return rect.bottom - rect.top;
+    }
+
+    template<typename rect_type>
+    constexpr auto rect_is_empty(rect_type const& rect)
+    {
+        return (rect.left >= rect.right) || (rect.top >= rect.bottom);
+    }
+
+    template<typename rect_type, typename point_type>
+    constexpr auto rect_contains_point(rect_type const& rect, point_type const& point)
+    {
+        return (point.x >= rect.left) && (point.x < rect.right) && (point.y >= rect.top) && (point.y < rect.bottom);
+    }
+
+    template<typename rect_type, typename length_type>
+    constexpr rect_type rect_from_size(length_type x, length_type y, length_type width, length_type height)
+    {
+        rect_type rect;
+        rect.left = x;
+        rect.top = y;
+        rect.right = x + width;
+        rect.bottom = y + height;
+        return rect;
     }
 #pragma endregion
 
@@ -566,6 +603,14 @@ namespace wil
     {
         string_type result;
         THROW_IF_FAILED((wil::GetModuleFileNameExW<string_type, initialBufferLength>(process, module, result)));
+        return result;
+    }
+
+    template <typename string_type = wil::unique_cotaskmem_string, size_t stackBufferLength = 256>
+    string_type GetSystemDirectoryW()
+    {
+        string_type result;
+        THROW_IF_FAILED((wil::GetSystemDirectoryW<string_type, stackBufferLength>(result)));
         return result;
     }
 

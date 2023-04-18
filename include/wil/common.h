@@ -328,8 +328,8 @@ Three exception modes are available:
 // Until we'll have C++17 enabled in our code base, we're falling back to SAL
 #define WI_NODISCARD __WI_LIBCPP_NODISCARD_ATTRIBUTE
 
-#define __R_ENABLE_IF_IS_CLASS(ptrType)                     wistd::enable_if_t<wistd::is_class<ptrType>::value, void*> = (void*)0
-#define __R_ENABLE_IF_IS_NOT_CLASS(ptrType)                 wistd::enable_if_t<!wistd::is_class<ptrType>::value, void*> = (void*)0
+#define __R_ENABLE_IF_IS_CLASS(ptrType)                     wistd::enable_if_t<wistd::is_class<ptrType>::value, void*> = nullptr
+#define __R_ENABLE_IF_IS_NOT_CLASS(ptrType)                 wistd::enable_if_t<!wistd::is_class<ptrType>::value, void*> = nullptr
 
 //! @defgroup bitwise Bitwise Inspection and Manipulation
 //! Bitwise helpers to improve readability and reduce the error rate of bitwise operations.
@@ -485,8 +485,8 @@ namespace wil
         {
         public:
             pointer_range(T begin_, T end_) : m_begin(begin_), m_end(end_) {}
-            T begin() const  { return m_begin; }
-            T end() const    { return m_end; }
+            WI_NODISCARD T begin() const  { return m_begin; }
+            WI_NODISCARD T end() const    { return m_end; }
         private:
             T m_begin;
             T m_end;
@@ -613,10 +613,10 @@ namespace wil
     }
 
     template <>
-    _Post_satisfies_(return == !!val)
+    _Post_satisfies_(return == (val != 0))
     __forceinline constexpr bool verify_bool<unsigned char>(unsigned char val)
     {
-        return !!val;
+        return (val != 0);
     }
 
     /** Verify that `val` is a Win32 BOOL value.
@@ -652,7 +652,7 @@ namespace wil
     ~~~~
     RETURN_HR_IF(static_cast<HRESULT>(UIA_E_NOTSUPPORTED), (patternId != UIA_DragPatternId));
     ~~~~
-    @param val The HRESULT returning expression
+    @param hr The HRESULT returning expression
     @return An HRESULT representing the evaluation of `val`. */
     template <typename T>
     _Post_satisfies_(return == hr)
@@ -682,7 +682,7 @@ namespace wil
     ~~~~
     NT_RETURN_IF_FALSE(static_cast<NTSTATUS>(STATUS_NOT_SUPPORTED), (dispatch->Version == HKE_V1_0));
     ~~~~
-    @param val The NTSTATUS returning expression
+    @param status The NTSTATUS returning expression
     @return An NTSTATUS representing the evaluation of `val`. */
     template <typename T>
     _Post_satisfies_(return == status)
@@ -691,6 +691,22 @@ namespace wil
         // Note: Written in terms of 'long' as NTSTATUS is actually:  typedef _Return_type_success_(return >= 0) long NTSTATUS
         static_assert(wistd::is_same<T, long>::value, "Wrong Type: NTSTATUS expected");
         return status;
+    }
+
+    /** Verify that `error` is a Win32 error code.
+    Other types will generate an intentional compilation error. Note that this will accept any `long` value as that is
+    the underlying type used for WIN32 error codes, as well as any `DWORD` (`unsigned long`) value since this is the type
+    commonly used when manipulating Win32 error codes.
+    @param error The Win32 error code returning expression
+    @return An Win32 error code representing the evaluation of `error`. */
+    template <typename T>
+    _Post_satisfies_(return == error)
+    inline T verify_win32(T error)
+    {
+        // Note: Win32 error code are defined as 'long' (#define ERROR_SUCCESS 0L), but are more frequently used as DWORD (unsigned long).
+        // This accept both types.
+        static_assert(wistd::is_same<T, long>::value || wistd::is_same<T, unsigned long>::value, "Wrong Type: Win32 error code (long / unsigned long) expected");
+        return error;
     }
     /// @}      // end type validation routines
 
@@ -737,31 +753,31 @@ namespace wil
         template <>
         struct variable_size<1>
         {
-            typedef unsigned char type;
+            using type = unsigned char;
         };
 
         template <>
         struct variable_size<2>
         {
-            typedef unsigned short type;
+            using type = unsigned short;
         };
 
         template <>
         struct variable_size<4>
         {
-            typedef unsigned long type;
+            using type = unsigned long;
         };
 
         template <>
         struct variable_size<8>
         {
-            typedef unsigned long long type;
+            using type = unsigned long long;
         };
 
         template <typename T>
         struct variable_size_mapping
         {
-            typedef typename variable_size<sizeof(T)>::type type;
+            using type = typename variable_size<sizeof(T)>::type;
         };
     } // details
     /// @endcond
@@ -770,6 +786,10 @@ namespace wil
     This allows code to generically convert any enum class to it's corresponding underlying type. */
     template <typename T>
     using integral_from_enum = typename details::variable_size_mapping<T>::type;
+
+    //! Declares a name that intentionally hides a name from an outer scope.
+    //! Use this to prevent accidental use of a parameter or lambda captured variable.
+    using hide_name = void(struct hidden_name);
 } // wil
 
 #pragma warning(pop)

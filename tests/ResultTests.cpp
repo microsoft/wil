@@ -326,7 +326,7 @@ TEST_CASE("ResultTests::ExceptionHandling", "[result]")
                 RETURN_CAUGHT_EXCEPTION_EXPECTED();
             }
         }();
-        REQUIRE(failures.size() == 0);
+        REQUIRE(failures.empty());
         REQUIRE(hr == E_OUTOFMEMORY);
     }
     failures.clear();
@@ -342,7 +342,7 @@ TEST_CASE("ResultTests::ExceptionHandling", "[result]")
         {
             throw std::bad_alloc();
         });
-        REQUIRE(failures.size() == 0);
+        REQUIRE(failures.empty());
         REQUIRE(hr == E_OUTOFMEMORY);
     }
     failures.clear();

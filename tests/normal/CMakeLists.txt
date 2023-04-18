@@ -1,8 +1,7 @@
 
-project(witest)
 add_executable(witest)
 
-target_sources(witest PUBLIC
+target_sources(witest PRIVATE
     ${COMMON_SOURCES}
     ${CMAKE_CURRENT_SOURCE_DIR}/../RegistryTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../StlTests.cpp
