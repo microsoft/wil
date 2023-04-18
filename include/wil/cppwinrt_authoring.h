@@ -32,42 +32,50 @@ namespace wil
     }
 
     template <typename T>
-    struct single_threaded_ro_property : std::conditional_t<std::is_scalar_v<T> || std::is_final_v<T>, wil::details::single_threaded_property_storage<T>, T>
+    struct single_threaded_property : std::conditional_t<std::is_scalar_v<T> || std::is_final_v<T>, wil::details::single_threaded_property_storage<T>, T>
     {
-        single_threaded_ro_property() = default;
-        single_threaded_ro_property(T value) : base_type(std::move(value)) { }
-        
+        single_threaded_property() = default;
+        single_threaded_property(T value) : base_type(std::move(value)) {}
+
+        using base_type = std::conditional_t<std::is_scalar_v<T> || std::is_final_v<T>, wil::details::single_threaded_property_storage<T>, T>;
+
         const auto& operator()()
         {
             return *this;
         }
-        template<typename Q> auto operator=(Q&& q) = delete;
-    private:
-        using base_type = std::conditional_t<std::is_scalar_v<T>, wil::details::single_threaded_property_storage<T>, T>;
-    };
 
-    template <typename T>
-    struct single_threaded_rw_property : single_threaded_ro_property<T>
-    {
-        template<typename... TArgs>
-        single_threaded_rw_property(TArgs&&... args) : single_threaded_ro_property<T>(std::forward<TArgs>(args)...) { }
-
-        using single_threaded_ro_property<T>::operator();
-
-        auto& operator()()
-        {
-            return *this;
-        }
         template<typename Q> auto& operator()(Q&& q)
         {
             *this = std::forward<Q>(q);
             return *this;
         }
 
-
-        template<typename Q> auto operator=(Q&& q)
+        template<typename Q> auto& operator=(Q&& q)
         {
-            return static_cast<T&>(*this) = std::forward<Q>(q);
+            static_cast<base_type&>(*this) = std::forward<Q>(q);
+            return *this;
+        }
+    };
+
+    template <typename T>
+    struct single_threaded_rw_property : single_threaded_property<T>
+    {
+        using base_type = single_threaded_property<T>;
+        template<typename... TArgs> single_threaded_rw_property(TArgs... value) : base_type(std::move(value)...) {}
+
+        using base_type::operator();
+
+        // needed in lieu of deducing-this
+        template<typename Q> auto& operator()(Q&& q)
+        {
+            return *this = std::forward<Q>(q);
+        }
+
+        // needed in lieu of deducing-this
+        template<typename Q> auto& operator=(Q&& q)
+        {
+            base_type::operator=(std::forward<Q>(q));
+            return *this;
         }
     };
 
@@ -90,7 +98,8 @@ namespace wil
             }
 
             template<typename... TArgs>
-            auto invoke(TArgs&&... args) {
+            auto invoke(TArgs&&... args)
+            {
                 return m_handler(std::forward<TArgs>(args)...);
             }
         private:
@@ -182,7 +191,8 @@ namespace wil
          * }
          * @endcode
         */
-        auto RaisePropertyChanged(std::wstring_view name) {
+        auto RaisePropertyChanged(std::wstring_view name)
+        {
             return m_propertyChanged(self(), Xaml_Data_PropertyChangedEventHandler{ name });
         }
     protected:
@@ -200,25 +210,31 @@ namespace wil
     struct single_threaded_notifying_property : single_threaded_rw_property<T>
     {
         using Type = T;
+        using base_type = single_threaded_rw_property<T>;
+        using base_type::operator();
 
-        using single_threaded_rw_property<T>::operator();
-
-        void operator()(const T& value)
+        template<typename Q> auto& operator()(Q&& q)
         {
-            if (value != this->m_value)
+            return *this = std::forward<Q>(q);
+        }
+
+        template<typename Q> auto& operator=(Q&& q)
+        {
+            if (q != this->operator()())
             {
-                single_threaded_rw_property<T>::operator()(value);
-                if (m_npc)
+                static_cast<base_type&>(*this) = std::forward<Q>(q);
+                if (auto strong = m_sender.get(); (m_npc != nullptr) && (strong != nullptr))
                 {
-                    (*m_npc)(m_sender, Xaml_Data_PropertyChangedEventArgs{ m_name });
+                    (*m_npc)(strong, Xaml_Data_PropertyChangedEventArgs{ m_name });
                 }
             }
+            return *this;
         }
 
         template<typename... TArgs>
         single_threaded_notifying_property(
             winrt::event<Xaml_Data_PropertyChangedEventHandler>* npc,
-            winrt::Windows::Foundation::IInspectable sender,
+            const winrt::Windows::Foundation::IInspectable& sender,
             std::wstring_view name,
             TArgs&&... args) :
             single_threaded_rw_property<T>(std::forward<TArgs...>(args)...),
@@ -233,7 +249,7 @@ namespace wil
     private:
         std::wstring_view m_name;
         winrt::event<Xaml_Data_PropertyChangedEventHandler>* m_npc;
-        winrt::Windows::Foundation::IInspectable m_sender;
+        winrt::weak_ref<winrt::Windows::Foundation::IInspectable> m_sender;
     };
 
     /**
