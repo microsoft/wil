@@ -32,7 +32,9 @@ const std::vector<std::wstring> test_multistring_empty{};
 constexpr uint32_t test_expanded_string_buffer_size = 100;
 
 constexpr std::array<DWORD, 3> dwordTestArray = { static_cast<DWORD>(-1), 1, 0 };
+const std::vector<DWORD> dwordTestVector = { static_cast<DWORD>(-1), 1, 0 };
 constexpr std::array<DWORD64, 3> qwordTestArray = { static_cast<DWORD64>(-1), 1, 0 };
+const std::vector<DWORD64> qwordTestVector = { static_cast<DWORD64>(-1), 1, 0 };
 const std::array<std::wstring, 4> stringTestArray = { L".", L"", L"Hello there!", L"\0" };
 const std::wstring expandedStringTestArray[] = { L".", L"", L"%WINDIR%", L"\0" };
 const std::array<std::vector<std::wstring>, 6> multiStringTestArray{
@@ -1175,7 +1177,87 @@ TEST_CASE("BasicRegistryTests::ReadWrite", "[registry]")
 #endif
 }
 
-// TODO: tries
+namespace
+{
+    struct DwordFns
+    {
+        using RetType = DWORD;
+        using SetType = uint32_t;
+        
+        static std::vector<RetType> testValues() { return dwordTestVector; }
+        static PCWSTR testValueName() { return dwordValueName; }
+
+#if defined(WIL_ENABLE_EXCEPTIONS)
+        static void set(wil::unique_hkey const& key, PCWSTR valueName, SetType const& value)
+        {
+            wil::reg::set_value_dword(key.get(), valueName, value);
+        }
+
+#if defined(__cpp_lib_optional)
+        static std::optional<RetType> try_get(wil::unique_hkey const& key, PCWSTR valueName)
+        {
+            return wil::reg::try_get_value_dword(key.get(), valueName);
+        }
+#endif // defined(__cpp_lib_optional)
+#endif // defined(WIL_ENABLE_EXCEPTIONS)
+    };
+
+    struct QwordFns
+    {
+        using RetType = DWORD64;
+        using SetType = uint64_t;
+
+        static std::vector<RetType> testValues() { return qwordTestVector; }
+        static PCWSTR testValueName() { return qwordValueName; }
+
+#if defined(WIL_ENABLE_EXCEPTIONS)
+        static void set(wil::unique_hkey const& key, PCWSTR valueName, SetType const& value)
+        {
+            wil::reg::set_value_qword(key.get(), valueName, value);
+        }
+
+#if defined(__cpp_lib_optional)
+        static std::optional<RetType> try_get(wil::unique_hkey const& key, PCWSTR valueName)
+        {
+            return wil::reg::try_get_value_qword(key.get(), valueName);
+        }
+#endif // defined(__cpp_lib_optional)
+#endif // defined(WIL_ENABLE_EXCEPTIONS)
+    };
+}
+
+#if defined(WIL_ENABLE_EXCEPTIONS)
+#if defined(__cpp_lib_optional)
+TEMPLATE_TEST_CASE("BasicRegistryTests::typed try_gets", "[registry]", DwordFns, QwordFns)
+{
+    const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
+    if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+    {
+        REQUIRE_SUCCEEDED(deleteHr);
+    }
+
+
+    SECTION("with opened key")
+    {
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
+
+        for (auto&& value : TestType::testValues())
+        {
+            TestType::set(hkey, TestType::testValueName(), value);
+            auto result = TestType::try_get(hkey, TestType::testValueName());
+            REQUIRE(result.value() == value); // intentional fail
+
+            // and verify default value name
+            TestType::set(hkey, nullptr, value);
+            result = TestType::try_get(hkey, nullptr);
+            REQUIRE(result.value() == value);
+        }
+    }
+
+}
+#endif // defined(__cpp_lib_optional)
+#endif // defined(WIL_ENABLE_EXCEPTIONS)
 
 #if defined(WIL_ENABLE_EXCEPTIONS)
 TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
