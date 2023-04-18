@@ -1231,7 +1231,7 @@ namespace
         {
             return {
                 // TODO: will fail
-                [](HKEY key, PCWSTR subkey, PCWSTR value_name) { return wil::reg::set_value_qword_nothrow(key, subkey, value_name, test_qword_zero); }
+                [](HKEY key, PCWSTR subkey, PCWSTR value_name) { return wil::reg::set_value_dword_nothrow(key, subkey, value_name, test_dword_zero); }
             };
         }
 
