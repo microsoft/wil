@@ -32,21 +32,10 @@ const std::vector<std::wstring> test_multistring_empty{};
 
 constexpr uint32_t test_expanded_string_buffer_size = 100;
 
-constexpr std::array<DWORD, 3> dwordTestArray = { static_cast<DWORD>(-1), 1, 0 };
 const std::vector<DWORD> dwordTestVector = { static_cast<DWORD>(-1), 1, 0 };
-constexpr std::array<DWORD64, 3> qwordTestArray = { static_cast<DWORD64>(-1), 1, 0 };
 const std::vector<DWORD64> qwordTestVector = { static_cast<DWORD64>(-1), 1, 0 };
 const std::array<std::wstring, 4> stringTestArray = { L".", L"", L"Hello there!", L"\0" };
-const std::vector<std::wstring> stringTestVector = { L".", L"", L"Hello there!", L"\0" };
 const std::wstring expandedStringTestArray[] = { L".", L"", L"%WINDIR%", L"\0" };
-const std::array<std::vector<std::wstring>, 6> multiStringTestArray{
-    std::vector<std::wstring>{ {} },
-    std::vector<std::wstring>{ {}, {} },
-    std::vector<std::wstring>{ {}, {L"."}, {}, {L"."}, {}, {} },
-    std::vector<std::wstring>{ {L"Hello there!"}, {L"Hello a second time!"}, {L"Hello a third time!"} },
-    std::vector<std::wstring>{ {L""}, {L""}, {L""} },
-    std::vector<std::wstring>{ {L"a"} }
-};
 const std::vector<std::vector<std::wstring>> multiStringTestVector{
     std::vector<std::wstring>{ {} },
     std::vector<std::wstring>{ {}, {} },
@@ -2004,7 +1993,7 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
         wil::unique_hkey hkey;
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
 
-        for (const auto& value : multiStringTestArray)
+        for (const auto& value : multiStringTestVector)
         {
             wil::reg::set_value(hkey.get(), stringValueName, value);
             auto result = wil::reg::try_get_value_multistring(hkey.get(), stringValueName);
@@ -2042,7 +2031,7 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
 
     SECTION("set_value/try_get_value_multistring: with string key")
     {
-        for (const auto& value : multiStringTestArray)
+        for (const auto& value : multiStringTestVector)
         {
             wil::reg::set_value(HKEY_CURRENT_USER, testSubkey, stringValueName, value);
             auto result = wil::reg::try_get_value_multistring(HKEY_CURRENT_USER, testSubkey, stringValueName);
