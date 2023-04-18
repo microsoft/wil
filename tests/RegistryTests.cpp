@@ -888,14 +888,13 @@ namespace
 #endif // defined(WIL_ENABLE_EXCEPTIONS)
 
 #if defined(WIL_ENABLE_EXCEPTIONS)
-using AllRegistryTypes = std::tuple<DwordFns, QwordFns, MultiStringFns>;
+using TypesToTest = std::tuple<DwordFns, QwordFns, MultiStringFns>;
+#else
+using TypesToTest = std::tuple<DwordFns, QwordFns>;
 #endif // defined(WIL_ENABLE_EXCEPTIONS)
-
-using ExceptionSafeTypes = std::tuple<DwordFns, QwordFns>;
-
 }
 
-TEMPLATE_LIST_TEST_CASE("BasicRegistryTests::typed nothrow gets/sets", "[registry]", ExceptionSafeTypes)
+TEMPLATE_LIST_TEST_CASE("BasicRegistryTests::typed nothrow gets/sets", "[registry]", TypesToTest)
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
     if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
@@ -971,7 +970,7 @@ TEMPLATE_LIST_TEST_CASE("BasicRegistryTests::typed nothrow gets/sets", "[registr
 }
 
 #if defined(WIL_ENABLE_EXCEPTIONS)
-TEMPLATE_LIST_TEST_CASE("BasicRegistryTests::typed gets/sets/try_gets", "[registry]", AllRegistryTypes)
+TEMPLATE_LIST_TEST_CASE("BasicRegistryTests::typed gets/sets/try_gets", "[registry]", TypesToTest)
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
     if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
