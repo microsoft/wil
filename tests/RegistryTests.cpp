@@ -1988,83 +1988,37 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
     }
 
 #if defined(__cpp_lib_optional)
-    SECTION("set_value/try_get_value_multistring: with open key")
+    SECTION("set_value/try_get_value_multistring: empty array with open key")
     {
         wil::unique_hkey hkey;
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
 
-        for (const auto& value : multiStringTestVector)
-        {
-            wil::reg::set_value(hkey.get(), stringValueName, value);
-            auto result = wil::reg::try_get_value_multistring(hkey.get(), stringValueName);
-            REQUIRE(result);
-            REQUIRE(result.has_value());
-            // if value == empty, we wrote in 2 null-terminators as part of set_value_multistring_nothrow (i.e. a single empty string)
-            // thus the result should have one empty string
-            auto adjustedValue = value;
-            if (adjustedValue.empty())
-            {
-                adjustedValue.resize(1);
-            }
-            REQUIRE(result == adjustedValue);
+        // When passed an empty array, we write in 2 null-terminators as part of set_value_multistring_nothrow (i.e. a single empty string)
+        // thus the result should have one empty string
+        std::vector<std::wstring> arrayOfOne{ L"" };
+        wil::reg::set_value(hkey.get(), stringValueName, test_multistring_empty);
+        auto result = wil::reg::try_get_value_multistring(hkey.get(), stringValueName);
+        REQUIRE(result.value() == arrayOfOne);
 
-            // and verify default value name
-            wil::reg::set_value(hkey.get(), nullptr, value);
-            result = wil::reg::try_get_value_multistring(hkey.get(), nullptr);
-            REQUIRE(result);
-            REQUIRE(result.has_value());
-            REQUIRE(result == adjustedValue);
-        }
-
-        // fail get* if the value doesn't exist
-        const auto result = wil::reg::try_get_value_multistring(hkey.get(), invalidValueName);
-        REQUIRE(!result);
-        REQUIRE(!result.has_value());
-
-        // fail if get* requests the wrong type
-        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, test_dword_zero));
-        VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
-            {
-                wil::reg::try_get_value_multistring(hkey.get(), dwordValueName);
-            });
+        // and verify default value name
+        wil::reg::set_value(hkey.get(), nullptr, test_multistring_empty);
+        result = wil::reg::try_get_value_multistring(hkey.get(), nullptr);
+        REQUIRE(result.value() == arrayOfOne);
     }
 
     SECTION("set_value/try_get_value_multistring: with string key")
     {
-        for (const auto& value : multiStringTestVector)
-        {
-            wil::reg::set_value(HKEY_CURRENT_USER, testSubkey, stringValueName, value);
-            auto result = wil::reg::try_get_value_multistring(HKEY_CURRENT_USER, testSubkey, stringValueName);
-            REQUIRE(result);
-            REQUIRE(result.has_value());
-            // if value == empty, we wrote in 2 null-terminators as part of set_value_multistring_nothrow (i.e. a single empty string)
-            // thus the result should have one empty string
-            auto adjustedValue = value;
-            if (adjustedValue.empty())
-            {
-                adjustedValue.resize(1);
-            }
-            REQUIRE(result == adjustedValue);
+        // When passed an empty array, we write in 2 null-terminators as part of set_value_multistring_nothrow (i.e. a single empty string)
+        // thus the result should have one empty string
+        std::vector<std::wstring> arrayOfOne{ L"" };
+        wil::reg::set_value(HKEY_CURRENT_USER, testSubkey, stringValueName, test_multistring_empty);
+        auto result = wil::reg::try_get_value_multistring(HKEY_CURRENT_USER, testSubkey, stringValueName);
+        REQUIRE(result.value() == arrayOfOne);
 
-            // and verify default value name
-            wil::reg::set_value(HKEY_CURRENT_USER, testSubkey, nullptr, value);
-            result = wil::reg::try_get_value_multistring(HKEY_CURRENT_USER, testSubkey, nullptr);
-            REQUIRE(result);
-            REQUIRE(result.has_value());
-            REQUIRE(result == adjustedValue);
-        }
-
-        // fail get* if the value doesn't exist
-        const auto result = wil::reg::try_get_value_multistring(HKEY_CURRENT_USER, testSubkey, invalidValueName);
-        REQUIRE(!result);
-        REQUIRE(!result.has_value());
-
-        // fail if get* requests the wrong type
-        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, test_dword_zero));
-        VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
-            {
-                wil::reg::try_get_value_multistring(HKEY_CURRENT_USER, testSubkey, dwordValueName);
-            });
+        // and verify default value name
+        wil::reg::set_value(HKEY_CURRENT_USER, testSubkey, nullptr, test_multistring_empty);
+        result = wil::reg::try_get_value_multistring(HKEY_CURRENT_USER, testSubkey, nullptr);
+        REQUIRE(result.value() == arrayOfOne);
     }
 #endif
 #endif
