@@ -390,98 +390,6 @@ namespace
         using type = T;
     };
 
-    template<typename GetOutputT, typename SetT, typename GetInputT, typename GetT = GetInputT>
-    void verify_set_nothrow(
-        PCWSTR valueName,
-        GetInputT value,
-        std::function<HRESULT(PCWSTR, GetOutputT)> getFn,
-        std::function<HRESULT(PCWSTR, SetT)> setFn)
-    {
-        REQUIRE_SUCCEEDED(setFn(valueName, value));
-        GetT result{};
-        REQUIRE_SUCCEEDED(getFn(valueName, &result));
-        REQUIRE(result == value);
-
-        // and verify default value name
-        REQUIRE_SUCCEEDED(setFn(nullptr, value));
-        result = {};
-        REQUIRE_SUCCEEDED(getFn(nullptr, &result));
-        REQUIRE(result == value);
-    }
-
-#ifdef WIL_ENABLE_EXCEPTIONS
-    template<typename GetOutputT, typename SetT, typename GetInputT = GetOutputT>
-    void verify_good(
-        PCWSTR valueName,
-        GetInputT value,
-        std::function<GetOutputT(PCWSTR)> getFn,
-        std::function<void(PCWSTR, SetT)> setFn)
-    {
-        setFn(valueName, value);
-        auto result = getFn(valueName);
-        REQUIRE(result == value);
-
-        // and verify default value name
-        setFn(nullptr, value);
-        result = getFn(nullptr);
-        REQUIRE(result == value);
-    }
-#endif
-
-    template<typename GetOutputT, typename GetT>
-    void verify_not_exist_nothrow(
-        std::function<HRESULT(PCWSTR, GetOutputT)> getFn)
-    {
-        // fail get* if the value doesn't exist
-        GetT result{};
-        const HRESULT hr = getFn(invalidValueName, &result);
-        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
-    };
-
-#ifdef WIL_ENABLE_EXCEPTIONS
-    template<typename GetOutputT>
-    void verify_not_exist(std::function<GetOutputT(PCWSTR)> getFn)
-    {
-        // fail get* if the value doesn't exist
-        VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND), [&]()
-            {
-                const auto ignored = getFn(invalidValueName);
-                ignored;
-            });
-    };
-#endif
-
-    template<typename GetT, typename WrongSetT>
-    void verify_wrong_type_nothrow(
-        PCWSTR valueName,
-        WrongSetT value,
-        std::function<HRESULT(PCWSTR, std::add_pointer_t<GetT>)> getFn,
-        std::function<HRESULT(PCWSTR, typename type_identity<WrongSetT>::type)> setFn)
-    {
-        REQUIRE_SUCCEEDED(setFn(valueName, value));
-        GetT result{};
-        const HRESULT hr = getFn(valueName, &result);
-        REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
-    }
-
-#ifdef WIL_ENABLE_EXCEPTIONS
-    template<typename GetT, typename WrongSetT>
-    void verify_wrong_type(
-        PCWSTR valueName,
-        WrongSetT value,
-        std::function<GetT(PCWSTR)> getFn,
-        std::function<void(PCWSTR, typename type_identity<WrongSetT>::type)> setFn)
-    {
-        // fail if get* requests the wrong type
-        setFn(valueName, value);
-        VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
-            {
-                const auto ignored = getFn(valueName);
-                ignored;
-            });
-    }
-#endif
-
     template<typename OutT, typename SetT = OutT, size_t N>
     void verify_get_set(
         const std::array<SetT, N>& testArray,
@@ -640,7 +548,6 @@ TEST_CASE("BasicRegistryTests::ReadWrite", "[registry]")
         // TODO: byte vectors
 #endif
     }
-
 
 #ifdef WIL_ENABLE_EXCEPTIONS
     SECTION("get, try_get, and set: with opened key")
@@ -932,55 +839,6 @@ namespace
 #if defined(__cpp_lib_optional)
         static std::optional<RetType> try_get(wil::unique_hkey const& key, PCWSTR valueName) { return wil::reg::try_get_value_qword(key.get(), valueName); }
         static std::optional<RetType> try_get(HKEY key, PCWSTR subkey, PCWSTR valueName) { return wil::reg::try_get_value_qword(key, subkey, valueName); }
-#endif // defined(__cpp_lib_optional)
-#endif // defined(WIL_ENABLE_EXCEPTIONS)
-    };
-
-    struct BasicStringFns
-    {
-        // TODO: buffer?
-        using RetType = std::wstring;
-        using SetType = PCWSTR;
-
-        static std::vector<RetType> testValues() { return stringTestVector; }
-        static PCWSTR testValueName() { return stringValueName; }
-
-        static std::vector<std::function<HRESULT(wil::unique_hkey const&, PCWSTR)>> set_wrong_value_fns_openkey()
-        {
-            return {
-                [](wil::unique_hkey const& key, PCWSTR value_name) { return wil::reg::set_value_dword_nothrow(key.get(), value_name, test_dword_zero); },
-#if defined(WIL_ENABLE_EXCEPTIONS)
-                [](wil::unique_hkey const& key, PCWSTR value_name) { return wil::reg::set_value_multistring_nothrow(key.get(), value_name, test_multistring_empty); },
-#endif // defined(WIL_ENABLE_EXCEPTIONS)
-            };
-        }
-
-        static std::vector<std::function<HRESULT(HKEY, PCWSTR, PCWSTR)>> set_wrong_value_fns_subkey()
-        {
-            return {
-                [](HKEY key, PCWSTR subkey, PCWSTR value_name) { return wil::reg::set_value_dword_nothrow(key, subkey, value_name, test_dword_zero); },
-#if defined(WIL_ENABLE_EXCEPTIONS)
-                [](HKEY key, PCWSTR subkey, PCWSTR value_name) { return wil::reg::set_value_multistring_nothrow(key, subkey, value_name, test_multistring_empty); },
-#endif // defined(WIL_ENABLE_EXCEPTIONS)
-            };
-        }
-
-        static HRESULT set_nothrow(wil::unique_hkey const& key, PCWSTR valueName, SetType const& value) { return wil::reg::set_value_string_nothrow(key.get(), valueName, value); }
-        static HRESULT set_nothrow(HKEY key, PCWSTR subkey, PCWSTR valueName, SetType const& value) { return wil::reg::set_value_string_nothrow(key, subkey, valueName, value); }
-
-        static HRESULT get_nothrow(wil::unique_hkey const& key, PCWSTR valueName, RetType* output) { return wil::reg::get_value_string_nothrow(key.get(), valueName, output); }
-        static HRESULT get_nothrow(HKEY key, PCWSTR subkey, PCWSTR valueName, RetType* output) { return wil::reg::get_value_string_nothrow(key, subkey, valueName, output); }
-
-#if defined(WIL_ENABLE_EXCEPTIONS)
-        static void set(wil::unique_hkey const& key, PCWSTR valueName, SetType const& value) { wil::reg::set_value_string(key.get(), valueName, value); }
-        static void set(HKEY key, PCWSTR subkey, PCWSTR valueName, SetType const& value) { wil::reg::set_value_string(key, subkey, valueName, value); }
-
-        static RetType get(wil::unique_hkey const& key, PCWSTR valueName) { return wil::reg::get_value_string(key.get(), valueName); }
-        static RetType get(HKEY key, PCWSTR subkey, PCWSTR valueName) { return wil::reg::get_value_string(key, subkey, valueName); }
-
-#if defined(__cpp_lib_optional)
-        static std::optional<RetType> try_get(wil::unique_hkey const& key, PCWSTR valueName) { return wil::reg::try_get_value_string(key.get(), valueName); }
-        static std::optional<RetType> try_get(HKEY key, PCWSTR subkey, PCWSTR valueName) { return wil::reg::try_get_value_string(key, subkey, valueName); }
 #endif // defined(__cpp_lib_optional)
 #endif // defined(WIL_ENABLE_EXCEPTIONS)
     };
