@@ -16,7 +16,9 @@ constexpr auto* testSubkey = L"Software\\Microsoft\\BasicRegistryTest";
 constexpr auto* dwordValueName = L"MyDwordValue";
 constexpr auto* qwordValueName = L"MyQwordvalue";
 constexpr auto* stringValueName = L"MyStringValue";
+#if defined(WIL_ENABLE_EXCEPTIONS)
 constexpr auto* multiStringValueName = L"MyMultiStringValue";
+#endif
 constexpr auto* invalidValueName = L"NonExistentValue";
 constexpr auto* wrongTypeValueName = L"InvalidTypeValue";
 
