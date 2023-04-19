@@ -797,7 +797,7 @@ namespace wil::details::coro
         auto await_resume()
         {
             resumer.check();
-            return agile_awaiter::await_resume();
+            return agile_awaiter<T>::await_resume();
         }
     };
 
