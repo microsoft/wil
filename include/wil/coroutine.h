@@ -686,8 +686,9 @@ namespace wil::details::coro
             case APTTYPE_NA:
                 return info.aptTypeQualifier == APTTYPEQUALIFIER_NA_ON_STA ||
                     info.aptTypeQualifier == APTTYPEQUALIFIER_NA_ON_MAINSTA;
+            default:
+                return false;
             }
-            return false;
         }
 
         static wil::com_ptr<IContextCallback> current_context()
