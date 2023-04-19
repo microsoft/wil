@@ -229,7 +229,7 @@ namespace wil::details::coro
             std::exception_ptr error;
         } result;
 
-        // set_value will be called with
+        // emplace_value will be called with
         //
         // * no parameters (void category)
         // * The reference type T (reference category)
@@ -239,7 +239,7 @@ namespace wil::details::coro
         // That way, if object construction throws an exception,
         // the holder remains empty.
         template<typename...Args>
-        void set_value(Args&&... args)
+        void emplace_value(Args&&... args)
         {
             WI_ASSERT(status == result_status::empty);
             new (wistd::addressof(result.wrap)) result_wrapper<T>{ wistd::forward<Args>(args)... };
@@ -267,7 +267,7 @@ namespace wil::details::coro
         result_holder(result_holder const&) = delete;
         void operator=(result_holder const&) = delete;
 
-        ~result_holder()
+        ~result_holder() noexcept(false)
         {
             switch (status)
             {
@@ -362,9 +362,9 @@ namespace wil::details::coro
         }
 
         template<typename...Args>
-        void set_value(Args&&... args)
+        void emplace_value(Args&&... args)
         {
-            m_holder.set_value(wistd::forward<Args>(args)...);
+            m_holder.emplace_value(wistd::forward<Args>(args)...);
         }
 
         void unhandled_exception() noexcept
@@ -451,14 +451,14 @@ namespace wil::details::coro
         template<typename U>
         void return_value(U&& value)
         {
-            this->set_value(wistd::forward<U>(value));
+            this->emplace_value(wistd::forward<U>(value));
         }
 
         template<typename Dummy = void>
         wistd::enable_if_t<!wistd::is_reference_v<T>, Dummy>
             return_value(T const& value)
         {
-            this->set_value(value);
+            this->emplace_value(value);
         }
     };
 
@@ -467,7 +467,7 @@ namespace wil::details::coro
     {
         void return_void()
         {
-            this->set_value();
+            this->emplace_value();
         }
     };
 
