@@ -562,7 +562,7 @@ TEST_CASE("ComTests::Test_ConstPointer", "[com][com_ptr]")
 
     REQUIRE(spUnk.get() != nullptr);
     REQUIRE(spUnk);
-    spUnk.addressof();
+    (void)spUnk.addressof();
     spUnk.copy_to(spUnkHelper.addressof());
     spUnk.copy_to(spInspectable.addressof());
     spUnk.copy_to(IID_PPV_ARGS(&spInspectable));
@@ -637,7 +637,7 @@ IAlways : public IUnknown
    STDMETHOD_(void, Always)() = 0;
 };
 
-class __declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20b00")) // non-implemented to allow QI for the class to be attempted (and fail)
+class __declspec(empty_bases) __declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20b00")) // non-implemented to allow QI for the class to be attempted (and fail)
 ComObject : witest::AllocatedObject,
     public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::RuntimeClassType::ClassicCom>,
                                         Microsoft::WRL::ChainInterfaces<IDerivedTest, ITest>,
@@ -648,7 +648,7 @@ public:
     COM_DECLSPEC_NOTHROW IFACEMETHODIMP_(void) Always() {}
 };
 
-class __declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20b01")) // non-implemented to allow QI for the class to be attempted (and fail)
+class __declspec(empty_bases) __declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20b01")) // non-implemented to allow QI for the class to be attempted (and fail)
 WinRtObject : witest::AllocatedObject,
     public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::RuntimeClassType::WinRtClassicComMix>,
                                         ITest, IDerivedTest, ITestInspectable, IDerivedTestInspectable, IAlways, Microsoft::WRL::FtmBase>
@@ -661,7 +661,7 @@ public:
     COM_DECLSPEC_NOTHROW IFACEMETHODIMP_(void) Always() {}
 };
 
-class NoCom : witest::AllocatedObject
+class __declspec(empty_bases) NoCom : witest::AllocatedObject
 {
 public:
     ULONG __stdcall AddRef()
@@ -801,7 +801,7 @@ void TestSmartPointer(const Ptr& ptr1, const Ptr& ptr2)
         auto address = ptr1.addressof();
         REQUIRE(*address == ptr1.get());
         (void)static_cast<bool>(ptr1);
-        ptr1.get();
+        (void)ptr1.get();
         auto deref = ptr1.operator->();
         (void)deref;
         if (ptr1)
@@ -1452,7 +1452,7 @@ void TestSmartPointerQueryIidPpv(wistd::true_type, const Ptr& source)       // i
         if (source)
         {
             DestPtr dest;
-            source.query_to(IID_PPV_ARGS(&dest));
+            REQUIRE_NOERROR(source.query_to(IID_PPV_ARGS(&dest)));
             REQUIRE_ERROR(source.query_to(IID_PPV_ARGS(&never)));
             REQUIRE((dest && !never));
         }
@@ -1488,15 +1488,15 @@ void TestSmartPointerQueryIidPpv(wistd::true_type, const Ptr& source)       // i
         if (source)
         {
             DestPtr dest;
-            source.copy_to(IID_PPV_ARGS(&dest));
+            REQUIRE_NOERROR(source.copy_to(IID_PPV_ARGS(&dest)));
             REQUIRE_ERROR(source.copy_to(IID_PPV_ARGS(&never)));
             REQUIRE((dest && !never));
         }
         else
         {
             DestPtr dest;
-            source.copy_to(IID_PPV_ARGS(&dest));
-            source.copy_to(IID_PPV_ARGS(&never));
+            REQUIRE_NOERROR(source.copy_to(IID_PPV_ARGS(&dest)));
+            REQUIRE_NOERROR(source.copy_to(IID_PPV_ARGS(&never)));
             REQUIRE((!dest && !never));
         }
     }
@@ -1539,7 +1539,7 @@ void TestSmartPointerQuery(const Ptr& source)
         if (source)
         {
             DestPtr dest;
-            source.query_to(&dest);
+            REQUIRE_NOERROR(source.query_to(&dest));
             REQUIRE_ERROR(source.query_to(&never));
             REQUIRE((dest && !never));
         }
@@ -1589,15 +1589,15 @@ void TestSmartPointerQuery(const Ptr& source)
         if (source)
         {
             DestPtr dest;
-            source.copy_to(&dest);
+            REQUIRE_NOERROR(source.copy_to(&dest));
             REQUIRE_ERROR(source.copy_to(&never));
             REQUIRE((dest && !never));
         }
         else
         {
             DestPtr dest;
-            source.copy_to(&dest);
-            source.copy_to(&never);
+            REQUIRE_NOERROR(source.copy_to(&dest));
+            REQUIRE_NOERROR(source.copy_to(&never));
             REQUIRE((!dest && !never));
         }
     }

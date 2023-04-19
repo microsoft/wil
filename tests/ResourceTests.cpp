@@ -124,7 +124,7 @@ ITest : public IUnknown
    STDMETHOD_(void, Test)() = 0;
 };
 
-class PointerTestObject : witest::AllocatedObject,
+class __declspec(empty_bases) PointerTestObject : witest::AllocatedObject,
     public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::RuntimeClassType::ClassicCom>, ITest>
 {
 public:
