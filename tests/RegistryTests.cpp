@@ -386,13 +386,42 @@ namespace
 
 namespace
 {
-    // TODO: note about this test matrix
-    // TODO: note about strings; ensure we test all strings, including generic functions and verifying std::string is the default
-    // TODO: invert the string tests to get better errors
-    // TODO: expanded strings
-    // TODO: byte vectors
-    // TODO: fix generic multistring get
-    // TODO: remove redundant OLEAUTO checks in string code
+    // This test matrix is *huge*! We have:
+    //
+    // - ~6 registry types (DWORDs, QWORDs, strings, expanded strings,
+    //   multistrings, and binary data) *and* many have different
+    //   representations (like strings and expanded strings, which can each be
+    //   read into multiple concrete string types).
+    // - 3 ways to fetch (get, try_get, nothrow)
+    // - 2 calling patterns (generic get_value & typed get_value_*)
+    // - 2 key access methods (opened HKEYs and string subkeys)
+    //
+    // This section tests simple types, like DWORDs, QWORDs, and (oddly)
+    // multistrings, plus generic versions (eg get_value<DWORD>) where
+    // applicable, across get, try_get, and nothrow for both string keys and
+    // opened keys. We test strings, expanded strings, and binary data later.
+    // (We test multistrings here because we currently only support reading into
+    // a std::vector<std::wstring>, which fits nicely into this test format).
+    //
+    // (DWORD, generic DWORD, QWORD, generic QWORD, multistring)
+    //
+    // x
+    //
+    // (nothrow opened key, nothrow string key, get opened key, get string key,
+    // try_get opened key, try_get string key)
+    //
+    // To create that test matrix, these tests use basic structs, with a
+    // consistent set of static methods, that are passed into each test. This
+    // should be fairly easy to generalize to other types if we need to add any
+    // later.
+    //
+    // However, strings (including expanded strings) and binary data require
+    // slightly different tests. We separated those tests out for clarity.
+    //
+    // We also have separate tests for edge cases (for example, reading strings
+    // without nullptr terminators, or reading completely blank multistrings).
+
+    // TODO: ensure we verify std::wstring is the default type
     // TODO: fix dereferencing losing wil::unique_* in string code
 
     template<typename RetType, typename SetType>
@@ -589,7 +618,14 @@ namespace
 #endif // defined(__cpp_lib_optional)
     };
 
-    // TODO: get_value<std::vector<std::wstring>> currently does not work.
+    // NOTE: generic get_value with multistrings is disabled.
+    //
+    // It has enough oddities to be worth disabling---should we support multiple
+    // vector types? Multiple string types? If it proves useful, we can always
+    // add it later.
+    //
+    // This commented-out test serves as a marker.
+
     //struct GenericMultiStringFns : GenericBaseFns<std::vector<std::wstring>, std::vector<std::wstring>>
     //{
     //    using RetType = std::vector<std::wstring>;
@@ -623,7 +659,7 @@ using TypesToTest = std::tuple<DwordFns, GenericDwordFns, QwordFns, GenericQword
 #endif // defined(WIL_ENABLE_EXCEPTIONS)
 }
 
-TEMPLATE_LIST_TEST_CASE("BasicRegistryTests::typed nothrow gets/sets", "[registry]", TypesToTest)
+TEMPLATE_LIST_TEST_CASE("BasicRegistryTests::simple types typed nothrow gets/sets", "[registry]", TypesToTest)
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
     if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
@@ -699,7 +735,7 @@ TEMPLATE_LIST_TEST_CASE("BasicRegistryTests::typed nothrow gets/sets", "[registr
 }
 
 #if defined(WIL_ENABLE_EXCEPTIONS)
-TEMPLATE_LIST_TEST_CASE("BasicRegistryTests::typed gets/sets/try_gets", "[registry]", TypesToTest)
+TEMPLATE_LIST_TEST_CASE("BasicRegistryTests::simple types typed gets/sets/try_gets", "[registry]", TypesToTest)
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
     if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
@@ -1006,6 +1042,22 @@ TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
 
 namespace
 {
+    // Test string types across nothrow get, get, and try_get *and* generic get
+    // (get_value) vs typed get (get_value_string).
+    //
+    // This is similar to the templated tests used for simple types, but with a
+    // different matrix "flattening" strategy and test strategy---there are
+    // separate tests for generic gets vs typed gets, rather than separate
+    // generic/typed "structs" passed in.
+    //
+    // It was simply slightly easier to write the tests this way, and it makes
+    // it easier to special-case certain string types (eg wil::unique_* strings
+    // cannot be used with try_get because it becomes nearly impossible to
+    // actually *get* the value out of the result optional).
+    //
+    // This format is used similarly for expanded strings and binary getters
+    // below.
+
     template<typename StringT, typename SetStringT = PCWSTR>
     void verify_string_nothrow(
         std::function<HRESULT(PCWSTR, typename type_identity<StringT>::type&)> getFn,
@@ -1224,7 +1276,6 @@ namespace
 #endif
 }
 
-// TODO: remove redundant OLEAUTO checks
 TEST_CASE("BasicRegistryTests::string types", "[registry]")
 {
     SECTION("set_value_string_nothrow/get_value_string_nothrow: with opened key")
@@ -1567,6 +1618,18 @@ TEST_CASE("BasicRegistryTests::expanded_wstring", "[registry]")
 
 namespace
 {
+    // Text expanded strings across all our different string types and all our
+    // calling patterns (nothrow get, get, try_get and opened key vs string
+    // subkey).
+    //
+    // This is very similar to our string tests above and our binary getters
+    // below, but we compare against the expanded string
+    // (ExpandEnvironmentStringsW).
+    //
+    // Note that expanded strings do not support generic get (you can't call
+    // wil::reg::get_value to get an expanded string---how would you specify
+    // that in the call?).
+
 #if defined(WIL_ENABLE_EXCEPTIONS)
     template<typename StringT, typename SetStringT = PCWSTR>
     void verify_expanded_string_nothrow(
@@ -2000,7 +2063,7 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
         REQUIRE(result.value() == arrayOfOne);
     }
 
-    SECTION("set_value/try_get_value_multistring: with string key")
+    SECTION("set_value/try_get_value_multistring: empty array with string key")
     {
         // When passed an empty array, we write in 2 null-terminators as part of set_value_multistring_nothrow (i.e. a single empty string)
         // thus the result should have one empty string
@@ -2022,6 +2085,15 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
 #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
 namespace
 {
+    // Test byte vectors/binary getters. These tests are very similar to the
+    // string and expanded string tests: we test across nothrow get, get, and
+    // try_get.
+    //
+    // These binary getters are used differently than all other getters, though.
+    // Callers must specify a read type indicating what type they expect the
+    // value to be. They also cannot be called using generic get_value for that
+    // reason.
+
     void verify_byte_vector_nothrow(
         std::function<HRESULT(PCWSTR, DWORD, std::vector<BYTE>*)> getFn,
         std::function<HRESULT(PCWSTR, DWORD, const std::vector<BYTE>&)> setFn,
