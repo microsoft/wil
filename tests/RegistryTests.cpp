@@ -266,19 +266,19 @@ TEST_CASE("BasicRegistryTests::Open", "[registry]")
     {
         constexpr auto* subSubKey = L"subkey";
 
-        wil::unique_hkey hkey{ wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite) };
+        const wil::unique_hkey hkey{ wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite) };
         // create a sub-key under this which we will try to open - but open_key will use the above hkey
-        wil::unique_hkey subkey{ wil::reg::create_unique_key(hkey.get(), subSubKey, wil::reg::key_access::readwrite) };
+        const wil::unique_hkey subkey{ wil::reg::create_unique_key(hkey.get(), subSubKey, wil::reg::key_access::readwrite) };
         // write a test value we'll try to read from later
         wil::reg::set_value_dword(subkey.get(), dwordValueName, test_dword_two);
 
-        wil::unique_hkey read_only_key{ wil::reg::open_unique_key(hkey.get(), subSubKey, wil::reg::key_access::read) };
+        const wil::unique_hkey read_only_key{ wil::reg::open_unique_key(hkey.get(), subSubKey, wil::reg::key_access::read) };
         DWORD result = wil::reg::get_value_dword(read_only_key.get(), dwordValueName);
         REQUIRE(result == test_dword_two);
         auto hr = wil::reg::set_value_dword_nothrow(read_only_key.get(), dwordValueName, test_dword_three);
         REQUIRE(hr == E_ACCESSDENIED);
 
-        wil::unique_hkey read_write_key{ wil::reg::open_unique_key(hkey.get(), subSubKey, wil::reg::key_access::readwrite) };
+        const wil::unique_hkey read_write_key{ wil::reg::open_unique_key(hkey.get(), subSubKey, wil::reg::key_access::readwrite) };
         wil::reg::set_value_dword(read_write_key.get(), dwordValueName, test_dword_three);
         result = wil::reg::get_value_dword(read_write_key.get(), dwordValueName);
         REQUIRE(result == test_dword_three);
@@ -286,23 +286,23 @@ TEST_CASE("BasicRegistryTests::Open", "[registry]")
         // fail get* if the value doesn't exist
         VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND), [&]()
             {
-                wil::unique_hkey invalid_key{ wil::reg::open_unique_key(hkey.get(), (std::wstring(subSubKey) + L"_not_valid").c_str(), wil::reg::key_access::readwrite) };
+                const wil::unique_hkey invalid_key{ wil::reg::open_unique_key(hkey.get(), (std::wstring(subSubKey) + L"_not_valid").c_str(), wil::reg::key_access::readwrite) };
             });
     }
 
     SECTION("open_unique_key: with string key")
     {
-        wil::unique_hkey hkey{ wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite) };
+        const wil::unique_hkey hkey{ wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite) };
         // write a test value we'll try to read from later
         wil::reg::set_value_dword(hkey.get(), dwordValueName, test_dword_two);
 
-        wil::unique_hkey read_only_key{ wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::read) };
+        const wil::unique_hkey read_only_key{ wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::read) };
         DWORD result = wil::reg::get_value_dword(read_only_key.get(), dwordValueName);
         REQUIRE(result == test_dword_two);
         auto hr = wil::reg::set_value_dword_nothrow(read_only_key.get(), dwordValueName, test_dword_three);
         REQUIRE(hr == E_ACCESSDENIED);
 
-        wil::unique_hkey read_write_key{ wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite) };
+        const wil::unique_hkey read_write_key{ wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite) };
         wil::reg::set_value_dword(read_write_key.get(), dwordValueName, test_dword_three);
         result = wil::reg::get_value_dword(read_write_key.get(), dwordValueName);
         REQUIRE(result == test_dword_three);
@@ -310,7 +310,7 @@ TEST_CASE("BasicRegistryTests::Open", "[registry]")
         // fail get* if the value doesn't exist
         VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND), [&]()
             {
-                wil::unique_hkey invalid_key{ wil::reg::open_unique_key(HKEY_CURRENT_USER, (std::wstring(testSubkey) + L"_not_valid").c_str(), wil::reg::key_access::readwrite) };
+                const wil::unique_hkey invalid_key{ wil::reg::open_unique_key(HKEY_CURRENT_USER, (std::wstring(testSubkey) + L"_not_valid").c_str(), wil::reg::key_access::readwrite) };
             });
     }
 
@@ -319,19 +319,19 @@ TEST_CASE("BasicRegistryTests::Open", "[registry]")
     {
         constexpr auto* subSubKey = L"subkey";
 
-        wil::shared_hkey hkey{ wil::reg::create_shared_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite) };
+        const wil::shared_hkey hkey{ wil::reg::create_shared_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite) };
         // create a sub-key under this which we will try to open - but open_key will use the above hkey
-        wil::shared_hkey subkey{ wil::reg::create_shared_key(hkey.get(), subSubKey, wil::reg::key_access::readwrite) };
+        const wil::shared_hkey subkey{ wil::reg::create_shared_key(hkey.get(), subSubKey, wil::reg::key_access::readwrite) };
         // write a test value we'll try to read from later
         wil::reg::set_value_dword(subkey.get(), dwordValueName, test_dword_two);
 
-        wil::shared_hkey read_only_key{ wil::reg::open_shared_key(hkey.get(), subSubKey, wil::reg::key_access::read) };
+        const wil::shared_hkey read_only_key{ wil::reg::open_shared_key(hkey.get(), subSubKey, wil::reg::key_access::read) };
         DWORD result = wil::reg::get_value_dword(read_only_key.get(), dwordValueName);
         REQUIRE(result == test_dword_two);
         auto hr = wil::reg::set_value_dword_nothrow(read_only_key.get(), dwordValueName, test_dword_three);
         REQUIRE(hr == E_ACCESSDENIED);
 
-        wil::shared_hkey read_write_key{ wil::reg::open_shared_key(hkey.get(), subSubKey, wil::reg::key_access::readwrite) };
+        const wil::shared_hkey read_write_key{ wil::reg::open_shared_key(hkey.get(), subSubKey, wil::reg::key_access::readwrite) };
         wil::reg::set_value_dword(read_write_key.get(), dwordValueName, test_dword_three);
         result = wil::reg::get_value_dword(read_write_key.get(), dwordValueName);
         REQUIRE(result == test_dword_three);
@@ -339,23 +339,23 @@ TEST_CASE("BasicRegistryTests::Open", "[registry]")
         // fail get* if the value doesn't exist
         VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND), [&]()
             {
-                wil::shared_hkey invalid_key{ wil::reg::open_shared_key(hkey.get(), (std::wstring(subSubKey) + L"_not_valid").c_str(), wil::reg::key_access::readwrite) };
+                const wil::shared_hkey invalid_key{ wil::reg::open_shared_key(hkey.get(), (std::wstring(subSubKey) + L"_not_valid").c_str(), wil::reg::key_access::readwrite) };
             });
     }
 
     SECTION("open_shared_key: with string key")
     {
-        wil::shared_hkey hkey{ wil::reg::create_shared_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite) };
+        const wil::shared_hkey hkey{ wil::reg::create_shared_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite) };
         // write a test value we'll try to read from later
         wil::reg::set_value_dword(hkey.get(), dwordValueName, test_dword_two);
 
-        wil::shared_hkey read_only_key{ wil::reg::open_shared_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::read) };
+        const wil::shared_hkey read_only_key{ wil::reg::open_shared_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::read) };
         DWORD result = wil::reg::get_value_dword(read_only_key.get(), dwordValueName);
         REQUIRE(result == test_dword_two);
         auto hr = wil::reg::set_value_dword_nothrow(read_only_key.get(), dwordValueName, test_dword_three);
         REQUIRE(hr == E_ACCESSDENIED);
 
-        wil::shared_hkey read_write_key{ wil::reg::open_shared_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite) };
+        const wil::shared_hkey read_write_key{ wil::reg::open_shared_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite) };
         wil::reg::set_value_dword(read_write_key.get(), dwordValueName, test_dword_three);
         result = wil::reg::get_value_dword(read_write_key.get(), dwordValueName);
         REQUIRE(result == test_dword_three);
@@ -363,7 +363,7 @@ TEST_CASE("BasicRegistryTests::Open", "[registry]")
         // fail get* if the value doesn't exist
         VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND), [&]()
             {
-                wil::shared_hkey invalid_key{ wil::reg::open_shared_key(HKEY_CURRENT_USER, (std::wstring(testSubkey) + L"_not_valid").c_str(), wil::reg::key_access::readwrite) };
+                const wil::shared_hkey invalid_key{ wil::reg::open_shared_key(HKEY_CURRENT_USER, (std::wstring(testSubkey) + L"_not_valid").c_str(), wil::reg::key_access::readwrite) };
             });
     }
 #endif
@@ -876,14 +876,14 @@ TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
         REQUIRE_SUCCEEDED(wil::reg::set_value_byte_vector_nothrow(hkey.get(), stringValueName, REG_SZ, nonNullTerminatedString));
 
-        std::wstring result{ wil::reg::get_value_string(hkey.get(), stringValueName) };
+        const std::wstring result{ wil::reg::get_value_string(hkey.get(), stringValueName) };
         REQUIRE(result == nonNullTerminatedStringFixed);
     }
     SECTION("get_value_string with non-null-terminated string: with string key")
     {
         REQUIRE_SUCCEEDED(wil::reg::set_value_byte_vector_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, REG_SZ, nonNullTerminatedString));
 
-        std::wstring result{ wil::reg::get_value_string(HKEY_CURRENT_USER, testSubkey, stringValueName) };
+        const std::wstring result{ wil::reg::get_value_string(HKEY_CURRENT_USER, testSubkey, stringValueName) };
         REQUIRE(result == nonNullTerminatedStringFixed);
     }
 
@@ -911,14 +911,14 @@ TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
         REQUIRE_SUCCEEDED(wil::reg::set_value_byte_vector_nothrow(hkey.get(), stringValueName, REG_SZ, emptyStringTestValue));
 
-        std::wstring result{ wil::reg::get_value_string(hkey.get(), stringValueName) };
+        const std::wstring result{ wil::reg::get_value_string(hkey.get(), stringValueName) };
         REQUIRE(result.empty());
     }
     SECTION("get_value_string with empty string value: with string key")
     {
         REQUIRE_SUCCEEDED(wil::reg::set_value_byte_vector_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, REG_SZ, emptyStringTestValue));
 
-        std::wstring result{ wil::reg::get_value_string(HKEY_CURRENT_USER, testSubkey, stringValueName) };
+        const std::wstring result{ wil::reg::get_value_string(HKEY_CURRENT_USER, testSubkey, stringValueName) };
         REQUIRE(result.empty());
     }
 #endif
@@ -1040,38 +1040,36 @@ namespace
     void verify_string_nothrow(HKEY key)
     {
         verify_string_nothrow<StringT>(
-            [&key](PCWSTR valueName, StringT& output) { return wil::reg::get_value_string_nothrow(key, valueName, output); },
-            [&key](PCWSTR valueName, PCWSTR input) { return wil::reg::set_value_string_nothrow(key, valueName, input); },
-            [&key](PCWSTR valueName) -> HRESULT { return wil::reg::set_value_dword_nothrow(key, valueName, test_dword_zero); });
+            [&](PCWSTR valueName, StringT& output) { return wil::reg::get_value_string_nothrow(key, valueName, output); },
+            [&](PCWSTR valueName, PCWSTR input) { return wil::reg::set_value_string_nothrow(key, valueName, input); },
+            [&](PCWSTR valueName) -> HRESULT { return wil::reg::set_value_dword_nothrow(key, valueName, test_dword_zero); });
     }
 
     template<typename StringT>
     void verify_string_nothrow(HKEY key, PCWSTR subkey)
     {
         verify_string_nothrow<StringT>(
-            [&key, &subkey](PCWSTR valueName, StringT& output) { return wil::reg::get_value_string_nothrow(key, subkey, valueName, output); },
-            [&key, &subkey](PCWSTR valueName, PCWSTR input) { return wil::reg::set_value_string_nothrow(key, subkey, valueName, input); },
-            [&key, &subkey](PCWSTR valueName) -> HRESULT { return wil::reg::set_value_dword_nothrow(key, subkey, valueName, test_dword_zero); });
+            [&](PCWSTR valueName, StringT& output) { return wil::reg::get_value_string_nothrow(key, subkey, valueName, output); },
+            [&](PCWSTR valueName, PCWSTR input) { return wil::reg::set_value_string_nothrow(key, subkey, valueName, input); },
+            [&](PCWSTR valueName) -> HRESULT { return wil::reg::set_value_dword_nothrow(key, subkey, valueName, test_dword_zero); });
     }
 
     template<typename StringT>
     void verify_string_generic_get_value_nothrow(HKEY key)
     {
-        // TODO: this dereferencing loses the wil::unique type
         verify_string_nothrow<StringT>(
-            [&key](PCWSTR valueName, StringT& output) { return wil::reg::get_value_nothrow(key, valueName, &output); },
-            [&key](PCWSTR valueName, PCWSTR input) { return wil::reg::set_value_nothrow(key, valueName, input); },
-            [&key](PCWSTR valueName) -> HRESULT { return wil::reg::set_value_dword_nothrow(key, valueName, test_dword_zero); });
+            [&](PCWSTR valueName, StringT& output) { return wil::reg::get_value_nothrow(key, valueName, output); },
+            [&](PCWSTR valueName, PCWSTR input) { return wil::reg::set_value_nothrow(key, valueName, input); },
+            [&](PCWSTR valueName) -> HRESULT { return wil::reg::set_value_dword_nothrow(key, valueName, test_dword_zero); });
     }
 
     template<typename StringT>
     void verify_string_generic_get_value_nothrow(HKEY key, PCWSTR subkey)
     {
-        // TODO: this dereferencing loses the wil::unique type
         verify_string_nothrow<StringT>(
-            [&key, &subkey](PCWSTR valueName, StringT& output) { return wil::reg::get_value_nothrow(key, subkey, valueName, &output); },
-            [&key, &subkey](PCWSTR valueName, PCWSTR input) { return wil::reg::set_value_nothrow(key, subkey, valueName, input); },
-            [&key, &subkey](PCWSTR valueName) -> HRESULT { return wil::reg::set_value_dword_nothrow(key, subkey, valueName, test_dword_zero); });
+            [&](PCWSTR valueName, StringT& output) { return wil::reg::get_value_nothrow(key, subkey, valueName, output); },
+            [&](PCWSTR valueName, PCWSTR input) { return wil::reg::set_value_nothrow(key, subkey, valueName, input); },
+            [&](PCWSTR valueName) -> HRESULT { return wil::reg::set_value_dword_nothrow(key, subkey, valueName, test_dword_zero); });
     }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
@@ -1114,9 +1112,9 @@ namespace
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
 
         verify_string<StringT>(
-            [&hkey](PCWSTR valueName) { return wil::reg::get_value_string<StringT>(hkey.get(), valueName); },
-            [&hkey](PCWSTR valueName, PCWSTR value) -> void { wil::reg::set_value_string(hkey.get(), valueName, value); },
-            [&hkey](PCWSTR valueName) { wil::reg::set_value_dword(hkey.get(), valueName, test_dword_zero); });
+            [&](PCWSTR valueName) { return wil::reg::get_value_string<StringT>(hkey.get(), valueName); },
+            [&](PCWSTR valueName, PCWSTR value) -> void { wil::reg::set_value_string(hkey.get(), valueName, value); },
+            [&](PCWSTR valueName) { wil::reg::set_value_dword(hkey.get(), valueName, test_dword_zero); });
     }
 
     template<typename StringT>
@@ -1135,9 +1133,9 @@ namespace
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
 
         verify_string<StringT>(
-            [&hkey](PCWSTR valueName) { return wil::reg::get_value<StringT>(hkey.get(), valueName); },
-            [&hkey](PCWSTR valueName, PCWSTR value) -> void { wil::reg::set_value(hkey.get(), valueName, value); },
-            [&hkey](PCWSTR valueName) { wil::reg::set_value_dword(hkey.get(), valueName, test_dword_zero); });
+            [&](PCWSTR valueName) { return wil::reg::get_value<StringT>(hkey.get(), valueName); },
+            [&](PCWSTR valueName, PCWSTR value) -> void { wil::reg::set_value(hkey.get(), valueName, value); },
+            [&](PCWSTR valueName) { wil::reg::set_value_dword(hkey.get(), valueName, test_dword_zero); });
     }
 
     template<typename StringT>
@@ -1187,9 +1185,9 @@ namespace
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
 
         verify_try_string<StringT>(
-            [&hkey](PCWSTR valueName) { return wil::reg::try_get_value_string<StringT>(hkey.get(), valueName); },
-            [&hkey](PCWSTR valueName, PCWSTR value) -> void { wil::reg::set_value_string(hkey.get(), valueName, value); },
-            [&hkey](PCWSTR valueName) { wil::reg::set_value_dword(hkey.get(), valueName, test_dword_zero); });
+            [&](PCWSTR valueName) { return wil::reg::try_get_value_string<StringT>(hkey.get(), valueName); },
+            [&](PCWSTR valueName, PCWSTR value) -> void { wil::reg::set_value_string(hkey.get(), valueName, value); },
+            [&](PCWSTR valueName) { wil::reg::set_value_dword(hkey.get(), valueName, test_dword_zero); });
     }
 
     template<typename StringT>
@@ -1208,9 +1206,9 @@ namespace
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
 
         verify_try_string<StringT>(
-            [&hkey](PCWSTR valueName) { return wil::reg::try_get_value<StringT>(hkey.get(), valueName); },
-            [&hkey](PCWSTR valueName, PCWSTR value) -> void { wil::reg::set_value(hkey.get(), valueName, value); },
-            [&hkey](PCWSTR valueName) { wil::reg::set_value_dword(hkey.get(), valueName, test_dword_zero); });
+            [&](PCWSTR valueName) { return wil::reg::try_get_value<StringT>(hkey.get(), valueName); },
+            [&](PCWSTR valueName, PCWSTR value) -> void { wil::reg::set_value(hkey.get(), valueName, value); },
+            [&](PCWSTR valueName) { wil::reg::set_value_dword(hkey.get(), valueName, test_dword_zero); });
     }
 
     template<typename StringT>
@@ -1277,11 +1275,10 @@ TEST_CASE("BasicRegistryTests::string types", "[registry]")
 #endif
 #endif
 
-        // TODO: crashes?
 #if defined(__WIL_OBJBASE_H_)
-        //verify_string_generic_get_value_nothrow<wil::unique_cotaskmem_string>(hkey.get());
+        verify_string_generic_get_value_nothrow<wil::unique_cotaskmem_string>(hkey.get());
 #if defined(__WIL_OBJBASE_H_STL)
-        //verify_string_generic_get_value_nothrow<wil::shared_cotaskmem_string>(hkey.get());
+        verify_string_generic_get_value_nothrow<wil::shared_cotaskmem_string>(hkey.get());
 #endif
 #endif
     }
@@ -1296,9 +1293,9 @@ TEST_CASE("BasicRegistryTests::string types", "[registry]")
 #endif
 
 #if defined(__WIL_OBJBASE_H_)
-        //verify_string_generic_get_value_nothrow<wil::unique_cotaskmem_string>(HKEY_CURRENT_USER, testSubkey);
+        verify_string_generic_get_value_nothrow<wil::unique_cotaskmem_string>(HKEY_CURRENT_USER, testSubkey);
 #if defined(__WIL_OBJBASE_H_STL)
-        //verify_string_generic_get_value_nothrow<wil::shared_cotaskmem_string>(HKEY_CURRENT_USER, testSubkey);
+        verify_string_generic_get_value_nothrow<wil::shared_cotaskmem_string>(HKEY_CURRENT_USER, testSubkey);
 #endif
 #endif
     }
@@ -1407,20 +1404,21 @@ TEST_CASE("BasicRegistryTests::string types", "[registry]")
 #endif
     }
 
-    // TODO: it's a bug that we support unique here, right?
     SECTION("strings set_value/try_get_value: with open key")
     {
         verify_try_string_generic_get_value<std::wstring>();
 
 #if defined(__WIL_OLEAUTO_H_)
-        verify_try_string_generic_get_value<wil::unique_bstr>();
+        // must fail to compile try_* with wil::unique_bstr
+        // verify_try_string_generic_get_value<wil::unique_bstr>();
 #if defined(__WIL_OLEAUTO_H_STL)
         verify_try_string_generic_get_value<wil::shared_bstr>();
 #endif
 #endif
 
 #if defined(__WIL_OBJBASE_H_)
-        verify_try_string_generic_get_value<wil::unique_cotaskmem_string>();
+        // must fail to compile try_* with wil::unique_cotaskmem_string
+        // verify_try_string_generic_get_value<wil::unique_cotaskmem_string>();
 #if defined(__WIL_OBJBASE_H_STL)
         verify_try_string_generic_get_value<wil::shared_cotaskmem_string>();
 #endif
@@ -1432,14 +1430,16 @@ TEST_CASE("BasicRegistryTests::string types", "[registry]")
         verify_try_string_generic_get_value_subkey<std::wstring>();
 
 #if defined(__WIL_OLEAUTO_H_)
-        verify_try_string_generic_get_value_subkey<wil::unique_bstr>();
+        // must fail to compile try_* with wil::unique_bstr
+        // verify_try_string_generic_get_value_subkey<wil::unique_bstr>();
 #if defined(__WIL_OLEAUTO_H_STL)
         verify_try_string_generic_get_value_subkey<wil::shared_bstr>();
 #endif
 #endif
 
 #if defined(__WIL_OBJBASE_H_)
-        verify_try_string_generic_get_value_subkey<wil::unique_cotaskmem_string>();
+        // must fail to compile try_* with wil::unique_cotaskmem_string
+        // verify_try_string_generic_get_value_subkey<wil::unique_cotaskmem_string>();
 #if defined(__WIL_OBJBASE_H_STL)
         verify_try_string_generic_get_value_subkey<wil::shared_cotaskmem_string>();
 #endif
@@ -1611,9 +1611,9 @@ namespace
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
 
         verify_expanded_string_nothrow<StringT>(
-            [&hkey](PCWSTR valueName, StringT& output) { return wil::reg::get_value_expanded_string_nothrow(hkey.get(), valueName, output); },
-            [&hkey](PCWSTR valueName, PCWSTR input) { return wil::reg::set_value_expanded_string_nothrow(hkey.get(), valueName, input); },
-            [&hkey](PCWSTR valueName) { return wil::reg::set_value_dword_nothrow(hkey.get(), valueName, test_dword_zero); });
+            [&](PCWSTR valueName, StringT& output) { return wil::reg::get_value_expanded_string_nothrow(hkey.get(), valueName, output); },
+            [&](PCWSTR valueName, PCWSTR input) { return wil::reg::set_value_expanded_string_nothrow(hkey.get(), valueName, input); },
+            [&](PCWSTR valueName) { return wil::reg::set_value_dword_nothrow(hkey.get(), valueName, test_dword_zero); });
     }
 
     template<typename StringT>
@@ -1670,9 +1670,9 @@ namespace
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
 
         verify_expanded_string<StringT>(
-            [&hkey](PCWSTR valueName) -> StringT { return wil::reg::get_value_expanded_string<StringT>(hkey.get(), valueName); },
-            [&hkey](PCWSTR valueName, PCWSTR input) { wil::reg::set_value_expanded_string(hkey.get(), valueName, input); },
-            [&hkey](PCWSTR valueName) { wil::reg::set_value_dword(hkey.get(), valueName, test_dword_zero); });
+            [&](PCWSTR valueName) -> StringT { return wil::reg::get_value_expanded_string<StringT>(hkey.get(), valueName); },
+            [&](PCWSTR valueName, PCWSTR input) { wil::reg::set_value_expanded_string(hkey.get(), valueName, input); },
+            [&](PCWSTR valueName) { wil::reg::set_value_dword(hkey.get(), valueName, test_dword_zero); });
     }
 
     template<typename StringT>
@@ -1728,9 +1728,9 @@ namespace
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
 
         verify_try_expanded_string<StringT>(
-            [&hkey](PCWSTR valueName) { return wil::reg::try_get_value_expanded_string<StringT>(hkey.get(), valueName); },
-            [&hkey](PCWSTR valueName, PCWSTR input) { wil::reg::set_value_expanded_string(hkey.get(), valueName, input); },
-            [&hkey](PCWSTR valueName) { wil::reg::set_value_dword(hkey.get(), valueName, test_dword_zero); });
+            [&](PCWSTR valueName) { return wil::reg::try_get_value_expanded_string<StringT>(hkey.get(), valueName); },
+            [&](PCWSTR valueName, PCWSTR input) { wil::reg::set_value_expanded_string(hkey.get(), valueName, input); },
+            [&](PCWSTR valueName) { wil::reg::set_value_dword(hkey.get(), valueName, test_dword_zero); });
     }
 
     template<typename StringT>
@@ -1882,7 +1882,7 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
 
         // When passed an empty array, we write in 2 null-terminators as part of set_value_multistring_nothrow (i.e. a single empty string)
         // thus the result should have one empty string
-        std::vector<std::wstring> arrayOfOne{ L"" };
+        const std::vector<std::wstring> arrayOfOne{ L"" };
         REQUIRE_SUCCEEDED(wil::reg::set_value_multistring_nothrow(hkey.get(), stringValueName, test_multistring_empty));
         std::vector<std::wstring> result{};
         REQUIRE_SUCCEEDED(wil::reg::get_value_multistring_nothrow(hkey.get(), stringValueName, &result));
@@ -1898,7 +1898,7 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
     {
         // When passed an empty array, we write in 2 null-terminators as part of set_value_multistring_nothrow (i.e. a single empty string)
         // thus the result should have one empty string
-        std::vector<std::wstring> arrayOfOne{ L"" };
+        const std::vector<std::wstring> arrayOfOne{ L"" };
         REQUIRE_SUCCEEDED(wil::reg::set_value_multistring_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, test_multistring_empty));
         std::vector<std::wstring> result{};
         REQUIRE_SUCCEEDED(wil::reg::get_value_multistring_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, &result));
@@ -1918,7 +1918,7 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
 
         // When passed an empty array, we write in 2 null-terminators as part of set_value_multistring_nothrow (i.e. a single empty string)
         // thus the result should have one empty string
-        std::vector<std::wstring> arrayOfOne{ L"" };
+        const std::vector<std::wstring> arrayOfOne{ L"" };
         REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(hkey.get(), stringValueName, test_multistring_empty));
         std::vector<std::wstring> result{};
         REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(hkey.get(), stringValueName, &result));
@@ -1934,7 +1934,7 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
     {
         // When passed an empty array, we write in 2 null-terminators as part of set_value_multistring_nothrow (i.e. a single empty string)
         // thus the result should have one empty string
-        std::vector<std::wstring> arrayOfOne{ L"" };
+        const std::vector<std::wstring> arrayOfOne{ L"" };
         REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, test_multistring_empty));
         std::vector<std::wstring> result{};
         REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, &result));
@@ -1955,7 +1955,7 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
 
         // When passed an empty array, we write in 2 null-terminators as part of set_value_multistring_nothrow (i.e. a single empty string)
         // thus the result should have one empty string
-        std::vector<std::wstring> arrayOfOne{ L"" };
+        const std::vector<std::wstring> arrayOfOne{ L"" };
         wil::reg::set_value_multistring(hkey.get(), stringValueName, test_multistring_empty);
         auto result = wil::reg::get_value_multistring(hkey.get(), stringValueName);
         REQUIRE(result == arrayOfOne);
@@ -1969,7 +1969,7 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
     {
         // When passed an empty array, we write in 2 null-terminators as part of set_value_multistring_nothrow (i.e. a single empty string)
         // thus the result should have one empty string
-        std::vector<std::wstring> arrayOfOne{ L"" };
+        const std::vector<std::wstring> arrayOfOne{ L"" };
         wil::reg::set_value_multistring(HKEY_CURRENT_USER, testSubkey, stringValueName, test_multistring_empty);
         auto result = wil::reg::get_value_multistring(HKEY_CURRENT_USER, testSubkey, stringValueName);
         REQUIRE(result == arrayOfOne);
@@ -1988,7 +1988,7 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
 
         // When passed an empty array, we write in 2 null-terminators as part of set_value_multistring_nothrow (i.e. a single empty string)
         // thus the result should have one empty string
-        std::vector<std::wstring> arrayOfOne{ L"" };
+        const std::vector<std::wstring> arrayOfOne{ L"" };
         wil::reg::set_value(hkey.get(), stringValueName, test_multistring_empty);
         auto result = wil::reg::try_get_value_multistring(hkey.get(), stringValueName);
         REQUIRE(result.value() == arrayOfOne);
@@ -2003,7 +2003,7 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
     {
         // When passed an empty array, we write in 2 null-terminators as part of set_value_multistring_nothrow (i.e. a single empty string)
         // thus the result should have one empty string
-        std::vector<std::wstring> arrayOfOne{ L"" };
+        const std::vector<std::wstring> arrayOfOne{ L"" };
         wil::reg::set_value(HKEY_CURRENT_USER, testSubkey, stringValueName, test_multistring_empty);
         auto result = wil::reg::try_get_value_multistring(HKEY_CURRENT_USER, testSubkey, stringValueName);
         REQUIRE(result.value() == arrayOfOne);
@@ -2155,9 +2155,9 @@ TEST_CASE("BasicRegistryTests::vector-bytes", "[registry]]")
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
 
         verify_byte_vector_nothrow(
-            [&hkey](PCWSTR valueName, DWORD type, std::vector<BYTE>* output) { return wil::reg::get_value_byte_vector_nothrow(hkey.get(), valueName, type, output); },
-            [&hkey](PCWSTR valueName, DWORD type, const std::vector<BYTE>& input) { return wil::reg::set_value_byte_vector_nothrow(hkey.get(), valueName, type, input); },
-            [&hkey](PCWSTR valueName, DWORD input) { return wil::reg::set_value_dword_nothrow(hkey.get(), valueName, input); });
+            [&](PCWSTR valueName, DWORD type, std::vector<BYTE>* output) { return wil::reg::get_value_byte_vector_nothrow(hkey.get(), valueName, type, output); },
+            [&](PCWSTR valueName, DWORD type, const std::vector<BYTE>& input) { return wil::reg::set_value_byte_vector_nothrow(hkey.get(), valueName, type, input); },
+            [&](PCWSTR valueName, DWORD input) { return wil::reg::set_value_dword_nothrow(hkey.get(), valueName, input); });
     }
     SECTION("set_value_byte_vector_nothrow/get_value_byte_vector_nothrow: with string key")
     {
@@ -2172,9 +2172,9 @@ TEST_CASE("BasicRegistryTests::vector-bytes", "[registry]]")
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
 
         verify_byte_vector(
-            [&hkey](PCWSTR valueName, DWORD type) { return wil::reg::get_value_byte_vector(hkey.get(), valueName, type); },
-            [&hkey](PCWSTR valueName, DWORD type, const std::vector<BYTE>& input) { wil::reg::set_value_byte_vector(hkey.get(), valueName, type, input); },
-            [&hkey](PCWSTR valueName, DWORD input) { wil::reg::set_value_dword(hkey.get(), valueName, input); });
+            [&](PCWSTR valueName, DWORD type) { return wil::reg::get_value_byte_vector(hkey.get(), valueName, type); },
+            [&](PCWSTR valueName, DWORD type, const std::vector<BYTE>& input) { wil::reg::set_value_byte_vector(hkey.get(), valueName, type, input); },
+            [&](PCWSTR valueName, DWORD input) { wil::reg::set_value_dword(hkey.get(), valueName, input); });
     }
     SECTION("set_value_byte_vector/get_value_byte_vector: with string key")
     {
@@ -2191,9 +2191,9 @@ TEST_CASE("BasicRegistryTests::vector-bytes", "[registry]]")
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
 
         verify_try_byte_vector(
-            [&hkey](PCWSTR valueName, DWORD type) { return wil::reg::try_get_value_byte_vector(hkey.get(), valueName, type); },
-            [&hkey](PCWSTR valueName, DWORD type, const std::vector<BYTE>& input) { wil::reg::set_value_byte_vector(hkey.get(), valueName, type, input); },
-            [&hkey](PCWSTR valueName, DWORD input) { wil::reg::set_value_dword(hkey.get(), valueName, input); });
+            [&](PCWSTR valueName, DWORD type) { return wil::reg::try_get_value_byte_vector(hkey.get(), valueName, type); },
+            [&](PCWSTR valueName, DWORD type, const std::vector<BYTE>& input) { wil::reg::set_value_byte_vector(hkey.get(), valueName, type, input); },
+            [&](PCWSTR valueName, DWORD input) { wil::reg::set_value_dword(hkey.get(), valueName, input); });
     }
 
     SECTION("set_value/try_get_value_byte_vector: with string key")
