@@ -17,7 +17,6 @@ constexpr auto* dwordValueName = L"MyDwordValue";
 constexpr auto* qwordValueName = L"MyQwordvalue";
 constexpr auto* stringValueName = L"MyStringValue";
 constexpr auto* multiStringValueName = L"MyMultiStringValue";
-constexpr auto* binaryValueName = L"MyBinaryValue";
 constexpr auto* invalidValueName = L"NonExistentValue";
 constexpr auto* wrongTypeValueName = L"InvalidTypeValue";
 
