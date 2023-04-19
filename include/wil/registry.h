@@ -1452,20 +1452,18 @@ namespace wil
         template <typename T>
         ::std::optional<T> try_get_value(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
         {
+#if defined(__WIL_OLEAUTO_H_)
+            // not allowing unique types with try_get_value: wil::unique_bstr cannot be copied and thus is difficult to work with a std::optional
+            static_assert(!std::is_same_v<T, wil::unique_bstr>, "try_get with wil::unique_bstr is disabled");
+#endif // #if defined(__WIL_OLEAUTO_H_)
+#if defined(__WIL_OBJBASE_H_)
+            // not allowing unique types with try_get_value: wil::unique_cotaskmem_string cannot be copied and thus is difficult to work with a std::optional
+            static_assert(!std::is_same_v<T, wil::unique_cotaskmem_string>, "try_get with wil::unique_cotaskmem_string is disabled");
+#endif // #if defined(__WIL_OBJBASE_H_)
+
             const reg_view_details::reg_view regview{ key };
             return regview.try_get_value<T>(subkey, value_name);
         }
-
-#if defined(__WIL_OLEAUTO_H_)
-        // not allowing unique types with try_get_value: wil::unique_bstr cannot be copied and thus is difficult to work with a std::optional
-        template <>
-        ::std::optional<wil::unique_bstr> try_get_value<wil::unique_bstr>(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name);
-#endif // #if defined(__WIL_OLEAUTO_H_)
-#if defined(__WIL_OBJBASE_H_)
-        // not allowing unique types with try_get_value: wil::unique_cotaskmem_string cannot be copied and thus is difficult to work with a std::optional
-        template <>
-        ::std::optional<wil::unique_cotaskmem_string> try_get_value<wil::unique_cotaskmem_string>(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name);
-#endif // #if defined(__WIL_OBJBASE_H_)
 
         /**
          * \brief Attempts to read a value under a specified key, returning the value in a std::optional, the required registry type based off the templated return type
@@ -1480,19 +1478,17 @@ namespace wil
         template <typename T>
         ::std::optional<T> try_get_value(HKEY key, _In_opt_ PCWSTR value_name)
         {
-            return ::wil::reg::try_get_value<T>(key, nullptr, value_name);
-        }
-
 #if defined(__WIL_OLEAUTO_H_)
-        // not allowing unique types with try_get_value: wil::unique_bstr cannot be copied and thus is difficult to work with a std::optional
-        template <>
-        ::std::optional<wil::unique_bstr> try_get_value<wil::unique_bstr>(HKEY key, _In_opt_ PCWSTR value_name);
+            // not allowing unique types with try_get_value: wil::unique_bstr cannot be copied and thus is difficult to work with a std::optional
+            static_assert(!std::is_same_v<T, wil::unique_bstr>, "try_get with wil::unique_bstr is disabled");
 #endif // #if defined(__WIL_OLEAUTO_H_)
 #if defined(__WIL_OBJBASE_H_)
-        // not allowing unique types with try_get_value: wil::unique_cotaskmem_string cannot be copied and thus is difficult to work with a std::optional
-        template <>
-        ::std::optional<wil::unique_cotaskmem_string> try_get_value<wil::unique_cotaskmem_string>(HKEY key, _In_opt_ PCWSTR value_name);
+            // not allowing unique types with try_get_value: wil::unique_cotaskmem_string cannot be copied and thus is difficult to work with a std::optional
+            static_assert(!std::is_same_v<T, wil::unique_cotaskmem_string>, "try_get with wil::unique_cotaskmem_string is disabled");
 #endif // #if defined(__WIL_OBJBASE_H_)
+
+            return ::wil::reg::try_get_value<T>(key, nullptr, value_name);
+        }
 
         /**
          * \brief Attempts to read a REG_DWORD value under a specified key, returning the value in a std::optional
