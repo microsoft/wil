@@ -794,7 +794,7 @@ namespace wil::details::coro
             return this->promise->client_await_suspend(wistd::addressof(resumer), apartment_resumer::resume_in_context);
         }
 
-        auto await_resume()
+        decltype(auto) await_resume()
         {
             resumer.check();
             return agile_awaiter<T>::await_resume();
