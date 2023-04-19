@@ -1460,12 +1460,13 @@ namespace wil
         // not allowing unique types with try_get_value: wil::unique_bstr cannot be copied and thus is difficult to work with a std::optional
         template <>
         ::std::optional<wil::unique_bstr> try_get_value<wil::unique_bstr>(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name);
-#endif
+#endif // #if defined(__WIL_OLEAUTO_H_)
 #if defined(__WIL_OBJBASE_H_)
         // not allowing unique types with try_get_value: wil::unique_cotaskmem_string cannot be copied and thus is difficult to work with a std::optional
         template <>
         ::std::optional<wil::unique_cotaskmem_string> try_get_value<wil::unique_cotaskmem_string>(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name);
-#endif
+#endif // #if defined(__WIL_OBJBASE_H_)
+
         /**
          * \brief Attempts to read a value under a specified key, returning the value in a std::optional, the required registry type based off the templated return type
          * \tparam T The type capturing the data being read into a std::optional
@@ -1481,6 +1482,17 @@ namespace wil
         {
             return ::wil::reg::try_get_value<T>(key, nullptr, value_name);
         }
+
+#if defined(__WIL_OLEAUTO_H_)
+        // not allowing unique types with try_get_value: wil::unique_bstr cannot be copied and thus is difficult to work with a std::optional
+        template <>
+        ::std::optional<wil::unique_bstr> try_get_value<wil::unique_bstr>(HKEY key, _In_opt_ PCWSTR value_name);
+#endif // #if defined(__WIL_OLEAUTO_H_)
+#if defined(__WIL_OBJBASE_H_)
+        // not allowing unique types with try_get_value: wil::unique_cotaskmem_string cannot be copied and thus is difficult to work with a std::optional
+        template <>
+        ::std::optional<wil::unique_cotaskmem_string> try_get_value<wil::unique_cotaskmem_string>(HKEY key, _In_opt_ PCWSTR value_name);
+#endif // #if defined(__WIL_OBJBASE_H_)
 
         /**
          * \brief Attempts to read a REG_DWORD value under a specified key, returning the value in a std::optional
