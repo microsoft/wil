@@ -610,7 +610,7 @@ TEST_CASE("FileSystemTests::QueryFullProcessImageNameW and GetModuleFileNameW", 
 #ifdef WIL_ENABLE_EXCEPTIONS
     auto procName = wil::QueryFullProcessImageNameW<std::wstring>();
     auto moduleName = wil::GetModuleFileNameW<std::wstring>();
-    REQUIRE(procName == moduleName);
+    REQUIRE(CompareStringOrdinal(procName.c_str(), -1, moduleName.c_str(), -1, TRUE) == CSTR_EQUAL);
 #endif
 }
 
