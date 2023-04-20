@@ -822,13 +822,13 @@ namespace wil
         //     wil::shared_cotaskmem_string shared_value { wil::reg::get_value_string<wil::shared_cotaskmem_string>(key, L"string_value_name") };
         //
         template <typename T>
-        T get_value_string(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name) { static_assert(sizeof(T) != sizeof(T), "Unsupported type for get_value_string"); }
+        T get_value_string(HKEY /*key*/, _In_opt_ PCWSTR /*subkey*/, _In_opt_ PCWSTR /*value_name*/) { static_assert(sizeof(T) != sizeof(T), "Unsupported type for get_value_string"); }
         template <typename T>
-        T get_value_string(HKEY key, _In_opt_ PCWSTR value_name) { static_assert(sizeof(T) != sizeof(T), "Unsupported type for get_value_string"); }
+        T get_value_string(HKEY /*key*/, _In_opt_ PCWSTR /*value_name*/) { static_assert(sizeof(T) != sizeof(T), "Unsupported type for get_value_string"); }
         template <typename T>
-        T get_value_expanded_string(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name) { static_assert(sizeof(T) != sizeof(T), "Unsupported type for get_value_expanded_string"); }
+        T get_value_expanded_string(HKEY /*key*/, _In_opt_ PCWSTR /*subkey*/, _In_opt_ PCWSTR /*value_name*/) { static_assert(sizeof(T) != sizeof(T), "Unsupported type for get_value_expanded_string"); }
         template <typename T>
-        T get_value_expanded_string(HKEY key, _In_opt_ PCWSTR value_name) { static_assert(sizeof(T) != sizeof(T), "Unsupported type for get_value_expanded_string"); }
+        T get_value_expanded_string(HKEY /*key*/, _In_opt_ PCWSTR /*value_name*/) { static_assert(sizeof(T) != sizeof(T), "Unsupported type for get_value_expanded_string"); }
 
         /**
          * \brief Reads a value under a specified key, the required registry type based off the templated type passed as data
@@ -1428,13 +1428,13 @@ namespace wil
         //     std::optional<wil::shared_cotaskmem_string> opt_shared_value { wil::reg::try_get_value_string<wil::shared_cotaskmem_string>(key, L"string_value_name") };
         //
         template <typename T>
-        ::std::optional<T> try_get_value_string(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name) { static_assert(sizeof(T) != sizeof(T), "Unsupported type for try_get_value_string"); }
+        ::std::optional<T> try_get_value_string(HKEY /*key*/, _In_opt_ PCWSTR /*subkey*/, _In_opt_ PCWSTR /*value_name*/) { static_assert(sizeof(T) != sizeof(T), "Unsupported type for try_get_value_string"); }
         template <typename T>
-        ::std::optional<T> try_get_value_string(HKEY key, _In_opt_ PCWSTR value_name) { static_assert(sizeof(T) != sizeof(T), "Unsupported type for try_get_value_string"); }
+        ::std::optional<T> try_get_value_string(HKEY /*key*/, _In_opt_ PCWSTR /*value_name*/) { static_assert(sizeof(T) != sizeof(T), "Unsupported type for try_get_value_string"); }
         template <typename T>
-        ::std::optional<T> try_get_value_expanded_string(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name) { static_assert(sizeof(T) != sizeof(T), "Unsupported type for try_get_value_expanded_string"); }
+        ::std::optional<T> try_get_value_expanded_string(HKEY /*key*/, _In_opt_ PCWSTR /*subkey*/, _In_opt_ PCWSTR /*value_name*/) { static_assert(sizeof(T) != sizeof(T), "Unsupported type for try_get_value_expanded_string"); }
         template <typename T>
-        ::std::optional<T> try_get_value_expanded_string(HKEY key, _In_opt_ PCWSTR value_name) { static_assert(sizeof(T) != sizeof(T), "Unsupported type for try_get_value_expanded_string"); }
+        ::std::optional<T> try_get_value_expanded_string(HKEY /*key*/, _In_opt_ PCWSTR /*value_name*/) { static_assert(sizeof(T) != sizeof(T), "Unsupported type for try_get_value_expanded_string"); }
 
         /**
          * \brief Attempts to read a value under a specified key, returning in a std::optional, the required registry type based off the templated return type
