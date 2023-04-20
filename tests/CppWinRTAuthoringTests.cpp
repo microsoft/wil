@@ -149,9 +149,7 @@ TEST_CASE("CppWinRTAuthoringTests::Events", "[property]")
 }
 #endif // WINRT_Windows_Foundation_H
 
-// if using MSVC since we need the embedded manifest bits to use XAML islands
-#if _MSVC_LANG >= 201703L && defined(WINRT_Windows_UI_Xaml_Data_H)
-
+#if defined(WINRT_Windows_UI_Xaml_Data_H)
 #include <winrt/Windows.UI.Xaml.Hosting.h>
 
 // This test cannot run in the same process as the malloc spies tests in wiTest.cpp

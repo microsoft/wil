@@ -35,7 +35,7 @@ namespace wil
     struct single_threaded_property : std::conditional_t<std::is_scalar_v<T> || std::is_final_v<T>, wil::details::single_threaded_property_storage<T>, T>
     {
         single_threaded_property() = default;
-        single_threaded_property(T value) : base_type(std::move(value)) {}
+        template <typename... TArgs> single_threaded_property(TArgs&&... value) : base_type(std::forward<TArgs>(value)...) {}
 
         using base_type = std::conditional_t<std::is_scalar_v<T> || std::is_final_v<T>, wil::details::single_threaded_property_storage<T>, T>;
 
@@ -61,7 +61,7 @@ namespace wil
     struct single_threaded_rw_property : single_threaded_property<T>
     {
         using base_type = single_threaded_property<T>;
-        template<typename... TArgs> single_threaded_rw_property(TArgs... value) : base_type(std::move(value)...) {}
+        template<typename... TArgs> single_threaded_rw_property(TArgs&&... value) : base_type(std::forward<TArgs>(value)...) {}
 
         using base_type::operator();
 
@@ -261,14 +261,14 @@ namespace wil
     * @details You can pass an initializer list for the initial property value in the variadic arguments to this macro.
     */
 #define WIL_NOTIFYING_PROPERTY(type, name, ...)             \
-    type m_##name{__VA_ARGS__};                              \
+    type m_##name{__VA_ARGS__};                             \
     auto name() const noexcept { return m_##name; }         \
     auto& name(type value)                                  \
     {                                                       \
         if (m_##name != value)                              \
         {                                                   \
             m_##name = std::move(value);                    \
-            RaisePropertyChanged(L#name);                   \
+            RaisePropertyChanged(L"" #name);                \
         }                                                   \
         return *this;                                       \
     }                                                       \
@@ -278,7 +278,7 @@ namespace wil
     * @brief use this to initialize a wil::single_threaded_notifying_property in your class constructor.
     */
 #define INIT_NOTIFYING_PROPERTY(NAME, VALUE)  \
-        NAME(&m_propertyChanged, *this, L#NAME, VALUE)
+        NAME(&m_propertyChanged, *this, L"" #NAME, VALUE)
 
 #endif // !defined(__WIL_CPPWINRT_AUTHORING_INCLUDED_XAML_DATA) && (defined(WINRT_Microsoft_UI_Xaml_Data_H) || defined(WINRT_Windows_UI_Xaml_Data_H))
 } // namespace wil
