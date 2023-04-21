@@ -1,6 +1,10 @@
 
 #include <wil/cppwinrt.h>
 #include <winrt/Windows.Foundation.h>
+#if defined(_RESUMABLE_FUNCTIONS_SUPPORTED) || defined(__cpp_lib_coroutine)
+#include <wil/coroutine.h>
+#include <thread>
+#endif
 #include <winrt/Windows.Foundation.Collections.h>
 #include <wil/cppwinrt_helpers.h>
 #include <winrt/Windows.System.h>
@@ -323,6 +327,173 @@ TEST_CASE("CppWinRTTests::ModuleReference", "[cppwinrt]")
 }
 
 #if (!defined(__clang__) && defined(__cpp_lib_coroutine) && (__cpp_lib_coroutine >= 201902L)) || defined(_RESUMABLE_FUNCTIONS_SUPPORTED)
+
+// Note that we use C++/WinRT's coroutines in the test framework,
+// so that we aren't using com_task to validate itself.
+
+namespace
+{
+    // Helper coroutine that lets us pause another coroutine
+    // until after we start co_await'ing for it.
+    winrt::fire_and_forget signal_later(HANDLE h)
+    {
+        winrt::apartment_context context;
+
+        ResetEvent(h);
+        co_await winrt::resume_background();
+
+        // The return to the STA thread occurs after
+        // the STA thread's current coroutine suspends.
+        co_await context;
+
+        SetEvent(h);
+    }
+
+    wil::com_task<void> void_com_task(std::shared_ptr<int> value, HANDLE h)
+    {
+        if (h) co_await winrt::resume_on_signal(h);
+        ++* value;
+        co_return;
+    }
+
+    // Return a reference to the wrapped integer.
+    wil::com_task<int&> intref_com_task(std::shared_ptr<int> value, HANDLE h)
+    {
+        co_await void_com_task(value, h);
+        co_return *value;
+    }
+
+    // Return a move-only type.
+    wil::com_task<wil::unique_cotaskmem_string> string_com_task(HANDLE h)
+    {
+        if (h) co_await winrt::resume_on_signal(h);
+        co_return wil::make_cotaskmem_string(L"Hello");
+    }
+
+    // Return a move-only type with agile resumption.
+    wil::task<wil::unique_cotaskmem_string> string_task(HANDLE h)
+    {
+        if (h) co_await winrt::resume_on_signal(h);
+        co_return wil::make_cotaskmem_string(L"Hello");
+    }
+
+    wil::com_task<void> exception_com_task(HANDLE h)
+    {
+        if (h) co_await winrt::resume_on_signal(h);
+        throw 42; // throw some random exception
+    }
+
+    wil::com_task<void> test_sta_task(HANDLE e)
+    {
+        auto on_ui_thread = [originalThread = GetCurrentThreadId()]
+        { return originalThread == GetCurrentThreadId(); };
+
+        // Signal the incoming event handle when the coroutine has completed.
+        auto complete = wil::SetEvent_scope_exit(e);
+
+        // Create our own event handle to force race conditions.
+        auto sync = wil::unique_event(wil::EventOptions::ManualReset);
+
+        // Remember original thread so we can return to it at the start of each test (if desired).
+        winrt::apartment_context context;
+
+        // Basic test of com_task, ensuring that we return to the UI thread.
+        co_await context; // start on UI thread
+        auto value = std::make_shared<int>(1);
+        signal_later(sync.get()); // prevent void_com_task from completing before we call await_ready
+        co_await void_com_task(value, sync.get());
+        REQUIRE(*value == 2);
+        REQUIRE(on_ui_thread());
+
+        // Fancier version that produces a reference (which PPL and C++/WinRT don't support).
+        co_await context; // start on UI thread
+        signal_later(sync.get()); // prevent intref_com_task from completing before we call await_ready
+        int& valueRef = co_await intref_com_task(value, sync.get());
+        REQUIRE(wistd::addressof(valueRef) == wistd::addressof(*value));
+        REQUIRE(*value == 3);
+        REQUIRE(on_ui_thread());
+
+        // Test forced agility via task conversion.
+        co_await context; // start on UI thread
+        signal_later(sync.get()); // prevent void_com_task from completing before we call await_ready
+        co_await wil::task(void_com_task(value, sync.get()));
+        REQUIRE(*value == 4);
+        REQUIRE(!on_ui_thread());
+
+        // Test that co_await of a com_task from a threadpool thread stays on the threadpool.
+        // Also test move-only type.
+        co_await winrt::resume_background(); // start on non-UI thread
+        signal_later(sync.get()); // prevent string_com_task from completing before we call await_ready
+        auto str = co_await string_com_task(sync.get());
+        REQUIRE(wcscmp(str.get(), L"Hello") == 0);
+        REQUIRE(!on_ui_thread());
+
+        // Test forced agility via resume_any_thread.
+        co_await context; // start on UI thread
+        signal_later(sync.get()); // prevent string_com_task from completing before we call await_ready
+        str = co_await string_com_task(sync.get()).resume_any_thread();
+        REQUIRE(wcscmp(str.get(), L"Hello") == 0);
+        REQUIRE(!on_ui_thread());
+
+        // Test exceptions.
+        co_await context; // start on UI thread
+        signal_later(sync.get()); // prevent exception_com_task from completing before we call await_ready
+        REQUIRE_THROWS_AS(co_await exception_com_task(sync.get()), int);
+        REQUIRE(on_ui_thread());
+
+        // Test forced apartment awareness via task conversion.
+        signal_later(sync.get()); // prevent string_task from completing before we call await_ready
+        str = co_await wil::com_task(string_task(sync.get()));
+        REQUIRE(wcscmp(str.get(), L"Hello") == 0);
+        REQUIRE(on_ui_thread());
+
+        // Test forced apartment awareness via resume_same_apartment.
+        co_await context; // start on UI thread
+        signal_later(sync.get()); // prevent string_task from completing before we call await_ready
+        str = co_await string_task(sync.get()).resume_same_apartment();
+        REQUIRE(wcscmp(str.get(), L"Hello") == 0);
+        REQUIRE(on_ui_thread());
+
+        // Test agile task
+        co_await context; // start on UI thread
+        signal_later(sync.get()); // prevent string_task from completing before we call await_ready
+        str = co_await string_task(sync.get());
+        REQUIRE(wcscmp(str.get(), L"Hello") == 0);
+        REQUIRE(!on_ui_thread());
+    }
+}
+
+TEST_CASE("CppWinRTTests::SimpleTaskTest", "[cppwinrt]")
+{
+    std::thread([]
+        {
+            // MTA tests
+            wil::unique_mta_usage_cookie cookie;
+            REQUIRE(CoIncrementMTAUsage(cookie.put()) == S_OK);
+            auto value = std::make_shared<int>(0);
+            void_com_task(value, nullptr).get();
+            REQUIRE(*value == 1);
+            // Keep MTA active while we run the STA tests.
+
+            // STA tests
+            auto init = wil::CoInitializeEx(COINIT_APARTMENTTHREADED);
+
+            auto done = wil::shared_event(wil::unique_event(wil::EventOptions::ManualReset));
+            auto handle = done.get();
+            auto task = test_sta_task(handle);
+            DWORD waitResult;
+            while ((waitResult = MsgWaitForMultipleObjects(1, &handle, false, INFINITE, QS_ALLEVENTS)) == WAIT_OBJECT_0 + 1)
+            {
+                MSG msg;
+                while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+                {
+                    TranslateMessage(&msg);
+                    DispatchMessage(&msg);
+                }
+            }
+        }
+    ).join();
+}
 
 // Define our own custom dispatcher that we can force it to behave in certain ways.
 // wil::resume_foreground supports any dispatcher that has a dispatcher_traits.
