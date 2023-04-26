@@ -37,9 +37,10 @@ namespace wil
          * \param hr HRESULT to test from registry APIs
          * \return boolean if the HRESULT indicates the registry value was not found
          */
-        constexpr bool is_hresult_not_found(HRESULT hr) WI_NOEXCEPT
+        constexpr bool is_registry_not_found(HRESULT hr) WI_NOEXCEPT
         {
-            return hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND);
+            return (hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND)) ||
+                (hr == HRESULT_FROM_WIN32(ERROR_PATH_NOT_FOUND));
         }
 
         /**
@@ -47,7 +48,7 @@ namespace wil
          * \param hr HRESULT to test from registry APIs
          * \return boolean if the HRESULT indicates the buffer was too small for the value being read
          */
-        constexpr bool is_hresult_buffer_too_small(HRESULT hr) WI_NOEXCEPT
+        constexpr bool is_registry_buffer_too_small(HRESULT hr) WI_NOEXCEPT
         {
             return hr == HRESULT_FROM_WIN32(ERROR_MORE_DATA);
         }
@@ -133,7 +134,7 @@ namespace wil
          * \param access The requested access desired for the opened key
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        inline HRESULT open_unique_key_nothrow(HKEY key, _In_opt_ PCWSTR path, _Out_::wil::unique_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
+        inline HRESULT open_unique_key_nothrow(HKEY key, _In_opt_ PCWSTR path, ::wil::unique_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
         {
             hkey.reset();
             const reg_view_details::reg_view_nothrow regview{ key };
@@ -149,7 +150,7 @@ namespace wil
          * \param access The requested access desired for the opened key
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        inline HRESULT create_unique_key_nothrow(HKEY key, PCWSTR path, _Out_::wil::unique_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
+        inline HRESULT create_unique_key_nothrow(HKEY key, PCWSTR path, ::wil::unique_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
         {
             hkey.reset();
             const reg_view_details::reg_view_nothrow regview{ key };
@@ -166,7 +167,7 @@ namespace wil
          * \param access The requested access desired for the opened key
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        inline HRESULT open_shared_key_nothrow(HKEY key, _In_opt_ PCWSTR path, _Out_::wil::shared_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
+        inline HRESULT open_shared_key_nothrow(HKEY key, _In_opt_ PCWSTR path, ::wil::shared_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
         {
             hkey.reset();
             const reg_view_details::reg_view_nothrow regview{ key };
@@ -182,13 +183,29 @@ namespace wil
          * \param access The requested access desired for the opened key
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        inline HRESULT create_shared_key_nothrow(HKEY key, _In_opt_ PCWSTR path, _Out_::wil::shared_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
+        inline HRESULT create_shared_key_nothrow(HKEY key, _In_opt_ PCWSTR path, ::wil::shared_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
         {
             hkey.reset();
             const reg_view_details::reg_view_nothrow regview{ key };
             return regview.create_key(path, hkey.addressof(), access);
         }
 #endif // #define __WIL_WINREG_STL
+
+        namespace reg_query_info_key_args
+        {
+            // RegQueryInfoKeyW has a long list of optional parameters
+            static constexpr LPWSTR null_class{ nullptr };
+            static constexpr LPDWORD null_class_char_count{ nullptr };
+            static constexpr LPDWORD null_reserved{ nullptr };
+            static constexpr LPDWORD null_subkey_count{ nullptr };
+            static constexpr LPDWORD null_max_subkey_length{ nullptr };
+            static constexpr LPDWORD null_max_class_length{ nullptr };
+            static constexpr LPDWORD null_value_count{ nullptr };
+            static constexpr LPDWORD null_max_value_name_length{ nullptr };
+            static constexpr LPDWORD null_max_value_length{ nullptr };
+            static constexpr LPDWORD null_security_descriptor{ nullptr };
+            static constexpr PFILETIME null_last_write_filetime{ nullptr };
+        }
 
 #if defined(WIL_ENABLE_EXCEPTIONS)
         /**
@@ -200,9 +217,19 @@ namespace wil
         inline size_t get_child_key_count(HKEY key)
         {
             DWORD numSubKeys{};
-            THROW_IF_WIN32_ERROR(::RegQueryInfoKeyW(
-                key, nullptr, nullptr, nullptr, &numSubKeys, nullptr,
-                nullptr, nullptr, nullptr, nullptr, nullptr, nullptr));
+            THROW_IF_WIN32_ERROR(RegQueryInfoKeyW(
+                key,
+                reg_query_info_key_args::null_class,
+                reg_query_info_key_args::null_class_char_count,
+                reg_query_info_key_args::null_reserved,
+                &numSubKeys,
+                reg_query_info_key_args::null_max_subkey_length,
+                reg_query_info_key_args::null_max_class_length,
+                reg_query_info_key_args::null_value_count,
+                reg_query_info_key_args::null_max_value_name_length,
+                reg_query_info_key_args::null_max_value_length,
+                reg_query_info_key_args::null_security_descriptor,
+                reg_query_info_key_args::null_last_write_filetime));
             return numSubKeys;
         }
 
@@ -215,10 +242,45 @@ namespace wil
         inline size_t get_child_value_count(HKEY key)
         {
             DWORD numSubValues{};
-            THROW_IF_WIN32_ERROR(::RegQueryInfoKeyW(
-                key, nullptr, nullptr, nullptr, nullptr, nullptr,
-                nullptr, &numSubValues, nullptr, nullptr, nullptr, nullptr));
+            THROW_IF_WIN32_ERROR(RegQueryInfoKeyW(
+                key,
+                reg_query_info_key_args::null_class,
+                reg_query_info_key_args::null_class_char_count,
+                reg_query_info_key_args::null_reserved,
+                reg_query_info_key_args::null_subkey_count,
+                reg_query_info_key_args::null_max_subkey_length,
+                reg_query_info_key_args::null_max_class_length,
+                &numSubValues,
+                reg_query_info_key_args::null_max_value_name_length,
+                reg_query_info_key_args::null_max_value_length,
+                reg_query_info_key_args::null_security_descriptor,
+                reg_query_info_key_args::null_last_write_filetime));
             return numSubValues;
+        }
+
+        /**
+         * \brief Queries for the filetime when the registry key was last modified
+         * \param key The HKEY to query for number of values
+         * \return The queried filetime if succeeded
+         * \exception std::exception (including wil::ResultException) will be thrown on all failures
+         */
+        inline FILETIME get_key_last_modified_nothrow(HKEY key)
+        {
+            FILETIME lastModified{};
+            THROW_IF_WIN32_ERROR(RegQueryInfoKeyW(
+                key,
+                reg_query_info_key_args::null_class,
+                reg_query_info_key_args::null_class_char_count,
+                reg_query_info_key_args::null_reserved,
+                reg_query_info_key_args::null_subkey_count,
+                reg_query_info_key_args::null_max_subkey_length,
+                reg_query_info_key_args::null_max_class_length,
+                reg_query_info_key_args::null_value_count,
+                reg_query_info_key_args::null_max_value_name_length,
+                reg_query_info_key_args::null_max_value_length,
+                reg_query_info_key_args::null_security_descriptor,
+                &lastModified));
+            return lastModified;
         }
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS)
 
@@ -230,9 +292,19 @@ namespace wil
          */
         inline HRESULT get_child_key_count_nothrow(HKEY key, _Out_ DWORD* numSubKeys) WI_NOEXCEPT
         {
-            RETURN_IF_WIN32_ERROR(::RegQueryInfoKeyW(
-                key, nullptr, nullptr, nullptr, numSubKeys, nullptr,
-                nullptr, nullptr, nullptr, nullptr, nullptr, nullptr));
+            RETURN_IF_WIN32_ERROR(RegQueryInfoKeyW(
+                key,
+                reg_query_info_key_args::null_class,
+                reg_query_info_key_args::null_class_char_count,
+                reg_query_info_key_args::null_reserved,
+                numSubKeys,
+                reg_query_info_key_args::null_max_subkey_length,
+                reg_query_info_key_args::null_max_class_length,
+                reg_query_info_key_args::null_value_count,
+                reg_query_info_key_args::null_max_value_name_length,
+                reg_query_info_key_args::null_max_value_length,
+                reg_query_info_key_args::null_security_descriptor,
+                reg_query_info_key_args::null_last_write_filetime));
             return S_OK;
         }
 
@@ -244,9 +316,43 @@ namespace wil
          */
         inline HRESULT get_child_value_count_nothrow(HKEY key, _Out_ DWORD* numSubValues) WI_NOEXCEPT
         {
-            RETURN_IF_WIN32_ERROR(::RegQueryInfoKeyW(
-                key, nullptr, nullptr, nullptr, nullptr, nullptr,
-                nullptr, numSubValues, nullptr, nullptr, nullptr, nullptr));
+            RETURN_IF_WIN32_ERROR(RegQueryInfoKeyW(
+                key,
+                reg_query_info_key_args::null_class,
+                reg_query_info_key_args::null_class_char_count,
+                reg_query_info_key_args::null_reserved,
+                reg_query_info_key_args::null_subkey_count,
+                reg_query_info_key_args::null_max_subkey_length,
+                reg_query_info_key_args::null_max_class_length,
+                numSubValues,
+                reg_query_info_key_args::null_max_value_name_length,
+                reg_query_info_key_args::null_max_value_length,
+                reg_query_info_key_args::null_security_descriptor,
+                reg_query_info_key_args::null_last_write_filetime));
+            return S_OK;
+        }
+
+        /**
+         * \brief Queries for the filetime when the registry key was last modified
+         * \param key The HKEY to query for number of values
+         * \param[out] lastModified A pointer to a FILETIME to receive the last time modified
+         * \exception std::exception (including wil::ResultException) will be thrown on all failures
+         */
+        inline HRESULT get_key_last_modified_nothrow(HKEY key, _Out_ FILETIME* lastModified) WI_NOEXCEPT
+        {
+            RETURN_IF_WIN32_ERROR(RegQueryInfoKeyW(
+                key,
+                reg_query_info_key_args::null_class,
+                reg_query_info_key_args::null_class_char_count,
+                reg_query_info_key_args::null_reserved,
+                reg_query_info_key_args::null_subkey_count,
+                reg_query_info_key_args::null_max_subkey_length,
+                reg_query_info_key_args::null_max_class_length,
+                reg_query_info_key_args::null_value_count,
+                reg_query_info_key_args::null_max_value_name_length,
+                reg_query_info_key_args::null_max_value_length,
+                reg_query_info_key_args::null_security_descriptor,
+                lastModified));
             return S_OK;
         }
 
@@ -936,6 +1042,17 @@ namespace wil
         {
             return ::wil::reg::get_value<::std::wstring>(key, subkey, value_name);
         }
+
+        /**
+         * \brief Reads a REG_SZ value, returning a std::wstring
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param subkey A string to append to the HKEY to attempt to read from
+         *        can be nullptr if not needed
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \return A std::wstring created from the string value read from the registry
+         * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
+         */
         template <>
         inline ::std::wstring get_value_string<::std::wstring>(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
         {
@@ -955,6 +1072,16 @@ namespace wil
         {
             return ::wil::reg::get_value<::std::wstring>(key, nullptr, value_name);
         }
+
+        /**
+         * \brief Reads a REG_SZ value, returning a std::wstring
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \return A std::wstring created from the string value read from the registry
+         *         note, the returned string will have already passed through ExpandEnvironmentStringsW
+         * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
+         */
         template <>
         inline ::std::wstring get_value_string<::std::wstring>(HKEY key, _In_opt_ PCWSTR value_name)
         {
@@ -979,6 +1106,18 @@ namespace wil
             regview.get_value(subkey, value_name, value, REG_EXPAND_SZ);
             return value;
         }
+
+        /**
+         * \brief Reads a REG_EXPAND_SZ value, returning a std::wstring
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param subkey A string to append to the HKEY to attempt to read from
+         *        can be nullptr if not needed
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \return A std::wstring created from the string value read from the registry
+         *         note, the returned string will have already passed through ExpandEnvironmentStringsW
+         * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
+         */
         template <>
         inline ::std::wstring get_value_expanded_string<::std::wstring>(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
         {
@@ -998,6 +1137,16 @@ namespace wil
         {
             return ::wil::reg::get_value_expanded_string(key, nullptr, value_name);
         }
+
+        /**
+         * \brief Reads a REG_EXPAND_SZ value, returning a std::wstring
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \return A std::wstring created from the string value read from the registry
+         *         note, the returned string will have already passed through ExpandEnvironmentStringsW
+         * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
+         */
         template <>
         inline ::std::wstring get_value_expanded_string<::std::wstring>(HKEY key, _In_opt_ PCWSTR value_name)
         {
@@ -2079,7 +2228,7 @@ namespace wil
          * \param[out] return_value A std::wstring receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        inline HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _Inout_::std::wstring& return_value) WI_NOEXCEPT
+        inline HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, ::std::wstring& return_value) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_nothrow(key, subkey, value_name, &return_value);
         }
@@ -2092,7 +2241,7 @@ namespace wil
          * \param[out] return_value A std::wstring receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        inline HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _Inout_::std::wstring& return_value) WI_NOEXCEPT
+        inline HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, ::std::wstring& return_value) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_nothrow(key, nullptr, value_name, &return_value);
         }
@@ -2139,7 +2288,7 @@ namespace wil
          * \param[out] return_value A wil::unique_bstr receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        inline HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _Inout_::wil::unique_bstr& return_value) WI_NOEXCEPT
+        inline HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, ::wil::unique_bstr& return_value) WI_NOEXCEPT
         {
             return_value.reset();
             return ::wil::reg::get_value_nothrow(key, subkey, value_name, return_value.addressof());
@@ -2153,7 +2302,7 @@ namespace wil
          * \param[out] return_value A wil::unique_bstr receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        inline HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _Inout_::wil::unique_bstr& return_value) WI_NOEXCEPT
+        inline HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, ::wil::unique_bstr& return_value) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_string_nothrow(key, nullptr, value_name, return_value);
         }
@@ -2199,7 +2348,7 @@ namespace wil
          * \param[out] return_value A wil::shared_bstr receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        inline HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _Inout_::wil::shared_bstr& return_value) WI_NOEXCEPT
+        inline HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, ::wil::shared_bstr& return_value) WI_NOEXCEPT
         {
             return_value.reset();
             return ::wil::reg::get_value_nothrow(key, subkey, value_name, return_value.addressof());
@@ -2213,7 +2362,7 @@ namespace wil
          * \param[out] return_value A wil::shared_bstr receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        inline HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _Inout_::wil::shared_bstr& return_value) WI_NOEXCEPT
+        inline HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, ::wil::shared_bstr& return_value) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_string_nothrow(key, nullptr, value_name, return_value);
         }
@@ -2261,7 +2410,7 @@ namespace wil
           * \param[out] return_value A wil::unique_cotaskmem_string receiving the value read from the registry
           * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
           */
-        inline HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _Inout_::wil::unique_cotaskmem_string& return_value) WI_NOEXCEPT
+        inline HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, ::wil::unique_cotaskmem_string& return_value) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_nothrow(key, subkey, value_name, return_value);
         }
@@ -2274,7 +2423,7 @@ namespace wil
          * \param[out] return_value A wil::unique_cotaskmem_string receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        inline HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _Inout_::wil::unique_cotaskmem_string& return_value) WI_NOEXCEPT
+        inline HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, ::wil::unique_cotaskmem_string& return_value) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_nothrow(key, nullptr, value_name, return_value);
         }
@@ -2319,7 +2468,7 @@ namespace wil
           * \param[out] return_value A wil::shared_cotaskmem_string receiving the value read from the registry
           * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
           */
-        inline HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _Inout_::wil::shared_cotaskmem_string& return_value) WI_NOEXCEPT
+        inline HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, ::wil::shared_cotaskmem_string& return_value) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_nothrow(key, subkey, value_name, return_value);
         }
@@ -2332,7 +2481,7 @@ namespace wil
          * \param[out] return_value A wil::shared_cotaskmem_string receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        inline HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _Inout_::wil::shared_cotaskmem_string& return_value) WI_NOEXCEPT
+        inline HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, ::wil::shared_cotaskmem_string& return_value) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_nothrow(key, nullptr, value_name, return_value);
         }
@@ -2351,7 +2500,7 @@ namespace wil
          * \param[out] return_value A std::vector<BYTE> receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        inline HRESULT get_value_byte_vector_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, DWORD type, _Inout_::std::vector<BYTE>* return_value) WI_NOEXCEPT try
+        inline HRESULT get_value_byte_vector_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, DWORD type, ::std::vector<BYTE>* return_value) WI_NOEXCEPT try
         {
             // zero the vector if it already had a buffer
             for (auto& byte_value : *return_value)
@@ -2373,7 +2522,7 @@ namespace wil
          * \param[out] return_value A std::vector<BYTE> receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        inline HRESULT get_value_byte_vector_nothrow(HKEY key, _In_opt_ PCWSTR value_name, DWORD type, _Inout_::std::vector<BYTE>* return_value) WI_NOEXCEPT
+        inline HRESULT get_value_byte_vector_nothrow(HKEY key, _In_opt_ PCWSTR value_name, DWORD type, ::std::vector<BYTE>* return_value) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_byte_vector_nothrow(key, nullptr, value_name, type, return_value);
         }
@@ -2427,7 +2576,7 @@ namespace wil
          * \param[out] return_value A std::wstring receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        inline HRESULT get_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _Inout_::std::wstring& return_value) WI_NOEXCEPT try
+        inline HRESULT get_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, ::std::wstring& return_value) WI_NOEXCEPT try
         {
             const reg_view_details::reg_view_nothrow regview{ key };
             RETURN_IF_FAILED(regview.get_value<::std::wstring>(subkey, value_name, return_value, REG_EXPAND_SZ));
@@ -2443,7 +2592,7 @@ namespace wil
          * \param[out] return_value A std::wstring receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        inline HRESULT get_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _Inout_::std::wstring& return_value) WI_NOEXCEPT
+        inline HRESULT get_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, ::std::wstring& return_value) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_expanded_string_nothrow(key, nullptr, value_name, return_value);
         }
@@ -2460,7 +2609,7 @@ namespace wil
          * \param[out] return_value A wil::unique_bstr receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        inline HRESULT get_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _Inout_::wil::unique_bstr& return_value) WI_NOEXCEPT
+        inline HRESULT get_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, ::wil::unique_bstr& return_value) WI_NOEXCEPT
         {
             return_value.reset();
             const reg_view_details::reg_view_nothrow regview{ key };
@@ -2475,7 +2624,7 @@ namespace wil
          * \param[out] return_value A wil::unique_bstr receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        inline HRESULT get_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _Inout_::wil::unique_bstr& return_value) WI_NOEXCEPT
+        inline HRESULT get_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, ::wil::unique_bstr& return_value) WI_NOEXCEPT
         {
             return wil::reg::get_value_expanded_string_nothrow(key, nullptr, value_name, return_value);
         }
@@ -2491,7 +2640,7 @@ namespace wil
          * \param[out] return_value A wil::shared_bstr receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        inline HRESULT get_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _Inout_::wil::shared_bstr& return_value) WI_NOEXCEPT
+        inline HRESULT get_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, ::wil::shared_bstr& return_value) WI_NOEXCEPT
         {
             return_value.reset();
             const reg_view_details::reg_view_nothrow regview{ key };
@@ -2506,7 +2655,7 @@ namespace wil
          * \param[out] return_value A wil::shared_bstr receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        inline HRESULT get_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _Inout_::wil::shared_bstr& return_value) WI_NOEXCEPT try
+        inline HRESULT get_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, ::wil::shared_bstr& return_value) WI_NOEXCEPT try
         {
             return ::wil::reg::get_value_expanded_string_nothrow(key, nullptr, value_name, return_value);
         }
@@ -2525,7 +2674,7 @@ namespace wil
          * \param[out] return_value A wil::unique_cotaskmem_string receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        inline HRESULT get_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _Inout_::wil::unique_cotaskmem_string& return_value) WI_NOEXCEPT
+        inline HRESULT get_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, ::wil::unique_cotaskmem_string& return_value) WI_NOEXCEPT
         {
             const reg_view_details::reg_view_nothrow regview{ key };
             return regview.get_value<::wil::unique_cotaskmem_string>(subkey, value_name, return_value, REG_EXPAND_SZ);
@@ -2539,7 +2688,7 @@ namespace wil
          * \param[out] return_value A wil::unique_cotaskmem_string receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        inline HRESULT get_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _Inout_::wil::unique_cotaskmem_string& return_value) WI_NOEXCEPT
+        inline HRESULT get_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, ::wil::unique_cotaskmem_string& return_value) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_expanded_string_nothrow(key, nullptr, value_name, return_value);
         }
@@ -2554,7 +2703,7 @@ namespace wil
          * \param[out] return_value A wil::shared_cotaskmem_string receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        inline HRESULT get_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _Inout_::wil::shared_cotaskmem_string& return_value) WI_NOEXCEPT
+        inline HRESULT get_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, ::wil::shared_cotaskmem_string& return_value) WI_NOEXCEPT
         {
             const reg_view_details::reg_view_nothrow regview{ key };
             return regview.get_value<::wil::shared_cotaskmem_string>(subkey, value_name, return_value, REG_EXPAND_SZ);
@@ -2568,7 +2717,7 @@ namespace wil
          * \param[out] return_value A wil::shared_cotaskmem_string receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        inline HRESULT get_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _Inout_::wil::shared_cotaskmem_string& return_value) WI_NOEXCEPT
+        inline HRESULT get_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, ::wil::shared_cotaskmem_string& return_value) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_expanded_string_nothrow(key, nullptr, value_name, return_value);
         }
@@ -2586,7 +2735,7 @@ namespace wil
          * \param[out] return_value A std::vector<std::wstring> receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        inline HRESULT get_value_multistring_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _Inout_::std::vector<::std::wstring>* return_value) WI_NOEXCEPT try
+        inline HRESULT get_value_multistring_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, ::std::vector<::std::wstring>* return_value) WI_NOEXCEPT try
         {
             return_value->clear();
 
@@ -2610,7 +2759,7 @@ namespace wil
          * \param[out] return_value A std::vector<std::wstring> receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        inline HRESULT get_value_multistring_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _Inout_::std::vector<::std::wstring>* return_value) WI_NOEXCEPT
+        inline HRESULT get_value_multistring_nothrow(HKEY key, _In_opt_ PCWSTR value_name, ::std::vector<::std::wstring>* return_value) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_multistring_nothrow(key, nullptr, value_name, return_value);
         }
@@ -2626,7 +2775,7 @@ namespace wil
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
         template<>
-        inline HRESULT get_value_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _Inout_::std::vector<::std::wstring>* return_value) WI_NOEXCEPT
+        inline HRESULT get_value_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, ::std::vector<::std::wstring>* return_value) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_multistring_nothrow(key, subkey, value_name, return_value);
         }
@@ -2640,7 +2789,7 @@ namespace wil
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
         template<>
-        inline HRESULT get_value_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _Inout_::std::vector<::std::wstring>* return_value) WI_NOEXCEPT
+        inline HRESULT get_value_nothrow(HKEY key, _In_opt_ PCWSTR value_name, ::std::vector<::std::wstring>* return_value) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_multistring_nothrow(key, nullptr, value_name, return_value);
         }
@@ -2711,10 +2860,10 @@ namespace wil
         inline ::std::optional<::std::vector<::std::wstring>> try_get_value_multistring(HKEY key, _In_opt_ PCWSTR value_name)
         {
             return ::wil::reg::try_get_value_multistring(key, nullptr, value_name);
-        }
+    }
 #endif // #if defined (_OPTIONAL_) && defined(__cpp_lib_optional)
 #endif // #if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
-    }
+}
 
     // unique_registry_watcher/unique_registry_watcher_nothrow/unique_registry_watcher_failfast
     // These classes make it easy to execute a provided function when a
