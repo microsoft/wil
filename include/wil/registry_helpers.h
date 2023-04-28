@@ -90,7 +90,7 @@ namespace wil
                 {
                     if (!wstr.empty())
                     {
-                        // back_inserter returns an iterator to enable ::std::copy to write
+                        // back_inserter returns an iterator to enable ::std::copy to write into 'wstr'
                         // from begin() to end() at the back_inserter iterator, growing the vector as necessary
                         ::std::copy(::std::begin(wstr), ::std::end(wstr), ::std::back_inserter(multistring));
                     }
@@ -540,7 +540,10 @@ namespace wil
 
                 // get_value_type requires a well-known type for T
                 template <typename T>
-                DWORD get_value_type() WI_NOEXCEPT;
+                DWORD get_value_type() WI_NOEXCEPT
+                {
+                    static_assert(sizeof(T) != sizeof(T), "Unsupported type for get_value_type");
+                }
 
                 template <>
                 constexpr DWORD get_value_type<int32_t>() WI_NOEXCEPT
@@ -630,75 +633,96 @@ namespace wil
                 }
 #endif // #if defined(__WIL_OBJBASE_H_STL)
 
-                constexpr DWORD set_value_type(int32_t) WI_NOEXCEPT
+                // set_value_type requires a well-known type for T
+                template <typename T>
+                DWORD set_value_type() WI_NOEXCEPT
+                {
+                    static_assert(sizeof(T) != sizeof(T), "Unsupported type for set_value_type");
+                }
+
+                template <>
+                constexpr DWORD set_value_type<int32_t>() WI_NOEXCEPT
                 {
                     return REG_DWORD;
                 }
 
-                constexpr DWORD set_value_type(uint32_t) WI_NOEXCEPT
+                template <>
+                constexpr DWORD set_value_type<uint32_t>() WI_NOEXCEPT
                 {
                     return REG_DWORD;
                 }
 
-                constexpr DWORD set_value_type(long) WI_NOEXCEPT
+                template <>
+                constexpr DWORD set_value_type<long>() WI_NOEXCEPT
                 {
                     return REG_DWORD;
                 }
 
-                constexpr DWORD set_value_type(unsigned long) WI_NOEXCEPT
+                template <>
+                constexpr DWORD set_value_type<unsigned long>() WI_NOEXCEPT
                 {
                     return REG_DWORD;
                 }
 
-                constexpr DWORD set_value_type(int64_t) WI_NOEXCEPT
+                template <>
+                constexpr DWORD set_value_type<int64_t>() WI_NOEXCEPT
                 {
                     return REG_QWORD;
                 }
 
-                constexpr DWORD set_value_type(uint64_t) WI_NOEXCEPT
+                template <>
+                constexpr DWORD set_value_type<uint64_t>() WI_NOEXCEPT
                 {
                     return REG_QWORD;
                 }
 
-                constexpr DWORD set_value_type(PCWSTR) WI_NOEXCEPT
+                template <>
+                constexpr DWORD set_value_type<PCWSTR>() WI_NOEXCEPT
                 {
                     return REG_SZ;
                 }
 
 #if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
-                constexpr DWORD set_value_type(const ::std::wstring&) WI_NOEXCEPT
+                template <>
+                constexpr DWORD set_value_type<const ::std::wstring&>() WI_NOEXCEPT
                 {
                     return REG_SZ;
                 }
 #endif // #if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
 
 #if defined(__WIL_OLEAUTO_H_)
-                constexpr DWORD set_value_type(const BSTR&) WI_NOEXCEPT
+                template <>
+                constexpr DWORD set_value_type<const BSTR&>() WI_NOEXCEPT
                 {
                     return REG_SZ;
                 }
-                constexpr DWORD set_value_type(const ::wil::unique_bstr&) WI_NOEXCEPT
+
+                template <>
+                constexpr DWORD set_value_type<const ::wil::unique_bstr&>() WI_NOEXCEPT
                 {
                     return REG_SZ;
                 }
 #endif // #if defined(__WIL_OLEAUTO_H_)
 
 #if defined(__WIL_OLEAUTO_H_STL)
-                constexpr DWORD set_value_type(const ::wil::shared_bstr&) WI_NOEXCEPT
+                template <>
+                constexpr DWORD set_value_type<const ::wil::shared_bstr&>() WI_NOEXCEPT
                 {
                     return REG_SZ;
                 }
 #endif // #if defined(__WIL_OLEAUTO_H_STL)
 
 #if defined(__WIL_OBJBASE_H_)
-                constexpr DWORD set_value_type(const ::wil::unique_cotaskmem_string&) WI_NOEXCEPT
+                template <>
+                constexpr DWORD set_value_type<const ::wil::unique_cotaskmem_string&>() WI_NOEXCEPT
                 {
                     return REG_SZ;
                 }
 #endif // defined(__WIL_OBJBASE_H_)
 
 #if defined(__WIL_OBJBASE_H_STL)
-                constexpr DWORD set_value_type(const ::wil::shared_cotaskmem_string&) WI_NOEXCEPT
+                template <>
+                constexpr DWORD set_value_type<const ::wil::shared_cotaskmem_string&>() WI_NOEXCEPT
                 {
                     return REG_SZ;
                 }
@@ -709,8 +733,7 @@ namespace wil
             class reg_view_t
             {
             public:
-                explicit reg_view_t(HKEY key) WI_NOEXCEPT :
-                    m_key(key)
+                explicit reg_view_t(HKEY key) WI_NOEXCEPT : m_key(key)
                 {
                 }
                 ~reg_view_t() = default;
@@ -733,7 +756,7 @@ namespace wil
                     constexpr DWORD zero_reserved{ 0 };
                     constexpr PWSTR null_class{ nullptr };
                     constexpr DWORD zero_options{ 0 };
-                    constexpr PSECURITY_ATTRIBUTES null_security_attributes{ nullptr };
+                    constexpr SECURITY_ATTRIBUTES* null_security_attributes{ nullptr };
                     DWORD disposition{ 0 };
                     const auto error =
                         ::RegCreateKeyExW(m_key, subKey, zero_reserved, null_class, zero_options, get_access_flags(access), null_security_attributes, hkey, &disposition);
@@ -755,7 +778,78 @@ namespace wil
                     return err_policy::HResult(HRESULT_FROM_WIN32(::RegDeleteValueW(m_key, value_name)));
                 }
 
+                template <typename R>
+                typename err_policy::result get_value(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, R& return_value, DWORD type = reg_value_type_info::get_value_type<R>()) const
+                {
+                    return get_value_with_type(subkey, value_name, return_value, type);
+                }
+
+                template <size_t Length>
+                typename err_policy::result get_value_char_array(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length], DWORD type, _Out_opt_ DWORD* requiredBytes = nullptr) const
+                {
+                    ::wil::assign_to_opt_param(requiredBytes, 0ul);
+                    DWORD data_size_bytes{ Length * sizeof(WCHAR) };
+                    const auto error = ::RegGetValueW(m_key, subkey, value_name, ::wil::reg::reg_view_details::get_value_flags_from_value_type(type), nullptr, return_value, &data_size_bytes);
+                    if (error == ERROR_SUCCESS || error == ERROR_MORE_DATA)
+                    {
+                        ::wil::assign_to_opt_param(requiredBytes, data_size_bytes);
+                    }
+                    return err_policy::HResult(HRESULT_FROM_WIN32(error));
+                }
+
+#if defined (_OPTIONAL_) && defined(__cpp_lib_optional)
+                // intended for err_exception_policy as err_returncode_policy will not get an error code
+                template <typename R>
+                ::std::optional<R> try_get_value(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, DWORD type = reg_value_type_info::get_value_type<R>()) const
+                {
+                    R value{};
+                    const auto hr = get_value_with_type<R, ::wil::err_returncode_policy>(subkey, value_name, value, type);
+                    if (SUCCEEDED(hr))
+                    {
+                        return ::std::optional(::std::move(value));
+                    }
+
+                    if (hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+                    {
+                        return ::std::nullopt;
+                    }
+
+                    // throw if exception policy
+                    err_policy::HResult(HRESULT_FROM_WIN32(hr));
+                    return ::std::nullopt;
+                }
+#endif // #if defined (_OPTIONAL_) && defined(__cpp_lib_optional)
+
+                template <typename R>
+                typename err_policy::result set_value(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const R& value, DWORD type = reg_value_type_info::set_value_type<R>()) const
+                {
+                    return set_value_with_type(subkey, value_name, value, type);
+                }
+
+#if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
+                typename err_policy::result set_value(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const ::std::vector<::std::wstring>& data) const
+                {
+                    const auto multiStringWcharVector(get_multistring_from_wstrings(::std::begin(data), ::std::end(data)));
+                    return set_value_with_type(subkey, value_name, multiStringWcharVector, REG_MULTI_SZ);
+                }
+#endif // #if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
+
             private:
+                const HKEY m_key{};
+
+                template <typename R>
+                typename err_policy::result set_value_with_type(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const R& value, DWORD type) const
+                {
+                    const auto error = ::RegSetKeyValueW(
+                        m_key,
+                        subkey,
+                        value_name,
+                        type,
+                        static_cast<BYTE*>(reg_value_type_info::get_buffer(value)),
+                        reg_value_type_info::get_buffer_size(value));
+                    return err_policy::HResult(HRESULT_FROM_WIN32(error));
+                }
+
                 template <typename R, typename get_value_with_type_policy = err_policy>
                 typename get_value_with_type_policy::result get_value_with_type(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, R& return_value, DWORD type = reg_value_type_info::get_value_type<R>()) const
                 {
@@ -778,7 +872,7 @@ namespace wil
                     DWORD bytes_allocated{ reg_value_type_info::get_buffer_size(return_value) };
                     for (;;)
                     {
-                        constexpr PDWORD null_type{ nullptr };
+                        constexpr DWORD* null_type{ nullptr };
                         DWORD data_size_bytes{ bytes_allocated };
                         hr = HRESULT_FROM_WIN32(::RegGetValueW(
                             m_key,
@@ -841,79 +935,6 @@ namespace wil
 
                     return get_value_with_type_policy::HResult(hr);
                 }
-
-            public:
-                template <typename R>
-                typename err_policy::result get_value(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, R& return_value, DWORD type = reg_value_type_info::get_value_type<R>()) const
-                {
-                    return get_value_with_type(subkey, value_name, return_value, type);
-                }
-
-                template <size_t Length>
-                typename err_policy::result get_value_char_array(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length], DWORD type, _Out_opt_ DWORD* requiredBytes = nullptr) const
-                {
-                    ::wil::assign_to_opt_param(requiredBytes, 0ul);
-                    DWORD data_size_bytes{ Length * sizeof(WCHAR) };
-                    const auto error = ::RegGetValueW(m_key, subkey, value_name, ::wil::reg::reg_view_details::get_value_flags_from_value_type(type), nullptr, return_value, &data_size_bytes);
-                    if (error == ERROR_SUCCESS || error == ERROR_MORE_DATA)
-                    {
-                        ::wil::assign_to_opt_param(requiredBytes, data_size_bytes);
-                    }
-                    return err_policy::HResult(HRESULT_FROM_WIN32(error));
-                }
-
-#if defined (_OPTIONAL_) && defined(__cpp_lib_optional)
-                // intended for err_exception_policy as err_returncode_policy will not get an error code
-                template <typename R>
-                ::std::optional<R> try_get_value(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, DWORD type = reg_value_type_info::get_value_type<R>()) const
-                {
-                    R value{};
-                    const auto hr = get_value_with_type<R, ::wil::err_returncode_policy>(subkey, value_name, value, type);
-                    if (SUCCEEDED(hr))
-                    {
-                        return ::std::optional(::std::move(value));
-                    }
-
-                    if (hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
-                    {
-                        return ::std::nullopt;
-                    }
-
-                    // throw if exception policy
-                    err_policy::HResult(HRESULT_FROM_WIN32(hr));
-                    return ::std::nullopt;
-                }
-#endif // #if defined (_OPTIONAL_) && defined(__cpp_lib_optional)
-
-                template <typename R>
-                typename err_policy::result set_value_with_type(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const R& value, DWORD type) const
-                {
-                    const auto error = ::RegSetKeyValueW(
-                        m_key,
-                        subkey,
-                        value_name,
-                        type,
-                        static_cast<BYTE*>(reg_value_type_info::get_buffer(value)),
-                        reg_value_type_info::get_buffer_size(value));
-                    return err_policy::HResult(HRESULT_FROM_WIN32(error));
-                }
-
-                template <typename R>
-                typename err_policy::result set_value(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const R& value) const
-                {
-                    return set_value_with_type(subkey, value_name, value, reg_value_type_info::set_value_type(value));
-                }
-
-#if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
-                typename err_policy::result set_value(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const ::std::vector<::std::wstring>& data) const
-                {
-                    const auto multiStringWcharVector(get_multistring_from_wstrings(::std::begin(data), ::std::end(data)));
-                    return set_value_with_type(subkey, value_name, multiStringWcharVector, REG_MULTI_SZ);
-                }
-#endif // #if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
-
-            private:
-                const HKEY m_key{};
             };
 
             using reg_view_nothrow = ::wil::reg::reg_view_details::reg_view_t<::wil::err_returncode_policy>;

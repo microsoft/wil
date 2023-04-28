@@ -194,17 +194,17 @@ namespace wil
         namespace reg_query_info_key_args
         {
             // RegQueryInfoKeyW has a long list of optional parameters
-            static constexpr LPWSTR null_class{ nullptr };
-            static constexpr LPDWORD null_class_char_count{ nullptr };
-            static constexpr LPDWORD null_reserved{ nullptr };
-            static constexpr LPDWORD null_subkey_count{ nullptr };
-            static constexpr LPDWORD null_max_subkey_length{ nullptr };
-            static constexpr LPDWORD null_max_class_length{ nullptr };
-            static constexpr LPDWORD null_value_count{ nullptr };
-            static constexpr LPDWORD null_max_value_name_length{ nullptr };
-            static constexpr LPDWORD null_max_value_length{ nullptr };
-            static constexpr LPDWORD null_security_descriptor{ nullptr };
-            static constexpr PFILETIME null_last_write_filetime{ nullptr };
+            static constexpr PWSTR null_class{ nullptr };
+            static constexpr DWORD* null_class_char_count{ nullptr };
+            static constexpr DWORD* null_reserved{ nullptr };
+            static constexpr DWORD* null_subkey_count{ nullptr };
+            static constexpr DWORD* null_max_subkey_length{ nullptr };
+            static constexpr DWORD* null_max_class_length{ nullptr };
+            static constexpr DWORD* null_value_count{ nullptr };
+            static constexpr DWORD* null_max_value_name_length{ nullptr };
+            static constexpr DWORD* null_max_value_length{ nullptr };
+            static constexpr DWORD* null_security_descriptor{ nullptr };
+            static constexpr FILETIME* null_last_write_filetime{ nullptr };
         }
 
 #if defined(WIL_ENABLE_EXCEPTIONS)
@@ -518,7 +518,7 @@ namespace wil
         inline void set_value_expanded_string(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, PCWSTR data) WI_NOEXCEPT
         {
             const reg_view_details::reg_view regview{ key };
-            return regview.set_value_with_type(subkey, value_name, data, REG_EXPAND_SZ);
+            return regview.set_value(subkey, value_name, data, REG_EXPAND_SZ);
         }
 
         /**
@@ -615,7 +615,7 @@ namespace wil
         inline void set_value_byte_vector(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, DWORD type, const ::std::vector<BYTE>& data) WI_NOEXCEPT
         {
             const reg_view_details::reg_view regview{ key };
-            return regview.set_value_with_type(subkey, value_name, data, type);
+            return regview.set_value(subkey, value_name, data, type);
         }
 
         /**
@@ -792,7 +792,7 @@ namespace wil
         inline HRESULT set_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, PCWSTR data) WI_NOEXCEPT
         {
             const reg_view_details::reg_view_nothrow regview{ key };
-            return regview.set_value_with_type(subkey, value_name, data, REG_EXPAND_SZ);
+            return regview.set_value(subkey, value_name, data, REG_EXPAND_SZ);
         }
 
         /**
@@ -857,7 +857,7 @@ namespace wil
         inline HRESULT set_value_byte_vector_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, DWORD type, const ::std::vector<BYTE>& data) WI_NOEXCEPT
         {
             const reg_view_details::reg_view_nothrow regview{ key };
-            return regview.set_value_with_type(subkey, value_name, data, type);
+            return regview.set_value(subkey, value_name, data, type);
         }
 
         /**
@@ -927,6 +927,7 @@ namespace wil
         //     wil::unique_cotaskmem_string unique_value { wil::reg::get_value_string<wil::unique_cotaskmem_string>(key, L"string_value_name") };
         //     wil::shared_cotaskmem_string shared_value { wil::reg::get_value_string<wil::shared_cotaskmem_string>(key, L"string_value_name") };
         //
+        // Blocking get_value_string template types that are not already specialized - this gives a much friendlier compiler error message
         template <typename T>
         T get_value_string(HKEY /*key*/, _In_opt_ PCWSTR /*subkey*/, _In_opt_ PCWSTR /*value_name*/) { static_assert(sizeof(T) != sizeof(T), "Unsupported type for get_value_string"); }
         template <typename T>
@@ -1576,6 +1577,7 @@ namespace wil
         // Reading a cotaskmem string is returned in a std::optional<wil::shared_cotaskmem_string> - because wil::unique_cotaskmem_string cannot be copied and thus is difficult to work with a std::optional
         //     std::optional<wil::shared_cotaskmem_string> opt_shared_value { wil::reg::try_get_value_string<wil::shared_cotaskmem_string>(key, L"string_value_name") };
         //
+        // Blocking try_get_value_string template types that are not already specialized - this gives a much friendlier compiler error message
         template <typename T>
         ::std::optional<T> try_get_value_string(HKEY /*key*/, _In_opt_ PCWSTR /*subkey*/, _In_opt_ PCWSTR /*value_name*/) { static_assert(sizeof(T) != sizeof(T), "Unsupported type for try_get_value_string"); }
         template <typename T>
