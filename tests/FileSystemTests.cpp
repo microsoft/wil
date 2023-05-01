@@ -404,6 +404,29 @@ TEST_CASE("FileSystemTests::VerifyGetSystemDirectoryW", "[filesystem]")
     REQUIRE(CompareStringOrdinal(pathToTest.get(), -1, trueSystemDir.get(), -1, TRUE) == CSTR_EQUAL);
 }
 
+TEST_CASE("FileSystemTests::VerifyGetWindowsDirectoryW", "[filesystem]")
+{
+    wil::unique_cotaskmem_string pathToTest;
+    REQUIRE_SUCCEEDED(wil::GetWindowsDirectoryW(pathToTest));
+
+    // allocate based on the string that wil::GetWindowsDirectoryW returned
+    size_t length = wcslen(pathToTest.get()) + 1;
+    auto trueSystemDir = wil::make_cotaskmem_string_nothrow(nullptr, length);
+    REQUIRE(GetWindowsDirectoryW(trueSystemDir.get(), static_cast<UINT>(length)) > 0);
+
+    REQUIRE(CompareStringOrdinal(pathToTest.get(), -1, trueSystemDir.get(), -1, TRUE) == CSTR_EQUAL);
+
+    // Force AdaptFixed* to realloc. Test stack boundary with small initial buffer limit, c_stackBufferLimitTest
+    REQUIRE_SUCCEEDED((wil::GetWindowsDirectoryW<wil::unique_cotaskmem_string, c_stackBufferLimitTest>(pathToTest)));
+
+    // allocate based on the string that wil::GetWindowsDirectoryW returned
+    length = wcslen(pathToTest.get()) + 1;
+    trueSystemDir = wil::make_cotaskmem_string_nothrow(nullptr, length);
+    REQUIRE(GetWindowsDirectoryW(trueSystemDir.get(), static_cast<UINT>(length)) > 0);
+
+    REQUIRE(CompareStringOrdinal(pathToTest.get(), -1, trueSystemDir.get(), -1, TRUE) == CSTR_EQUAL);
+}
+
 struct has_operator_pcwstr
 {
     PCWSTR value;
