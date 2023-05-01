@@ -637,7 +637,7 @@ IAlways : public IUnknown
    STDMETHOD_(void, Always)() = 0;
 };
 
-class __declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20b00")) // non-implemented to allow QI for the class to be attempted (and fail)
+class __declspec(empty_bases) __declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20b00")) // non-implemented to allow QI for the class to be attempted (and fail)
 ComObject : witest::AllocatedObject,
     public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::RuntimeClassType::ClassicCom>,
                                         Microsoft::WRL::ChainInterfaces<IDerivedTest, ITest>,
@@ -648,7 +648,7 @@ public:
     COM_DECLSPEC_NOTHROW IFACEMETHODIMP_(void) Always() {}
 };
 
-class __declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20b01")) // non-implemented to allow QI for the class to be attempted (and fail)
+class __declspec(empty_bases) __declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20b01")) // non-implemented to allow QI for the class to be attempted (and fail)
 WinRtObject : witest::AllocatedObject,
     public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::RuntimeClassType::WinRtClassicComMix>,
                                         ITest, IDerivedTest, ITestInspectable, IDerivedTestInspectable, IAlways, Microsoft::WRL::FtmBase>
@@ -661,7 +661,7 @@ public:
     COM_DECLSPEC_NOTHROW IFACEMETHODIMP_(void) Always() {}
 };
 
-class NoCom : witest::AllocatedObject
+class __declspec(empty_bases) NoCom : witest::AllocatedObject
 {
 public:
     ULONG __stdcall AddRef()

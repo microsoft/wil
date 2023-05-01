@@ -115,7 +115,7 @@ namespace wil
                 m_priority(priority)
             {
             }
-            WI_NODISCARD bool await_ready() const noexcept { return false; }
+            bool await_ready() const noexcept { return false; }
 
             void await_suspend(details::coroutine_handle<> handle)
             {
