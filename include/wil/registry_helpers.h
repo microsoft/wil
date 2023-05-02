@@ -88,12 +88,7 @@ namespace wil
 
                 for (const auto& wstr : ::wil::make_range(first, last))
                 {
-                    if (!wstr.empty())
-                    {
-                        // back_inserter returns an iterator to enable ::std::copy to write into 'wstr'
-                        // from begin() to end() at the back_inserter iterator, growing the vector as necessary
-                        ::std::copy(::std::begin(wstr), ::std::end(wstr), ::std::back_inserter(multistring));
-                    }
+                    multistring.insert(multistring.end(), ::std::begin(wstr), ::std::end(wstr));
                     multistring.push_back(L'\0');
                 }
                 // double-null-terminate the last string
@@ -101,23 +96,25 @@ namespace wil
                 return multistring;
             }
 
-            inline ::std::vector<::std::wstring> get_wstring_vector_from_multistring(const ::std::vector<wchar_t>& data)
+            template <class InputIt>
+            ::std::vector<::std::wstring> get_wstring_vector_from_multistring(const InputIt& first, const InputIt& last)
             {
-                ::std::vector<::std::wstring> strings;
-                if (data.size() < 3)
+                if (last - first < 3)
                 {
-                    return { ::std::wstring(data.data()) };
+                    // it doesn't have the required 2 terminating null characters - return an empty string
+                    return { ::std::wstring{} };
                 }
 
-                auto current = data.cbegin();
-                const auto end_iterator = data.cend();
-                const auto lastNull = (end_iterator - 1);
+                ::std::vector<::std::wstring> strings;
+                auto current = first;
+                const auto end_iterator = last;
+                const auto last_null = (end_iterator - 1);
                 while (current != end_iterator)
                 {
                     const auto next = ::std::find(current, end_iterator, L'\0');
                     if (next != end_iterator)
                     {
-                        if (next != lastNull)
+                        if (next != last_null)
                         {
                             // don't add an empty string for the final 2nd-null-terminator
                             strings.emplace_back(current, next);
@@ -136,7 +133,7 @@ namespace wil
             namespace reg_value_type_info
             {
                 template <typename T>
-                constexpr bool supports_prepare_buffer(T&) WI_NOEXCEPT
+                constexpr bool supports_prepare_buffer() WI_NOEXCEPT
                 {
                     return false;
                 }
@@ -149,10 +146,12 @@ namespace wil
                 }
 
 #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
-                constexpr bool supports_prepare_buffer(::std::vector<BYTE>&) WI_NOEXCEPT
+                template <>
+                constexpr bool supports_prepare_buffer<::std::vector<BYTE>>() WI_NOEXCEPT
                 {
                     return true;
                 }
+
                 inline HRESULT prepare_buffer(::std::vector<BYTE>& value) WI_NOEXCEPT try
                 {
                     // resize the initial vector to at least 1 byte
@@ -165,6 +164,7 @@ namespace wil
                     return S_OK;
                 }
                 CATCH_RETURN();
+
                 inline void* get_buffer(const ::std::vector<BYTE>& buffer) WI_NOEXCEPT
                 {
                     return const_cast<BYTE*>(buffer.data());
@@ -172,10 +172,12 @@ namespace wil
 #endif // #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
 
 #if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
-                constexpr bool supports_prepare_buffer(const ::std::wstring&) WI_NOEXCEPT
+                template <>
+                constexpr bool supports_prepare_buffer<::std::wstring>() WI_NOEXCEPT
                 {
                     return true;
                 }
+
                 inline HRESULT prepare_buffer(::std::wstring& string) WI_NOEXCEPT
                 {
                     // zero the input string if there is space already allocated
@@ -185,6 +187,7 @@ namespace wil
                     }
                     return S_OK;
                 }
+
                 inline void* get_buffer(const ::std::wstring& string) WI_NOEXCEPT
                 {
                     return const_cast<wchar_t*>(string.data());
@@ -763,7 +766,7 @@ namespace wil
                     return err_policy::HResult(HRESULT_FROM_WIN32(error));
                 }
 
-                typename err_policy::result delete_key(_In_opt_ PCWSTR sub_key) WI_NOEXCEPT
+                typename err_policy::result delete_tree(_In_opt_ PCWSTR sub_key) const
                 {
                     auto error = ::RegDeleteTreeW(m_key, sub_key);
                     if (error == ERROR_FILE_NOT_FOUND)
@@ -773,7 +776,7 @@ namespace wil
                     return err_policy::HResult(HRESULT_FROM_WIN32(error));
                 }
 
-                typename err_policy::result delete_value(_In_opt_ PCWSTR value_name) WI_NOEXCEPT
+                typename err_policy::result delete_value(_In_opt_ PCWSTR value_name) const
                 {
                     return err_policy::HResult(HRESULT_FROM_WIN32(::RegDeleteValueW(m_key, value_name)));
                 }
@@ -784,8 +787,9 @@ namespace wil
                     return get_value_with_type(subkey, value_name, return_value, type);
                 }
 
-                template <size_t Length>
-                typename err_policy::result get_value_char_array(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length], DWORD type, _Out_opt_ DWORD* requiredBytes = nullptr) const
+                // typename D supports unsigned 32-bit values; i.e. allows the caller to pass a DWORD* as well as uint32_t*
+                template <size_t Length, typename D>
+                typename err_policy::result get_value_char_array(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length], DWORD type, _Out_opt_ D* requiredBytes = nullptr) const
                 {
                     ::wil::assign_to_opt_param(requiredBytes, 0ul);
                     DWORD data_size_bytes{ Length * sizeof(WCHAR) };
@@ -859,7 +863,7 @@ namespace wil
 #if defined(__cpp_if_constexpr)
                         constexpr
 #endif
-                        (reg_value_type_info::supports_prepare_buffer(value_name))
+                        (reg_value_type_info::supports_prepare_buffer<R>())
 
                     {
                         hr = reg_value_type_info::prepare_buffer(return_value);
