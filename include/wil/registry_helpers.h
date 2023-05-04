@@ -781,7 +781,7 @@ namespace wil
                 reg_view_t(reg_view_t&&) = delete;
                 reg_view_t& operator=(reg_view_t&&) = delete;
 
-                typename err_policy::result open_key(_In_opt_ PCWSTR subKey, _Out_ HKEY* hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) const
+                typename err_policy::result open_key(_In_opt_ _In_opt_ PCWSTR subKey, _Out_ HKEY* hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) const
                 {
                     constexpr DWORD zero_options{ 0 };
                     const auto error = ::RegOpenKeyExW(m_key, subKey, zero_options, get_access_flags(access), hkey);

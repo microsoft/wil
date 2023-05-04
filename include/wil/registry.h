@@ -57,34 +57,34 @@ namespace wil
         /**
          * \brief Opens a new HKEY to the specified path - see RegOpenKeyExW
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
-         * \param path A string to append to the HKEY to attempt to open
+         * \param subKey The name of the registry subkey to be opened
          *        can be nullptr if not needed
          * \param access The requested access desired for the opened key
          * \return A wil::unique_hkey containing the resulting opened HKEY
          * \exception std::exception (including wil::ResultException) will be thrown on all failures
          */
-        inline ::wil::unique_hkey open_unique_key(HKEY key, _In_opt_ PCWSTR path, ::wil::reg::key_access access = ::wil::reg::key_access::read)
+        inline ::wil::unique_hkey open_unique_key(HKEY key, _In_opt_ PCWSTR subKey, ::wil::reg::key_access access = ::wil::reg::key_access::read)
         {
             const reg_view_details::reg_view regview{ key };
             ::wil::unique_hkey return_value;
-            regview.open_key(path, &return_value, access);
+            regview.open_key(subKey, &return_value, access);
             return return_value;
         }
 
         /**
          * \brief Creates a new HKEY to the specified path - see RegCreateKeyExW
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
-         * \param path A string to append to the HKEY to attempt to open
-         *        can be nullptr if not needed
+         * \param subKey The name of a subkey that this function opens or creates
+         *        Note: this cannot be null (see the above referenced API documentation)
          * \param access The requested access desired for the opened key
          * \return A wil::unique_hkey or wil::shared_hkey containing the resulting opened HKEY
          * \exception std::exception (including wil::ResultException) will be thrown on all failures
          */
-        inline ::wil::unique_hkey create_unique_key(HKEY key, PCWSTR path, ::wil::reg::key_access access = ::wil::reg::key_access::read)
+        inline ::wil::unique_hkey create_unique_key(HKEY key, PCWSTR subKey, ::wil::reg::key_access access = ::wil::reg::key_access::read)
         {
             const reg_view_details::reg_view regview{ key };
             ::wil::unique_hkey return_value;
-            regview.create_key(path, &return_value, access);
+            regview.create_key(subKey, &return_value, access);
             return return_value;
         }
 
@@ -92,34 +92,34 @@ namespace wil
         /**
          * \brief Opens a new HKEY to the specified path - see RegOpenKeyExW
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
-         * \param path A string to append to the HKEY to attempt to open
+         * \param subKey The name of the registry subkey to be opened
          *        can be nullptr if not needed
          * \param access The requested access desired for the opened key
          * \return A wil::shared_hkey containing the resulting opened HKEY
          * \exception std::exception (including wil::ResultException) will be thrown on all failures
          */
-        inline ::wil::shared_hkey open_shared_key(HKEY key, PCWSTR path, ::wil::reg::key_access access = ::wil::reg::key_access::read)
+        inline ::wil::shared_hkey open_shared_key(HKEY key, _In_opt_ PCWSTR subKey, ::wil::reg::key_access access = ::wil::reg::key_access::read)
         {
             const reg_view_details::reg_view regview{ key };
             ::wil::shared_hkey return_value;
-            regview.open_key(path, &return_value, access);
+            regview.open_key(subKey, &return_value, access);
             return return_value;
         }
 
         /**
          * \brief Creates a new HKEY to the specified path - see RegCreateKeyExW
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
-         * \param path A string to append to the HKEY to attempt to open
-         *        can be nullptr if not needed
+         * \param subKey The name of a subkey that this function opens or creates
+         *        Note: this cannot be null (see the above referenced API documentation)
          * \param access The requested access desired for the opened key
          * \return A wil::shared_hkey or wil::shared_hkey containing the resulting opened HKEY
          * \exception std::exception (including wil::ResultException) will be thrown on all failures
          */
-        inline ::wil::shared_hkey create_shared_key(HKEY key, PCWSTR path, ::wil::reg::key_access access = ::wil::reg::key_access::read)
+        inline ::wil::shared_hkey create_shared_key(HKEY key, PCWSTR subKey, ::wil::reg::key_access access = ::wil::reg::key_access::read)
         {
             const reg_view_details::reg_view regview{ key };
             ::wil::shared_hkey return_value;
-            regview.create_key(path, &return_value, access);
+            regview.create_key(subKey, &return_value, access);
             return return_value;
         }
 #endif // #if defined(__WIL_WINREG_STL)
@@ -128,62 +128,62 @@ namespace wil
         /**
          * \brief Opens a new HKEY to the specified path - see RegOpenKeyExW
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
-         * \param path A string to append to the HKEY to attempt to open
+         * \param subKey The name of the registry subkey to be opened
          *        can be nullptr if not needed
          * \param[out] hkey A reference to a wil::unique_hkey to receive the opened HKEY
          * \param access The requested access desired for the opened key
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        inline HRESULT open_unique_key_nothrow(HKEY key, _In_opt_ PCWSTR path, ::wil::unique_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
+        inline HRESULT open_unique_key_nothrow(HKEY key, _In_opt_ PCWSTR subKey, ::wil::unique_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
         {
             const reg_view_details::reg_view_nothrow regview{ key };
-            return regview.open_key(path, hkey.put(), access);
+            return regview.open_key(subKey, hkey.put(), access);
         }
 
         /**
          * \brief Creates a new HKEY to the specified path - see RegCreateKeyExW
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
-         * \param path A string to append to the HKEY to attempt to open
-         *        can be nullptr if not needed
+         * \param subKey The name of a subkey that this function opens or creates
+         *        Note: this cannot be null (see the above referenced API documentation)
          * \param[out] hkey A reference to a wil::unique_hkey to receive the opened HKEY
          * \param access The requested access desired for the opened key
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        inline HRESULT create_unique_key_nothrow(HKEY key, PCWSTR path, ::wil::unique_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
+        inline HRESULT create_unique_key_nothrow(HKEY key, PCWSTR subKey, ::wil::unique_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
         {
             const reg_view_details::reg_view_nothrow regview{ key };
-            return regview.create_key(path, hkey.put(), access);
+            return regview.create_key(subKey, hkey.put(), access);
         }
 
 #if defined(__WIL_WINREG_STL)
         /**
          * \brief Opens a new HKEY to the specified path - see RegOpenKeyExW
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
-         * \param path A string to append to the HKEY to attempt to open
+         * \param subKey The name of the registry subkey to be opened
          *        can be nullptr if not needed
          * \param[out] hkey A reference to a wil::shared_hkey to receive the opened HKEY
          * \param access The requested access desired for the opened key
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        inline HRESULT open_shared_key_nothrow(HKEY key, _In_opt_ PCWSTR path, ::wil::shared_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
+        inline HRESULT open_shared_key_nothrow(HKEY key, _In_opt_ PCWSTR subKey, ::wil::shared_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
         {
             const reg_view_details::reg_view_nothrow regview{ key };
-            return regview.open_key(path, hkey.put(), access);
+            return regview.open_key(subKey, hkey.put(), access);
         }
 
         /**
          * \brief Creates a new HKEY to the specified path - see RegCreateKeyExW
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
-         * \param path A string to append to the HKEY to attempt to open
-         *        can be nullptr if not needed
+         * \param subKey The name of a subkey that this function opens or creates
+         *        Note: this cannot be null (see the above referenced API documentation)
          * \param[out] hkey A reference to a wil::shared_hkey to receive the opened HKEY
          * \param access The requested access desired for the opened key
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        inline HRESULT create_shared_key_nothrow(HKEY key, _In_opt_ PCWSTR path, ::wil::shared_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
+        inline HRESULT create_shared_key_nothrow(HKEY key, PCWSTR subKey, ::wil::shared_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
         {
             const reg_view_details::reg_view_nothrow regview{ key };
-            return regview.create_key(path, hkey.put(), access);
+            return regview.create_key(subKey, hkey.put(), access);
         }
 #endif // #define __WIL_WINREG_STL
 
