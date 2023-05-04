@@ -375,7 +375,7 @@ namespace wil
         void set_value(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const T& data)
         {
             const reg_view_details::reg_view regview{ key };
-            return regview.set_value(subkey, value_name, data);
+            regview.set_value(subkey, value_name, data);
         }
 
         /**
@@ -391,7 +391,7 @@ namespace wil
         template <typename T>
         void set_value(HKEY key, _In_opt_ PCWSTR value_name, const T& data)
         {
-            return ::wil::reg::set_value(key, nullptr, value_name, data);
+            ::wil::reg::set_value(key, nullptr, value_name, data);
         }
 
         /**
@@ -406,7 +406,7 @@ namespace wil
          */
         inline void set_value_dword(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, uint32_t data)
         {
-            return ::wil::reg::set_value(key, subkey, value_name, data);
+            ::wil::reg::set_value(key, subkey, value_name, data);
         }
 
         /**
@@ -419,7 +419,7 @@ namespace wil
          */
         inline void set_value_dword(HKEY key, _In_opt_ PCWSTR value_name, uint32_t data)
         {
-            return ::wil::reg::set_value(key, nullptr, value_name, data);
+            ::wil::reg::set_value(key, nullptr, value_name, data);
         }
 
         /**
@@ -434,7 +434,7 @@ namespace wil
          */
         inline void set_value_qword(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, uint64_t data)
         {
-            return ::wil::reg::set_value(key, subkey, value_name, data);
+            ::wil::reg::set_value(key, subkey, value_name, data);
         }
 
         /**
@@ -447,7 +447,7 @@ namespace wil
          */
         inline void set_value_qword(HKEY key, _In_opt_ PCWSTR value_name, uint64_t data)
         {
-            return ::wil::reg::set_value(key, nullptr, value_name, data);
+            ::wil::reg::set_value(key, nullptr, value_name, data);
         }
 
         /**
@@ -462,7 +462,7 @@ namespace wil
          */
         inline void set_value_string(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, PCWSTR data)
         {
-            return ::wil::reg::set_value(key, subkey, value_name, data);
+            ::wil::reg::set_value(key, subkey, value_name, data);
         }
 
         /**
@@ -475,7 +475,7 @@ namespace wil
          */
         inline void set_value_string(HKEY key, _In_opt_ PCWSTR value_name, PCWSTR data)
         {
-            return ::wil::reg::set_value(key, nullptr, value_name, data);
+            ::wil::reg::set_value(key, nullptr, value_name, data);
         }
 
         /**
@@ -491,7 +491,7 @@ namespace wil
         inline void set_value_expanded_string(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, PCWSTR data) WI_NOEXCEPT
         {
             const reg_view_details::reg_view regview{ key };
-            return regview.set_value(subkey, value_name, data, REG_EXPAND_SZ);
+            regview.set_value(subkey, value_name, data, REG_EXPAND_SZ);
         }
 
         /**
@@ -504,7 +504,7 @@ namespace wil
          */
         inline void set_value_expanded_string(HKEY key, _In_opt_ PCWSTR value_name, PCWSTR data) WI_NOEXCEPT
         {
-            return ::wil::reg::set_value_expanded_string(key, nullptr, value_name, data);
+            ::wil::reg::set_value_expanded_string(key, nullptr, value_name, data);
         }
 
 #if defined(_VECTOR_) && defined(_STRING_)
@@ -522,8 +522,9 @@ namespace wil
         template <>
         inline void set_value(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const ::std::vector<::std::wstring>& data)
         {
+            const auto multiStringWcharVector(reg_view_details::get_multistring_from_wstrings(::std::begin(data), ::std::end(data)));
             const reg_view_details::reg_view regview{ key };
-            return regview.set_value(subkey, value_name, data);
+            regview.set_value(subkey, value_name, multiStringWcharVector, REG_MULTI_SZ);
         }
 
         /**
@@ -538,7 +539,7 @@ namespace wil
         template <>
         inline void set_value(HKEY key, _In_opt_ PCWSTR value_name, const ::std::vector<::std::wstring>& data)
         {
-            return ::wil::reg::set_value(key, nullptr, value_name, data);
+            ::wil::reg::set_value(key, nullptr, value_name, data);
         }
 
         /**
@@ -554,7 +555,7 @@ namespace wil
          */
         inline void set_value_multistring(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const ::std::vector<::std::wstring>& data)
         {
-            return ::wil::reg::set_value(key, subkey, value_name, data);
+            ::wil::reg::set_value(key, subkey, value_name, data);
         }
 
         /**
@@ -568,7 +569,7 @@ namespace wil
          */
         inline void set_value_multistring(HKEY key, _In_opt_ PCWSTR value_name, const ::std::vector<::std::wstring>& data)
         {
-            return ::wil::reg::set_value(key, nullptr, value_name, data);
+            ::wil::reg::set_value(key, nullptr, value_name, data);
         }
 #endif // #if defined(_VECTOR_) && defined(_STRING_)
 
@@ -589,7 +590,7 @@ namespace wil
         void set_value_byte_vector(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, uint32_t type, const ::std::vector<ByteType>& data) WI_NOEXCEPT
         {
             const reg_view_details::reg_view regview{ key };
-            return regview.set_value(subkey, value_name, data, type);
+            regview.set_value(subkey, value_name, data, type);
         }
 
         /**
@@ -605,7 +606,7 @@ namespace wil
         template <typename ByteType, std::enable_if_t<std::is_same_v<ByteType, std::uint8_t>>* = nullptr>
         void set_value_byte_vector(HKEY key, _In_opt_ PCWSTR value_name, uint32_t type, const ::std::vector<ByteType>& data) WI_NOEXCEPT
         {
-            return ::wil::reg::set_value_byte_vector(key, nullptr, value_name, type, data);
+            ::wil::reg::set_value_byte_vector(key, nullptr, value_name, type, data);
         }
 #endif // #if defined(_VECTOR_)
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS)
@@ -785,6 +786,40 @@ namespace wil
 
 #if defined(WIL_ENABLE_EXCEPTIONS)
 #if defined(_VECTOR_) && defined(_STRING_)
+        /**
+         * \brief Writes a REG_MULTI_SZ value from a std::vector<std::wstring>
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param subkey A string to append to the HKEY to attempt to write
+         *        can be nullptr if not needed
+         * \param value_name A string specifying the name of the registry value to write
+         *        can be nullptr to write to the unnamed default registry value
+         * \param data A std::vector<std::wstring> to write to the specified registry value
+         *        each string will be marshalled to a contiguous null-terminator-delimited multi-sz string
+         * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
+         */
+        template <>
+        inline HRESULT set_value_nothrow(HKEY key, _In_opt_ PCWSTR subkey, PCWSTR value_name, const ::std::vector<::std::wstring>& data) WI_NOEXCEPT
+        {
+            const auto multiStringWcharVector(reg_view_details::get_multistring_from_wstrings(::std::begin(data), ::std::end(data)));
+            const reg_view_details::reg_view_nothrow regview{ key };
+            return regview.set_value(subkey, value_name, multiStringWcharVector, REG_MULTI_SZ);
+        }
+
+        /**
+         * \brief Writes a REG_MULTI_SZ value from a std::vector<std::wstring>
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param value_name A string specifying the name of the registry value to write
+         *        can be nullptr to write to the unnamed default registry value
+         * \param data A std::vector<std::wstring> to write to the specified registry value
+         *        each string will be marshalled to a contiguous null-terminator-delimited multi-sz string
+         * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
+         */
+        template <>
+        inline HRESULT set_value_nothrow(HKEY key, PCWSTR value_name, const ::std::vector<::std::wstring>& data) WI_NOEXCEPT
+        {
+            return ::wil::reg::set_value_nothrow(key, nullptr, value_name, data);
+        }
+
         /**
          * \brief Writes a REG_MULTI_SZ value from a std::vector<std::wstring>
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
@@ -1448,7 +1483,8 @@ namespace wil
          *         e.g. a REG_MULTI_SZ of L"string1\0\0string2\0\0string3\0\0"
          *              returns a vector of size 5: L"string1", empty-string, L"string2", empty-string, L"string3"
          */
-        inline ::std::vector<::std::wstring> get_value_multistring(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
+        template <>
+        inline ::std::vector<::std::wstring> get_value<::std::vector<::std::wstring>>(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
         {
             ::std::vector<::std::wstring> return_value;
             ::std::vector<BYTE> rawData{ get_value_byte_vector(key, subkey, value_name, REG_MULTI_SZ) };
@@ -1470,11 +1506,43 @@ namespace wil
          * \return The std::vector<std::wstring> marshalled from data read from the registry value
          * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
          */
-        inline ::std::vector<::std::wstring> get_value_multistring(HKEY key, _In_opt_ PCWSTR value_name)
+        template <>
+        inline ::std::vector<::std::wstring> get_value<::std::vector<::std::wstring>>(HKEY key, _In_opt_ PCWSTR value_name)
         {
-            return ::wil::reg::get_value_multistring(key, nullptr, value_name);
+            return ::wil::reg::get_value<::std::vector<::std::wstring>>(key, nullptr, value_name);
         }
 
+        /**
+         * \brief Reads a REG_MULTI_SZ value, returning a std::vector<std::wstring>
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param subkey A string to append to the HKEY to attempt to read from
+         *        can be nullptr if not needed
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \return The std::vector<std::wstring> marshalled from data read from the registry value
+         * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
+         *
+         * \remark Note that will return empty strings for embedded nulls - it won't stop at the first double-null character
+         *         e.g. a REG_MULTI_SZ of L"string1\0\0string2\0\0string3\0\0"
+         *              returns a vector of size 5: L"string1", empty-string, L"string2", empty-string, L"string3"
+         */
+        inline ::std::vector<::std::wstring> get_value_multistring(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
+        {
+            return ::wil::reg::get_value<::std::vector<::std::wstring>>(key, subkey, value_name);
+        }
+
+        /**
+         * \brief Reads a REG_MULTI_SZ value, returning a std::vector<std::wstring>
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \return The std::vector<std::wstring> marshalled from data read from the registry value
+         * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
+         */
+        inline ::std::vector<::std::wstring> get_value_multistring(HKEY key, _In_opt_ PCWSTR value_name)
+        {
+            return ::wil::reg::get_value<::std::vector<::std::wstring>>(key, nullptr, value_name);
+        }
 #endif // #if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
 
 #if defined (_OPTIONAL_) && defined(__cpp_lib_optional)
@@ -2740,7 +2808,8 @@ namespace wil
          * \param[out] return_value A std::vector<std::wstring> receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        inline HRESULT get_value_multistring_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, ::std::vector<::std::wstring>* return_value) WI_NOEXCEPT try
+        template<>
+        inline HRESULT get_value_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, ::std::vector<::std::wstring>* return_value) WI_NOEXCEPT
         {
             return_value->clear();
 
@@ -2754,36 +2823,6 @@ namespace wil
             }
             return S_OK;
         }
-        CATCH_RETURN();
-
-        /**
-         * \brief Reads a REG_MULTI_SZ value under a specified key
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
-         * \param[out] return_value A std::vector<std::wstring> receiving the value read from the registry
-         * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
-         */
-        inline HRESULT get_value_multistring_nothrow(HKEY key, _In_opt_ PCWSTR value_name, ::std::vector<::std::wstring>* return_value) WI_NOEXCEPT
-        {
-            return ::wil::reg::get_value_multistring_nothrow(key, nullptr, value_name, return_value);
-        }
-
-        /**
-         * \brief Reads a REG_MULTI_SZ value under a specified key
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
-         * \param subkey A string to append to the HKEY to attempt to read from
-         *        can be nullptr if not needed
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
-         * \param[out] return_value A std::vector<std::wstring> receiving the value read from the registry
-         * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
-         */
-        template<>
-        inline HRESULT get_value_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, ::std::vector<::std::wstring>* return_value) WI_NOEXCEPT
-        {
-            return ::wil::reg::get_value_multistring_nothrow(key, subkey, value_name, return_value);
-        }
 
         /**
          * \brief Reads a REG_MULTI_SZ value under a specified key
@@ -2796,9 +2835,37 @@ namespace wil
         template<>
         inline HRESULT get_value_nothrow(HKEY key, _In_opt_ PCWSTR value_name, ::std::vector<::std::wstring>* return_value) WI_NOEXCEPT
         {
-            return ::wil::reg::get_value_multistring_nothrow(key, nullptr, value_name, return_value);
+            return ::wil::reg::get_value_nothrow<::std::vector<::std::wstring>>(key, nullptr, value_name, return_value);
         }
 
+        /**
+         * \brief Reads a REG_MULTI_SZ value under a specified key
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param subkey A string to append to the HKEY to attempt to read from
+         *        can be nullptr if not needed
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \param[out] return_value A std::vector<std::wstring> receiving the value read from the registry
+         * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
+         */
+        inline HRESULT get_value_multistring_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, ::std::vector<::std::wstring>* return_value) WI_NOEXCEPT try
+        {
+            return ::wil::reg::get_value_nothrow<::std::vector<::std::wstring>>(key, subkey, value_name, return_value);
+        }
+        CATCH_RETURN();
+
+        /**
+         * \brief Reads a REG_MULTI_SZ value under a specified key
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \param[out] return_value A std::vector<std::wstring> receiving the value read from the registry
+         * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
+         */
+        inline HRESULT get_value_multistring_nothrow(HKEY key, _In_opt_ PCWSTR value_name, ::std::vector<::std::wstring>* return_value) WI_NOEXCEPT
+        {
+            return ::wil::reg::get_value_nothrow<::std::vector<::std::wstring>>(key, nullptr, value_name, return_value);
+        }
 #if defined (_OPTIONAL_) && defined(__cpp_lib_optional)
         /**
          * \brief Attempts to read a REG_MULTI_SZ value under a specified key, returning the value in a std::optional
@@ -2835,8 +2902,19 @@ namespace wil
          *
          *         // ensure the code handles a possible std::exception that could be thrown above
          *         // in this example, returns the HRESULT error code if anything fails reading the registry value other than value not found
+
+         * \brief Attempts to read a REG_MULTI_SZ value under a specified key, returning the value in a std::optional
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param subkey A string to append to the HKEY to attempt to read from
+         *        can be nullptr if not needed
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \return The value read from the registry value marshalled to a std::optional<std::vector<std::wstring>>
+         *         note - will return std::nullopt if the value does not exist
+         * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
          */
-        inline ::std::optional<::std::vector<::std::wstring>> try_get_value_multistring(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
+        template <>
+        inline ::std::optional<::std::vector<::std::wstring>> try_get_value<::std::vector<::std::wstring>>(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
         {
             ::std::vector<::std::wstring> value;
             const auto hr = ::wil::reg::get_value_multistring_nothrow(key, subkey, value_name, &value);
@@ -2862,9 +2940,40 @@ namespace wil
          *         note - will return std::nullopt if the value does not exist
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
          */
+        template <>
+        inline ::std::optional<::std::vector<::std::wstring>> try_get_value<::std::vector<::std::wstring>>(HKEY key, _In_opt_ PCWSTR value_name)
+        {
+            return ::wil::reg::try_get_value<::std::vector<::std::wstring>>(key, nullptr, value_name);
+        }
+
+        /**
+         * \brief Attempts to read a REG_MULTI_SZ value under a specified key, returning the value in a std::optional
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param subkey A string to append to the HKEY to attempt to read from
+         *        can be nullptr if not needed
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \return The value read from the registry value marshalled to a std::optional<std::vector<std::wstring>>
+         *         note - will return std::nullopt if the value does not exist
+         * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
+         */
+        inline ::std::optional<::std::vector<::std::wstring>> try_get_value_multistring(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
+        {
+            return ::wil::reg::try_get_value<::std::vector<::std::wstring>>(key, subkey, value_name);
+        }
+
+        /**
+         * \brief Attempts to read a REG_MULTI_SZ value under a specified key, returning the value in a std::optional
+         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param value_name A string specifying the name of the registry value to read from
+         *        can be nullptr to read from the unnamed default registry value
+         * \return The value read from the registry value marshalled to a std::optional<std::vector<std::wstring>>
+         *         note - will return std::nullopt if the value does not exist
+         * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
+         */
         inline ::std::optional<::std::vector<::std::wstring>> try_get_value_multistring(HKEY key, _In_opt_ PCWSTR value_name)
         {
-            return ::wil::reg::try_get_value_multistring(key, nullptr, value_name);
+            return ::wil::reg::try_get_value<::std::vector<::std::wstring>>(key, nullptr, value_name);
         }
 #endif // #if defined (_OPTIONAL_) && defined(__cpp_lib_optional)
 #endif // #if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)

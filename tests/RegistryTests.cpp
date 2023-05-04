@@ -704,42 +704,32 @@ namespace
 #endif // defined(__cpp_lib_optional)
     };
 
-    // NOTE: generic get_value with multistrings is disabled.
-    //
-    // It has enough oddities to be worth disabling---should we support multiple
-    // vector types? Multiple string types? If it proves useful, we can always
-    // add it later.
-    //
-    // This commented-out test serves as a marker.
+    struct GenericMultiStringFns : GenericBaseFns<std::vector<std::wstring>, std::vector<std::wstring>>
+    {
+        using RetType = std::vector<std::wstring>;
+        using SetType = std::vector<std::wstring>;
 
-    //struct GenericMultiStringFns : GenericBaseFns<std::vector<std::wstring>, std::vector<std::wstring>>
-    //{
-    //    using RetType = std::vector<std::wstring>;
-    //    using SetType = std::vector<std::wstring>;
+        static std::vector<RetType> testValues() { return multiStringTestVector; }
+        static PCWSTR testValueName() { return multiStringValueName; }
 
-    //    static std::vector<RetType> testValues() { return multiStringTestVector; }
-    //    static PCWSTR testValueName() { return multiStringValueName; }
+        static std::vector<std::function<HRESULT(wil::unique_hkey const&, PCWSTR)>> set_wrong_value_fns_openkey()
+        {
+            return {
+                [](wil::unique_hkey const& key, PCWSTR value_name) { return wil::reg::set_value_dword_nothrow(key.get(), value_name, test_dword_zero); }
+            };
+        }
 
-    //    static std::vector<std::function<HRESULT(wil::unique_hkey const&, PCWSTR)>> set_wrong_value_fns_openkey()
-    //    {
-    //        return {
-    //            [](wil::unique_hkey const& key, PCWSTR value_name) { return wil::reg::set_value_dword_nothrow(key.get(), value_name, test_dword_zero); },
-    //            [](wil::unique_hkey const& key, PCWSTR value_name) { return wil::reg::set_value_string_nothrow(key.get(), value_name, test_string_empty.c_str()); },
-    //        };
-    //    }
-
-    //    static std::vector<std::function<HRESULT(HKEY, PCWSTR, PCWSTR)>> set_wrong_value_fns_subkey()
-    //    {
-    //        return {
-    //            [](HKEY key, PCWSTR subkey, PCWSTR value_name) { return wil::reg::set_value_dword_nothrow(key, subkey, value_name, test_dword_zero); },
-    //            [](HKEY key, PCWSTR subkey, PCWSTR value_name) { return wil::reg::set_value_string_nothrow(key, subkey, value_name, test_string_empty.c_str()); },
-    //        };
-    //    }
-    //};
+        static std::vector<std::function<HRESULT(HKEY, PCWSTR, PCWSTR)>> set_wrong_value_fns_subkey()
+        {
+            return {
+                [](HKEY key, PCWSTR subkey, PCWSTR value_name) { return wil::reg::set_value_dword_nothrow(key, subkey, value_name, test_dword_zero); }
+            };
+        }
+    };
 #endif // defined(WIL_ENABLE_EXCEPTIONS)
 
 #if defined(WIL_ENABLE_EXCEPTIONS)
-    using TypesToTest = std::tuple<DwordFns, GenericDwordFns, QwordFns, GenericQwordFns, MultiStringFns>;
+    using TypesToTest = std::tuple<DwordFns, GenericDwordFns, QwordFns, GenericQwordFns, MultiStringFns, GenericMultiStringFns>;
 #else
     using TypesToTest = std::tuple<DwordFns, GenericDwordFns, QwordFns, GenericQwordFns>;
 #endif // defined(WIL_ENABLE_EXCEPTIONS)

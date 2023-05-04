@@ -693,7 +693,7 @@ namespace wil
                 }
 
                 template <>
-                constexpr DWORD set_value_type<const ::std::wstring&>() WI_NOEXCEPT
+                constexpr DWORD set_value_type<const ::std::wstring>() WI_NOEXCEPT
                 {
                     return REG_SZ;
                 }
@@ -712,13 +712,13 @@ namespace wil
                 }
 
                 template <>
-                constexpr DWORD set_value_type<const BSTR&>() WI_NOEXCEPT
+                constexpr DWORD set_value_type<const BSTR>() WI_NOEXCEPT
                 {
                     return REG_SZ;
                 }
 
                 template <>
-                constexpr DWORD set_value_type<const ::wil::unique_bstr&>() WI_NOEXCEPT
+                constexpr DWORD set_value_type<const ::wil::unique_bstr>() WI_NOEXCEPT
                 {
                     return REG_SZ;
                 }
@@ -733,10 +733,10 @@ namespace wil
                 }
 
                 template <>
-                constexpr DWORD set_value_type<const ::wil::shared_bstr&>() WI_NOEXCEPT
+                constexpr DWORD set_value_type<const ::wil::shared_bstr>() WI_NOEXCEPT
                 {
                     return REG_SZ;
-                }
+            }
 #endif // #if defined(__WIL_OLEAUTO_H_STL)
 
 #if defined(__WIL_OBJBASE_H_)
@@ -747,7 +747,7 @@ namespace wil
                 }
 
                 template <>
-                constexpr DWORD set_value_type<const ::wil::unique_cotaskmem_string&>() WI_NOEXCEPT
+                constexpr DWORD set_value_type<const ::wil::unique_cotaskmem_string>() WI_NOEXCEPT
                 {
                     return REG_SZ;
                 }
@@ -761,12 +761,12 @@ namespace wil
                 }
 
                 template <>
-                constexpr DWORD set_value_type<const ::wil::shared_cotaskmem_string&>() WI_NOEXCEPT
+                constexpr DWORD set_value_type<const ::wil::shared_cotaskmem_string>() WI_NOEXCEPT
                 {
                     return REG_SZ;
-                }
+        }
 #endif // #if defined(__WIL_OBJBASE_H_STL)
-            }
+    }
 
             template <typename err_policy = ::wil::err_exception_policy>
             class reg_view_t
@@ -857,7 +857,7 @@ namespace wil
                     // throw if exception policy
                     err_policy::HResult(HRESULT_FROM_WIN32(hr));
                     return ::std::nullopt;
-                }
+            }
 #endif // #if defined (_OPTIONAL_) && defined(__cpp_lib_optional)
 
                 template <typename R>
@@ -865,14 +865,6 @@ namespace wil
                 {
                     return set_value_with_type(subkey, value_name, value, type);
                 }
-
-#if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
-                typename err_policy::result set_value(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const ::std::vector<::std::wstring>& data) const
-                {
-                    const auto multiStringWcharVector(get_multistring_from_wstrings(::std::begin(data), ::std::end(data)));
-                    return set_value_with_type(subkey, value_name, multiStringWcharVector, REG_MULTI_SZ);
-                }
-#endif // #if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
 
             private:
                 const HKEY m_key{};
@@ -975,7 +967,7 @@ namespace wil
 
                     return get_value_with_type_policy::HResult(hr);
                 }
-            };
+};
 
             using reg_view_nothrow = ::wil::reg::reg_view_details::reg_view_t<::wil::err_returncode_policy>;
 #if defined(WIL_ENABLE_EXCEPTIONS)
