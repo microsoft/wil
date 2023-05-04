@@ -959,12 +959,12 @@ TEMPLATE_LIST_TEST_CASE("BasicRegistryTests::simple types typed gets/sets/try_ge
                 VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
                     {
                         TestType::try_get(HKEY_CURRENT_USER, testSubkey, wrongTypeValueName);
-            });
+                    });
+            }
         }
     }
-}
 #endif // defined(__cpp_lib_optional)
-    }
+}
 #endif // defined(WIL_ENABLE_EXCEPTIONS)
 
 #if defined(WIL_ENABLE_EXCEPTIONS)
@@ -1158,14 +1158,18 @@ namespace
     {
         for (const auto& value : stringTestArray)
         {
-            REQUIRE_SUCCEEDED(setFn(stringValueName, value.c_str()));
             StringT result{};
+            REQUIRE_SUCCEEDED(setFn(stringValueName, value.c_str()));
+            REQUIRE_SUCCEEDED(getFn(stringValueName, result));
+            REQUIRE(AreStringsEqual(result, value));
+
+            // read a 2nd time reusing the buffer 'result'
             REQUIRE_SUCCEEDED(getFn(stringValueName, result));
             REQUIRE(AreStringsEqual(result, value));
 
             // and verify default value name
-            REQUIRE_SUCCEEDED(setFn(nullptr, value.c_str()));
             result = {};
+            REQUIRE_SUCCEEDED(setFn(nullptr, value.c_str()));
             REQUIRE_SUCCEEDED(getFn(nullptr, result));
             REQUIRE(AreStringsEqual(result, value));
         }
@@ -1893,7 +1897,7 @@ namespace
             [&](PCWSTR valueName) { return wil::reg::try_get_value_expanded_string<StringT>(hkey.get(), valueName); },
             [&](PCWSTR valueName, PCWSTR input) { wil::reg::set_value_expanded_string(hkey.get(), valueName, input); },
             [&](PCWSTR valueName) { wil::reg::set_value_dword(hkey.get(), valueName, test_dword_zero); });
-}
+    }
 
     template<typename StringT>
     void verify_try_expanded_string_subkey()
@@ -1905,7 +1909,7 @@ namespace
     }
 #endif // defined(__cpp_lib_optional)
 #endif
-    }
+}
 
 #if defined(WIL_ENABLE_EXCEPTIONS)
 TEST_CASE("BasicRegistryTests::expanded_string", "[registry]")

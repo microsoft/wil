@@ -136,9 +136,8 @@ namespace wil
          */
         inline HRESULT open_unique_key_nothrow(HKEY key, _In_opt_ PCWSTR path, ::wil::unique_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
         {
-            hkey.reset();
             const reg_view_details::reg_view_nothrow regview{ key };
-            return regview.open_key(path, hkey.addressof(), access);
+            return regview.open_key(path, hkey.put(), access);
         }
 
         /**
@@ -152,9 +151,8 @@ namespace wil
          */
         inline HRESULT create_unique_key_nothrow(HKEY key, PCWSTR path, ::wil::unique_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
         {
-            hkey.reset();
             const reg_view_details::reg_view_nothrow regview{ key };
-            return regview.create_key(path, hkey.addressof(), access);
+            return regview.create_key(path, hkey.put(), access);
         }
 
 #if defined(__WIL_WINREG_STL)
@@ -169,9 +167,8 @@ namespace wil
          */
         inline HRESULT open_shared_key_nothrow(HKEY key, _In_opt_ PCWSTR path, ::wil::shared_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
         {
-            hkey.reset();
             const reg_view_details::reg_view_nothrow regview{ key };
-            return regview.open_key(path, hkey.addressof(), access);
+            return regview.open_key(path, hkey.put(), access);
         }
 
         /**
@@ -185,9 +182,8 @@ namespace wil
          */
         inline HRESULT create_shared_key_nothrow(HKEY key, _In_opt_ PCWSTR path, ::wil::shared_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
         {
-            hkey.reset();
             const reg_view_details::reg_view_nothrow regview{ key };
-            return regview.create_key(path, hkey.addressof(), access);
+            return regview.create_key(path, hkey.put(), access);
         }
 #endif // #define __WIL_WINREG_STL
 
@@ -2262,7 +2258,6 @@ namespace wil
          */
         inline HRESULT get_value_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, ::wil::unique_bstr& return_value) WI_NOEXCEPT
         {
-            return_value.reset();
             const reg_view_details::reg_view_nothrow regview{ key };
             return regview.get_value(subkey, value_name, return_value);
         }
@@ -2292,7 +2287,6 @@ namespace wil
          */
         inline HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, ::wil::unique_bstr& return_value) WI_NOEXCEPT
         {
-            return_value.reset();
             return ::wil::reg::get_value_nothrow(key, subkey, value_name, return_value.addressof());
         }
 
@@ -2322,7 +2316,6 @@ namespace wil
          */
         inline HRESULT get_value_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, ::wil::shared_bstr& return_value) WI_NOEXCEPT
         {
-            return_value.reset();
             const reg_view_details::reg_view_nothrow regview{ key };
             return regview.get_value(subkey, value_name, return_value);
         }
@@ -2352,7 +2345,6 @@ namespace wil
          */
         inline HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, ::wil::shared_bstr& return_value) WI_NOEXCEPT
         {
-            return_value.reset();
             return ::wil::reg::get_value_nothrow(key, subkey, value_name, return_value.addressof());
         }
 
@@ -2626,7 +2618,6 @@ namespace wil
          */
         inline HRESULT get_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, ::wil::unique_bstr& return_value) WI_NOEXCEPT
         {
-            return_value.reset();
             const reg_view_details::reg_view_nothrow regview{ key };
             return regview.get_value<::wil::unique_bstr>(subkey, value_name, return_value, REG_EXPAND_SZ);
         }
@@ -2657,7 +2648,6 @@ namespace wil
          */
         inline HRESULT get_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, ::wil::shared_bstr& return_value) WI_NOEXCEPT
         {
-            return_value.reset();
             const reg_view_details::reg_view_nothrow regview{ key };
             return regview.get_value<::wil::shared_bstr>(subkey, value_name, return_value, REG_EXPAND_SZ);
         }

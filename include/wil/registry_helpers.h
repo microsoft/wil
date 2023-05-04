@@ -132,12 +132,13 @@ namespace wil
 
             namespace reg_value_type_info
             {
+                // supports_prepare_buffer is used to determine if the input buffer to read a registry value should be prepared
+                // before the first call to the registry read API
                 template <typename T>
                 constexpr bool supports_prepare_buffer() WI_NOEXCEPT
                 {
                     return false;
                 }
-
                 template <typename T>
                 HRESULT prepare_buffer(T&) WI_NOEXCEPT
                 {
@@ -145,229 +146,8 @@ namespace wil
                     return S_OK;
                 }
 
-#if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
-                template <>
-                constexpr bool supports_prepare_buffer<::std::vector<BYTE>>() WI_NOEXCEPT
-                {
-                    return true;
-                }
-
-                inline HRESULT prepare_buffer(::std::vector<BYTE>& value) WI_NOEXCEPT try
-                {
-                    // resize the initial vector to at least 1 byte
-                    // this is needed so we can detect when the registry value exists
-                    // but the value has zero-bytes
-                    if (value.empty())
-                    {
-                        value.resize(1, 0x00);
-                    }
-                    return S_OK;
-                }
-                CATCH_RETURN();
-
-                inline void* get_buffer(const ::std::vector<BYTE>& buffer) WI_NOEXCEPT
-                {
-                    return const_cast<BYTE*>(buffer.data());
-                }
-#endif // #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
-
-#if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
-                template <>
-                constexpr bool supports_prepare_buffer<::std::wstring>() WI_NOEXCEPT
-                {
-                    return true;
-                }
-
-                inline HRESULT prepare_buffer(::std::wstring& string) WI_NOEXCEPT
-                {
-                    // zero the input string if there is space already allocated
-                    for (auto& string_char : string)
-                    {
-                        string_char = L'\0';
-                    }
-                    return S_OK;
-                }
-
-                inline void* get_buffer(const ::std::wstring& string) WI_NOEXCEPT
-                {
-                    return const_cast<wchar_t*>(string.data());
-                }
-#endif // #if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
-
-                constexpr void* get_buffer(const int32_t& value) WI_NOEXCEPT
-                {
-                    return const_cast<int32_t*>(&value);
-                }
-
-                constexpr void* get_buffer(const uint32_t& value) WI_NOEXCEPT
-                {
-                    return const_cast<uint32_t*>(&value);
-                }
-
-                constexpr void* get_buffer(const long& value) WI_NOEXCEPT
-                {
-                    return const_cast<long*>(&value);
-                }
-
-                constexpr void* get_buffer(const unsigned long& value) WI_NOEXCEPT
-                {
-                    return const_cast<unsigned long*>(&value);
-                }
-
-                constexpr void* get_buffer(const int64_t& value) WI_NOEXCEPT
-                {
-                    return const_cast<int64_t*>(&value);
-                }
-
-                constexpr void* get_buffer(const uint64_t& value) WI_NOEXCEPT
-                {
-                    return const_cast<uint64_t*>(&value);
-                }
-
-                constexpr void* get_buffer(PCWSTR value) WI_NOEXCEPT
-                {
-                    return const_cast<wchar_t*>(value);
-                }
-
-#if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
-                inline void* get_buffer(const ::std::vector<wchar_t>& value) WI_NOEXCEPT
-                {
-                    return const_cast<wchar_t*>(value.data());
-                }
-#endif // #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
-
-#if defined(__WIL_OLEAUTO_H_)
-                inline void* get_buffer(const BSTR& value) WI_NOEXCEPT
-                {
-                    return value;
-                }
-                inline void* get_buffer(const ::wil::unique_bstr& value) WI_NOEXCEPT
-                {
-                    return value.get();
-                }
-#endif // #if defined(__WIL_OLEAUTO_H_)
-
-#if defined(__WIL_OLEAUTO_H_STL)
-                inline void* get_buffer(const ::wil::shared_bstr& value) WI_NOEXCEPT
-                {
-                    return value.get();
-                }
-#endif // #if defined(__WIL_OLEAUTO_H_STL)
-
-#if defined(__WIL_OBJBASE_H_)
-                inline void* get_buffer(const ::wil::unique_cotaskmem_string& value) WI_NOEXCEPT
-                {
-                    return value.get();
-                }
-#endif // defined(__WIL_OBJBASE_H_)
-
-#if defined(__WIL_OBJBASE_H_STL)
-                inline void* get_buffer(const ::wil::shared_cotaskmem_string& value) WI_NOEXCEPT
-                {
-                    return value.get();
-                }
-#endif // #if defined(__WIL_OBJBASE_H_STL)
-
-#if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
-                inline DWORD get_buffer_size(const ::std::vector<BYTE>& value) WI_NOEXCEPT
-                {
-                    return static_cast<DWORD>(value.size());
-                }
-                inline DWORD get_buffer_size(const ::std::vector<wchar_t>& value) WI_NOEXCEPT
-                {
-                    return static_cast<DWORD>(value.size()) * sizeof(wchar_t);
-                }
-#endif // #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
-
-#if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
-                inline DWORD get_buffer_size(const ::std::wstring& string) WI_NOEXCEPT
-                {
-                    return static_cast<DWORD>(string.size() * sizeof(wchar_t));
-                }
-#endif // #if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
-
-                constexpr DWORD get_buffer_size(int32_t) WI_NOEXCEPT
-                {
-                    return static_cast<DWORD>(sizeof(int32_t));
-                }
-
-                constexpr DWORD get_buffer_size(uint32_t) WI_NOEXCEPT
-                {
-                    return static_cast<DWORD>(sizeof(uint32_t));
-                }
-
-                constexpr DWORD get_buffer_size(long) WI_NOEXCEPT
-                {
-                    return static_cast<DWORD>(sizeof(long));
-                }
-
-                constexpr DWORD get_buffer_size(unsigned long) WI_NOEXCEPT
-                {
-                    return static_cast<DWORD>(sizeof(unsigned long));
-                }
-
-                constexpr DWORD get_buffer_size(int64_t) WI_NOEXCEPT
-                {
-                    return static_cast<DWORD>(sizeof(int64_t));
-                }
-
-                constexpr DWORD get_buffer_size(uint64_t) WI_NOEXCEPT
-                {
-                    return static_cast<DWORD>(sizeof(uint64_t));
-                }
-
-                inline DWORD get_buffer_size(PCWSTR value) WI_NOEXCEPT
-                {
-                    if (!value)
-                    {
-                        return 0;
-                    }
-                    return static_cast<DWORD>((::wcslen(value) + 1) * sizeof(wchar_t));
-                }
-
-#if defined(__WIL_OLEAUTO_H_)
-                inline DWORD get_buffer_size(const BSTR& value) WI_NOEXCEPT
-                {
-                    auto length = ::SysStringLen(value);
-                    if (length > 0)
-                    {
-                        // SysStringLen does not count the null-terminator
-                        length += 1;
-                    }
-                    return length * sizeof(wchar_t);
-                }
-
-                inline DWORD get_buffer_size(const ::wil::unique_bstr& value) WI_NOEXCEPT
-                {
-                    return get_buffer_size(value.get());
-                }
-#endif // #if defined(__WIL_OLEAUTO_H_)
-
-#if defined(__WIL_OLEAUTO_H_STL)
-                inline DWORD get_buffer_size(const ::wil::shared_bstr& value) WI_NOEXCEPT
-                {
-                    return get_buffer_size(value.get());
-                }
-#endif // #if defined(__WIL_OLEAUTO_H_STL)
-
-#if defined(__WIL_OBJBASE_H_)
-                constexpr DWORD get_buffer_size(const ::wil::unique_cotaskmem_string&) WI_NOEXCEPT
-                {
-                    // wil::unique_cotaskmem_string does not intrinsically track its internal buffer size
-                    // thus the caller must track the buffer size it requested to be allocated
-                    return 0;
-                }
-#endif // defined(__WIL_OBJBASE_H_)
-
-#if defined(__WIL_OBJBASE_H_STL)
-                constexpr DWORD get_buffer_size(const ::wil::shared_cotaskmem_string&) WI_NOEXCEPT
-                {
-                    // wil::shared_cotaskmem_string does not intrinsically track its internal buffer size
-                    // thus the caller must track the buffer size it requested to be allocated
-                    return 0;
-                }
-#endif // #if defined(__WIL_OBJBASE_H_STL)
-
+                // supports_resize_buffer is used to determine if the input buffer to read a registry value can be resized
+                // for those cases if the error from the registry read API indicates it needs a larger buffer
                 template <typename T>
                 constexpr bool supports_resize_buffer() WI_NOEXCEPT
                 {
@@ -379,7 +159,127 @@ namespace wil
                     return E_NOTIMPL;
                 }
 
+                // supports_trim_buffer is used to determine if the input buffer to read a registry value must be trimmed
+                // after the registry read API has successfully written into the supplied buffer
+                // note that currently only std::wstring requires this as it cannot have embedded nulls
+                template <typename T>
+                constexpr bool supports_trim_buffer() WI_NOEXCEPT
+                {
+                    return false;
+                }
+                template <typename T>
+                constexpr void trim_buffer(T&) WI_NOEXCEPT
+                {
+                }
+
+                constexpr void* get_buffer(const int32_t& value) WI_NOEXCEPT
+                {
+                    return const_cast<int32_t*>(&value);
+                }
+
+                constexpr DWORD get_buffer_size(int32_t) WI_NOEXCEPT
+                {
+                    return static_cast<DWORD>(sizeof(int32_t));
+                }
+
+                constexpr void* get_buffer(const uint32_t& value) WI_NOEXCEPT
+                {
+                    return const_cast<uint32_t*>(&value);
+                }
+
+                constexpr DWORD get_buffer_size(uint32_t) WI_NOEXCEPT
+                {
+                    return static_cast<DWORD>(sizeof(uint32_t));
+                }
+
+                constexpr void* get_buffer(const long& value) WI_NOEXCEPT
+                {
+                    return const_cast<long*>(&value);
+                }
+
+                constexpr DWORD get_buffer_size(long) WI_NOEXCEPT
+                {
+                    return static_cast<DWORD>(sizeof(long));
+                }
+
+                constexpr void* get_buffer(const unsigned long& value) WI_NOEXCEPT
+                {
+                    return const_cast<unsigned long*>(&value);
+                }
+
+                constexpr DWORD get_buffer_size(unsigned long) WI_NOEXCEPT
+                {
+                    return static_cast<DWORD>(sizeof(unsigned long));
+                }
+
+                constexpr void* get_buffer(const int64_t& value) WI_NOEXCEPT
+                {
+                    return const_cast<int64_t*>(&value);
+                }
+
+                constexpr DWORD get_buffer_size(int64_t) WI_NOEXCEPT
+                {
+                    return static_cast<DWORD>(sizeof(int64_t));
+                }
+
+                constexpr void* get_buffer(const uint64_t& value) WI_NOEXCEPT
+                {
+                    return const_cast<uint64_t*>(&value);
+                }
+
+                constexpr DWORD get_buffer_size(uint64_t) WI_NOEXCEPT
+                {
+                    return static_cast<DWORD>(sizeof(uint64_t));
+                }
+
+                constexpr void* get_buffer(PCWSTR value) WI_NOEXCEPT
+                {
+                    return const_cast<wchar_t*>(value);
+                }
+
+                inline DWORD get_buffer_size(PCWSTR value) WI_NOEXCEPT
+                {
+                    if (!value)
+                    {
+                        return 0;
+                    }
+                    return static_cast<DWORD>((::wcslen(value) + 1) * sizeof(wchar_t));
+                }
+
 #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
+                inline void* get_buffer(const ::std::vector<BYTE>& buffer) WI_NOEXCEPT
+                {
+                    return const_cast<BYTE*>(buffer.data());
+                }
+
+                inline DWORD get_buffer_size(const ::std::vector<BYTE>& value) WI_NOEXCEPT
+                {
+                    return static_cast<DWORD>(value.size());
+                }
+
+                template <>
+                constexpr bool supports_prepare_buffer<::std::vector<BYTE>>() WI_NOEXCEPT
+                {
+                    return true;
+                }
+                inline HRESULT prepare_buffer(::std::vector<BYTE>& value) WI_NOEXCEPT try
+                {
+                    // resize the initial vector to at least 1 byte
+                    // this is needed so we can detect when the registry value exists
+                    // but the value has zero-bytes
+                    if (value.empty())
+                    {
+                        value.resize(1);
+                    }
+                    // zero out the buffer if pre-allocated
+                    for (auto& string_char : value)
+                    {
+                        string_char = 0x00;
+                    }
+                    return S_OK;
+                }
+                CATCH_RETURN();
+
                 template <>
                 constexpr bool supports_resize_buffer<::std::vector<BYTE>>() WI_NOEXCEPT
                 {
@@ -391,9 +291,59 @@ namespace wil
                     return S_OK;
                 }
                 CATCH_RETURN();
+
+                inline void* get_buffer(const ::std::vector<wchar_t>& value) WI_NOEXCEPT
+                {
+                    return const_cast<wchar_t*>(value.data());
+                }
+
+                inline DWORD get_buffer_size(const ::std::vector<wchar_t>& value) WI_NOEXCEPT
+                {
+                    return static_cast<DWORD>(value.size()) * sizeof(wchar_t);
+                }
+
+                template <>
+                constexpr bool supports_prepare_buffer<::std::vector<wchar_t>>() WI_NOEXCEPT
+                {
+                    return true;
+                }
+                inline HRESULT prepare_buffer(::std::vector<wchar_t>& value) WI_NOEXCEPT
+                {
+                    // zero out the buffer if pre-allocated
+                    for (auto& string_char : value)
+                    {
+                        string_char = L'\0';
+                    }
+                    return S_OK;
+                }
 #endif // #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
 
 #if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
+                inline void* get_buffer(const ::std::wstring& string) WI_NOEXCEPT
+                {
+                    return const_cast<wchar_t*>(string.data());
+                }
+
+                inline DWORD get_buffer_size(const ::std::wstring& string) WI_NOEXCEPT
+                {
+                    return static_cast<DWORD>(string.size() * sizeof(wchar_t));
+                }
+
+                template <>
+                constexpr bool supports_prepare_buffer<::std::wstring>() WI_NOEXCEPT
+                {
+                    return true;
+                }
+                inline HRESULT prepare_buffer(::std::wstring& string) WI_NOEXCEPT
+                {
+                    // zero out the buffer if pre-allocated
+                    for (auto& string_char : string)
+                    {
+                        string_char = L'\0';
+                    }
+                    return S_OK;
+                }
+
                 template <>
                 constexpr bool supports_resize_buffer<::std::wstring>() WI_NOEXCEPT
                 {
@@ -405,9 +355,57 @@ namespace wil
                     return S_OK;
                 }
                 CATCH_RETURN();
+
+                template <>
+                constexpr bool supports_trim_buffer<::std::wstring>() WI_NOEXCEPT
+                {
+                    return true;
+                }
+                inline void trim_buffer(::std::wstring& buffer)
+                {
+                    const auto offset = buffer.find_first_of(L'\0');
+                    if (offset != ::std::wstring::npos)
+                    {
+                        buffer.resize(offset);
+                    }
+                }
 #endif // #if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
 
 #if defined(__WIL_OLEAUTO_H_)
+                inline void* get_buffer(const BSTR& value) WI_NOEXCEPT
+                {
+                    return value;
+                }
+
+                inline DWORD get_buffer_size(const BSTR& value) WI_NOEXCEPT
+                {
+                    auto length = ::SysStringLen(value);
+                    if (length > 0)
+                    {
+                        // SysStringLen does not count the null-terminator
+                        length += 1;
+                    }
+                    return length * sizeof(wchar_t);
+                }
+
+                template <>
+                constexpr bool supports_prepare_buffer<BSTR>() WI_NOEXCEPT
+                {
+                    return true;
+                }
+                inline HRESULT prepare_buffer(BSTR& value) WI_NOEXCEPT
+                {
+                    if (value)
+                    {
+                        // zero out the buffer if pre-allocated
+                        for (auto& string_char : ::wil::make_range(value, get_buffer_size(value) / sizeof(WCHAR)))
+                        {
+                            string_char = L'\0';
+                        }
+                    }
+                    return S_OK;
+                }
+
                 template <>
                 constexpr bool supports_resize_buffer<BSTR>() WI_NOEXCEPT
                 {
@@ -434,6 +432,34 @@ namespace wil
                     return S_OK;
                 }
 
+                inline void* get_buffer(const ::wil::unique_bstr& value) WI_NOEXCEPT
+                {
+                    return value.get();
+                }
+
+                inline DWORD get_buffer_size(const ::wil::unique_bstr& value) WI_NOEXCEPT
+                {
+                    return get_buffer_size(value.get());
+                }
+
+                template <>
+                constexpr bool supports_prepare_buffer<::wil::unique_bstr>() WI_NOEXCEPT
+                {
+                    return true;
+                }
+                inline HRESULT prepare_buffer(::wil::unique_bstr& value) WI_NOEXCEPT
+                {
+                    if (value)
+                    {
+                        // zero out the buffer if pre-allocated
+                        for (auto& string_char : ::wil::make_range(value.get(), get_buffer_size(value) / sizeof(WCHAR)))
+                        {
+                            string_char = L'\0';
+                        }
+                    }
+                    return S_OK;
+                }
+
                 template<>
                 constexpr bool supports_resize_buffer<::wil::unique_bstr>() WI_NOEXCEPT
                 {
@@ -455,6 +481,34 @@ namespace wil
 #endif // #if defined(__WIL_OLEAUTO_H_)
 
 #if defined(__WIL_OLEAUTO_H_STL)
+                inline void* get_buffer(const ::wil::shared_bstr& value) WI_NOEXCEPT
+                {
+                    return value.get();
+                }
+
+                inline DWORD get_buffer_size(const ::wil::shared_bstr& value) WI_NOEXCEPT
+                {
+                    return get_buffer_size(value.get());
+                }
+
+                template <>
+                constexpr bool supports_prepare_buffer<::wil::shared_bstr>() WI_NOEXCEPT
+                {
+                    return true;
+                }
+                inline HRESULT prepare_buffer(::wil::shared_bstr& value) WI_NOEXCEPT
+                {
+                    if (value)
+                    {
+                        // zero out the buffer if pre-allocated
+                        for (auto& string_char : ::wil::make_range(value.get(), get_buffer_size(value) / sizeof(WCHAR)))
+                        {
+                            string_char = L'\0';
+                        }
+                    }
+                    return S_OK;
+                }
+
                 template<>
                 constexpr bool supports_resize_buffer<::wil::shared_bstr>() WI_NOEXCEPT
                 {
@@ -476,6 +530,18 @@ namespace wil
 #endif // #if defined(__WIL_OLEAUTO_H_STL)
 
 #if defined(__WIL_OBJBASE_H_)
+                inline void* get_buffer(const ::wil::unique_cotaskmem_string& value) WI_NOEXCEPT
+                {
+                    return value.get();
+                }
+
+                constexpr DWORD get_buffer_size(const ::wil::unique_cotaskmem_string&) WI_NOEXCEPT
+                {
+                    // wil::unique_cotaskmem_string does not intrinsically track its internal buffer size
+                    // thus the caller must track the buffer size it requested to be allocated
+                    return 0;
+                }
+
                 template<>
                 constexpr bool supports_resize_buffer<::wil::unique_cotaskmem_string>() WI_NOEXCEPT
                 {
@@ -493,9 +559,21 @@ namespace wil
                     string = ::std::move(new_string);
                     return S_OK;
                 }
-#endif // defined(__WIL_OBJBASE_H_)
+#endif // #if defined(__WIL_OBJBASE_H_)
 
 #if defined(__WIL_OBJBASE_H_STL)
+                inline void* get_buffer(const ::wil::shared_cotaskmem_string& value) WI_NOEXCEPT
+                {
+                    return value.get();
+                }
+
+                constexpr DWORD get_buffer_size(const ::wil::shared_cotaskmem_string&) WI_NOEXCEPT
+                {
+                    // wil::shared_cotaskmem_string does not intrinsically track its internal buffer size
+                    // thus the caller must track the buffer size it requested to be allocated
+                    return 0;
+                }
+
                 template<>
                 constexpr bool supports_resize_buffer<::wil::shared_cotaskmem_string>() WI_NOEXCEPT
                 {
@@ -503,6 +581,7 @@ namespace wil
                 }
                 inline HRESULT resize_buffer(::wil::shared_cotaskmem_string& string, DWORD byteSize) WI_NOEXCEPT try
                 {
+                    // convert bytes to length (number of WCHARs)
                     size_t length = byteSize / sizeof(wchar_t);
                     // ::wil::make_unique_string_nothrow adds one to the length when it allocates, so subtracting 1 from the input length
                     length = length > 0 ? length - 1 : length;
@@ -515,37 +594,18 @@ namespace wil
                 CATCH_RETURN();
 #endif // #if defined(__WIL_OBJBASE_H_STL)
 
-                template <typename T>
-                constexpr bool supports_trim_buffer() WI_NOEXCEPT
-                {
-                    return false;
-                }
-                template <typename T>
-                constexpr void trim_buffer(T&) WI_NOEXCEPT
-                {
-                }
-
-#if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
-                template <>
-                constexpr bool supports_trim_buffer<::std::wstring>() WI_NOEXCEPT
-                {
-                    return true;
-                }
-                inline void trim_buffer(::std::wstring& buffer)
-                {
-                    const auto offset = buffer.find_first_of(L'\0');
-                    if (offset != ::std::wstring::npos)
-                    {
-                        buffer.resize(offset);
-                    }
-                }
-#endif // #if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
-
-                // get_value_type requires a well-known type for T
+                // constexpr expressions to determing the get* and set* registry value types
+                // for all supported types T to read/write values
                 template <typename T>
                 DWORD get_value_type() WI_NOEXCEPT
                 {
                     static_assert(sizeof(T) != sizeof(T), "Unsupported type for get_value_type");
+                }
+
+                template <typename T>
+                DWORD set_value_type() WI_NOEXCEPT
+                {
+                    static_assert(sizeof(T) != sizeof(T), "Unsupported type for set_value_type");
                 }
 
                 template <>
@@ -553,11 +613,21 @@ namespace wil
                 {
                     return get_value_flags_from_value_type(REG_DWORD);
                 }
+                template <>
+                constexpr DWORD set_value_type<int32_t>() WI_NOEXCEPT
+                {
+                    return REG_DWORD;
+                }
 
                 template <>
                 constexpr DWORD get_value_type<uint32_t>() WI_NOEXCEPT
                 {
                     return get_value_flags_from_value_type(REG_DWORD);
+                }
+                template <>
+                constexpr DWORD set_value_type<uint32_t>() WI_NOEXCEPT
+                {
+                    return REG_DWORD;
                 }
 
                 template <>
@@ -565,11 +635,21 @@ namespace wil
                 {
                     return get_value_flags_from_value_type(REG_DWORD);
                 }
+                template <>
+                constexpr DWORD set_value_type<long>() WI_NOEXCEPT
+                {
+                    return REG_DWORD;
+                }
 
                 template <>
                 constexpr DWORD get_value_type<unsigned long>() WI_NOEXCEPT
                 {
                     return get_value_flags_from_value_type(REG_DWORD);
+                }
+                template <>
+                constexpr DWORD set_value_type<unsigned long>() WI_NOEXCEPT
+                {
+                    return REG_DWORD;
                 }
 
                 template <>
@@ -577,11 +657,21 @@ namespace wil
                 {
                     return get_value_flags_from_value_type(REG_QWORD);
                 }
+                template <>
+                constexpr DWORD set_value_type<int64_t>() WI_NOEXCEPT
+                {
+                    return REG_QWORD;
+                }
 
                 template <>
                 constexpr DWORD get_value_type<uint64_t>() WI_NOEXCEPT
                 {
                     return get_value_flags_from_value_type(REG_QWORD);
+                }
+                template <>
+                constexpr DWORD set_value_type<uint64_t>() WI_NOEXCEPT
+                {
+                    return REG_QWORD;
                 }
 
                 template <>
@@ -589,12 +679,23 @@ namespace wil
                 {
                     return get_value_flags_from_value_type(REG_SZ);
                 }
+                template <>
+                constexpr DWORD set_value_type<PCWSTR>() WI_NOEXCEPT
+                {
+                    return REG_SZ;
+                }
 
 #if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
                 template <>
                 constexpr DWORD get_value_type<::std::wstring>() WI_NOEXCEPT
                 {
                     return get_value_flags_from_value_type(REG_SZ);
+                }
+
+                template <>
+                constexpr DWORD set_value_type<const ::std::wstring&>() WI_NOEXCEPT
+                {
+                    return REG_SZ;
                 }
 #endif // #if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
 
@@ -609,91 +710,7 @@ namespace wil
                 {
                     return get_value_flags_from_value_type(REG_SZ);
                 }
-#endif // #if defined(__WIL_OLEAUTO_H_)
 
-#if defined(__WIL_OLEAUTO_H_STL)
-
-                template <>
-                constexpr DWORD get_value_type<::wil::shared_bstr>() WI_NOEXCEPT
-                {
-                    return get_value_flags_from_value_type(REG_SZ);
-                }
-#endif // #if defined(__WIL_OLEAUTO_H_STL)
-
-#if defined(__WIL_OBJBASE_H_)
-                template <>
-                constexpr DWORD get_value_type<::wil::unique_cotaskmem_string>() WI_NOEXCEPT
-                {
-                    return get_value_flags_from_value_type(REG_SZ);
-                }
-#endif // defined(__WIL_OBJBASE_H_)
-
-#if defined(__WIL_OBJBASE_H_STL)
-                template <>
-                constexpr DWORD get_value_type<::wil::shared_cotaskmem_string>() WI_NOEXCEPT
-                {
-                    return get_value_flags_from_value_type(REG_SZ);
-                }
-#endif // #if defined(__WIL_OBJBASE_H_STL)
-
-                // set_value_type requires a well-known type for T
-                template <typename T>
-                DWORD set_value_type() WI_NOEXCEPT
-                {
-                    static_assert(sizeof(T) != sizeof(T), "Unsupported type for set_value_type");
-                }
-
-                template <>
-                constexpr DWORD set_value_type<int32_t>() WI_NOEXCEPT
-                {
-                    return REG_DWORD;
-                }
-
-                template <>
-                constexpr DWORD set_value_type<uint32_t>() WI_NOEXCEPT
-                {
-                    return REG_DWORD;
-                }
-
-                template <>
-                constexpr DWORD set_value_type<long>() WI_NOEXCEPT
-                {
-                    return REG_DWORD;
-                }
-
-                template <>
-                constexpr DWORD set_value_type<unsigned long>() WI_NOEXCEPT
-                {
-                    return REG_DWORD;
-                }
-
-                template <>
-                constexpr DWORD set_value_type<int64_t>() WI_NOEXCEPT
-                {
-                    return REG_QWORD;
-                }
-
-                template <>
-                constexpr DWORD set_value_type<uint64_t>() WI_NOEXCEPT
-                {
-                    return REG_QWORD;
-                }
-
-                template <>
-                constexpr DWORD set_value_type<PCWSTR>() WI_NOEXCEPT
-                {
-                    return REG_SZ;
-                }
-
-#if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
-                template <>
-                constexpr DWORD set_value_type<const ::std::wstring&>() WI_NOEXCEPT
-                {
-                    return REG_SZ;
-                }
-#endif // #if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
-
-#if defined(__WIL_OLEAUTO_H_)
                 template <>
                 constexpr DWORD set_value_type<const BSTR&>() WI_NOEXCEPT
                 {
@@ -708,6 +725,13 @@ namespace wil
 #endif // #if defined(__WIL_OLEAUTO_H_)
 
 #if defined(__WIL_OLEAUTO_H_STL)
+
+                template <>
+                constexpr DWORD get_value_type<::wil::shared_bstr>() WI_NOEXCEPT
+                {
+                    return get_value_flags_from_value_type(REG_SZ);
+                }
+
                 template <>
                 constexpr DWORD set_value_type<const ::wil::shared_bstr&>() WI_NOEXCEPT
                 {
@@ -717,6 +741,12 @@ namespace wil
 
 #if defined(__WIL_OBJBASE_H_)
                 template <>
+                constexpr DWORD get_value_type<::wil::unique_cotaskmem_string>() WI_NOEXCEPT
+                {
+                    return get_value_flags_from_value_type(REG_SZ);
+                }
+
+                template <>
                 constexpr DWORD set_value_type<const ::wil::unique_cotaskmem_string&>() WI_NOEXCEPT
                 {
                     return REG_SZ;
@@ -724,6 +754,12 @@ namespace wil
 #endif // defined(__WIL_OBJBASE_H_)
 
 #if defined(__WIL_OBJBASE_H_STL)
+                template <>
+                constexpr DWORD get_value_type<::wil::shared_cotaskmem_string>() WI_NOEXCEPT
+                {
+                    return get_value_flags_from_value_type(REG_SZ);
+                }
+
                 template <>
                 constexpr DWORD set_value_type<const ::wil::shared_cotaskmem_string&>() WI_NOEXCEPT
                 {
