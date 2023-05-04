@@ -752,14 +752,18 @@ TEMPLATE_LIST_TEST_CASE("BasicRegistryTests::simple types typed nothrow gets/set
 
             for (auto&& value : TestType::testValues())
             {
-                REQUIRE_SUCCEEDED(TestType::set_nothrow(hkey, TestType::testValueName(), value));
                 typename TestType::RetType result{};
+                REQUIRE_SUCCEEDED(TestType::set_nothrow(hkey, TestType::testValueName(), value));
+                REQUIRE_SUCCEEDED(TestType::get_nothrow(hkey, TestType::testValueName(), &result));
+                REQUIRE(result == value);
+
+                // verify reusing the previously allocated buffer
                 REQUIRE_SUCCEEDED(TestType::get_nothrow(hkey, TestType::testValueName(), &result));
                 REQUIRE(result == value);
 
                 // and verify default value name
-                REQUIRE_SUCCEEDED(TestType::set_nothrow(hkey, nullptr, value));
                 result = {};
+                REQUIRE_SUCCEEDED(TestType::set_nothrow(hkey, nullptr, value));
                 REQUIRE_SUCCEEDED(TestType::get_nothrow(hkey, nullptr, &result));
                 REQUIRE(result == value);
             }
@@ -783,14 +787,18 @@ TEMPLATE_LIST_TEST_CASE("BasicRegistryTests::simple types typed nothrow gets/set
         {
             for (auto&& value : TestType::testValues())
             {
-                REQUIRE_SUCCEEDED(TestType::set_nothrow(HKEY_CURRENT_USER, testSubkey, TestType::testValueName(), value));
                 typename TestType::RetType result{};
+                REQUIRE_SUCCEEDED(TestType::set_nothrow(HKEY_CURRENT_USER, testSubkey, TestType::testValueName(), value));
+                REQUIRE_SUCCEEDED(TestType::get_nothrow(HKEY_CURRENT_USER, testSubkey, TestType::testValueName(), &result));
+                REQUIRE(result == value);
+
+                // verify reusing the previously allocated buffer
                 REQUIRE_SUCCEEDED(TestType::get_nothrow(HKEY_CURRENT_USER, testSubkey, TestType::testValueName(), &result));
                 REQUIRE(result == value);
 
                 // and verify default value name
-                REQUIRE_SUCCEEDED(TestType::set_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, value));
                 result = {};
+                REQUIRE_SUCCEEDED(TestType::set_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, value));
                 REQUIRE_SUCCEEDED(TestType::get_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, &result));
                 REQUIRE(result == value);
             }
@@ -1153,7 +1161,7 @@ namespace
             REQUIRE_SUCCEEDED(getFn(stringValueName, result));
             REQUIRE(AreStringsEqual(result, value));
 
-            // read a 2nd time reusing the buffer 'result'
+            // verify reusing the previously allocated buffer
             REQUIRE_SUCCEEDED(getFn(stringValueName, result));
             REQUIRE(AreStringsEqual(result, value));
 
@@ -1736,14 +1744,18 @@ namespace
             REQUIRE(expanded_result != ERROR_SUCCESS);
             REQUIRE(expanded_result < test_expanded_string_buffer_size);
 
-            REQUIRE_SUCCEEDED(setFn(stringValueName, value.c_str()));
             StringT result{};
+            REQUIRE_SUCCEEDED(setFn(stringValueName, value.c_str()));
+            REQUIRE_SUCCEEDED(getFn(stringValueName, result));
+            REQUIRE(AreStringsEqual(result, expanded_value));
+
+            // verify reusing the previously allocated buffer
             REQUIRE_SUCCEEDED(getFn(stringValueName, result));
             REQUIRE(AreStringsEqual(result, expanded_value));
 
             // and verify default value name
-            REQUIRE_SUCCEEDED(setFn(nullptr, value.c_str()));
             result = {};
+            REQUIRE_SUCCEEDED(setFn(nullptr, value.c_str()));
             REQUIRE_SUCCEEDED(getFn(nullptr, result));
             REQUIRE(AreStringsEqual(result, expanded_value));
         }
@@ -2044,9 +2056,13 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
         REQUIRE_SUCCEEDED(wil::reg::get_value_multistring_nothrow(hkey.get(), stringValueName, &result));
         REQUIRE(result == arrayOfOne);
 
+        // verify reusing the previously allocated buffer
+        REQUIRE_SUCCEEDED(wil::reg::get_value_multistring_nothrow(hkey.get(), stringValueName, &result));
+        REQUIRE(result == arrayOfOne);
+
         // and verify default value name
-        REQUIRE_SUCCEEDED(wil::reg::set_value_multistring_nothrow(hkey.get(), nullptr, test_multistring_empty));
         result = {};
+        REQUIRE_SUCCEEDED(wil::reg::set_value_multistring_nothrow(hkey.get(), nullptr, test_multistring_empty));
         REQUIRE_SUCCEEDED(wil::reg::get_value_multistring_nothrow(hkey.get(), nullptr, &result));
         REQUIRE(result == arrayOfOne);
     }
@@ -2060,9 +2076,13 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
         REQUIRE_SUCCEEDED(wil::reg::get_value_multistring_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, &result));
         REQUIRE(result == arrayOfOne);
 
+        // verify reusing the previously allocated buffer
+        REQUIRE_SUCCEEDED(wil::reg::get_value_multistring_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, &result));
+        REQUIRE(result == arrayOfOne);
+
         // and verify default value name
-        REQUIRE_SUCCEEDED(wil::reg::set_value_multistring_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, test_multistring_empty));
         result = {};
+        REQUIRE_SUCCEEDED(wil::reg::set_value_multistring_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, test_multistring_empty));
         REQUIRE_SUCCEEDED(wil::reg::get_value_multistring_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, &result));
         REQUIRE(result == arrayOfOne);
     }
@@ -2080,9 +2100,13 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
         REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(hkey.get(), stringValueName, &result));
         REQUIRE(result == arrayOfOne);
 
+        // verify reusing the previously allocated buffer
+        REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(hkey.get(), stringValueName, &result));
+        REQUIRE(result == arrayOfOne);
+
         // and verify default value name
-        REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(hkey.get(), nullptr, test_multistring_empty));
         result = {};
+        REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(hkey.get(), nullptr, test_multistring_empty));
         REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(hkey.get(), nullptr, &result));
         REQUIRE(result == arrayOfOne);
     }
@@ -2096,9 +2120,13 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
         REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, &result));
         REQUIRE(result == arrayOfOne);
 
+        // verify reusing the previously allocated buffer
+        REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, &result));
+        REQUIRE(result == arrayOfOne);
+
         // and verify default value name
-        REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, test_multistring_empty));
         result = {};
+        REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, test_multistring_empty));
         REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, &result));
         REQUIRE(result == arrayOfOne);
     }
@@ -2193,14 +2221,18 @@ namespace
     {
         for (const auto& value : vectorBytesTestArray)
         {
-            REQUIRE_SUCCEEDED(setFn(stringValueName, REG_BINARY, value));
             std::vector<BYTE> result{};
+            REQUIRE_SUCCEEDED(setFn(stringValueName, REG_BINARY, value));
+            REQUIRE_SUCCEEDED(getFn(stringValueName, REG_BINARY, &result));
+            REQUIRE(result == value);
+
+            // verify reusing the same allocated buffer
             REQUIRE_SUCCEEDED(getFn(stringValueName, REG_BINARY, &result));
             REQUIRE(result == value);
 
             // and verify default value name
-            REQUIRE_SUCCEEDED(setFn(nullptr, REG_BINARY, value));
             result = {};
+            REQUIRE_SUCCEEDED(setFn(nullptr, REG_BINARY, value));
             REQUIRE_SUCCEEDED(getFn(nullptr, REG_BINARY, &result));
             REQUIRE(result == value);
         }
