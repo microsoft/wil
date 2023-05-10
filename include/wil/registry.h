@@ -187,22 +187,6 @@ namespace wil
         }
 #endif // #define __WIL_WINREG_STL
 
-        namespace reg_query_info_key_args
-        {
-            // RegQueryInfoKeyW has a long list of optional parameters
-            static constexpr PWSTR null_class{ nullptr };
-            static constexpr DWORD* null_class_char_count{ nullptr };
-            static constexpr DWORD* null_reserved{ nullptr };
-            static constexpr DWORD* null_subkey_count{ nullptr };
-            static constexpr DWORD* null_max_subkey_length{ nullptr };
-            static constexpr DWORD* null_max_class_length{ nullptr };
-            static constexpr DWORD* null_value_count{ nullptr };
-            static constexpr DWORD* null_max_value_name_length{ nullptr };
-            static constexpr DWORD* null_max_value_length{ nullptr };
-            static constexpr DWORD* null_security_descriptor{ nullptr };
-            static constexpr FILETIME* null_last_write_filetime{ nullptr };
-        }
-
         /**
          * \brief Queries for number of sub-keys
          * \param key The HKEY to query for number of sub-keys
@@ -213,17 +197,17 @@ namespace wil
         {
             RETURN_IF_WIN32_ERROR(RegQueryInfoKeyW(
                 key,
-                reg_query_info_key_args::null_class,
-                reg_query_info_key_args::null_class_char_count,
-                reg_query_info_key_args::null_reserved,
+                nullptr, // null class
+                nullptr, // null class character count,
+                nullptr, // null reserved
                 numSubKeys,
-                reg_query_info_key_args::null_max_subkey_length,
-                reg_query_info_key_args::null_max_class_length,
-                reg_query_info_key_args::null_value_count,
-                reg_query_info_key_args::null_max_value_name_length,
-                reg_query_info_key_args::null_max_value_length,
-                reg_query_info_key_args::null_security_descriptor,
-                reg_query_info_key_args::null_last_write_filetime));
+                nullptr, // null max subkey length
+                nullptr, // null max class length
+                nullptr, // null value count
+                nullptr, // null max value name length
+                nullptr, // null max value length
+                nullptr, // null security descriptor
+                nullptr)); // null last write filetime
             return S_OK;
         }
         inline HRESULT get_child_key_count_nothrow(HKEY key, _Out_ uint32_t* numSubKeys) WI_NOEXCEPT
@@ -244,17 +228,17 @@ namespace wil
         {
             RETURN_IF_WIN32_ERROR(RegQueryInfoKeyW(
                 key,
-                reg_query_info_key_args::null_class,
-                reg_query_info_key_args::null_class_char_count,
-                reg_query_info_key_args::null_reserved,
-                reg_query_info_key_args::null_subkey_count,
-                reg_query_info_key_args::null_max_subkey_length,
-                reg_query_info_key_args::null_max_class_length,
+                nullptr, // null class
+                nullptr, // null class char count,
+                nullptr, // null reserved
+                nullptr, // null subkey count
+                nullptr, // null max subkey length
+                nullptr, // null max class length
                 numSubValues,
-                reg_query_info_key_args::null_max_value_name_length,
-                reg_query_info_key_args::null_max_value_length,
-                reg_query_info_key_args::null_security_descriptor,
-                reg_query_info_key_args::null_last_write_filetime));
+                nullptr, // null max value name length
+                nullptr, // null max value length
+                nullptr, // null security descriptor
+                nullptr)); // null last write filetime
             return S_OK;
         }
         inline HRESULT get_child_value_count_nothrow(HKEY key, _Out_ uint32_t* numSubValues) WI_NOEXCEPT
@@ -274,16 +258,16 @@ namespace wil
         {
             RETURN_IF_WIN32_ERROR(RegQueryInfoKeyW(
                 key,
-                reg_query_info_key_args::null_class,
-                reg_query_info_key_args::null_class_char_count,
-                reg_query_info_key_args::null_reserved,
-                reg_query_info_key_args::null_subkey_count,
-                reg_query_info_key_args::null_max_subkey_length,
-                reg_query_info_key_args::null_max_class_length,
-                reg_query_info_key_args::null_value_count,
-                reg_query_info_key_args::null_max_value_name_length,
-                reg_query_info_key_args::null_max_value_length,
-                reg_query_info_key_args::null_security_descriptor,
+                nullptr, // null class
+                nullptr, // null class char count,
+                nullptr, // null reserved
+                nullptr, // null subkey count
+                nullptr, // null max subkey length
+                nullptr, // null max class length
+                nullptr, // null value count
+                nullptr, // null max value name length
+                nullptr, // null max value length
+                nullptr, // null security descriptor
                 lastModified));
             return S_OK;
         }
