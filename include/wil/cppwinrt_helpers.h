@@ -226,7 +226,7 @@ namespace winrt
 namespace wil::details
 {
     // Detect whether the C++/WinRT version uses v1 or v2 cancellation.
-    constexpr bool v2_await_cancellation = minor_version_from_string(CPPWINRT_VERSION) >= 230207;
+    inline constexpr bool v2_await_cancellation = minor_version_from_string(CPPWINRT_VERSION) >= 230207;
     template<typename Derived>
     using winrt_cancellation_base = std::conditional_t<v2_await_cancellation, winrt::cancellable_awaiter<Derived>, winrt::enable_await_cancellation>;
 
@@ -349,7 +349,7 @@ namespace wil
     ~~~
     */
     template<typename Async>
-    auto resume_any_apartment(Async&& async)
+    inline auto resume_any_apartment(Async&& async)
     {
         return details::agile_await_adapter<Async>{ async };
     }
