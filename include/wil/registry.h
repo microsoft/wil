@@ -472,7 +472,7 @@ namespace wil
          * \param data The null-terminated string value to write to the specified registry value
          * \exception std::exception (including wil::ResultException) will be thrown on all failures
          */
-        inline void set_value_expanded_string(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, PCWSTR data) WI_NOEXCEPT
+        inline void set_value_expanded_string(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, PCWSTR data)
         {
             const reg_view_details::reg_view regview{ key };
             regview.set_value(subkey, value_name, data, REG_EXPAND_SZ);
@@ -486,7 +486,7 @@ namespace wil
          * \param data The null-terminated string value to write to the specified registry value
          * \exception std::exception (including wil::ResultException) will be thrown on all failures
          */
-        inline void set_value_expanded_string(HKEY key, _In_opt_ PCWSTR value_name, PCWSTR data) WI_NOEXCEPT
+        inline void set_value_expanded_string(HKEY key, _In_opt_ PCWSTR value_name, PCWSTR data)
         {
             ::wil::reg::set_value_expanded_string(key, nullptr, value_name, data);
         }
@@ -571,7 +571,7 @@ namespace wil
          * \exception std::exception (including wil::ResultException) will be thrown on all failures
          */
         template <typename ByteType, std::enable_if_t<std::is_same_v<ByteType, std::uint8_t>>* = nullptr>
-        void set_value_byte_vector(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, uint32_t type, const ::std::vector<ByteType>& data) WI_NOEXCEPT
+        void set_value_byte_vector(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, uint32_t type, const ::std::vector<ByteType>& data)
         {
             const reg_view_details::reg_view regview{ key };
             regview.set_value(subkey, value_name, data, type);
@@ -588,7 +588,7 @@ namespace wil
          * \exception std::exception (including wil::ResultException) will be thrown on all failures
          */
         template <typename ByteType, std::enable_if_t<std::is_same_v<ByteType, std::uint8_t>>* = nullptr>
-        void set_value_byte_vector(HKEY key, _In_opt_ PCWSTR value_name, uint32_t type, const ::std::vector<ByteType>& data) WI_NOEXCEPT
+        void set_value_byte_vector(HKEY key, _In_opt_ PCWSTR value_name, uint32_t type, const ::std::vector<ByteType>& data)
         {
             ::wil::reg::set_value_byte_vector(key, nullptr, value_name, type, data);
         }
@@ -782,12 +782,13 @@ namespace wil
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
         template <>
-        inline HRESULT set_value_nothrow(HKEY key, _In_opt_ PCWSTR subkey, PCWSTR value_name, const ::std::vector<::std::wstring>& data) WI_NOEXCEPT
+        inline HRESULT set_value_nothrow(HKEY key, _In_opt_ PCWSTR subkey, PCWSTR value_name, const ::std::vector<::std::wstring>& data) WI_NOEXCEPT try
         {
             const auto multiStringWcharVector(reg_view_details::get_multistring_from_wstrings(::std::begin(data), ::std::end(data)));
             const reg_view_details::reg_view_nothrow regview{ key };
             return regview.set_value(subkey, value_name, multiStringWcharVector, REG_MULTI_SZ);
         }
+        CATCH_RETURN();
 
         /**
          * \brief Writes a REG_MULTI_SZ value from a std::vector<std::wstring>
@@ -2250,7 +2251,6 @@ namespace wil
          */
         inline HRESULT get_value_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, ::std::wstring& return_value) WI_NOEXCEPT
         {
-            return_value.clear();
             const reg_view_details::reg_view_nothrow regview{ key };
             return regview.get_value(subkey, value_name, return_value);
         }
@@ -2793,7 +2793,7 @@ namespace wil
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
         template<>
-        inline HRESULT get_value_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, ::std::vector<::std::wstring>* return_value) WI_NOEXCEPT
+        inline HRESULT get_value_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, ::std::vector<::std::wstring>* return_value) WI_NOEXCEPT try
         {
             return_value->clear();
 
@@ -2807,6 +2807,7 @@ namespace wil
             }
             return S_OK;
         }
+        CATCH_RETURN();
 
         /**
          * \brief Reads a REG_MULTI_SZ value under a specified key
@@ -3207,6 +3208,6 @@ namespace wil
         return unique_registry_watcher(wistd::move(keyToWatch), isRecursive, wistd::move(callback));
     }
 #endif // WIL_ENABLE_EXCEPTIONS
-} // namespace wil
+    } // namespace wil
 
 #endif
