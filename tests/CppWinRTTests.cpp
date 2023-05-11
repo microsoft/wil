@@ -495,7 +495,7 @@ TEST_CASE("CppWinRTTests::SimpleTaskTest", "[cppwinrt]")
     ).join();
 }
 
-// Define our own custom dispatcher that we can force it to behave in certain ways.
+// Define our own custom dispatcher that we can force to behave in certain ways.
 // wil::resume_foreground supports any dispatcher that has a dispatcher_traits.
 
 namespace test
@@ -611,5 +611,86 @@ TEST_CASE("CppWinRTTests::ResumeForegroundTests", "[cppwinrt]")
         dispatcher.expected_priority = test::TestDispatcherPriority::Weird;
         co_await wil::resume_foreground(dispatcher, test::TestDispatcherPriority::Weird);
     }().get();
+}
+
+TEST_CASE("CppWinRTTests::ResumeAnyTests", "[cppwinrt]")
+{
+    auto controller = winrt::Windows::System::DispatcherQueueController::CreateOnDedicatedThread();
+
+    [](auto queue) -> winrt::Windows::Foundation::IAsyncAction
+    {
+        // Start on the DispatcherQueue thread.
+        co_await wil::resume_foreground(queue);
+
+        // This lambda co_awaits its argument and checks the thread.
+        // If "any" = false, then it co_awaits directly and expects to stay on the same thread.
+        // If "any" = true, then it co_awaits with resume_any_apartment and expects to be on a background thread.
+        // If "cancel" = true, then we expect the coroutine to fail with cancellation.
+
+        auto check_thread_switch = [](auto async, bool any, bool cancel) ->winrt::Windows::Foundation::IAsyncAction
+        {
+            auto initial = GetCurrentThreadId();
+            bool canceled = false;
+            try
+            {
+                if (any)
+                {
+                    co_await wil::resume_any_apartment(async);
+                }
+                else
+                {
+                    co_await async;
+                }
+            }
+            catch (winrt::hresult_canceled const&)
+            {
+                canceled = true;
+            }
+
+            bool switched = (GetCurrentThreadId() != initial);
+            REQUIRE(any == switched);
+            REQUIRE(cancel == canceled);
+        };
+
+        // This coroutine ends on a background thread.
+        auto ends_on_background = [](auto queue) -> winrt::Windows::Foundation::IAsyncAction
+        {
+            // Queue back to the DispatcherQueue. This ensures that the outer coroutine
+            // has definitely suspended before we complete. Otherwise we may end up hitting
+            // the await_suspend short-circuit that bypasses suspension.
+            co_await wil::resume_foreground(queue);
+            co_await winrt::resume_background();
+        };
+
+        co_await check_thread_switch(ends_on_background(queue), false, false);
+        co_await check_thread_switch(ends_on_background(queue), true, false);
+
+        // Verify that cancellation propagation still works.
+        auto cancelled_on_background = [](auto queue) -> winrt::Windows::Foundation::IAsyncAction
+        {
+            auto cancel_me = []() -> winrt::Windows::Foundation::IAsyncAction
+            {
+                auto cancel = co_await winrt::get_cancellation_token();
+                cancel.enable_propagation();
+                auto start = winrt::clock::now();
+                co_await winrt::resume_after(std::chrono::milliseconds(1000));
+                auto elapsed = winrt::clock::now() - start;
+                REQUIRE(elapsed < std::chrono::milliseconds(500));
+            }();
+            [](auto action, auto queue) -> winrt::fire_and_forget {
+                // Queue back to the DispatcherQueue. This ensures that the outer coroutine
+                // has definitely suspended before we complete. Otherwise we may end up hitting
+                // the await_suspend short-circuit that bypasses suspension.
+                co_await wil::resume_foreground(queue);
+                action.Cancel();
+            }(cancel_me, queue);
+            return cancel_me;
+        };
+
+        co_await check_thread_switch(cancelled_on_background(queue), false, true);
+        co_await check_thread_switch(cancelled_on_background(queue), true, true);
+
+    }(controller.DispatcherQueue()).get();
+    controller.ShutdownQueueAsync().get();
 }
 #endif // coroutines

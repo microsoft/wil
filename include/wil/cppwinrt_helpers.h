@@ -212,6 +212,150 @@ namespace wil::details
 #endif // __WIL_CPPWINRT_MICROSOFT_UI_DISPATCHING_HELPERS
 /// @endcond
 
+#if defined(WINRT_Windows_Foundation_H) && !defined(__WIL_CPPWINRT_WINDOWS_FOUNDATION_HELPERS)
+#define __WIL_CPPWINRT_WINDOWS_FOUNDATION_HELPERS
+/// @cond
+namespace winrt
+{
+    // Can get rid of this pair of forward declarations once we abandon support for C++/WinRT versions older than 230207.
+    // Look for v2_await_cancellation for other code that can be simplified.
+    template<typename Derived> struct cancellable_awaiter;
+    struct enable_await_cancellation;
+}
+
+namespace wil::details
+{
+    // Detect whether the C++/WinRT version uses v1 or v2 cancellation.
+    constexpr bool v2_await_cancellation = minor_version_from_string(CPPWINRT_VERSION) >= 230207;
+    template<typename Derived>
+    using winrt_cancellation_base = std::conditional_t<v2_await_cancellation, winrt::cancellable_awaiter<Derived>, winrt::enable_await_cancellation>;
+
+    template<typename Awaiter>
+    struct agile_disconnect_aware_handler
+    {
+        agile_disconnect_aware_handler(Awaiter* awaiter, coroutine_handle<> handle) noexcept :
+            m_awaiter(awaiter), m_handle(handle) {}
+
+        agile_disconnect_aware_handler(agile_disconnect_aware_handler&& other) noexcept :
+            m_awaiter(std::exchange(other.m_awaiter, {})),
+            m_handle(std::exchange(other.m_handle, {})) {}
+
+        ~agile_disconnect_aware_handler()
+        {
+            if (m_handle) Complete();
+        }
+
+        template<typename Async>
+        void operator()(Async&&, winrt::Windows::Foundation::AsyncStatus status)
+        {
+            m_awaiter->status = status;
+            Complete();
+        }
+
+    private:
+        Awaiter* m_awaiter;
+        coroutine_handle<> m_handle;
+
+        void Complete()
+        {
+            if (m_awaiter->suspending.exchange(false, std::memory_order_release))
+            {
+                m_handle = nullptr; // resumption deferred to await_suspend
+            }
+            else
+            {
+                auto handle = std::exchange(m_handle, {});
+                handle.resume();
+            }
+        }
+    };
+
+    template <typename Async>
+    struct agile_await_adapter : winrt_cancellation_base<agile_await_adapter<Async>>
+    {
+        agile_await_adapter(Async const& async) : async(async) { }
+
+        Async const& async;
+        winrt::Windows::Foundation::AsyncStatus status = winrt::Windows::Foundation::AsyncStatus::Started;
+        std::atomic<bool> suspending = true;
+
+        void enable_cancellation(winrt::cancellable_promise* promise)
+        {
+            promise->set_canceller([](void* parameter)
+                {
+                    cancel_asynchronously(reinterpret_cast<agile_await_adapter*>(parameter)->async);
+                }, this);
+        }
+
+        bool await_ready() const noexcept
+        {
+            return false;
+        }
+
+        template <typename T>
+        auto await_suspend(coroutine_handle<T> handle)
+        {
+            if constexpr (v2_await_cancellation)
+            {
+                this->set_cancellable_promise_from_handle(handle);
+            }
+            return register_completed_callback(handle);
+        }
+
+        auto await_resume() const
+        {
+            if (status == winrt::Windows::Foundation::AsyncStatus::Canceled)
+            {
+                throw winrt::hresult_canceled();
+            }
+            return async.GetResults();
+        }
+
+    private:
+        auto register_completed_callback(coroutine_handle<> handle)
+        {
+            async.Completed(agile_disconnect_aware_handler(this, handle));
+#ifdef _RESUMABLE_FUNCTIONS_SUPPORTED
+            if (!suspending.exchange(false, std::memory_order_acquire))
+            {
+                handle.resume();
+            }
+#else
+            return suspending.exchange(false, std::memory_order_acquire);
+#endif
+        }
+
+        static winrt::fire_and_forget cancel_asynchronously(Async async)
+        {
+            co_await winrt::resume_background();
+            try
+            {
+                async.Cancel();
+            }
+            catch (winrt::hresult_error const&)
+            {
+            }
+        }
+    };
+}
+/// @endcond
+namespace wil
+{
+    /** Awaits an IAsyncAction or IAsyncOperation (possibly WithProgress)
+    but resumes in any apartment rather than switching back to the original
+    apartment.
+    ~~~
+    auto users = co_await wil::resume_any_apartment(winrt::User::FindAllAsync());
+    ~~~
+    */
+    template<typename Async>
+    auto resume_any_apartment(Async&& async)
+    {
+        return details::agile_await_adapter<Async>{ async };
+    }
+}
+#endif // __WIL_CPPWINRT_WINDOWS_FOUNDATION_HELPERS
+
 #if defined(WINRT_Windows_Foundation_Collections_H) && !defined(__WIL_CPPWINRT_WINDOWS_FOUNDATION_COLLECTION_HELPERS)
 #define __WIL_CPPWINRT_WINDOWS_FOUNDATION_COLLECTION_HELPERS
 namespace wil
