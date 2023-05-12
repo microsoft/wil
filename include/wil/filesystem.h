@@ -622,6 +622,9 @@ namespace wil
                     if (m_folderHandle)
                     {
                         CancelIoEx(m_folderHandle.get(), &m_overlapped);
+
+                        DWORD dummy;
+                        GetOverlappedResult(m_folderHandle.get(), &m_overlapped, &dummy, TRUE);
                     }
 
                     // Wait for callbacks to complete.
