@@ -74,6 +74,14 @@ namespace wil
             }
 
 #if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
+            /**
+             * \brief A translation function taking iterators referencing std::wstring objects and returns a corresponding std::vector<wchar_t> to be written to a MULTI_SZ registry value
+             *        The translation follows the rules for how MULTI_SZ registry values should be formatted, notably how null characters should be embedded within the returned vector
+             * \tparam InputIt An iterator type that references a container that holds std::wstring objects to translate into a wchar_t buffer
+             * \param first An iterator referencing to the beginning of the target container (like a std::begin iterator)
+             * \param last An iterator referencing one-past-the-end of the target container (like a std::end iterator)
+             * \return A std::vector<wchar_t> with the raw wchar_t buffer of bytes prepared to write to a MULTI_SZ registry value
+             */
             template <class InputIt>
             ::std::vector<wchar_t> get_multistring_from_wstrings(const InputIt& first, const InputIt& last)
             {
@@ -96,6 +104,15 @@ namespace wil
                 return multistring;
             }
 
+            /**
+             * \brief A translation function taking iterators referencing wchar_t characters and returns extracted individual std::wstring objects
+             *        The translation follows the rules for how MULTI_SZ registry value can be formatted, notably with embedded null characters
+             *        Note that this conversion avoids returning empty std::wstring objects even though the input may contain contiguous null wchar_t values
+             * \tparam InputIt An iterator type that reference a container that holds wchar_t characters to translate into individual strings
+             * \param first An iterator referencing to the beginning of the target container (like a std::begin iterator)
+             * \param last An iterator referencing one-past-the-end of the target container (like a std::end iterator)
+             * \return A std::vector<std::wstring> of the extracted strings from the input container of wchar_t characters
+             */
             template <class InputIt>
             ::std::vector<::std::wstring> get_wstring_vector_from_multistring(const InputIt& first, const InputIt& last)
             {
@@ -177,7 +194,7 @@ namespace wil
                     return const_cast<int32_t*>(&value);
                 }
 
-                constexpr DWORD get_buffer_size(int32_t) WI_NOEXCEPT
+                constexpr DWORD get_buffer_size_bytes(int32_t) WI_NOEXCEPT
                 {
                     return static_cast<DWORD>(sizeof(int32_t));
                 }
@@ -187,7 +204,7 @@ namespace wil
                     return const_cast<uint32_t*>(&value);
                 }
 
-                constexpr DWORD get_buffer_size(uint32_t) WI_NOEXCEPT
+                constexpr DWORD get_buffer_size_bytes(uint32_t) WI_NOEXCEPT
                 {
                     return static_cast<DWORD>(sizeof(uint32_t));
                 }
@@ -197,7 +214,7 @@ namespace wil
                     return const_cast<long*>(&value);
                 }
 
-                constexpr DWORD get_buffer_size(long) WI_NOEXCEPT
+                constexpr DWORD get_buffer_size_bytes(long) WI_NOEXCEPT
                 {
                     return static_cast<DWORD>(sizeof(long));
                 }
@@ -207,7 +224,7 @@ namespace wil
                     return const_cast<unsigned long*>(&value);
                 }
 
-                constexpr DWORD get_buffer_size(unsigned long) WI_NOEXCEPT
+                constexpr DWORD get_buffer_size_bytes(unsigned long) WI_NOEXCEPT
                 {
                     return static_cast<DWORD>(sizeof(unsigned long));
                 }
@@ -217,7 +234,7 @@ namespace wil
                     return const_cast<int64_t*>(&value);
                 }
 
-                constexpr DWORD get_buffer_size(int64_t) WI_NOEXCEPT
+                constexpr DWORD get_buffer_size_bytes(int64_t) WI_NOEXCEPT
                 {
                     return static_cast<DWORD>(sizeof(int64_t));
                 }
@@ -227,7 +244,7 @@ namespace wil
                     return const_cast<uint64_t*>(&value);
                 }
 
-                constexpr DWORD get_buffer_size(uint64_t) WI_NOEXCEPT
+                constexpr DWORD get_buffer_size_bytes(uint64_t) WI_NOEXCEPT
                 {
                     return static_cast<DWORD>(sizeof(uint64_t));
                 }
@@ -237,7 +254,7 @@ namespace wil
                     return const_cast<wchar_t*>(value);
                 }
 
-                inline DWORD get_buffer_size(PCWSTR value) WI_NOEXCEPT
+                inline DWORD get_buffer_size_bytes(PCWSTR value) WI_NOEXCEPT
                 {
                     if (!value)
                     {
@@ -252,7 +269,7 @@ namespace wil
                     return const_cast<BYTE*>(buffer.data());
                 }
 
-                inline DWORD get_buffer_size(const ::std::vector<BYTE>& value) WI_NOEXCEPT
+                inline DWORD get_buffer_size_bytes(const ::std::vector<BYTE>& value) WI_NOEXCEPT
                 {
                     return static_cast<DWORD>(value.size());
                 }
@@ -297,7 +314,7 @@ namespace wil
                     return const_cast<wchar_t*>(value.data());
                 }
 
-                inline DWORD get_buffer_size(const ::std::vector<wchar_t>& value) WI_NOEXCEPT
+                inline DWORD get_buffer_size_bytes(const ::std::vector<wchar_t>& value) WI_NOEXCEPT
                 {
                     return static_cast<DWORD>(value.size()) * sizeof(wchar_t);
                 }
@@ -324,9 +341,11 @@ namespace wil
                     return const_cast<wchar_t*>(string.data());
                 }
 
-                inline DWORD get_buffer_size(const ::std::wstring& string) WI_NOEXCEPT
+                inline DWORD get_buffer_size_bytes(const ::std::wstring& string) WI_NOEXCEPT
                 {
-                    return static_cast<DWORD>(string.size() * sizeof(wchar_t));
+                    // including the last buffer space for the null
+                    // as the registry API we call guarantees null termination
+                    return static_cast<DWORD>((string.size() + 1) * sizeof(wchar_t));
                 }
 
                 template <>
@@ -361,8 +380,9 @@ namespace wil
                 {
                     return true;
                 }
-                inline void trim_buffer(::std::wstring& buffer)
+                inline void trim_buffer(::std::wstring& buffer) WI_NOEXCEPT
                 {
+                    // remove any embedded null characters
                     const auto offset = buffer.find_first_of(L'\0');
                     if (offset != ::std::wstring::npos)
                     {
@@ -377,12 +397,14 @@ namespace wil
                     return value;
                 }
 
-                inline DWORD get_buffer_size(const BSTR& value) WI_NOEXCEPT
+                inline DWORD get_buffer_size_bytes(const BSTR& value) WI_NOEXCEPT
                 {
                     auto length = ::SysStringLen(value);
                     if (length > 0)
                     {
                         // SysStringLen does not count the null-terminator
+                        // it's safe to include it in the bytes returned
+                        // because the registry API being used guarantees null termination
                         length += 1;
                     }
                     return length * sizeof(wchar_t);
@@ -398,7 +420,7 @@ namespace wil
                     if (value)
                     {
                         // zero out the buffer if pre-allocated
-                        for (auto& string_char : ::wil::make_range(value, get_buffer_size(value) / sizeof(WCHAR)))
+                        for (auto& string_char : ::wil::make_range(value, get_buffer_size_bytes(value) / sizeof(WCHAR)))
                         {
                             string_char = L'\0';
                         }
@@ -437,9 +459,9 @@ namespace wil
                     return value.get();
                 }
 
-                inline DWORD get_buffer_size(const ::wil::unique_bstr& value) WI_NOEXCEPT
+                inline DWORD get_buffer_size_bytes(const ::wil::unique_bstr& value) WI_NOEXCEPT
                 {
-                    return get_buffer_size(value.get());
+                    return get_buffer_size_bytes(value.get());
                 }
 
                 template <>
@@ -452,7 +474,7 @@ namespace wil
                     if (value)
                     {
                         // zero out the buffer if pre-allocated
-                        for (auto& string_char : ::wil::make_range(value.get(), get_buffer_size(value) / sizeof(WCHAR)))
+                        for (auto& string_char : ::wil::make_range(value.get(), get_buffer_size_bytes(value) / sizeof(WCHAR)))
                         {
                             string_char = L'\0';
                         }
@@ -486,9 +508,9 @@ namespace wil
                     return value.get();
                 }
 
-                inline DWORD get_buffer_size(const ::wil::shared_bstr& value) WI_NOEXCEPT
+                inline DWORD get_buffer_size_bytes(const ::wil::shared_bstr& value) WI_NOEXCEPT
                 {
-                    return get_buffer_size(value.get());
+                    return get_buffer_size_bytes(value.get());
                 }
 
                 template <>
@@ -501,7 +523,7 @@ namespace wil
                     if (value)
                     {
                         // zero out the buffer if pre-allocated
-                        for (auto& string_char : ::wil::make_range(value.get(), get_buffer_size(value) / sizeof(WCHAR)))
+                        for (auto& string_char : ::wil::make_range(value.get(), get_buffer_size_bytes(value) / sizeof(WCHAR)))
                         {
                             string_char = L'\0';
                         }
@@ -535,7 +557,7 @@ namespace wil
                     return value.get();
                 }
 
-                constexpr DWORD get_buffer_size(const ::wil::unique_cotaskmem_string&) WI_NOEXCEPT
+                constexpr DWORD get_buffer_size_bytes(const ::wil::unique_cotaskmem_string&) WI_NOEXCEPT
                 {
                     // wil::unique_cotaskmem_string does not intrinsically track its internal buffer size
                     // thus the caller must track the buffer size it requested to be allocated
@@ -567,7 +589,7 @@ namespace wil
                     return value.get();
                 }
 
-                constexpr DWORD get_buffer_size(const ::wil::shared_cotaskmem_string&) WI_NOEXCEPT
+                constexpr DWORD get_buffer_size_bytes(const ::wil::shared_cotaskmem_string&) WI_NOEXCEPT
                 {
                     // wil::shared_cotaskmem_string does not intrinsically track its internal buffer size
                     // thus the caller must track the buffer size it requested to be allocated
@@ -736,7 +758,7 @@ namespace wil
                 constexpr DWORD set_value_type<const ::wil::shared_bstr>() WI_NOEXCEPT
                 {
                     return REG_SZ;
-            }
+                }
 #endif // #if defined(__WIL_OLEAUTO_H_STL)
 
 #if defined(__WIL_OBJBASE_H_)
@@ -764,9 +786,9 @@ namespace wil
                 constexpr DWORD set_value_type<const ::wil::shared_cotaskmem_string>() WI_NOEXCEPT
                 {
                     return REG_SZ;
-        }
+                }
 #endif // #if defined(__WIL_OBJBASE_H_STL)
-    }
+            }
 
             template <typename err_policy = ::wil::err_exception_policy>
             class reg_view_t
@@ -857,7 +879,7 @@ namespace wil
                     // throw if exception policy
                     err_policy::HResult(HRESULT_FROM_WIN32(hr));
                     return ::std::nullopt;
-            }
+                }
 #endif // #if defined (_OPTIONAL_) && defined(__cpp_lib_optional)
 
                 template <typename R>
@@ -878,7 +900,7 @@ namespace wil
                         value_name,
                         type,
                         static_cast<BYTE*>(reg_value_type_info::get_buffer(value)),
-                        reg_value_type_info::get_buffer_size(value));
+                        reg_value_type_info::get_buffer_size_bytes(value));
                     return err_policy::HResult(HRESULT_FROM_WIN32(error));
                 }
 
@@ -901,7 +923,7 @@ namespace wil
                         }
                     }
 
-                    DWORD bytes_allocated{ reg_value_type_info::get_buffer_size(return_value) };
+                    DWORD bytes_allocated{ reg_value_type_info::get_buffer_size_bytes(return_value) };
                     for (;;)
                     {
                         constexpr DWORD* null_type{ nullptr };
@@ -941,7 +963,7 @@ namespace wil
 
                             if (SUCCEEDED(hr))
                             {
-                                const auto current_byte_size = reg_value_type_info::get_buffer_size(return_value);
+                                const auto current_byte_size = reg_value_type_info::get_buffer_size_bytes(return_value);
                                 if (current_byte_size != data_size_bytes)
                                 {
                                     hr = reg_value_type_info::resize_buffer(return_value, data_size_bytes);
@@ -964,10 +986,9 @@ namespace wil
                         break;
                     }
 
-
                     return get_value_with_type_policy::HResult(hr);
                 }
-};
+            };
 
             using reg_view_nothrow = ::wil::reg::reg_view_details::reg_view_t<::wil::err_returncode_policy>;
 #if defined(WIL_ENABLE_EXCEPTIONS)

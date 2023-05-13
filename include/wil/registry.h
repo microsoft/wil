@@ -195,21 +195,23 @@ namespace wil
          */
         inline HRESULT get_child_key_count_nothrow(HKEY key, _Out_ DWORD* numSubKeys) WI_NOEXCEPT
         {
-            RETURN_IF_WIN32_ERROR(RegQueryInfoKeyW(
-                key,
-                nullptr, // null class
-                nullptr, // null class character count,
-                nullptr, // null reserved
-                numSubKeys,
-                nullptr, // null max subkey length
-                nullptr, // null max class length
-                nullptr, // null value count
-                nullptr, // null max value name length
-                nullptr, // null max value length
-                nullptr, // null security descriptor
-                nullptr)); // null last write filetime
+            RETURN_IF_WIN32_ERROR(
+                RegQueryInfoKeyW(
+                    key,
+                    nullptr, // null class
+                    nullptr, // null class character count,
+                    nullptr, // null reserved
+                    numSubKeys,
+                    nullptr, // null max subkey length
+                    nullptr, // null max class length
+                    nullptr, // null value count
+                    nullptr, // null max value name length
+                    nullptr, // null max value length
+                    nullptr, // null security descriptor
+                    nullptr)); // null last write filetime
             return S_OK;
         }
+
         inline HRESULT get_child_key_count_nothrow(HKEY key, _Out_ uint32_t* numSubKeys) WI_NOEXCEPT
         {
             DWORD subKeys{};
@@ -226,21 +228,23 @@ namespace wil
          */
         inline HRESULT get_child_value_count_nothrow(HKEY key, _Out_ DWORD* numSubValues) WI_NOEXCEPT
         {
-            RETURN_IF_WIN32_ERROR(RegQueryInfoKeyW(
-                key,
-                nullptr, // null class
-                nullptr, // null class char count,
-                nullptr, // null reserved
-                nullptr, // null subkey count
-                nullptr, // null max subkey length
-                nullptr, // null max class length
-                numSubValues,
-                nullptr, // null max value name length
-                nullptr, // null max value length
-                nullptr, // null security descriptor
-                nullptr)); // null last write filetime
+            RETURN_IF_WIN32_ERROR(
+                RegQueryInfoKeyW(
+                    key,
+                    nullptr, // null class
+                    nullptr, // null class char count,
+                    nullptr, // null reserved
+                    nullptr, // null subkey count
+                    nullptr, // null max subkey length
+                    nullptr, // null max class length
+                    numSubValues,
+                    nullptr, // null max value name length
+                    nullptr, // null max value length
+                    nullptr, // null security descriptor
+                    nullptr)); // null last write filetime
             return S_OK;
         }
+
         inline HRESULT get_child_value_count_nothrow(HKEY key, _Out_ uint32_t* numSubValues) WI_NOEXCEPT
         {
             DWORD subValues{};
@@ -248,27 +252,29 @@ namespace wil
             *numSubValues = subValues;
             return S_OK;
         }
+
         /**
          * \brief Queries for the filetime when the registry key was last modified
          * \param key The HKEY to query for number of values
          * \param[out] lastModified A pointer to a FILETIME to receive the last time modified
          * \exception std::exception (including wil::ResultException) will be thrown on all failures
          */
-        inline HRESULT get_key_last_modified_nothrow(HKEY key, _Out_ FILETIME* lastModified) WI_NOEXCEPT
+        inline HRESULT get_last_modified_nothrow(HKEY key, _Out_ FILETIME* lastModified) WI_NOEXCEPT
         {
-            RETURN_IF_WIN32_ERROR(RegQueryInfoKeyW(
-                key,
-                nullptr, // null class
-                nullptr, // null class char count,
-                nullptr, // null reserved
-                nullptr, // null subkey count
-                nullptr, // null max subkey length
-                nullptr, // null max class length
-                nullptr, // null value count
-                nullptr, // null max value name length
-                nullptr, // null max value length
-                nullptr, // null security descriptor
-                lastModified));
+            RETURN_IF_WIN32_ERROR(
+                RegQueryInfoKeyW(
+                    key,
+                    nullptr, // null class
+                    nullptr, // null class char count,
+                    nullptr, // null reserved
+                    nullptr, // null subkey count
+                    nullptr, // null max subkey length
+                    nullptr, // null max class length
+                    nullptr, // null value count
+                    nullptr, // null max value name length
+                    nullptr, // null max value length
+                    nullptr, // null security descriptor
+                    lastModified));
             return S_OK;
         }
 
@@ -305,10 +311,10 @@ namespace wil
          * \return The queried filetime if succeeded
          * \exception std::exception (including wil::ResultException) will be thrown on all failures
          */
-        inline FILETIME get_key_last_modified(HKEY key)
+        inline FILETIME get_last_modified(HKEY key)
         {
             FILETIME lastModified{};
-            THROW_IF_FAILED(::wil::reg::get_key_last_modified_nothrow(key, &lastModified));
+            THROW_IF_FAILED(::wil::reg::get_last_modified_nothrow(key, &lastModified));
             return lastModified;
         }
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS)
@@ -503,7 +509,6 @@ namespace wil
          *        each string will be marshalled to a contiguous null-terminator-delimited multi-sz string
          * \exception std::exception (including wil::ResultException) will be thrown on all failures
          */
-        template <>
         inline void set_value(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const ::std::vector<::std::wstring>& data)
         {
             const auto multiStringWcharVector(reg_view_details::get_multistring_from_wstrings(::std::begin(data), ::std::end(data)));
@@ -520,7 +525,6 @@ namespace wil
          *        each string will be marshalled to a contiguous null-terminator-delimited multi-sz string
          * \exception std::exception (including wil::ResultException) will be thrown on all failures
          */
-        template <>
         inline void set_value(HKEY key, _In_opt_ PCWSTR value_name, const ::std::vector<::std::wstring>& data)
         {
             ::wil::reg::set_value(key, nullptr, value_name, data);
@@ -926,13 +930,28 @@ namespace wil
         //
         // Blocking get_value_string template types that are not already specialized - this gives a much friendlier compiler error message
         template <typename T>
-        T get_value_string(HKEY /*key*/, _In_opt_ PCWSTR /*subkey*/, _In_opt_ PCWSTR /*value_name*/) { static_assert(sizeof(T) != sizeof(T), "Unsupported type for get_value_string"); }
+        T get_value_string(HKEY /*key*/, _In_opt_ PCWSTR /*subkey*/, _In_opt_ PCWSTR /*value_name*/)
+        {
+            static_assert(sizeof(T) != sizeof(T), "Unsupported type for get_value_string");
+        }
+
         template <typename T>
-        T get_value_string(HKEY /*key*/, _In_opt_ PCWSTR /*value_name*/) { static_assert(sizeof(T) != sizeof(T), "Unsupported type for get_value_string"); }
+        T get_value_string(HKEY /*key*/, _In_opt_ PCWSTR /*value_name*/)
+        {
+            static_assert(sizeof(T) != sizeof(T), "Unsupported type for get_value_string");
+        }
+
         template <typename T>
-        T get_value_expanded_string(HKEY /*key*/, _In_opt_ PCWSTR /*subkey*/, _In_opt_ PCWSTR /*value_name*/) { static_assert(sizeof(T) != sizeof(T), "Unsupported type for get_value_expanded_string"); }
+        T get_value_expanded_string(HKEY /*key*/, _In_opt_ PCWSTR /*subkey*/, _In_opt_ PCWSTR /*value_name*/)
+        {
+            static_assert(sizeof(T) != sizeof(T), "Unsupported type for get_value_expanded_string");
+        }
+
         template <typename T>
-        T get_value_expanded_string(HKEY /*key*/, _In_opt_ PCWSTR /*value_name*/) { static_assert(sizeof(T) != sizeof(T), "Unsupported type for get_value_expanded_string"); }
+        T get_value_expanded_string(HKEY /*key*/, _In_opt_ PCWSTR /*value_name*/)
+        {
+            static_assert(sizeof(T) != sizeof(T), "Unsupported type for get_value_expanded_string");
+        }
 
         /**
          * \brief Reads a value under a specified key, the required registry type based off the templated type passed as data
@@ -1609,13 +1628,28 @@ namespace wil
         //
         // Blocking try_get_value_string template types that are not already specialized - this gives a much friendlier compiler error message
         template <typename T>
-        ::std::optional<T> try_get_value_string(HKEY /*key*/, _In_opt_ PCWSTR /*subkey*/, _In_opt_ PCWSTR /*value_name*/) { static_assert(sizeof(T) != sizeof(T), "Unsupported type for try_get_value_string"); }
+        ::std::optional<T> try_get_value_string(HKEY /*key*/, _In_opt_ PCWSTR /*subkey*/, _In_opt_ PCWSTR /*value_name*/)
+        {
+            static_assert(sizeof(T) != sizeof(T), "Unsupported type for try_get_value_string");
+        }
+
         template <typename T>
-        ::std::optional<T> try_get_value_string(HKEY /*key*/, _In_opt_ PCWSTR /*value_name*/) { static_assert(sizeof(T) != sizeof(T), "Unsupported type for try_get_value_string"); }
+        ::std::optional<T> try_get_value_string(HKEY /*key*/, _In_opt_ PCWSTR /*value_name*/)
+        {
+            static_assert(sizeof(T) != sizeof(T), "Unsupported type for try_get_value_string");
+        }
+
         template <typename T>
-        ::std::optional<T> try_get_value_expanded_string(HKEY /*key*/, _In_opt_ PCWSTR /*subkey*/, _In_opt_ PCWSTR /*value_name*/) { static_assert(sizeof(T) != sizeof(T), "Unsupported type for try_get_value_expanded_string"); }
+        ::std::optional<T> try_get_value_expanded_string(HKEY /*key*/, _In_opt_ PCWSTR /*subkey*/, _In_opt_ PCWSTR /*value_name*/)
+        {
+            static_assert(sizeof(T) != sizeof(T), "Unsupported type for try_get_value_expanded_string");
+        }
+
         template <typename T>
-        ::std::optional<T> try_get_value_expanded_string(HKEY /*key*/, _In_opt_ PCWSTR /*value_name*/) { static_assert(sizeof(T) != sizeof(T), "Unsupported type for try_get_value_expanded_string"); }
+        ::std::optional<T> try_get_value_expanded_string(HKEY /*key*/, _In_opt_ PCWSTR /*value_name*/)
+        {
+            static_assert(sizeof(T) != sizeof(T), "Unsupported type for try_get_value_expanded_string");
+        }
 
         /**
          * \brief Attempts to read a value under a specified key, returning in a std::optional, the required registry type based off the templated return type
@@ -1635,11 +1669,11 @@ namespace wil
         {
 #if defined(__WIL_OLEAUTO_H_)
             // not allowing unique types with try_get_value: wil::unique_bstr cannot be copied and thus is difficult to work with a std::optional
-            static_assert(!std::is_same_v<T, wil::unique_bstr>, "try_get with wil::unique_bstr is disabled");
+            static_assert(!std::is_same_v<T, ::wil::unique_bstr>, "try_get with wil::unique_bstr is disabled");
 #endif // #if defined(__WIL_OLEAUTO_H_)
 #if defined(__WIL_OBJBASE_H_)
             // not allowing unique types with try_get_value: wil::unique_cotaskmem_string cannot be copied and thus is difficult to work with a std::optional
-            static_assert(!std::is_same_v<T, wil::unique_cotaskmem_string>, "try_get with wil::unique_cotaskmem_string is disabled");
+            static_assert(!std::is_same_v<T, ::wil::unique_cotaskmem_string>, "try_get with wil::unique_cotaskmem_string is disabled");
 #endif // #if defined(__WIL_OBJBASE_H_)
 
             const reg_view_details::reg_view regview{ key };
@@ -1661,11 +1695,11 @@ namespace wil
         {
 #if defined(__WIL_OLEAUTO_H_)
             // not allowing unique types with try_get_value: wil::unique_bstr cannot be copied and thus is difficult to work with a std::optional
-            static_assert(!std::is_same_v<T, wil::unique_bstr>, "try_get with wil::unique_bstr is disabled");
+            static_assert(!std::is_same_v<T, ::wil::unique_bstr>, "try_get with wil::unique_bstr is disabled");
 #endif // #if defined(__WIL_OLEAUTO_H_)
 #if defined(__WIL_OBJBASE_H_)
             // not allowing unique types with try_get_value: wil::unique_cotaskmem_string cannot be copied and thus is difficult to work with a std::optional
-            static_assert(!std::is_same_v<T, wil::unique_cotaskmem_string>, "try_get with wil::unique_cotaskmem_string is disabled");
+            static_assert(!std::is_same_v<T, ::wil::unique_cotaskmem_string>, "try_get with wil::unique_cotaskmem_string is disabled");
 #endif // #if defined(__WIL_OBJBASE_H_)
 
             return ::wil::reg::try_get_value<T>(key, nullptr, value_name);
@@ -2068,7 +2102,7 @@ namespace wil
          * \param[out] return_value A pointer-to-T receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        template<typename T,
+        template <typename T,
             std::enable_if_t<!std::is_same_v<T, wchar_t>>* = nullptr>
         HRESULT get_value_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _Out_ T* return_value) WI_NOEXCEPT
         {
@@ -2085,7 +2119,7 @@ namespace wil
          * \param[out] return_value A pointer-to-T receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        template<typename T,
+        template <typename T,
             std::enable_if_t<!std::is_same_v<T, wchar_t>>* = nullptr>
         HRESULT get_value_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _Out_ T* return_value) WI_NOEXCEPT
         {
@@ -2684,7 +2718,7 @@ namespace wil
          */
         inline HRESULT get_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, ::wil::unique_bstr& return_value) WI_NOEXCEPT
         {
-            return wil::reg::get_value_expanded_string_nothrow(key, nullptr, value_name, return_value);
+            return ::wil::reg::get_value_expanded_string_nothrow(key, nullptr, value_name, return_value);
         }
 
 #if defined(__WIL_OLEAUTO_H_STL)
@@ -2792,7 +2826,7 @@ namespace wil
          * \param[out] return_value A std::vector<std::wstring> receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        template<>
+        template <>
         inline HRESULT get_value_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, ::std::vector<::std::wstring>* return_value) WI_NOEXCEPT try
         {
             return_value->clear();
@@ -2817,7 +2851,7 @@ namespace wil
          * \param[out] return_value A std::vector<std::wstring> receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        template<>
+        template <>
         inline HRESULT get_value_nothrow(HKEY key, _In_opt_ PCWSTR value_name, ::std::vector<::std::wstring>* return_value) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_nothrow<::std::vector<::std::wstring>>(key, nullptr, value_name, return_value);
