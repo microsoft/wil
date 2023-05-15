@@ -32,27 +32,6 @@ namespace wil
 {
     namespace reg
     {
-        /**
-         * \brief Helper function to translate registry return values if the value was not found
-         * \param hr HRESULT to test from registry APIs
-         * \return boolean if the HRESULT indicates the registry value was not found
-         */
-        constexpr bool is_registry_not_found(HRESULT hr) WI_NOEXCEPT
-        {
-            return (hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND)) ||
-                (hr == HRESULT_FROM_WIN32(ERROR_PATH_NOT_FOUND));
-        }
-
-        /**
-         * \brief Helper function to translate registry return values if the buffer was too small
-         * \param hr HRESULT to test from registry APIs
-         * \return boolean if the HRESULT indicates the buffer was too small for the value being read
-         */
-        constexpr bool is_registry_buffer_too_small(HRESULT hr) WI_NOEXCEPT
-        {
-            return hr == HRESULT_FROM_WIN32(ERROR_MORE_DATA);
-        }
-
 #if defined(WIL_ENABLE_EXCEPTIONS)
         /**
          * \brief Opens a new HKEY to the specified path - see RegOpenKeyExW

@@ -31,6 +31,27 @@ namespace wil
 {
     namespace reg
     {
+        /**
+         * \brief Helper function to translate registry return values if the value was not found
+         * \param hr HRESULT to test from registry APIs
+         * \return boolean if the HRESULT indicates the registry value was not found
+         */
+        constexpr bool is_registry_not_found(HRESULT hr) WI_NOEXCEPT
+        {
+            return (hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND)) ||
+                (hr == HRESULT_FROM_WIN32(ERROR_PATH_NOT_FOUND));
+        }
+
+        /**
+         * \brief Helper function to translate registry return values if the buffer was too small
+         * \param hr HRESULT to test from registry APIs
+         * \return boolean if the HRESULT indicates the buffer was too small for the value being read
+         */
+        constexpr bool is_registry_buffer_too_small(HRESULT hr) WI_NOEXCEPT
+        {
+            return hr == HRESULT_FROM_WIN32(ERROR_MORE_DATA);
+        }
+
         enum class key_access
         {
             read,
@@ -309,6 +330,9 @@ namespace wil
                 }
                 CATCH_RETURN();
 
+                // std::vector<wchar_t> does not implement resize_buffer
+                // because these support functions are only needed for set_value
+                // from the return of get_multistring_from_wstrings
                 inline void* get_buffer(const ::std::vector<wchar_t>& value) WI_NOEXCEPT
                 {
                     return const_cast<wchar_t*>(value.data());
@@ -343,7 +367,7 @@ namespace wil
 
                 inline DWORD get_buffer_size_bytes(const ::std::wstring& string) WI_NOEXCEPT
                 {
-                    // including the last buffer space for the null
+                    // including the last null buffer space in the returned buffer-size-bytes
                     // as the registry API we call guarantees null termination
                     return static_cast<DWORD>((string.size() + 1) * sizeof(wchar_t));
                 }
@@ -399,6 +423,8 @@ namespace wil
 
                 inline DWORD get_buffer_size_bytes(const BSTR& value) WI_NOEXCEPT
                 {
+                    // including the last null buffer space in the returned buffer-size-bytes
+                    // as the registry API we call guarantees null termination
                     auto length = ::SysStringLen(value);
                     if (length > 0)
                     {
@@ -806,8 +832,7 @@ namespace wil
                 typename err_policy::result open_key(_In_opt_ _In_opt_ PCWSTR subKey, _Out_ HKEY* hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) const
                 {
                     constexpr DWORD zero_options{ 0 };
-                    const auto error = ::RegOpenKeyExW(m_key, subKey, zero_options, get_access_flags(access), hkey);
-                    return err_policy::HResult(HRESULT_FROM_WIN32(error));
+                    return err_policy::HResult(HRESULT_FROM_WIN32(::RegOpenKeyExW(m_key, subKey, zero_options, get_access_flags(access), hkey)));
                 }
 
                 typename err_policy::result create_key(PCWSTR subKey, _Out_ HKEY* hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) const
@@ -819,19 +844,18 @@ namespace wil
                     constexpr DWORD zero_options{ 0 };
                     constexpr SECURITY_ATTRIBUTES* null_security_attributes{ nullptr };
                     DWORD disposition{ 0 };
-                    const auto error =
-                        ::RegCreateKeyExW(m_key, subKey, zero_reserved, null_class, zero_options, get_access_flags(access), null_security_attributes, hkey, &disposition);
-                    return err_policy::HResult(HRESULT_FROM_WIN32(error));
+                    return err_policy::HResult(HRESULT_FROM_WIN32(
+                        ::RegCreateKeyExW(m_key, subKey, zero_reserved, null_class, zero_options, get_access_flags(access), null_security_attributes, hkey, &disposition)));
                 }
 
                 typename err_policy::result delete_tree(_In_opt_ PCWSTR sub_key) const
                 {
-                    auto error = ::RegDeleteTreeW(m_key, sub_key);
-                    if (error == ERROR_FILE_NOT_FOUND)
+                    auto hr = HRESULT_FROM_WIN32(::RegDeleteTreeW(m_key, sub_key));
+                    if (::wil::reg::is_registry_not_found(hr))
                     {
-                        error = ERROR_SUCCESS;
+                        hr = S_OK;
                     }
-                    return err_policy::HResult(HRESULT_FROM_WIN32(error));
+                    return err_policy::HResult(hr);
                 }
 
                 typename err_policy::result delete_value(_In_opt_ PCWSTR value_name) const
@@ -851,12 +875,13 @@ namespace wil
                 {
                     ::wil::assign_to_opt_param(requiredBytes, 0ul);
                     DWORD data_size_bytes{ Length * sizeof(WCHAR) };
-                    const auto error = ::RegGetValueW(m_key, subkey, value_name, ::wil::reg::reg_view_details::get_value_flags_from_value_type(type), nullptr, return_value, &data_size_bytes);
-                    if (error == ERROR_SUCCESS || error == ERROR_MORE_DATA)
+                    const auto hr = HRESULT_FROM_WIN32(
+                        ::RegGetValueW(m_key, subkey, value_name, ::wil::reg::reg_view_details::get_value_flags_from_value_type(type), nullptr, return_value, &data_size_bytes));
+                    if (SUCCEEDED(hr) || ::wil::reg::is_registry_buffer_too_small(hr))
                     {
                         ::wil::assign_to_opt_param(requiredBytes, data_size_bytes);
                     }
-                    return err_policy::HResult(HRESULT_FROM_WIN32(error));
+                    return err_policy::HResult(hr);
                 }
 
 #if defined (_OPTIONAL_) && defined(__cpp_lib_optional)
@@ -871,13 +896,13 @@ namespace wil
                         return ::std::optional(::std::move(value));
                     }
 
-                    if (hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+                    if (::wil::reg::is_registry_not_found(hr))
                     {
                         return ::std::nullopt;
                     }
 
                     // throw if exception policy
-                    err_policy::HResult(HRESULT_FROM_WIN32(hr));
+                    err_policy::HResult(hr);
                     return ::std::nullopt;
                 }
 #endif // #if defined (_OPTIONAL_) && defined(__cpp_lib_optional)
@@ -894,21 +919,19 @@ namespace wil
                 template <typename R>
                 typename err_policy::result set_value_with_type(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const R& value, DWORD type) const
                 {
-                    const auto error = ::RegSetKeyValueW(
-                        m_key,
-                        subkey,
-                        value_name,
-                        type,
-                        static_cast<BYTE*>(reg_value_type_info::get_buffer(value)),
-                        reg_value_type_info::get_buffer_size_bytes(value));
-                    return err_policy::HResult(HRESULT_FROM_WIN32(error));
+                    return err_policy::HResult(HRESULT_FROM_WIN32(
+                        ::RegSetKeyValueW(
+                            m_key,
+                            subkey,
+                            value_name,
+                            type,
+                            static_cast<BYTE*>(reg_value_type_info::get_buffer(value)),
+                            reg_value_type_info::get_buffer_size_bytes(value))));
                 }
 
                 template <typename R, typename get_value_with_type_policy = err_policy>
                 typename get_value_with_type_policy::result get_value_with_type(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, R& return_value, DWORD type = reg_value_type_info::get_value_type<R>()) const
                 {
-                    HRESULT hr = S_OK;
-
                     if
 #if defined(__cpp_if_constexpr)
                         constexpr
@@ -916,19 +939,20 @@ namespace wil
                         (reg_value_type_info::supports_prepare_buffer<R>())
 
                     {
-                        hr = reg_value_type_info::prepare_buffer(return_value);
-                        if (FAILED(hr))
+                        const auto prepare_buffer_error = reg_value_type_info::prepare_buffer(return_value);
+                        if (FAILED(prepare_buffer_error))
                         {
-                            return get_value_with_type_policy::HResult(hr);
+                            return get_value_with_type_policy::HResult(prepare_buffer_error);
                         }
                     }
 
                     DWORD bytes_allocated{ reg_value_type_info::get_buffer_size_bytes(return_value) };
+                    HRESULT get_value_hresult = S_OK;
                     for (;;)
                     {
                         constexpr DWORD* null_type{ nullptr };
                         DWORD data_size_bytes{ bytes_allocated };
-                        hr = HRESULT_FROM_WIN32(::RegGetValueW(
+                        get_value_hresult = HRESULT_FROM_WIN32(::RegGetValueW(
                             m_key,
                             subkey,
                             value_name,
@@ -938,55 +962,74 @@ namespace wil
                             &data_size_bytes));
 
                         // some return types we can grow as needed - e.g. when writing to a std::wstring
-                        // will only compile the below for those types that support dynamically growing the buffer
+                        // only compile and resize_buffer for those types that support dynamically growing the buffer
                         if
 #if defined(__cpp_if_constexpr)
                             constexpr
 #endif
                             (reg_value_type_info::supports_resize_buffer<R>())
                         {
+                            // Attempt to grow the buffer with the data_size_bytes returned from GetRegValueW
                             // GetRegValueW will indicate the caller allocate the returned number of bytes in one of two cases:
                             // 1. returns ERROR_MORE_DATA
                             // 2. returns ERROR_SUCCESS when we gave it a nullptr for the out buffer
-                            const bool shouldReallocate = (hr == HRESULT_FROM_WIN32(ERROR_MORE_DATA)) || (SUCCEEDED(hr) && (reg_value_type_info::get_buffer(return_value) == nullptr) && (data_size_bytes > 0));
+                            const bool shouldReallocate =
+                                (::wil::reg::is_registry_buffer_too_small(get_value_hresult)) ||
+                                (SUCCEEDED(get_value_hresult) && (reg_value_type_info::get_buffer(return_value) == nullptr) && (data_size_bytes > 0));
                             if (shouldReallocate)
                             {
                                 // verify if resize_buffer succeeded allocation
-                                hr = reg_value_type_info::resize_buffer(return_value, data_size_bytes);
-                                if (SUCCEEDED(hr))
+                                const auto resize_buffer_error = reg_value_type_info::resize_buffer(return_value, data_size_bytes);
+                                if (FAILED(resize_buffer_error))
                                 {
-                                    // if it succeeds, continue the for loop to try again
-                                    bytes_allocated = data_size_bytes;
-                                    continue;
+                                    // if resize fails, return this error back to the caller
+                                    return get_value_with_type_policy::HResult(resize_buffer_error);
                                 }
+
+                                // if it resize succeeds, continue the for loop to try again
+                                bytes_allocated = data_size_bytes;
+                                continue;
                             }
 
-                            if (SUCCEEDED(hr))
+                            // if the RegGetValueW call succeeded with a non-null [out] param,
+                            // and the type supports resize_buffer
+                            // and the bytes we allocated don't match data_size_bytes returned from RegGetValueW
+                            // resize the buffer to match what RegGetValueW returned
+                            if (SUCCEEDED(get_value_hresult))
                             {
                                 const auto current_byte_size = reg_value_type_info::get_buffer_size_bytes(return_value);
                                 if (current_byte_size != data_size_bytes)
                                 {
-                                    hr = reg_value_type_info::resize_buffer(return_value, data_size_bytes);
-                                }
-                            }
-
-                            if (SUCCEEDED(hr))
-                            {
-                                if
-#if defined(__cpp_if_constexpr)
-                                    constexpr
-#endif
-                                    (reg_value_type_info::supports_trim_buffer<R>())
-
-                                {
-                                    reg_value_type_info::trim_buffer(return_value);
+                                    // verify if resize_buffer succeeded allocation
+                                    const auto resize_buffer_error = reg_value_type_info::resize_buffer(return_value, data_size_bytes);
+                                    if (FAILED(resize_buffer_error))
+                                    {
+                                        // if resize fails, return this error back to the caller
+                                        return get_value_with_type_policy::HResult(resize_buffer_error);
+                                    }
                                 }
                             }
                         }
+
+                        // we don't need to reallocate and retry the call to RegGetValueW so breaking out of the loop
                         break;
                     }
 
-                    return get_value_with_type_policy::HResult(hr);
+                    // some types (generally string types) require trimming its internal buffer after RegGetValueW successfully wrote into its buffer
+                    if
+#if defined(__cpp_if_constexpr)
+                        constexpr
+#endif
+                        (reg_value_type_info::supports_trim_buffer<R>())
+
+                    {
+                        if (SUCCEEDED(get_value_hresult))
+                        {
+                            reg_value_type_info::trim_buffer(return_value);
+                        }
+                    }
+
+                    return get_value_with_type_policy::HResult(get_value_hresult);
                 }
             };
 
@@ -995,6 +1038,7 @@ namespace wil
             using reg_view = ::wil::reg::reg_view_details::reg_view_t<::wil::err_exception_policy>;
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS)
         }
+
     } // namespace reg
 } // namespace wil
 #endif // __WIL_REGISTRY_HELPERS_INCLUDED
