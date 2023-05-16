@@ -2124,12 +2124,6 @@ namespace wil
             const reg_view_details::reg_view_nothrow regview{ key };
             return regview.get_value_char_array(subkey, value_name, return_value, REG_SZ, requiredBytes);
         }
-        template <size_t Length>
-        HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length], _Out_opt_ uint32_t* requiredBytes) WI_NOEXCEPT
-        {
-            const reg_view_details::reg_view_nothrow regview{ key };
-            return regview.get_value_char_array(subkey, value_name, return_value, REG_SZ, requiredBytes);
-        }
 
         /**
          * \brief Reads a REG_SZ value under a specified key
@@ -2144,11 +2138,6 @@ namespace wil
          */
         template <size_t Length>
         HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length], _Out_opt_ DWORD* requiredBytes = nullptr) WI_NOEXCEPT
-        {
-            return ::wil::reg::get_value_string_nothrow<Length>(key, nullptr, value_name, return_value, requiredBytes);
-        }
-        template <size_t Length>
-        HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length], _Out_opt_ uint32_t* requiredBytes) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_string_nothrow<Length>(key, nullptr, value_name, return_value, requiredBytes);
         }
