@@ -281,6 +281,8 @@ namespace wil
                     {
                         return 0;
                     }
+                    // including the last null buffer space in the returned buffer-size-bytes
+                    // as the registry API we call guarantees null termination
                     return static_cast<DWORD>((::wcslen(value) + 1) * sizeof(wchar_t));
                 }
 
@@ -411,8 +413,8 @@ namespace wil
                     if (offset != ::std::wstring::npos)
                     {
                         buffer.resize(offset);
-                    }
-                }
+            }
+        }
 #endif // #if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
 
 #if defined(__WIL_OLEAUTO_H_)
@@ -423,14 +425,12 @@ namespace wil
 
                 inline DWORD get_buffer_size_bytes(const BSTR& value) WI_NOEXCEPT
                 {
-                    // including the last null buffer space in the returned buffer-size-bytes
-                    // as the registry API we call guarantees null termination
                     auto length = ::SysStringLen(value);
                     if (length > 0)
                     {
                         // SysStringLen does not count the null-terminator
-                        // it's safe to include it in the bytes returned
-                        // because the registry API being used guarantees null termination
+                        // including the last null buffer space in the returned buffer-size-bytes
+                        // as the registry API we call guarantees null termination
                         length += 1;
                     }
                     return length * sizeof(wchar_t);
@@ -814,7 +814,7 @@ namespace wil
                     return REG_SZ;
                 }
 #endif // #if defined(__WIL_OBJBASE_H_STL)
-            }
+    }
 
             template <typename err_policy = ::wil::err_exception_policy>
             class reg_view_t
@@ -939,10 +939,10 @@ namespace wil
                         (reg_value_type_info::supports_prepare_buffer<R>())
 
                     {
-                        const auto prepare_buffer_error = reg_value_type_info::prepare_buffer(return_value);
-                        if (FAILED(prepare_buffer_error))
+                        const auto prepare_buffer_hr = reg_value_type_info::prepare_buffer(return_value);
+                        if (FAILED(prepare_buffer_hr))
                         {
-                            return get_value_with_type_policy::HResult(prepare_buffer_error);
+                            return get_value_with_type_policy::HResult(prepare_buffer_hr);
                         }
                     }
 
@@ -979,11 +979,11 @@ namespace wil
                             if (shouldReallocate)
                             {
                                 // verify if resize_buffer succeeded allocation
-                                const auto resize_buffer_error = reg_value_type_info::resize_buffer(return_value, data_size_bytes);
-                                if (FAILED(resize_buffer_error))
+                                const auto resize_buffer_hr = reg_value_type_info::resize_buffer(return_value, data_size_bytes);
+                                if (FAILED(resize_buffer_hr))
                                 {
                                     // if resize fails, return this error back to the caller
-                                    return get_value_with_type_policy::HResult(resize_buffer_error);
+                                    return get_value_with_type_policy::HResult(resize_buffer_hr);
                                 }
 
                                 // if it resize succeeds, continue the for loop to try again
@@ -1001,11 +1001,11 @@ namespace wil
                                 if (current_byte_size != data_size_bytes)
                                 {
                                     // verify if resize_buffer succeeded allocation
-                                    const auto resize_buffer_error = reg_value_type_info::resize_buffer(return_value, data_size_bytes);
-                                    if (FAILED(resize_buffer_error))
+                                    const auto resize_buffer_hr = reg_value_type_info::resize_buffer(return_value, data_size_bytes);
+                                    if (FAILED(resize_buffer_hr))
                                     {
                                         // if resize fails, return this error back to the caller
-                                        return get_value_with_type_policy::HResult(resize_buffer_error);
+                                        return get_value_with_type_policy::HResult(resize_buffer_hr);
                                     }
                                 }
                             }
@@ -1037,7 +1037,7 @@ namespace wil
 #if defined(WIL_ENABLE_EXCEPTIONS)
             using reg_view = ::wil::reg::reg_view_details::reg_view_t<::wil::err_exception_policy>;
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS)
-        }
+}
 
     } // namespace reg
 } // namespace wil
