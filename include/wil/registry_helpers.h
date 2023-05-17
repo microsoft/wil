@@ -946,6 +946,7 @@ namespace wil
                         }
                     }
 
+                    // get_buffer_size_bytes should include the null terminator, if use for strings.
                     DWORD bytes_allocated{ reg_value_type_info::get_buffer_size_bytes(return_value) };
                     HRESULT get_value_hresult = S_OK;
                     for (;;)
