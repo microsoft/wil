@@ -2119,7 +2119,7 @@ namespace wil
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
         template <size_t Length, typename DwordType,
-            std::enable_if_t<std::is_same_v<DwordType, uint32_t> || std::is_same_v<DwordType, u_long>>* = nullptr>
+            std::enable_if_t<std::is_same_v<DwordType, uint32_t> || std::is_same_v<DwordType, unsigned long>>* = nullptr>
         HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length], _Out_opt_ DwordType* requiredBytes) WI_NOEXCEPT
         {
             const reg_view_details::reg_view_nothrow regview{ key };
@@ -2145,7 +2145,7 @@ namespace wil
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
         template <size_t Length, typename DwordType,
-            std::enable_if_t<std::is_same_v<DwordType, uint32_t> || std::is_same_v<DwordType, u_long>>* = nullptr>
+            std::enable_if_t<std::is_same_v<DwordType, uint32_t> || std::is_same_v<DwordType, unsigned long>>* = nullptr>
         HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length], _Out_opt_ DwordType* requiredBytes) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_string_nothrow<Length>(key, nullptr, value_name, return_value, requiredBytes);
@@ -2201,7 +2201,7 @@ namespace wil
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
         template <typename DwordType,
-            std::enable_if_t<std::is_same_v<DwordType, uint32_t> || std::is_same_v<DwordType, u_long>>* = nullptr>
+            std::enable_if_t<std::is_same_v<DwordType, uint32_t> || std::is_same_v<DwordType, unsigned long>>* = nullptr>
         HRESULT get_value_dword_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _Out_ DwordType* return_value) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_nothrow(key, subkey, value_name, return_value);
@@ -2216,7 +2216,7 @@ namespace wil
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
         template <typename DwordType,
-            std::enable_if_t<std::is_same_v<DwordType, uint32_t> || std::is_same_v<DwordType, u_long>>* = nullptr>
+            std::enable_if_t<std::is_same_v<DwordType, uint32_t> || std::is_same_v<DwordType, unsigned long>>* = nullptr>
         HRESULT get_value_dword_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _Out_ DwordType* return_value) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_nothrow(key, nullptr, value_name, return_value);
@@ -2232,7 +2232,9 @@ namespace wil
          * \param[out] return_value A uint64_t receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        inline HRESULT get_value_qword_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _Out_ uint64_t* return_value) WI_NOEXCEPT
+        template <typename QwordType,
+            std::enable_if_t<std::is_same_v<QwordType, uint64_t> || std::is_same_v<QwordType, unsigned long long>>* = nullptr>
+        HRESULT get_value_qword_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _Out_ QwordType* return_value) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_nothrow(key, subkey, value_name, return_value);
         }
@@ -2245,7 +2247,9 @@ namespace wil
          * \param[out] return_value A uint64_t receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        inline HRESULT get_value_qword_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _Out_ uint64_t* return_value) WI_NOEXCEPT
+        template <typename QwordType,
+            std::enable_if_t<std::is_same_v<QwordType, uint64_t> || std::is_same_v<QwordType, unsigned long long>>* = nullptr>
+        HRESULT get_value_qword_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _Out_ QwordType* return_value) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_nothrow(key, nullptr, value_name, return_value);
         }
@@ -2602,7 +2606,7 @@ namespace wil
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
         template <size_t Length, typename DwordType,
-            std::enable_if_t<std::is_same_v<DwordType, uint32_t> || std::is_same_v<DwordType, u_long>>* = nullptr>
+            std::enable_if_t<std::is_same_v<DwordType, uint32_t> || std::is_same_v<DwordType, unsigned long>>* = nullptr>
         HRESULT get_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length], _Out_opt_ DwordType* requiredBytes) WI_NOEXCEPT
         {
             const reg_view_details::reg_view_nothrow regview{ key };
@@ -2628,7 +2632,7 @@ namespace wil
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
         template <size_t Length, typename DwordType,
-            std::enable_if_t<std::is_same_v<DwordType, uint32_t> || std::is_same_v<DwordType, u_long>>* = nullptr>
+            std::enable_if_t<std::is_same_v<DwordType, uint32_t> || std::is_same_v<DwordType, unsigned long>>* = nullptr>
         HRESULT get_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length], _Out_opt_ DwordType* requiredBytes) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_expanded_string_nothrow<Length>(key, nullptr, value_name, return_value, requiredBytes);

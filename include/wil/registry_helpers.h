@@ -871,7 +871,7 @@ namespace wil
 
                 // typename D supports unsigned 32-bit values; i.e. allows the caller to pass a DWORD* as well as uint32_t*
                 template <size_t Length, typename DwordType,
-                    std::enable_if_t<std::is_same_v<DwordType, uint32_t> || std::is_same_v<DwordType, u_long>>* = nullptr>
+                    std::enable_if_t<std::is_same_v<DwordType, uint32_t> || std::is_same_v<DwordType, unsigned long>>* = nullptr>
                 typename err_policy::result get_value_char_array(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length], DWORD type, _Out_opt_ DwordType * requiredBytes) const
                 {
                     constexpr DwordType zero_value{ 0ul };
