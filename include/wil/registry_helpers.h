@@ -413,8 +413,8 @@ namespace wil
                     if (offset != ::std::wstring::npos)
                     {
                         buffer.resize(offset);
-            }
-        }
+                    }
+                }
 #endif // #if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
 
 #if defined(__WIL_OLEAUTO_H_)
@@ -814,7 +814,7 @@ namespace wil
                     return REG_SZ;
                 }
 #endif // #if defined(__WIL_OBJBASE_H_STL)
-    }
+            }
 
             template <typename err_policy = ::wil::err_exception_policy>
             class reg_view_t
@@ -870,16 +870,19 @@ namespace wil
                 }
 
                 // typename D supports unsigned 32-bit values; i.e. allows the caller to pass a DWORD* as well as uint32_t*
-                template <size_t Length, typename D>
-                typename err_policy::result get_value_char_array(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length], DWORD type, _Out_opt_ D* requiredBytes = nullptr) const
+                template <size_t Length, typename DwordType,
+                    std::enable_if_t<std::is_same_v<DwordType, uint32_t> || std::is_same_v<DwordType, u_long>>* = nullptr>
+                typename err_policy::result get_value_char_array(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length], DWORD type, _Out_opt_ DwordType * requiredBytes) const
                 {
-                    ::wil::assign_to_opt_param(requiredBytes, 0ul);
+                    constexpr DwordType zero_value{ 0ul };
+                    ::wil::assign_to_opt_param(requiredBytes, zero_value);
                     DWORD data_size_bytes{ Length * sizeof(WCHAR) };
                     const auto hr = HRESULT_FROM_WIN32(
                         ::RegGetValueW(m_key, subkey, value_name, ::wil::reg::reg_view_details::get_value_flags_from_value_type(type), nullptr, return_value, &data_size_bytes));
                     if (SUCCEEDED(hr) || ::wil::reg::is_registry_buffer_too_small(hr))
                     {
-                        ::wil::assign_to_opt_param(requiredBytes, data_size_bytes);
+                        const DwordType updated_value{ data_size_bytes };
+                        ::wil::assign_to_opt_param(requiredBytes, updated_value);
                     }
                     return err_policy::HResult(hr);
                 }
@@ -1037,7 +1040,7 @@ namespace wil
 #if defined(WIL_ENABLE_EXCEPTIONS)
             using reg_view = ::wil::reg::reg_view_details::reg_view_t<::wil::err_exception_policy>;
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS)
-}
+        }
 
     } // namespace reg
 } // namespace wil

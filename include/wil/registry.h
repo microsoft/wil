@@ -2115,14 +2115,22 @@ namespace wil
          *        can be nullptr to read from the unnamed default registry value
          * \param[out] return_value A WCHAR array receiving the value read from the registry
          *             will write to the WCHAR array the string value read from the registry, guaranteeing null-termination
-         * \param[out] requiredBytes An optional pointer to a DWORD to receive the required bytes of the string in the registry
+         * \param[out] requiredBytes An optional pointer to a unsigned 32-bit value to receive the required bytes of the string in the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        template <size_t Length>
-        HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length], _Out_opt_ DWORD* requiredBytes = nullptr) WI_NOEXCEPT
+        template <size_t Length, typename DwordType,
+            std::enable_if_t<std::is_same_v<DwordType, uint32_t> || std::is_same_v<DwordType, u_long>>* = nullptr>
+        HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length], _Out_opt_ DwordType* requiredBytes) WI_NOEXCEPT
         {
             const reg_view_details::reg_view_nothrow regview{ key };
             return regview.get_value_char_array(subkey, value_name, return_value, REG_SZ, requiredBytes);
+        }
+        template <size_t Length>
+        HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length]) WI_NOEXCEPT
+        {
+            constexpr uint32_t* null_outparam = nullptr;
+            const reg_view_details::reg_view_nothrow regview{ key };
+            return regview.get_value_char_array(subkey, value_name, return_value, REG_SZ, null_outparam);
         }
 
         /**
@@ -2133,13 +2141,19 @@ namespace wil
          *        can be nullptr to read from the unnamed default registry value
          * \param[out] return_value A WCHAR array receiving the value read from the registry
          *             will write to the WCHAR array the string value read from the registry, guaranteeing null-termination
-         * \param[out] requiredBytes An optional pointer to a DWORD to receive the required bytes of the string to be read
+         * \param[out] requiredBytes An optional pointer to an unsigned 32-bit value to receive the required bytes of the string to be read
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        template <size_t Length>
-        HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length], _Out_opt_ DWORD* requiredBytes = nullptr) WI_NOEXCEPT
+        template <size_t Length, typename DwordType,
+            std::enable_if_t<std::is_same_v<DwordType, uint32_t> || std::is_same_v<DwordType, u_long>>* = nullptr>
+        HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length], _Out_opt_ DwordType* requiredBytes) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_string_nothrow<Length>(key, nullptr, value_name, return_value, requiredBytes);
+        }
+        template <size_t Length>
+        HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length]) WI_NOEXCEPT
+        {
+            return ::wil::reg::get_value_string_nothrow<Length>(key, nullptr, value_name, return_value);
         }
 
         /**
@@ -2157,7 +2171,7 @@ namespace wil
         template <size_t Length>
         HRESULT get_value_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length]) WI_NOEXCEPT
         {
-            return ::wil::reg::get_value_string_nothrow<Length>(key, subkey, value_name, return_value, nullptr);
+            return ::wil::reg::get_value_string_nothrow<Length>(key, subkey, value_name, return_value);
         }
 
         /**
@@ -2173,7 +2187,7 @@ namespace wil
         template <size_t Length>
         HRESULT get_value_nothrow(HKEY key, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length]) WI_NOEXCEPT
         {
-            return ::wil::reg::get_value_string_nothrow<Length>(key, nullptr, value_name, return_value, nullptr);
+            return ::wil::reg::get_value_string_nothrow<Length>(key, nullptr, value_name, return_value);
         }
 
         /**
@@ -2183,14 +2197,12 @@ namespace wil
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
-         * \param[out] return_value A DWORD receiving the value read from the registry
+         * \param[out] return_value A pointer to an unsigned 32-bit value receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        inline HRESULT get_value_dword_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _Out_ DWORD* return_value) WI_NOEXCEPT
-        {
-            return ::wil::reg::get_value_nothrow(key, subkey, value_name, return_value);
-        }
-        inline HRESULT get_value_dword_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _Out_ uint32_t* return_value) WI_NOEXCEPT
+        template <typename DwordType,
+            std::enable_if_t<std::is_same_v<DwordType, uint32_t> || std::is_same_v<DwordType, u_long>>* = nullptr>
+        HRESULT get_value_dword_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _Out_ DwordType* return_value) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_nothrow(key, subkey, value_name, return_value);
         }
@@ -2200,14 +2212,12 @@ namespace wil
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
-         * \param[out] return_value A DWORD receiving the value read from the registry
+         * \param[out] return_value A pointer to an unsigned 32-bit value receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        inline HRESULT get_value_dword_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _Out_ DWORD* return_value) WI_NOEXCEPT
-        {
-            return ::wil::reg::get_value_nothrow(key, nullptr, value_name, return_value);
-        }
-        inline HRESULT get_value_dword_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _Out_ uint32_t* return_value) WI_NOEXCEPT
+        template <typename DwordType,
+            std::enable_if_t<std::is_same_v<DwordType, uint32_t> || std::is_same_v<DwordType, u_long>>* = nullptr>
+        HRESULT get_value_dword_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _Out_ DwordType* return_value) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_nothrow(key, nullptr, value_name, return_value);
         }
@@ -2591,17 +2601,19 @@ namespace wil
          * \param[out] requiredBytes An optional pointer to a uint32_t to receive the required bytes of the string to be read
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        template <size_t Length>
-        HRESULT get_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length], _Out_opt_ DWORD* requiredBytes = nullptr) WI_NOEXCEPT
+        template <size_t Length, typename DwordType,
+            std::enable_if_t<std::is_same_v<DwordType, uint32_t> || std::is_same_v<DwordType, u_long>>* = nullptr>
+        HRESULT get_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length], _Out_opt_ DwordType* requiredBytes) WI_NOEXCEPT
         {
             const reg_view_details::reg_view_nothrow regview{ key };
             return regview.get_value_char_array(subkey, value_name, return_value, REG_EXPAND_SZ, requiredBytes);
         }
         template <size_t Length>
-        HRESULT get_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length], _Out_opt_ uint32_t* requiredBytes) WI_NOEXCEPT
+        HRESULT get_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length]) WI_NOEXCEPT
         {
+            constexpr uint32_t* null_outparam = nullptr;
             const reg_view_details::reg_view_nothrow regview{ key };
-            return regview.get_value_char_array(subkey, value_name, return_value, REG_EXPAND_SZ, requiredBytes);
+            return regview.get_value_char_array(subkey, value_name, return_value, REG_EXPAND_SZ, null_outparam);
         }
 
         /**
@@ -2615,15 +2627,16 @@ namespace wil
          * \param[out] requiredBytes An optional pointer to a uint32_t to receive the required bytes of the string to be read
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        template <size_t Length>
-        HRESULT get_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length], _Out_opt_ DWORD* requiredBytes = nullptr) WI_NOEXCEPT
+        template <size_t Length, typename DwordType,
+            std::enable_if_t<std::is_same_v<DwordType, uint32_t> || std::is_same_v<DwordType, u_long>>* = nullptr>
+        HRESULT get_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length], _Out_opt_ DwordType* requiredBytes) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_expanded_string_nothrow<Length>(key, nullptr, value_name, return_value, requiredBytes);
         }
         template <size_t Length>
-        HRESULT get_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length], _Out_opt_ uint32_t* requiredBytes) WI_NOEXCEPT
+        HRESULT get_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length]) WI_NOEXCEPT
         {
-            return ::wil::reg::get_value_expanded_string_nothrow<Length>(key, nullptr, value_name, return_value, requiredBytes);
+            return ::wil::reg::get_value_expanded_string_nothrow<Length>(key, nullptr, value_name, return_value);
         }
 
 #if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
