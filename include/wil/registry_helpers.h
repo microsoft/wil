@@ -444,7 +444,7 @@ namespace wil
                     for (auto& string_char : value)
                     {
                         string_char = L'\0';
-                }
+                    }
                     return S_OK;
                 }
 #endif // #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
@@ -501,8 +501,8 @@ namespace wil
                     if (offset != ::std::wstring::npos)
                     {
                         buffer.resize(offset);
-            }
-        }
+                    }
+                }
 #endif // #if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
 
 #if defined(__WIL_OLEAUTO_H_)
@@ -693,6 +693,34 @@ namespace wil
                     RETURN_IF_NULL_ALLOC(new_string.get());
 
                     string = ::std::move(new_string);
+                    return S_OK;
+                }
+
+                inline void* get_buffer(const ::wil::unique_cotaskmem_array_ptr<BYTE>& value) WI_NOEXCEPT
+                {
+                    return value.get();
+                }
+
+                inline DWORD get_buffer_size_bytes(const ::wil::unique_cotaskmem_array_ptr<BYTE>& value) WI_NOEXCEPT
+                {
+                    return static_cast<DWORD>(value.size());
+                }
+
+                template<>
+                constexpr bool supports_resize_buffer<::wil::unique_cotaskmem_array_ptr<BYTE>>() WI_NOEXCEPT
+                {
+                    return true;
+                }
+
+                inline HRESULT resize_buffer(::wil::unique_cotaskmem_array_ptr<BYTE>& arrayValue, DWORD byteSize) WI_NOEXCEPT
+                {
+                    ::wil::unique_cotaskmem_array_ptr<BYTE> tempValue;
+                    *tempValue.addressof() = static_cast<BYTE*>(::CoTaskMemAlloc(byteSize));
+                    RETURN_IF_NULL_ALLOC(tempValue.get());
+                    *tempValue.size_address() = byteSize;
+                    ZeroMemory(tempValue.get(), byteSize);
+
+                    arrayValue = ::std::move(tempValue);
                     return S_OK;
                 }
 #endif // #if defined(__WIL_OBJBASE_H_)
@@ -902,7 +930,7 @@ namespace wil
                     return REG_SZ;
                 }
 #endif // #if defined(__WIL_OBJBASE_H_STL)
-                }
+            }
 
             template <typename err_policy = ::wil::err_exception_policy>
             class reg_view_t
@@ -1128,8 +1156,8 @@ namespace wil
 #if defined(WIL_ENABLE_EXCEPTIONS)
             using reg_view = ::wil::reg::reg_view_details::reg_view_t<::wil::err_exception_policy>;
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS)
-                }
+        }
 
-                } // namespace reg
-    } // namespace wil
+    } // namespace reg
+} // namespace wil
 #endif // __WIL_REGISTRY_HELPERS_INCLUDED
