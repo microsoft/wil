@@ -23,10 +23,6 @@
 #error This header is not supported in kernel-mode.
 #endif
 
-#ifndef __WIL_WINREG_
-#error This is required for ::wil::unique_hkey support
-#endif
-
 namespace wil
 {
     namespace reg
@@ -167,6 +163,98 @@ namespace wil
                 return strings;
             }
 #endif // #if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
+
+#if defined(__WIL_OBJBASE_H_)
+            /**
+             * \brief A translation function taking iterators referencing wchar_t characters and returns extracted individual wil::unique_cotaskmem_string objects
+             *        The translation follows the rules for how MULTI_SZ registry value can be formatted, notably with embedded null characters
+             *        Note that this conversion avoids returning empty wil::unique_cotaskmem_string objects even though the input may contain contiguous null wchar_t values
+             * \tparam InputIt An iterator type that reference a container that holds wchar_t characters to translate into individual strings
+             * \param first An iterator referencing to the beginning of the target container (like a std::begin iterator)
+             * \param last An iterator referencing one-past-the-end of the target container (like a std::end iterator)
+             * \return A wil::unique_cotaskmem_array_ptr<wil::unique_cotaskmem_string> of the extracted strings from the input container of wchar_t characters
+             */
+            template <class InputIt>
+            ::wil::unique_cotaskmem_array_ptr<::wil::unique_cotaskmem_string> get_cotaskmemstring_array_from_multistring(const InputIt& first, const InputIt& last)
+            {
+                ::wil::unique_cotaskmem_array_ptr<::wil::unique_cotaskmem_string> strings;
+
+                if (last - first < 3)
+                {
+                    // it doesn't have the required 2 terminating null characters - return an empty string
+                    *strings.addressof() = static_cast<PWSTR*>(::CoTaskMemAlloc(sizeof(PWSTR) * 1));
+                    *strings.size_address() = 1;
+                    strings[0] = nullptr;
+                    return strings;
+                }
+
+                // we must first count the # of strings for the array
+                size_t arraySize = 0;
+                const auto end_iterator = last;
+                const auto last_null = (end_iterator - 1);
+
+                auto current = first;
+                while (current != end_iterator)
+                {
+                    // hand rolling ::std::find(current, end_iterator, L'\0');
+                    auto next = current;
+                    while (next != end_iterator && *next != L'\0')
+                    {
+                        ++next;
+                    }
+
+                    if (next != end_iterator)
+                    {
+                        // don't add an empty string for the final 2nd-null-terminator
+                        if (next != last_null)
+                        {
+                            ++arraySize;
+                        }
+                        current = next + 1;
+                    }
+                    else
+                    {
+                        current = next;
+                    }
+                }
+
+                // allocate the array size necessary to hold all the unique_cotaskmem_strings
+                // if we must return early due to allocation failure later, the local 'strings' can safely be deleted
+                *strings.addressof() = static_cast<PWSTR*>(::CoTaskMemAlloc(sizeof(PWSTR) * arraySize));
+                *strings.size_address() = arraySize;
+                ZeroMemory(strings.data(), sizeof(PWSTR) * arraySize);
+
+                size_t arrayOffset = 0;
+                current = first;
+                while (current != end_iterator)
+                {
+                    // hand rolling ::std::find(current, end_iterator, L'\0');
+                    auto next = current;
+                    while (next != end_iterator && *next != L'\0')
+                    {
+                        ++next;
+                    }
+
+                    if (next != end_iterator)
+                    {
+                        // don't add an empty string for the final 2nd-null-terminator
+                        if (next != last_null)
+                        {
+                            FAIL_FAST_IF(arrayOffset >= arraySize);
+                            const auto stringSize = next - current;
+                            strings[arrayOffset] = ::wil::make_cotaskmem_string_nothrow(&(*current), stringSize).release();
+                            ++arrayOffset;
+                        }
+                        current = next + 1;
+                    }
+                    else
+                    {
+                        current = next;
+                    }
+                }
+                return strings;
+            }
+#endif // #if defined(__WIL_OBJBASE_H_)
 
             namespace reg_value_type_info
             {
@@ -356,7 +444,7 @@ namespace wil
                     for (auto& string_char : value)
                     {
                         string_char = L'\0';
-                    }
+                }
                     return S_OK;
                 }
 #endif // #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
@@ -413,8 +501,8 @@ namespace wil
                     if (offset != ::std::wstring::npos)
                     {
                         buffer.resize(offset);
-                    }
-                }
+            }
+        }
 #endif // #if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
 
 #if defined(__WIL_OLEAUTO_H_)
@@ -814,7 +902,7 @@ namespace wil
                     return REG_SZ;
                 }
 #endif // #if defined(__WIL_OBJBASE_H_STL)
-            }
+                }
 
             template <typename err_policy = ::wil::err_exception_policy>
             class reg_view_t
@@ -1040,8 +1128,8 @@ namespace wil
 #if defined(WIL_ENABLE_EXCEPTIONS)
             using reg_view = ::wil::reg::reg_view_details::reg_view_t<::wil::err_exception_policy>;
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS)
-        }
+                }
 
-    } // namespace reg
-} // namespace wil
+                } // namespace reg
+    } // namespace wil
 #endif // __WIL_REGISTRY_HELPERS_INCLUDED

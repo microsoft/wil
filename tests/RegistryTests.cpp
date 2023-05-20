@@ -29,12 +29,13 @@ constexpr uint64_t test_qword_zero = 0ull;
 constexpr DWORD64 test_qword_max = 0xffffffffffffffff;
 const std::wstring test_string_empty{};
 
+constexpr PCWSTR test_null_terminated_string{ L"testing" };
+constexpr PCWSTR test_empty_null_terminated_string{ L"" };
+
 // The empty multistring array has specific behavior: it will be read as an array with one string.
 const std::vector<std::wstring> test_multistring_empty{};
 
-#if defined(WIL_ENABLE_EXCEPTIONS)
 constexpr uint32_t test_expanded_string_buffer_size = 100;
-#endif
 
 const std::vector<DWORD> dwordTestVector = { static_cast<DWORD>(-1), 1, 0 };
 const std::vector<DWORD64> qwordTestVector = { static_cast<DWORD64>(-1), 1, 0 };
@@ -713,7 +714,7 @@ namespace
                 [](wil::unique_hkey const& key, PCWSTR value_name) { return wil::reg::set_value_dword_nothrow(key.get(), value_name, test_dword_zero); },
                 [](wil::unique_hkey const& key, PCWSTR value_name) { return wil::reg::set_value_string_nothrow(key.get(), value_name, test_string_empty.c_str()); },
             };
-    }
+        }
 
         static std::vector<std::function<HRESULT(HKEY, PCWSTR, PCWSTR)>> set_wrong_value_fns_subkey()
         {
@@ -997,9 +998,9 @@ TEMPLATE_LIST_TEST_CASE("BasicRegistryTests::simple types typed gets/sets/try_ge
                     });
             }
         }
-        }
-#endif // defined(__cpp_lib_optional)
     }
+#endif // defined(__cpp_lib_optional)
+}
 #endif // defined(WIL_ENABLE_EXCEPTIONS)
 
 #if defined(WIL_ENABLE_EXCEPTIONS)
@@ -1417,6 +1418,18 @@ TEST_CASE("BasicRegistryTests::string types", "[registry]")
         wil::unique_hkey hkey;
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
 
+        // tests for set_value with PCWSTR values
+        WCHAR pcwstr_result[test_expanded_string_buffer_size]{};
+        REQUIRE_SUCCEEDED(wil::reg::set_value_string_nothrow(hkey.get(), stringValueName, test_null_terminated_string));
+        REQUIRE_SUCCEEDED(wil::reg::get_value_string_nothrow(hkey.get(), stringValueName, pcwstr_result));
+        REQUIRE(wcslen(pcwstr_result) == wcslen(test_null_terminated_string));
+        REQUIRE(wcscmp(pcwstr_result, test_null_terminated_string) == 0);
+
+        REQUIRE_SUCCEEDED(wil::reg::set_value_string_nothrow(hkey.get(), stringValueName, test_empty_null_terminated_string));
+        REQUIRE_SUCCEEDED(wil::reg::get_value_string_nothrow(hkey.get(), stringValueName, pcwstr_result));
+        REQUIRE(wcslen(pcwstr_result) == wcslen(test_empty_null_terminated_string));
+        REQUIRE(wcscmp(pcwstr_result, test_empty_null_terminated_string) == 0);
+
 #if defined(__WIL_OLEAUTO_H_)
         verify_string_nothrow<wil::unique_bstr>(hkey.get());
 #if defined(__WIL_OLEAUTO_H_STL)
@@ -1434,6 +1447,18 @@ TEST_CASE("BasicRegistryTests::string types", "[registry]")
 
     SECTION("set_value_string_nothrow/get_value_string_nothrow: with string key")
     {
+        // tests for set_value with PCWSTR values
+        WCHAR pcwstr_result[test_expanded_string_buffer_size]{};
+        REQUIRE_SUCCEEDED(wil::reg::set_value_string_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, test_null_terminated_string));
+        REQUIRE_SUCCEEDED(wil::reg::get_value_string_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, pcwstr_result));
+        REQUIRE(wcslen(pcwstr_result) == wcslen(test_null_terminated_string));
+        REQUIRE(wcscmp(pcwstr_result, test_null_terminated_string) == 0);
+
+        REQUIRE_SUCCEEDED(wil::reg::set_value_string_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, test_empty_null_terminated_string));
+        REQUIRE_SUCCEEDED(wil::reg::get_value_string_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, pcwstr_result));
+        REQUIRE(wcslen(pcwstr_result) == wcslen(test_empty_null_terminated_string));
+        REQUIRE(wcscmp(pcwstr_result, test_empty_null_terminated_string) == 0);
+
 #if defined(__WIL_OLEAUTO_H_)
         verify_string_nothrow<wil::unique_bstr>(HKEY_CURRENT_USER, testSubkey);
 #if defined(__WIL_OLEAUTO_H_STL)
@@ -1454,6 +1479,18 @@ TEST_CASE("BasicRegistryTests::string types", "[registry]")
         wil::unique_hkey hkey;
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
 
+        // tests for set_value with PCWSTR values
+        WCHAR pcwstr_result[test_expanded_string_buffer_size]{};
+        REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(hkey.get(), stringValueName, test_null_terminated_string));
+        REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(hkey.get(), stringValueName, pcwstr_result));
+        REQUIRE(wcslen(pcwstr_result) == wcslen(test_null_terminated_string));
+        REQUIRE(wcscmp(pcwstr_result, test_null_terminated_string) == 0);
+
+        REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(hkey.get(), stringValueName, test_empty_null_terminated_string));
+        REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(hkey.get(), stringValueName, pcwstr_result));
+        REQUIRE(wcslen(pcwstr_result) == wcslen(test_empty_null_terminated_string));
+        REQUIRE(wcscmp(pcwstr_result, test_empty_null_terminated_string) == 0);
+
 #if defined(__WIL_OLEAUTO_H_)
         verify_string_generic_get_value_nothrow<wil::unique_bstr>(hkey.get());
 #if defined(__WIL_OLEAUTO_H_STL)
@@ -1471,6 +1508,18 @@ TEST_CASE("BasicRegistryTests::string types", "[registry]")
 
     SECTION("strings set_value_nothrow/get_value_nothrow: with string key")
     {
+        // tests for set_value with PCWSTR values
+        WCHAR pcwstr_result[test_expanded_string_buffer_size]{};
+        REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, test_null_terminated_string));
+        REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, pcwstr_result));
+        REQUIRE(wcslen(pcwstr_result) == wcslen(test_null_terminated_string));
+        REQUIRE(wcscmp(pcwstr_result, test_null_terminated_string) == 0);
+
+        REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, test_empty_null_terminated_string));
+        REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, pcwstr_result));
+        REQUIRE(wcslen(pcwstr_result) == wcslen(test_empty_null_terminated_string));
+        REQUIRE(wcscmp(pcwstr_result, test_empty_null_terminated_string) == 0);
+
 #if defined(__WIL_OLEAUTO_H_)
         verify_string_generic_get_value_nothrow<wil::unique_bstr>(HKEY_CURRENT_USER, testSubkey);
 #if defined(__WIL_OLEAUTO_H_STL)
@@ -1489,6 +1538,20 @@ TEST_CASE("BasicRegistryTests::string types", "[registry]")
 #ifdef WIL_ENABLE_EXCEPTIONS
     SECTION("set_value_string/get_value_string: with opened key")
     {
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
+
+        // tests for set_value with PCWSTR values
+        wil::reg::set_value_string(hkey.get(), stringValueName, test_null_terminated_string);
+        auto pcwstr_result = wil::reg::get_value_string(hkey.get(), stringValueName);
+        REQUIRE(pcwstr_result.size() == wcslen(test_null_terminated_string));
+        REQUIRE(pcwstr_result == test_null_terminated_string);
+
+        wil::reg::set_value_string(hkey.get(), stringValueName, test_empty_null_terminated_string);
+        pcwstr_result = wil::reg::get_value_string(hkey.get(), stringValueName);
+        REQUIRE(pcwstr_result.size() == wcslen(test_empty_null_terminated_string));
+        REQUIRE(pcwstr_result == test_empty_null_terminated_string);
+
 #if defined(__WIL_OLEAUTO_H_)
         verify_string<wil::unique_bstr>();
 #if defined(__WIL_OLEAUTO_H_STL)
@@ -1506,6 +1569,17 @@ TEST_CASE("BasicRegistryTests::string types", "[registry]")
 
     SECTION("set_value_string/get_value_string: with string key")
     {
+        // tests for set_value with PCWSTR values
+        wil::reg::set_value_string(HKEY_CURRENT_USER, testSubkey, stringValueName, test_null_terminated_string);
+        auto pcwstr_result = wil::reg::get_value_string(HKEY_CURRENT_USER, testSubkey, stringValueName);
+        REQUIRE(pcwstr_result.size() == wcslen(test_null_terminated_string));
+        REQUIRE(pcwstr_result == test_null_terminated_string);
+
+        wil::reg::set_value_string(HKEY_CURRENT_USER, testSubkey, stringValueName, test_empty_null_terminated_string);
+        pcwstr_result = wil::reg::get_value_string(HKEY_CURRENT_USER, testSubkey, stringValueName);
+        REQUIRE(pcwstr_result.size() == wcslen(test_empty_null_terminated_string));
+        REQUIRE(pcwstr_result == test_empty_null_terminated_string);
+
 #if defined(__WIL_OLEAUTO_H_)
         verify_string_subkey<wil::unique_bstr>();
 #if defined(__WIL_OLEAUTO_H_STL)
@@ -1523,6 +1597,20 @@ TEST_CASE("BasicRegistryTests::string types", "[registry]")
 
     SECTION("strings set_value/get_value: with opened key")
     {
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
+
+        // tests for set_value with PCWSTR values
+        wil::reg::set_value(hkey.get(), stringValueName, test_null_terminated_string);
+        auto pcwstr_result = wil::reg::get_value<std::wstring>(hkey.get(), stringValueName);
+        REQUIRE(pcwstr_result.size() == wcslen(test_null_terminated_string));
+        REQUIRE(pcwstr_result == test_null_terminated_string);
+
+        wil::reg::set_value(hkey.get(), stringValueName, test_empty_null_terminated_string);
+        pcwstr_result = wil::reg::get_value<std::wstring>(hkey.get(), stringValueName);
+        REQUIRE(pcwstr_result.size() == wcslen(test_empty_null_terminated_string));
+        REQUIRE(pcwstr_result == test_empty_null_terminated_string);
+
 #if defined(__WIL_OLEAUTO_H_)
         verify_string_generic_get_value<wil::unique_bstr>();
 #if defined(__WIL_OLEAUTO_H_STL)
@@ -1540,6 +1628,17 @@ TEST_CASE("BasicRegistryTests::string types", "[registry]")
 
     SECTION("strings set_value/get_value: with string key")
     {
+        // tests for set_value with PCWSTR values
+        wil::reg::set_value(HKEY_CURRENT_USER, testSubkey, stringValueName, test_null_terminated_string);
+        auto pcwstr_result = wil::reg::get_value<std::wstring>(HKEY_CURRENT_USER, testSubkey, stringValueName);
+        REQUIRE(pcwstr_result.size() == wcslen(test_null_terminated_string));
+        REQUIRE(pcwstr_result == test_null_terminated_string);
+
+        wil::reg::set_value(HKEY_CURRENT_USER, testSubkey, stringValueName, test_empty_null_terminated_string);
+        pcwstr_result = wil::reg::get_value<std::wstring>(HKEY_CURRENT_USER, testSubkey, stringValueName);
+        REQUIRE(pcwstr_result.size() == wcslen(test_empty_null_terminated_string));
+        REQUIRE(pcwstr_result == test_empty_null_terminated_string);
+
 #if defined(__WIL_OLEAUTO_H_)
         verify_string_generic_get_value_subkey<wil::unique_bstr>();
 #if defined(__WIL_OLEAUTO_H_STL)
@@ -2070,10 +2169,9 @@ TEST_CASE("BasicRegistryTests::expanded_string", "[registry]")
 #endif
 
     // TODO: verify std::wstring is the default
-    }
+}
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS)
 
-#ifdef __WIL_WINREG_STL
 TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
@@ -2087,6 +2185,7 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
         wil::unique_hkey hkey;
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
 
+#ifdef __WIL_WINREG_STL
         // When passed an empty array, we write in 2 null-terminators as part of set_value_multistring_nothrow (i.e. a single empty string)
         // thus the result should have one empty string
         const std::vector<std::wstring> arrayOfOne{ L"" };
@@ -2104,9 +2203,12 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
         REQUIRE_SUCCEEDED(wil::reg::set_value_multistring_nothrow(hkey.get(), nullptr, test_multistring_empty));
         REQUIRE_SUCCEEDED(wil::reg::get_value_multistring_nothrow(hkey.get(), nullptr, &result));
         REQUIRE(result == arrayOfOne);
+#endif // #ifdef __WIL_WINREG_STL
+
     }
     SECTION("set_value_multistring_nothrow/get_value_multistring_nothrow: empty array with string key")
     {
+#ifdef __WIL_WINREG_STL
         // When passed an empty array, we write in 2 null-terminators as part of set_value_multistring_nothrow (i.e. a single empty string)
         // thus the result should have one empty string
         const std::vector<std::wstring> arrayOfOne{ L"" };
@@ -2124,6 +2226,7 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
         REQUIRE_SUCCEEDED(wil::reg::set_value_multistring_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, test_multistring_empty));
         REQUIRE_SUCCEEDED(wil::reg::get_value_multistring_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, &result));
         REQUIRE(result == arrayOfOne);
+#endif // #ifdef __WIL_WINREG_STL
     }
 
     SECTION("set_value_nothrow/get_value_nothrow: empty array with opened key")
@@ -2131,6 +2234,7 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
         wil::unique_hkey hkey;
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
 
+#ifdef __WIL_WINREG_STL
         // When passed an empty array, we write in 2 null-terminators as part of set_value_multistring_nothrow (i.e. a single empty string)
         // thus the result should have one empty string
         const std::vector<std::wstring> arrayOfOne{ L"" };
@@ -2148,11 +2252,13 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
         REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(hkey.get(), nullptr, test_multistring_empty));
         REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(hkey.get(), nullptr, &result));
         REQUIRE(result == arrayOfOne);
+#endif // #ifdef __WIL_WINREG_STL
     }
     SECTION("set_value_nothrow/get_value_nothrow: empty array with string key")
     {
         // When passed an empty array, we write in 2 null-terminators as part of set_value_multistring_nothrow (i.e. a single empty string)
         // thus the result should have one empty string
+#ifdef __WIL_WINREG_STL
         const std::vector<std::wstring> arrayOfOne{ L"" };
         REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, test_multistring_empty));
         std::vector<std::wstring> result{};
@@ -2168,6 +2274,7 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
         REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, test_multistring_empty));
         REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, &result));
         REQUIRE(result == arrayOfOne);
+#endif // #ifdef __WIL_WINREG_STL
     }
 
 #if defined(WIL_ENABLE_EXCEPTIONS)
@@ -2178,6 +2285,7 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
 
         // When passed an empty array, we write in 2 null-terminators as part of set_value_multistring_nothrow (i.e. a single empty string)
         // thus the result should have one empty string
+#ifdef __WIL_WINREG_STL
         const std::vector<std::wstring> arrayOfOne{ L"" };
         wil::reg::set_value_multistring(hkey.get(), stringValueName, test_multistring_empty);
         auto result = wil::reg::get_value_multistring(hkey.get(), stringValueName);
@@ -2187,11 +2295,13 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
         wil::reg::set_value_multistring(hkey.get(), nullptr, test_multistring_empty);
         result = wil::reg::get_value_multistring(hkey.get(), nullptr);
         REQUIRE(result == arrayOfOne);
+#endif // #ifdef __WIL_WINREG_STL
     }
     SECTION("set_value_multistring/get_value_multistring: empty array with string key")
     {
         // When passed an empty array, we write in 2 null-terminators as part of set_value_multistring_nothrow (i.e. a single empty string)
         // thus the result should have one empty string
+#ifdef __WIL_WINREG_STL
         const std::vector<std::wstring> arrayOfOne{ L"" };
         wil::reg::set_value_multistring(HKEY_CURRENT_USER, testSubkey, stringValueName, test_multistring_empty);
         auto result = wil::reg::get_value_multistring(HKEY_CURRENT_USER, testSubkey, stringValueName);
@@ -2201,6 +2311,7 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
         wil::reg::set_value_multistring(HKEY_CURRENT_USER, testSubkey, nullptr, test_multistring_empty);
         result = wil::reg::get_value_multistring(HKEY_CURRENT_USER, testSubkey, nullptr);
         REQUIRE(result == arrayOfOne);
+#endif // #ifdef __WIL_WINREG_STL
     }
 
 #if defined(__cpp_lib_optional)
@@ -2211,6 +2322,7 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
 
         // When passed an empty array, we write in 2 null-terminators as part of set_value_multistring_nothrow (i.e. a single empty string)
         // thus the result should have one empty string
+#ifdef __WIL_WINREG_STL
         const std::vector<std::wstring> arrayOfOne{ L"" };
         wil::reg::set_value(hkey.get(), stringValueName, test_multistring_empty);
         auto result = wil::reg::try_get_value_multistring(hkey.get(), stringValueName);
@@ -2220,12 +2332,14 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
         wil::reg::set_value(hkey.get(), nullptr, test_multistring_empty);
         result = wil::reg::try_get_value_multistring(hkey.get(), nullptr);
         REQUIRE(result.value() == arrayOfOne);
+#endif // #ifdef __WIL_WINREG_STL
     }
 
     SECTION("set_value/try_get_value_multistring: empty array with string key")
     {
         // When passed an empty array, we write in 2 null-terminators as part of set_value_multistring_nothrow (i.e. a single empty string)
         // thus the result should have one empty string
+#ifdef __WIL_WINREG_STL
         const std::vector<std::wstring> arrayOfOne{ L"" };
         wil::reg::set_value(HKEY_CURRENT_USER, testSubkey, stringValueName, test_multistring_empty);
         auto result = wil::reg::try_get_value_multistring(HKEY_CURRENT_USER, testSubkey, stringValueName);
@@ -2235,11 +2349,11 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
         wil::reg::set_value(HKEY_CURRENT_USER, testSubkey, nullptr, test_multistring_empty);
         result = wil::reg::try_get_value_multistring(HKEY_CURRENT_USER, testSubkey, nullptr);
         REQUIRE(result.value() == arrayOfOne);
+#endif #ifdef __WIL_WINREG_STL
     }
 #endif
 #endif
 }
-#endif
 
 #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
 namespace
