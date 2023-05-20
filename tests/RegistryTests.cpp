@@ -740,8 +740,11 @@ namespace
         static HRESULT set_nothrow(wil::unique_hkey const& key, PCWSTR valueName, SetType const& value) { return wil::reg::set_value_multistring_nothrow(key.get(), valueName, value); }
         static HRESULT set_nothrow(HKEY key, PCWSTR subkey, PCWSTR valueName, SetType const& value) { return wil::reg::set_value_multistring_nothrow(key, subkey, valueName, value); }
 
+        /*
+         * TODO --- DO THESE NEED REPLACEMENTS?
         static HRESULT get_nothrow(wil::unique_hkey const& key, PCWSTR valueName, RetType* output) { return wil::reg::get_value_multistring_nothrow(key.get(), valueName, output); }
         static HRESULT get_nothrow(HKEY key, PCWSTR subkey, PCWSTR valueName, RetType* output) { return wil::reg::get_value_multistring_nothrow(key, subkey, valueName, output); }
+        */
 
         static void set(wil::unique_hkey const& key, PCWSTR valueName, SetType const& value) { wil::reg::set_value_multistring(key.get(), valueName, value); }
         static void set(HKEY key, PCWSTR subkey, PCWSTR valueName, SetType const& value) { wil::reg::set_value_multistring(key, subkey, valueName, value); }
@@ -780,13 +783,15 @@ namespace
 #endif // defined(WIL_ENABLE_EXCEPTIONS)
 
 #if defined(WIL_ENABLE_EXCEPTIONS)
-    using TypesToTest = std::tuple<DwordFns, GenericDwordFns, QwordFns, GenericQwordFns, MultiStringFns, GenericMultiStringFns>;
+    using NoThrowTypesToTest = std::tuple<DwordFns, GenericDwordFns, QwordFns, GenericQwordFns>;
+    using ThrowingTypesToTest = std::tuple<DwordFns, GenericDwordFns, QwordFns, GenericQwordFns, MultiStringFns, GenericMultiStringFns>;
 #else
-    using TypesToTest = std::tuple<DwordFns, GenericDwordFns, QwordFns, GenericQwordFns>;
+    using NoThrowTypesToTest = std::tuple<DwordFns, GenericDwordFns, QwordFns, GenericQwordFns>;
+    using ThrowingTypesToTest = std::tuple<DwordFns, GenericDwordFns, QwordFns, GenericQwordFns>;
 #endif // defined(WIL_ENABLE_EXCEPTIONS)
 }
 
-TEMPLATE_LIST_TEST_CASE("BasicRegistryTests::simple types typed nothrow gets/sets", "[registry]", TypesToTest)
+TEMPLATE_LIST_TEST_CASE("BasicRegistryTests::simple types typed nothrow gets/sets", "[registry]", NoThrowTypesToTest)
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
     if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
@@ -872,7 +877,7 @@ TEMPLATE_LIST_TEST_CASE("BasicRegistryTests::simple types typed nothrow gets/set
 }
 
 #if defined(WIL_ENABLE_EXCEPTIONS)
-TEMPLATE_LIST_TEST_CASE("BasicRegistryTests::simple types typed gets/sets/try_gets", "[registry]", TypesToTest)
+TEMPLATE_LIST_TEST_CASE("BasicRegistryTests::simple types typed gets/sets/try_gets", "[registry]", ThrowingTypesToTest)
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
     if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
@@ -2075,7 +2080,10 @@ TEST_CASE("BasicRegistryTests::expanded_string", "[registry]")
 
     SECTION("set_value_expanded_string_nothrow/get_value_expanded_string_nothrow: with opened key")
     {
+        /*
+         * TODO --- DO THESE NEED REPLACEMENTS?
         verify_expanded_string_nothrow<std::wstring>();
+        */
 
 #if defined(__WIL_OLEAUTO_H_)
         verify_expanded_string_nothrow<wil::unique_bstr>();
@@ -2094,7 +2102,10 @@ TEST_CASE("BasicRegistryTests::expanded_string", "[registry]")
 
     SECTION("set_value_expanded_string_nothrow/get_value_expanded_string_nothrow: with string key")
     {
+        /*
+         * TODO --- DO THESE NEED REPLACEMENTS?
         verify_expanded_string_subkey_nothrow<std::wstring>();
+        */
 
 #if defined(__WIL_OLEAUTO_H_)
         verify_expanded_string_subkey_nothrow<wil::unique_bstr>();
@@ -2193,6 +2204,9 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
         REQUIRE_SUCCEEDED(deleteHr);
     }
 
+    /*
+         * TODO --- DO THESE NEED REPLACEMENTS?
+
     SECTION("set_value_multistring_nothrow/get_value_multistring_nothrow: empty array with opened key")
     {
         wil::unique_hkey hkey;
@@ -2241,13 +2255,16 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
         REQUIRE(result == arrayOfOne);
 #endif // #ifdef __WIL_WINREG_STL
     }
+    */
 
     SECTION("set_value_nothrow/get_value_nothrow: empty array with opened key")
     {
         wil::unique_hkey hkey;
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
-
 #ifdef __WIL_WINREG_STL
+        /*
+         * TODO --- DO THESE NEED REPLACEMENTS?
+
         // When passed an empty array, we write in 2 null-terminators as part of set_value_multistring_nothrow (i.e. a single empty string)
         // thus the result should have one empty string
         const std::vector<std::wstring> arrayOfOne{ L"" };
@@ -2265,6 +2282,7 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
         REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(hkey.get(), nullptr, test_multistring_empty));
         REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(hkey.get(), nullptr, &result));
         REQUIRE(result == arrayOfOne);
+        */
 #endif // #ifdef __WIL_WINREG_STL
     }
     SECTION("set_value_nothrow/get_value_nothrow: empty array with string key")
@@ -2272,6 +2290,9 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
         // When passed an empty array, we write in 2 null-terminators as part of set_value_multistring_nothrow (i.e. a single empty string)
         // thus the result should have one empty string
 #ifdef __WIL_WINREG_STL
+        /*
+         * TODO --- DO THESE NEED REPLACEMENTS?
+
         const std::vector<std::wstring> arrayOfOne{ L"" };
         REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, test_multistring_empty));
         std::vector<std::wstring> result{};
@@ -2287,6 +2308,7 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
         REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, test_multistring_empty));
         REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, &result));
         REQUIRE(result == arrayOfOne);
+        */
 #endif // #ifdef __WIL_WINREG_STL
     }
 
