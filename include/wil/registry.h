@@ -264,7 +264,7 @@ namespace wil
          * \return The queried number of sub-keys if succeeded
          * \exception std::exception (including wil::ResultException) will be thrown on all failures
          */
-        inline size_t get_child_key_count(HKEY key)
+        inline uint32_t get_child_key_count(HKEY key)
         {
             uint32_t numSubKeys{};
             THROW_IF_FAILED(::wil::reg::get_child_key_count_nothrow(key, &numSubKeys));
@@ -277,7 +277,7 @@ namespace wil
          * \return The queried number of value if succeeded
          * \exception std::exception (including wil::ResultException) will be thrown on all failures
          */
-        inline size_t get_child_value_count(HKEY key)
+        inline uint32_t get_child_value_count(HKEY key)
         {
             uint32_t numSubValues{};
             THROW_IF_FAILED(::wil::reg::get_child_value_count_nothrow(key, &numSubValues));
