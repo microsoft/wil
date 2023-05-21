@@ -23,9 +23,10 @@ constexpr auto* invalidValueName = L"NonExistentValue";
 constexpr auto* wrongTypeValueName = L"InvalidTypeValue";
 
 constexpr uint32_t test_dword_two = 2ul;
-constexpr uint32_t test_dword_three = 3ul;
+constexpr DWORD test_dword_three = 3ul;
 constexpr uint32_t test_dword_zero = 0ul;
 constexpr uint64_t test_qword_zero = 0ull;
+constexpr DWORD64 test_qword_max = 0xffffffffffffffff;
 const std::wstring test_string_empty{};
 
 // The empty multistring array has specific behavior: it will be read as an array with one string.
@@ -149,6 +150,7 @@ TEST_CASE("BasicRegistryTests::Open", "[registry]")
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(hkey.get(), subSubKey, subkey, wil::reg::key_access::readwrite));
         // write a test value we'll try to read from later
         REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(subkey.get(), dwordValueName, test_dword_two));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_qword_nothrow(subkey.get(), qwordValueName, test_qword_max));
 
         wil::unique_hkey opened_key;
 
@@ -158,13 +160,21 @@ TEST_CASE("BasicRegistryTests::Open", "[registry]")
         DWORD result{};
         REQUIRE_SUCCEEDED(wil::reg::get_value_dword_nothrow(opened_key.get(), dwordValueName, &result));
         REQUIRE(result == test_dword_two);
+        DWORD64 result_dword64{};
+        REQUIRE_SUCCEEDED(wil::reg::get_value_qword_nothrow(opened_key.get(), qwordValueName, &result_dword64));
+        REQUIRE(result_dword64 == test_qword_max);
+
         auto hr = wil::reg::set_value_dword_nothrow(opened_key.get(), dwordValueName, test_dword_three);
         REQUIRE(hr == E_ACCESSDENIED);
 
         REQUIRE_SUCCEEDED(wil::reg::open_unique_key_nothrow(hkey.get(), subSubKey, opened_key, wil::reg::key_access::readwrite));
         REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(opened_key.get(), dwordValueName, test_dword_three));
-        REQUIRE_SUCCEEDED(wil::reg::get_value_dword_nothrow(opened_key.get(), dwordValueName, &result));
-        REQUIRE(result == test_dword_three);
+        unsigned int result_int{};
+        REQUIRE_SUCCEEDED(wil::reg::get_value_dword_nothrow(opened_key.get(), dwordValueName, &result_int));
+        REQUIRE(result_int == test_dword_three);
+        uint64_t result_uint64{};
+        REQUIRE_SUCCEEDED(wil::reg::get_value_qword_nothrow(opened_key.get(), qwordValueName, &result_uint64));
+        REQUIRE(result_uint64 == test_qword_max);
 
         // fail open if the key doesn't exist
         hr = wil::reg::open_unique_key_nothrow(hkey.get(), (std::wstring(subSubKey) + L"_not_valid").c_str(), opened_key, wil::reg::key_access::read);
@@ -182,6 +192,7 @@ TEST_CASE("BasicRegistryTests::Open", "[registry]")
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
         // write a test value
         REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(hkey.get(), dwordValueName, test_dword_two));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_qword_nothrow(hkey.get(), qwordValueName, test_qword_max));
 
         wil::unique_hkey opened_key;
 
@@ -191,13 +202,21 @@ TEST_CASE("BasicRegistryTests::Open", "[registry]")
         DWORD result{};
         REQUIRE_SUCCEEDED(wil::reg::get_value_dword_nothrow(opened_key.get(), dwordValueName, &result));
         REQUIRE(result == test_dword_two);
+        DWORD64 result_dword64{};
+        REQUIRE_SUCCEEDED(wil::reg::get_value_qword_nothrow(opened_key.get(), qwordValueName, &result_dword64));
+        REQUIRE(result_dword64 == test_qword_max);
+
         auto hr = wil::reg::set_value_dword_nothrow(opened_key.get(), dwordValueName, test_dword_three);
         REQUIRE(hr == E_ACCESSDENIED);
 
         REQUIRE_SUCCEEDED(wil::reg::open_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, opened_key, wil::reg::key_access::readwrite));
         REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(opened_key.get(), dwordValueName, test_dword_three));
-        REQUIRE_SUCCEEDED(wil::reg::get_value_dword_nothrow(opened_key.get(), dwordValueName, &result));
-        REQUIRE(result == test_dword_three);
+        unsigned int result_int{};
+        REQUIRE_SUCCEEDED(wil::reg::get_value_dword_nothrow(opened_key.get(), dwordValueName, &result_int));
+        REQUIRE(result_int == test_dword_three);
+        uint64_t result_uint64{};
+        REQUIRE_SUCCEEDED(wil::reg::get_value_qword_nothrow(opened_key.get(), qwordValueName, &result_uint64));
+        REQUIRE(result_uint64 == test_qword_max);
 
         // fail open if the key doesn't exist
         hr = wil::reg::open_unique_key_nothrow(HKEY_CURRENT_USER, (std::wstring(testSubkey) + L"_not_valid").c_str(), opened_key, wil::reg::key_access::read);
@@ -259,6 +278,7 @@ TEST_CASE("BasicRegistryTests::Open", "[registry]")
         REQUIRE_SUCCEEDED(wil::reg::create_shared_key_nothrow(hkey.get(), subSubKey, subkey, wil::reg::key_access::readwrite));
         // write a test value we'll try to read from later
         REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(subkey.get(), dwordValueName, test_dword_two));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_qword_nothrow(subkey.get(), qwordValueName, test_qword_max));
 
         wil::shared_hkey opened_key;
 
@@ -268,13 +288,21 @@ TEST_CASE("BasicRegistryTests::Open", "[registry]")
         DWORD result{};
         REQUIRE_SUCCEEDED(wil::reg::get_value_dword_nothrow(opened_key.get(), dwordValueName, &result));
         REQUIRE(result == test_dword_two);
+        DWORD64 result_dword64{};
+        REQUIRE_SUCCEEDED(wil::reg::get_value_qword_nothrow(opened_key.get(), qwordValueName, &result_dword64));
+        REQUIRE(result_dword64 == test_qword_max);
+
         auto hr = wil::reg::set_value_dword_nothrow(opened_key.get(), dwordValueName, test_dword_three);
         REQUIRE(hr == E_ACCESSDENIED);
 
         REQUIRE_SUCCEEDED(wil::reg::open_shared_key_nothrow(hkey.get(), subSubKey, opened_key, wil::reg::key_access::readwrite));
         REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(opened_key.get(), dwordValueName, test_dword_three));
-        REQUIRE_SUCCEEDED(wil::reg::get_value_dword_nothrow(opened_key.get(), dwordValueName, &result));
-        REQUIRE(result == test_dword_three);
+        uint32_t result_int{};
+        REQUIRE_SUCCEEDED(wil::reg::get_value_dword_nothrow(opened_key.get(), dwordValueName, &result_int));
+        REQUIRE(result_int == test_dword_three);
+        uint64_t result_uint64{};
+        REQUIRE_SUCCEEDED(wil::reg::get_value_qword_nothrow(opened_key.get(), qwordValueName, &result_uint64));
+        REQUIRE(result_uint64 == test_qword_max);
 
         // fail open if the key doesn't exist
         hr = wil::reg::open_shared_key_nothrow(hkey.get(), (std::wstring(subSubKey) + L"_not_valid").c_str(), opened_key, wil::reg::key_access::read);
@@ -288,6 +316,7 @@ TEST_CASE("BasicRegistryTests::Open", "[registry]")
         REQUIRE_SUCCEEDED(wil::reg::create_shared_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
         // write a test value
         REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(hkey.get(), dwordValueName, test_dword_two));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_qword_nothrow(hkey.get(), qwordValueName, test_qword_max));
 
         wil::shared_hkey opened_key;
 
@@ -297,13 +326,21 @@ TEST_CASE("BasicRegistryTests::Open", "[registry]")
         DWORD result{};
         REQUIRE_SUCCEEDED(wil::reg::get_value_dword_nothrow(opened_key.get(), dwordValueName, &result));
         REQUIRE(result == test_dword_two);
+        DWORD64 result_dword64{};
+        REQUIRE_SUCCEEDED(wil::reg::get_value_qword_nothrow(opened_key.get(), qwordValueName, &result_dword64));
+        REQUIRE(result_dword64 == test_qword_max);
+
         auto hr = wil::reg::set_value_dword_nothrow(opened_key.get(), dwordValueName, test_dword_three);
         REQUIRE(hr == E_ACCESSDENIED);
 
         REQUIRE_SUCCEEDED(wil::reg::open_shared_key_nothrow(HKEY_CURRENT_USER, testSubkey, opened_key, wil::reg::key_access::readwrite));
         REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(opened_key.get(), dwordValueName, test_dword_three));
-        REQUIRE_SUCCEEDED(wil::reg::get_value_dword_nothrow(opened_key.get(), dwordValueName, &result));
-        REQUIRE(result == test_dword_three);
+        uint32_t result_int{};
+        REQUIRE_SUCCEEDED(wil::reg::get_value_dword_nothrow(opened_key.get(), dwordValueName, &result_int));
+        REQUIRE(result_int == test_dword_three);
+        uint64_t result_uint64{};
+        REQUIRE_SUCCEEDED(wil::reg::get_value_qword_nothrow(opened_key.get(), qwordValueName, &result_uint64));
+        REQUIRE(result_uint64 == test_qword_max);
 
         // fail open if the key doesn't exist
         hr = wil::reg::open_shared_key_nothrow(HKEY_CURRENT_USER, (std::wstring(testSubkey) + L"_not_valid").c_str(), opened_key, wil::reg::key_access::read);
@@ -676,7 +713,7 @@ namespace
                 [](wil::unique_hkey const& key, PCWSTR value_name) { return wil::reg::set_value_dword_nothrow(key.get(), value_name, test_dword_zero); },
                 [](wil::unique_hkey const& key, PCWSTR value_name) { return wil::reg::set_value_string_nothrow(key.get(), value_name, test_string_empty.c_str()); },
             };
-        }
+    }
 
         static std::vector<std::function<HRESULT(HKEY, PCWSTR, PCWSTR)>> set_wrong_value_fns_subkey()
         {
@@ -960,9 +997,9 @@ TEMPLATE_LIST_TEST_CASE("BasicRegistryTests::simple types typed gets/sets/try_ge
                     });
             }
         }
-    }
+        }
 #endif // defined(__cpp_lib_optional)
-}
+    }
 #endif // defined(WIL_ENABLE_EXCEPTIONS)
 
 #if defined(WIL_ENABLE_EXCEPTIONS)
@@ -1067,21 +1104,23 @@ TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
         WCHAR too_small_result[4]{};
         // fail get* if the buffer is too small
         REQUIRE_SUCCEEDED(wil::reg::set_value_string_nothrow(hkey.get(), stringValueName, L"Test"));
-        DWORD expectedSize{};
-        auto hr = wil::reg::get_value_string_nothrow(hkey.get(), stringValueName, too_small_result, &expectedSize);
+        DWORD expectedSize_dword{};
+        auto hr = wil::reg::get_value_string_nothrow(hkey.get(), stringValueName, too_small_result, &expectedSize_dword);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_MORE_DATA));
         REQUIRE(wil::reg::is_registry_buffer_too_small(hr));
-        REQUIRE(expectedSize == 12);
+        REQUIRE(expectedSize_dword == 12);
         WCHAR valid_buffer_result[5]{};
-        REQUIRE_SUCCEEDED(wil::reg::get_value_string_nothrow(hkey.get(), stringValueName, valid_buffer_result, &expectedSize));
-        REQUIRE(expectedSize == 10);
+        unsigned int expectedSize_int{};
+        REQUIRE_SUCCEEDED(wil::reg::get_value_string_nothrow(hkey.get(), stringValueName, valid_buffer_result, &expectedSize_int));
+        REQUIRE(expectedSize_int == 10);
         REQUIRE(0 == wcscmp(valid_buffer_result, L"Test"));
 
         // fail get* if the value doesn't exist
-        hr = wil::reg::get_value_string_nothrow(hkey.get(), invalidValueName, too_small_result, &expectedSize);
+        uint32_t expectedSize_uint32{};
+        hr = wil::reg::get_value_string_nothrow(hkey.get(), invalidValueName, too_small_result, &expectedSize_uint32);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
         REQUIRE(wil::reg::is_registry_not_found(hr));
-        REQUIRE(expectedSize == 0);
+        REQUIRE(expectedSize_uint32 == 0);
 
         // fail if get* requests the wrong type
         REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, test_dword_zero));
@@ -1106,7 +1145,7 @@ TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
         WCHAR too_small_result[4]{};
         // fail get* if the buffer is too small
         REQUIRE_SUCCEEDED(wil::reg::set_value_string_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, L"Test"));
-        DWORD expectedSize{};
+        uint32_t expectedSize{};
         auto hr = wil::reg::get_value_string_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, too_small_result, &expectedSize);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_MORE_DATA));
         REQUIRE(wil::reg::is_registry_buffer_too_small(hr));
@@ -1639,10 +1678,10 @@ TEST_CASE("BasicRegistryTests::expanded_wstring", "[registry]")
         REQUIRE(wil::reg::is_registry_buffer_too_small(hr));
         REQUIRE(expectedSize == 22);
         WCHAR valid_buffer_result[11]{};
-        REQUIRE_SUCCEEDED(wil::reg::get_value_expanded_string_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, valid_buffer_result, &expectedSize));
-        REQUIRE(expectedSize == 22);
+        uint32_t expectedSize_int{};
+        REQUIRE_SUCCEEDED(wil::reg::get_value_expanded_string_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, valid_buffer_result, &expectedSize_int));
+        REQUIRE(expectedSize_int == 22);
 
-        expectedSize = 0;
         WCHAR expanded_value[test_expanded_string_buffer_size]{};
         const auto expanded_result = ::ExpandEnvironmentStringsW(L"%WINDIR%", expanded_value, test_expanded_string_buffer_size);
         REQUIRE(expanded_result != ERROR_SUCCESS);
@@ -1689,10 +1728,10 @@ TEST_CASE("BasicRegistryTests::expanded_wstring", "[registry]")
         REQUIRE(wil::reg::is_registry_buffer_too_small(hr));
         REQUIRE(expectedSize == 22);
 
-        expectedSize = 0;
+        uint32_t expectedSize_int{};
         WCHAR valid_buffer_result[11]{};
-        REQUIRE_SUCCEEDED(wil::reg::get_value_expanded_string_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, valid_buffer_result, &expectedSize));
-        REQUIRE(expectedSize == 22);
+        REQUIRE_SUCCEEDED(wil::reg::get_value_expanded_string_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, valid_buffer_result, &expectedSize_int));
+        REQUIRE(expectedSize_int == 22);
 
         WCHAR expanded_value[test_expanded_string_buffer_size]{};
         const auto expanded_result = ::ExpandEnvironmentStringsW(L"%WINDIR%", expanded_value, test_expanded_string_buffer_size);
@@ -2031,7 +2070,7 @@ TEST_CASE("BasicRegistryTests::expanded_string", "[registry]")
 #endif
 
     // TODO: verify std::wstring is the default
-}
+    }
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS)
 
 #ifdef __WIL_WINREG_STL
