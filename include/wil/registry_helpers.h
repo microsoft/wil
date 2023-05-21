@@ -460,7 +460,7 @@ namespace wil
                     return true;
                 }
                 // transferringOwnership is only set to false if this is a 'shallow' copy of the BSTR
-                // and the caller maintained ownership of the original BSTR to
+                // and the caller maintained ownership of the original BSTR.
                 inline HRESULT resize_buffer(BSTR& string, DWORD byteSize, bool transferringOwnership = true) WI_NOEXCEPT
                 {
                     // convert bytes to length (number of WCHARs)
