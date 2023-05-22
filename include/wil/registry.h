@@ -335,8 +335,8 @@ namespace wil
           * \param key An open or well-known registry key
           * \param subkey The name of the subkey to append to `key`.
           *        If `nullptr`, then `key` is used without modification.
-          * \param value_name A string specifying the name of the registry value to write
-          *        can be nullptr to write to the unnamed default registry value
+          * \param value_name The name of the registry value whose data is to be updated.
+          *        Can be nullptr to write to the unnamed default registry value.
           * \param data The value containing the data to be set in the specified key
           * \exception std::exception (including wil::ResultException) will be thrown on all failures
           */
@@ -352,8 +352,8 @@ namespace wil
          * \tparam T The type capturing the data being set
          *         note - the type of registry value is determined by the template type T of data given
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to write
-         *        can be nullptr to write to the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to write to the unnamed default registry value.
          * \param data The value containing the data to be set in the specified key
          * \exception std::exception (including wil::ResultException) will be thrown on all failures
          */
@@ -368,8 +368,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to write
-         *        can be nullptr to write to the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to write to the unnamed default registry value.
          * \param data The 32-bit value to write to the specified registry value
          * \exception std::exception (including wil::ResultException) will be thrown on all failures
          */
@@ -381,8 +381,8 @@ namespace wil
         /**
          * \brief Writes a REG_DWORD value from a uint32_t
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to write
-         *        can be nullptr to write to the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to write to the unnamed default registry value.
          * \param data The 32-bit value to write to the specified registry value
          * \exception std::exception (including wil::ResultException) will be thrown on all failures
          */
@@ -396,8 +396,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to write
-         *        can be nullptr to write to the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to write to the unnamed default registry value.
          * \param data The 64-bit value to write to the specified registry value
          * \exception std::exception (including wil::ResultException) will be thrown on all failures
          */
@@ -409,8 +409,8 @@ namespace wil
         /**
          * \brief Writes a REG_QWORD value from a uint64_t
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to write
-         *        can be nullptr to write to the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to write to the unnamed default registry value.
          * \param data The 64-bit value to write to the specified registry value
          * \exception std::exception (including wil::ResultException) will be thrown on all failures
          */
@@ -424,8 +424,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to write
-         *        can be nullptr to write to the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to write to the unnamed default registry value.
          * \param data The null-terminated string value to write to the specified registry value
          * \exception std::exception (including wil::ResultException) will be thrown on all failures
          */
@@ -437,8 +437,8 @@ namespace wil
         /**
          * \brief Writes a REG_SZ value from a null-terminated string
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to write
-         *        can be nullptr to write to the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to write to the unnamed default registry value.
          * \param data The null-terminated string value to write to the specified registry value
          * \exception std::exception (including wil::ResultException) will be thrown on all failures
          */
@@ -452,8 +452,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to write
-         *        can be nullptr to write to the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to write to the unnamed default registry value.
          * \param data The null-terminated, unexpanded string value to write to the specified registry value. For example, `%PATH%`.
          * \exception std::exception (including wil::ResultException) will be thrown on all failures
          */
@@ -466,8 +466,8 @@ namespace wil
         /**
          * \brief Writes a REG_EXPAND_SZ value from a null-terminated string
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to write
-         *        can be nullptr to write to the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to write to the unnamed default registry value.
          * \param data The null-terminated, unexpanded string value to write to the specified registry value. For example, `%PATH%`.
          * \exception std::exception (including wil::ResultException) will be thrown on all failures
          */
@@ -482,8 +482,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to write
-         *        can be nullptr to write to the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to write to the unnamed default registry value.
          * \param data A std::vector<std::wstring> to write to the specified registry value
          *        each string will be marshalled to a contiguous null-terminator-delimited multi-sz string
          * \exception std::exception (including wil::ResultException) will be thrown on all failures
@@ -498,8 +498,8 @@ namespace wil
         /**
          * \brief The generic set_value template function to write a REG_MULTI_SZ value from a std::vector<std::wstring>
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to write
-         *        can be nullptr to write to the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to write to the unnamed default registry value.
          * \param data A std::vector<std::wstring> to write to the specified registry value
          *        each string will be marshalled to a contiguous null-terminator-delimited multi-sz string
          * \exception std::exception (including wil::ResultException) will be thrown on all failures
@@ -514,8 +514,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to write
-         *        can be nullptr to write to the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to write to the unnamed default registry value.
          * \param data A std::vector<std::wstring> to write to the specified registry value
          *        each string will be marshalled to a contiguous null-terminator-delimited multi-sz string
          * \exception std::exception (including wil::ResultException) will be thrown on all failures
@@ -528,8 +528,8 @@ namespace wil
         /**
          * \brief Writes a REG_MULTI_SZ value from a std::vector<std::wstring>
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to write
-         *        can be nullptr to write to the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to write to the unnamed default registry value.
          * \param data A std::vector<std::wstring> to write to the specified registry value
          *        each string will be marshalled to a contiguous null-terminator-delimited multi-sz string
          * \exception std::exception (including wil::ResultException) will be thrown on all failures
@@ -546,8 +546,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to write
-         *        can be nullptr to write to the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to write to the unnamed default registry value.
          * \param type The registry type for the specified registry value - see RegSetKeyValueW
          * \param data A std::vector<ByteType> to write to the specified registry value
          *        the vector contents will be directly marshalled to the specified value
@@ -563,8 +563,8 @@ namespace wil
         /**
          * \brief Writes a registry value of the specified type from a std::vector<ByteType>, where ByteType is any type that's unsigned 8-byte
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to write
-         *        can be nullptr to write to the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to write to the unnamed default registry value.
          * \param type The registry type for the specified registry value - see RegSetKeyValueW
          * \param data A std::vector<ByteType> to write to the specified registry value
          *        the vector contents will be directly marshalled to the specified value
@@ -611,8 +611,8 @@ namespace wil
           * \param key An open or well-known registry key
           * \param subkey The name of the subkey to append to `key`.
           *        If `nullptr`, then `key` is used without modification.
-          * \param value_name A string specifying the name of the registry value to write
-          *        can be nullptr to write to the unnamed default registry value
+          * \param value_name The name of the registry value whose data is to be updated.
+          *        Can be nullptr to write to the unnamed default registry value.
           * \param data The value containing the data to be set in the specified key
           * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
           */
@@ -627,8 +627,8 @@ namespace wil
          * \brief Writes a value to a specified key, deducing the type from the given data.
          * \tparam T The type capturing the data being set
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to write
-         *        can be nullptr to write to the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to write to the unnamed default registry value.
          * \param data The value containing the data to be set in the specified key
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
@@ -643,8 +643,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to write
-         *        can be nullptr to write to the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to write to the unnamed default registry value.
          * \param data The 32-bit value to write to the specified registry value
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
@@ -656,8 +656,8 @@ namespace wil
         /**
          * \brief Writes a REG_DWORD value from a uint32_t
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to write
-         *        can be nullptr to write to the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to write to the unnamed default registry value.
          * \param data The 32-bit value to write to the specified registry value
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
@@ -671,8 +671,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to write
-         *        can be nullptr to write to the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to write to the unnamed default registry value.
          * \param data The 64-bit value to write to the specified registry value
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
@@ -684,8 +684,8 @@ namespace wil
         /**
          * \brief Writes a REG_QWORD value from a uint64_t
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to write
-         *        can be nullptr to write to the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to write to the unnamed default registry value.
          * \param data The 64-bit value to write to the specified registry value
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
@@ -699,8 +699,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to write
-         *        can be nullptr to write to the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to write to the unnamed default registry value.
          * \param data The null-terminated string value to write to the specified registry value
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
@@ -712,8 +712,8 @@ namespace wil
         /**
          * \brief Writes a REG_SZ value from a null-terminated string
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to write
-         *        can be nullptr to write to the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to write to the unnamed default registry value.
          * \param data The null-terminated string value to write to the specified registry value
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
@@ -727,8 +727,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to write
-         *        can be nullptr to write to the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to write to the unnamed default registry value.
          * \param data The null-terminated, unexpanded string value to write to the specified registry value. For example, `%PATH%`.
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
@@ -741,8 +741,8 @@ namespace wil
         /**
          * \brief Writes a REG_EXPAND_SZ value from a null-terminated string
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to write
-         *        can be nullptr to write to the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to write to the unnamed default registry value.
          * \param data The null-terminated, unexpanded string value to write to the specified registry value. For example, `%PATH%`.
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
@@ -758,8 +758,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to write
-         *        can be nullptr to write to the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to write to the unnamed default registry value.
          * \param data A std::vector<std::wstring> to write to the specified registry value
          *        each string will be marshalled to a contiguous null-terminator-delimited multi-sz string
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
@@ -776,8 +776,8 @@ namespace wil
         /**
          * \brief Writes a REG_MULTI_SZ value from a std::vector<std::wstring>
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to write
-         *        can be nullptr to write to the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to write to the unnamed default registry value.
          * \param data A std::vector<std::wstring> to write to the specified registry value
          *        each string will be marshalled to a contiguous null-terminator-delimited multi-sz string
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
@@ -793,8 +793,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to write
-         *        can be nullptr to write to the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to write to the unnamed default registry value.
          * \param data A std::vector<std::wstring> to write to the specified registry value
          *        each string will be marshalled to a contiguous null-terminator-delimited multi-sz string
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
@@ -807,8 +807,8 @@ namespace wil
         /**
          * \brief Writes a REG_MULTI_SZ value from a std::vector<std::wstring>
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to write
-         *        can be nullptr to write to the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to write to the unnamed default registry value.
          * \param data A std::vector<std::wstring> to write to the specified registry value
          *        each string will be marshalled to a contiguous null-terminator-delimited multi-sz string
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
@@ -825,8 +825,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to write
-         *        can be nullptr to write to the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to write to the unnamed default registry value.
          * \param type The registry type for the specified registry value - see RegSetKeyValueW
          * \param data A std::vector<ByteType> to write to the specified registry value
          *        the vector contents will be directly marshalled to the specified value
@@ -842,8 +842,8 @@ namespace wil
         /**
          * \brief Writes a registry value of the specified type from a std::vector<ByteType>, where ByteType is any type that's unsigned 8-byte
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to write
-         *        can be nullptr to write to the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to write to the unnamed default registry value.
          * \param type The registry type for the specified registry value - see RegSetKeyValueW
          * \param data A std::vector<ByteType> to write to the specified registry value
          *        the vector contents will be directly marshalled to the specified value
@@ -939,8 +939,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return The value read from the registry value of the template type T
          * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
          */
@@ -957,8 +957,8 @@ namespace wil
          * \brief Reads a value under a specified key, deducing registry type from the type parameter T.
          * \tparam T The type capturing the data being read
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return The value read from the registry value of the template type T
          * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
          */
@@ -973,8 +973,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return The uint32_t value read from the registry
          * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
          */
@@ -986,8 +986,8 @@ namespace wil
         /**
          * \brief Reads a REG_DWORD value, returning a uint32_t
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return The uint32_t value read from the registry
          * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
          */
@@ -1001,8 +1001,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return The uint64_t value read from the registry
          * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
          */
@@ -1014,8 +1014,8 @@ namespace wil
         /**
          * \brief Reads a REG_QWORD value, returning a uint64_t
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return The uint64_t value read from the registry
          * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
          */
@@ -1030,8 +1030,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return A std::wstring created from the string value read from the registry
          * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
          */
@@ -1045,8 +1045,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return A std::wstring created from the string value read from the registry
          * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
          */
@@ -1059,8 +1059,8 @@ namespace wil
         /**
          * \brief Reads a REG_SZ value, returning a std::wstring
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return A std::wstring created from the string value read from the registry
          *         note, the returned string will have already passed through ExpandEnvironmentStringsW
          * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
@@ -1073,8 +1073,8 @@ namespace wil
         /**
          * \brief Reads a REG_SZ value, returning a std::wstring
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return A std::wstring created from the string value read from the registry
          *         note, the returned string will have already passed through ExpandEnvironmentStringsW
          * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
@@ -1090,8 +1090,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return A std::wstring created from the string value read from the registry,
          *         with environment variables expanded, as though passed through ExpandEnvironmentStringsW
          * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
@@ -1109,8 +1109,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return A std::wstring created from the string value read from the registry,
          *         with environment variables expanded, as though passed through ExpandEnvironmentStringsW
          * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
@@ -1124,8 +1124,8 @@ namespace wil
         /**
          * \brief Reads a REG_EXPAND_SZ value, returning a std::wstring
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return A std::wstring created from the string value read from the registry,
          *         with environment variables expanded, as though passed through ExpandEnvironmentStringsW
          * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
@@ -1138,8 +1138,8 @@ namespace wil
         /**
          * \brief Reads a REG_EXPAND_SZ value, returning a std::wstring
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return A std::wstring created from the string value read from the registry,
          *         with environment variables expanded, as though passed through ExpandEnvironmentStringsW
          * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
@@ -1157,8 +1157,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return A wil::unique_bstr created from the string value read from the registry
          * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
          */
@@ -1171,8 +1171,8 @@ namespace wil
         /**
          * \brief Reads a REG_SZ value, returning a wil::unique_bstr
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return A wil::unique_bstr created from the string value read from the registry
          * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
          */
@@ -1187,8 +1187,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return A wil::unique_bstr created from the string value read from the registry,
          *         with environment variables expanded, as though passed through ExpandEnvironmentStringsW
          * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
@@ -1205,8 +1205,8 @@ namespace wil
         /**
          * \brief Reads a REG_EXPAND_SZ value, returning a wil::unique_bstr
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return A wil::unique_bstr created from the string value read from the registry,
          *         with environment variables expanded, as though passed through ExpandEnvironmentStringsW
          * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
@@ -1222,8 +1222,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return A wil::shared_bstr created from the string value read from the registry
          * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
          */
@@ -1236,8 +1236,8 @@ namespace wil
         /**
          * \brief Reads a REG_SZ value, returning a wil::shared_bstr
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return A wil::shared_bstr created from the string value read from the registry
          * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
          */
@@ -1252,8 +1252,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return A wil::shared_bstr created from the string value read from the registry,
          *         with environment variables expanded, as though passed through ExpandEnvironmentStringsW
          * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
@@ -1270,8 +1270,8 @@ namespace wil
         /**
          * \brief Reads a REG_EXPAND_SZ value, returning a wil::shared_bstr
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return A wil::shared_bstr created from the string value read from the registry,
          *         with environment variables expanded, as though passed through ExpandEnvironmentStringsW
          * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
@@ -1290,8 +1290,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return A wil::unique_cotaskmem_string created from the string value read from the registry
          * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
          */
@@ -1304,8 +1304,8 @@ namespace wil
         /**
          * \brief Reads a REG_SZ value, returning a wil::unique_cotaskmem_string
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return A wil::unique_cotaskmem_string created from the string value read from the registry
          * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
          */
@@ -1320,8 +1320,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return A wil::unique_cotaskmem_string created from the string value read from the registry,
          *         with environment variables expanded, as though passed through ExpandEnvironmentStringsW
          * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
@@ -1338,8 +1338,8 @@ namespace wil
         /**
          * \brief Reads a REG_EXPAND_SZ value, returning a wil::unique_cotaskmem_string
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return A wil::unique_cotaskmem_string created from the string value read from the registry,
          *         with environment variables expanded, as though passed through ExpandEnvironmentStringsW
          * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
@@ -1355,8 +1355,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return A wil::shared_cotaskmem_string created from the string value read from the registry
          * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
          */
@@ -1369,8 +1369,8 @@ namespace wil
         /**
          * \brief Reads a REG_SZ value, returning a wil::shared_cotaskmem_string
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return A wil::shared_cotaskmem_string created from the string value read from the registry
          * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
          */
@@ -1385,8 +1385,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return A wil::shared_cotaskmem_string created from the string value read from the registry,
          *         with environment variables expanded, as though passed through ExpandEnvironmentStringsW
          * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
@@ -1403,8 +1403,8 @@ namespace wil
         /**
          * \brief Reads a REG_EXPAND_SZ value, returning a wil::shared_cotaskmem_string
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return A wil::shared_cotaskmem_string created from the string value read from the registry,
          *         with environment variables expanded, as though passed through ExpandEnvironmentStringsW
          * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
@@ -1423,8 +1423,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param type The registry type for the specified registry value to read from - see RegGetValueW
          * \return A std::vector<BYTE> containing the bytes of the specified registry value
          * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
@@ -1440,8 +1440,8 @@ namespace wil
         /**
          * \brief Reads a registry value of the specified type, returning a std::vector<BYTE>
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param type The registry type for the specified registry value to read from - see RegGetValueW
          * \return A std::vector<BYTE> containing the bytes of the specified registry value
          * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
@@ -1458,8 +1458,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return The std::vector<std::wstring> marshalled from data read from the registry value
          * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
          *
@@ -1485,8 +1485,8 @@ namespace wil
         /**
          * \brief Reads a REG_MULTI_SZ value, returning a std::vector<std::wstring>
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return The std::vector<std::wstring> marshalled from data read from the registry value
          * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
          */
@@ -1501,8 +1501,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return The std::vector<std::wstring> marshalled from data read from the registry value
          * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
          *
@@ -1518,8 +1518,8 @@ namespace wil
         /**
          * \brief Reads a REG_MULTI_SZ value, returning a std::vector<std::wstring>
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return The std::vector<std::wstring> marshalled from data read from the registry value
          * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
          */
@@ -1638,8 +1638,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return The value read from the registry value of the template type std::optional<T>
          *         note - will return std::nullopt if the value does not exist
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
@@ -1664,8 +1664,8 @@ namespace wil
          * \brief Attempts to read a value under a specified key, returning the value in a std::optional, deducing registry type from the type parameter T.
          * \tparam T The type capturing the data being read into a std::optional
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return The value read from the registry value of the template type std::optional<T>
          *         note - will return std::nullopt if the value does not exist
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
@@ -1690,8 +1690,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return The value read from the registry value of the template type std::optional<uint32_t>
          *         note - will return std::nullopt if the value does not exist
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
@@ -1704,8 +1704,8 @@ namespace wil
         /**
          * \brief Attempts to read a REGD_DWORD value under a specified key, returning the value in a std::optional
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return The value read from the registry value of the template type std::optional<uint32_t>
          *         note - will return std::nullopt if the value does not exist
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
@@ -1720,8 +1720,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return The value read from the registry value of the template type std::optional<uint64_t>
          *         note - will return std::nullopt if the value does not exist
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
@@ -1734,8 +1734,8 @@ namespace wil
         /**
          * \brief Attempts to read a REG_QWORD value under a specified key, returning the value in a std::optional
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return The value read from the registry value stored in a std::optional<uint64_t>
          *         note - will return std::nullopt if the value does not exist
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
@@ -1751,8 +1751,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param type The registry type for the specified registry value to read from - see RegGetValueW
          * \return The raw bytes read from the registry value stored in a std::optional<std::vector<BYTE>>
          *         note - will return std::nullopt if the value does not exist
@@ -1767,8 +1767,8 @@ namespace wil
         /**
          * \brief Attempts to read a value under a specified key requiring the specified type, returning the raw bytes in a std::optional
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param type The registry type for the specified registry value to read from - see RegGetValueW
          * \return The raw bytes read from the registry value stored in a std::optional<std::vector<BYTE>>
          *         note - will return std::nullopt if the value does not exist
@@ -1787,8 +1787,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return The value read from the registry value of the template type std::optional<std::wstring>
          *         note - will return std::nullopt if the value does not exist
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
@@ -1807,8 +1807,8 @@ namespace wil
         /**
          * \brief Attempts to read a REG_SZ value under a specified key, returning the value in a std::optional
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return The value read from the registry value of the template type std::optional<std::wstring>
          *         note - will return std::nullopt if the value does not exist
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
@@ -1828,8 +1828,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return The value read from the registry value of the template type std::optional<std::wstring>,
          *         with environment variables expanded, as though passed through ExpandEnvironmentStringsW.
          *         Note - will return std::nullopt if the value does not exist
@@ -1849,8 +1849,8 @@ namespace wil
         /**
          * \brief Attempts to read a REG_EXPAND_SZ value under a specified key, returning the value in a std::optional
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return The value read from the registry value of the template type std::optional<std::wstring>,
          *         with environment variables expanded, as though passed through ExpandEnvironmentStringsW.
          *         Note - will return std::nullopt if the value does not exist
@@ -1873,8 +1873,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return The value read from the registry value of the template type std::optional<wil::shared_bstr>
          *         note - will return std::nullopt if the value does not exist
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
@@ -1889,8 +1889,8 @@ namespace wil
         /**
          * \brief Attempts to read a REG_SZ value under a specified key, returning the value in a std::optional
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return The value read from the registry value of the template type std::optional<wil::shared_bstr>
          *         note - will return std::nullopt if the value does not exist
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
@@ -1906,8 +1906,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return The value read from the registry value of the template type std::optional<wil::shared_bstr>,
          *         with environment variables expanded, as though passed through ExpandEnvironmentStringsW.
          *         Note - will return std::nullopt if the value does not exist
@@ -1923,8 +1923,8 @@ namespace wil
         /**
          * \brief Attempts to read a REG_EXPAND_SZ value under a specified key, returning the value in a std::optional
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return The value read from the registry value of the template type std::optional<wil::shared_bstr>,
          *         with environment variables expanded, as though passed through ExpandEnvironmentStringsW.
          *         Note - will return std::nullopt if the value does not exist
@@ -1943,8 +1943,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return The value read from the registry value of the template type std::optional<wil::shared_cotaskmem_string>
          *         note - will return std::nullopt if the value does not exist
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
@@ -1959,8 +1959,8 @@ namespace wil
         /**
          * \brief Attempts to read a REG_SZ value under a specified key, returning the value in a std::optional
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return The value read from the registry value of the template type std::optional<wil::shared_cotaskmem_string>
          *         note - will return std::nullopt if the value does not exist
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
@@ -1976,8 +1976,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return The value read from the registry value of the template type std::optional<:wil::shared_cotaskmem_string>,
          *         with environment variables expanded, as though passed through ExpandEnvironmentStringsW.
          *         Note - will return std::nullopt if the value does not exist
@@ -1993,8 +1993,8 @@ namespace wil
         /**
          * \brief Attempts to read a REG_EXPAND_SZ value under a specified key, returning the value in a std::optional
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return The value read from the registry value of the template type std::optional<wil::shared_cotaskmem_string>,
          *         with environment variables expanded, as though passed through ExpandEnvironmentStringsW.
          *         Note - will return std::nullopt if the value does not exist
@@ -2083,8 +2083,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param[out] return_value A pointer-to-T receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
@@ -2100,8 +2100,8 @@ namespace wil
          * \brief Reads a value under a specified key, the registry type based off the templated type passed as data
          * \tparam T The type capturing the data being set
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param[out] return_value A pointer-to-T receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
@@ -2118,8 +2118,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param[out] return_value A WCHAR array receiving the value read from the registry
          *             will write to the WCHAR array the string value read from the registry, guaranteeing null-termination
          * \param[out] requiredBytes An optional pointer to a unsigned 32-bit value to receive the required bytes of the string in the registry
@@ -2144,8 +2144,8 @@ namespace wil
          * \brief Reads a REG_SZ value under a specified key
          * \tparam Length The length of the WCHAR array passed as an OUT parameter
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param[out] return_value A WCHAR array receiving the value read from the registry
          *             will write to the WCHAR array the string value read from the registry, guaranteeing null-termination
          * \param[out] requiredBytes An optional pointer to an unsigned 32-bit value to receive the required bytes of the string to be read
@@ -2169,8 +2169,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param[out] return_value A WCHAR array receiving the value read from the registry
          *             will write to the WCHAR array the string value read from the registry, guaranteeing null-termination
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
@@ -2185,8 +2185,8 @@ namespace wil
          * \brief Reads a REG_SZ value under a specified key
          * \tparam Length The length of the WCHAR array passed as an OUT parameter
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param[out] return_value A WCHAR array receiving the value read from the registry
          *             will write to the WCHAR array the string value read from the registry, guaranteeing null-termination
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
@@ -2202,8 +2202,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param[out] return_value A pointer to an unsigned 32-bit value receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
@@ -2217,8 +2217,8 @@ namespace wil
         /**
          * \brief Reads a REG_DWORD value under a specified key
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param[out] return_value A pointer to an unsigned 32-bit value receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
@@ -2234,8 +2234,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param[out] return_value A uint64_t receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
@@ -2249,8 +2249,8 @@ namespace wil
         /**
          * \brief Reads a REG_QWORD value under a specified key
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param[out] return_value A uint64_t receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
@@ -2267,8 +2267,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param[out] return_value A std::wstring receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
@@ -2281,8 +2281,8 @@ namespace wil
         /**
          * \brief Reads a REG_SZ value under a specified key
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param[out] return_value A std::wstring receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
@@ -2296,8 +2296,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param[out] return_value A std::wstring receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
@@ -2309,8 +2309,8 @@ namespace wil
         /**
          * \brief Reads a REG_SZ value under a specified key
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param[out] return_value A std::wstring receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
@@ -2326,8 +2326,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param[out] return_value A wil::unique_bstr receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
@@ -2340,8 +2340,8 @@ namespace wil
         /**
          * \brief Reads a REG_SZ value under a specified key
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param[out] return_value A wil::unique_bstr receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
@@ -2355,8 +2355,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param[out] return_value A wil::unique_bstr receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
@@ -2368,8 +2368,8 @@ namespace wil
         /**
          * \brief Reads a REG_SZ value under a specified key
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param[out] return_value A wil::unique_bstr receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
@@ -2384,8 +2384,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param[out] return_value A wil::shared_bstr receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
@@ -2398,8 +2398,8 @@ namespace wil
         /**
          * \brief Reads a REG_SZ value under a specified key
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param[out] return_value A wil::shared_bstr receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
@@ -2413,8 +2413,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param[out] return_value A wil::shared_bstr receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
@@ -2426,8 +2426,8 @@ namespace wil
         /**
          * \brief Reads a REG_SZ value under a specified key
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param[out] return_value A wil::shared_bstr receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
@@ -2444,8 +2444,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param[out] return_value A wil::unique_cotaskmem_string receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
@@ -2459,8 +2459,8 @@ namespace wil
         /**
          * \brief Reads a REG_SZ value under a specified key
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param[out] return_value A wil::unique_cotaskmem_string receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
@@ -2474,8 +2474,8 @@ namespace wil
           * \param key An open or well-known registry key
           * \param subkey The name of the subkey to append to `key`.
           *        If `nullptr`, then `key` is used without modification.
-          * \param value_name A string specifying the name of the registry value to read from
-          *        can be nullptr to read from the unnamed default registry value
+          * \param value_name The name of the registry value whose data is to be updated.
+          *        Can be nullptr to read from the unnamed default registry value.
           * \param[out] return_value A wil::unique_cotaskmem_string receiving the value read from the registry
           * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
           */
@@ -2487,8 +2487,8 @@ namespace wil
         /**
          * \brief Reads a REG_SZ value under a specified key
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param[out] return_value A wil::unique_cotaskmem_string receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
@@ -2502,8 +2502,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param[out] return_value A wil::shared_cotaskmem_string receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
@@ -2517,8 +2517,8 @@ namespace wil
         /**
          * \brief Reads a REG_SZ value under a specified key
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param[out] return_value A wil::shared_cotaskmem_string receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
@@ -2532,8 +2532,8 @@ namespace wil
           * \param key An open or well-known registry key
           * \param subkey The name of the subkey to append to `key`.
           *        If `nullptr`, then `key` is used without modification.
-          * \param value_name A string specifying the name of the registry value to read from
-          *        can be nullptr to read from the unnamed default registry value
+          * \param value_name The name of the registry value whose data is to be updated.
+          *        Can be nullptr to read from the unnamed default registry value.
           * \param[out] return_value A wil::shared_cotaskmem_string receiving the value read from the registry
           * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
           */
@@ -2545,8 +2545,8 @@ namespace wil
         /**
          * \brief Reads a REG_SZ value under a specified key
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param[out] return_value A wil::shared_cotaskmem_string receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
@@ -2563,8 +2563,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param type The registry type for the specified registry value to read from - see RegGetValueW
          * \param[out] return_value A std::vector<ByteType> receiving the value read from the registry, where ByteType is any type that's unsigned 8-byte
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
@@ -2586,8 +2586,8 @@ namespace wil
         /**
          * \brief Reads the raw bytes from a registry value under a specified key of the specified type
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param type The registry type for the specified registry value to read from - see RegGetValueW
          * \param[out] return_value A std::vector<ByteType> receiving the value read from the registry, where ByteType is any type that's unsigned 8-byte
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
@@ -2605,8 +2605,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param[out] return_value A WCHAR array receiving the value read from the registry,
          *             with environment variables expanded, as though passed through ExpandEnvironmentStringsW.
          *             Will write to the WCHAR array the string value read from the registry, guaranteeing null-termination
@@ -2632,8 +2632,8 @@ namespace wil
          * \brief Reads a REG_EXPAND_SZ value under a specified key
          * \tparam Length The length of the WCHAR array passed as an OUT parameter
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param[out] return_value A WCHAR array receiving the value read from the registry,
          *             with environment variables expanded, as though passed through ExpandEnvironmentStringsW.
          *             Will write to the WCHAR array the string value read from the registry, guaranteeing null-termination
@@ -2658,8 +2658,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param[out] return_value A std::wstring receiving the value read from the registry,
          *             with environment variables expanded, as though passed through ExpandEnvironmentStringsW.
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
@@ -2675,8 +2675,8 @@ namespace wil
         /**
          * \brief Reads a REG_EXPAND_SZ value under a specified key
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param[out] return_value A std::wstring receiving the value read from the registry,
          *             with environment variables expanded, as though passed through ExpandEnvironmentStringsW.
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
@@ -2693,8 +2693,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param[out] return_value A wil::unique_bstr receiving the value read from the registry,
          *             with environment variables expanded, as though passed through ExpandEnvironmentStringsW.
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
@@ -2708,8 +2708,8 @@ namespace wil
         /**
          * \brief Reads a REG_EXPAND_SZ value under a specified key
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param[out] return_value A wil::unique_bstr receiving the value read from the registry,
          *             with environment variables expanded, as though passed through ExpandEnvironmentStringsW.
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
@@ -2725,8 +2725,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param[out] return_value A wil::shared_bstr receiving the value read from the registry,
          *             with environment variables expanded, as though passed through ExpandEnvironmentStringsW.
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
@@ -2740,8 +2740,8 @@ namespace wil
         /**
          * \brief Reads a REG_EXPAND_SZ value under a specified key
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param[out] return_value A wil::shared_bstr receiving the value read from the registry,
          *             with environment variables expanded, as though passed through ExpandEnvironmentStringsW.
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
@@ -2760,8 +2760,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param[out] return_value A wil::unique_cotaskmem_string receiving the value read from the registry,
          *             with environment variables expanded, as though passed through ExpandEnvironmentStringsW.
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
@@ -2775,8 +2775,8 @@ namespace wil
         /**
          * \brief Reads a REG_EXPAND_SZ value under a specified key
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param[out] return_value A wil::unique_cotaskmem_string receiving the value read from the registry,
          *             with environment variables expanded, as though passed through ExpandEnvironmentStringsW.
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
@@ -2791,8 +2791,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param[out] return_value A wil::shared_cotaskmem_string receiving the value read from the registry,
          *             with environment variables expanded, as though passed through ExpandEnvironmentStringsW.
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
@@ -2806,8 +2806,8 @@ namespace wil
         /**
          * \brief Reads a REG_EXPAND_SZ value under a specified key
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param[out] return_value A wil::shared_cotaskmem_string receiving the value read from the registry,
          *             with environment variables expanded, as though passed through ExpandEnvironmentStringsW.
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
@@ -2825,8 +2825,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param[out] return_value A std::vector<std::wstring> receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
@@ -2850,8 +2850,8 @@ namespace wil
         /**
          * \brief Reads a REG_MULTI_SZ value under a specified key
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param[out] return_value A std::vector<std::wstring> receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
@@ -2866,8 +2866,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param[out] return_value A std::vector<std::wstring> receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
@@ -2880,8 +2880,8 @@ namespace wil
         /**
          * \brief Reads a REG_MULTI_SZ value under a specified key
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \param[out] return_value A std::vector<std::wstring> receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
@@ -2895,8 +2895,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return The value read from the registry value of the template type std::optional<std::vector<std::wstring>>
          *         note - will return std::nullopt if the value does not exist
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
@@ -2930,8 +2930,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return The value read from the registry value marshalled to a std::optional<std::vector<std::wstring>>
          *         note - will return std::nullopt if the value does not exist
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
@@ -2957,8 +2957,8 @@ namespace wil
         /**
          * \brief Attempts to read a REG_MULTI_SZ value under a specified key, returning the value in a std::optional
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return The value read from the registry value marshalled to a std::optional<std::vector<std::wstring>>
          *         note - will return std::nullopt if the value does not exist
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
@@ -2974,8 +2974,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return The value read from the registry value marshalled to a std::optional<std::vector<std::wstring>>
          *         note - will return std::nullopt if the value does not exist
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
@@ -2988,8 +2988,8 @@ namespace wil
         /**
          * \brief Attempts to read a REG_MULTI_SZ value under a specified key, returning the value in a std::optional
          * \param key An open or well-known registry key
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return The value read from the registry value marshalled to a std::optional<std::vector<std::wstring>>
          *         note - will return std::nullopt if the value does not exist
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
