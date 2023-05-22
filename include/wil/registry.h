@@ -862,9 +862,10 @@ namespace wil
         // template <typename T>
         // T get_value(...)
         //
-        //  - Reads a value under a specified key, the required registry type based off the templated type passed as data
-        //  - Throws a std::exception on failure (including wil::ResultException), including registry value not found
-        //    if not wanting an exception when the value does not exist, use try_get_value(...)
+        //  - Reads a value under a specified key.
+        //  - Requires a type T to be specified.
+        //  - Throws a std::exception on failure (including wil::ResultException), including registry value not found.
+        //    If you don't want an exception when the value does not exist, use try_get_value(...)
         //
         // Examples of usage (ensure the code handles a possible std::exception that will be thrown on all errors)
         //     uint32_t dword_value = wil::reg::get_value<uint32_t>(key, L"subkey", L"dword_value_name");
@@ -933,7 +934,7 @@ namespace wil
         }
 
         /**
-         * \brief Reads a value from a specified key and subkey, deducing the type from the given data.
+         * \brief Reads a value from a specified key and subkey, deducing registry type from the type parameter T.
          * \tparam T The type capturing the data being read (the type of registry value is determined by the template type T of data given)
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param subkey A string to append to the HKEY to attempt to read from
@@ -953,7 +954,7 @@ namespace wil
         }
 
         /**
-         * \brief Reads a value under a specified key, the required registry type based off the templated type passed as data
+         * \brief Reads a value under a specified key, deducing registry type from the type parameter T.
          * \tparam T The type capturing the data being read
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param value_name A string specifying the name of the registry value to read from
@@ -1533,7 +1534,7 @@ namespace wil
         // template <typename T>
         // void try_get_value(...)
         //
-        //  - Reads a value under a specified key, the required registry type based off the templated type passed as data
+        //  - Reads a value under a specified key and subkey, deducing registry type from the type parameter T.
         //  - throws a std::exception on failure (including wil::ResultException), except if the registry value was not found
         //    returns a std::nullopt if the registry value is not found
         //
@@ -1631,7 +1632,7 @@ namespace wil
         }
 
         /**
-         * \brief Attempts to read a value under a specified key, returning in a std::optional, the required registry type based off the templated return type
+         * \brief Attempts to read a value under a specified key and subkey, returning in a std::optional, deducing registry type from the type parameter T.
          * \tparam T The type capturing the data being read into a std::optional
          *         the type of registry value is determined by the template type T of data given
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
@@ -1660,7 +1661,7 @@ namespace wil
         }
 
         /**
-         * \brief Attempts to read a value under a specified key, returning the value in a std::optional, the required registry type based off the templated return type
+         * \brief Attempts to read a value under a specified key, returning the value in a std::optional, deducing registry type from the type parameter T.
          * \tparam T The type capturing the data being read into a std::optional
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param value_name A string specifying the name of the registry value to read from
