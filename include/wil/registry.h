@@ -348,7 +348,7 @@ namespace wil
         }
 
         /**
-         * \brief Writes a value to a specified key and subkey, deducing the type from the given data.
+         * \brief Writes a value to a specified key, deducing the type from the given data.
          * \tparam T The type capturing the data being set
          *         note - the type of registry value is determined by the template type T of data given
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
@@ -624,7 +624,7 @@ namespace wil
         }
 
         /**
-         * \brief Writes a value to a specified key and subkey, deducing the type from the given data.
+         * \brief Writes a value to a specified key, deducing the type from the given data.
          * \tparam T The type capturing the data being set
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param value_name A string specifying the name of the registry value to write
