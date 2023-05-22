@@ -35,7 +35,7 @@ namespace wil
 #if defined(WIL_ENABLE_EXCEPTIONS)
         /**
          * \brief Opens a new HKEY to the specified path - see RegOpenKeyExW
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subKey The name of the registry subkey to be opened
          *        can be nullptr if not needed
          * \param access The requested access desired for the opened key
@@ -52,7 +52,7 @@ namespace wil
 
         /**
          * \brief Creates a new HKEY to the specified path - see RegCreateKeyExW
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subKey The name of a subkey that this function opens or creates
          *        Note: this cannot be null (see the above referenced API documentation)
          * \param access The requested access desired for the opened key
@@ -70,7 +70,7 @@ namespace wil
 #if defined(__WIL_WINREG_STL)
         /**
          * \brief Opens a new HKEY to the specified path - see RegOpenKeyExW
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subKey The name of the registry subkey to be opened
          *        can be nullptr if not needed
          * \param access The requested access desired for the opened key
@@ -87,7 +87,7 @@ namespace wil
 
         /**
          * \brief Creates a new HKEY to the specified path - see RegCreateKeyExW
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subKey The name of a subkey that this function opens or creates
          *        Note: this cannot be null (see the above referenced API documentation)
          * \param access The requested access desired for the opened key
@@ -106,7 +106,7 @@ namespace wil
 
         /**
          * \brief Opens a new HKEY to the specified path - see RegOpenKeyExW
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subKey The name of the registry subkey to be opened
          *        can be nullptr if not needed
          * \param[out] hkey A reference to a wil::unique_hkey to receive the opened HKEY
@@ -121,7 +121,7 @@ namespace wil
 
         /**
          * \brief Creates a new HKEY to the specified path - see RegCreateKeyExW
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subKey The name of a subkey that this function opens or creates
          *        Note: this cannot be null (see the above referenced API documentation)
          * \param[out] hkey A reference to a wil::unique_hkey to receive the opened HKEY
@@ -137,7 +137,7 @@ namespace wil
 #if defined(__WIL_WINREG_STL)
         /**
          * \brief Opens a new HKEY to the specified path - see RegOpenKeyExW
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subKey The name of the registry subkey to be opened
          *        can be nullptr if not needed
          * \param[out] hkey A reference to a wil::shared_hkey to receive the opened HKEY
@@ -152,7 +152,7 @@ namespace wil
 
         /**
          * \brief Creates a new HKEY to the specified path - see RegCreateKeyExW
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subKey The name of a subkey that this function opens or creates
          *        Note: this cannot be null (see the above referenced API documentation)
          * \param[out] hkey A reference to a wil::shared_hkey to receive the opened HKEY
@@ -332,7 +332,7 @@ namespace wil
           * \brief Writes a value to a specified key and subkey, deducing the type from the given data.
           * \tparam T The type capturing the data being set
           *         note - the type of registry value is determined by the template type T of data given
-          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+          * \param key An open or well-known registry key
           * \param subkey A string to append to the HKEY to attempt to write
           *        can be nullptr if not needed
           * \param value_name A string specifying the name of the registry value to write
@@ -351,7 +351,7 @@ namespace wil
          * \brief Writes a value to a specified key, deducing the type from the given data.
          * \tparam T The type capturing the data being set
          *         note - the type of registry value is determined by the template type T of data given
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to write
          *        can be nullptr to write to the unnamed default registry value
          * \param data The value containing the data to be set in the specified key
@@ -365,7 +365,7 @@ namespace wil
 
         /**
          * \brief Writes a REG_DWORD value from a uint32_t
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to write
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to write
@@ -380,7 +380,7 @@ namespace wil
 
         /**
          * \brief Writes a REG_DWORD value from a uint32_t
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to write
          *        can be nullptr to write to the unnamed default registry value
          * \param data The 32-bit value to write to the specified registry value
@@ -393,7 +393,7 @@ namespace wil
 
         /**
          * \brief Writes a REG_QWORD value from a uint64_t
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to write
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to write
@@ -408,7 +408,7 @@ namespace wil
 
         /**
          * \brief Writes a REG_QWORD value from a uint64_t
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to write
          *        can be nullptr to write to the unnamed default registry value
          * \param data The 64-bit value to write to the specified registry value
@@ -421,7 +421,7 @@ namespace wil
 
         /**
          * \brief Writes a REG_SZ value from a null-terminated string
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to write
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to write
@@ -436,7 +436,7 @@ namespace wil
 
         /**
          * \brief Writes a REG_SZ value from a null-terminated string
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to write
          *        can be nullptr to write to the unnamed default registry value
          * \param data The null-terminated string value to write to the specified registry value
@@ -449,7 +449,7 @@ namespace wil
 
         /**
          * \brief Writes a REG_EXPAND_SZ value from a null-terminated string
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to write
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to write
@@ -465,7 +465,7 @@ namespace wil
 
         /**
          * \brief Writes a REG_EXPAND_SZ value from a null-terminated string
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to write
          *        can be nullptr to write to the unnamed default registry value
          * \param data The null-terminated, unexpanded string value to write to the specified registry value. For example, `%PATH%`.
@@ -479,7 +479,7 @@ namespace wil
 #if defined(_VECTOR_) && defined(_STRING_)
         /**
          * \brief The generic set_value template function to write a REG_MULTI_SZ value from a std::vector<std::wstring>
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to write
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to write
@@ -497,7 +497,7 @@ namespace wil
 
         /**
          * \brief The generic set_value template function to write a REG_MULTI_SZ value from a std::vector<std::wstring>
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to write
          *        can be nullptr to write to the unnamed default registry value
          * \param data A std::vector<std::wstring> to write to the specified registry value
@@ -511,7 +511,7 @@ namespace wil
 
         /**
          * \brief Writes a REG_MULTI_SZ value from a std::vector<std::wstring>
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to write
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to write
@@ -527,7 +527,7 @@ namespace wil
 
         /**
          * \brief Writes a REG_MULTI_SZ value from a std::vector<std::wstring>
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to write
          *        can be nullptr to write to the unnamed default registry value
          * \param data A std::vector<std::wstring> to write to the specified registry value
@@ -543,7 +543,7 @@ namespace wil
 #if defined(_VECTOR_)
         /**
          * \brief Writes a registry value of the specified type from a std::vector<ByteType>, where ByteType is any type that's unsigned 8-byte
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to write
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to write
@@ -562,7 +562,7 @@ namespace wil
 
         /**
          * \brief Writes a registry value of the specified type from a std::vector<ByteType>, where ByteType is any type that's unsigned 8-byte
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to write
          *        can be nullptr to write to the unnamed default registry value
          * \param type The registry type for the specified registry value - see RegSetKeyValueW
@@ -608,7 +608,7 @@ namespace wil
         /**
           * \brief Writes a value to a specified key and subkey, deducing the type from the given data.
           * \tparam T The type capturing the data being set
-          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+          * \param key An open or well-known registry key
           * \param subkey A string to append to the HKEY to attempt to write
           *        can be nullptr if not needed
           * \param value_name A string specifying the name of the registry value to write
@@ -626,7 +626,7 @@ namespace wil
         /**
          * \brief Writes a value to a specified key, deducing the type from the given data.
          * \tparam T The type capturing the data being set
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to write
          *        can be nullptr to write to the unnamed default registry value
          * \param data The value containing the data to be set in the specified key
@@ -640,7 +640,7 @@ namespace wil
 
         /**
          * \brief Writes a REG_DWORD value from a uint32_t
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to write
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to write
@@ -655,7 +655,7 @@ namespace wil
 
         /**
          * \brief Writes a REG_DWORD value from a uint32_t
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to write
          *        can be nullptr to write to the unnamed default registry value
          * \param data The 32-bit value to write to the specified registry value
@@ -668,7 +668,7 @@ namespace wil
 
         /**
          * \brief Writes a REG_QWORD value from a uint64_t
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to write
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to write
@@ -683,7 +683,7 @@ namespace wil
 
         /**
          * \brief Writes a REG_QWORD value from a uint64_t
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to write
          *        can be nullptr to write to the unnamed default registry value
          * \param data The 64-bit value to write to the specified registry value
@@ -696,7 +696,7 @@ namespace wil
 
         /**
          * \brief Writes a REG_SZ value from a null-terminated string
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to write
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to write
@@ -711,7 +711,7 @@ namespace wil
 
         /**
          * \brief Writes a REG_SZ value from a null-terminated string
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to write
          *        can be nullptr to write to the unnamed default registry value
          * \param data The null-terminated string value to write to the specified registry value
@@ -724,7 +724,7 @@ namespace wil
 
         /**
          * \brief Writes a REG_EXPAND_SZ value from a null-terminated string
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to write
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to write
@@ -740,7 +740,7 @@ namespace wil
 
         /**
          * \brief Writes a REG_EXPAND_SZ value from a null-terminated string
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to write
          *        can be nullptr to write to the unnamed default registry value
          * \param data The null-terminated, unexpanded string value to write to the specified registry value. For example, `%PATH%`.
@@ -755,7 +755,7 @@ namespace wil
 #if defined(_VECTOR_) && defined(_STRING_)
         /**
          * \brief Writes a REG_MULTI_SZ value from a std::vector<std::wstring>
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to write
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to write
@@ -775,7 +775,7 @@ namespace wil
 
         /**
          * \brief Writes a REG_MULTI_SZ value from a std::vector<std::wstring>
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to write
          *        can be nullptr to write to the unnamed default registry value
          * \param data A std::vector<std::wstring> to write to the specified registry value
@@ -790,7 +790,7 @@ namespace wil
 
         /**
          * \brief Writes a REG_MULTI_SZ value from a std::vector<std::wstring>
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to write
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to write
@@ -806,7 +806,7 @@ namespace wil
 
         /**
          * \brief Writes a REG_MULTI_SZ value from a std::vector<std::wstring>
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to write
          *        can be nullptr to write to the unnamed default registry value
          * \param data A std::vector<std::wstring> to write to the specified registry value
@@ -822,7 +822,7 @@ namespace wil
 #if defined(_VECTOR_)
         /**
          * \brief Writes a registry value of the specified type from a std::vector<ByteType>, where ByteType is any type that's unsigned 8-byte
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to write
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to write
@@ -841,7 +841,7 @@ namespace wil
 
         /**
          * \brief Writes a registry value of the specified type from a std::vector<ByteType>, where ByteType is any type that's unsigned 8-byte
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to write
          *        can be nullptr to write to the unnamed default registry value
          * \param type The registry type for the specified registry value - see RegSetKeyValueW
@@ -936,7 +936,7 @@ namespace wil
         /**
          * \brief Reads a value from a specified key and subkey, deducing registry type from the type parameter T.
          * \tparam T The type capturing the data being read (the type of registry value is determined by the template type T of data given)
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -956,7 +956,7 @@ namespace wil
         /**
          * \brief Reads a value under a specified key, deducing registry type from the type parameter T.
          * \tparam T The type capturing the data being read
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \return The value read from the registry value of the template type T
@@ -970,7 +970,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_DWORD value, returning a uint32_t
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -985,7 +985,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_DWORD value, returning a uint32_t
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \return The uint32_t value read from the registry
@@ -998,7 +998,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_QWORD value, returning a uint64_t
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -1013,7 +1013,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_QWORD value, returning a uint64_t
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \return The uint64_t value read from the registry
@@ -1027,7 +1027,7 @@ namespace wil
 #if defined(_STRING_)
         /**
          * \brief Reads a REG_SZ value, returning a std::wstring
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -1042,7 +1042,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_SZ value, returning a std::wstring
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -1058,7 +1058,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_SZ value, returning a std::wstring
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \return A std::wstring created from the string value read from the registry
@@ -1072,7 +1072,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_SZ value, returning a std::wstring
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \return A std::wstring created from the string value read from the registry
@@ -1087,7 +1087,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_EXPAND_SZ value, returning a std::wstring
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -1106,7 +1106,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_EXPAND_SZ value, returning a std::wstring
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -1123,7 +1123,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_EXPAND_SZ value, returning a std::wstring
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \return A std::wstring created from the string value read from the registry,
@@ -1137,7 +1137,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_EXPAND_SZ value, returning a std::wstring
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \return A std::wstring created from the string value read from the registry,
@@ -1154,7 +1154,7 @@ namespace wil
 #if defined(__WIL_OLEAUTO_H_)
         /**
          * \brief Reads a REG_SZ value, returning a wil::unique_bstr
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -1170,7 +1170,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_SZ value, returning a wil::unique_bstr
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \return A wil::unique_bstr created from the string value read from the registry
@@ -1184,7 +1184,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_EXPAND_SZ value, returning a wil::unqiue_bstr
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -1204,7 +1204,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_EXPAND_SZ value, returning a wil::unique_bstr
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \return A wil::unique_bstr created from the string value read from the registry,
@@ -1219,7 +1219,7 @@ namespace wil
 #if defined(__WIL_OLEAUTO_H_STL)
         /**
          * \brief Reads a REG_SZ value, returning a wil::shared_bstr
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -1235,7 +1235,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_SZ value, returning a wil::shared_bstr
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \return A wil::shared_bstr created from the string value read from the registry
@@ -1249,7 +1249,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_EXPAND_SZ value, returning a wil::unqiue_bstr
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -1269,7 +1269,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_EXPAND_SZ value, returning a wil::shared_bstr
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \return A wil::shared_bstr created from the string value read from the registry,
@@ -1287,7 +1287,7 @@ namespace wil
 #if defined(__WIL_OBJBASE_H_)
         /**
          * \brief Reads a REG_SZ value, returning a wil::unique_cotaskmem_string
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -1303,7 +1303,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_SZ value, returning a wil::unique_cotaskmem_string
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \return A wil::unique_cotaskmem_string created from the string value read from the registry
@@ -1317,7 +1317,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_EXPAND_SZ value, returning a wil::unique_cotaskmem_string
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -1337,7 +1337,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_EXPAND_SZ value, returning a wil::unique_cotaskmem_string
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \return A wil::unique_cotaskmem_string created from the string value read from the registry,
@@ -1352,7 +1352,7 @@ namespace wil
 #if defined(__WIL_OBJBASE_H_STL)
         /**
          * \brief Reads a REG_SZ value, returning a wil::shared_cotaskmem_string
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -1368,7 +1368,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_SZ value, returning a wil::shared_cotaskmem_string
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \return A wil::shared_cotaskmem_string created from the string value read from the registry
@@ -1382,7 +1382,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_EXPAND_SZ value, returning a wil::shared_cotaskmem_string
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -1402,7 +1402,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_EXPAND_SZ value, returning a wil::shared_cotaskmem_string
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \return A wil::shared_cotaskmem_string created from the string value read from the registry,
@@ -1420,7 +1420,7 @@ namespace wil
 #if defined(_VECTOR_)
         /**
          * \brief Reads a registry value of the specified type, returning a std::vector<BYTE>
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -1439,7 +1439,7 @@ namespace wil
 
         /**
          * \brief Reads a registry value of the specified type, returning a std::vector<BYTE>
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \param type The registry type for the specified registry value to read from - see RegGetValueW
@@ -1455,7 +1455,7 @@ namespace wil
 #if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
         /**
          * \brief Reads a REG_MULTI_SZ value, returning a std::vector<std::wstring>
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -1484,7 +1484,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_MULTI_SZ value, returning a std::vector<std::wstring>
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \return The std::vector<std::wstring> marshalled from data read from the registry value
@@ -1498,7 +1498,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_MULTI_SZ value, returning a std::vector<std::wstring>
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -1517,7 +1517,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_MULTI_SZ value, returning a std::vector<std::wstring>
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \return The std::vector<std::wstring> marshalled from data read from the registry value
@@ -1635,7 +1635,7 @@ namespace wil
          * \brief Attempts to read a value under a specified key and subkey, returning in a std::optional, deducing registry type from the type parameter T.
          * \tparam T The type capturing the data being read into a std::optional
          *         the type of registry value is determined by the template type T of data given
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -1663,7 +1663,7 @@ namespace wil
         /**
          * \brief Attempts to read a value under a specified key, returning the value in a std::optional, deducing registry type from the type parameter T.
          * \tparam T The type capturing the data being read into a std::optional
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \return The value read from the registry value of the template type std::optional<T>
@@ -1687,7 +1687,7 @@ namespace wil
 
         /**
          * \brief Attempts to read a REG_DWORD value under a specified key, returning the value in a std::optional
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -1703,7 +1703,7 @@ namespace wil
 
         /**
          * \brief Attempts to read a REGD_DWORD value under a specified key, returning the value in a std::optional
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \return The value read from the registry value of the template type std::optional<uint32_t>
@@ -1717,7 +1717,7 @@ namespace wil
 
         /**
          * \brief Attempts to read a REG_QWORD value under a specified key, returning the value in a std::optional
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -1733,7 +1733,7 @@ namespace wil
 
         /**
          * \brief Attempts to read a REG_QWORD value under a specified key, returning the value in a std::optional
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \return The value read from the registry value stored in a std::optional<uint64_t>
@@ -1748,7 +1748,7 @@ namespace wil
 #if defined(_VECTOR_)
         /**
          * \brief Attempts to read a value under a specified key requiring the specified type, returning the raw bytes in a std::optional
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -1766,7 +1766,7 @@ namespace wil
 
         /**
          * \brief Attempts to read a value under a specified key requiring the specified type, returning the raw bytes in a std::optional
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \param type The registry type for the specified registry value to read from - see RegGetValueW
@@ -1784,7 +1784,7 @@ namespace wil
 #if defined(_STRING_)
         /**
          * \brief Attempts to read a REG_SZ value under a specified key, returning the value in a std::optional
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -1806,7 +1806,7 @@ namespace wil
 
         /**
          * \brief Attempts to read a REG_SZ value under a specified key, returning the value in a std::optional
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \return The value read from the registry value of the template type std::optional<std::wstring>
@@ -1825,7 +1825,7 @@ namespace wil
 
         /**
          * \brief Attempts to read a REG_EXPAND_SZ value under a specified key, returning the value in a std::optional
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -1848,7 +1848,7 @@ namespace wil
 
         /**
          * \brief Attempts to read a REG_EXPAND_SZ value under a specified key, returning the value in a std::optional
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \return The value read from the registry value of the template type std::optional<std::wstring>,
@@ -1870,7 +1870,7 @@ namespace wil
 #if defined(__WIL_OLEAUTO_H_STL)
         /**
          * \brief Attempts to read a REG_SZ value under a specified key, returning the value in a std::optional
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -1888,7 +1888,7 @@ namespace wil
 
         /**
          * \brief Attempts to read a REG_SZ value under a specified key, returning the value in a std::optional
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \return The value read from the registry value of the template type std::optional<wil::shared_bstr>
@@ -1903,7 +1903,7 @@ namespace wil
 
         /**
          * \brief Attempts to read a REG_EXPAND_SZ value under a specified key, returning the value in a std::optional
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -1922,7 +1922,7 @@ namespace wil
 
         /**
          * \brief Attempts to read a REG_EXPAND_SZ value under a specified key, returning the value in a std::optional
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \return The value read from the registry value of the template type std::optional<wil::shared_bstr>,
@@ -1940,7 +1940,7 @@ namespace wil
 #if defined(__WIL_OBJBASE_H_STL)
         /**
          * \brief Attempts to read a REG_SZ value under a specified key, returning the value in a std::optional
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -1958,7 +1958,7 @@ namespace wil
 
         /**
          * \brief Attempts to read a REG_SZ value under a specified key, returning the value in a std::optional
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \return The value read from the registry value of the template type std::optional<wil::shared_cotaskmem_string>
@@ -1973,7 +1973,7 @@ namespace wil
 
         /**
          * \brief Attempts to read a REG_EXPAND_SZ value under a specified key, returning the value in a std::optional
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -1992,7 +1992,7 @@ namespace wil
 
         /**
          * \brief Attempts to read a REG_EXPAND_SZ value under a specified key, returning the value in a std::optional
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \return The value read from the registry value of the template type std::optional<wil::shared_cotaskmem_string>,
@@ -2080,7 +2080,7 @@ namespace wil
         /**
          * \brief Reads a value under a specified key, the registry type based off the templated type passed as data
          * \tparam T The type capturing the data being set
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -2099,7 +2099,7 @@ namespace wil
         /**
          * \brief Reads a value under a specified key, the registry type based off the templated type passed as data
          * \tparam T The type capturing the data being set
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \param[out] return_value A pointer-to-T receiving the value read from the registry
@@ -2115,7 +2115,7 @@ namespace wil
         /**
          * \brief Reads a REG_SZ value under a specified key
          * \tparam Length The length of the WCHAR array passed as an OUT parameter
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -2143,7 +2143,7 @@ namespace wil
         /**
          * \brief Reads a REG_SZ value under a specified key
          * \tparam Length The length of the WCHAR array passed as an OUT parameter
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \param[out] return_value A WCHAR array receiving the value read from the registry
@@ -2166,7 +2166,7 @@ namespace wil
         /**
          * \brief Reads a REG_SZ value under a specified key
          * \tparam Length The length of the WCHAR array passed as an OUT parameter
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -2184,7 +2184,7 @@ namespace wil
         /**
          * \brief Reads a REG_SZ value under a specified key
          * \tparam Length The length of the WCHAR array passed as an OUT parameter
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \param[out] return_value A WCHAR array receiving the value read from the registry
@@ -2199,7 +2199,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_DWORD value under a specified key
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -2216,7 +2216,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_DWORD value under a specified key
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \param[out] return_value A pointer to an unsigned 32-bit value receiving the value read from the registry
@@ -2231,7 +2231,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_QWORD value under a specified key
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -2248,7 +2248,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_QWORD value under a specified key
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \param[out] return_value A uint64_t receiving the value read from the registry
@@ -2264,7 +2264,7 @@ namespace wil
 #if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
         /**
          * \brief Reads a REG_SZ value under a specified key
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -2280,7 +2280,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_SZ value under a specified key
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \param[out] return_value A std::wstring receiving the value read from the registry
@@ -2293,7 +2293,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_SZ value under a specified key
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -2308,7 +2308,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_SZ value under a specified key
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \param[out] return_value A std::wstring receiving the value read from the registry
@@ -2323,7 +2323,7 @@ namespace wil
 #if defined(__WIL_OLEAUTO_H_)
         /**
          * \brief Reads a REG_SZ value under a specified key
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -2339,7 +2339,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_SZ value under a specified key
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \param[out] return_value A wil::unique_bstr receiving the value read from the registry
@@ -2352,7 +2352,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_SZ value under a specified key
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -2367,7 +2367,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_SZ value under a specified key
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \param[out] return_value A wil::unique_bstr receiving the value read from the registry
@@ -2381,7 +2381,7 @@ namespace wil
 #if defined(__WIL_OLEAUTO_H_STL)
         /**
          * \brief Reads a REG_SZ value under a specified key
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -2397,7 +2397,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_SZ value under a specified key
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \param[out] return_value A wil::shared_bstr receiving the value read from the registry
@@ -2410,7 +2410,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_SZ value under a specified key
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -2425,7 +2425,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_SZ value under a specified key
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \param[out] return_value A wil::shared_bstr receiving the value read from the registry
@@ -2441,7 +2441,7 @@ namespace wil
 #if defined(__WIL_OBJBASE_H_)
         /**
          * \brief Reads a REG_SZ value under a specified key
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -2458,7 +2458,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_SZ value under a specified key
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \param[out] return_value A wil::unique_cotaskmem_string receiving the value read from the registry
@@ -2471,7 +2471,7 @@ namespace wil
 
         /**
           * \brief Reads a REG_SZ value under a specified key
-          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+          * \param key An open or well-known registry key
           * \param subkey A string to append to the HKEY to attempt to read from
           *        can be nullptr if not needed
           * \param value_name A string specifying the name of the registry value to read from
@@ -2486,7 +2486,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_SZ value under a specified key
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \param[out] return_value A wil::unique_cotaskmem_string receiving the value read from the registry
@@ -2499,7 +2499,7 @@ namespace wil
 #if defined(__WIL_OBJBASE_H_STL)
         /**
          * \brief Reads a REG_SZ value under a specified key
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -2516,7 +2516,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_SZ value under a specified key
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \param[out] return_value A wil::shared_cotaskmem_string receiving the value read from the registry
@@ -2529,7 +2529,7 @@ namespace wil
 
         /**
           * \brief Reads a REG_SZ value under a specified key
-          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+          * \param key An open or well-known registry key
           * \param subkey A string to append to the HKEY to attempt to read from
           *        can be nullptr if not needed
           * \param value_name A string specifying the name of the registry value to read from
@@ -2544,7 +2544,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_SZ value under a specified key
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \param[out] return_value A wil::shared_cotaskmem_string receiving the value read from the registry
@@ -2560,7 +2560,7 @@ namespace wil
 #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
         /**
          * \brief Reads the raw bytes from a registry value under a specified key of the specified type
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -2585,7 +2585,7 @@ namespace wil
 
         /**
          * \brief Reads the raw bytes from a registry value under a specified key of the specified type
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \param type The registry type for the specified registry value to read from - see RegGetValueW
@@ -2602,7 +2602,7 @@ namespace wil
         /**
          * \brief Reads a REG_EXPAND_SZ value under a specified key
          * \tparam Length The length of the WCHAR array passed as an OUT parameter
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -2631,7 +2631,7 @@ namespace wil
         /**
          * \brief Reads a REG_EXPAND_SZ value under a specified key
          * \tparam Length The length of the WCHAR array passed as an OUT parameter
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \param[out] return_value A WCHAR array receiving the value read from the registry,
@@ -2655,7 +2655,7 @@ namespace wil
 #if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
         /**
          * \brief Reads a REG_EXPAND_SZ value under a specified key
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -2674,7 +2674,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_EXPAND_SZ value under a specified key
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \param[out] return_value A std::wstring receiving the value read from the registry,
@@ -2690,7 +2690,7 @@ namespace wil
 #if defined(__WIL_OLEAUTO_H_)
         /**
          * \brief Reads a REG_EXPAND_SZ value under a specified key
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -2707,7 +2707,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_EXPAND_SZ value under a specified key
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \param[out] return_value A wil::unique_bstr receiving the value read from the registry,
@@ -2722,7 +2722,7 @@ namespace wil
 #if defined(__WIL_OLEAUTO_H_STL)
         /**
          * \brief Reads a REG_EXPAND_SZ value under a specified key
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -2739,7 +2739,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_EXPAND_SZ value under a specified key
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \param[out] return_value A wil::shared_bstr receiving the value read from the registry,
@@ -2757,7 +2757,7 @@ namespace wil
 #if defined(__WIL_OBJBASE_H_)
         /**
          * \brief Reads a REG_EXPAND_SZ value under a specified key
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -2774,7 +2774,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_EXPAND_SZ value under a specified key
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \param[out] return_value A wil::unique_cotaskmem_string receiving the value read from the registry,
@@ -2788,7 +2788,7 @@ namespace wil
 #if defined(__WIL_OBJBASE_H_STL)
         /**
          * \brief Reads a REG_EXPAND_SZ value under a specified key
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -2805,7 +2805,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_EXPAND_SZ value under a specified key
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \param[out] return_value A wil::shared_cotaskmem_string receiving the value read from the registry,
@@ -2822,7 +2822,7 @@ namespace wil
 #if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
         /**
          * \brief Reads a REG_MULTI_SZ value under a specified key
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -2849,7 +2849,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_MULTI_SZ value under a specified key
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \param[out] return_value A std::vector<std::wstring> receiving the value read from the registry
@@ -2863,7 +2863,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_MULTI_SZ value under a specified key
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -2879,7 +2879,7 @@ namespace wil
 
         /**
          * \brief Reads a REG_MULTI_SZ value under a specified key
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \param[out] return_value A std::vector<std::wstring> receiving the value read from the registry
@@ -2892,7 +2892,7 @@ namespace wil
 #if defined (_OPTIONAL_) && defined(__cpp_lib_optional)
         /**
          * \brief Attempts to read a REG_MULTI_SZ value under a specified key, returning the value in a std::optional
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -2927,7 +2927,7 @@ namespace wil
          *         // in this example, returns the HRESULT error code if anything fails reading the registry value other than value not found
 
          * \brief Attempts to read a REG_MULTI_SZ value under a specified key, returning the value in a std::optional
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -2956,7 +2956,7 @@ namespace wil
 
         /**
          * \brief Attempts to read a REG_MULTI_SZ value under a specified key, returning the value in a std::optional
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \return The value read from the registry value marshalled to a std::optional<std::vector<std::wstring>>
@@ -2971,7 +2971,7 @@ namespace wil
 
         /**
          * \brief Attempts to read a REG_MULTI_SZ value under a specified key, returning the value in a std::optional
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param subkey A string to append to the HKEY to attempt to read from
          *        can be nullptr if not needed
          * \param value_name A string specifying the name of the registry value to read from
@@ -2987,7 +2987,7 @@ namespace wil
 
         /**
          * \brief Attempts to read a REG_MULTI_SZ value under a specified key, returning the value in a std::optional
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
+         * \param key An open or well-known registry key
          * \param value_name A string specifying the name of the registry value to read from
          *        can be nullptr to read from the unnamed default registry value
          * \return The value read from the registry value marshalled to a std::optional<std::vector<std::wstring>>
