@@ -804,7 +804,7 @@ namespace
 #endif // defined(WIL_ENABLE_EXCEPTIONS)
 
     /*
-     * Unit tests don't work yet
+     * Unit tests don't work yet because the test types is effectively a PCWSTR[][] -- which doesn't compile as-is
      *
     struct MultiStringNoThrowFns
     {
