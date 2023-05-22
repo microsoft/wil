@@ -2897,41 +2897,6 @@ namespace wil
          *        If `nullptr`, then `key` is used without modification.
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to read from the unnamed default registry value.
-         * \return The value read from the registry value of the template type std::optional<std::vector<std::wstring>>
-         *         note - will return std::nullopt if the value does not exist
-         * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
-         *
-         * \remark Example usage:
-         *         // ensure the code handles a possible std::exception that will be thrown on all errors
-         *
-         *         std::optional<std::vector<std::wstring>> opt_vector_value = wil::reg::try_get_value_multistring(key, L"subkey", L"value_name");
-         *         if (opt_vector_value.has_value())
-         *         {
-         *             // note this won't make any copies of the vector, nor any wstring - as value() returns a std::vector<std::wstring>&
-         *             for (const auto& sub_string_value : opt_string_value.value())
-         *             {
-         *                 // can read each string parsed from the multi-string
-         *                 PCWSTR string_value = sub_string_value.c_str();
-         *             }
-         *         }
-         *         else
-         *         {
-         *             // the value does not exist
-         *         }
-         *
-         *         // if the caller wants to apply a default value of an empty vector, they can call value_or()
-         *         std::optional<std::vector<std::wstring>> opt_vector_value =
-         *             wil::reg::try_get_value_multistring(key, L"subkey", L"value_name").value_or(std::vector<std::wstring>{});
-         *
-         *         // ensure the code handles a possible std::exception that could be thrown above
-         *         // in this example, returns the HRESULT error code if anything fails reading the registry value other than value not found
-
-         * \brief Attempts to read a REG_MULTI_SZ value under a specified key, returning the value in a std::optional
-         * \param key An open or well-known registry key
-         * \param subkey The name of the subkey to append to `key`.
-         *        If `nullptr`, then `key` is used without modification.
-         * \param value_name The name of the registry value whose data is to be updated.
-         *        Can be nullptr to read from the unnamed default registry value.
          * \return The value read from the registry value marshalled to a std::optional<std::vector<std::wstring>>
          *         note - will return std::nullopt if the value does not exist
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
