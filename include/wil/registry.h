@@ -345,11 +345,11 @@ namespace wil
 
         /**
           * \brief Writes a null-terminated string value under a specified key
-          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
-          * \param subkey A string to append to the HKEY to attempt to write
-          *        can be nullptr if not needed
-          * \param value_name A string specifying the name of the registry value to write
-          *        can be nullptr to write to the unnamed default registry value
+          * \param key An open or well-known registry key
+          * \param subkey The name of the subkey to append to `key`.
+          *        If `nullptr`, then `key` is used without modification.
+          * \param value_name The name of the registry value whose data is to be updated.
+          *        Can be nullptr to write to the unnamed default registry value.
           * \param data The null-terminated string to be set in the specified key
           * \exception std::exception (including wil::ResultException) will be thrown on all failures
           */
@@ -377,9 +377,9 @@ namespace wil
 
         /**
           * \brief Writes a null-terminated string value under a specified key
-          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
-          * \param value_name A string specifying the name of the registry value to write
-          *        can be nullptr to write to the unnamed default registry value
+         * \param key An open or well-known registry key
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to write to the unnamed default registry value.
           * \param data The null-terminated string to be set in the specified key
           * \exception std::exception (including wil::ResultException) will be thrown on all failures
           */
@@ -682,9 +682,9 @@ namespace wil
 
         /**
           * \brief Writes a null-terminated string value under a specified key
-          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
-          * \param value_name A string specifying the name of the registry value to write
-          *        can be nullptr to write to the unnamed default registry value
+         * \param key An open or well-known registry key
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to write to the unnamed default registry value.
           * \param data The null-terminated string to be set in the specified key
           * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
           */
@@ -777,42 +777,41 @@ namespace wil
             return ::wil::reg::set_value_nothrow(key, nullptr, value_name, data);
         }
 
-        template <size_t C>
-        HRESULT set_value_multistring_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const PCWSTR data[C]) WI_NOEXCEPT
         /**
-         * \brief Writes a REG_EXPAND_SZ value from a null-terminated string
+         * \brief Writes a REG_MULTI_SZ value from a null-terminated string array
+         * \tparam C The size of the PCWSTR array
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to write to the unnamed default registry value.
-         * \param data The null-terminated, unexpanded string value to write to the specified registry value. For example, `%PATH%`.
+         * \param data The array of null-terminated strings to write to the specified registry value
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        inline HRESULT set_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, PCWSTR data) WI_NOEXCEPT
+        template <size_t C>
+        HRESULT set_value_multistring_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const PCWSTR data[C]) WI_NOEXCEPT
         {
-            const reg_view_details::reg_view_nothrow regview{ key };
-            return regview.set_value(subkey, value_name, data, REG_EXPAND_SZ);
-        }
-
-        /**
-         * \brief Writes a REG_EXPAND_SZ value from a null-terminated string
-         * \param key An open or well-known registry key
-         * \param value_name The name of the registry value whose data is to be updated.
-         *        Can be nullptr to write to the unnamed default registry value.
-         * \param data The null-terminated, unexpanded string value to write to the specified registry value. For example, `%PATH%`.
-         * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
-         */
-        inline HRESULT set_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR value_name, PCWSTR data) WI_NOEXCEPT
-        {
-            return ::wil::reg::set_value_expanded_string_nothrow(key, nullptr, value_name, data);
-        }
+            ::wil::unique_cotaskmem_array_ptr<BYTE> multistring;
+            ::wil::reg::reg_view_details::get_multistring_bytearray_from_strings_nothrow<C>(data, multistring);
+            if (!multistring)
+            {
+                return E_OUTOFMEMORY;
+            }
 
             const reg_view_details::reg_view_nothrow regview{ key };
             RETURN_IF_FAILED(regview.set_value<::wil::unique_cotaskmem_array_ptr<BYTE>>(subkey, value_name, multistring, REG_MULTI_SZ));
             return S_OK;
         }
 
+        /**
+         * \brief Writes a REG_MULTI_SZ value from a null-terminated string array
+         * \tparam C The size of the PCWSTR array
+         * \param key An open or well-known registry key
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to write to the unnamed default registry value.
+         * \param data The array of null-terminated strings to write to the specified registry value
+         * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
+         */
         template <size_t C>
         HRESULT set_value_multistring_nothrow(HKEY key, _In_opt_ PCWSTR value_name, const PCWSTR data[C]) WI_NOEXCEPT
         {
@@ -821,11 +820,11 @@ namespace wil
 
         /**
          * \brief Writes a REG_EXPAND_SZ value from a null-terminated string
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
-         * \param subkey A string to append to the HKEY to attempt to write
-         *        can be nullptr if not needed
-         * \param value_name A string specifying the name of the registry value to write
-         *        can be nullptr to write to the unnamed default registry value
+         * \param key An open or well-known registry key
+         * \param subkey The name of the subkey to append to `key`.
+         *        If `nullptr`, then `key` is used without modification.
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to write to the unnamed default registry value.
          * \param data The null-terminated string value to write to the specified registry value
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
@@ -837,9 +836,9 @@ namespace wil
 
         /**
          * \brief Writes a REG_EXPAND_SZ value from a null-terminated string
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
-         * \param value_name A string specifying the name of the registry value to write
-         *        can be nullptr to write to the unnamed default registry value
+         * \param key An open or well-known registry key
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to write to the unnamed default registry value.
          * \param data The null-terminated string value to write to the specified registry value
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
@@ -851,11 +850,11 @@ namespace wil
 #if defined(__WIL_OBJBASE_H_)
         /**
          * \brief Writes raw bytes into a registry value under a specified key of the specified type
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
-         * \param subkey A string to append to the HKEY to attempt to read from
-         *        can be nullptr if not needed
-         * \param value_name A string specifying the name of the registry value to write to
-         *        can be nullptr to write to the unnamed default registry value
+         * \param key An open or well-known registry key
+         * \param subkey The name of the subkey to append to `key`.
+         *        If `nullptr`, then `key` is used without modification.
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to write to the unnamed default registry value.
          * \param type The registry type for the specified registry value to write to - see RegSetValue
          * \param value A ::wil::unique_cotaskmem_array_ptr<BYTE> holding the bytes to write into the specified registry value
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
@@ -869,9 +868,9 @@ namespace wil
 
         /**
          * \brief Writes raw bytes into a registry value under a specified key of the specified type
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
-         * \param value_name A string specifying the name of the registry value to write to
-         *        can be nullptr to write to the unnamed default registry value
+         * \param key An open or well-known registry key
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to write to the unnamed default registry value.
          * \param type The registry type for the specified registry value to write to - see RegSetValue
          * \param value A ::wil::unique_cotaskmem_array_ptr<BYTE> holding the bytes to write into the specified registry value
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
@@ -2117,13 +2116,13 @@ namespace wil
 #if defined (_VECTOR_) && defined (_STRING_)
         /**
          * \brief Attempts to read a REG_MULTI_SZ value under a specified key, returning the value in a std::optional
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
-         * \param subkey A string to append to the HKEY to attempt to read from
-         *        can be nullptr if not needed
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param key An open or well-known registry key
+         * \param subkey The name of the subkey to append to `key`.
+         *        If `nullptr`, then `key` is used without modification.
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return The value read from the registry value of the template type std::optional<std::vector<std::wstring>>
-         *         note - will return std::nullopt if the value does not exist
+         *         Note - will return std::nullopt if the value does not exist
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
          *
          * \remark Example usage:
@@ -2152,13 +2151,13 @@ namespace wil
          *         // in this example, returns the HRESULT error code if anything fails reading the registry value other than value not found
 
          * \brief Attempts to read a REG_MULTI_SZ value under a specified key, returning the value in a std::optional
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
-         * \param subkey A string to append to the HKEY to attempt to read from
-         *        can be nullptr if not needed
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param key An open or well-known registry key
+         * \param subkey The name of the subkey to append to `key`.
+         *        If `nullptr`, then `key` is used without modification.
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return The value read from the registry value marshalled to a std::optional<std::vector<std::wstring>>
-         *         note - will return std::nullopt if the value does not exist
+         *         Note - will return std::nullopt if the value does not exist
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
          */
         template <>
@@ -2183,11 +2182,11 @@ namespace wil
 
         /**
          * \brief Attempts to read a REG_MULTI_SZ value under a specified key, returning the value in a std::optional
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param key An open or well-known registry key
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return The value read from the registry value marshalled to a std::optional<std::vector<std::wstring>>
-         *         note - will return std::nullopt if the value does not exist
+         *         Note - will return std::nullopt if the value does not exist
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
          */
         template <>
@@ -2198,13 +2197,13 @@ namespace wil
 
         /**
          * \brief Attempts to read a REG_MULTI_SZ value under a specified key, returning the value in a std::optional
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
-         * \param subkey A string to append to the HKEY to attempt to read from
-         *        can be nullptr if not needed
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param key An open or well-known registry key
+         * \param subkey The name of the subkey to append to `key`.
+         *        If `nullptr`, then `key` is used without modification.
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return The value read from the registry value marshalled to a std::optional<std::vector<std::wstring>>
-         *         note - will return std::nullopt if the value does not exist
+         *         Note - will return std::nullopt if the value does not exist
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
          */
         inline ::std::optional<::std::vector<::std::wstring>> try_get_value_multistring(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
@@ -2214,11 +2213,11 @@ namespace wil
 
         /**
          * \brief Attempts to read a REG_MULTI_SZ value under a specified key, returning the value in a std::optional
-         * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
-         * \param value_name A string specifying the name of the registry value to read from
-         *        can be nullptr to read from the unnamed default registry value
+         * \param key An open or well-known registry key
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to read from the unnamed default registry value.
          * \return The value read from the registry value marshalled to a std::optional<std::vector<std::wstring>>
-         *         note - will return std::nullopt if the value does not exist
+         *         Note - will return std::nullopt if the value does not exist
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
          */
         inline ::std::optional<::std::vector<::std::wstring>> try_get_value_multistring(HKEY key, _In_opt_ PCWSTR value_name)
@@ -3005,81 +3004,7 @@ namespace wil
          * \param[out] return_value A ::wil::unique_cotaskmem_array_ptr<::wil::unique_cotaskmem_string> receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        inline HRESULT get_value_multistring_nothrow(HKEY key, _In_opt_ PCWSTR value_name, ::std::vector<::std::wstring>* return_value) WI_NOEXCEPT
-        {
-            return ::wil::reg::get_value_nothrow<::std::vector<::std::wstring>>(key, nullptr, value_name, return_value);
-        }
-#if defined (_OPTIONAL_) && defined(__cpp_lib_optional)
-        /**
-         * \brief Attempts to read a REG_MULTI_SZ value under a specified key, returning the value in a std::optional
-         * \param key An open or well-known registry key
-         * \param subkey The name of the subkey to append to `key`.
-         *        If `nullptr`, then `key` is used without modification.
-         * \param value_name The name of the registry value whose data is to be updated.
-         *        Can be nullptr to read from the unnamed default registry value.
-         * \return The value read from the registry value marshalled to a std::optional<std::vector<std::wstring>>
-         *         note - will return std::nullopt if the value does not exist
-         * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
-         */
-        template <>
-        inline ::std::optional<::std::vector<::std::wstring>> try_get_value<::std::vector<::std::wstring>>(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
-        {
-            ::std::vector<::std::wstring> value;
-            const auto hr = ::wil::reg::get_value_multistring_nothrow(key, subkey, value_name, &value);
-            if (SUCCEEDED(hr))
-            {
-                return { value };
-            }
-
-            if (hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
-            {
-                return { ::std::nullopt };
-            }
-
-            THROW_HR(HRESULT_FROM_WIN32(hr));
-        }
-
-        /**
-         * \brief Attempts to read a REG_MULTI_SZ value under a specified key, returning the value in a std::optional
-         * \param key An open or well-known registry key
-         * \param value_name The name of the registry value whose data is to be updated.
-         *        Can be nullptr to read from the unnamed default registry value.
-         * \return The value read from the registry value marshalled to a std::optional<std::vector<std::wstring>>
-         *         note - will return std::nullopt if the value does not exist
-         * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
-         */
-        template <>
-        inline ::std::optional<::std::vector<::std::wstring>> try_get_value<::std::vector<::std::wstring>>(HKEY key, _In_opt_ PCWSTR value_name)
-        {
-            return ::wil::reg::try_get_value<::std::vector<::std::wstring>>(key, nullptr, value_name);
-        }
-
-        /**
-         * \brief Attempts to read a REG_MULTI_SZ value under a specified key, returning the value in a std::optional
-         * \param key An open or well-known registry key
-         * \param subkey The name of the subkey to append to `key`.
-         *        If `nullptr`, then `key` is used without modification.
-         * \param value_name The name of the registry value whose data is to be updated.
-         *        Can be nullptr to read from the unnamed default registry value.
-         * \return The value read from the registry value marshalled to a std::optional<std::vector<std::wstring>>
-         *         note - will return std::nullopt if the value does not exist
-         * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
-         */
-        inline ::std::optional<::std::vector<::std::wstring>> try_get_value_multistring(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
-        {
-            return ::wil::reg::try_get_value<::std::vector<::std::wstring>>(key, subkey, value_name);
-        }
-
-        /**
-         * \brief Attempts to read a REG_MULTI_SZ value under a specified key, returning the value in a std::optional
-         * \param key An open or well-known registry key
-         * \param value_name The name of the registry value whose data is to be updated.
-         *        Can be nullptr to read from the unnamed default registry value.
-         * \return The value read from the registry value marshalled to a std::optional<std::vector<std::wstring>>
-         *         note - will return std::nullopt if the value does not exist
-         * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
-         */
-        inline ::std::optional<::std::vector<::std::wstring>> try_get_value_multistring(HKEY key, _In_opt_ PCWSTR value_name)
+        inline HRESULT get_value_multistring_nothrow(HKEY key, _In_opt_ PCWSTR value_name, ::wil::unique_cotaskmem_array_ptr<::wil::unique_cotaskmem_string>& return_value) WI_NOEXCEPT
         {
             return ::wil::reg::get_value_nothrow(key, nullptr, value_name, return_value);
         }
