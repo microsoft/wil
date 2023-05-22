@@ -303,7 +303,7 @@ namespace wil
         // template <typename T>
         // void set_value(...)
         //
-        //  - Writes a value under a specified key, the registry type based off the templated type passed as data
+        //  - Writes a value to a specified key and subkey, deducing the type from the given data
         //  - Throws a std::exception on failure (including wil::ResultException)
         //
         // Examples of usage (the template type does not need to be explicitly specified)
@@ -329,7 +329,7 @@ namespace wil
         //
 
         /**
-          * \brief Writes a value under a specified key, the registry type based off the templated type passed as data
+          * \brief Writes a value to a specified key and subkey, deducing the type from the given data.
           * \tparam T The type capturing the data being set
           *         note - the type of registry value is determined by the template type T of data given
           * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
@@ -348,7 +348,7 @@ namespace wil
         }
 
         /**
-         * \brief Writes a value under a specified key, the registry type based off the templated type passed as data
+         * \brief Writes a value to a specified key and subkey, deducing the type from the given data.
          * \tparam T The type capturing the data being set
          *         note - the type of registry value is determined by the template type T of data given
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
@@ -606,7 +606,7 @@ namespace wil
         //
 
         /**
-          * \brief Writes a value under a specified key, the registry type based off the templated type passed as data
+          * \brief Writes a value to a specified key and subkey, deducing the type from the given data.
           * \tparam T The type capturing the data being set
           * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
           * \param subkey A string to append to the HKEY to attempt to write
@@ -624,7 +624,7 @@ namespace wil
         }
 
         /**
-         * \brief Writes a value under a specified key, the registry type based off the templated type passed as data
+         * \brief Writes a value to a specified key and subkey, deducing the type from the given data.
          * \tparam T The type capturing the data being set
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param value_name A string specifying the name of the registry value to write
@@ -933,7 +933,7 @@ namespace wil
         }
 
         /**
-         * \brief Reads a value under a specified key, the required registry type based off the templated type passed as data
+         * \brief Reads a value from a specified key and subkey, deducing the type from the given data.
          * \tparam T The type capturing the data being read (the type of registry value is determined by the template type T of data given)
          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
          * \param subkey A string to append to the HKEY to attempt to read from
