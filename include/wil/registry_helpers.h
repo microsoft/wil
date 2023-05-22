@@ -90,6 +90,47 @@ namespace wil
                 FAIL_FAST();
             }
 
+            /**
+             * \brief A utility function that walks a contigous wchar_t container looking for strings within a multi-string
+             * \tparam InputIt An iterator type that reference a container that holds wchar_t characters to translate into individual strings
+             * \tparam Fn A callback function to be called each time a string is found - given the [begin, end] iterators referencing the found string
+             * \param first An iterator referencing to the beginning of the target container (like a std::begin iterator)
+             * \param last An iterator referencing one-past-the-end of the target container (like a std::end iterator)
+             * \param func A callback function to be called each time a string is found - given the [begin, end] iterators referencing the found string
+             */
+            template <class InputIt, class Fn>
+            void walk_multistring(const InputIt& first, const InputIt& last, Fn func)
+            {
+                auto current = first;
+                const auto end_iterator = last;
+                const auto last_null = (end_iterator - 1);
+                while (current != end_iterator)
+                {
+                    // hand rolling ::std::find(current, end_iterator, L'\0');
+                    // as this may be called when <algorithm> isn't available
+                    auto next = current;
+                    while (next != end_iterator && *next != L'\0')
+                    {
+                        ++next;
+                    }
+
+                    if (next != end_iterator)
+                    {
+                        // don't add an empty string for the final 2nd-null-terminator
+                        if (next != last_null)
+                        {
+                            // call the function provided with the [begin, end] pair referencing a string found
+                            func(current, next);
+                        }
+                        current = next + 1;
+                    }
+                    else
+                    {
+                        current = next;
+                    }
+                }
+            }
+
 #if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
             /**
              * \brief A translation function taking iterators referencing std::wstring objects and returns a corresponding std::vector<wchar_t> to be written to a MULTI_SZ registry value
@@ -116,6 +157,7 @@ namespace wil
                     multistring.insert(multistring.end(), ::std::begin(wstr), ::std::end(wstr));
                     multistring.push_back(L'\0');
                 }
+
                 // double-null-terminate the last string
                 multistring.push_back(L'\0');
                 return multistring;
@@ -140,29 +182,51 @@ namespace wil
                 }
 
                 ::std::vector<::std::wstring> strings;
-                auto current = first;
-                const auto end_iterator = last;
-                const auto last_null = (end_iterator - 1);
-                while (current != end_iterator)
-                {
-                    const auto next = ::std::find(current, end_iterator, L'\0');
-                    if (next != end_iterator)
+                walk_multistring(first, last, [&](const InputIt& string_first, const InputIt& string_last)
                     {
-                        if (next != last_null)
-                        {
-                            // don't add an empty string for the final 2nd-null-terminator
-                            strings.emplace_back(current, next);
-                        }
-                        current = next + 1;
+                        strings.emplace_back(string_first, string_last);
                     }
-                    else
-                    {
-                        current = next;
-                    }
-                }
+                );
                 return strings;
             }
 #endif // #if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
+
+            template <size_t C>
+            void get_multistring_bytearray_from_strings_nothrow(const PCWSTR data[C], ::wil::unique_cotaskmem_array_ptr<BYTE>& multistring) WI_NOEXCEPT
+            {
+                constexpr BYTE nullTermination[2]{ 0x00, 0x00 };
+
+                size_t total_array_length_bytes = 0;
+                for (size_t i = 0; i < C; ++i)
+                {
+                    total_array_length_bytes += wcslen(data[i]) * sizeof(wchar_t);;
+                    total_array_length_bytes += sizeof(wchar_t); // plus one for the null-terminator
+                }
+                total_array_length_bytes += sizeof(wchar_t); // plus one for the ending double-null-terminator
+
+                *multistring.addressof() = static_cast<BYTE*>(::CoTaskMemAlloc(total_array_length_bytes));
+                if (!multistring.get())
+                {
+                    multistring.reset();
+                    return;
+                }
+                *multistring.size_address() = total_array_length_bytes;
+
+                size_t array_offset = 0;
+                for (size_t i = 0; i < C; ++i)
+                {
+                    const auto string_length_bytes = wcslen(data[i]) * sizeof(wchar_t);
+                    memcpy(multistring.get() + array_offset, data[i], string_length_bytes);
+                    array_offset += string_length_bytes;
+
+                    static_assert(sizeof(nullTermination) == sizeof(wchar_t));
+                    memcpy(multistring.get() + array_offset, nullTermination, sizeof(nullTermination));
+                    array_offset += sizeof(nullTermination);
+                }
+
+                // double-null-terminate the last string
+                memcpy(multistring.get() + array_offset, nullTermination, sizeof(nullTermination));
+            }
 
 #if defined(__WIL_OBJBASE_H_)
             /**
@@ -172,87 +236,75 @@ namespace wil
              * \tparam InputIt An iterator type that reference a container that holds wchar_t characters to translate into individual strings
              * \param first An iterator referencing to the beginning of the target container (like a std::begin iterator)
              * \param last An iterator referencing one-past-the-end of the target container (like a std::end iterator)
+             * \param cotaskmem_array The [out] wil::unique_cotaskmem_array_ptr<wil::unique_cotaskmem_string> to contain the array of strings
              * \return A wil::unique_cotaskmem_array_ptr<wil::unique_cotaskmem_string> of the extracted strings from the input container of wchar_t characters
+             *         An empty wil::unique_cotaskmem_array_ptr should be translated as out-of-memory as there should always be at least one wil::unique_cotaskmem_string
              */
             template <class InputIt>
-            ::wil::unique_cotaskmem_array_ptr<::wil::unique_cotaskmem_string> get_cotaskmemstring_array_from_multistring(const InputIt& first, const InputIt& last)
+            void get_cotaskmemstring_array_from_multistring_nothrow(const InputIt& first, const InputIt& last, ::wil::unique_cotaskmem_array_ptr<::wil::unique_cotaskmem_string>& cotaskmem_array) WI_NOEXCEPT
             {
-                ::wil::unique_cotaskmem_array_ptr<::wil::unique_cotaskmem_string> strings;
-
                 if (last - first < 3)
                 {
                     // it doesn't have the required 2 terminating null characters - return an empty string
-                    *strings.addressof() = static_cast<PWSTR*>(::CoTaskMemAlloc(sizeof(PWSTR) * 1));
-                    *strings.size_address() = 1;
-                    strings[0] = nullptr;
-                    return strings;
+                    *cotaskmem_array.addressof() = static_cast<PWSTR*>(::CoTaskMemAlloc(sizeof(PWSTR) * 1));
+                    if (cotaskmem_array)
+                    {
+                        auto new_string = ::wil::make_cotaskmem_string_nothrow(L"");
+                        if (new_string)
+                        {
+                            *cotaskmem_array.size_address() = 1;
+                            cotaskmem_array[0] = new_string.release();
+                        }
+                        else
+                        {
+                            // oom will return an empty array
+                            cotaskmem_array.reset();
+                        }
+                    }
+                    else
+                    {
+                        // oom will return an empty array
+                        cotaskmem_array.reset();
+                    }
+                    return;
                 }
 
                 // we must first count the # of strings for the array
                 size_t arraySize = 0;
-                const auto end_iterator = last;
-                const auto last_null = (end_iterator - 1);
-
-                auto current = first;
-                while (current != end_iterator)
-                {
-                    // hand rolling ::std::find(current, end_iterator, L'\0');
-                    auto next = current;
-                    while (next != end_iterator && *next != L'\0')
+                walk_multistring(first, last, [&](const InputIt&, const InputIt&)
                     {
-                        ++next;
+                        ++arraySize;
                     }
-
-                    if (next != end_iterator)
-                    {
-                        // don't add an empty string for the final 2nd-null-terminator
-                        if (next != last_null)
-                        {
-                            ++arraySize;
-                        }
-                        current = next + 1;
-                    }
-                    else
-                    {
-                        current = next;
-                    }
-                }
+                );
 
                 // allocate the array size necessary to hold all the unique_cotaskmem_strings
-                // if we must return early due to allocation failure later, the local 'strings' can safely be deleted
-                *strings.addressof() = static_cast<PWSTR*>(::CoTaskMemAlloc(sizeof(PWSTR) * arraySize));
-                *strings.size_address() = arraySize;
-                ZeroMemory(strings.data(), sizeof(PWSTR) * arraySize);
+                *cotaskmem_array.addressof() = static_cast<PWSTR*>(::CoTaskMemAlloc(sizeof(PWSTR) * arraySize));
+                if (!cotaskmem_array)
+                {
+                    // oom will return an empty array
+                    cotaskmem_array.reset();
+                    return;
+                }
+
+                *cotaskmem_array.size_address() = arraySize;
+                ZeroMemory(cotaskmem_array.data(), sizeof(PWSTR) * arraySize);
 
                 size_t arrayOffset = 0;
-                current = first;
-                while (current != end_iterator)
-                {
-                    // hand rolling ::std::find(current, end_iterator, L'\0');
-                    auto next = current;
-                    while (next != end_iterator && *next != L'\0')
+                walk_multistring(first, last, [&](const InputIt& string_first, const InputIt& string_last)
                     {
-                        ++next;
-                    }
-
-                    if (next != end_iterator)
-                    {
-                        // don't add an empty string for the final 2nd-null-terminator
-                        if (next != last_null)
+                        FAIL_FAST_IF(arrayOffset >= arraySize);
+                        const auto stringSize = string_last - string_first;
+                        auto new_string = ::wil::make_cotaskmem_string_nothrow(&(*string_first), stringSize);
+                        if (!new_string)
                         {
-                            FAIL_FAST_IF(arrayOffset >= arraySize);
-                            const auto stringSize = next - current;
-                            strings[arrayOffset] = ::wil::make_cotaskmem_string_nothrow(&(*current), stringSize).release();
-                            ++arrayOffset;
+                            // oom will return an empty array
+                            cotaskmem_array.reset();
+                            return;
                         }
-                        current = next + 1;
+                        cotaskmem_array[arrayOffset] = new_string.release();
+                        ++arrayOffset;
                     }
-                    else
-                    {
-                        current = next;
-                    }
-                }
-                return strings;
+                );
             }
 #endif // #if defined(__WIL_OBJBASE_H_)
 
@@ -444,7 +496,7 @@ namespace wil
                     for (auto& string_char : value)
                     {
                         string_char = L'\0';
-                    }
+                }
                     return S_OK;
                 }
 #endif // #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
@@ -502,7 +554,7 @@ namespace wil
                     {
                         buffer.resize(offset);
                     }
-                }
+            }
 #endif // #if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
 
 #if defined(__WIL_OLEAUTO_H_)
@@ -930,7 +982,7 @@ namespace wil
                     return REG_SZ;
                 }
 #endif // #if defined(__WIL_OBJBASE_H_STL)
-            }
+                }
 
             template <typename err_policy = ::wil::err_exception_policy>
             class reg_view_t
@@ -1023,7 +1075,7 @@ namespace wil
                     // throw if exception policy
                     err_policy::HResult(hr);
                     return ::std::nullopt;
-                }
+                    }
 #endif // #if defined (_OPTIONAL_) && defined(__cpp_lib_optional)
 
                 template <typename R>
@@ -1150,14 +1202,14 @@ namespace wil
 
                     return get_value_with_type_policy::HResult(get_value_hresult);
                 }
-            };
+                };
 
             using reg_view_nothrow = ::wil::reg::reg_view_details::reg_view_t<::wil::err_returncode_policy>;
 #if defined(WIL_ENABLE_EXCEPTIONS)
             using reg_view = ::wil::reg::reg_view_details::reg_view_t<::wil::err_exception_policy>;
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS)
-        }
+            }
 
-    } // namespace reg
-} // namespace wil
+                } // namespace reg
+        } // namespace wil
 #endif // __WIL_REGISTRY_HELPERS_INCLUDED
