@@ -623,8 +623,8 @@ namespace wil
                     {
                         CancelIoEx(m_folderHandle.get(), &m_overlapped);
 
-                        DWORD dummy;
-                        GetOverlappedResult(m_folderHandle.get(), &m_overlapped, &dummy, TRUE);
+                        DWORD bytesTransferredIgnored = 0;
+                        GetOverlappedResult(m_folderHandle.get(), &m_overlapped, &bytesTransferredIgnored, TRUE);
                     }
 
                     // Wait for callbacks to complete.
