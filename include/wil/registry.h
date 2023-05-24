@@ -778,47 +778,6 @@ namespace wil
         }
 
         /**
-         * \brief Writes a REG_MULTI_SZ value from a null-terminated string array
-         * \tparam C The size of the PCWSTR array
-         * \param key An open or well-known registry key
-         * \param subkey The name of the subkey to append to `key`.
-         *        If `nullptr`, then `key` is used without modification.
-         * \param value_name The name of the registry value whose data is to be updated.
-         *        Can be nullptr to write to the unnamed default registry value.
-         * \param data The array of null-terminated strings to write to the specified registry value
-         * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
-         */
-        template <size_t C>
-        HRESULT set_value_multistring_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const PCWSTR data[C]) WI_NOEXCEPT
-        {
-            ::wil::unique_cotaskmem_array_ptr<BYTE> multistring;
-            ::wil::reg::reg_view_details::get_multistring_bytearray_from_strings_nothrow<C>(data, multistring);
-            if (!multistring)
-            {
-                return E_OUTOFMEMORY;
-            }
-
-            const reg_view_details::reg_view_nothrow regview{ key };
-            RETURN_IF_FAILED(regview.set_value<::wil::unique_cotaskmem_array_ptr<BYTE>>(subkey, value_name, multistring, REG_MULTI_SZ));
-            return S_OK;
-        }
-
-        /**
-         * \brief Writes a REG_MULTI_SZ value from a null-terminated string array
-         * \tparam C The size of the PCWSTR array
-         * \param key An open or well-known registry key
-         * \param value_name The name of the registry value whose data is to be updated.
-         *        Can be nullptr to write to the unnamed default registry value.
-         * \param data The array of null-terminated strings to write to the specified registry value
-         * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
-         */
-        template <size_t C>
-        HRESULT set_value_multistring_nothrow(HKEY key, _In_opt_ PCWSTR value_name, const PCWSTR data[C]) WI_NOEXCEPT
-        {
-            return ::wil::reg::set_value_multistring_nothrow<C>(key, nullptr, value_name, data);
-        }
-
-        /**
          * \brief Writes a REG_EXPAND_SZ value from a null-terminated string
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
@@ -2241,18 +2200,18 @@ namespace wil
         //     hr = wil::reg::get_value_nothrow(key, L"subkey", L"dword_value_name", &dword_value); // reads a REG_DWORD
         //     uint64_t qword_value{};
         //     hr = wil::reg::get_value_nothrow(key, L"subkey", L"qword_value_name", &qword_value); // reads a REG_QWORD
-        //     std::wstring string_value{};
-        //     hr = wil::reg::get_value_nothrow(key, L"subkey", L"string_value_name", &string_value); // reads a REG_SZ
+        //     wil::unique_bstr string_value{};
+        //     hr = wil::reg::get_value_nothrow(key, L"subkey", L"string_value_name", string_value); // reads a REG_SZ
         //
         // A subkey is not required if the key is opened where this should write the value:
-        //     hr = wil::reg::get_value_nothrow(key, L"dword_value_name", &dword_value);
+        //     hr = wil::reg::get_value_nothrow(key, L"dword_value_name", &dword_value); // reads a REG_DWORD
         //     hr = wil::reg::get_value_nothrow(key, L"qword_value_name", &qword_value); // reads a REG_QWORD
-        //     hr = wil::reg::get_value_nothrow(key, L"string_value_name", &string_value);
+        //     hr = wil::reg::get_value_nothrow(key, L"string_value_name", string_value); // reads a REG_SZ
         //
         // Can also specify the registry type in the function name:
-        //     hr = wil::reg::get_value_dword_nothrow(key, L"dword_value_name", &dword_value);
+        //     hr = wil::reg::get_value_dword_nothrow(key, L"dword_value_name", &dword_value); // reads a REG_DWORD
         //     hr = wil::reg::get_value_qword_nothrow(key, L"qword_value_name", &qword_value); // reads a REG_QWORD
-        //     hr = wil::reg::get_value_string_nothrow(key, L"string_value_name", &string_value);
+        //     hr = wil::reg::get_value_string_nothrow(key, L"string_value_name", string_value); // reads a REG_SZ
         //
         // Example storing directly intto a WCHAR array - note will return the required number of bytes if the supplied array is too small
         //     WCHAR string_value[100]{};
@@ -2260,13 +2219,12 @@ namespace wil
         //     hr = wil::reg::get_value_string_nothrow(key, L"string_value_name", string_value, &requiredBytes);
         //
         // Example of usage writing a REG_MULTI_SZ
-        //     std::vector<std::wstring> string_values{};
-        //     hr = wil::reg::get_value_multistring_nothrow(key, L"multi_string_value_name", &string_values);
+        //     wil::unique_cotaskmem_array_ptr<wil::unique_cotaskmem_string> string_values{};
+        //     hr = wil::reg::get_value_multistring_nothrow(key, L"multi_string_value_name", string_values);
         //
         // Values can be written directly from a vector of bytes - the registry type must be specified; e.g.:
-        //     std::vector<BYTE> raw_value{};
-        //     hr = wil::reg::get_value_byte_vector_nothrow(key, L"binary_value_name", REG_BINARY, &raw_value);
-        //
+        //     wil::unique_cotaskmem_array_ptr<BYTE> raw_value{};
+        //     hr = wil::reg::get_value_byte_array_nothrow(key, L"binary_value_name", REG_BINARY, raw_value);
         //
         // Reading REG_SZ and REG_EXPAND_SZ types are done through the below templated get_value_string_nothrow and get_value_expaneded_string_nothrow functions
         // Where the template type is the type to receive the string value
@@ -2944,7 +2902,6 @@ namespace wil
 #endif // defined(__WIL_OBJBASE_H_)
 
 #if defined(__WIL_OBJBASE_H_)
-        // 
         /**
          * \brief Reads a REG_MULTI_SZ value under a specified key
          * \param key An open or well-known registry key

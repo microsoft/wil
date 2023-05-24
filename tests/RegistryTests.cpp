@@ -72,6 +72,48 @@ const std::vector<std::vector<BYTE>> vectorBytesTestArray
     std::vector<BYTE>{ 0x1, 0x2, 0x3, 0x4, 0x5, 0x6,0x7, 0x8, 0x9,0xa, 0xb, 0xc, 0xd, 0xe, 0xf }
 };
 
+const std::vector<std::vector<BYTE>> multiStringRawTestVector{
+    {}, // empty buffer
+    { 0 }, // 1 char
+    {0, 0}, // 1 null terminators
+    {0, 0, 0, 0}, // 2 null terminators
+    {0, 0, 0, 0, 0, 0}, // 3 null terminators
+    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, // 10 null terminators
+    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, // odd number of nulls (5 1/2)
+    { 'a', 0, 'b', 0, 'c', 0, 'd', 0, }, // non-null-terminated sequence of letters
+    { 'a', 0, 'b', 0, 'c', 0, 'd', 0, 0 }, // odd-null-terminated sequence of letters
+    { 'a', 0, 'b', 0, 'c', 0, 'd', 0, 0, 0 }, // single-null-terminated sequence of letters
+    { 'a', 0, 'b', 0, 'c', 0, 'd', 0, 0, 0, 0 }, // odd-null-terminated sequence of letters
+    { 'a', 0, 'b', 0, 'c', 0, 'd', 0, 0, 0, 0, 0 }, // double-null-terminated sequence of letters
+    { 'a', 0, 0, 0, 'b', 0, 0, 0, 'c', 0, 0, 0, 'd', 0, 0, 0 }, // null-separated sequence of letters
+    { 'a', 0, 'b', 0, 'c', 0, 0, 0, 'd', 0, 'e', 0, 'f', 0 }, // null-separated sequence of words, no final terminator
+    { 'a', 0, 'b', 0, 'c', 0, 0, 0, 'd', 0, 'e', 0, 'f', 0, 0, 0 }, // null-separated sequence of words, single final terminator
+    { 'a', 0, 'b', 0, 'c', 0, 0, 0, 'd', 0, 'e', 0, 'f', 0, 0, 0, 0, 0 }, // null-separated sequence of words, double final terminator
+    { 'a', 0, 0, 0, 0, 0, 'b', 0, 0, 0, 0, 0, 'c', 0, 0, 0, 0, 0, 'd', 0, 0, 0, 0, 0 }, // double-null-separated sequence of letters
+    {'f', 0, 'o', 0, 'o', 0, 0, 0, 'b', 0, 'a', 0, 'r', 0, 0, 0},
+};
+const std::vector<std::vector<std::wstring>> multiStringRawExpectedValues{
+    {std::wstring{}},
+    {std::wstring{}},
+    {std::wstring{}},
+    {std::wstring{}},
+    {std::wstring{}, std::wstring{}},
+    {std::wstring{}, std::wstring{}, std::wstring{}, std::wstring{}, std::wstring{}, std::wstring{}, std::wstring{}, std::wstring{}, std::wstring{}},
+    {std::wstring{}, std::wstring{}, std::wstring{}, std::wstring{}},
+    {std::wstring{L"abcd"}},
+    {std::wstring{L"abcd"}},
+    {std::wstring{L"abcd"}},
+    {std::wstring{L"abcd"}},
+    {std::wstring{L"abcd"}},
+    {std::wstring{L"a"}, std::wstring{L"b"}, std::wstring{L"c"}, std::wstring{L"d"} },
+    {std::wstring{L"abc"}, std::wstring{L"def"}},
+    {std::wstring{L"abc"}, std::wstring{L"def"}},
+    {std::wstring{L"abc"}, std::wstring{L"def"}},
+    {std::wstring{L"a"}, std::wstring{}, std::wstring{L"b"}, std::wstring{}, std::wstring{L"c"}, std::wstring{}, std::wstring{L"d"} },
+    {std::wstring{L"foo"}, std::wstring{L"bar"}},
+};
+
+
 wil::unique_cotaskmem_array_ptr<BYTE> cotaskmemArrayBytesTestArray[3];
 void PopulateCoTaskMemArrayTestCases()
 {
@@ -145,6 +187,7 @@ bool AreStringsEqual(::wil::unique_cotaskmem_array_ptr<::wil::unique_cotaskmem_s
 {
     if (C != cotaskmemarray_strings.size())
     {
+        wprintf(L"array_literals[C] size (%llu) is not equal to cotaskmemarray_strings.size() (%llu)", C, cotaskmemarray_strings.size());
         return false;
     }
 
@@ -152,7 +195,49 @@ bool AreStringsEqual(::wil::unique_cotaskmem_array_ptr<::wil::unique_cotaskmem_s
     {
         if (wcscmp(cotaskmemarray_strings[i], array_literals[i]) != 0)
         {
+            wprintf(L"array_literals[i] (%ws) is not equal to cotaskmemarray_strings[i] (%ws)", array_literals[i], cotaskmemarray_strings[i]);
             return false;
+        }
+    }
+
+    return true;
+}
+
+bool AreStringsEqual(wil::unique_cotaskmem_array_ptr<wil::unique_cotaskmem_string>& cotaskmem_array, std::vector<std::wstring> wstring_vector)
+{
+    if (cotaskmem_array.size() != wstring_vector.size())
+    {
+        printf("container lengths don't match: unique_cotaskmem_array_ptr %zu, vector %zu\n", cotaskmem_array.size(), wstring_vector.size());
+        return false;
+    }
+
+    for (size_t i = 0; i < cotaskmem_array.size(); ++i)
+    {
+        const auto& cotaskmem_string = cotaskmem_array[i];
+        const auto cotaskmem_string_length = wcslen(cotaskmem_string);
+        const auto& wstring_value = wstring_vector[i];
+
+        if (cotaskmem_string_length != wstring_value.size())
+        {
+            printf("string lengths don't match: unique_cotaskmem_string (%ws) %zu, wstring (%ws) %zu\n", cotaskmem_string, cotaskmem_string_length, wstring_value.c_str(), wstring_value.size());
+            return false;
+        }
+
+        if (wstring_value.empty())
+        {
+            if (cotaskmem_string_length != 0)
+            {
+                printf("string don't match: unique_cotaskmem_string (%ws) %zu, wstring (%ws) %zu\n", cotaskmem_string, cotaskmem_string_length, wstring_value.c_str(), wstring_value.size());
+                return false;
+            }
+        }
+        else
+        {
+            if (wcscmp(cotaskmem_string, wstring_value.c_str()) != 0)
+            {
+                printf("string don't match: unique_cotaskmem_string (%ws) %zu, wstring (%ws) %zu\n", cotaskmem_string, cotaskmem_string_length, wstring_value.c_str(), wstring_value.size());
+                return false;
+            }
         }
     }
 
@@ -803,44 +888,8 @@ namespace
     };
 #endif // defined(WIL_ENABLE_EXCEPTIONS)
 
-    /*
-     * Unit tests don't work yet because the test types is effectively a PCWSTR[][] -- which doesn't compile as-is
-     *
-    struct MultiStringNoThrowFns
-    {
-        using RetType = ::wil::unique_cotaskmem_array_ptr<::wil::unique_cotaskmem_string>;
-
-        static std::vector<std::vector<std::wstring>> testValues() { return multiStringTestVector; }
-        static PCWSTR testValueName() { return multiStringValueName; }
-
-        static std::vector<std::function<HRESULT(wil::unique_hkey const&, PCWSTR)>> set_wrong_value_fns_openkey()
-        {
-            return {
-                [](wil::unique_hkey const& key, PCWSTR value_name) { return wil::reg::set_value_dword_nothrow(key.get(), value_name, test_dword_zero); },
-                [](wil::unique_hkey const& key, PCWSTR value_name) { return wil::reg::set_value_string_nothrow(key.get(), value_name, test_string_empty.c_str()); },
-            };
-        }
-
-        static std::vector<std::function<HRESULT(HKEY, PCWSTR, PCWSTR)>> set_wrong_value_fns_subkey()
-        {
-            return {
-                [](HKEY key, PCWSTR subkey, PCWSTR value_name) { return wil::reg::set_value_dword_nothrow(key, subkey, value_name, test_dword_zero); },
-                [](HKEY key, PCWSTR subkey, PCWSTR value_name) { return wil::reg::set_value_string_nothrow(key, subkey, value_name, test_string_empty.c_str()); },
-            };
-        }
-
-        template <size_t C>
-        static HRESULT set_nothrow(wil::unique_hkey const& key, PCWSTR valueName, const PCWSTR value[C]) { return wil::reg::set_value_multistring_nothrow<C>(key.get(), valueName, value); }
-        template <size_t C>
-        static HRESULT set_nothrow(HKEY key, PCWSTR subkey, PCWSTR valueName, const PCWSTR value[C]) { return wil::reg::set_value_multistring_nothrow<C>(key, subkey, valueName, value); }
-
-        static HRESULT get_nothrow(wil::unique_hkey const& key, PCWSTR valueName, RetType& output) { return wil::reg::get_value_multistring_nothrow(key.get(), valueName, output); }
-        static HRESULT get_nothrow(HKEY key, PCWSTR subkey, PCWSTR valueName, RetType& output) { return wil::reg::get_value_multistring_nothrow(key, subkey, valueName, output); }
-    };
-    */
-
 #if defined(WIL_ENABLE_EXCEPTIONS)
-    using NoThrowTypesToTest = std::tuple<DwordFns, GenericDwordFns, QwordFns, GenericQwordFns>; // , MultiStringNoThrowFns>;
+    using NoThrowTypesToTest = std::tuple<DwordFns, GenericDwordFns, QwordFns, GenericQwordFns>;
     using ThrowingTypesToTest = std::tuple<DwordFns, GenericDwordFns, QwordFns, GenericQwordFns, MultiStringVectorFns, GenericMultiStringVectorFns>;
 #else
     using NoThrowTypesToTest = std::tuple<DwordFns, GenericDwordFns, QwordFns, GenericQwordFns>;
@@ -1810,7 +1859,6 @@ TEST_CASE("BasicRegistryTests::string types", "[registry]")
 #endif
 }
 
-#if defined(WIL_ENABLE_EXCEPTIONS)
 TEST_CASE("BasicRegistryTests::expanded_wstring", "[registry]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
@@ -1923,10 +1971,7 @@ TEST_CASE("BasicRegistryTests::expanded_wstring", "[registry]")
         hr = wil::reg::get_value_expanded_string_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
     }
-
-    // TODO: verify std::wstring is the default
 }
-#endif
 
 namespace
 {
@@ -1942,7 +1987,6 @@ namespace
     // wil::reg::get_value to get an expanded string---how would you specify
     // that in the call?).
 
-#if defined(WIL_ENABLE_EXCEPTIONS)
     template<typename StringT, typename SetStringT = PCWSTR>
     void verify_expanded_string_nothrow(
         std::function<HRESULT(PCWSTR, typename type_identity<StringT>::type&)> getFn,
@@ -2044,6 +2088,7 @@ namespace
             });
     }
 
+#if defined(WIL_ENABLE_EXCEPTIONS)
     template<typename StringT>
     void verify_expanded_string()
     {
@@ -2123,10 +2168,9 @@ namespace
             [](PCWSTR valueName) { wil::reg::set_value_dword(HKEY_CURRENT_USER, testSubkey, valueName, test_dword_zero); });
     }
 #endif // defined(__cpp_lib_optional)
-#endif
+#endif // #if defined(WIL_ENABLE_EXCEPTIONS)
 }
 
-#if defined(WIL_ENABLE_EXCEPTIONS)
 TEST_CASE("BasicRegistryTests::expanded_string", "[registry]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
@@ -2137,11 +2181,6 @@ TEST_CASE("BasicRegistryTests::expanded_string", "[registry]")
 
     SECTION("set_value_expanded_string_nothrow/get_value_expanded_string_nothrow: with opened key")
     {
-        /*
-         * TODO --- DO THESE NEED REPLACEMENTS?
-        verify_expanded_string_nothrow<std::wstring>();
-        */
-
 #if defined(__WIL_OLEAUTO_H_)
         verify_expanded_string_nothrow<wil::unique_bstr>();
 #if defined(__WIL_OLEAUTO_H_STL)
@@ -2159,11 +2198,6 @@ TEST_CASE("BasicRegistryTests::expanded_string", "[registry]")
 
     SECTION("set_value_expanded_string_nothrow/get_value_expanded_string_nothrow: with string key")
     {
-        /*
-         * TODO --- DO THESE NEED REPLACEMENTS?
-        verify_expanded_string_subkey_nothrow<std::wstring>();
-        */
-
 #if defined(__WIL_OLEAUTO_H_)
         verify_expanded_string_subkey_nothrow<wil::unique_bstr>();
 #if defined(__WIL_OLEAUTO_H_STL)
@@ -2179,6 +2213,7 @@ TEST_CASE("BasicRegistryTests::expanded_string", "[registry]")
 #endif
     }
 
+#if defined(WIL_ENABLE_EXCEPTIONS)
     SECTION("set_value_expanded_string/get_value_expanded_string: with opened key")
     {
         verify_expanded_string<std::wstring>();
@@ -2248,10 +2283,9 @@ TEST_CASE("BasicRegistryTests::expanded_string", "[registry]")
 #endif
     }
 #endif
-
+#endif // #if defined(WIL_ENABLE_EXCEPTIONS)
     // TODO: verify std::wstring is the default
 }
-#endif // #if defined(WIL_ENABLE_EXCEPTIONS)
 
 TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
 {
@@ -2261,66 +2295,20 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
         REQUIRE_SUCCEEDED(deleteHr);
     }
 
-    /*
-         * TODO --- DO THESE NEED REPLACEMENTS?
-
-    SECTION("set_value_multistring_nothrow/get_value_multistring_nothrow: empty array with opened key")
-    {
-        wil::unique_hkey hkey;
-        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
-
-#ifdef __WIL_WINREG_STL
-        // When passed an empty array, we write in 2 null-terminators as part of set_value_multistring_nothrow (i.e. a single empty string)
-        // thus the result should have one empty string
-        const std::vector<std::wstring> arrayOfOne{ L"" };
-        REQUIRE_SUCCEEDED(wil::reg::set_value_multistring_nothrow(hkey.get(), stringValueName, test_multistring_empty));
-        std::vector<std::wstring> result{};
-        REQUIRE_SUCCEEDED(wil::reg::get_value_multistring_nothrow(hkey.get(), stringValueName, &result));
-        REQUIRE(result == arrayOfOne);
-
-        // verify reusing the previously allocated buffer
-        REQUIRE_SUCCEEDED(wil::reg::get_value_multistring_nothrow(hkey.get(), stringValueName, &result));
-        REQUIRE(result == arrayOfOne);
-
-        // and verify default value name
-        result = {};
-        REQUIRE_SUCCEEDED(wil::reg::set_value_multistring_nothrow(hkey.get(), nullptr, test_multistring_empty));
-        REQUIRE_SUCCEEDED(wil::reg::get_value_multistring_nothrow(hkey.get(), nullptr, &result));
-        REQUIRE(result == arrayOfOne);
-#endif // #ifdef __WIL_WINREG_STL
-
-    }
-    SECTION("set_value_multistring_nothrow/get_value_multistring_nothrow: empty array with string key")
-    {
-#ifdef __WIL_WINREG_STL
-        // When passed an empty array, we write in 2 null-terminators as part of set_value_multistring_nothrow (i.e. a single empty string)
-        // thus the result should have one empty string
-        const std::vector<std::wstring> arrayOfOne{ L"" };
-        REQUIRE_SUCCEEDED(wil::reg::set_value_multistring_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, test_multistring_empty));
-        std::vector<std::wstring> result{};
-        REQUIRE_SUCCEEDED(wil::reg::get_value_multistring_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, &result));
-        REQUIRE(result == arrayOfOne);
-
-        // verify reusing the previously allocated buffer
-        REQUIRE_SUCCEEDED(wil::reg::get_value_multistring_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, &result));
-        REQUIRE(result == arrayOfOne);
-
-        // and verify default value name
-        result = {};
-        REQUIRE_SUCCEEDED(wil::reg::set_value_multistring_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, test_multistring_empty));
-        REQUIRE_SUCCEEDED(wil::reg::get_value_multistring_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, &result));
-        REQUIRE(result == arrayOfOne);
-#endif // #ifdef __WIL_WINREG_STL
-    }
-    */
-
 #if defined(__WIL_OBJBASE_H_)
     SECTION("set_value_nothrow/get_value_nothrow: empty array with opened key")
     {
         wil::unique_hkey hkey;
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
 
-        REQUIRE_SUCCEEDED(wil::reg::set_value_multistring_nothrow<1>(hkey.get(), stringValueName, stringLiteralArrayOfOne));
+        // create a raw buffer to write a single null character
+        ::wil::unique_cotaskmem_array_ptr<BYTE> byteBufferArrayOfOne{ static_cast<BYTE*>(CoTaskMemAlloc(2)), 2 };
+        byteBufferArrayOfOne[0] = 0x00;
+        byteBufferArrayOfOne[1] = 0x00;
+        *byteBufferArrayOfOne.size_address() = 2;
+
+        REQUIRE_SUCCEEDED(wil::reg::set_value_byte_array_nothrow(hkey.get(), stringValueName, REG_MULTI_SZ, byteBufferArrayOfOne));
+
         ::wil::unique_cotaskmem_array_ptr<::wil::unique_cotaskmem_string> result{};
         REQUIRE_SUCCEEDED(wil::reg::get_value_multistring_nothrow(hkey.get(), stringValueName, result));
         REQUIRE(AreStringsEqual<1>(result, stringLiteralArrayOfOne));
@@ -2331,13 +2319,20 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
 
         // and verify default value name
         result = {};
-        REQUIRE_SUCCEEDED(wil::reg::set_value_multistring_nothrow<1>(hkey.get(), nullptr, stringLiteralArrayOfOne));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_byte_array_nothrow(hkey.get(), nullptr, REG_MULTI_SZ, byteBufferArrayOfOne));
         REQUIRE_SUCCEEDED(wil::reg::get_value_multistring_nothrow(hkey.get(), nullptr, result));
         REQUIRE(AreStringsEqual<1>(result, stringLiteralArrayOfOne));
     }
     SECTION("set_value_multistring_nothrow/get_value_multistring_nothrow: empty array with string key")
     {
-        REQUIRE_SUCCEEDED(wil::reg::set_value_multistring_nothrow<1>(HKEY_CURRENT_USER, testSubkey, stringValueName, stringLiteralArrayOfOne));
+        // create a raw buffer to write a single null character
+        ::wil::unique_cotaskmem_array_ptr<BYTE> byteBufferArrayOfOne{ static_cast<BYTE*>(CoTaskMemAlloc(2)), 2 };
+        byteBufferArrayOfOne[0] = 0x00;
+        byteBufferArrayOfOne[1] = 0x00;
+        *byteBufferArrayOfOne.size_address() = 2;
+
+        REQUIRE_SUCCEEDED(wil::reg::set_value_byte_array_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, REG_MULTI_SZ, byteBufferArrayOfOne));
+
         ::wil::unique_cotaskmem_array_ptr<::wil::unique_cotaskmem_string> result{};
         REQUIRE_SUCCEEDED(wil::reg::get_value_multistring_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, result));
         REQUIRE(AreStringsEqual<1>(result, stringLiteralArrayOfOne));
@@ -2348,13 +2343,48 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
 
         // and verify default value name
         result = {};
-        REQUIRE_SUCCEEDED(wil::reg::set_value_multistring_nothrow<1>(HKEY_CURRENT_USER, testSubkey, nullptr, stringLiteralArrayOfOne));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_byte_array_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, REG_MULTI_SZ, byteBufferArrayOfOne));
         REQUIRE_SUCCEEDED(wil::reg::get_value_multistring_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, result));
         REQUIRE(AreStringsEqual<1>(result, stringLiteralArrayOfOne));
+    }
+
+    SECTION("set_value_multistring_nothrow/get_value_multistring_nothrow: odd values with string key")
+    {
+        REQUIRE(multiStringRawTestVector.size() == multiStringRawExpectedValues.size());
+
+        for (auto i = 0; i < multiStringRawTestVector.size(); ++i)
+        {
+            const auto& test_value = multiStringRawTestVector[i];
+            const auto& expected_value = multiStringRawExpectedValues[i];
+
+            wil::unique_cotaskmem_array_ptr<BYTE> no_throw_test_value{ static_cast<BYTE*>(CoTaskMemAlloc(test_value.size())), test_value.size() };
+            memcpy_s(no_throw_test_value.get(), no_throw_test_value.size(), test_value.data(), test_value.size());
+            REQUIRE_SUCCEEDED(wil::reg::set_value_byte_array_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, REG_MULTI_SZ, no_throw_test_value));
+
+            wil::unique_cotaskmem_array_ptr<wil::unique_cotaskmem_string> result{};
+            REQUIRE_SUCCEEDED(wil::reg::get_value_multistring_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, result));
+            REQUIRE(AreStringsEqual(result, expected_value));
+        }
     }
 #endif // #define __WIL_OBJBASE_H_
 
 #if defined(WIL_ENABLE_EXCEPTIONS)
+    SECTION("set_value_multistring/get_value_multistring: odd values with string key")
+    {
+        REQUIRE(multiStringRawTestVector.size() == multiStringRawExpectedValues.size());
+
+        for (auto i = 0; i < multiStringRawTestVector.size(); ++i)
+        {
+            const auto& test_value = multiStringRawTestVector[i];
+            const auto& expected_value = multiStringRawExpectedValues[i];
+
+            wil::reg::set_value_byte_vector(HKEY_CURRENT_USER, testSubkey, stringValueName, REG_MULTI_SZ, test_value);
+            std::vector<std::wstring> result = wil::reg::get_value_multistring(HKEY_CURRENT_USER, testSubkey, stringValueName);
+
+            REQUIRE(result == expected_value);
+        }
+    }
+
     SECTION("set_value_multistring/get_value_multistring: empty array with open key")
     {
         wil::unique_hkey hkey;

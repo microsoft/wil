@@ -496,7 +496,7 @@ namespace wil
                     for (auto& string_char : value)
                     {
                         string_char = L'\0';
-                }
+                    }
                     return S_OK;
                 }
 #endif // #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
@@ -554,7 +554,7 @@ namespace wil
                     {
                         buffer.resize(offset);
                     }
-            }
+                }
 #endif // #if defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
 
 #if defined(__WIL_OLEAUTO_H_)
@@ -770,7 +770,9 @@ namespace wil
                     *tempValue.addressof() = static_cast<BYTE*>(::CoTaskMemAlloc(byteSize));
                     RETURN_IF_NULL_ALLOC(tempValue.get());
                     *tempValue.size_address() = byteSize;
-                    ZeroMemory(tempValue.get(), byteSize);
+
+                    const auto bytesToCopy = arrayValue.size() < byteSize ? arrayValue.size() : byteSize;
+                    CopyMemory(tempValue.get(), arrayValue.get(), bytesToCopy);
 
                     arrayValue = ::std::move(tempValue);
                     return S_OK;
@@ -982,7 +984,7 @@ namespace wil
                     return REG_SZ;
                 }
 #endif // #if defined(__WIL_OBJBASE_H_STL)
-                }
+            }
 
             template <typename err_policy = ::wil::err_exception_policy>
             class reg_view_t
@@ -1075,7 +1077,7 @@ namespace wil
                     // throw if exception policy
                     err_policy::HResult(hr);
                     return ::std::nullopt;
-                    }
+                }
 #endif // #if defined (_OPTIONAL_) && defined(__cpp_lib_optional)
 
                 template <typename R>
@@ -1203,14 +1205,14 @@ namespace wil
 
                     return get_value_with_type_policy::HResult(get_value_hresult);
                 }
-                };
+            };
 
             using reg_view_nothrow = ::wil::reg::reg_view_details::reg_view_t<::wil::err_returncode_policy>;
 #if defined(WIL_ENABLE_EXCEPTIONS)
             using reg_view = ::wil::reg::reg_view_details::reg_view_t<::wil::err_exception_policy>;
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS)
-            }
+        }
 
-                } // namespace reg
-        } // namespace wil
+    } // namespace reg
+} // namespace wil
 #endif // __WIL_REGISTRY_HELPERS_INCLUDED
