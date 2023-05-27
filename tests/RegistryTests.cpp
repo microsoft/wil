@@ -2717,6 +2717,11 @@ TEST_CASE("BasicRegistryTests::cotaskmem_array-bytes", "[registry]]")
             [&](PCWSTR valueName, DWORD type, wil::unique_cotaskmem_array_ptr<BYTE>& output) { return wil::reg::get_value_byte_array_nothrow(hkey.get(), valueName, type, output); },
             [&](PCWSTR valueName, DWORD type, const wil::unique_cotaskmem_array_ptr<BYTE>& input) { return wil::reg::set_value_byte_array_nothrow(hkey.get(), nullptr, valueName, type, input); },
             [&](PCWSTR valueName, DWORD input) { return wil::reg::set_value_dword_nothrow(hkey.get(), valueName, input); });
+        // also with the generic functions
+        verify_cotaskmem_array_nothrow(
+            [&](PCWSTR valueName, DWORD type, wil::unique_cotaskmem_array_ptr<BYTE>& output) { return wil::reg::get_value_nothrow(hkey.get(), valueName, type, output); },
+            [&](PCWSTR valueName, DWORD type, const wil::unique_cotaskmem_array_ptr<BYTE>& input) { return wil::reg::set_value_nothrow(hkey.get(), nullptr, valueName, type, input); },
+            [&](PCWSTR valueName, DWORD input) { return wil::reg::set_value_nothrow(hkey.get(), valueName, input); });
     }
     SECTION("set_value_cotaskmem_array_byte_nothrow/get_value_byte_array_nothrow: with string key")
     {
@@ -2724,6 +2729,11 @@ TEST_CASE("BasicRegistryTests::cotaskmem_array-bytes", "[registry]]")
             [](PCWSTR valueName, DWORD type, wil::unique_cotaskmem_array_ptr<BYTE>& output) { return wil::reg::get_value_byte_array_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, type, output); },
             [](PCWSTR valueName, DWORD type, const  wil::unique_cotaskmem_array_ptr<BYTE>& input) { return wil::reg::set_value_byte_array_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, type, input); },
             [](PCWSTR valueName, DWORD input) { return wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, input); });
+        // also with the generic functions
+        verify_cotaskmem_array_nothrow(
+            [](PCWSTR valueName, DWORD type, wil::unique_cotaskmem_array_ptr<BYTE>& output) { return wil::reg::get_value_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, type, output); },
+            [](PCWSTR valueName, DWORD type, const  wil::unique_cotaskmem_array_ptr<BYTE>& input) { return wil::reg::set_value_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, type, input); },
+            [](PCWSTR valueName, DWORD input) { return wil::reg::set_value_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, input); });
     }
 }
 #endif // #if defined(__WIL_OBJBASE_H_)
