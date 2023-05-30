@@ -332,7 +332,7 @@ namespace wil
           *        If `nullptr`, then `key` is used without modification.
           * \param value_name The name of the registry value whose data is to be updated.
           *        Can be nullptr to write to the unnamed default registry value.
-          * \param data The value containing the data to be set in the specified key
+          * \param data The data (of type T) to write to the specified registry value
           * \exception std::exception (including wil::ResultException) will be thrown on all failures
           */
         template <typename T>
@@ -348,7 +348,7 @@ namespace wil
          * \param key An open or well-known registry key
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to write to the unnamed default registry value.
-         * \param data The value containing the data to be set in the specified key
+         * \param data The data (of type T) to write to the specified registry value
          * \exception std::exception (including wil::ResultException) will be thrown on all failures
          */
         template <typename T>
@@ -364,7 +364,7 @@ namespace wil
           *        If `nullptr`, then `key` is used without modification.
           * \param value_name The name of the registry value whose data is to be updated.
           *        Can be nullptr to write to the unnamed default registry value.
-          * \param data The null-terminated string to be set in the specified key
+          * \param data The null-terminated string to write to the specified registry value
           * \exception std::exception (including wil::ResultException) will be thrown on all failures
           */
         inline void set_value(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, PCWSTR data)
@@ -378,7 +378,7 @@ namespace wil
          * \param key An open or well-known registry key
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to write to the unnamed default registry value.
-          * \param data The null-terminated string to be set in the specified key
+          * \param data The null-terminated string to write to the specified registry value
           * \exception std::exception (including wil::ResultException) will be thrown on all failures
           */
         inline void set_value(HKEY key, _In_opt_ PCWSTR value_name, PCWSTR data)
@@ -508,8 +508,8 @@ namespace wil
          *        If `nullptr`, then `key` is used without modification.
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to write to the unnamed default registry value.
-         * \param data A std::vector<std::wstring> to write to the specified registry value
-         *        each string will be marshalled to a contiguous null-terminator-delimited multi-sz string
+         * \param data A std::vector<std::wstring> to write to the specified registry value.
+         *        Each string will be marshalled to a contiguous null-terminator-delimited multi-sz string
          * \exception std::exception (including wil::ResultException) will be thrown on all failures
          */
         inline void set_value(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const ::std::vector<::std::wstring>& data)
@@ -524,8 +524,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to write to the unnamed default registry value.
-         * \param data A std::vector<std::wstring> to write to the specified registry value
-         *        each string will be marshalled to a contiguous null-terminator-delimited multi-sz string
+         * \param data A std::vector<std::wstring> to write to the specified registry value.
+         *        Each string will be marshalled to a contiguous null-terminator-delimited multi-sz string.
          * \exception std::exception (including wil::ResultException) will be thrown on all failures
          */
         inline void set_value(HKEY key, _In_opt_ PCWSTR value_name, const ::std::vector<::std::wstring>& data)
@@ -540,8 +540,8 @@ namespace wil
          *        If `nullptr`, then `key` is used without modification.
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to write to the unnamed default registry value.
-         * \param data A std::vector<std::wstring> to write to the specified registry value
-         *        each string will be marshalled to a contiguous null-terminator-delimited multi-sz string
+         * \param data A std::vector<std::wstring> to write to the specified registry value.
+         *        Each string will be marshalled to a contiguous null-terminator-delimited multi-sz string
          * \exception std::exception (including wil::ResultException) will be thrown on all failures
          */
         inline void set_value_multistring(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const ::std::vector<::std::wstring>& data)
@@ -554,8 +554,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to write to the unnamed default registry value.
-         * \param data A std::vector<std::wstring> to write to the specified registry value
-         *        each string will be marshalled to a contiguous null-terminator-delimited multi-sz string
+         * \param data A std::vector<std::wstring> to write to the specified registry value.
+         *        Each string will be marshalled to a contiguous null-terminator-delimited multi-sz string.
          * \exception std::exception (including wil::ResultException) will be thrown on all failures
          */
         inline void set_value_multistring(HKEY key, _In_opt_ PCWSTR value_name, const ::std::vector<::std::wstring>& data)
@@ -573,8 +573,8 @@ namespace wil
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to write to the unnamed default registry value.
          * \param type The registry type for the specified registry value - see RegSetKeyValueW
-         * \param data A std::vector<ByteType> to write to the specified registry value
-         *        the vector contents will be directly marshalled to the specified value
+         * \param data A std::vector<ByteType> to write to the specified registry value.
+         *        The vector contents will be directly marshalled to the specified value.
          * \exception std::exception (including wil::ResultException) will be thrown on all failures
          */
         template <typename ByteType, std::enable_if_t<std::is_same_v<ByteType, std::uint8_t>>* = nullptr>
@@ -590,8 +590,8 @@ namespace wil
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to write to the unnamed default registry value.
          * \param type The registry type for the specified registry value - see RegSetKeyValueW
-         * \param data A std::vector<ByteType> to write to the specified registry value
-         *        the vector contents will be directly marshalled to the specified value
+         * \param data A std::vector<ByteType> to write to the specified registry value.
+         *        The vector contents will be directly marshalled to the specified value.
          * \exception std::exception (including wil::ResultException) will be thrown on all failures
          */
         template <typename ByteType, std::enable_if_t<std::is_same_v<ByteType, std::uint8_t>>* = nullptr>
@@ -637,7 +637,7 @@ namespace wil
           *        If `nullptr`, then `key` is used without modification.
           * \param value_name The name of the registry value whose data is to be updated.
           *        Can be nullptr to write to the unnamed default registry value.
-          * \param data The value containing the data to be set in the specified key
+          * \param data The data (of type T) to write to the specified registry value
           * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
           */
         template <typename T>
@@ -653,7 +653,7 @@ namespace wil
          * \param key An open or well-known registry key
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to write to the unnamed default registry value.
-         * \param data The value containing the data to be set in the specified key
+         * \param data The data (of type T) to write to the specified registry value
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
         template <typename T>
@@ -669,7 +669,7 @@ namespace wil
           *        can be nullptr if not needed
           * \param value_name A string specifying the name of the registry value to write
           *        can be nullptr to write to the unnamed default registry value
-          * \param data The null-terminated string to be set in the specified key
+          * \param data The null-terminated string to write to the specified registry value
           * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
           */
         inline HRESULT set_value_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, PCWSTR data) WI_NOEXCEPT
@@ -683,7 +683,7 @@ namespace wil
          * \param key An open or well-known registry key
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to write to the unnamed default registry value.
-          * \param data The null-terminated string to be set in the specified key
+          * \param data The null-terminated string to write to the specified registry value
           * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
           */
         inline HRESULT set_value_nothrow(HKEY key, _In_opt_ PCWSTR value_name, PCWSTR data) WI_NOEXCEPT
