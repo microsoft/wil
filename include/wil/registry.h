@@ -664,11 +664,11 @@ namespace wil
 
         /**
           * \brief Writes a null-terminated string value under a specified key
-          * \param key An opened registry key, or fixed registry key as the base key, from which to append the path
-          * \param subkey A string to append to the HKEY to attempt to write
-          *        can be nullptr if not needed
-          * \param value_name A string specifying the name of the registry value to write
-          *        can be nullptr to write to the unnamed default registry value
+         * \param key An open or well-known registry key
+         * \param subkey The name of the subkey to append to `key`.
+         *        If `nullptr`, then `key` is used without modification.
+         * \param value_name The name of the registry value whose data is to be updated.
+         *        Can be nullptr to write to the unnamed default registry value.
           * \param data The null-terminated string to write to the specified registry value
           * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
           */
