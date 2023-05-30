@@ -1469,7 +1469,7 @@ namespace wil
          *        If `nullptr`, then `key` is used without modification.
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to read from the unnamed default registry value.
-         * \return The std::vector<std::wstring> marshalled from data read from the registry value
+         * \return A vector of strings read from the REG_MULTI_SZ. Note: embedded nulls will be read as empty strings. See remarks.
          * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
          *
          * \remark Note that will return empty strings for embedded nulls - it won't stop at the first double-null character
@@ -1496,8 +1496,12 @@ namespace wil
          * \param key An open or well-known registry key
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to read from the unnamed default registry value.
-         * \return The std::vector<std::wstring> marshalled from data read from the registry value
+         * \return A vector of strings read from the REG_MULTI_SZ. Note: embedded nulls will be read as empty strings. See remarks.
          * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
+         *
+         * \remark Note that will return empty strings for embedded nulls - it won't stop at the first double-null character
+         *         e.g. a REG_MULTI_SZ of L"string1\0\0string2\0\0string3\0\0"
+         *              returns a vector of size 5: L"string1", empty-string, L"string2", empty-string, L"string3"
          */
         template <>
         inline ::std::vector<::std::wstring> get_value<::std::vector<::std::wstring>>(HKEY key, _In_opt_ PCWSTR value_name)
@@ -1512,7 +1516,7 @@ namespace wil
          *        If `nullptr`, then `key` is used without modification.
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to read from the unnamed default registry value.
-         * \return The std::vector<std::wstring> marshalled from data read from the registry value
+         * \return A vector of strings read from the REG_MULTI_SZ. Note: embedded nulls will be read as empty strings. See remarks.
          * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
          *
          * \remark Note that will return empty strings for embedded nulls - it won't stop at the first double-null character
@@ -1529,8 +1533,12 @@ namespace wil
          * \param key An open or well-known registry key
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to read from the unnamed default registry value.
-         * \return The std::vector<std::wstring> marshalled from data read from the registry value
+         * \return A vector of strings read from the REG_MULTI_SZ. Note: embedded nulls will be read as empty strings. See remarks.
          * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
+         *
+         * \remark Note that will return empty strings for embedded nulls - it won't stop at the first double-null character
+         *         e.g. a REG_MULTI_SZ of L"string1\0\0string2\0\0string3\0\0"
+         *              returns a vector of size 5: L"string1", empty-string, L"string2", empty-string, L"string3"
          */
         inline ::std::vector<::std::wstring> get_value_multistring(HKEY key, _In_opt_ PCWSTR value_name)
         {
