@@ -630,16 +630,16 @@ namespace wil
         //
 
         /**
-          * \brief Writes a value to a specified key and subkey, deducing the type from the given data.
-          * \tparam T The type of the data being set (the registry value type is deduced from T).
-          * \param key An open or well-known registry key
-          * \param subkey The name of the subkey to append to `key`.
-          *        If `nullptr`, then `key` is used without modification.
-          * \param value_name The name of the registry value whose data is to be updated.
-          *        Can be nullptr to write to the unnamed default registry value.
-          * \param data The data (of type T) to write to the specified registry value
-          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
-          */
+        * \brief Writes a value to a specified key and subkey, deducing the type from the given data.
+        * \tparam T The type of the data being set (the registry value type is deduced from T).
+        * \param key An open or well-known registry key
+        * \param subkey The name of the subkey to append to `key`.
+        *        If `nullptr`, then `key` is used without modification.
+        * \param value_name The name of the registry value whose data is to be updated.
+        *        Can be nullptr to write to the unnamed default registry value.
+        * \param data The data (of type T) to write to the specified registry value
+        * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
+        */
         template <typename T>
         HRESULT set_value_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const T& data) WI_NOEXCEPT
         {
@@ -663,15 +663,15 @@ namespace wil
         }
 
         /**
-          * \brief Writes a null-terminated string value under a specified key
+         * \brief Writes a null-terminated string value under a specified key
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to write to the unnamed default registry value.
-          * \param data The null-terminated string to write to the specified registry value
-          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
-          */
+         * \param data The null-terminated string to write to the specified registry value
+         * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
+         */
         inline HRESULT set_value_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, PCWSTR data) WI_NOEXCEPT
         {
             const reg_view_details::reg_view_nothrow regview{ key };
@@ -679,13 +679,13 @@ namespace wil
         }
 
         /**
-          * \brief Writes a null-terminated string value under a specified key
+         * \brief Writes a null-terminated string value under a specified key
          * \param key An open or well-known registry key
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to write to the unnamed default registry value.
-          * \param data The null-terminated string to write to the specified registry value
-          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
-          */
+         * \param data The null-terminated string to write to the specified registry value
+         * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
+         */
         inline HRESULT set_value_nothrow(HKEY key, _In_opt_ PCWSTR value_name, PCWSTR data) WI_NOEXCEPT
         {
             return ::wil::reg::set_value_nothrow(key, nullptr, value_name, data);
@@ -1057,7 +1057,6 @@ namespace wil
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to read from the unnamed default registry value.
          * \return A std::wstring created from the string value read from the registry
-         *         note, the returned string will have already passed through ExpandEnvironmentStringsW
          * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
          */
         inline ::std::wstring get_value_string(HKEY key, _In_opt_ PCWSTR value_name)
@@ -1087,7 +1086,6 @@ namespace wil
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to read from the unnamed default registry value.
          * \return A std::wstring created from the string value read from the registry
-         *         note, the returned string will have already passed through ExpandEnvironmentStringsW
          * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
          */
         template <>
