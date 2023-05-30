@@ -262,6 +262,18 @@ void VerifyThrowsHr(HRESULT hr, std::function<void()> fn)
 
 TEST_CASE("BasicRegistryTests::ExampleUsage", "[registry]")
 {
+    // These examples use the explicit registry key, to make the usage more
+    // obvious. Just assert that these are the same thing.
+    static_assert(std::wstring(L"Software\\Microsoft\\BasicRegistryTest") == testSubkey);
+
+    const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
+    if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+    {
+        REQUIRE_SUCCEEDED(deleteHr);
+    }
+
+// Disable "unused variable" warnings for these examples
+#pragma warning(disable:4189)
     SECTION("Basic read/write")
     {
         const DWORD showTypeOverlay = wil::reg::get_value_dword(
@@ -304,6 +316,25 @@ TEST_CASE("BasicRegistryTests::ExampleUsage", "[registry]")
         // Templated version
         const auto value = wil::reg::get_value<::std::wstring>(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes", L"CurrentTheme");
     }
+
+    SECTION("Write values")
+    {
+        // Set values
+        wil::reg::set_value(HKEY_CURRENT_USER, L"Software\\Microsoft\\BasicRegistryTest", L"StringValue", L"Wowee zowee");
+        wil::reg::set_value(HKEY_CURRENT_USER, L"Software\\Microsoft\\BasicRegistryTest", L"DwordValue", 18);
+
+        // Provide explicit types to avoid caller error, if you'd like.
+        wil::reg::set_value_dword(HKEY_CURRENT_USER, L"Software\\Microsoft\\BasicRegistryTest", L"DwordValue2", 1);
+        wil::reg::set_value_string(HKEY_CURRENT_USER, L"Software\\Microsoft\\BasicRegistryTest", L"StringValue2", L"Bananas");
+
+        // Known HKEY
+        const auto key = wil::reg::create_unique_key(HKEY_CURRENT_USER, L"Software\\Microsoft\\BasicRegistryTest");
+        wil::reg::set_value_dword(key.get(), L"DwordValue2", 42);
+
+        // nothrow version, if you don't have exceptions
+        THROW_IF_FAILED(wil::reg::set_value_string_nothrow(HKEY_CURRENT_USER, L"Software\\Microsoft\\BasicRegistryTest", L"StringValue3", L"Hi, Mom!"));
+    }
+#pragma warning(default:4189)
 }
 
 TEST_CASE("BasicRegistryTests::Open", "[registry]")
