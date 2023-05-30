@@ -2092,7 +2092,7 @@ namespace wil
                 return { value };
             }
 
-            if (hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+            if (::wil::reg::is_registry_not_found(hr))
             {
                 return { ::std::nullopt };
             }
