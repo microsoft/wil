@@ -326,8 +326,7 @@ namespace wil
 
         /**
           * \brief Writes a value to a specified key and subkey, deducing the type from the given data.
-          * \tparam T The type capturing the data being set
-          *         note - the type of registry value is determined by the template type T of data given
+          * \tparam T The type of the data being set (the registry value type is deduced from T).
           * \param key An open or well-known registry key
           * \param subkey The name of the subkey to append to `key`.
           *        If `nullptr`, then `key` is used without modification.
@@ -345,8 +344,7 @@ namespace wil
 
         /**
          * \brief Writes a value under a specified key, the registry type based off the templated type passed as data
-         * \tparam T The type capturing the data being set
-         *         note - the type of registry value is determined by the template type T of data given
+         * \tparam T The type of the data being set (the registry value type is deduced from T).
          * \param key An open or well-known registry key
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to write to the unnamed default registry value.
@@ -633,7 +631,7 @@ namespace wil
 
         /**
           * \brief Writes a value to a specified key and subkey, deducing the type from the given data.
-          * \tparam T The type capturing the data being set
+          * \tparam T The type of the data being set (the registry value type is deduced from T).
           * \param key An open or well-known registry key
           * \param subkey The name of the subkey to append to `key`.
           *        If `nullptr`, then `key` is used without modification.
@@ -651,7 +649,7 @@ namespace wil
 
         /**
          * \brief Writes a value under a specified key, the registry type based off the templated type passed as data
-         * \tparam T The type capturing the data being set
+         * \tparam T The type of the data being set (the registry value type is deduced from T).
          * \param key An open or well-known registry key
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to write to the unnamed default registry value.
@@ -2248,7 +2246,7 @@ namespace wil
 
         /**
          * \brief Reads a value under a specified key, the registry type based off the templated type passed as data
-         * \tparam T The type capturing the data being set
+         * \tparam T The type of the data being set (the registry value type is deduced from T).
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
@@ -2267,7 +2265,7 @@ namespace wil
 
         /**
          * \brief Reads a value under a specified key, the registry type based off the templated type passed as data
-         * \tparam T The type capturing the data being set
+         * \tparam T The type of the data being set (the registry value type is deduced from T).
          * \param key An open or well-known registry key
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to read from the unnamed default registry value.
