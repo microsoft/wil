@@ -260,11 +260,12 @@ void VerifyThrowsHr(HRESULT hr, std::function<void()> fn)
 }
 #endif
 
+#if defined(WIL_ENABLE_EXCEPTIONS)
 TEST_CASE("BasicRegistryTests::ExampleUsage", "[registry]")
 {
     // These examples use the explicit registry key, to make the usage more
     // obvious. Just assert that these are the same thing.
-    static_assert(std::wstring(L"Software\\Microsoft\\BasicRegistryTest") == testSubkey);
+    REQUIRE(std::wstring(L"Software\\Microsoft\\BasicRegistryTest") == testSubkey);
 
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
     if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
@@ -299,6 +300,7 @@ TEST_CASE("BasicRegistryTests::ExampleUsage", "[registry]")
         THROW_IF_FAILED(wil::reg::open_unique_key_nothrow(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Explorer", nothrow_key, wil::reg::key_access::readwrite));
     }
 
+#if defined(__cpp_lib_optional)
     SECTION("Read values")
     {
         // Get values (or try_get if the value might not exist)
@@ -316,6 +318,7 @@ TEST_CASE("BasicRegistryTests::ExampleUsage", "[registry]")
         // Templated version
         const auto value = wil::reg::get_value<::std::wstring>(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes", L"CurrentTheme");
     }
+#endif // defined(__cpp_lib_optional)
 
     SECTION("Write values")
     {
@@ -352,6 +355,7 @@ TEST_CASE("BasicRegistryTests::ExampleUsage", "[registry]")
     }
 #pragma warning(default:4189)
 }
+#endif // defined(WIL_ENABLE_EXCEPTIONS)
 
 TEST_CASE("BasicRegistryTests::Open", "[registry]")
 {
