@@ -32,7 +32,7 @@ namespace wil
         /**
          * \brief Opens a new HKEY to the specified path - see RegOpenKeyExW
          * \param key An open or well-known registry key
-         * \param subKey The name of the registry subkey to be opened
+         * \param subKey The name of the registry subkey to be opened.
          *        If `nullptr`, then `key` is used without modification.
          * \param access The requested access desired for the opened key
          * \return A wil::unique_hkey containing the resulting opened HKEY
@@ -49,7 +49,7 @@ namespace wil
         /**
          * \brief Creates a new HKEY to the specified path - see RegCreateKeyExW
          * \param key An open or well-known registry key
-         * \param subKey The name of a subkey that this function opens or creates
+         * \param subKey The name of a subkey that this function opens or creates.
          *        Note: this cannot be null (see the above referenced API documentation)
          * \param access The requested access desired for the opened key
          * \return A wil::unique_hkey or wil::shared_hkey containing the resulting opened HKEY
@@ -67,7 +67,7 @@ namespace wil
         /**
          * \brief Opens a new HKEY to the specified path - see RegOpenKeyExW
          * \param key An open or well-known registry key
-         * \param subKey The name of the registry subkey to be opened
+         * \param subKey The name of the registry subkey to be opened.
          *        If `nullptr`, then `key` is used without modification.
          * \param access The requested access desired for the opened key
          * \return A wil::shared_hkey containing the resulting opened HKEY
@@ -84,7 +84,7 @@ namespace wil
         /**
          * \brief Creates a new HKEY to the specified path - see RegCreateKeyExW
          * \param key An open or well-known registry key
-         * \param subKey The name of a subkey that this function opens or creates
+         * \param subKey The name of a subkey that this function opens or creates.
          *        Note: this cannot be null (see the above referenced API documentation)
          * \param access The requested access desired for the opened key
          * \return A wil::shared_hkey or wil::shared_hkey containing the resulting opened HKEY
@@ -103,7 +103,7 @@ namespace wil
         /**
          * \brief Opens a new HKEY to the specified path - see RegOpenKeyExW
          * \param key An open or well-known registry key
-         * \param subKey The name of the registry subkey to be opened
+         * \param subKey The name of the registry subkey to be opened.
          *        If `nullptr`, then `key` is used without modification.
          * \param[out] hkey A reference to a wil::unique_hkey to receive the opened HKEY
          * \param access The requested access desired for the opened key
@@ -118,7 +118,7 @@ namespace wil
         /**
          * \brief Creates a new HKEY to the specified path - see RegCreateKeyExW
          * \param key An open or well-known registry key
-         * \param subKey The name of a subkey that this function opens or creates
+         * \param subKey The name of a subkey that this function opens or creates.
          *        Note: this cannot be null (see the above referenced API documentation)
          * \param[out] hkey A reference to a wil::unique_hkey to receive the opened HKEY
          * \param access The requested access desired for the opened key
@@ -134,7 +134,7 @@ namespace wil
         /**
          * \brief Opens a new HKEY to the specified path - see RegOpenKeyExW
          * \param key An open or well-known registry key
-         * \param subKey The name of the registry subkey to be opened
+         * \param subKey The name of the registry subkey to be opened.
          *        If `nullptr`, then `key` is used without modification.
          * \param[out] hkey A reference to a wil::shared_hkey to receive the opened HKEY
          * \param access The requested access desired for the opened key
@@ -149,7 +149,7 @@ namespace wil
         /**
          * \brief Creates a new HKEY to the specified path - see RegCreateKeyExW
          * \param key An open or well-known registry key
-         * \param subKey The name of a subkey that this function opens or creates
+         * \param subKey The name of a subkey that this function opens or creates.
          *        Note: this cannot be null (see the above referenced API documentation)
          * \param[out] hkey A reference to a wil::shared_hkey to receive the opened HKEY
          * \param access The requested access desired for the opened key
