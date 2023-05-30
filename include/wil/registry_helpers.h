@@ -48,9 +48,13 @@ namespace wil
             return hr == HRESULT_FROM_WIN32(ERROR_MORE_DATA);
         }
 
+        // Access rights for opening registry keys. See https://learn.microsoft.com/en-us/windows/win32/sysinfo/registry-key-security-and-access-rights.
         enum class key_access
         {
+            // Open key for reading.
             read,
+
+            // Open key for reading and writing. Equivalent to KEY_ALL_ACCESS.
             readwrite,
         };
 
