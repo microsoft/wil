@@ -260,6 +260,52 @@ void VerifyThrowsHr(HRESULT hr, std::function<void()> fn)
 }
 #endif
 
+TEST_CASE("BasicRegistryTests::ExampleUsage", "[registry]")
+{
+    SECTION("Basic read/write")
+    {
+        const DWORD showTypeOverlay = wil::reg::get_value_dword(
+            HKEY_CURRENT_USER,
+            L"Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+            L"ShowTypeOverlay");
+        // Disabled since it writes real values.
+        //wil::reg::set_value_dword(
+        //    HKEY_CURRENT_USER,
+        //    L"Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+        //    L"ShowTypeOverlay",
+        //    1);
+    }
+
+    SECTION("Open & create keys")
+    {
+        // "Open" guaranteed-existing keys or "create" to potentially create if non-existent
+        const auto r_unique_key = wil::reg::open_unique_key(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Explorer");
+        const auto rw_shared_key = wil::reg::create_shared_key(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Explorer", wil::reg::key_access::readwrite);
+
+        // nothrow version, if you don't have exceptions
+        wil::unique_hkey nothrow_key;
+        THROW_IF_FAILED(wil::reg::open_unique_key_nothrow(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Explorer", nothrow_key, wil::reg::key_access::readwrite));
+    }
+
+    SECTION("Read values")
+    {
+        // Get values (or try_get if the value might not exist)
+        const DWORD dword = wil::reg::get_value_dword(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize", L"AppsUseLightTheme");
+        const std::optional<std::wstring> stringOptional = wil::reg::try_get_value_string(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes", L"CurrentTheme");
+
+        // Known HKEY
+        const auto key = wil::reg::open_unique_key(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize");
+        const DWORD otherDword = wil::reg::get_value_dword(key.get(), L"AppsUseLightTheme");
+
+        // nothrow version, if you don't have exceptions
+        wil::unique_bstr bstr;
+        THROW_IF_FAILED(wil::reg::get_value_string_nothrow(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes", L"CurrentTheme", bstr));
+
+        // Templated version
+        const auto value = wil::reg::get_value<::std::wstring>(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes", L"CurrentTheme");
+    }
+}
+
 TEST_CASE("BasicRegistryTests::Open", "[registry]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));

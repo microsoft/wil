@@ -948,7 +948,7 @@ namespace wil
 
         /**
          * \brief Reads a value from a specified key and subkey, deducing registry type from the type parameter T.
-         * \tparam T The type capturing the data being read (the type of registry value is determined by the template type T of data given)
+         * \tparam T The type to read (the registry value type is deduced from T)
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
@@ -968,7 +968,7 @@ namespace wil
 
         /**
          * \brief Reads a value under a specified key, deducing registry type from the type parameter T.
-         * \tparam T The type capturing the data being read
+         * \tparam T The type to read (the registry value type is deduced from T)
          * \param key An open or well-known registry key
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to read from the unnamed default registry value.
@@ -1646,8 +1646,7 @@ namespace wil
 
         /**
          * \brief Attempts to read a value under a specified key and subkey, returning in a std::optional, deducing registry type from the type parameter T.
-         * \tparam T The type capturing the data being read into a std::optional
-         *         the type of registry value is determined by the template type T of data given
+         * \tparam T The type to read, which will be placed into a std::optional (the registry value type is deduced from T)
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
@@ -1675,7 +1674,7 @@ namespace wil
 
         /**
          * \brief Attempts to read a value under a specified key, returning the value in a std::optional, deducing registry type from the type parameter T.
-         * \tparam T The type capturing the data being read into a std::optional
+         * \tparam T The type to read, which will be placed into a std::optional (the registry value type is deduced from T)
          * \param key An open or well-known registry key
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to read from the unnamed default registry value.
