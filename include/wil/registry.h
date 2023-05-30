@@ -1656,8 +1656,8 @@ namespace wil
          *        If `nullptr`, then `key` is used without modification.
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to read from the unnamed default registry value.
-         * \return The value read from the registry value of the template type std::optional<T>
-         *         note - will return std::nullopt if the value does not exist
+         * \return The value (of type T) read from the registry value, in a std::optional<T>.
+         *         Returns std::nullopt if the value does not exist.
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
          */
         template <typename T>
@@ -1682,8 +1682,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to read from the unnamed default registry value.
-         * \return The value read from the registry value of the template type std::optional<T>
-         *         note - will return std::nullopt if the value does not exist
+         * \return The value (of type T) read from the registry value, in a std::optional<T>.
+         *         Returns std::nullopt if the value does not exist.
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
          */
         template <typename T>
@@ -1708,8 +1708,8 @@ namespace wil
          *        If `nullptr`, then `key` is used without modification.
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to read from the unnamed default registry value.
-         * \return The value read from the registry value of the template type std::optional<uint32_t>
-         *         note - will return std::nullopt if the value does not exist
+         * \return The value read from the registry value, in a std::optional.
+         *         Returns std::nullopt if the value does not exist.
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
          */
         inline ::std::optional<uint32_t> try_get_value_dword(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
@@ -1718,12 +1718,12 @@ namespace wil
         }
 
         /**
-         * \brief Attempts to read a REGD_DWORD value under a specified key, returning the value in a std::optional
+         * \brief Attempts to read a REG_DWORD value under a specified key, returning the value in a std::optional
          * \param key An open or well-known registry key
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to read from the unnamed default registry value.
-         * \return The value read from the registry value of the template type std::optional<uint32_t>
-         *         note - will return std::nullopt if the value does not exist
+         * \return The value read from the registry value, in a std::optional.
+         *         Returns std::nullopt if the value does not exist.
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
          */
         inline ::std::optional<uint32_t> try_get_value_dword(HKEY key, _In_opt_ PCWSTR value_name)
@@ -1738,8 +1738,8 @@ namespace wil
          *        If `nullptr`, then `key` is used without modification.
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to read from the unnamed default registry value.
-         * \return The value read from the registry value of the template type std::optional<uint64_t>
-         *         note - will return std::nullopt if the value does not exist
+         * \return The value read from the registry value, in a std::optional.
+         *         Returns std::nullopt if the value does not exist.
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
          */
         inline ::std::optional<uint64_t> try_get_value_qword(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
@@ -1752,8 +1752,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to read from the unnamed default registry value.
-         * \return The value read from the registry value stored in a std::optional<uint64_t>
-         *         note - will return std::nullopt if the value does not exist
+         * \return The value read from the registry value, in a std::optional.
+         *         Returns std::nullopt if the value does not exist.
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
          */
         inline ::std::optional<uint64_t> try_get_value_qword(HKEY key, _In_opt_ PCWSTR value_name)
@@ -1770,8 +1770,8 @@ namespace wil
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to read from the unnamed default registry value.
          * \param type The registry type for the specified registry value to read from - see RegGetValueW
-         * \return The raw bytes read from the registry value stored in a std::optional<std::vector<BYTE>>
-         *         note - will return std::nullopt if the value does not exist
+         * \return The raw bytes read from the registry value stored in a std::optional<std::vector<BYTE>>.
+         *         Returns std::nullopt if the value does not exist.
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
          */
         inline ::std::optional<::std::vector<BYTE>> try_get_value_byte_vector(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, uint32_t type)
@@ -1786,8 +1786,8 @@ namespace wil
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to read from the unnamed default registry value.
          * \param type The registry type for the specified registry value to read from - see RegGetValueW
-         * \return The raw bytes read from the registry value stored in a std::optional<std::vector<BYTE>>
-         *         note - will return std::nullopt if the value does not exist
+         * \return The raw bytes read from the registry value stored in a std::optional<std::vector<BYTE>>.
+         *         Returns std::nullopt if the value does not exist.
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
          */
         inline ::std::optional<::std::vector<BYTE>> try_get_value_byte_vector(HKEY key, _In_opt_ PCWSTR value_name, uint32_t type)
@@ -1804,8 +1804,8 @@ namespace wil
          *        If `nullptr`, then `key` is used without modification.
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to read from the unnamed default registry value.
-         * \return The value read from the registry value of the template type std::optional<std::wstring>
-         *         note - will return std::nullopt if the value does not exist
+         * \return The value read from the registry value, in a std::optional.
+         *         Returns std::nullopt if the value does not exist.
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
          */
         inline ::std::optional<::std::wstring> try_get_value_string(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
@@ -1819,8 +1819,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to read from the unnamed default registry value.
-         * \return The value read from the registry value of the template type std::optional<std::wstring>
-         *         note - will return std::nullopt if the value does not exist
+         * \return The value read from the registry value, in a std::optional.
+         *         Returns std::nullopt if the value does not exist.
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
          */
         inline ::std::optional<::std::wstring> try_get_value_string(HKEY key, _In_opt_ PCWSTR value_name)
@@ -1835,8 +1835,8 @@ namespace wil
          *        If `nullptr`, then `key` is used without modification.
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to read from the unnamed default registry value.
-         * \return The value read from the registry value of the template type std::optional<std::wstring>
-         *         note - will return std::nullopt if the value does not exist
+         * \return The value read from the registry value, in a std::optional.
+         *         Returns std::nullopt if the value does not exist.
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
          */
         template <>
@@ -1850,8 +1850,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to read from the unnamed default registry value.
-         * \return The value read from the registry value of the template type std::optional<std::wstring>
-         *         note - will return std::nullopt if the value does not exist
+         * \return The value read from the registry value, in a std::optional.
+         *         Returns std::nullopt if the value does not exist.
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
          */
         template <>
@@ -1869,7 +1869,7 @@ namespace wil
          *        Can be nullptr to read from the unnamed default registry value.
          * \return The value read from the registry value of the template type std::optional<std::wstring>,
          *         with environment variables expanded, as though passed through ExpandEnvironmentStringsW.
-         *         Note - will return std::nullopt if the value does not exist
+         *         Returns std::nullopt if the value does not exist.
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
          */
         inline ::std::optional<::std::wstring> try_get_value_expanded_string(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
@@ -1885,7 +1885,7 @@ namespace wil
          *        Can be nullptr to read from the unnamed default registry value.
          * \return The value read from the registry value of the template type std::optional<std::wstring>,
          *         with environment variables expanded, as though passed through ExpandEnvironmentStringsW.
-         *         Note - will return std::nullopt if the value does not exist
+         *         Returns std::nullopt if the value does not exist.
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
          */
         inline ::std::optional<::std::wstring> try_get_value_expanded_string(HKEY key, _In_opt_ PCWSTR value_name)
@@ -1902,7 +1902,7 @@ namespace wil
          *        Can be nullptr to read from the unnamed default registry value.
          * \return The value read from the registry value of the template type std::optional<std::wstring>,
          *         with environment variables expanded, as though passed through ExpandEnvironmentStringsW.
-         *         Note - will return std::nullopt if the value does not exist
+         *         Returns std::nullopt if the value does not exist.
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
          */
         template <>
@@ -1918,7 +1918,7 @@ namespace wil
          *        Can be nullptr to read from the unnamed default registry value.
          * \return The value read from the registry value of the template type std::optional<std::wstring>,
          *         with environment variables expanded, as though passed through ExpandEnvironmentStringsW.
-         *         Note - will return std::nullopt if the value does not exist
+         *         Returns std::nullopt if the value does not exist.
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
          */
         template <>
@@ -1936,8 +1936,8 @@ namespace wil
          *        If `nullptr`, then `key` is used without modification.
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to read from the unnamed default registry value.
-         * \return The value read from the registry value of the template type std::optional<wil::shared_bstr>
-         *         note - will return std::nullopt if the value does not exist
+         * \return The value read from the registry value of the template type std::optional<wil::shared_bstr>.
+         *         Returns std::nullopt if the value does not exist.
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
          */
         template <>
@@ -1952,8 +1952,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to read from the unnamed default registry value.
-         * \return The value read from the registry value of the template type std::optional<wil::shared_bstr>
-         *         note - will return std::nullopt if the value does not exist
+         * \return The value read from the registry value of the template type std::optional<wil::shared_bstr>.
+         *         Returns std::nullopt if the value does not exist.
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
          */
         template <>
@@ -1971,7 +1971,7 @@ namespace wil
          *        Can be nullptr to read from the unnamed default registry value.
          * \return The value read from the registry value of the template type std::optional<wil::shared_bstr>,
          *         with environment variables expanded, as though passed through ExpandEnvironmentStringsW.
-         *         Note - will return std::nullopt if the value does not exist
+         *         Returns std::nullopt if the value does not exist.
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
          */
         template <>
@@ -1988,7 +1988,7 @@ namespace wil
          *        Can be nullptr to read from the unnamed default registry value.
          * \return The value read from the registry value of the template type std::optional<wil::shared_bstr>,
          *         with environment variables expanded, as though passed through ExpandEnvironmentStringsW.
-         *         Note - will return std::nullopt if the value does not exist
+         *         Returns std::nullopt if the value does not exist.
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
          */
         template <>
@@ -2006,8 +2006,8 @@ namespace wil
          *        If `nullptr`, then `key` is used without modification.
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to read from the unnamed default registry value.
-         * \return The value read from the registry value of the template type std::optional<wil::shared_cotaskmem_string>
-         *         note - will return std::nullopt if the value does not exist
+         * \return The value read from the registry value of the template type std::optional<wil::shared_cotaskmem_string>.
+         *         Returns std::nullopt if the value does not exist.
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
          */
         template <>
@@ -2023,7 +2023,7 @@ namespace wil
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to read from the unnamed default registry value.
          * \return The value read from the registry value of the template type std::optional<wil::shared_cotaskmem_string>
-         *         note - will return std::nullopt if the value does not exist
+         *         Returns std::nullopt if the value does not exist.
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
          */
         template <>
@@ -2041,7 +2041,7 @@ namespace wil
          *        Can be nullptr to read from the unnamed default registry value.
          * \return The value read from the registry value of the template type std::optional<:wil::shared_cotaskmem_string>,
          *         with environment variables expanded, as though passed through ExpandEnvironmentStringsW.
-         *         Note - will return std::nullopt if the value does not exist
+         *         Returns std::nullopt if the value does not exist.
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
          */
         template <>
@@ -2058,7 +2058,7 @@ namespace wil
          *        Can be nullptr to read from the unnamed default registry value.
          * \return The value read from the registry value of the template type std::optional<wil::shared_cotaskmem_string>,
          *         with environment variables expanded, as though passed through ExpandEnvironmentStringsW.
-         *         Note - will return std::nullopt if the value does not exist
+         *         Returns std::nullopt if the value does not exist.
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
          */
         template <>
@@ -2076,43 +2076,8 @@ namespace wil
          *        If `nullptr`, then `key` is used without modification.
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to read from the unnamed default registry value.
-         * \return The value read from the registry value of the template type std::optional<std::vector<std::wstring>>
-         *         Note - will return std::nullopt if the value does not exist
-         * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
-         *
-         * \remark Example usage:
-         *         // ensure the code handles a possible std::exception that will be thrown on all errors
-         *
-         *         std::optional<std::vector<std::wstring>> opt_vector_value = wil::reg::try_get_value_multistring(key, L"subkey", L"value_name");
-         *         if (opt_vector_value.has_value())
-         *         {
-         *             // note this won't make any copies of the vector, nor any wstring - as value() returns a std::vector<std::wstring>&
-         *             for (const auto& sub_string_value : opt_string_value.value())
-         *             {
-         *                 // can read each string parsed from the multi-string
-         *                 PCWSTR string_value = sub_string_value.c_str();
-         *             }
-         *         }
-         *         else
-         *         {
-         *             // the value does not exist
-         *         }
-         *
-         *         // if the caller wants to apply a default value of an empty vector, they can call value_or()
-         *         std::optional<std::vector<std::wstring>> opt_vector_value =
-         *             wil::reg::try_get_value_multistring(key, L"subkey", L"value_name").value_or(std::vector<std::wstring>{});
-         *
-         *         // ensure the code handles a possible std::exception that could be thrown above
-         *         // in this example, returns the HRESULT error code if anything fails reading the registry value other than value not found
-
-         * \brief Attempts to read a REG_MULTI_SZ value under a specified key, returning the value in a std::optional
-         * \param key An open or well-known registry key
-         * \param subkey The name of the subkey to append to `key`.
-         *        If `nullptr`, then `key` is used without modification.
-         * \param value_name The name of the registry value whose data is to be updated.
-         *        Can be nullptr to read from the unnamed default registry value.
-         * \return The value read from the registry value marshalled to a std::optional<std::vector<std::wstring>>
-         *         Note - will return std::nullopt if the value does not exist
+         * \return The value read from the registry value marshalled to a std::optional<std::vector<std::wstring>>.
+         *         Returns std::nullopt if the value does not exist.
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
          */
         template <>
@@ -2140,8 +2105,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to read from the unnamed default registry value.
-         * \return The value read from the registry value marshalled to a std::optional<std::vector<std::wstring>>
-         *         Note - will return std::nullopt if the value does not exist
+         * \return The value read from the registry value marshalled to a std::optional<std::vector<std::wstring>>.
+         *         Returns std::nullopt if the value does not exist.
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
          */
         template <>
@@ -2157,8 +2122,8 @@ namespace wil
          *        If `nullptr`, then `key` is used without modification.
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to read from the unnamed default registry value.
-         * \return The value read from the registry value marshalled to a std::optional<std::vector<std::wstring>>
-         *         Note - will return std::nullopt if the value does not exist
+         * \return The value read from the registry value marshalled to a std::optional<std::vector<std::wstring>>.
+         *         Returns std::nullopt if the value does not exist.
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
          */
         inline ::std::optional<::std::vector<::std::wstring>> try_get_value_multistring(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
@@ -2171,8 +2136,8 @@ namespace wil
          * \param key An open or well-known registry key
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to read from the unnamed default registry value.
-         * \return The value read from the registry value marshalled to a std::optional<std::vector<std::wstring>>
-         *         Note - will return std::nullopt if the value does not exist
+         * \return The value read from the registry value marshalled to a std::optional<std::vector<std::wstring>>.
+         *         Returns std::nullopt if the value does not exist.
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
          */
         inline ::std::optional<::std::vector<::std::wstring>> try_get_value_multistring(HKEY key, _In_opt_ PCWSTR value_name)
