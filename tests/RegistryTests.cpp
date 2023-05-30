@@ -303,7 +303,7 @@ TEST_CASE("BasicRegistryTests::ExampleUsage", "[registry]")
     {
         // Get values (or try_get if the value might not exist)
         const DWORD dword = wil::reg::get_value_dword(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize", L"AppsUseLightTheme");
-        const std::optional<std::wstring> stringOptional = wil::reg::try_get_value_string(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes", L"CurrentTheme");
+        const std::optional<std::wstring> stringOptional = wil::reg::try_get_value_string(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes", L"CurrentTheme"); // TODO: besto docs
 
         // Known HKEY
         const auto key = wil::reg::open_unique_key(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize");
@@ -333,6 +333,22 @@ TEST_CASE("BasicRegistryTests::ExampleUsage", "[registry]")
 
         // nothrow version, if you don't have exceptions
         THROW_IF_FAILED(wil::reg::set_value_string_nothrow(HKEY_CURRENT_USER, L"Software\\Microsoft\\BasicRegistryTest", L"StringValue3", L"Hi, Mom!"));
+    }
+
+    SECTION("Helper functions")
+    {
+        // Get count of child keys and values.
+        const auto key = wil::reg::open_unique_key(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize");
+        const uint32_t childKeyCount = wil::reg::get_child_key_count(key.get());
+        const uint32_t childValCount = wil::reg::get_child_value_count(key.get());
+
+        // Get last modified date
+        const FILETIME lastModified = wil::reg::get_last_modified(key.get());
+
+        // Simple helpers for analyzing returned HRESULTs
+        const bool a = wil::reg::is_registry_buffer_too_small(HRESULT_FROM_WIN32(ERROR_MORE_DATA)); // => true
+        const bool b = wil::reg::is_registry_not_found(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND)); // => true
+        const bool c = wil::reg::is_registry_not_found(HRESULT_FROM_WIN32(ERROR_PATH_NOT_FOUND)); // => true
     }
 #pragma warning(default:4189)
 }
