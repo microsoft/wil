@@ -183,7 +183,7 @@ bool AreStringsEqual(const wil::shared_cotaskmem_string& lhs, const std::wstring
 #endif
 
 template <size_t C>
-bool AreStringsEqual(::wil::unique_cotaskmem_array_ptr<::wil::unique_cotaskmem_string>& cotaskmemarray_strings, const PCWSTR array_literals[C])
+bool AreStringsEqual(wil::unique_cotaskmem_array_ptr<wil::unique_cotaskmem_string>& cotaskmemarray_strings, const PCWSTR array_literals[C])
 {
     if (C != cotaskmemarray_strings.size())
     {
@@ -203,7 +203,7 @@ bool AreStringsEqual(::wil::unique_cotaskmem_array_ptr<::wil::unique_cotaskmem_s
     return true;
 }
 
-bool AreStringsEqual(wil::unique_cotaskmem_array_ptr<wil::unique_cotaskmem_string>& cotaskmem_array, std::vector<std::wstring> wstring_vector)
+bool AreStringsEqual(wil::unique_cotaskmem_array_ptr<wil::unique_cotaskmem_string>& cotaskmem_array, const std::vector<std::wstring>& wstring_vector)
 {
     if (cotaskmem_array.size() != wstring_vector.size())
     {
@@ -244,8 +244,28 @@ bool AreStringsEqual(wil::unique_cotaskmem_array_ptr<wil::unique_cotaskmem_strin
     return true;
 }
 
+bool AreStringsEqual(const wil::unique_cotaskmem_array_ptr<BYTE>& lhs, const std::vector<BYTE>& rhs)
+{
+    if (lhs.size() != rhs.size())
+    {
+        wprintf(L"lhs size (%llu) is not equal to rhs.size() (%llu)", lhs.size(), rhs.size());
+        return false;
+    }
+
+    for (size_t i = 0; i < lhs.size(); ++i)
+    {
+        if (lhs[i] != rhs[i])
+        {
+            wprintf(L"The value in lhs[i] (%c) is not equal to rhs[i] (%c)", lhs[i], rhs[i]);
+            return false;
+        }
+    }
+
+    return true;
+}
+
 #if defined WIL_ENABLE_EXCEPTIONS
-void VerifyThrowsHr(HRESULT hr, std::function<void()> fn)
+void VerifyThrowsHr(HRESULT hr, const std::function<void()>& fn)
 {
     try
     {
@@ -316,7 +336,7 @@ TEST_CASE("BasicRegistryTests::ExampleUsage", "[registry]")
         THROW_IF_FAILED(wil::reg::get_value_string_nothrow(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes", L"CurrentTheme", bstr));
 
         // Templated version
-        const auto value = wil::reg::get_value<::std::wstring>(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes", L"CurrentTheme");
+        const auto value = wil::reg::get_value<std::wstring>(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes", L"CurrentTheme");
     }
 #endif // defined(__cpp_lib_optional)
 
@@ -345,7 +365,7 @@ TEST_CASE("BasicRegistryTests::ExampleUsage", "[registry]")
 
         const auto keyWithSubkeys = wil::reg::open_unique_key(HKEY_CLASSES_ROOT, nullptr);
         const uint32_t hugeChildKeyCount = wil::reg::get_child_key_count(keyWithSubkeys.get());
-        REQUIRE(hugeChildKeyCount >1000);
+        REQUIRE(hugeChildKeyCount > 1000);
 
         // Get last modified date
         const FILETIME lastModified1 = wil::reg::get_last_modified(key.get());
@@ -1219,10 +1239,10 @@ TEMPLATE_LIST_TEST_CASE("BasicRegistryTests::simple types typed gets/sets/try_ge
                 VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
                     {
                         TestType::try_get(HKEY_CURRENT_USER, testSubkey, wrongTypeValueName);
-            });
+                    });
+            }
         }
     }
-}
 #endif // defined(__cpp_lib_optional)
 }
 #endif // defined(WIL_ENABLE_EXCEPTIONS)
@@ -2402,14 +2422,14 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
 
         // create a raw buffer to write a single null character
-        ::wil::unique_cotaskmem_array_ptr<BYTE> byteBufferArrayOfOne{ static_cast<BYTE*>(CoTaskMemAlloc(2)), 2 };
+        wil::unique_cotaskmem_array_ptr<BYTE> byteBufferArrayOfOne{ static_cast<BYTE*>(CoTaskMemAlloc(2)), 2 };
         byteBufferArrayOfOne[0] = 0x00;
         byteBufferArrayOfOne[1] = 0x00;
         *byteBufferArrayOfOne.size_address() = 2;
 
         REQUIRE_SUCCEEDED(wil::reg::set_value_byte_array_nothrow(hkey.get(), stringValueName, REG_MULTI_SZ, byteBufferArrayOfOne));
 
-        ::wil::unique_cotaskmem_array_ptr<::wil::unique_cotaskmem_string> result{};
+        wil::unique_cotaskmem_array_ptr<wil::unique_cotaskmem_string> result{};
         REQUIRE_SUCCEEDED(wil::reg::get_value_multistring_nothrow(hkey.get(), stringValueName, result));
         REQUIRE(AreStringsEqual<1>(result, stringLiteralArrayOfOne));
 
@@ -2426,14 +2446,14 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
     SECTION("set_value_multistring_nothrow/get_value_multistring_nothrow: empty array with string key")
     {
         // create a raw buffer to write a single null character
-        ::wil::unique_cotaskmem_array_ptr<BYTE> byteBufferArrayOfOne{ static_cast<BYTE*>(CoTaskMemAlloc(2)), 2 };
+        wil::unique_cotaskmem_array_ptr<BYTE> byteBufferArrayOfOne{ static_cast<BYTE*>(CoTaskMemAlloc(2)), 2 };
         byteBufferArrayOfOne[0] = 0x00;
         byteBufferArrayOfOne[1] = 0x00;
         *byteBufferArrayOfOne.size_address() = 2;
 
         REQUIRE_SUCCEEDED(wil::reg::set_value_byte_array_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, REG_MULTI_SZ, byteBufferArrayOfOne));
 
-        ::wil::unique_cotaskmem_array_ptr<::wil::unique_cotaskmem_string> result{};
+        wil::unique_cotaskmem_array_ptr<wil::unique_cotaskmem_string> result{};
         REQUIRE_SUCCEEDED(wil::reg::get_value_multistring_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, result));
         REQUIRE(AreStringsEqual<1>(result, stringLiteralArrayOfOne));
 
@@ -2626,43 +2646,43 @@ namespace
     // reason.
 
     void verify_byte_vector_nothrow(
-        std::function<HRESULT(PCWSTR, DWORD, std::vector<BYTE>*)> getFn,
-        std::function<HRESULT(PCWSTR, DWORD, const std::vector<BYTE>&)> setFn,
+        std::function<HRESULT(PCWSTR, DWORD, wil::unique_cotaskmem_array_ptr<BYTE>&)> getFn,
+        std::function<void(PCWSTR, DWORD, const std::vector<BYTE>&)> setFn,
         std::function<HRESULT(PCWSTR, uint32_t)> setDwordFn)
     {
         for (const auto& value : vectorBytesTestArray)
         {
-            std::vector<BYTE> result{};
-            REQUIRE_SUCCEEDED(setFn(stringValueName, REG_BINARY, value));
-            REQUIRE_SUCCEEDED(getFn(stringValueName, REG_BINARY, &result));
-            REQUIRE(result == value);
+            wil::unique_cotaskmem_array_ptr<BYTE> result{};
+            setFn(stringValueName, REG_BINARY, value);
+            REQUIRE_SUCCEEDED(getFn(stringValueName, REG_BINARY, result));
+            REQUIRE(AreStringsEqual(result, value));
 
             // verify reusing the same allocated buffer
-            REQUIRE_SUCCEEDED(getFn(stringValueName, REG_BINARY, &result));
-            REQUIRE(result == value);
+            REQUIRE_SUCCEEDED(getFn(stringValueName, REG_BINARY, result));
+            REQUIRE(AreStringsEqual(result, value));
 
             // and verify default value name
             result = {};
-            REQUIRE_SUCCEEDED(setFn(nullptr, REG_BINARY, value));
-            REQUIRE_SUCCEEDED(getFn(nullptr, REG_BINARY, &result));
-            REQUIRE(result == value);
+            setFn(nullptr, REG_BINARY, value);
+            REQUIRE_SUCCEEDED(getFn(nullptr, REG_BINARY, result));
+            REQUIRE(AreStringsEqual(result, value));
         }
 
         // fail get* if the value doesn't exist
-        std::vector<BYTE> result{};
-        auto hr = getFn(invalidValueName, REG_BINARY, &result);
+        wil::unique_cotaskmem_array_ptr<BYTE> result{};
+        auto hr = getFn(invalidValueName, REG_BINARY, result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
         REQUIRE(wil::reg::is_registry_not_found(hr));
 
         // fail if get* requests the wrong type
-        hr = getFn(stringValueName, REG_SZ, &result);
+        hr = getFn(stringValueName, REG_SZ, result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
-        hr = getFn(stringValueName, REG_DWORD, &result);
+        hr = getFn(stringValueName, REG_DWORD, result);
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
 
         // should succeed if we specify the correct type
         REQUIRE_SUCCEEDED(setDwordFn(dwordValueName, 0xffffffff));
-        REQUIRE_SUCCEEDED(getFn(dwordValueName, REG_DWORD, &result));
+        REQUIRE_SUCCEEDED(getFn(dwordValueName, REG_DWORD, result));
         REQUIRE(result.size() == 4);
         REQUIRE(result[0] == 0xff);
         REQUIRE(result[1] == 0xff);
@@ -2690,14 +2710,14 @@ namespace
         // fail get* if the value doesn't exist
         VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND), [&]()
             {
-                getFn(invalidValueName, REG_BINARY);
+                const auto return_value = getFn(invalidValueName, REG_BINARY);
             });
 
         // fail if get* requests the wrong type
         setDwordFn(dwordValueName, 0xffffffff);
         VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
             {
-                getFn(dwordValueName, REG_BINARY);
+                const auto return_value = getFn(dwordValueName, REG_BINARY);
             });
 
         // should succeed if we specify the correct type
@@ -2767,6 +2787,11 @@ TEST_CASE("BasicRegistryTests::vector-bytes", "[registry]]")
             [&](PCWSTR valueName, DWORD type) { return wil::reg::get_value_byte_vector(hkey.get(), valueName, type); },
             [&](PCWSTR valueName, DWORD type, const std::vector<BYTE>& input) { wil::reg::set_value_byte_vector(hkey.get(), valueName, type, input); },
             [&](PCWSTR valueName, DWORD input) { wil::reg::set_value_dword(hkey.get(), valueName, input); });
+
+        verify_byte_vector_nothrow(
+            [&](PCWSTR valueName, DWORD type, wil::unique_cotaskmem_array_ptr<BYTE>& value) { return wil::reg::get_value_byte_array_nothrow(hkey.get(), valueName, type, value); },
+            [&](PCWSTR valueName, DWORD type, const std::vector<BYTE>& input) { wil::reg::set_value_byte_vector(hkey.get(), valueName, type, input); },
+            [&](PCWSTR valueName, DWORD input) { return wil::reg::set_value_dword_nothrow(hkey.get(), valueName, input); });
     }
     SECTION("set_value_byte_vector/get_value_byte_vector: with string key")
     {
@@ -2774,6 +2799,11 @@ TEST_CASE("BasicRegistryTests::vector-bytes", "[registry]]")
             [](PCWSTR valueName, DWORD type) { return wil::reg::get_value_byte_vector(HKEY_CURRENT_USER, testSubkey, valueName, type); },
             [](PCWSTR valueName, DWORD type, const std::vector<BYTE>& input) { wil::reg::set_value_byte_vector(HKEY_CURRENT_USER, testSubkey, valueName, type, input); },
             [](PCWSTR valueName, DWORD input) { wil::reg::set_value_dword(HKEY_CURRENT_USER, testSubkey, valueName, input); });
+
+        verify_byte_vector_nothrow(
+            [&](PCWSTR valueName, DWORD type, wil::unique_cotaskmem_array_ptr<BYTE>& value) { return wil::reg::get_value_byte_array_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, type, value); },
+            [&](PCWSTR valueName, DWORD type, const std::vector<BYTE>& input) { wil::reg::set_value_byte_vector(HKEY_CURRENT_USER, testSubkey, valueName, type, input); },
+            [&](PCWSTR valueName, DWORD input) { return wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, input); });
     }
 
 #if defined(__cpp_lib_optional)
