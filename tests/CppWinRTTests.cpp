@@ -326,6 +326,29 @@ TEST_CASE("CppWinRTTests::ModuleReference", "[cppwinrt]")
     REQUIRE(peek_module_ref_count() == initial);
 }
 
+template<bool value>
+struct EnabledTraits
+{
+    static bool IsEnabled() { return value; }
+};
+
+TEST_CASE("CppWinRTTests::ConditionallyImplements", "[cppwinrt]")
+{
+    using namespace winrt::Windows::Foundation;
+    struct TestClass : wil::winrt_conditionally_implements<
+        winrt::implements<TestClass, IStringable, IClosable>,
+        EnabledTraits<true>, IStringable,
+        EnabledTraits<false>, IClosable>
+    {
+        winrt::hstring ToString() { return {}; }
+        void Close() { }
+    };
+
+    auto test = winrt::make<TestClass>();
+    REQUIRE(test.try_as<IStringable>() != nullptr);
+    REQUIRE(test.try_as<IClosable>() == nullptr);
+}
+
 #if (!defined(__clang__) && defined(__cpp_lib_coroutine) && (__cpp_lib_coroutine >= 201902L)) || defined(_RESUMABLE_FUNCTIONS_SUPPORTED)
 
 // Note that we use C++/WinRT's coroutines in the test framework,
