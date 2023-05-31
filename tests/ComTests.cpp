@@ -6,6 +6,8 @@
 
 #include "common.h"
 
+#include <Bits.h>
+
 using namespace Microsoft::WRL;
 
 // avoid including #include <shobjidl.h>, it fails to compile in noprivateapis
@@ -130,6 +132,25 @@ TEST_CASE("ComTests::Test_Constructors", "[com][com_ptr]")
         REQUIRE(ptrMove2.get() == &helper4);
         REQUIRE(ptr2.get() == nullptr);
     }
+
+#if defined(__cpp_deduction_guides) && (__cpp_deduction_guides >= 201907L)
+    SECTION("CTAD pointer construction")
+    {
+        wil::com_ptr_nothrow ptr(&helper); // explicit
+        REQUIRE(IUnknownFake::GetAddRef() == 1);
+        REQUIRE(ptr.get() == &helper);
+    }
+#endif
+}
+
+TEST_CASE("ComTests::Test_Make", "[com][com_ptr]")
+{
+    IUnknownFake::Clear();
+    IUnknownFake helper;
+
+    auto ptr = wil::make_com_ptr_nothrow(&helper); // CTAD workaround for pre-C++20
+    REQUIRE(IUnknownFake::GetAddRef() == 1);
+    REQUIRE(ptr.get() == &helper);
 }
 
 TEST_CASE("ComTests::Test_Assign", "[com][com_ptr]")
@@ -541,7 +562,7 @@ TEST_CASE("ComTests::Test_ConstPointer", "[com][com_ptr]")
 
     REQUIRE(spUnk.get() != nullptr);
     REQUIRE(spUnk);
-    spUnk.addressof();
+    (void)spUnk.addressof();
     spUnk.copy_to(spUnkHelper.addressof());
     spUnk.copy_to(spInspectable.addressof());
     spUnk.copy_to(IID_PPV_ARGS(&spInspectable));
@@ -616,7 +637,7 @@ IAlways : public IUnknown
    STDMETHOD_(void, Always)() = 0;
 };
 
-class __declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20b00")) // non-implemented to allow QI for the class to be attempted (and fail)
+class __declspec(empty_bases) __declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20b00")) // non-implemented to allow QI for the class to be attempted (and fail)
 ComObject : witest::AllocatedObject,
     public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::RuntimeClassType::ClassicCom>,
                                         Microsoft::WRL::ChainInterfaces<IDerivedTest, ITest>,
@@ -627,7 +648,7 @@ public:
     COM_DECLSPEC_NOTHROW IFACEMETHODIMP_(void) Always() {}
 };
 
-class __declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20b01")) // non-implemented to allow QI for the class to be attempted (and fail)
+class __declspec(empty_bases) __declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20b01")) // non-implemented to allow QI for the class to be attempted (and fail)
 WinRtObject : witest::AllocatedObject,
     public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::RuntimeClassType::WinRtClassicComMix>,
                                         ITest, IDerivedTest, ITestInspectable, IDerivedTestInspectable, IAlways, Microsoft::WRL::FtmBase>
@@ -640,7 +661,7 @@ public:
     COM_DECLSPEC_NOTHROW IFACEMETHODIMP_(void) Always() {}
 };
 
-class NoCom : witest::AllocatedObject
+class __declspec(empty_bases) NoCom : witest::AllocatedObject
 {
 public:
     ULONG __stdcall AddRef()
@@ -780,7 +801,7 @@ void TestSmartPointer(const Ptr& ptr1, const Ptr& ptr2)
         auto address = ptr1.addressof();
         REQUIRE(*address == ptr1.get());
         (void)static_cast<bool>(ptr1);
-        ptr1.get();
+        (void)ptr1.get();
         auto deref = ptr1.operator->();
         (void)deref;
         if (ptr1)
@@ -1431,7 +1452,7 @@ void TestSmartPointerQueryIidPpv(wistd::true_type, const Ptr& source)       // i
         if (source)
         {
             DestPtr dest;
-            source.query_to(IID_PPV_ARGS(&dest));
+            REQUIRE_NOERROR(source.query_to(IID_PPV_ARGS(&dest)));
             REQUIRE_ERROR(source.query_to(IID_PPV_ARGS(&never)));
             REQUIRE((dest && !never));
         }
@@ -1467,15 +1488,15 @@ void TestSmartPointerQueryIidPpv(wistd::true_type, const Ptr& source)       // i
         if (source)
         {
             DestPtr dest;
-            source.copy_to(IID_PPV_ARGS(&dest));
+            REQUIRE_NOERROR(source.copy_to(IID_PPV_ARGS(&dest)));
             REQUIRE_ERROR(source.copy_to(IID_PPV_ARGS(&never)));
             REQUIRE((dest && !never));
         }
         else
         {
             DestPtr dest;
-            source.copy_to(IID_PPV_ARGS(&dest));
-            source.copy_to(IID_PPV_ARGS(&never));
+            REQUIRE_NOERROR(source.copy_to(IID_PPV_ARGS(&dest)));
+            REQUIRE_NOERROR(source.copy_to(IID_PPV_ARGS(&never)));
             REQUIRE((!dest && !never));
         }
     }
@@ -1518,7 +1539,7 @@ void TestSmartPointerQuery(const Ptr& source)
         if (source)
         {
             DestPtr dest;
-            source.query_to(&dest);
+            REQUIRE_NOERROR(source.query_to(&dest));
             REQUIRE_ERROR(source.query_to(&never));
             REQUIRE((dest && !never));
         }
@@ -1568,15 +1589,15 @@ void TestSmartPointerQuery(const Ptr& source)
         if (source)
         {
             DestPtr dest;
-            source.copy_to(&dest);
+            REQUIRE_NOERROR(source.copy_to(&dest));
             REQUIRE_ERROR(source.copy_to(&never));
             REQUIRE((dest && !never));
         }
         else
         {
             DestPtr dest;
-            source.copy_to(&dest);
-            source.copy_to(&never);
+            REQUIRE_NOERROR(source.copy_to(&dest));
+            REQUIRE_NOERROR(source.copy_to(&never));
             REQUIRE((!dest && !never));
         }
     }
@@ -2230,6 +2251,90 @@ TEST_CASE("ComTests::VerifyCoGetClassObject", "[com][CoGetClassObject]")
     REQUIRE_FALSE(static_cast<bool>(wil::CoGetClassObjectNoThrow<ShellLink, IStream>()));
 }
 #endif
+
+#if defined(__IBackgroundCopyManager_INTERFACE_DEFINED__) && (__WI_LIBCPP_STD_VER >= 17)
+TEST_CASE("ComTests::VerifyCoCreateEx", "[com][CoCreateInstance]")
+{
+    auto init = wil::CoInitializeEx_failfast();
+
+    {
+#ifdef WIL_ENABLE_EXCEPTIONS
+        auto [sp1, ps1] = wil::CoCreateInstanceEx<IBackgroundCopyManager, IUnknown>(__uuidof(BackgroundCopyManager), CLSCTX_LOCAL_SERVER);
+        REQUIRE((sp1 && ps1));
+#endif
+        auto [hr, unk] = wil::CoCreateInstanceExNoThrow<IBackgroundCopyManager, IUnknown>(__uuidof(BackgroundCopyManager), CLSCTX_LOCAL_SERVER);
+        REQUIRE_SUCCEEDED(hr);
+        auto sp = std::get<0>(unk);
+        auto ps = std::get<1>(unk);
+        REQUIRE((sp && ps));
+        auto [sp3, ps3] = wil::CoCreateInstanceExFailFast<IBackgroundCopyManager, IUnknown>(__uuidof(BackgroundCopyManager), CLSCTX_LOCAL_SERVER);
+        REQUIRE((sp3 && ps3));
+    }
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+    {
+        auto [ps, pf] = wil::CoCreateInstanceEx<IPersistStream, IPersistFile>(__uuidof(ShellLink), CLSCTX_INPROC_SERVER);
+        std::ignore = ps->IsDirty();
+        std::ignore = pf->IsDirty();
+    }
+#endif
+}
+
+TEST_CASE("ComTests::VerifyCoCreateInstanceExNoThrowMissingInterface", "[com][CoCreateInstance]")
+{
+    auto init = wil::CoInitializeEx_failfast();
+
+    {
+        // IPropertyBag is not implemented
+        auto [error, result] = wil::CoCreateInstanceExNoThrow<IBackgroundCopyManager, IUnknown, IPropertyBag>
+            (__uuidof(BackgroundCopyManager), CLSCTX_LOCAL_SERVER);
+        REQUIRE(error == E_NOINTERFACE);
+        REQUIRE(std::get<0>(result).get() == nullptr);
+        REQUIRE(std::get<1>(result).get() == nullptr);
+        REQUIRE(std::get<2>(result).get() == nullptr);
+    }
+}
+
+TEST_CASE("ComTests::VerifyTryCoCreateInstanceMissingInterface", "[com][CoCreateInstance]")
+{
+    auto init = wil::CoInitializeEx_failfast();
+
+    // request some implemented, one not (IPropertyBag), partial results enabled
+    {
+        auto [sp, pb] = wil::TryCoCreateInstanceEx<IBackgroundCopyManager, IPropertyBag>
+            (__uuidof(BackgroundCopyManager), CLSCTX_LOCAL_SERVER);
+        REQUIRE(sp != nullptr);
+        REQUIRE(pb == nullptr);
+    }
+    {
+        auto [sp, pb] = wil::TryCoCreateInstanceExNoThrow<IBackgroundCopyManager, IPropertyBag>
+            (__uuidof(BackgroundCopyManager), CLSCTX_LOCAL_SERVER);
+        REQUIRE(sp != nullptr);
+        REQUIRE(pb == nullptr);
+    }
+    {
+        auto [sp, pb] = wil::TryCoCreateInstanceExFailFast<IBackgroundCopyManager, IPropertyBag>
+            (__uuidof(BackgroundCopyManager), CLSCTX_LOCAL_SERVER);
+        REQUIRE(sp != nullptr);
+        REQUIRE(pb == nullptr);
+    }
+}
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+TEST_CASE("ComTests::VerifyQueryMultipleInterfaces", "[com][com_multi_query]")
+{
+    auto init = wil::CoInitializeEx_failfast();
+
+    auto mgr = wil::CoCreateInstance<BackgroundCopyManager>(CLSCTX_LOCAL_SERVER);
+    auto [sp, ps] = wil::com_multi_query<IBackgroundCopyManager, IUnknown>(mgr.get());
+    REQUIRE(sp);
+    REQUIRE(ps);
+    auto [sp1, pb] = wil::try_com_multi_query<IBackgroundCopyManager, IPropertyBag>(mgr.get());
+    REQUIRE(sp1);
+    REQUIRE(!pb);
+}
+#endif
+#endif // __IBackgroundCopyManager_INTERFACE_DEFINED__
 
 #ifdef __IObjectWithSite_INTERFACE_DEFINED__
 TEST_CASE("ComTests::VerifyComSetSiteNullIsMoveOnly", "[com][com_set_site]")

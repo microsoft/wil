@@ -19,6 +19,7 @@
 #include "result.h"
 #include "com.h"
 #include "resource.h"
+#include <windows.foundation.h>
 #include <windows.foundation.collections.h>
 
 #ifdef __cplusplus_winrt
@@ -45,6 +46,12 @@ namespace std
 #pragma warning(pop)
 #endif
 #endif
+#if defined(WIL_ENABLE_EXCEPTIONS) && defined(__has_include)
+#if __has_include(<vector>)
+#define __WI_HAS_STD_VECTOR 1
+#include <vector>
+#endif
+#endif
 /// @endcond
 
 // This enables this code to be used in code that uses the ABI prefix or not.
@@ -59,10 +66,9 @@ namespace std
 
 namespace wil
 {
-#ifdef _INC_TIME
     // time_t is the number of 1 - second intervals since January 1, 1970.
-    long long const SecondsToStartOf1970 = 0x2b6109100;
-    long long const HundredNanoSecondsInSecond = 10000000LL;
+    constexpr long long SecondsToStartOf1970 = 0x2b6109100;
+    constexpr long long HundredNanoSecondsInSecond = 10000000LL;
 
     inline __time64_t DateTime_to_time_t(ABI::Windows::Foundation::DateTime dateTime)
     {
@@ -76,7 +82,6 @@ namespace wil
         dateTime.UniversalTime = (timeT + SecondsToStartOf1970) * HundredNanoSecondsInSecond;
         return dateTime;
     }
-#endif // _INC_TIME
 
 #pragma region HSTRING Helpers
     /// @cond
@@ -234,8 +239,8 @@ namespace wil
     //! Detects if one or more embedded null is present in an HSTRING.
     inline bool HasEmbeddedNull(_In_opt_ HSTRING value)
     {
-        BOOL hasEmbeddedNull;
-        WindowsStringHasEmbeddedNull(value, &hasEmbeddedNull);
+        BOOL hasEmbeddedNull = FALSE;
+        (void)WindowsStringHasEmbeddedNull(value, &hasEmbeddedNull);
         return hasEmbeddedNull != FALSE;
     }
 
@@ -281,7 +286,7 @@ namespace wil
 
         ~TwoPhaseHStringConstructor() = default;
 
-        explicit operator PCWSTR() const
+        WI_NODISCARD explicit operator PCWSTR() const
         {
             // This is set by WindowsPromoteStringBuffer() which must be called to
             // construct this object via the static method Preallocate().
@@ -289,15 +294,15 @@ namespace wil
         }
 
         //! Returns a pointer for the buffer so it can be populated
-        wchar_t* Get() const { return const_cast<wchar_t*>(m_maker.buffer()); }
+        WI_NODISCARD wchar_t* Get() const { return const_cast<wchar_t*>(m_maker.buffer()); }
         //! Used to validate range of buffer when populating.
-        ULONG ByteSize() const { return m_characterLength * sizeof(wchar_t); }
+        WI_NODISCARD ULONG ByteSize() const { return m_characterLength * sizeof(wchar_t); }
 
         /** Ensure that the size of the data provided is consistent with the pre-allocated buffer.
         It seems that WindowsPreallocateStringBuffer() provides the null terminator in the buffer
         (based on testing) so this can be called before populating the buffer.
         */
-        HRESULT Validate(ULONG bytesRead) const
+        WI_NODISCARD HRESULT Validate(ULONG bytesRead) const
         {
             // Null termination is required for the buffer before calling WindowsPromoteStringBuffer().
             RETURN_HR_IF(HRESULT_FROM_WIN32(ERROR_INVALID_DATA),
@@ -382,7 +387,7 @@ namespace wil
         using is_transparent = void;
 
         template <typename LhsT, typename RhsT>
-        auto operator()(const LhsT& lhs, const RhsT& rhs) const WI_NOEXCEPT ->
+        WI_NODISCARD auto operator()(const LhsT& lhs, const RhsT& rhs) const WI_NOEXCEPT ->
             decltype(details::hstring_compare<true, false>::less(lhs, rhs))
         {
             return details::hstring_compare<true, false>::less(lhs, rhs);
@@ -409,7 +414,7 @@ namespace wil
         using is_transparent = void;
 
         template <typename LhsT, typename RhsT>
-        auto operator()(const LhsT& lhs, const RhsT& rhs) const WI_NOEXCEPT ->
+        WI_NODISCARD auto operator()(const LhsT& lhs, const RhsT& rhs) const WI_NOEXCEPT ->
             decltype(details::hstring_compare<true, true>::less(lhs, rhs))
         {
             return details::hstring_compare<true, true>::less(lhs, rhs);
@@ -439,17 +444,17 @@ namespace wil
             #pragma warning(disable:4702) // https://github.com/Microsoft/wil/issues/2
             struct type // T holder
             {
-                type() {};
-                type(T&& value) : m_value(wistd::forward<T>(value)) {};
-                operator T() const { return m_value; }
+                type() = default;
+                type(T&& value) : m_value(wistd::forward<T>(value)) {}
+                WI_NODISCARD operator T() const { return m_value; }
                 type& operator=(T&& value) { m_value = wistd::forward<T>(value); return *this; }
-                T Get() const { return m_value; }
+                WI_NODISCARD T Get() const { return m_value; }
 
                 // Returning T&& to support move only types
-                // In case of absense of T::operator=(T&&) a call to T::operator=(const T&) will happen
+                // In case of absence of T::operator=(T&&) a call to T::operator=(const T&) will happen
                 T&& Get()          { return wistd::move(m_value); }
 
-                HRESULT CopyTo(T* result) const { *result = m_value; return S_OK; }
+                WI_NODISCARD HRESULT CopyTo(T* result) const { *result = m_value; return S_OK; }
                 T* GetAddressOf()  { return &m_value; }
                 T* ReleaseAndGetAddressOf() { return &m_value; }
                 T* operator&()     { return &m_value; }
@@ -656,51 +661,51 @@ namespace wil
                 return *this;
             }
 
-            vector_iterator operator+(int n) const
+            WI_NODISCARD vector_iterator operator+(int n) const
             {
                 vector_iterator ret(*this);
                 ret += n;
                 return ret;
             }
 
-            vector_iterator operator-(int n) const
+            WI_NODISCARD vector_iterator operator-(int n) const
             {
                 vector_iterator ret(*this);
                 ret -= n;
                 return ret;
             }
 
-            ptrdiff_t operator-(const vector_iterator& other) const
+            WI_NODISCARD ptrdiff_t operator-(const vector_iterator& other) const
             {
                 return m_i - other.m_i;
             }
 
-            bool operator==(const vector_iterator& other) const
+            WI_NODISCARD bool operator==(const vector_iterator& other) const
             {
                 return m_i == other.m_i;
             }
 
-            bool operator!=(const vector_iterator& other) const
+            WI_NODISCARD bool operator!=(const vector_iterator& other) const
             {
                 return m_i != other.m_i;
             }
 
-            bool operator<(const vector_iterator& other) const
+            WI_NODISCARD bool operator<(const vector_iterator& other) const
             {
                 return m_i < other.m_i;
             }
 
-            bool operator>(const vector_iterator& other) const
+            WI_NODISCARD bool operator>(const vector_iterator& other) const
             {
                 return m_i > other.m_i;
             }
 
-            bool operator<=(const vector_iterator& other) const
+            WI_NODISCARD bool operator<=(const vector_iterator& other) const
             {
                 return m_i <= other.m_i;
             }
 
-            bool operator>=(const vector_iterator& other) const
+            WI_NODISCARD bool operator>=(const vector_iterator& other) const
             {
                 return m_i >= other.m_i;
             }
@@ -740,7 +745,7 @@ namespace wil
         vector_range_nothrow(const vector_range_nothrow&) = delete;
         vector_range_nothrow& operator=(const vector_range_nothrow&) = delete;
 
-        vector_range_nothrow(vector_range_nothrow&& other) :
+        vector_range_nothrow(vector_range_nothrow&& other) WI_NOEXCEPT :
             m_v(other.m_v), m_size(other.m_size), m_result(other.m_result), m_resultStorage(other.m_resultStorage),
             m_currentElement(wistd::move(other.m_currentElement))
         {
@@ -770,12 +775,12 @@ namespace wil
             {
             }
 
-            reference operator*() const
+            WI_NODISCARD reference operator*() const
             {
                 return m_range->m_currentElement;
             }
 
-            pointer operator->() const
+            WI_NODISCARD pointer operator->() const
             {
                 return wistd::addressof(m_range->m_currentElement);
             }
@@ -822,12 +827,12 @@ namespace wil
                 return *this;
             }
 
-            bool operator==(vector_iterator_nothrow const& other) const
+            WI_NODISCARD bool operator==(vector_iterator_nothrow const& other) const
             {
                 return FAILED(*m_range->m_result) || (m_i == other.m_i);
             }
 
-            bool operator!=(vector_iterator_nothrow const& other) const
+            WI_NODISCARD bool operator!=(vector_iterator_nothrow const& other) const
             {
                 return !operator==(other);
             }
@@ -930,12 +935,12 @@ namespace wil
                 return *this;
             }
 
-            bool operator==(iterable_iterator const& other) const
+            WI_NODISCARD bool operator==(iterable_iterator const& other) const
             {
                 return m_i == other.m_i;
             }
 
-            bool operator!=(iterable_iterator const& other) const
+            WI_NODISCARD bool operator!=(iterable_iterator const& other) const
             {
                 return !operator==(other);
             }
@@ -995,6 +1000,39 @@ namespace wil
     };
 #pragma endregion
 
+#if defined(__WI_HAS_STD_VECTOR)
+    /** Converts WinRT vectors to std::vector by requesting the collection's data in a single
+    operation. This can be more efficient in terms of IPC cost than iteratively processing it.
+    ~~~
+    ComPtr<IVector<IPropertyValue*>> values = GetValues();
+    std::vector<ComPtr<IPropertyValue>> allData = wil::to_vector(values);
+    for (ComPtr<IPropertyValue> const& item : allData)
+    {
+        // use item
+    }
+    Can be used for ABI::Windows::Foundation::Collections::IVector<T> and
+    ABI::Windows::Foundation::Collections::IVectorView<T>
+    */
+    template<typename VectorType> auto to_vector(VectorType* src)
+    {
+        using TResult = typename details::MapVectorResultType<VectorType>::type;
+        using TSmart = typename details::MapToSmartType<TResult>::type;
+        static_assert(sizeof(TResult) == sizeof(TSmart), "result and smart sizes are different");
+        std::vector<TSmart> output;
+        UINT32 expected = 0;
+        THROW_IF_FAILED(src->get_Size(&expected));
+        if (expected > 0)
+        {
+            output.resize(expected + 1);
+            UINT32 fetched = 0;
+            THROW_IF_FAILED(src->GetMany(0, static_cast<UINT32>(output.size()), reinterpret_cast<TResult*>(output.data()), &fetched));
+            THROW_HR_IF(E_CHANGED_STATE, fetched > expected);
+            output.resize(fetched);
+        }
+        return output;
+    }
+#endif
+
 #pragma region error code base IIterable<>
     template <typename T>
     class iterable_range_nothrow
@@ -1008,7 +1046,7 @@ namespace wil
         iterable_range_nothrow& operator=(const iterable_range_nothrow&) = delete;
         iterable_range_nothrow& operator=(iterable_range_nothrow &&) = delete;
 
-        iterable_range_nothrow(iterable_range_nothrow&& other) :
+        iterable_range_nothrow(iterable_range_nothrow&& other) WI_NOEXCEPT :
             m_iterator(wistd::move(other.m_iterator)), m_element(wistd::move(other.m_element)),
             m_resultStorage(other.m_resultStorage)
         {
@@ -1062,22 +1100,22 @@ namespace wil
             {
             }
 
-            bool operator==(iterable_iterator_nothrow const& other) const
+            WI_NODISCARD bool operator==(iterable_iterator_nothrow const& other) const
             {
                 return FAILED(*m_range->m_result) || (m_i == other.m_i);
             }
 
-            bool operator!=(iterable_iterator_nothrow const& other) const
+            WI_NODISCARD bool operator!=(iterable_iterator_nothrow const& other) const
             {
                 return !operator==(other);
             }
 
-            reference operator*() const WI_NOEXCEPT
+            WI_NODISCARD reference operator*() const WI_NOEXCEPT
             {
                 return m_range->m_element;
             }
 
-            pointer operator->() const WI_NOEXCEPT
+            WI_NODISCARD pointer operator->() const WI_NOEXCEPT
             {
                 return wistd::addressof(m_range->m_element);
             }
@@ -1330,9 +1368,23 @@ namespace details
             HRESULT hr = S_OK;
             if (status != ABI::Windows::Foundation::AsyncStatus::Completed)   // avoid a potentially costly marshaled QI / call if we completed successfully
             {
+                // QI to the IAsyncInfo interface.  While all operations implement this, it is
+                // possible that the stub has disconnected, causing the QI to fail.
                 ComPtr<ABI::Windows::Foundation::IAsyncInfo> asyncInfo;
-                operation->QueryInterface(IID_PPV_ARGS(&asyncInfo)); // All must implement IAsyncInfo
-                asyncInfo->get_ErrorCode(&hr);
+                hr = operation->QueryInterface(IID_PPV_ARGS(&asyncInfo));
+                if (SUCCEEDED(hr))
+                {
+                    // Save the error code result in a temporary variable to allow us
+                    // to also retrieve the result of the COM call.  If the stub has
+                    // disconnected, this call may fail.
+                    HRESULT errorCode = E_UNEXPECTED;
+                    hr = asyncInfo->get_ErrorCode(&errorCode);
+                    if (SUCCEEDED(hr))
+                    {
+                        // Return the operations error code to the caller.
+                        hr = errorCode;
+                    }
+                }
             }
 
             return CallAndHandleErrors(func, hr);
@@ -1355,16 +1407,30 @@ namespace details
             typename details::MapToSmartType<typename GetAbiType<typename wistd::remove_pointer<TIOperation>::type::TResult_complex>::type>::type result;
 
             HRESULT hr = S_OK;
+            // avoid a potentially costly marshaled QI / call if we completed successfully
             if (status == ABI::Windows::Foundation::AsyncStatus::Completed)
             {
                 hr = operation->GetResults(result.GetAddressOf());
             }
             else
             {
-                // avoid a potentially costly marshaled QI / call if we completed successfully
+                // QI to the IAsyncInfo interface.  While all operations implement this, it is
+                // possible that the stub has disconnected, causing the QI to fail.
                 ComPtr<ABI::Windows::Foundation::IAsyncInfo> asyncInfo;
-                operation->QueryInterface(IID_PPV_ARGS(&asyncInfo)); // all must implement this
-                asyncInfo->get_ErrorCode(&hr);
+                hr = operation->QueryInterface(IID_PPV_ARGS(&asyncInfo));
+                if (SUCCEEDED(hr))
+                {
+                    // Save the error code result in a temporary variable to allow us
+                    // to also retrieve the result of the COM call.  If the stub has
+                    // disconnected, this call may fail.
+                    HRESULT errorCode = E_UNEXPECTED;
+                    hr = asyncInfo->get_ErrorCode(&errorCode);
+                    if (SUCCEEDED(hr))
+                    {
+                        // Return the operations error code to the caller.
+                        hr = errorCode;
+                    }
+                }
             }
 
             return CallAndHandleErrors(func, hr, result.Get());
@@ -1395,12 +1461,12 @@ namespace details
                 return S_OK;
             }
 
-            HANDLE GetEvent() const
+            WI_NODISCARD HANDLE GetEvent() const
             {
                 return m_completedEventHandle.get();
             }
 
-            ABI::Windows::Foundation::AsyncStatus GetStatus() const
+            WI_NODISCARD ABI::Windows::Foundation::AsyncStatus GetStatus() const
             {
                 return m_status;
             }
@@ -1431,10 +1497,23 @@ namespace details
 
         if (completedDelegate->GetStatus() != ABI::Windows::Foundation::AsyncStatus::Completed)
         {
+            // QI to the IAsyncInfo interface.  While all operations implement this, it is
+            // possible that the stub has disconnected, causing the QI to fail.
             Microsoft::WRL::ComPtr<ABI::Windows::Foundation::IAsyncInfo> asyncInfo;
-            operation->QueryInterface(IID_PPV_ARGS(&asyncInfo)); // all must implement this
-            hr = E_UNEXPECTED;
-            asyncInfo->get_ErrorCode(&hr); // error return ignored, ok?
+            hr = operation->QueryInterface(IID_PPV_ARGS(&asyncInfo));
+            if (SUCCEEDED(hr))
+            {
+                // Save the error code result in a temporary variable to allow us
+                // to also retrieve the result of the COM call.  If the stub has
+                // disconnected, this call may fail.
+                HRESULT errorCode = E_UNEXPECTED;
+                hr = asyncInfo->get_ErrorCode(&errorCode);
+                if (SUCCEEDED(hr))
+                {
+                    // Return the operations error code to the caller.
+                    hr = errorCode;
+                }
+            }
             return hr; // leave it to the caller to log failures.
         }
         return S_OK;
@@ -1856,12 +1935,12 @@ public:
         reset();
     }
 
-    explicit operator bool() const WI_NOEXCEPT
+    WI_NODISCARD explicit operator bool() const WI_NOEXCEPT
     {
         return (m_token.Value != 0);
     }
 
-    Windows::Foundation::EventRegistrationToken get() const WI_NOEXCEPT
+    WI_NODISCARD Windows::Foundation::EventRegistrationToken get() const WI_NOEXCEPT
     {
         return m_token;
     }
@@ -1876,7 +1955,19 @@ public:
             }
             else
             {
-                auto resolvedSender = m_weakSender.Resolve<T>();
+                auto resolvedSender = [&]()
+                {
+                    try
+                    {
+                        return m_weakSender.Resolve<T>();
+                    }
+                    catch (...)
+                    {
+                        // Ignore RPC or other failures that are unavoidable in some cases
+                        // matching wil::unique_winrt_event_token and winrt::event_revoker
+                        return static_cast<T^>(nullptr);
+                    }
+                }();
                 if (resolvedSender)
                 {
                     (resolvedSender->*m_removalFunction)(m_token);
@@ -1952,12 +2043,12 @@ public:
         reset();
     }
 
-    explicit operator bool() const WI_NOEXCEPT
+    WI_NODISCARD explicit operator bool() const WI_NOEXCEPT
     {
         return (m_token.value != 0);
     }
 
-    ::EventRegistrationToken get() const WI_NOEXCEPT
+    WI_NODISCARD ::EventRegistrationToken get() const WI_NOEXCEPT
     {
         return m_token;
     }

@@ -46,7 +46,7 @@ namespace wil
     //! to that value when it is destroyed.
     //!
     //! This is useful in library code that runs during a value's destructor. If the library code could
-    //! inadvertantly change the value of GetLastError (by calling a Win32 API or similar), it should
+    //! inadvertently change the value of GetLastError (by calling a Win32 API or similar), it should
     //! instantiate a value of this type before calling the library function in order to preserve the
     //! GetLastError value the user would expect.
     //!
@@ -63,12 +63,15 @@ namespace wil
     class last_error_context
     {
 #ifndef WIL_KERNEL_MODE
-        bool m_dismissed;
-        DWORD m_error;
+        bool m_dismissed = false;
+        DWORD m_error = 0;
     public:
-        last_error_context() WI_NOEXCEPT :
-            m_dismissed(false),
-            m_error(::GetLastError())
+        last_error_context() WI_NOEXCEPT : last_error_context(::GetLastError())
+        {
+        }
+
+        explicit last_error_context(DWORD error) WI_NOEXCEPT :
+            m_error(error)
         {
         }
 
@@ -77,7 +80,7 @@ namespace wil
             operator=(wistd::move(other));
         }
 
-        last_error_context & operator=(last_error_context&& other) WI_NOEXCEPT
+        last_error_context& operator=(last_error_context&& other) WI_NOEXCEPT
         {
             m_dismissed = wistd::exchange(other.m_dismissed, true);
             m_error = other.m_error;
@@ -100,6 +103,11 @@ namespace wil
             WI_ASSERT(!m_dismissed);
             m_dismissed = true;
         }
+
+        WI_NODISCARD auto value() const WI_NOEXCEPT
+        {
+            return m_error;
+        }
 #else
     public:
         void release() WI_NOEXCEPT { }
@@ -113,15 +121,38 @@ namespace wil
         typedef wistd::integral_constant<size_t, 1> pointer_access_noaddress;       // get() and release() are available
         typedef wistd::integral_constant<size_t, 2> pointer_access_none;            // the raw pointer is not available
 
+        template<bool is_fn_ptr, typename close_fn_t, close_fn_t close_fn, typename pointer_storage_t> struct close_invoke_helper
+        {
+            __forceinline static void close(pointer_storage_t value) WI_NOEXCEPT { wistd::invoke(close_fn, value); }
+            inline static void close_reset(pointer_storage_t value) WI_NOEXCEPT
+            {
+                auto preserveError = last_error_context();
+                wistd::invoke(close_fn, value);
+            }
+        };
+
+        template<typename close_fn_t, close_fn_t close_fn, typename pointer_storage_t> struct close_invoke_helper<true, close_fn_t, close_fn, pointer_storage_t>
+        {
+            __forceinline static void close(pointer_storage_t value) WI_NOEXCEPT { close_fn(value); }
+            inline static void close_reset(pointer_storage_t value) WI_NOEXCEPT
+            {
+                auto preserveError = last_error_context();
+                close_fn(value);
+            }
+        };
+
+        template<typename close_fn_t, close_fn_t close_fn, typename pointer_storage_t> using close_invoker =
+            close_invoke_helper<wistd::is_pointer_v<close_fn_t> ? wistd::is_function_v<wistd::remove_pointer_t<close_fn_t>> : false, close_fn_t, close_fn, pointer_storage_t>;
+
         template <typename pointer_t,                                         // The handle type
             typename close_fn_t,                                              // The handle close function type
             close_fn_t close_fn,                                              //      * and function pointer
             typename pointer_access_t = pointer_access_all,                   // all, noaddress or none to control pointer method access
             typename pointer_storage_t = pointer_t,                           // The type used to store the handle (usually the same as the handle itself)
             typename invalid_t = pointer_t,                                   // The invalid handle value type
-            invalid_t invalid = invalid_t(),                                  //      * and its value (default ZERO value)
+            invalid_t invalid = invalid_t{},                                  //      * and its value (default ZERO value)
             typename pointer_invalid_t = wistd::nullptr_t>                    // nullptr_t if the invalid handle value is compatible with nullptr, otherwise pointer
-            struct resource_policy
+            struct resource_policy : close_invoker<close_fn_t, close_fn, pointer_storage_t>
         {
             typedef pointer_storage_t pointer_storage;
             typedef pointer_t pointer;
@@ -129,13 +160,6 @@ namespace wil
             typedef pointer_access_t pointer_access;
             __forceinline static pointer_storage invalid_value() { return (pointer)invalid; }
             __forceinline static bool is_valid(pointer_storage value) WI_NOEXCEPT { return (static_cast<pointer>(value) != (pointer)invalid); }
-            __forceinline static void close(pointer_storage value) WI_NOEXCEPT { wistd::invoke(close_fn, value); }
-
-            inline static void close_reset(pointer_storage value) WI_NOEXCEPT
-            {
-                auto preserveError = last_error_context();
-                wistd::invoke(close_fn, value);
-            }
         };
 
 
@@ -153,6 +177,7 @@ namespace wil
             typedef typename policy::pointer pointer;
             typedef unique_storage<policy> base_storage;
 
+        public:
             unique_storage() WI_NOEXCEPT :
             m_ptr(policy::invalid_value())
             {
@@ -177,14 +202,7 @@ namespace wil
                 }
             }
 
-            void replace(unique_storage &&other) WI_NOEXCEPT
-            {
-                reset(other.m_ptr);
-                other.m_ptr = policy::invalid_value();
-            }
-
-        public:
-            bool is_valid() const WI_NOEXCEPT
+            WI_NODISCARD bool is_valid() const WI_NOEXCEPT
             {
                 return policy::is_valid(m_ptr);
             }
@@ -204,7 +222,7 @@ namespace wil
                 reset();
             }
 
-            pointer get() const WI_NOEXCEPT
+            WI_NODISCARD pointer get() const WI_NOEXCEPT
             {
                 return static_cast<pointer>(m_ptr);
             }
@@ -221,6 +239,13 @@ namespace wil
             {
                 static_assert(wistd::is_same<typename policy::pointer_access, pointer_access_all>::value, "addressof(): the address of the raw handle is not available for this resource class");
                 return &m_ptr;
+            }
+
+        protected:
+            void replace(unique_storage &&other) WI_NOEXCEPT
+            {
+                reset(other.m_ptr);
+                other.m_ptr = policy::invalid_value();
             }
 
         private:
@@ -252,7 +277,8 @@ namespace wil
 
         // forwarding constructor: forwards all 'explicit' and multi-arg constructors to the base class
         template <typename arg1, typename... args_t>
-        explicit unique_any_t(arg1 && first, args_t&&... args) :  // should not be WI_NOEXCEPT (may forward to a throwing constructor)
+        explicit unique_any_t(arg1 && first, args_t&&... args)
+            __WI_NOEXCEPT_((wistd::is_nothrow_constructible_v<storage_t, arg1, args_t...>)) :
             storage_t(wistd::forward<arg1>(first), wistd::forward<args_t>(args)...)
         {
             static_assert(wistd::is_same<typename policy::pointer_access, details::pointer_access_none>::value ||
@@ -294,7 +320,7 @@ namespace wil
             other = wistd::move(self);
         }
 
-        explicit operator bool() const WI_NOEXCEPT
+        WI_NODISCARD explicit operator bool() const WI_NOEXCEPT
         {
             return storage_t::is_valid();
         }
@@ -316,7 +342,7 @@ namespace wil
             return put();
         }
 
-        pointer get() const WI_NOEXCEPT
+        WI_NODISCARD pointer get() const WI_NOEXCEPT
         {
             static_assert(!wistd::is_same<typename policy::pointer_access, details::pointer_access_none>::value, "get(): the raw handle value is not available for this resource class");
             return storage_t::get();
@@ -410,7 +436,7 @@ namespace wil
         typename pointer_access = details::pointer_access_all,    // all, noaddress or none to control pointer method access
         typename pointer_storage = pointer,                       // The type used to store the handle (usually the same as the handle itself)
         typename invalid_t = pointer,                             // The invalid handle value type
-        invalid_t invalid = invalid_t(),                          //      * and its value (default ZERO value)
+        invalid_t invalid = invalid_t{},                          //      * and its value (default ZERO value)
         typename pointer_invalid = wistd::nullptr_t>              // nullptr_t if the invalid handle value is compatible with nullptr, otherwise pointer
         using unique_any = unique_any_t<details::unique_storage<details::resource_policy<pointer, close_fn_t, close_fn, pointer_access, pointer_storage, invalid_t, invalid, pointer_invalid>>>;
 
@@ -459,7 +485,7 @@ namespace wil
             }
 
             // Returns true if the scope_exit lambda is still going to be executed
-            explicit operator bool() const WI_NOEXCEPT
+            WI_NODISCARD explicit operator bool() const WI_NOEXCEPT
             {
                 return m_call;
             }
@@ -521,7 +547,7 @@ namespace wil
             }
 
             // Returns true if the scope_exit lambda is still going to be executed
-            explicit operator bool() const WI_NOEXCEPT
+            WI_NODISCARD explicit operator bool() const WI_NOEXCEPT
             {
                 return m_call;
             }
@@ -663,7 +689,7 @@ namespace wil
             {
             }
 
-            out_param_t(out_param_t&& other) :
+            out_param_t(out_param_t&& other) WI_NOEXCEPT :
                 wrapper(other.wrapper),
                 pRaw(other.pRaw)
             {
@@ -703,7 +729,7 @@ namespace wil
             {
             }
 
-            out_param_ptr_t(out_param_ptr_t&& other) :
+            out_param_ptr_t(out_param_ptr_t&& other) WI_NOEXCEPT :
                 wrapper(other.wrapper),
                 pRaw(other.pRaw)
             {
@@ -741,7 +767,7 @@ namespace wil
     }
 
     /** Use to retrieve raw out parameter pointers (with a required cast) into smart pointers that do not support the '&' operator.
-    Use only when the smart pointer's &handle is not equal to the output type a function requries, necessitating a cast.
+    Use only when the smart pointer's &handle is not equal to the output type a function requires, necessitating a cast.
     Example: `wil::out_param_ptr<PSECURITY_DESCRIPTOR*>(securityDescriptor)` */
     template <typename Tcast, typename T>
     details::out_param_ptr_t<Tcast, T> out_param_ptr(T& p)
@@ -766,7 +792,7 @@ namespace wil
     ~~~
     typedef wil::unique_struct<PROPVARIANT, decltype(&::PropVariantClear), ::PropVariantClear> unique_prop_variant_default_init;
 
-    unique_prop_variant propvariant;
+    unique_prop_variant_default_init propvariant;
     SomeFunction(&propvariant);
     ~~~
 
@@ -781,6 +807,7 @@ namespace wil
     template <typename struct_t, typename close_fn_t, close_fn_t close_fn, typename init_fn_t = wistd::nullptr_t, init_fn_t init_fn = wistd::nullptr_t()>
     class unique_struct : public struct_t
     {
+        using closer = details::close_invoker<close_fn_t, close_fn, struct_t*>;
     public:
         //! Initializes the managed struct using the user-provided initialization function, or ZeroMemory if no function is specified
         unique_struct()
@@ -813,7 +840,7 @@ namespace wil
         //! Calls the custom close function
         ~unique_struct() WI_NOEXCEPT
         {
-            wistd::invoke(close_fn, this);
+            closer::close(this);
         }
 
         void reset(const unique_struct&) = delete;
@@ -821,10 +848,7 @@ namespace wil
         //! Resets this managed struct by calling the custom close function and begins management of the other struct
         void reset(const struct_t& other) WI_NOEXCEPT
         {
-            {
-                auto preserveError = last_error_context();
-                wistd::invoke(close_fn, this);
-            }
+            closer::close_reset(this);
             struct_t::operator=(other);
         }
 
@@ -832,7 +856,7 @@ namespace wil
         //! Then initializes this managed struct using the user-provided initialization function, or ZeroMemory if no function is specified
         void reset() WI_NOEXCEPT
         {
-            wistd::invoke(close_fn, this);
+            closer::close(this);
             call_init(use_default_init_fn());
         }
 
@@ -985,100 +1009,100 @@ namespace wil
             other.m_size = size;
         }
 
-        iterator begin() WI_NOEXCEPT
+        WI_NODISCARD iterator begin() WI_NOEXCEPT
         {
             return (iterator(m_ptr));
         }
 
-        const_iterator begin() const WI_NOEXCEPT
+        WI_NODISCARD const_iterator begin() const WI_NOEXCEPT
         {
             return (const_iterator(m_ptr));
         }
 
-        iterator end() WI_NOEXCEPT
+        WI_NODISCARD iterator end() WI_NOEXCEPT
         {
             return (iterator(m_ptr + m_size));
         }
 
-        const_iterator end() const WI_NOEXCEPT
+        WI_NODISCARD const_iterator end() const WI_NOEXCEPT
         {
             return (const_iterator(m_ptr + m_size));
         }
 
-        const_iterator cbegin() const WI_NOEXCEPT
+        WI_NODISCARD const_iterator cbegin() const WI_NOEXCEPT
         {
             return (begin());
         }
 
-        const_iterator cend() const WI_NOEXCEPT
+        WI_NODISCARD const_iterator cend() const WI_NOEXCEPT
         {
             return (end());
         }
 
-        size_type size() const WI_NOEXCEPT
+        WI_NODISCARD size_type size() const WI_NOEXCEPT
         {
             return (m_size);
         }
 
-        bool empty() const WI_NOEXCEPT
+        WI_NODISCARD bool empty() const WI_NOEXCEPT
         {
             return (size() == size_type{});
         }
 
-        reference operator[](size_type position)
+        WI_NODISCARD reference operator[](size_type position)
         {
             WI_ASSERT(position < m_size);
             _Analysis_assume_(position < m_size);
             return (m_ptr[position]);
         }
 
-        const_reference operator[](size_type position) const
+        WI_NODISCARD const_reference operator[](size_type position) const
         {
             WI_ASSERT(position < m_size);
             _Analysis_assume_(position < m_size);
             return (m_ptr[position]);
         }
 
-        reference front()
+        WI_NODISCARD reference front()
         {
             WI_ASSERT(!empty());
             return (m_ptr[0]);
         }
 
-        const_reference front() const
+        WI_NODISCARD const_reference front() const
         {
             WI_ASSERT(!empty());
             return (m_ptr[0]);
         }
 
-        reference back()
+        WI_NODISCARD reference back()
         {
             WI_ASSERT(!empty());
             return (m_ptr[m_size - 1]);
         }
 
-        const_reference back() const
+        WI_NODISCARD const_reference back() const
         {
             WI_ASSERT(!empty());
             return (m_ptr[m_size - 1]);
         }
 
-        ValueType* data() WI_NOEXCEPT
+        WI_NODISCARD ValueType* data() WI_NOEXCEPT
         {
             return (m_ptr);
         }
 
-        const ValueType* data() const WI_NOEXCEPT
+        WI_NODISCARD const ValueType* data() const WI_NOEXCEPT
         {
             return (m_ptr);
         }
 
-        pointer get() const WI_NOEXCEPT
+        WI_NODISCARD pointer get() const WI_NOEXCEPT
         {
             return m_ptr;
         }
 
-        explicit operator bool() const WI_NOEXCEPT
+        WI_NODISCARD explicit operator bool() const WI_NOEXCEPT
         {
             return (m_ptr != pointer());
         }
@@ -1142,7 +1166,7 @@ namespace wil
             {
             }
 
-            size_address_ptr(size_address_ptr&& other) :
+            size_address_ptr(size_address_ptr&& other) WI_NOEXCEPT :
                 wrapper(other.wrapper),
                 size(other.size)
             {
@@ -1215,7 +1239,7 @@ namespace wil
             template <typename T>
             void operator()(_Pre_opt_valid_ _Frees_ptr_opt_ T& p) const
             {
-                wistd::invoke(close_fn, &p);
+                close_invoker<close_fn_t, close_fn, T*>::close(&p);
             }
         };
 
@@ -1353,7 +1377,7 @@ namespace wil
         }
 
         //! Determine if the underlying source and token are valid
-        explicit operator bool() const WI_NOEXCEPT
+        WI_NODISCARD explicit operator bool() const WI_NOEXCEPT
         {
             return (m_token != invalid_token) && m_source;
         }
@@ -1448,7 +1472,7 @@ namespace wil
         }
 
         //! Retrieves the token
-        token_t get() const WI_NOEXCEPT
+        WI_NODISCARD token_t get() const WI_NOEXCEPT
         {
             return m_token;
         }
@@ -1524,7 +1548,7 @@ namespace wil
                 }
                 if (oldSource)
                 {
-                    wistd::invoke(close_fn, oldSource);
+                    details::close_invoker<close_fn_t, close_fn, interface_t*>::close(oldSource);
                     oldSource->Release();
                 }
             }
@@ -1548,7 +1572,7 @@ namespace wil
         }
 
         //! Returns true if the call this class was expected to make is still outstanding
-        explicit operator bool() const WI_NOEXCEPT
+        WI_NODISCARD explicit operator bool() const WI_NOEXCEPT
         {
             return (m_ptr != nullptr);
         }
@@ -1636,7 +1660,7 @@ namespace wil
             m_call = false;
             if (call)
             {
-                wistd::invoke(close_fn);
+                close_fn();
             }
         }
 
@@ -1659,7 +1683,7 @@ namespace wil
         }
 
         //! Returns true if the call that was expected is still outstanding
-        explicit operator bool() const WI_NOEXCEPT
+        WI_NODISCARD explicit operator bool() const WI_NOEXCEPT
         {
             return m_call;
         }
@@ -1770,7 +1794,7 @@ namespace wil
             RETURN_IF_FAILED(maker.make(nullptr, lengthRequiredWithoutNull));
 
             auto buffer = maker.buffer();
-            RETURN_IF_FAILED(::StringCchVPrintfExW(buffer, lengthRequiredWithoutNull + 1, nullptr, nullptr, STRSAFE_NULL_ON_FAILURE, pszFormat, argsVL));
+            RETURN_IF_FAILED(StringCchVPrintfExW(buffer, lengthRequiredWithoutNull + 1, nullptr, nullptr, STRSAFE_NULL_ON_FAILURE, pszFormat, argsVL));
 
             result = maker.release();
             return S_OK;
@@ -1831,7 +1855,7 @@ namespace std
     template <typename storage_t>
     struct hash<wil::unique_any_t<storage_t>>
     {
-        size_t operator()(wil::unique_any_t<storage_t> const &val) const
+        WI_NODISCARD size_t operator()(wil::unique_any_t<storage_t> const &val) const
         {
             return (hash<typename wil::unique_any_t<storage_t>::pointer>()(val.get()));
         }
@@ -1865,6 +1889,7 @@ namespace wil {
             typedef typename policy::pointer pointer;
             typedef shared_storage<unique_t> base_storage;
 
+        public:
             shared_storage() = default;
 
             explicit shared_storage(pointer_storage ptr)
@@ -1904,13 +1929,7 @@ namespace wil {
             {
             }
 
-            void replace(shared_storage &&other) WI_NOEXCEPT
-            {
-                m_ptr = wistd::move(other.m_ptr);
-            }
-
-        public:
-            bool is_valid() const WI_NOEXCEPT
+            WI_NODISCARD bool is_valid() const WI_NOEXCEPT
             {
                 return (m_ptr && m_ptr->is_valid());
             }
@@ -1939,7 +1958,7 @@ namespace wil {
             }
 
             template <typename allow_t = typename policy::pointer_access, typename wistd::enable_if<!wistd::is_same<allow_t, details::pointer_access_none>::value, int>::type = 0>
-            pointer get() const WI_NOEXCEPT
+            WI_NODISCARD pointer get() const WI_NOEXCEPT
             {
                 return (m_ptr ? m_ptr->get() : policy::invalid_value());
             }
@@ -1954,9 +1973,15 @@ namespace wil {
                 return m_ptr->addressof();
             }
 
-            long int use_count() const WI_NOEXCEPT
+            WI_NODISCARD long int use_count() const WI_NOEXCEPT
             {
                 return m_ptr.use_count();
+            }
+
+        protected:
+            void replace(shared_storage &&other) WI_NOEXCEPT
+            {
+                m_ptr = wistd::move(other.m_ptr);
             }
 
         private:
@@ -1983,7 +2008,8 @@ namespace wil {
 
         // default and forwarding constructor: forwards default, all 'explicit' and multi-arg constructors to the base class
         template <typename... args_t>
-        explicit shared_any_t(args_t&&... args) :  // should not be WI_NOEXCEPT (may forward to a throwing constructor)
+        explicit shared_any_t(args_t&&... args)
+            __WI_NOEXCEPT_((wistd::is_nothrow_constructible_v<storage_t, args_t...>)) :
             storage_t(wistd::forward<args_t>(args)...)
         {
         }
@@ -2043,7 +2069,7 @@ namespace wil {
             other = wistd::move(self);
         }
 
-        explicit operator bool() const WI_NOEXCEPT
+        WI_NODISCARD explicit operator bool() const WI_NOEXCEPT
         {
             return storage_t::is_valid();
         }
@@ -2060,7 +2086,7 @@ namespace wil {
             return put();
         }
 
-        pointer get() const WI_NOEXCEPT
+        WI_NODISCARD pointer get() const WI_NOEXCEPT
         {
             static_assert(!wistd::is_same<typename policy::pointer_access, details::pointer_access_none>::value, "get(): the raw handle value is not available for this resource class");
             return storage_t::get();
@@ -2189,12 +2215,12 @@ namespace wil {
             m_weakPtr.swap(other.m_weakPtr);
         }
 
-        bool expired() const WI_NOEXCEPT
+        WI_NODISCARD bool expired() const WI_NOEXCEPT
         {
             return m_weakPtr.expired();
         }
 
-        shared_t lock() const WI_NOEXCEPT
+        WI_NODISCARD shared_t lock() const WI_NOEXCEPT
         {
             return shared_t(m_weakPtr.lock());
         }
@@ -2223,7 +2249,7 @@ namespace std
     template <typename storage_t>
     struct hash<wil::shared_any_t<storage_t>>
     {
-        size_t operator()(wil::shared_any_t<storage_t> const &val) const
+        WI_NODISCARD size_t operator()(wil::shared_any_t<storage_t> const &val) const
         {
             return (hash<typename wil::shared_any_t<storage_t>::pointer>()(val.get()));
         }
@@ -2407,7 +2433,7 @@ namespace wil
         // Non-RTL implementation for threadpool_t parameter of DestroyThreadPoolTimer<>
         struct SystemThreadPoolMethods
         {
-            static void WINAPI SetThreadpoolTimer(_Inout_ PTP_TIMER Timer, _In_opt_ PFILETIME DueTime, _In_ DWORD Period, _In_opt_ DWORD WindowLength) WI_NOEXCEPT
+            static void WINAPI SetThreadpoolTimer(_Inout_ PTP_TIMER Timer, _In_opt_ PFILETIME DueTime, _In_ DWORD Period, _In_ DWORD WindowLength) WI_NOEXCEPT
             {
                 ::SetThreadpoolTimer(Timer, DueTime, Period, WindowLength);
             }
@@ -2509,6 +2535,22 @@ namespace wil
 
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_SYSTEM)
     typedef unique_any<PSID, decltype(&::FreeSid), ::FreeSid> unique_sid;
+    typedef unique_any_handle_null_only<decltype(&::DeleteBoundaryDescriptor), ::DeleteBoundaryDescriptor> unique_boundary_descriptor;
+
+    namespace details
+    {
+        template<ULONG flags>
+        inline void __stdcall ClosePrivateNamespaceHelper(HANDLE h) WI_NOEXCEPT
+        {
+            ::ClosePrivateNamespace(h, flags);
+        }
+    }
+
+    template <ULONG flags = 0>
+    using unique_private_namespace = unique_any_handle_null_only<void(__stdcall*)(HANDLE) WI_PFN_NOEXCEPT, &details::ClosePrivateNamespaceHelper<flags>>;
+
+    using unique_private_namespace_close = unique_private_namespace<>;
+    using unique_private_namespace_destroy = unique_private_namespace<PRIVATE_NAMESPACE_FLAG_DESTROY>;
 #endif
 
     using unique_tool_help_snapshot = unique_hfile;
@@ -2561,10 +2603,10 @@ namespace wil
     }
 
     // Waits on the given handle for the specified duration
-    inline bool handle_wait(HANDLE hEvent, DWORD dwMilliseconds = INFINITE) WI_NOEXCEPT
+    inline bool handle_wait(HANDLE hEvent, DWORD dwMilliseconds = INFINITE, BOOL bAlertable = FALSE) WI_NOEXCEPT
     {
-        DWORD status = ::WaitForSingleObjectEx(hEvent, dwMilliseconds, FALSE);
-        __FAIL_FAST_ASSERT__((status == WAIT_TIMEOUT) || (status == WAIT_OBJECT_0));
+        DWORD status = ::WaitForSingleObjectEx(hEvent, dwMilliseconds, bAlertable);
+        __FAIL_FAST_ASSERT__((status == WAIT_TIMEOUT) || (status == WAIT_OBJECT_0) || (bAlertable && (status == WAIT_IO_COMPLETION)));
         return (status == WAIT_OBJECT_0);
     }
 
@@ -2620,35 +2662,35 @@ namespace wil
 
         // Checks if a *manual reset* event is currently signaled.  The event must not be an auto-reset event.
         // Use when the event will only be set once (cancellation-style) or will only be reset by the polling thread
-        bool is_signaled() const WI_NOEXCEPT
+        WI_NODISCARD bool is_signaled() const WI_NOEXCEPT
         {
             return wil::event_is_signaled(storage_t::get());
         }
 
         // Basic WaitForSingleObject on the event handle with the given timeout
-        bool wait(DWORD dwMilliseconds = INFINITE) const WI_NOEXCEPT
+        bool wait(DWORD dwMilliseconds = INFINITE, BOOL bAlertable = FALSE) const WI_NOEXCEPT
         {
-            return wil::handle_wait(storage_t::get(), dwMilliseconds);
+            return wil::handle_wait(storage_t::get(), dwMilliseconds, bAlertable);
         }
 
         // Tries to create a named event -- returns false if unable to do so (gle may still be inspected with return=false)
-        bool try_create(EventOptions options, PCWSTR name, _In_opt_ LPSECURITY_ATTRIBUTES pSecurity = nullptr, _Out_opt_ bool *pAlreadyExists = nullptr)
+        bool try_create(EventOptions options, PCWSTR name, _In_opt_ LPSECURITY_ATTRIBUTES securityAttributes = nullptr, _Out_opt_ bool *alreadyExists = nullptr)
         {
-            auto handle = ::CreateEventExW(pSecurity, name, (WI_IsFlagSet(options, EventOptions::ManualReset) ? CREATE_EVENT_MANUAL_RESET : 0) | (WI_IsFlagSet(options, EventOptions::Signaled) ? CREATE_EVENT_INITIAL_SET : 0), EVENT_ALL_ACCESS);
+            auto handle = ::CreateEventExW(securityAttributes, name, (WI_IsFlagSet(options, EventOptions::ManualReset) ? CREATE_EVENT_MANUAL_RESET : 0) | (WI_IsFlagSet(options, EventOptions::Signaled) ? CREATE_EVENT_INITIAL_SET : 0), EVENT_ALL_ACCESS);
             if (!handle)
             {
-                assign_to_opt_param(pAlreadyExists, false);
+                assign_to_opt_param(alreadyExists, false);
                 return false;
             }
-            assign_to_opt_param(pAlreadyExists, (::GetLastError() == ERROR_ALREADY_EXISTS));
+            assign_to_opt_param(alreadyExists, (::GetLastError() == ERROR_ALREADY_EXISTS));
             storage_t::reset(handle);
             return true;
         }
 
         // Returns HRESULT for unique_event_nothrow, void with exceptions for shared_event and unique_event
-        result create(EventOptions options = EventOptions::None, PCWSTR name = nullptr, _In_opt_ LPSECURITY_ATTRIBUTES pSecurity = nullptr, _Out_opt_ bool *pAlreadyExists = nullptr)
+        result create(EventOptions options = EventOptions::None, PCWSTR name = nullptr, _In_opt_ LPSECURITY_ATTRIBUTES securityAttributes = nullptr, _Out_opt_ bool *alreadyExists = nullptr)
         {
-            return err_policy::LastErrorIfFalse(try_create(options, name, pSecurity, pAlreadyExists));
+            return err_policy::LastErrorIfFalse(try_create(options, name, securityAttributes, alreadyExists));
         }
 
         // Tries to open the named event -- returns false if unable to do so (gle may still be inspected with return=false)
@@ -2676,7 +2718,7 @@ namespace wil
     typedef unique_any_t<event_t<details::unique_storage<details::handle_resource_policy>, err_exception_policy>>      unique_event;
 #endif
 
-#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && (_WIN32_WINNT >= _WIN32_WINNT_WIN7)
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && ((_WIN32_WINNT >= _WIN32_WINNT_WIN8) || (__WIL_RESOURCE_ENABLE_QUIRKS && (_WIN32_WINNT >= _WIN32_WINNT_WIN7)))
     enum class SlimEventType
     {
         AutoReset,
@@ -2752,7 +2794,7 @@ namespace wil
 
         // Checks if the event is currently signaled.
         // Note: Unlike Win32 auto-reset event objects, this will not reset the event.
-        bool is_signaled() const WI_NOEXCEPT
+        WI_NODISCARD bool is_signaled() const WI_NOEXCEPT
         {
             return !!ReadAcquire(&m_isSignaled);
         }
@@ -2843,7 +2885,7 @@ namespace wil
     /** An alias for `wil::slim_event_auto_reset`. */
     using slim_event = slim_event_auto_reset;
 
-#endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && (_WIN32_WINNT >= _WIN32_WINNT_WIN7)
+#endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && (_WIN32_WINNT >= _WIN32_WINNT_WIN8)
 
     typedef unique_any<HANDLE, decltype(&details::ReleaseMutex), details::ReleaseMutex, details::pointer_access_none> mutex_release_scope_exit;
 
@@ -2892,21 +2934,25 @@ namespace wil
         }
 
         // Tries to create a named mutex -- returns false if unable to do so (gle may still be inspected with return=false)
-        bool try_create(_In_opt_ PCWSTR name, DWORD dwFlags = 0, DWORD desiredAccess = MUTEX_ALL_ACCESS, _In_opt_ PSECURITY_ATTRIBUTES pMutexAttributes = nullptr)
+        bool try_create(_In_opt_ PCWSTR name, DWORD dwFlags = 0, DWORD desiredAccess = MUTEX_ALL_ACCESS,
+                        _In_opt_ PSECURITY_ATTRIBUTES mutexAttributes = nullptr, _Out_opt_ bool* alreadyExists = nullptr)
         {
-            auto handle = ::CreateMutexExW(pMutexAttributes, name, dwFlags, desiredAccess);
+            auto handle = ::CreateMutexExW(mutexAttributes, name, dwFlags, desiredAccess);
             if (handle == nullptr)
             {
+                assign_to_opt_param(alreadyExists, false);
                 return false;
             }
+            assign_to_opt_param(alreadyExists, (::GetLastError() == ERROR_ALREADY_EXISTS));
             storage_t::reset(handle);
             return true;
         }
 
         // Returns HRESULT for unique_mutex_nothrow, void with exceptions for shared_mutex and unique_mutex
-        result create(_In_opt_ PCWSTR name = nullptr, DWORD dwFlags = 0, DWORD desiredAccess = MUTEX_ALL_ACCESS, _In_opt_ PSECURITY_ATTRIBUTES pMutexAttributes = nullptr)
+        result create(_In_opt_ PCWSTR name = nullptr, DWORD dwFlags = 0, DWORD desiredAccess = MUTEX_ALL_ACCESS,
+                      _In_opt_ PSECURITY_ATTRIBUTES mutexAttributes = nullptr, _Out_opt_ bool* alreadyExists = nullptr)
         {
-            return err_policy::LastErrorIfFalse(try_create(name, dwFlags, desiredAccess, pMutexAttributes));
+            return err_policy::LastErrorIfFalse(try_create(name, dwFlags, desiredAccess, mutexAttributes, alreadyExists));
         }
 
         // Tries to open a named mutex -- returns false if unable to do so (gle may still be inspected with return=false)
@@ -2983,21 +3029,23 @@ namespace wil
         }
 
         // Tries to create a named event -- returns false if unable to do so (gle may still be inspected with return=false)
-        bool try_create(LONG lInitialCount, LONG lMaximumCount, _In_opt_ PCWSTR name, DWORD desiredAccess = SEMAPHORE_ALL_ACCESS, _In_opt_ PSECURITY_ATTRIBUTES pSemaphoreAttributes = nullptr)
+        bool try_create(LONG lInitialCount, LONG lMaximumCount, _In_opt_ PCWSTR name, DWORD desiredAccess = SEMAPHORE_ALL_ACCESS, _In_opt_ PSECURITY_ATTRIBUTES pSemaphoreAttributes = nullptr, _Out_opt_ bool *alreadyExists = nullptr)
         {
             auto handle = ::CreateSemaphoreExW(pSemaphoreAttributes, lInitialCount, lMaximumCount, name, 0, desiredAccess);
             if (handle == nullptr)
             {
+                assign_to_opt_param(alreadyExists, false);
                 return false;
             }
+            assign_to_opt_param(alreadyExists, (::GetLastError() == ERROR_ALREADY_EXISTS));
             storage_t::reset(handle);
             return true;
         }
 
         // Returns HRESULT for unique_semaphore_nothrow, void with exceptions for shared_event and unique_event
-        result create(LONG lInitialCount, LONG lMaximumCount, _In_opt_ PCWSTR name = nullptr, DWORD desiredAccess = SEMAPHORE_ALL_ACCESS, _In_opt_ PSECURITY_ATTRIBUTES pSemaphoreAttributes = nullptr)
+        result create(LONG lInitialCount, LONG lMaximumCount, _In_opt_ PCWSTR name = nullptr, DWORD desiredAccess = SEMAPHORE_ALL_ACCESS, _In_opt_ PSECURITY_ATTRIBUTES pSemaphoreAttributes = nullptr, _Out_opt_ bool *alreadyExists = nullptr)
         {
-            return err_policy::LastErrorIfFalse(try_create(lInitialCount, lMaximumCount, name, desiredAccess, pSemaphoreAttributes));
+            return err_policy::LastErrorIfFalse(try_create(lInitialCount, lMaximumCount, name, desiredAccess, pSemaphoreAttributes, alreadyExists));
         }
 
         // Tries to open the named semaphore -- returns false if unable to do so (gle may still be inspected with return=false)
@@ -3287,11 +3335,10 @@ namespace wil
         _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_)
         PCSTR source, size_t length = static_cast<size_t>(-1)) WI_NOEXCEPT
     {
-        // guard against invalid parameters (null source with -1 length)
-        FAIL_FAST_IF(!source && (length == static_cast<size_t>(-1)));
-
         if (length == static_cast<size_t>(-1))
         {
+            // guard against invalid parameters (null source with -1 length)
+            FAIL_FAST_IF(!source);
             length = strlen(source);
         }
         const size_t cb = (length + 1) * sizeof(*source);
@@ -3402,7 +3449,7 @@ namespace wil
             void *pointer;
             size_t sizeBytes;
             SecureZeroData(void *pointer_, size_t sizeBytes_ = 0) WI_NOEXCEPT { pointer = pointer_; sizeBytes = sizeBytes_; }
-            operator void *() const WI_NOEXCEPT { return pointer; }
+            WI_NODISCARD operator void*() const WI_NOEXCEPT { return pointer; }
             static void Close(SecureZeroData data) WI_NOEXCEPT { ::SecureZeroMemory(data.pointer, data.sizeBytes); }
         };
     }
@@ -3433,7 +3480,7 @@ namespace wil
     struct process_heap_deleter
     {
         template <typename T>
-        void operator()(_Pre_opt_valid_ _Frees_ptr_opt_ T* p) const
+        void operator()(_Pre_valid_ _Frees_ptr_ T* p) const
         {
             details::FreeProcessHeap(p);
         }
@@ -3442,7 +3489,7 @@ namespace wil
     struct virtualalloc_deleter
     {
         template<typename T>
-        void operator()(_Pre_opt_valid_ _Frees_ptr_opt_ T* p) const
+        void operator()(_Pre_valid_ _Frees_ptr_ T* p) const
         {
             ::VirtualFree(p, 0, MEM_RELEASE);
         }
@@ -3451,7 +3498,7 @@ namespace wil
     struct mapview_deleter
     {
         template<typename T>
-        void operator()(_Pre_opt_valid_ _Frees_ptr_opt_ T* p) const
+        void operator()(_Pre_valid_ _Frees_ptr_ T* p) const
         {
             ::UnmapViewOfFile(p);
         }
@@ -3484,7 +3531,7 @@ namespace wil
     /** Manages a typed pointer allocated with MapViewOfFile
     A specialization of wistd::unique_ptr<> that frees via UnmapViewOfFile(p).
     */
-    template<typename T>
+    template<typename T = void>
     using unique_mapview_ptr = wistd::unique_ptr<T, mapview_deleter>;
 
 #endif // __WIL_WINBASE_
@@ -3611,7 +3658,7 @@ namespace wil
         }
 
         // Provide access to the inner event and the very common SetEvent() method on it.
-        unique_event_nothrow const& get_event() const WI_NOEXCEPT { return storage_t::get()->m_event; }
+        WI_NODISCARD unique_event_nothrow const& get_event() const WI_NOEXCEPT { return storage_t::get()->m_event; }
         void SetEvent() const WI_NOEXCEPT { storage_t::get()->m_event.SetEvent(); }
 
     private:
@@ -4214,6 +4261,14 @@ namespace wil
 #if !defined(NOWINABLE)
     typedef unique_any<HWINEVENTHOOK, decltype(&::UnhookWinEvent), ::UnhookWinEvent> unique_hwineventhook;
 #endif
+#if !defined(NOCLIPBOARD)
+    using unique_close_clipboard_call = unique_call<decltype(::CloseClipboard), &::CloseClipboard>;
+
+    inline unique_close_clipboard_call open_clipboard(HWND hwnd)
+    {
+        return unique_close_clipboard_call { OpenClipboard(hwnd) != FALSE };
+    }
+#endif
 #endif // __WIL__WINUSER_
 
 #if !defined(NOGDI) && !defined(NODESKTOP)
@@ -4320,7 +4375,7 @@ namespace wil
     WI_NODISCARD inline unique_couninitialize_call CoInitializeEx_failfast(DWORD coinitFlags = 0 /*COINIT_MULTITHREADED*/)
     {
         FAIL_FAST_IF_FAILED(::CoInitializeEx(nullptr, coinitFlags));
-        return unique_couninitialize_call();
+        return {};
     }
 #endif // __WIL__COMBASEAPI_H_APP
 #if defined(__WIL__COMBASEAPI_H_APP) && defined(WIL_ENABLE_EXCEPTIONS) && !defined(__WIL__COMBASEAPI_H_APPEXCEPTIONAL)
@@ -4328,7 +4383,7 @@ namespace wil
     WI_NODISCARD inline unique_couninitialize_call CoInitializeEx(DWORD coinitFlags = 0 /*COINIT_MULTITHREADED*/)
     {
         THROW_IF_FAILED(::CoInitializeEx(nullptr, coinitFlags));
-        return unique_couninitialize_call();
+        return {};
     }
 #endif
 
@@ -4475,8 +4530,8 @@ namespace wil
                 return S_OK;
             }
 
-            wchar_t* buffer() { WI_ASSERT(m_charBuffer != nullptr);  return m_charBuffer; }
-            const wchar_t* buffer() const { return m_charBuffer; }
+            WI_NODISCARD wchar_t* buffer() { WI_ASSERT(m_charBuffer != nullptr);  return m_charBuffer; }
+            WI_NODISCARD const wchar_t* buffer() const { return m_charBuffer; }
 
             HRESULT trim_at_existing_null(size_t length) { return make(buffer(), length); }
 
@@ -4561,6 +4616,33 @@ namespace wil
     }
 #endif // WIL_ENABLE_EXCEPTIONS
 
+    inline wil::unique_variant make_variant_bstr_nothrow(PCWSTR source) WI_NOEXCEPT
+    {
+        wil::unique_variant result{};
+        V_UNION(result.addressof(), bstrVal) = ::SysAllocString(source);
+        if (V_UNION(result.addressof(), bstrVal) != nullptr)
+        {
+            V_VT(result.addressof()) = VT_BSTR;
+        }
+        return result;
+    }
+
+    inline wil::unique_variant make_variant_bstr_failfast(PCWSTR source) WI_NOEXCEPT
+    {
+        auto result{make_variant_bstr_nothrow(source)};
+        FAIL_FAST_HR_IF(E_OUTOFMEMORY, V_VT(result.addressof()) == VT_EMPTY);
+        return result;
+    }
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+    inline wil::unique_variant make_variant_bstr(PCWSTR source)
+    {
+        auto result{make_variant_bstr_nothrow(source)};
+        THROW_HR_IF(E_OUTOFMEMORY, V_VT(result.addressof()) == VT_EMPTY);
+        return result;
+    }
+#endif // WIL_ENABLE_EXCEPTIONS
+
 #endif // __WIL_OLEAUTO_H_
 #if defined(__WIL_OLEAUTO_H_) && !defined(__WIL_OLEAUTO_H_STL) && defined(WIL_RESOURCE_STL)
 #define __WIL_OLEAUTO_H_STL
@@ -4609,7 +4691,7 @@ namespace wil
         HDC dc;
         HWND hwnd;
         window_dc(HDC dc_, HWND hwnd_ = nullptr) WI_NOEXCEPT { dc = dc_; hwnd = hwnd_; }
-        operator HDC() const WI_NOEXCEPT { return dc; }
+        WI_NODISCARD operator HDC() const WI_NOEXCEPT { return dc; }
         static void close(window_dc wdc) WI_NOEXCEPT { ::ReleaseDC(wdc.hwnd, wdc.dc); }
     };
     typedef unique_any<HDC, decltype(&window_dc::close), window_dc::close, details::pointer_access_all, window_dc> unique_hdc_window;
@@ -4619,7 +4701,7 @@ namespace wil
         HWND hwnd;
         PAINTSTRUCT ps;
         paint_dc(HDC hdc = nullptr) { ::ZeroMemory(this, sizeof(*this)); ps.hdc = hdc; }
-        operator HDC() const WI_NOEXCEPT { return ps.hdc; }
+        WI_NODISCARD operator HDC() const WI_NOEXCEPT { return ps.hdc; }
         static void close(paint_dc pdc) WI_NOEXCEPT { ::EndPaint(pdc.hwnd, &pdc.ps); }
     };
     typedef unique_any<HDC, decltype(&paint_dc::close), paint_dc::close, details::pointer_access_all, paint_dc> unique_hdc_paint;
@@ -4629,7 +4711,7 @@ namespace wil
         HGDIOBJ hgdi;
         HDC hdc;
         select_result(HGDIOBJ hgdi_, HDC hdc_ = nullptr) WI_NOEXCEPT { hgdi = hgdi_; hdc = hdc_; }
-        operator HGDIOBJ() const WI_NOEXCEPT { return hgdi; }
+        WI_NODISCARD operator HGDIOBJ() const WI_NOEXCEPT { return hgdi; }
         static void close(select_result sr) WI_NOEXCEPT { ::SelectObject(sr.hdc, sr.hgdi); }
     };
     typedef unique_any<HGDIOBJ, decltype(&select_result::close), select_result::close, details::pointer_access_all, select_result> unique_select_object;
@@ -4774,6 +4856,7 @@ namespace wil
     typedef unique_any<HCRYPTPROV, decltype(&details::CryptReleaseContextNoParam), details::CryptReleaseContextNoParam> unique_hcryptprov;
     typedef unique_any<HCRYPTKEY, decltype(&::CryptDestroyKey), ::CryptDestroyKey> unique_hcryptkey;
     typedef unique_any<HCRYPTHASH, decltype(&::CryptDestroyHash), ::CryptDestroyHash> unique_hcrypthash;
+    typedef unique_any<HCRYPTMSG, decltype(&::CryptMsgClose), ::CryptMsgClose> unique_hcryptmsg;
 #endif // __WIL__WINCRYPT_H__
 #if defined(__WIL__WINCRYPT_H__) && !defined(__WIL__WINCRYPT_H__STL) && defined(WIL_RESOURCE_STL)
 #define __WIL__WINCRYPT_H__STL
@@ -4783,6 +4866,7 @@ namespace wil
     typedef shared_any<unique_hcryptprov> shared_hcryptprov;
     typedef shared_any<unique_hcryptkey> shared_hcryptkey;
     typedef shared_any<unique_hcrypthash> shared_hcrypthash;
+    typedef shared_any<unique_hcryptmsg> shared_hcryptmsg;
 
     typedef weak_any<shared_cert_context> weak_cert_context;
     typedef weak_any<shared_cert_chain_context> weak_cert_chain_context;
@@ -4790,6 +4874,7 @@ namespace wil
     typedef weak_any<shared_hcryptprov> weak_hcryptprov;
     typedef weak_any<shared_hcryptkey> weak_hcryptkey;
     typedef weak_any<shared_hcrypthash> weak_hcrypthash;
+    typedef weak_any<shared_hcryptmsg> weak_hcryptmsg;
 #endif // __WIL__WINCRYPT_H__STL
 
 
@@ -5294,7 +5379,7 @@ namespace wil
         {
         }
 
-        pointer get() const
+        WI_NODISCARD pointer get() const
         {
             return m_globalMemory;
         }
@@ -5342,6 +5427,19 @@ namespace wil
     typedef unique_any<HTHEME, decltype(&::CloseThemeData), ::CloseThemeData> unique_htheme;
 #endif // __WIL_INC_UXTHEME
 
+#pragma warning(push)
+#pragma warning(disable:4995)
+#if defined(_INC_USERENV) && !defined(__WIL_INC_USERENV) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM) && !defined(WIL_KERNEL_MODE)
+#define __WIL_INC_USERENV
+    typedef unique_any<void*, decltype(&::DestroyEnvironmentBlock), ::DestroyEnvironmentBlock> unique_environment_block;
+#endif // __WIL_INC_USERENV
+#pragma warning(pop)
+
+#if defined(__WINEVT_H__) && !defined(__WIL_INC_EVT_HANDLE) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_PKG_EVENTLOGSERVICE) && !defined(WIL_KERNEL_MODE)
+#define __WIL_INC_EVT_HANDLE
+    typedef unique_any<EVT_HANDLE, decltype(&::EvtClose), ::EvtClose> unique_evt_handle;
+#endif // __WIL_INC_EVT_HANDLE
+
 #if defined(_WINSVC_) && !defined(__WIL_HANDLE_H_WINSVC) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && !defined(WIL_KERNEL_MODE)
 #define __WIL_HANDLE_H_WINSVC
     typedef unique_any<SC_HANDLE, decltype(&::CloseServiceHandle), ::CloseServiceHandle> unique_schandle;
@@ -5364,6 +5462,16 @@ namespace wil
     typedef shared_any<unique_file> shared_file;
     typedef weak_any<unique_file> weak_file;
 #endif // __WIL__INC_STDIO_STL
+
+#if defined(_INC_LOCALE) && !defined(__WIL_INC_LOCALE) && !defined(WIL_KERNEL_MODE)
+#define __WIL_INC_LOCALE
+    typedef unique_any<_locale_t, decltype(&::_free_locale), ::_free_locale> unique_locale;
+#endif // __WIL_INC_LOCALE
+#if defined(__WIL_INC_LOCALE) && !defined(__WIL__INC_LOCALE_STL) && defined(WIL_RESOURCE_STL)
+#define __WIL__INC_LOCALE_STL
+    typedef shared_any<unique_locale> shared_locale;
+    typedef weak_any<unique_locale> weak_locale;
+#endif // __WIL__INC_LOCALE_STL
 
 #if defined(_NTLSA_) && !defined(__WIL_NTLSA_) && !defined(WIL_KERNEL_MODE)
 #define __WIL_NTLSA_
@@ -5534,7 +5642,7 @@ namespace wil
     ~~~
     unique_process_information process;
     CreateProcessW(..., CREATE_SUSPENDED, ..., &process);
-    THROW_IF_WIN32_BOOL_FALSE(ResumeThread(process.hThread));
+    THROW_LAST_ERROR_IF(ResumeThread(process.hThread) == -1);
     THROW_LAST_ERROR_IF(WaitForSingleObject(process.hProcess, INFINITE) != WAIT_OBJECT_0);
     ~~~
     */
@@ -5720,54 +5828,382 @@ namespace wil
     using unique_wdf_wait_lock = unique_any_t<details::unique_wdf_wait_lock_storage>;
     using unique_wdf_spin_lock = unique_any_t<details::unique_wdf_spin_lock_storage>;
 
-    template<typename TWDFOBJECT>
-    struct wdf_object_reference
+    //! unique_wdf_object_reference is a RAII type for managing WDF object references acquired using
+    //! the WdfObjectReference* family of APIs. The behavior of this class is exactly identical to
+    //! wil::unique_any but a few methods have some WDF-object-reference-specific enhancements.
+    //!
+    //! * The constructor takes not only a WDFOBJECT-compatible type or a wil::unique_wdf_any, but
+    //!   optionally also a tag with which the reference was acquired.
+    //! * A get_tag() method is provided to retrieve the tag.
+    //! * reset() is similar to the constructor in that it also optionally takes a tag.
+    //! * release() optionally takes an out-param that returns the tag.
+    //!
+    //! These subtle differences make it impossible to reuse the wil::unique_any_t template for its implementation.
+    template<typename wdf_object_t>
+    class unique_wdf_object_reference
     {
-        TWDFOBJECT wdfObject = WDF_NO_HANDLE;
-        PVOID tag = nullptr;
+    public:
+        unique_wdf_object_reference() WI_NOEXCEPT = default;
 
-        wdf_object_reference() WI_NOEXCEPT = default;
-
-        wdf_object_reference(TWDFOBJECT wdfObject, PVOID tag = nullptr) WI_NOEXCEPT
-            : wdfObject(wdfObject), tag(tag)
+        //! Wrap a WDF object reference that has already been acquired into this RAII type. If you
+        //! want to acquire a new reference instead, use WI_WdfObjectReferenceIncrement.
+        explicit unique_wdf_object_reference(wdf_object_t wdfObject, void* tag = nullptr) WI_NOEXCEPT
+            : m_wdfObject(wdfObject), m_tag(tag)
         {
         }
 
-        operator TWDFOBJECT() const WI_NOEXCEPT
+        //! This is similar to the constructor that takes a raw WDF handle but is enlightened to
+        //! take a const-ref to a wil::unique_wdf_any<> instead, obviating the need to call .get()
+        //! on it. As with the other constructor, the expectation is that the raw reference has
+        //! already been acquired and ownership is being transferred into this RAII object.
+        explicit unique_wdf_object_reference(const wil::unique_wdf_any<wdf_object_t>& wdfObject, void* tag = nullptr) WI_NOEXCEPT
+            : unique_wdf_object_reference(wdfObject.get(), tag)
         {
+        }
+
+        unique_wdf_object_reference(const unique_wdf_object_reference&) = delete;
+        unique_wdf_object_reference& operator=(const unique_wdf_object_reference&) = delete;
+
+        unique_wdf_object_reference(unique_wdf_object_reference&& other)
+            : m_wdfObject(other.m_wdfObject), m_tag(other.m_tag)
+        {
+            other.m_wdfObject = WDF_NO_HANDLE;
+            other.m_tag = nullptr;
+        }
+
+        unique_wdf_object_reference& operator=(unique_wdf_object_reference&& other)
+        {
+            if (this != wistd::addressof(other))
+            {
+                reset(other.m_wdfObject, other.m_tag);
+                other.m_wdfObject = WDF_NO_HANDLE;
+                other.m_tag = nullptr;
+            }
+
+            return *this;
+        }
+
+        ~unique_wdf_object_reference() WI_NOEXCEPT
+        {
+            reset();
+        }
+
+        WI_NODISCARD explicit operator bool() const WI_NOEXCEPT
+        {
+            return m_wdfObject != WDF_NO_HANDLE;
+        }
+
+        WI_NODISCARD wdf_object_t get() const WI_NOEXCEPT
+        {
+            return m_wdfObject;
+        }
+
+        WI_NODISCARD void* get_tag() const WI_NOEXCEPT
+        {
+            return m_tag;
+        }
+
+        //! Replaces the current instance (releasing it if it exists) with a new WDF object
+        //! reference that has already been acquired by the caller.
+        void reset(wdf_object_t wdfObject = WDF_NO_HANDLE, void* tag = nullptr) WI_NOEXCEPT
+        {
+            if (m_wdfObject != WDF_NO_HANDLE)
+            {
+                // We don't use WdfObjectDereferenceActual because there is no way to provide the
+                // correct __LINE__ and __FILE__, but if you use RAII all the way, you shouldn't have to
+                // worry about where it was released, only where it was acquired.
+                WdfObjectDereferenceWithTag(m_wdfObject, m_tag);
+            }
+
+            m_wdfObject = wdfObject;
+            m_tag = tag;
+        }
+
+        void reset(const wil::unique_wdf_any<wdf_object_t>& wdfObject, void* tag = nullptr) WI_NOEXCEPT
+        {
+            reset(wdfObject.get(), tag);
+        }
+
+        wdf_object_t release(_Outptr_opt_ void** tag = nullptr) WI_NOEXCEPT
+        {
+            const auto wdfObject = m_wdfObject;
+            wil::assign_to_opt_param(tag, m_tag);
+            m_wdfObject = WDF_NO_HANDLE;
+            m_tag = nullptr;
             return wdfObject;
         }
 
-        static void close(const wdf_object_reference& wdfObjectReference) WI_NOEXCEPT
+        void swap(unique_wdf_object_reference& other) WI_NOEXCEPT
         {
-            // We don't use WdfObjectDereferenceActual because there is no way to provide the
-            // correct __LINE__ and __FILE__, but if you use RAII all the way, you shouldn't have to
-            // worry about where it was released, only where it was acquired.
-            WdfObjectDereferenceWithTag(wdfObjectReference.wdfObject, wdfObjectReference.tag);
+            wistd::swap_wil(m_wdfObject, other.m_wdfObject);
+            wistd::swap_wil(m_tag, other.m_tag);
         }
+
+        //! Drops the current reference if any, and returns a pointer to a WDF handle which can
+        //! receive a newly referenced WDF handle. The tag is assumed to be nullptr. If a different
+        //! tag needs to be used, a temporary variable will need to be used to receive the WDF
+        //! handle and a unique_wdf_object_reference will need to be constructed with it.
+        //!
+        //! The quintessential use-case for this method is WdfIoQueueFindRequest.
+        wdf_object_t* put() WI_NOEXCEPT
+        {
+            reset();
+            return &m_wdfObject;
+        }
+
+        wdf_object_t* operator&() WI_NOEXCEPT
+        {
+            return put();
+        }
+
+    private:
+        wdf_object_t m_wdfObject = WDF_NO_HANDLE;
+        void* m_tag = nullptr;
     };
 
-    template<typename TWDFOBJECT>
-    using unique_wdf_object_reference = unique_any<TWDFOBJECT, decltype(wdf_object_reference<TWDFOBJECT>::close),
-        &wdf_object_reference<TWDFOBJECT>::close, details::pointer_access_noaddress, wdf_object_reference<TWDFOBJECT>>;
-
-    // Increment the ref-count on a WDF object a unique_wdf_object_reference for it. Use
+    // Increment the ref-count on a WDF object and return a unique_wdf_object_reference for it. Use
     // WI_WdfObjectReferenceIncrement to automatically use the call-site source location. Use this
     // function only if the call-site source location is obtained from elsewhere (i.e., plumbed
     // through other abstractions).
-    template<typename TWDFOBJECT>
-    inline WI_NODISCARD unique_wdf_object_reference<TWDFOBJECT> wdf_object_reference_increment(
-        TWDFOBJECT wdfObject, PVOID tag, LONG lineNumber, PCSTR fileName) WI_NOEXCEPT
+    template<typename wdf_object_t>
+    inline WI_NODISCARD unique_wdf_object_reference<wdf_object_t> wdf_object_reference_increment(
+        wdf_object_t wdfObject, PVOID tag, LONG lineNumber, PCSTR fileName) WI_NOEXCEPT
     {
         // Parameter is incorrectly marked as non-const, so the const-cast is required.
         ::WdfObjectReferenceActual(wdfObject, tag, lineNumber, const_cast<char*>(fileName));
-        return unique_wdf_object_reference<TWDFOBJECT>{ wdf_object_reference<TWDFOBJECT>{ wdfObject, tag } };
+        return unique_wdf_object_reference<wdf_object_t>{ wdfObject, tag };
+    }
+
+    template<typename wdf_object_t>
+    inline WI_NODISCARD unique_wdf_object_reference<wdf_object_t> wdf_object_reference_increment(
+        const wil::unique_wdf_any<wdf_object_t>& wdfObject, PVOID tag, LONG lineNumber, PCSTR fileName) WI_NOEXCEPT
+    {
+        return wdf_object_reference_increment(wdfObject.get(), tag, lineNumber, fileName);
     }
 
 // A macro so that we can capture __LINE__ and __FILE__.
 #define WI_WdfObjectReferenceIncrement(wdfObject, tag) \
     wil::wdf_object_reference_increment(wdfObject, tag, __LINE__, __FILE__)
 
+    //! wdf_request_completer is a unique_any-like RAII class for managing completion of a
+    //! WDFREQUEST. On destruction or explicit reset() it completes the WDFREQUEST with parameters
+    //! (status, information, priority boost) previously set using methods on this class.
+    //!
+    //! This class does not use the unique_any_t template primarily because the release() and put()
+    //! methods need to return a WDFREQUEST/WDFREQUEST*, as opposed to the internal storage type.
+    class wdf_request_completer
+    {
+    public:
+
+        explicit wdf_request_completer(WDFREQUEST wdfRequest = WDF_NO_HANDLE) WI_NOEXCEPT
+            : m_wdfRequest(wdfRequest)
+        {
+        }
+
+        wdf_request_completer(const wdf_request_completer&) = delete;
+        wdf_request_completer& operator=(const wdf_request_completer&) = delete;
+
+        wdf_request_completer(wdf_request_completer&& other) WI_NOEXCEPT
+            : m_wdfRequest(other.m_wdfRequest), m_status(other.m_status), m_information(other.m_information),
+#if defined(WIL_KERNEL_MODE)
+              m_priorityBoost(other.m_priorityBoost),
+#endif
+              m_completionFlags(other.m_completionFlags)
+        {
+            clear_state(other);
+        }
+
+        wdf_request_completer& operator=(wdf_request_completer&& other) WI_NOEXCEPT
+        {
+            if (this != wistd::addressof(other))
+            {
+                reset();
+                m_wdfRequest = other.m_wdfRequest;
+                m_status = other.m_status;
+                m_information = other.m_information;
+#if defined(WIL_KERNEL_MODE)
+                m_priorityBoost = other.m_priorityBoost;
+#endif
+                m_completionFlags = other.m_completionFlags;
+                clear_state(other);
+            }
+
+            return *this;
+        }
+
+        ~wdf_request_completer() WI_NOEXCEPT
+        {
+            reset();
+        }
+
+        WI_NODISCARD WDFREQUEST get() const WI_NOEXCEPT
+        {
+            return m_wdfRequest;
+        }
+
+        //! Set the NTSTATUS value with with the WDFREQUEST will be completed when the RAII object
+        //! goes out of scope or .reset() is called explicitly. Calling this method does *not*
+        //! complete the request right away. No effect if this object currently does not have
+        //! ownership of a WDFREQUEST. The expected usage pattern is that set_status() is called
+        //! only after ownership of a WDFREQUEST is transferred to this object.
+        void set_status(NTSTATUS status) WI_NOEXCEPT
+        {
+            // The contract is that this method has no effect if we currently do not have a
+            // m_wdfRequest. But that is enforced by discarding all state when a WDFREQUEST is
+            // attached, not by explicitly checking for that condition here.
+
+            m_status = status;
+        }
+
+        //! Set the IO_STATUS_BLOCK.Information value with which the WDFREQUEST will be completed.
+        //! Note that the Information value is not stored directly in the WDFREQUEST using
+        //! WdfRequestSetInformation. It is only used at the time of completion. No effect if this
+        //! object currently does not have ownership of a WDFREQUEST. The expected usage pattern is
+        //! that set_information() is called only after ownership of a WDFREQUEST is transferred to
+        //! this object.
+        void set_information(ULONG_PTR information) WI_NOEXCEPT
+        {
+            // The contract is that this method has no effect if we currently do not have a
+            // m_wdfRequest. But that is enforced by discarding all state when a WDFREQUEST is
+            // attached, not by explicitly checking for that condition here.
+
+            m_completionFlags.informationSet = 1;
+            m_information = information;
+        }
+
+#if defined(WIL_KERNEL_MODE)
+        //! Set the priority boost with which the WDFREQUEST will be completed. If this method is
+        //! called, the WDFREQUEST will eventually be completed with
+        //! WdfRequestCompleteWithPriorityBoost. No effect if this object currently does not have
+        //! ownership of a WDFREQUEST. The expected usage pattern is that set_priority_boost() is
+        //! called only after ownership of a WDFREQUEST is transferred to this object.
+        void set_priority_boost(CCHAR priorityBoost) WI_NOEXCEPT
+        {
+            // The contract is that this method has no effect if we currently do not have a
+            // m_wdfRequest. But that is enforced by discarding all state when a WDFREQUEST is
+            // attached, not by explicitly checking for that condition here.
+
+            m_completionFlags.priorityBoostSet = 1;
+            m_priorityBoost = priorityBoost;
+        }
+#endif
+
+        WI_NODISCARD explicit operator bool() const WI_NOEXCEPT
+        {
+            return m_wdfRequest != WDF_NO_HANDLE;
+        }
+
+        WDFREQUEST* put() WI_NOEXCEPT
+        {
+            reset();
+            return &m_wdfRequest;
+        }
+
+        WDFREQUEST* operator&() WI_NOEXCEPT
+        {
+            return put();
+        }
+
+        //! Relinquishes completion responsibility for the WDFREQUEST. Note that any state
+        //! (information, priority boost, status) set on this object is lost. This design choice was
+        //! made because it is atypical to set an information or priority boost value upfront; they
+        //! are typically set at the point where the request is going to be completed. Hence a
+        //! use-case wherein release() is called will typically not have set an information or
+        //! priority boost.
+        WDFREQUEST release() WI_NOEXCEPT
+        {
+            const auto wdfRequest = m_wdfRequest;
+            clear_state(*this);
+            return wdfRequest;
+        }
+
+        void swap(wdf_request_completer& other) WI_NOEXCEPT
+        {
+            wistd::swap_wil(m_wdfRequest, other.m_wdfRequest);
+            wistd::swap_wil(m_information, other.m_information);
+            wistd::swap_wil(m_status, other.m_status);
+#if defined(WIL_KERNEL_MODE)
+            wistd::swap_wil(m_priorityBoost, other.m_priorityBoost);
+#endif
+            wistd::swap_wil(m_completionFlags, other.m_completionFlags);
+        }
+
+        void reset(WDFREQUEST newWdfRequest = WDF_NO_HANDLE)
+        {
+            if (m_wdfRequest != WDF_NO_HANDLE)
+            {
+                // We try to match the usage patterns that the driver would have typically used in the
+                // various scenarios. For instance, if the driver has set the information field, we'll
+                // call WdfRequestCompleteWithInformation instead of calling WdfRequestSetInformation
+                // followed by WdfRequestComplete.
+
+#if defined(WIL_KERNEL_MODE)
+                if (m_completionFlags.priorityBoostSet)
+                {
+                    if (m_completionFlags.informationSet)
+                    {
+                        WdfRequestSetInformation(m_wdfRequest, m_information);
+                    }
+
+                    WdfRequestCompleteWithPriorityBoost(m_wdfRequest, m_status, m_priorityBoost);
+                }
+                else
+#endif
+                if (m_completionFlags.informationSet)
+                {
+                    WdfRequestCompleteWithInformation(m_wdfRequest, m_status, m_information);
+                }
+                else
+                {
+                    WdfRequestComplete(m_wdfRequest, m_status);
+                }
+            }
+
+            // We call clear_state unconditionally just in case some parameters (status,
+            // information, etc.) were set prior to attaching a WDFREQUEST to this object. Those
+            // parameters are not considered relevant to the WDFREQUEST being attached to this
+            // object now.
+            clear_state(*this, newWdfRequest);
+        }
+
+    private:
+
+        static void clear_state(wdf_request_completer& completer, WDFREQUEST newWdfRequest = WDF_NO_HANDLE) WI_NOEXCEPT
+        {
+            completer.m_wdfRequest = newWdfRequest;
+            completer.m_status = STATUS_UNSUCCESSFUL;
+            completer.m_information = 0;
+#if defined(WIL_KERNEL_MODE)
+            completer.m_priorityBoost = 0;
+#endif
+            completer.m_completionFlags = {};
+        }
+
+        // Members are ordered in decreasing size to minimize padding.
+
+        WDFREQUEST m_wdfRequest = WDF_NO_HANDLE;
+
+        // This will not be used unless m_completionFlags.informationSet is set.
+        ULONG_PTR m_information = 0;
+
+        // There is no reasonably default NTSTATUS value. Callers are expected to explicitly set a
+        // status value at the point where it is decided that the request needs to be completed.
+        NTSTATUS m_status = STATUS_UNSUCCESSFUL;
+
+// UMDF does not support WdfRequestCompleteWithPriorityBoost.
+#if defined(WIL_KERNEL_MODE)
+        // This will not be used unless m_completionFlags.priorityBoostSet is set.
+        CCHAR m_priorityBoost = 0;
+#endif
+
+        struct
+        {
+            UINT8 informationSet : 1;
+#if defined(WIL_KERNEL_MODE)
+            UINT8 priorityBoostSet : 1;
+#endif
+        } m_completionFlags = {};
+    };
 #endif
 
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM) && \
@@ -5807,7 +6243,7 @@ namespace wil
 
             // Exists to satisfy the interconvertibility requirement for pointer_storage and
             // pointer.
-            explicit operator PKSPIN_LOCK() const
+            WI_NODISCARD explicit operator PKSPIN_LOCK() const
             {
                 return spinLock;
             }
@@ -5936,7 +6372,7 @@ namespace wil
             }
 
             // Checks if the event is currently signaled. Does not change the state of the event.
-            bool is_signaled() const WI_NOEXCEPT
+            WI_NODISCARD bool is_signaled() const WI_NOEXCEPT
             {
                 return ::KeReadStateEvent(const_cast<PRKEVENT>(&m_kernelEvent)) ? true : false;
             }
@@ -6097,6 +6533,26 @@ namespace wil
         FAST_MUTEX m_fastMutex;
     };
 
+    //! A type that calls KeLeaveCriticalRegion on destruction (or reset()).
+    using unique_leave_critical_region_call = unique_call<decltype(&::KeLeaveCriticalRegion), ::KeLeaveCriticalRegion>;
+
+    //! Disables user APCs and normal kernel APCs; returns an RAII object that reverts
+    WI_NODISCARD inline unique_leave_critical_region_call enter_critical_region()
+    {
+        KeEnterCriticalRegion();
+        return{};
+    }
+
+    //! A type that calls KeLeaveGuardedRegion on destruction (or reset()).
+    using unique_leave_guarded_region_call = unique_call<decltype(&::KeLeaveGuardedRegion), ::KeLeaveGuardedRegion>;
+
+    //! Disables all APCs; returns an RAII object that reverts
+    WI_NODISCARD inline unique_leave_guarded_region_call enter_guarded_region()
+    {
+        KeEnterGuardedRegion();
+        return{};
+    }
+
     namespace details
     {
         _IRQL_requires_max_(APC_LEVEL)
@@ -6207,6 +6663,422 @@ namespace wil
     using unique_kernel_handle = wil::unique_any<HANDLE, decltype(&::ZwClose), ::ZwClose>;
 
 #endif // __WIL_RESOURCE_ZWAPI
+
+#if defined(WINTRUST_H) && defined(SOFTPUB_H) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && !defined(__WIL_WINTRUST)
+#define __WIL_WINTRUST
+    namespace details
+    {
+        inline void __stdcall CloseWintrustData(_Inout_ WINTRUST_DATA* wtData) WI_NOEXCEPT
+        {
+            GUID guidV2 = WINTRUST_ACTION_GENERIC_VERIFY_V2;
+            wtData->dwStateAction = WTD_STATEACTION_CLOSE;
+            WinVerifyTrust(static_cast<HWND>(INVALID_HANDLE_VALUE), &guidV2, wtData);
+        }
+    }
+    typedef wil::unique_struct<WINTRUST_DATA, decltype(&details::CloseWintrustData), details::CloseWintrustData> unique_wintrust_data;
+#endif // __WIL_WINTRUST
+
+#if defined(MSCAT_H) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && !defined(__WIL_MSCAT)
+#define __WIL_MSCAT
+    namespace details
+    {
+        inline void __stdcall CryptCATAdminReleaseContextNoFlags(_Pre_opt_valid_ _Frees_ptr_opt_ HCATADMIN handle) WI_NOEXCEPT
+        {
+            CryptCATAdminReleaseContext(handle, 0);
+        }
+    }
+    typedef wil::unique_any<HCATADMIN, decltype(&details::CryptCATAdminReleaseContextNoFlags), details::CryptCATAdminReleaseContextNoFlags> unique_hcatadmin;
+
+#if defined(WIL_RESOURCE_STL)
+    typedef shared_any<unique_hcatadmin> shared_hcatadmin;
+    struct hcatinfo_deleter
+    {
+        hcatinfo_deleter(wil::shared_hcatadmin handle) WI_NOEXCEPT : m_hCatAdmin(wistd::move(handle)) {}
+        void operator()(_Pre_opt_valid_ _Frees_ptr_opt_ HCATINFO handle) const WI_NOEXCEPT
+        {
+            CryptCATAdminReleaseCatalogContext(m_hCatAdmin.get(), handle, 0);
+        }
+        wil::shared_hcatadmin m_hCatAdmin;
+    };
+    // This stores HCATINFO, i.e. HANDLE (void *)
+    typedef wistd::unique_ptr<void, hcatinfo_deleter> unique_hcatinfo;
+
+    namespace details
+    {
+        class crypt_catalog_enumerator
+        {
+            wil::unique_hcatinfo m_hCatInfo;
+            const BYTE* m_hash;
+            DWORD m_hashLen;
+            bool m_initialized = false;
+
+            struct ref
+            {
+                explicit ref(crypt_catalog_enumerator &r) WI_NOEXCEPT :
+                    m_r(r)
+                {}
+
+                WI_NODISCARD operator HCATINFO() const WI_NOEXCEPT
+                {
+                    return m_r.current();
+                }
+
+                wil::unique_hcatinfo move_from_unique_hcatinfo() WI_NOEXCEPT
+                {
+                    wil::unique_hcatinfo info(wistd::move(m_r.m_hCatInfo));
+                    return info;
+                }
+
+                WI_NODISCARD bool operator==(wistd::nullptr_t) const WI_NOEXCEPT
+                {
+                    return m_r.m_hCatInfo == nullptr;
+                }
+
+                WI_NODISCARD bool operator!=(wistd::nullptr_t) const WI_NOEXCEPT
+                {
+                    return !(*this == nullptr);
+                }
+
+            private:
+                crypt_catalog_enumerator &m_r;
+            };
+
+            struct iterator
+            {
+#ifdef _XUTILITY_
+                // muse be input_iterator_tag as use of one instance invalidates the other.
+                typedef ::std::input_iterator_tag iterator_category;
+#endif
+
+                explicit iterator(crypt_catalog_enumerator *r) WI_NOEXCEPT :
+                    m_r(r)
+                {}
+
+                iterator(const iterator &) = default;
+                iterator(iterator &&) = default;
+                iterator &operator=(const iterator &) = default;
+                iterator &operator=(iterator &&) = default;
+
+                WI_NODISCARD bool operator==(const iterator &rhs) const WI_NOEXCEPT
+                {
+                    if (rhs.m_r == m_r)
+                    {
+                        return true;
+                    }
+
+                    return (*this == nullptr) && (rhs == nullptr);
+                }
+
+                WI_NODISCARD bool operator!=(const iterator &rhs) const WI_NOEXCEPT
+                {
+                    return !(rhs == *this);
+                }
+
+                WI_NODISCARD bool operator==(wistd::nullptr_t) const WI_NOEXCEPT
+                {
+                    return nullptr == m_r || nullptr == m_r->current();
+                }
+
+                WI_NODISCARD bool operator!=(wistd::nullptr_t) const WI_NOEXCEPT
+                {
+                    return !(*this == nullptr);
+                }
+
+                iterator &operator++() WI_NOEXCEPT
+                {
+                    if (m_r != nullptr)
+                    {
+                        m_r->next();
+                    }
+
+                    return *this;
+                }
+
+                WI_NODISCARD ref operator*() const WI_NOEXCEPT
+                {
+                    return ref(*m_r);
+                }
+
+            private:
+                crypt_catalog_enumerator *m_r;
+            };
+
+            shared_hcatadmin &hcatadmin() WI_NOEXCEPT
+            {
+                return m_hCatInfo.get_deleter().m_hCatAdmin;
+            }
+
+            bool move_next() WI_NOEXCEPT
+            {
+                HCATINFO prevCatInfo = m_hCatInfo.release();
+                m_hCatInfo.reset(
+                    ::CryptCATAdminEnumCatalogFromHash(
+                        hcatadmin().get(),
+                        const_cast<BYTE *>(m_hash),
+                        m_hashLen,
+                        0,
+                        &prevCatInfo));
+                return !!m_hCatInfo;
+            }
+
+            HCATINFO next() WI_NOEXCEPT
+            {
+                if (m_initialized && m_hCatInfo)
+                {
+                    move_next();
+                }
+
+                return current();
+            }
+
+            HCATINFO init() WI_NOEXCEPT
+            {
+                if (!m_initialized)
+                {
+                    m_initialized = true;
+                    move_next();
+                }
+
+                return current();
+            }
+
+            HCATINFO current() WI_NOEXCEPT
+            {
+                return m_hCatInfo.get();
+            }
+
+        public:
+            crypt_catalog_enumerator(wil::shared_hcatadmin &hCatAdmin,
+                                     const BYTE *hash,
+                                     DWORD hashLen) WI_NOEXCEPT :
+                m_hCatInfo(nullptr, hCatAdmin),
+                m_hash(hash),
+                m_hashLen(hashLen)
+                // , m_initialized(false) // redundant
+            {}
+
+            WI_NODISCARD iterator begin() WI_NOEXCEPT
+            {
+                init();
+                return iterator(this);
+            }
+
+            WI_NODISCARD iterator end() const WI_NOEXCEPT
+            {
+                return iterator(nullptr);
+            }
+
+            crypt_catalog_enumerator(crypt_catalog_enumerator &&) = default;
+            crypt_catalog_enumerator &operator=(crypt_catalog_enumerator &&) = default;
+
+            crypt_catalog_enumerator(const crypt_catalog_enumerator &) = delete;
+            crypt_catalog_enumerator &operator=(const crypt_catalog_enumerator &) = delete;
+        };
+    }
+
+    /** Use to enumerate catalogs containing a hash with a range-based for.
+    This avoids handling a raw resource to call CryptCATAdminEnumCatalogFromHash correctly.
+    Example:
+    `for (auto&& cat : wil::make_catalog_enumerator(hCatAdmin, hash, hashLen))
+     { CryptCATCatalogInfoFromContext(cat, &catInfo, 0); }` */
+    inline details::crypt_catalog_enumerator make_crypt_catalog_enumerator(wil::shared_hcatadmin &hCatAdmin,
+        _In_count_(hashLen) const BYTE *hash, DWORD hashLen) WI_NOEXCEPT
+    {
+        return details::crypt_catalog_enumerator(hCatAdmin, hash, hashLen);
+    }
+
+    template <size_t Size>
+    details::crypt_catalog_enumerator make_crypt_catalog_enumerator(wil::shared_hcatadmin &hCatAdmin,
+        const BYTE (&hash)[Size]) WI_NOEXCEPT
+    {
+        static_assert(Size <= static_cast<size_t>(0xffffffffUL), "Array size truncated");
+        return details::crypt_catalog_enumerator(hCatAdmin, hash, static_cast<DWORD>(Size));
+    }
+
+#endif // WI_RESOURCE_STL
+
+#endif // __WIL_MSCAT
+
+
+#if !defined(__WIL_RESOURCE_LOCK_ENFORCEMENT)
+#define __WIL_RESOURCE_LOCK_ENFORCEMENT
+
+    /**
+    Functions that need an exclusive lock use can use write_lock_required as a parameter to enforce lock
+    safety at compile time. Similarly, read_lock_required may stand as a parameter where shared ownership
+    of a lock is required. These are empty structs that will never be used, other than passing them on to
+    another function that requires them.
+
+    These types are implicitly convertible from various lock holding types, enabling callers to provide them as
+    proof of the lock that they hold.
+
+    The following example is intentially contrived to demonstrate multiple use cases:
+      - Methods that require only shared/read access
+      - Methods that require only exclusive write access
+      - Methods that pass their proof-of-lock to a helper
+    ~~~
+        class RemoteControl
+        {
+        public:
+            void VolumeUp();
+            int GetVolume();
+        private:
+            int GetCurrentVolume(wil::read_lock_required);
+            void AdjustVolume(int delta, wil::write_lock_required);
+            void SetNewVolume(int newVolume, wil::write_lock_required);
+
+            int m_currentVolume = 0;
+            wil::srwlock m_lock;
+        };
+
+        void RemoteControl::VolumeUp()
+        {
+            auto writeLock = m_lock.lock_exclusive();
+            AdjustVolume(1, writeLock);
+        }
+
+        int RemoteControl::GetVolume()
+        {
+            auto readLock = m_lock.lock_shared();
+            return GetCurrentVolume(readLock);
+        }
+
+        int RemoteControl::GetCurrentVolume(wil::read_lock_required)
+        {
+            return m_currentVolume;
+        }
+
+        void AdjustVolume(int delta, wil::write_lock_required lockProof)
+        {
+            const auto currentVolume = GetCurrentVolume(lockProof);
+            SetNewVolume(currentVolume + delta, lockProof);
+        }
+
+        void RemoteControl::SetNewVolume(int newVolume, wil::write_lock_required)
+        {
+            m_currentVolume = newVolume;
+        }
+    ~~~
+
+    In this design it is impossible to not meet the "lock must be held" precondition and the function parameter types
+    help you understand which one.
+
+    Cases not handled:
+      - Functions that need the lock held, but fail to specify this fact by requiring a lock required parameter need
+        to be found via code inspection.
+      - Recursively taking a lock, when it is already held, is not avoided in this pattern
+        - Readers will learn to be suspicious of acquiring a lock in functions with lock required parameters.
+      - Designs with multiple locks, that must be careful to take them in the same order every time, are not helped
+        by this pattern.
+      - Locking the wrong object
+      - Use of a std::lock type that has not actually be secured yet (such as by std::try_to_lock or std::defer_lock)
+        - or use of a lock type that had been acquired but has since been released, reset, or otherwise unlocked
+
+    These utility types are not fool-proof against all lock misuse, anti-patterns, or other complex yet valid
+    scenarios. However on the net, their usage in typical cases can assist in creating clearer, self-documenting
+    code that catches the common issues of forgetting to hold a lock or forgetting whether a lock is required to
+    call another method safely.
+    */
+    struct write_lock_required;
+
+    /**
+    Stands as proof that a shared lock has been acquired. See write_lock_required for more information.
+    */
+    struct read_lock_required;
+
+    namespace details
+    {
+        // Only those lock types specialized by lock_proof_traits will allow either a write_lock_required or
+        // read_lock_required to be constructed. The allows_exclusive value indicates if the type represents an exclusive,
+        // write-safe lock aquisition, or a shared, read-only lock acquisition.
+        template<typename T>
+        struct lock_proof_traits { };
+
+        // Base for specializing lock_proof_traits where the lock type is shared
+        struct shared_lock_proof
+        {
+            static constexpr bool allows_shared = true;
+        };
+
+        // Base for specializing lock_proof_traits where the lock type is exclusive (super-set of shared_lock_proof)
+        struct exclusive_lock_proof : shared_lock_proof
+        {
+            static constexpr bool allows_exclusive = true;
+        };
+    }
+
+    struct write_lock_required
+    {
+        /**
+        Construct a new write_lock_required object for use as proof that an exclusive lock has been acquired.
+        */
+        template <typename TLockProof>
+        write_lock_required(const TLockProof&, wistd::enable_if_t<details::lock_proof_traits<TLockProof>::allows_exclusive, int> = 0) {}
+
+        write_lock_required() = delete; // No default construction
+    };
+
+    struct read_lock_required
+    {
+        /**
+        Construct a new read_lock_required object for use as proof that a shared lock has been acquired.
+        */
+        template <typename TLockProof>
+        read_lock_required(const TLockProof&, wistd::enable_if_t<details::lock_proof_traits<TLockProof>::allows_shared, int> = 0) {}
+
+        /**
+        Uses a prior write_lock_required object to construct a read_lock_required object as proof that at shared lock
+        has been acquired. (Exclusive locks held are presumed to suffice for proof of a read lock)
+        */
+        read_lock_required(const write_lock_required&) {}
+
+        read_lock_required() = delete; // No default construction
+    };
+#endif // __WIL_RESOURCE_LOCK_ENFORCEMENT
+
+#if defined(__WIL_WINBASE_) && !defined(__WIL__RESOURCE_LOCKPROOF_WINBASE) && defined(__WIL_RESOURCE_LOCK_ENFORCEMENT)
+#define __WIL__RESOURCE_LOCKPROOF_WINBASE
+
+    namespace details
+    {
+        // Specializations for srwlock
+        template<>
+        struct lock_proof_traits<rwlock_release_shared_scope_exit> : shared_lock_proof {};
+
+        template<>
+        struct lock_proof_traits<rwlock_release_exclusive_scope_exit> : exclusive_lock_proof {};
+
+        // Specialization for critical_section
+        template<>
+        struct lock_proof_traits<cs_leave_scope_exit> : exclusive_lock_proof {};
+    }
+
+#endif //__WIL__RESOURCE_LOCKPROOF_WINBASE
+
+#if defined(_MUTEX_) && !defined(__WIL__RESOURCE_LOCKPROOF_MUTEX) && defined(__WIL_RESOURCE_LOCK_ENFORCEMENT)
+#define __WIL__RESOURCE_LOCKPROOF_MUTEX
+
+    namespace details
+    {
+        template<typename TMutex>
+        struct lock_proof_traits<std::unique_lock<TMutex>> : exclusive_lock_proof {};
+
+        template<typename TMutex>
+        struct lock_proof_traits<std::lock_guard<TMutex>> : exclusive_lock_proof {};
+    }
+
+#endif //__WIL__RESOURCE_LOCKPROOF_MUTEX
+
+#if defined(_SHARED_MUTEX_) && !defined(__WIL__RESOURCE_LOCKPROOF_SHAREDMUTEX) && defined(__WIL_RESOURCE_LOCK_ENFORCEMENT)
+#define __WIL__RESOURCE_LOCKPROOF_SHAREDMUTEX
+
+    namespace details
+    {
+        template<typename TMutex>
+        struct lock_proof_traits<std::shared_lock<TMutex>> : shared_lock_proof {};
+    }
+
+#endif //__WIL__RESOURCE_LOCKPROOF_SHAREDMUTEX
 
 } // namespace wil
 

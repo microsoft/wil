@@ -404,6 +404,29 @@ TEST_CASE("FileSystemTests::VerifyGetSystemDirectoryW", "[filesystem]")
     REQUIRE(CompareStringOrdinal(pathToTest.get(), -1, trueSystemDir.get(), -1, TRUE) == CSTR_EQUAL);
 }
 
+TEST_CASE("FileSystemTests::VerifyGetWindowsDirectoryW", "[filesystem]")
+{
+    wil::unique_cotaskmem_string pathToTest;
+    REQUIRE_SUCCEEDED(wil::GetWindowsDirectoryW(pathToTest));
+
+    // allocate based on the string that wil::GetWindowsDirectoryW returned
+    size_t length = wcslen(pathToTest.get()) + 1;
+    auto trueSystemDir = wil::make_cotaskmem_string_nothrow(nullptr, length);
+    REQUIRE(GetWindowsDirectoryW(trueSystemDir.get(), static_cast<UINT>(length)) > 0);
+
+    REQUIRE(CompareStringOrdinal(pathToTest.get(), -1, trueSystemDir.get(), -1, TRUE) == CSTR_EQUAL);
+
+    // Force AdaptFixed* to realloc. Test stack boundary with small initial buffer limit, c_stackBufferLimitTest
+    REQUIRE_SUCCEEDED((wil::GetWindowsDirectoryW<wil::unique_cotaskmem_string, c_stackBufferLimitTest>(pathToTest)));
+
+    // allocate based on the string that wil::GetWindowsDirectoryW returned
+    length = wcslen(pathToTest.get()) + 1;
+    trueSystemDir = wil::make_cotaskmem_string_nothrow(nullptr, length);
+    REQUIRE(GetWindowsDirectoryW(trueSystemDir.get(), static_cast<UINT>(length)) > 0);
+
+    REQUIRE(CompareStringOrdinal(pathToTest.get(), -1, trueSystemDir.get(), -1, TRUE) == CSTR_EQUAL);
+}
+
 struct has_operator_pcwstr
 {
     PCWSTR value;
@@ -540,7 +563,27 @@ TEST_CASE("FileSystemTests::VerifyGetModuleFileNameW", "[filesystem]")
     REQUIRE(wcscmp(path.get(), path2.get()) == 0);
 
     REQUIRE_FAILED(wil::GetModuleFileNameW((HMODULE)INVALID_HANDLE_VALUE, path));
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+    auto wstringPath = wil::GetModuleFileNameW<std::wstring, 15>(nullptr);
+    REQUIRE(wstringPath.length() == ::wcslen(wstringPath.c_str()));
+#endif
 }
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+wil::unique_cotaskmem_string NativeGetModuleFileNameWrap(HANDLE processHandle, HMODULE moduleHandle)
+{
+    DWORD size = MAX_PATH * 4;
+    auto path = wil::make_cotaskmem_string_nothrow(nullptr, size);
+
+    DWORD copied = processHandle ?
+        ::GetModuleFileNameExW(processHandle, moduleHandle, path.get(), size) :
+        ::GetModuleFileNameW(moduleHandle, path.get(), size);
+    REQUIRE(copied < size);
+
+    return path;
+}
+#endif
 
 TEST_CASE("FileSystemTests::VerifyGetModuleFileNameExW", "[filesystem]")
 {
@@ -555,6 +598,58 @@ TEST_CASE("FileSystemTests::VerifyGetModuleFileNameExW", "[filesystem]")
     REQUIRE(wcscmp(path.get(), path2.get()) == 0);
 
     REQUIRE_FAILED(wil::GetModuleFileNameExW(nullptr, (HMODULE)INVALID_HANDLE_VALUE, path));
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+    auto wstringPath = wil::GetModuleFileNameExW<std::wstring, 15>(nullptr, nullptr);
+    REQUIRE(wstringPath.length() == ::wcslen(wstringPath.c_str()));
+    REQUIRE(wstringPath == NativeGetModuleFileNameWrap(nullptr, nullptr).get());
+
+    wstringPath = wil::GetModuleFileNameExW<std::wstring, 15>(GetCurrentProcess(), nullptr);
+    REQUIRE(wstringPath.length() == ::wcslen(wstringPath.c_str()));
+    REQUIRE(wstringPath == NativeGetModuleFileNameWrap(GetCurrentProcess(), nullptr).get());
+
+    wstringPath = wil::GetModuleFileNameW<std::wstring, 15>(nullptr);
+    REQUIRE(wstringPath.length() == ::wcslen(wstringPath.c_str()));
+    REQUIRE(wstringPath == NativeGetModuleFileNameWrap(nullptr, nullptr).get());
+
+    HMODULE kernel32 = ::GetModuleHandleW(L"kernel32.dll");
+
+    wstringPath = wil::GetModuleFileNameExW<std::wstring, 15>(nullptr, kernel32);
+    REQUIRE(wstringPath.length() == ::wcslen(wstringPath.c_str()));
+    REQUIRE(wstringPath == NativeGetModuleFileNameWrap(nullptr, kernel32).get());
+
+    wstringPath = wil::GetModuleFileNameExW<std::wstring, 15>(GetCurrentProcess(), kernel32);
+    REQUIRE(wstringPath.length() == ::wcslen(wstringPath.c_str()));
+    REQUIRE(wstringPath == NativeGetModuleFileNameWrap(GetCurrentProcess(), kernel32).get());
+
+    wstringPath = wil::GetModuleFileNameW<std::wstring, 15>(kernel32);
+    REQUIRE(wstringPath.length() == ::wcslen(wstringPath.c_str()));
+    REQUIRE(wstringPath == NativeGetModuleFileNameWrap(nullptr, kernel32).get());
+#endif
 }
+
+TEST_CASE("FileSystemTests::QueryFullProcessImageNameW and GetModuleFileNameW", "[filesystem]")
+{
+#ifdef WIL_ENABLE_EXCEPTIONS
+    auto procName = wil::QueryFullProcessImageNameW<std::wstring>();
+    auto moduleName = wil::GetModuleFileNameW<std::wstring>();
+    REQUIRE(CompareStringOrdinal(procName.c_str(), -1, moduleName.c_str(), -1, TRUE) == CSTR_EQUAL);
+#endif
+}
+
+TEST_CASE("FileSystemTests::QueryFullProcessImageNameW", "[filesystem]")
+{
+    WCHAR fullName[MAX_PATH * 4];
+    DWORD fullNameSize = ARRAYSIZE(fullName);
+    REQUIRE(::QueryFullProcessImageNameW(::GetCurrentProcess(), 0, fullName, &fullNameSize));
+
+    wil::unique_cotaskmem_string path;
+    REQUIRE_SUCCEEDED(wil::QueryFullProcessImageNameW(::GetCurrentProcess(), 0, path));
+    REQUIRE(wcscmp(fullName, path.get()) == 0);
+
+    wil::unique_cotaskmem nativePath;
+    REQUIRE_SUCCEEDED((wil::QueryFullProcessImageNameW<wil::unique_cotaskmem_string, 15>(::GetCurrentProcess(), 0, path)));
+}
+
 
 #endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)

@@ -113,7 +113,7 @@ namespace wil
     {
         if (::CreateDirectoryW(path, nullptr) == FALSE)
         {
-            DWORD const lastError = ::GetLastError();
+            DWORD lastError = ::GetLastError();
             if (lastError == ERROR_PATH_NOT_FOUND)
             {
                 size_t parentLength;
@@ -122,9 +122,16 @@ namespace wil
                     wistd::unique_ptr<wchar_t[]> parent(new (std::nothrow) wchar_t[parentLength + 1]);
                     RETURN_IF_NULL_ALLOC(parent.get());
                     RETURN_IF_FAILED(StringCchCopyNW(parent.get(), parentLength + 1, path, parentLength));
-                    CreateDirectoryDeepNoThrow(parent.get()); // recurs
+                    RETURN_IF_FAILED(CreateDirectoryDeepNoThrow(parent.get())); // recurs
                 }
-                RETURN_IF_WIN32_BOOL_FALSE(::CreateDirectoryW(path, nullptr));
+                if (::CreateDirectoryW(path, nullptr) == FALSE)
+                {
+                    lastError = ::GetLastError();
+                    if (lastError != ERROR_ALREADY_EXISTS)
+                    {
+                        RETURN_WIN32(lastError);
+                    }
+                }
             }
             else if (lastError != ERROR_ALREADY_EXISTS)
             {
@@ -203,9 +210,9 @@ namespace wil
     }
 
     // Retrieve a handle to a directory only if it is safe to recurse into.
-    inline wil::unique_hfile TryCreateFileCanRecurseIntoDirectory(PCWSTR path, PWIN32_FIND_DATAW fileFindData)
+    inline wil::unique_hfile TryCreateFileCanRecurseIntoDirectory(PCWSTR path, PWIN32_FIND_DATAW fileFindData, DWORD access = GENERIC_READ | /*DELETE*/ 0x00010000L, DWORD share = FILE_SHARE_READ)
     {
-        wil::unique_hfile result(CreateFileW(path, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_DELETE,
+        wil::unique_hfile result(CreateFileW(path, access, share,
             nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, nullptr));
         if (result)
         {
@@ -231,7 +238,7 @@ namespace wil
 
     // If inputPath is a non-normalized name be sure to pass an extended length form to ensure
     // it can be addressed and deleted.
-    inline HRESULT RemoveDirectoryRecursiveNoThrow(PCWSTR inputPath, RemoveDirectoryOptions options = RemoveDirectoryOptions::None) WI_NOEXCEPT
+    inline HRESULT RemoveDirectoryRecursiveNoThrow(PCWSTR inputPath, RemoveDirectoryOptions options = RemoveDirectoryOptions::None, HANDLE deleteHandle = INVALID_HANDLE_VALUE) WI_NOEXCEPT
     {
         wil::unique_hlocal_string path;
         PATHCCH_OPTIONS combineOptions = PATHCCH_NONE;
@@ -276,7 +283,7 @@ namespace wil
                     if (recursivelyDeletableDirectoryHandle)
                     {
                         RemoveDirectoryOptions localOptions = options;
-                        RETURN_IF_FAILED(RemoveDirectoryRecursiveNoThrow(pathToDelete.get(), WI_ClearFlag(localOptions, RemoveDirectoryOptions::KeepRootDirectory)));
+                        RETURN_IF_FAILED(RemoveDirectoryRecursiveNoThrow(pathToDelete.get(), WI_ClearFlag(localOptions, RemoveDirectoryOptions::KeepRootDirectory), recursivelyDeletableDirectoryHandle.get()));
                     }
                     else if (WI_IsFlagSet(fd.dwFileAttributes, FILE_ATTRIBUTE_REPARSE_POINT))
                     {
@@ -330,7 +337,35 @@ namespace wil
 
         if (WI_IsFlagClear(options, RemoveDirectoryOptions::KeepRootDirectory))
         {
-            RETURN_IF_WIN32_BOOL_FALSE(::RemoveDirectoryW(path.get()));
+            if (deleteHandle != INVALID_HANDLE_VALUE)
+            {
+#if (NTDDI_VERSION >= NTDDI_WIN10_RS1)
+                // DeleteFile and RemoveDirectory use POSIX delete, falling back to non-POSIX on most errors. Do the same here.
+                FILE_DISPOSITION_INFO_EX fileInfoEx{};
+                fileInfoEx.Flags = FILE_DISPOSITION_FLAG_DELETE | FILE_DISPOSITION_FLAG_POSIX_SEMANTICS;
+                if (!SetFileInformationByHandle(deleteHandle, FileDispositionInfoEx, &fileInfoEx, sizeof(fileInfoEx)))
+                {
+                    auto const err = ::GetLastError();
+                    // The real error we're looking for is STATUS_CANNOT_DELETE, but that's mapped to ERROR_ACCESS_DENIED.
+                    if (err != ERROR_ACCESS_DENIED)
+                    {
+#endif
+                        FILE_DISPOSITION_INFO fileInfo{};
+                        fileInfo.DeleteFile = TRUE;
+                        RETURN_IF_WIN32_BOOL_FALSE(SetFileInformationByHandle(deleteHandle, FileDispositionInfo, &fileInfo, sizeof(fileInfo)));
+#if (NTDDI_VERSION >= NTDDI_WIN10_RS1)
+                    }
+                    else
+                    {
+                        RETURN_WIN32(err);
+                    }
+                }
+#endif
+            }
+            else
+            {
+                RETURN_IF_WIN32_BOOL_FALSE(::RemoveDirectoryW(path.get()));
+            }
         }
         return S_OK;
     }
@@ -366,7 +401,7 @@ namespace wil
 
         // range based for requires operator!=, operator++ and operator* to do its work
         // on the type returned from begin() and end(), provide those here.
-        bool operator!=(const next_entry_offset_iterator& other) const { return current_ != other.current_; }
+        WI_NODISCARD bool operator!=(const next_entry_offset_iterator& other) const { return current_ != other.current_; }
 
         next_entry_offset_iterator& operator++()
         {
@@ -383,8 +418,8 @@ namespace wil
             return copy;
         }
 
-        reference operator*() const WI_NOEXCEPT { return *current_; }
-        pointer operator->() const WI_NOEXCEPT { return current_; }
+        WI_NODISCARD reference operator*() const WI_NOEXCEPT { return *current_; }
+        WI_NODISCARD pointer operator->() const WI_NOEXCEPT { return current_; }
 
         next_entry_offset_iterator<T> begin() { return *this; }
         next_entry_offset_iterator<T> end()   { return next_entry_offset_iterator<T>(); }
@@ -587,6 +622,9 @@ namespace wil
                     if (m_folderHandle)
                     {
                         CancelIoEx(m_folderHandle.get(), &m_overlapped);
+
+                        DWORD bytesTransferredIgnored = 0;
+                        GetOverlappedResult(m_folderHandle.get(), &m_overlapped, &bytesTransferredIgnored, TRUE);
                     }
 
                     // Wait for callbacks to complete.
@@ -630,7 +668,7 @@ namespace wil
             OVERLAPPED m_overlapped{};
             TP_IO *m_tpIo = __nullptr;
             srwlock m_cancelLock;
-            char m_readBuffer[4096]; // Consider alternative buffer sizes. With 512 byte buffer i was not able to observe overflow.
+            unsigned char m_readBuffer[4096]; // Consider alternative buffer sizes. With 512 byte buffer i was not able to observe overflow.
         };
 
         inline void delete_folder_change_reader_state(_In_opt_ folder_change_reader_state *storage) { delete storage; }
@@ -674,7 +712,6 @@ namespace wil
             auto readerState = static_cast<details::folder_change_reader_state *>(context);
             // WI_ASSERT(overlapped == &readerState->m_overlapped);
 
-            bool requeue = true;
             if (result == ERROR_SUCCESS)
             {
                 for (auto const& info : create_next_entry_offset_iterator(reinterpret_cast<FILE_NOTIFY_INFORMATION *>(readerState->m_readBuffer)))
@@ -691,19 +728,17 @@ namespace wil
             }
             else
             {
-                requeue = false;
+                // No need to requeue
+                return;
             }
 
-            if (requeue)
+            // If the lock is held non-shared or the TP IO is nullptr, this
+            // structure is being torn down. Otherwise, monitor for further
+            // changes.
+            auto autoLock = readerState->m_cancelLock.try_lock_shared();
+            if (autoLock && readerState->m_tpIo)
             {
-                // If the lock is held non-shared or the TP IO is nullptr, this
-                // structure is being torn down. Otherwise, monitor for further
-                // changes.
-                auto autoLock = readerState->m_cancelLock.try_lock_shared();
-                if (autoLock && readerState->m_tpIo)
-                {
-                    readerState->StartIo(); // ignoring failure here
-                }
+                readerState->StartIo(); // ignoring failure here
             }
         }
 
@@ -835,7 +870,6 @@ namespace wil
     // TODO: add support for these and other similar APIs.
     // GetShortPathNameW()
     // GetLongPathNameW()
-    // GetWindowsDirectory()
     // GetTempDirectory()
 
     /// @cond
@@ -876,7 +910,7 @@ namespace wil
 
         // Type unsafe version used in the implementation to avoid template bloat.
         inline HRESULT GetFileInfo(HANDLE fileHandle, FILE_INFO_BY_HANDLE_CLASS infoClass, size_t allocationSize,
-            _Outptr_result_nullonfailure_ void **result)
+            _Outptr_result_maybenull_ void **result)
         {
             *result = nullptr;
 
