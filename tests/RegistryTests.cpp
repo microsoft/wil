@@ -273,7 +273,7 @@ TEST_CASE("BasicRegistryTests::ExampleUsage", "[registry]")
         REQUIRE_SUCCEEDED(deleteHr);
     }
 
-// Disable "unused variable" warnings for these examples
+    // Disable "unused variable" warnings for these examples
 #pragma warning(disable:4189)
     SECTION("Basic read/write")
     {
@@ -320,7 +320,7 @@ TEST_CASE("BasicRegistryTests::ExampleUsage", "[registry]")
     }
 #endif // defined(__cpp_lib_optional)
 
-    SECTION("Write values")
+    SECTION("Write values + Helper functions")
     {
         // Set values
         wil::reg::set_value(HKEY_CURRENT_USER, L"Software\\Microsoft\\BasicRegistryTest", L"StringValue", L"Wowee zowee");
@@ -331,27 +331,30 @@ TEST_CASE("BasicRegistryTests::ExampleUsage", "[registry]")
         wil::reg::set_value_string(HKEY_CURRENT_USER, L"Software\\Microsoft\\BasicRegistryTest", L"StringValue2", L"Bananas");
 
         // Known HKEY
-        const auto key = wil::reg::create_unique_key(HKEY_CURRENT_USER, L"Software\\Microsoft\\BasicRegistryTest");
+        const auto key = wil::reg::create_unique_key(HKEY_CURRENT_USER, L"Software\\Microsoft\\BasicRegistryTest", wil::reg::key_access::readwrite);
         wil::reg::set_value_dword(key.get(), L"DwordValue2", 42);
 
         // nothrow version, if you don't have exceptions
         THROW_IF_FAILED(wil::reg::set_value_string_nothrow(HKEY_CURRENT_USER, L"Software\\Microsoft\\BasicRegistryTest", L"StringValue3", L"Hi, Mom!"));
-    }
 
-    SECTION("Helper functions")
-    {
         // Get count of child keys and values.
-        const auto key = wil::reg::open_unique_key(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize");
-        const uint32_t childKeyCount = wil::reg::get_child_key_count(key.get());
         const uint32_t childValCount = wil::reg::get_child_value_count(key.get());
+        REQUIRE(childValCount == 5);
+        const uint32_t childKeyCount = wil::reg::get_child_key_count(key.get());
+        REQUIRE(childKeyCount == 0);
+
+        const auto keyWithSubkeys = wil::reg::open_unique_key(HKEY_CLASSES_ROOT, nullptr);
+        const uint32_t hugeChildKeyCount = wil::reg::get_child_key_count(keyWithSubkeys.get());
+        REQUIRE(hugeChildKeyCount >1000);
 
         // Get last modified date
-        const FILETIME lastModified = wil::reg::get_last_modified(key.get());
+        const FILETIME lastModified1 = wil::reg::get_last_modified(key.get());
+        const FILETIME lastModified2 = wil::reg::get_last_modified(keyWithSubkeys.get());
 
         // Simple helpers for analyzing returned HRESULTs
-        const bool a = wil::reg::is_registry_buffer_too_small(HRESULT_FROM_WIN32(ERROR_MORE_DATA)); // => true
-        const bool b = wil::reg::is_registry_not_found(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND)); // => true
-        const bool c = wil::reg::is_registry_not_found(HRESULT_FROM_WIN32(ERROR_PATH_NOT_FOUND)); // => true
+        REQUIRE(wil::reg::is_registry_buffer_too_small(HRESULT_FROM_WIN32(ERROR_MORE_DATA))); // => true
+        REQUIRE(wil::reg::is_registry_not_found(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))); // => true
+        REQUIRE(wil::reg::is_registry_not_found(HRESULT_FROM_WIN32(ERROR_PATH_NOT_FOUND))); // => true
     }
 #pragma warning(default:4189)
 }
@@ -1216,10 +1219,10 @@ TEMPLATE_LIST_TEST_CASE("BasicRegistryTests::simple types typed gets/sets/try_ge
                 VerifyThrowsHr(HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE), [&]()
                     {
                         TestType::try_get(HKEY_CURRENT_USER, testSubkey, wrongTypeValueName);
-                    });
-            }
+            });
         }
     }
+}
 #endif // defined(__cpp_lib_optional)
 }
 #endif // defined(WIL_ENABLE_EXCEPTIONS)
