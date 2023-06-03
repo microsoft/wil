@@ -53,12 +53,12 @@ const std::vector<std::vector<std::wstring>> multiStringTestVector{
 };
 
 const std::vector<std::vector<PCWSTR>> multiStringLiteralsTestArray{
-    { {L""} },
-    { {L""}, {L""} },
-    { {L""}, {L"."}, {L""}, {L"."}, {L""}, {L""} },
-    { {L"Hello there!"}, {L"Hello a second time!"}, {L"Hello a third time!"} },
-    { {L""}, {L""}, {L""} },
-    { {L"a"} }
+    { L"" },
+    { L"", L"" },
+    { L"", L".", L"", L".", L"", L"" },
+    { L"Hello there!", L"Hello a second time!", L"Hello a third time!" },
+    { L"", L"", L"" },
+    { L"a" }
 };
 
 const std::vector<BYTE> emptyStringTestValue{};
@@ -2472,7 +2472,7 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
     {
         REQUIRE(multiStringRawTestVector.size() == multiStringRawExpectedValues.size());
 
-        for (auto i = 0; i < multiStringRawTestVector.size(); ++i)
+        for (size_t i = 0; i < multiStringRawTestVector.size(); ++i)
         {
             const auto& test_value = multiStringRawTestVector[i];
             const auto& expected_value = multiStringRawExpectedValues[i];

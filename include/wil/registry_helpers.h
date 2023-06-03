@@ -223,7 +223,7 @@ namespace wil
                     memcpy(multistring.get() + array_offset, data[i], string_length_bytes);
                     array_offset += string_length_bytes;
 
-                    static_assert(sizeof(nullTermination) == sizeof(wchar_t));
+                    static_assert(sizeof(nullTermination) == sizeof(wchar_t), "null terminator must be a wchar");
                     memcpy(multistring.get() + array_offset, nullTermination, sizeof(nullTermination));
                     array_offset += sizeof(nullTermination);
                 }
