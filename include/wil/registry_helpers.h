@@ -203,7 +203,7 @@ namespace wil
                 size_t total_array_length_bytes = 0;
                 for (size_t i = 0; i < C; ++i)
                 {
-                    total_array_length_bytes += wcslen(data[i]) * sizeof(wchar_t);;
+                    total_array_length_bytes += wcslen(data[i]) * sizeof(wchar_t);
                     total_array_length_bytes += sizeof(wchar_t); // plus one for the null-terminator
                 }
                 total_array_length_bytes += sizeof(wchar_t); // plus one for the ending double-null-terminator
