@@ -45,11 +45,11 @@ const std::array<std::wstring, 4> stringTestArray = { L".", L"", L"Hello there!"
 const std::wstring expandedStringTestArray[] = { L".", L"", L"%WINDIR%", L"\0" };
 const std::vector<std::vector<std::wstring>> multiStringTestVector{
     std::vector<std::wstring>{ {} },
-    std::vector<std::wstring>{ {}, {} },
-    std::vector<std::wstring>{ {}, {L"."}, {}, {L"."}, {}, {} },
-    std::vector<std::wstring>{ {L"Hello there!"}, {L"Hello a second time!"}, {L"Hello a third time!"} },
-    std::vector<std::wstring>{ {L""}, {L""}, {L""} },
-    std::vector<std::wstring>{ {L"a"} }
+        std::vector<std::wstring>{ {}, {} },
+        std::vector<std::wstring>{ {}, { L"." }, {}, { L"." }, {}, {} },
+        std::vector<std::wstring>{ {L"Hello there!"}, { L"Hello a second time!" }, { L"Hello a third time!" } },
+        std::vector<std::wstring>{ {L""}, { L"" }, { L"" } },
+        std::vector<std::wstring>{ {L"a"} }
 };
 
 const std::vector<std::vector<PCWSTR>> multiStringLiteralsTestArray{
@@ -68,18 +68,18 @@ const std::wstring nonNullTerminatedStringFixed{ L"abcdefghijkl" };
 const std::vector<std::vector<BYTE>> vectorBytesTestArray
 {
     std::vector<BYTE>{ 0x00 },
-    std::vector<BYTE>{},
-    std::vector<BYTE>{ 0x1, 0x2, 0x3, 0x4, 0x5, 0x6,0x7, 0x8, 0x9,0xa, 0xb, 0xc, 0xd, 0xe, 0xf }
+        std::vector<BYTE>{},
+        std::vector<BYTE>{ 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf }
 };
 
 const std::vector<std::vector<BYTE>> multiStringRawTestVector{
     {}, // empty buffer
     { 0 }, // 1 char
-    {0, 0}, // 1 null terminators
-    {0, 0, 0, 0}, // 2 null terminators
-    {0, 0, 0, 0, 0, 0}, // 3 null terminators
-    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, // 10 null terminators
-    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, // odd number of nulls (5 1/2)
+    { 0, 0 }, // 1 null terminators
+    { 0, 0, 0, 0 }, // 2 null terminators
+    { 0, 0, 0, 0, 0, 0 }, // 3 null terminators
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // 10 null terminators
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // odd number of nulls (5 1/2)
     { 'a', 0, 'b', 0, 'c', 0, 'd', 0, }, // non-null-terminated sequence of letters
     { 'a', 0, 'b', 0, 'c', 0, 'd', 0, 0 }, // odd-null-terminated sequence of letters
     { 'a', 0, 'b', 0, 'c', 0, 'd', 0, 0, 0 }, // single-null-terminated sequence of letters
@@ -90,27 +90,27 @@ const std::vector<std::vector<BYTE>> multiStringRawTestVector{
     { 'a', 0, 'b', 0, 'c', 0, 0, 0, 'd', 0, 'e', 0, 'f', 0, 0, 0 }, // null-separated sequence of words, single final terminator
     { 'a', 0, 'b', 0, 'c', 0, 0, 0, 'd', 0, 'e', 0, 'f', 0, 0, 0, 0, 0 }, // null-separated sequence of words, double final terminator
     { 'a', 0, 0, 0, 0, 0, 'b', 0, 0, 0, 0, 0, 'c', 0, 0, 0, 0, 0, 'd', 0, 0, 0, 0, 0 }, // double-null-separated sequence of letters
-    {'f', 0, 'o', 0, 'o', 0, 0, 0, 'b', 0, 'a', 0, 'r', 0, 0, 0},
+    { 'f', 0, 'o', 0, 'o', 0, 0, 0, 'b', 0, 'a', 0, 'r', 0, 0, 0 },
 };
 const std::vector<std::vector<std::wstring>> multiStringRawExpectedValues{
     {std::wstring{}},
-    {std::wstring{}},
-    {std::wstring{}},
-    {std::wstring{}},
-    {std::wstring{}, std::wstring{}},
-    {std::wstring{}, std::wstring{}, std::wstring{}, std::wstring{}, std::wstring{}, std::wstring{}, std::wstring{}, std::wstring{}, std::wstring{}},
-    {std::wstring{}, std::wstring{}, std::wstring{}, std::wstring{}},
-    {std::wstring{L"abcd"}},
-    {std::wstring{L"abcd"}},
-    {std::wstring{L"abcd"}},
-    {std::wstring{L"abcd"}},
-    {std::wstring{L"abcd"}},
-    {std::wstring{L"a"}, std::wstring{L"b"}, std::wstring{L"c"}, std::wstring{L"d"} },
-    {std::wstring{L"abc"}, std::wstring{L"def"}},
-    {std::wstring{L"abc"}, std::wstring{L"def"}},
-    {std::wstring{L"abc"}, std::wstring{L"def"}},
-    {std::wstring{L"a"}, std::wstring{}, std::wstring{L"b"}, std::wstring{}, std::wstring{L"c"}, std::wstring{}, std::wstring{L"d"} },
-    {std::wstring{L"foo"}, std::wstring{L"bar"}},
+    { std::wstring{} },
+    { std::wstring{} },
+    { std::wstring{} },
+    { std::wstring{}, std::wstring{} },
+    { std::wstring{}, std::wstring{}, std::wstring{}, std::wstring{}, std::wstring{}, std::wstring{}, std::wstring{}, std::wstring{}, std::wstring{} },
+    { std::wstring{}, std::wstring{}, std::wstring{}, std::wstring{} },
+    { std::wstring{L"abcd"} },
+    { std::wstring{L"abcd"} },
+    { std::wstring{L"abcd"} },
+    { std::wstring{L"abcd"} },
+    { std::wstring{L"abcd"} },
+    { std::wstring{L"a"}, std::wstring{L"b"}, std::wstring{L"c"}, std::wstring{L"d"} },
+    { std::wstring{L"abc"}, std::wstring{L"def"} },
+    { std::wstring{L"abc"}, std::wstring{L"def"} },
+    { std::wstring{L"abc"}, std::wstring{L"def"} },
+    { std::wstring{L"a"}, std::wstring{}, std::wstring{L"b"}, std::wstring{}, std::wstring{L"c"}, std::wstring{}, std::wstring{L"d"} },
+    { std::wstring{L"foo"}, std::wstring{L"bar"} },
 };
 
 
@@ -2433,14 +2433,23 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
         REQUIRE_SUCCEEDED(wil::reg::get_value_multistring_nothrow(hkey.get(), stringValueName, result));
         REQUIRE(AreStringsEqual<1>(result, stringLiteralArrayOfOne));
 
+        REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(hkey.get(), stringValueName, result));
+        REQUIRE(AreStringsEqual<1>(result, stringLiteralArrayOfOne));
+
         // verify reusing the previously allocated buffer
         REQUIRE_SUCCEEDED(wil::reg::get_value_multistring_nothrow(hkey.get(), stringValueName, result));
+        REQUIRE(AreStringsEqual<1>(result, stringLiteralArrayOfOne));
+
+        REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(hkey.get(), stringValueName, result));
         REQUIRE(AreStringsEqual<1>(result, stringLiteralArrayOfOne));
 
         // and verify default value name
         result = {};
         REQUIRE_SUCCEEDED(wil::reg::set_value_byte_array_nothrow(hkey.get(), nullptr, REG_MULTI_SZ, byteBufferArrayOfOne));
         REQUIRE_SUCCEEDED(wil::reg::get_value_multistring_nothrow(hkey.get(), nullptr, result));
+        REQUIRE(AreStringsEqual<1>(result, stringLiteralArrayOfOne));
+
+        REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(hkey.get(), nullptr, result));
         REQUIRE(AreStringsEqual<1>(result, stringLiteralArrayOfOne));
     }
     SECTION("set_value_multistring_nothrow/get_value_multistring_nothrow: empty array with string key")
@@ -2457,14 +2466,23 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
         REQUIRE_SUCCEEDED(wil::reg::get_value_multistring_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, result));
         REQUIRE(AreStringsEqual<1>(result, stringLiteralArrayOfOne));
 
+        REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, result));
+        REQUIRE(AreStringsEqual<1>(result, stringLiteralArrayOfOne));
+
         // verify reusing the previously allocated buffer
         REQUIRE_SUCCEEDED(wil::reg::get_value_multistring_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, result));
+        REQUIRE(AreStringsEqual<1>(result, stringLiteralArrayOfOne));
+
+        REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, result));
         REQUIRE(AreStringsEqual<1>(result, stringLiteralArrayOfOne));
 
         // and verify default value name
         result = {};
         REQUIRE_SUCCEEDED(wil::reg::set_value_byte_array_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, REG_MULTI_SZ, byteBufferArrayOfOne));
         REQUIRE_SUCCEEDED(wil::reg::get_value_multistring_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, result));
+        REQUIRE(AreStringsEqual<1>(result, stringLiteralArrayOfOne));
+
+        REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, result));
         REQUIRE(AreStringsEqual<1>(result, stringLiteralArrayOfOne));
     }
 
@@ -2484,6 +2502,9 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
             wil::unique_cotaskmem_array_ptr<wil::unique_cotaskmem_string> result{};
             REQUIRE_SUCCEEDED(wil::reg::get_value_multistring_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, result));
             REQUIRE(AreStringsEqual(result, expected_value));
+
+            REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, result));
+            REQUIRE(AreStringsEqual(result, expected_value));
         }
     }
 #endif // #define __WIL_OBJBASE_H_
@@ -2500,7 +2521,9 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
 
             wil::reg::set_value_byte_vector(HKEY_CURRENT_USER, testSubkey, stringValueName, REG_MULTI_SZ, test_value);
             std::vector<std::wstring> result = wil::reg::get_value_multistring(HKEY_CURRENT_USER, testSubkey, stringValueName);
+            REQUIRE(result == expected_value);
 
+            result = wil::reg::get_value<::std::vector<::std::wstring>>(HKEY_CURRENT_USER, testSubkey, stringValueName);
             REQUIRE(result == expected_value);
         }
     }
@@ -2518,9 +2541,15 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
         auto result = wil::reg::get_value_multistring(hkey.get(), stringValueName);
         REQUIRE(result == arrayOfOne);
 
+        result = wil::reg::get_value<::std::vector<::std::wstring>>(hkey.get(), stringValueName);
+        REQUIRE(result == arrayOfOne);
+
         // and verify default value name
         wil::reg::set_value_multistring(hkey.get(), nullptr, test_multistring_empty);
         result = wil::reg::get_value_multistring(hkey.get(), nullptr);
+        REQUIRE(result == arrayOfOne);
+
+        result = wil::reg::get_value<::std::vector<::std::wstring>>(hkey.get(), nullptr);
         REQUIRE(result == arrayOfOne);
 #endif // #ifdef __WIL_WINREG_STL
     }
@@ -2534,9 +2563,15 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
         auto result = wil::reg::get_value_multistring(HKEY_CURRENT_USER, testSubkey, stringValueName);
         REQUIRE(result == arrayOfOne);
 
+        result = wil::reg::get_value<::std::vector<::std::wstring>>(HKEY_CURRENT_USER, testSubkey, stringValueName);
+        REQUIRE(result == arrayOfOne);
+
         // and verify default value name
         wil::reg::set_value_multistring(HKEY_CURRENT_USER, testSubkey, nullptr, test_multistring_empty);
         result = wil::reg::get_value_multistring(HKEY_CURRENT_USER, testSubkey, nullptr);
+        REQUIRE(result == arrayOfOne);
+
+        result = wil::reg::get_value<::std::vector<::std::wstring>>(HKEY_CURRENT_USER, testSubkey, nullptr);
         REQUIRE(result == arrayOfOne);
 #endif // #ifdef __WIL_WINREG_STL
     }
@@ -2555,9 +2590,15 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
         auto result = wil::reg::try_get_value_multistring(hkey.get(), stringValueName);
         REQUIRE(result.value() == arrayOfOne);
 
+        result = wil::reg::try_get_value<::std::vector<::std::wstring>>(hkey.get(), stringValueName);
+        REQUIRE(result.value() == arrayOfOne);
+
         // and verify default value name
         wil::reg::set_value(hkey.get(), nullptr, test_multistring_empty);
         result = wil::reg::try_get_value_multistring(hkey.get(), nullptr);
+        REQUIRE(result.value() == arrayOfOne);
+
+        result = wil::reg::try_get_value<::std::vector<::std::wstring>>(hkey.get(), nullptr);
         REQUIRE(result.value() == arrayOfOne);
 #endif // #ifdef __WIL_WINREG_STL
     }
@@ -2572,9 +2613,15 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
         auto result = wil::reg::try_get_value_multistring(HKEY_CURRENT_USER, testSubkey, stringValueName);
         REQUIRE(result.value() == arrayOfOne);
 
+        result = wil::reg::try_get_value<::std::vector<::std::wstring>>(HKEY_CURRENT_USER, testSubkey, stringValueName);
+        REQUIRE(result.value() == arrayOfOne);
+
         // and verify default value name
         wil::reg::set_value(HKEY_CURRENT_USER, testSubkey, nullptr, test_multistring_empty);
         result = wil::reg::try_get_value_multistring(HKEY_CURRENT_USER, testSubkey, nullptr);
+        REQUIRE(result.value() == arrayOfOne);
+
+        result = wil::reg::try_get_value<::std::vector<::std::wstring>>(HKEY_CURRENT_USER, testSubkey, nullptr);
         REQUIRE(result.value() == arrayOfOne);
 #endif #ifdef __WIL_WINREG_STL
     }
