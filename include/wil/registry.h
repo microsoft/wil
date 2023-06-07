@@ -320,8 +320,8 @@ namespace wil
         // Example of usage writing directly to a registry value from a raw byte vector
         //  - notice the registry type is required, not implied
         //     std::vector<BYTE> data { 0x00, 0xff, 0xee, 0xdd, 0xcc };
-        //     wil::reg::set_value_byte_vector(key, L"binary_value_name", REG_BINARY, data);
-        //     wil::reg::set_value_byte_vector(key, L"binary_value_name", REG_BINARY, data);
+        //     wil::reg::set_value_binary(key, L"binary_value_name", REG_BINARY, data);
+        //     wil::reg::set_value_binary(key, L"binary_value_name", REG_BINARY, data);
         //
 
         /**
@@ -566,38 +566,36 @@ namespace wil
 
 #if defined(_VECTOR_)
         /**
-         * \brief Writes a registry value of the specified type from a std::vector<ByteType>, where ByteType is any type that's unsigned 8-byte
+         * \brief Writes a registry value of the specified type from a std::vector<BYTE>
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to write to the unnamed default registry value.
          * \param type The registry type for the specified registry value - see RegSetKeyValueW
-         * \param data A std::vector<ByteType> to write to the specified registry value.
+         * \param data A std::vector<BYTE> to write to the specified registry value.
          *        The vector contents will be directly marshalled to the specified value.
          * \exception std::exception (including wil::ResultException) will be thrown on all failures
          */
-        template <typename ByteType, std::enable_if_t<std::is_same_v<ByteType, std::uint8_t>>* = nullptr>
-        void set_value_byte_vector(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, uint32_t type, const ::std::vector<ByteType>& data)
+        void set_value_binary(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, uint32_t type, const ::std::vector<uint8_t>& data)
         {
             const reg_view_details::reg_view regview{ key };
             regview.set_value(subkey, value_name, data, type);
         }
 
         /**
-         * \brief Writes a registry value of the specified type from a std::vector<ByteType>, where ByteType is any type that's unsigned 8-byte
+         * \brief Writes a registry value of the specified type from a std::vector<BYTE>
          * \param key An open or well-known registry key
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to write to the unnamed default registry value.
          * \param type The registry type for the specified registry value - see RegSetKeyValueW
-         * \param data A std::vector<ByteType> to write to the specified registry value.
+         * \param data A std::vector<BYTE> to write to the specified registry value.
          *        The vector contents will be directly marshalled to the specified value.
          * \exception std::exception (including wil::ResultException) will be thrown on all failures
          */
-        template <typename ByteType, std::enable_if_t<std::is_same_v<ByteType, std::uint8_t>>* = nullptr>
-        void set_value_byte_vector(HKEY key, _In_opt_ PCWSTR value_name, uint32_t type, const ::std::vector<ByteType>& data)
+        void set_value_binary(HKEY key, _In_opt_ PCWSTR value_name, uint32_t type, const ::std::vector<uint8_t>& data)
         {
-            ::wil::reg::set_value_byte_vector(key, nullptr, value_name, type, data);
+            ::wil::reg::set_value_binary(key, nullptr, value_name, type, data);
         }
 #endif // #if defined(_VECTOR_)
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS)
@@ -626,7 +624,7 @@ namespace wil
         //
         // Values can be written directly from a vector of bytes - the registry type must be specified; e.g.:
         //     std::vector<BYTE> data { 0x00, 0xff, 0xee, 0xdd, 0xcc };
-        //     hr = wil::reg::set_value_byte_vector_nothrow(key, L"binary_value_name", REG_BINARY, data);
+        //     hr = wil::reg::set_value_binary_nothrow(key, L"binary_value_name", REG_BINARY, data);
         //
 
         /**
@@ -816,10 +814,10 @@ namespace wil
          * \param value A ::wil::unique_cotaskmem_array_ptr<BYTE> holding the bytes to write into the specified registry value
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        inline HRESULT set_value_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, uint32_t type, const ::wil::unique_cotaskmem_array_ptr<BYTE>& value) WI_NOEXCEPT
+        inline HRESULT set_value_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, uint32_t type, const ::wil::unique_cotaskmem_array_ptr<uint8_t>& value) WI_NOEXCEPT
         {
             const reg_view_details::reg_view_nothrow regview{ key };
-            RETURN_IF_FAILED(regview.set_value<::wil::unique_cotaskmem_array_ptr<BYTE>>(subkey, value_name, value, type));
+            RETURN_IF_FAILED(regview.set_value<::wil::unique_cotaskmem_array_ptr<uint8_t>>(subkey, value_name, value, type));
             return S_OK;
         }
 
@@ -832,7 +830,7 @@ namespace wil
          * \param value A ::wil::unique_cotaskmem_array_ptr<BYTE> holding the bytes to write into the specified registry value
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        inline HRESULT set_value_nothrow(HKEY key, _In_opt_ PCWSTR value_name, uint32_t type, const ::wil::unique_cotaskmem_array_ptr<BYTE>& value) WI_NOEXCEPT
+        inline HRESULT set_value_nothrow(HKEY key, _In_opt_ PCWSTR value_name, uint32_t type, const ::wil::unique_cotaskmem_array_ptr<uint8_t>& value) WI_NOEXCEPT
         {
             return ::wil::reg::set_value_nothrow(key, nullptr, value_name, type, value);
         }
@@ -848,7 +846,7 @@ namespace wil
          * \param value A ::wil::unique_cotaskmem_array_ptr<BYTE> holding the bytes to write into the specified registry value
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        inline HRESULT set_value_byte_array_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, uint32_t type, const ::wil::unique_cotaskmem_array_ptr<BYTE>& value) WI_NOEXCEPT
+        inline HRESULT set_value_binary_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, uint32_t type, const ::wil::unique_cotaskmem_array_ptr<uint8_t>& value) WI_NOEXCEPT
         {
             return ::wil::reg::set_value_nothrow(key, subkey, value_name, type, value);
         }
@@ -862,7 +860,7 @@ namespace wil
          * \param value A ::wil::unique_cotaskmem_array_ptr<BYTE> holding the bytes to write into the specified registry value
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        inline HRESULT set_value_byte_array_nothrow(HKEY key, _In_opt_ PCWSTR value_name, uint32_t type, const ::wil::unique_cotaskmem_array_ptr<BYTE>& value) WI_NOEXCEPT
+        inline HRESULT set_value_binary_nothrow(HKEY key, _In_opt_ PCWSTR value_name, uint32_t type, const ::wil::unique_cotaskmem_array_ptr<uint8_t>& value) WI_NOEXCEPT
         {
             return ::wil::reg::set_value_nothrow(key, nullptr, value_name, type, value);
         }
@@ -897,7 +895,7 @@ namespace wil
         //     std::wstring expaned_string_value = wil::reg::get_value_expanded_string(key, L"string_value_name_with_environment_variables");
         //
         // Values can be read directly into a vector of bytes - the registry type must be specified; e.g.:
-        //     std::vector<BYTE> data = wil::reg::get_value_byte_vector(key, L"binary_value_name", REG_BINARY);
+        //     std::vector<BYTE> data = wil::reg::get_value_binary(key, L"binary_value_name", REG_BINARY);
         //
         // Multi-string values can be read into a vector<wstring>; e.g.:
         //     std::vector<std::wstring> multi_string_value = wil::reg::get_value_multistring(key, L"multi_string_value_name");
@@ -1438,9 +1436,9 @@ namespace wil
          * \return A std::vector<BYTE> containing the bytes of the specified registry value
          * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
          */
-        inline ::std::vector<BYTE> get_value_byte_vector(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, uint32_t type)
+        inline ::std::vector<uint8_t> get_value_binary(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, uint32_t type)
         {
-            ::std::vector<BYTE> return_value{};
+            ::std::vector<uint8_t> return_value{};
             const reg_view_details::reg_view regview{ key };
             regview.get_value(subkey, value_name, return_value, type);
             return return_value;
@@ -1455,9 +1453,9 @@ namespace wil
          * \return A std::vector<BYTE> containing the bytes of the specified registry value
          * \exception std::exception (including wil::ResultException) will be thrown on all failures, including value not found
          */
-        inline ::std::vector<BYTE> get_value_byte_vector(HKEY key, _In_opt_ PCWSTR value_name, uint32_t type)
+        inline ::std::vector<uint8_t> get_value_binary(HKEY key, _In_opt_ PCWSTR value_name, uint32_t type)
         {
-            return ::wil::reg::get_value_byte_vector(key, nullptr, value_name, type);
+            return ::wil::reg::get_value_binary(key, nullptr, value_name, type);
         }
 #endif // #if defined(_VECTOR_)
 
@@ -1480,7 +1478,7 @@ namespace wil
         inline ::std::vector<::std::wstring> get_value<::std::vector<::std::wstring>>(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
         {
             ::std::vector<::std::wstring> return_value;
-            ::std::vector<BYTE> rawData{ get_value_byte_vector(key, subkey, value_name, REG_MULTI_SZ) };
+            ::std::vector<uint8_t> rawData{ ::wil::reg::get_value_binary(key, subkey, value_name, REG_MULTI_SZ) };
             if (!rawData.empty())
             {
                 auto* const begin = reinterpret_cast<wchar_t*>(rawData.data());
@@ -1607,7 +1605,7 @@ namespace wil
     //     std::optional<std::wstring> opt_expaned_string_value = wil::reg::try_get_value_expanded_string(key, L"string_value_name_with_environment_variables");
     //
     // Values can be read directly into a vector of bytes - the registry type must be specified; e.g.:
-    //     std::optional<std::vector<BYTE>> opt_data = wil::reg::try_get_value_byte_vector(key, L"binary_value_name", REG_BINARY);
+    //     std::optional<std::vector<BYTE>> opt_data = wil::reg::try_get_value_binary(key, L"binary_value_name", REG_BINARY);
     //
     // Multi-string values can be read into a std::vector<std::wstring>; e.g.:
     //     std::optional<::std::vector<::std::wstring>> try_get_value_multistring(key, L"multi_string_value_name");
@@ -1774,10 +1772,10 @@ namespace wil
          *         Returns std::nullopt if the value does not exist.
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
          */
-        inline ::std::optional<::std::vector<BYTE>> try_get_value_byte_vector(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, uint32_t type)
+        inline ::std::optional<::std::vector<uint8_t>> try_get_value_binary(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, uint32_t type)
         {
             const reg_view_details::reg_view regview{ key };
-            return regview.try_get_value<::std::vector<BYTE>>(subkey, value_name, type);
+            return regview.try_get_value<::std::vector<uint8_t>>(subkey, value_name, type);
         }
 
         /**
@@ -1790,9 +1788,9 @@ namespace wil
          *         Returns std::nullopt if the value does not exist.
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
          */
-        inline ::std::optional<::std::vector<BYTE>> try_get_value_byte_vector(HKEY key, _In_opt_ PCWSTR value_name, uint32_t type)
+        inline ::std::optional<::std::vector<uint8_t>> try_get_value_binary(HKEY key, _In_opt_ PCWSTR value_name, uint32_t type)
         {
-            return ::wil::reg::try_get_value_byte_vector(key, nullptr, value_name, type);
+            return ::wil::reg::try_get_value_binary(key, nullptr, value_name, type);
         }
 #endif // #if defined(_VECTOR_)
 
@@ -2185,7 +2183,7 @@ namespace wil
         //
         // Values can be written directly from a vector of bytes - the registry type must be specified; e.g.:
         //     wil::unique_cotaskmem_array_ptr<BYTE> raw_value{};
-        //     hr = wil::reg::get_value_byte_array_nothrow(key, L"binary_value_name", REG_BINARY, raw_value);
+        //     hr = wil::reg::get_value_binary_nothrow(key, L"binary_value_name", REG_BINARY, raw_value);
         //
         // Reading REG_SZ and REG_EXPAND_SZ types are done through the below templated get_value_string_nothrow and get_value_expaneded_string_nothrow functions
         // Where the template type is the type to receive the string value
@@ -2673,7 +2671,7 @@ namespace wil
          * \param[out] return_value A ::wil::unique_cotaskmem_array_ptr<BYTE> receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        inline HRESULT get_value_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, uint32_t type, ::wil::unique_cotaskmem_array_ptr<BYTE>& return_value) WI_NOEXCEPT
+        inline HRESULT get_value_binary_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, uint32_t type, ::wil::unique_cotaskmem_array_ptr<uint8_t>& return_value) WI_NOEXCEPT
         {
             // zero the vector if it already had a buffer
             for (auto& byte_value : return_value)
@@ -2681,7 +2679,7 @@ namespace wil
                 byte_value = 0x00;
             }
             const reg_view_details::reg_view_nothrow regview{ key };
-            RETURN_IF_FAILED(regview.get_value<::wil::unique_cotaskmem_array_ptr<BYTE>>(subkey, value_name, return_value, type));
+            RETURN_IF_FAILED(regview.get_value<::wil::unique_cotaskmem_array_ptr<uint8_t>>(subkey, value_name, return_value, type));
             return S_OK;
         }
 
@@ -2694,39 +2692,9 @@ namespace wil
          * \param[out] return_value A ::wil::unique_cotaskmem_array_ptr<BYTE> receiving the value read from the registry
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        inline HRESULT get_value_nothrow(HKEY key, _In_opt_ PCWSTR value_name, uint32_t type, ::wil::unique_cotaskmem_array_ptr<BYTE>& return_value) WI_NOEXCEPT
+        inline HRESULT get_value_binary_nothrow(HKEY key, _In_opt_ PCWSTR value_name, uint32_t type, ::wil::unique_cotaskmem_array_ptr<uint8_t>& return_value) WI_NOEXCEPT
         {
-            return ::wil::reg::get_value_nothrow(key, nullptr, value_name, type, return_value);
-        }
-
-        /**
-         * \brief Reads the raw bytes from a registry value under a specified key of the specified type
-         * \param key An open or well-known registry key
-         * \param subkey The name of the subkey to append to `key`.
-         *        If `nullptr`, then `key` is used without modification.
-         * \param value_name The name of the registry value whose data is to be read.
-         *        Can be nullptr to read from the unnamed default registry value.
-         * \param type The registry type for the specified registry value to read from - see RegGetValueW
-         * \param[out] return_value A ::wil::unique_cotaskmem_array_ptr<BYTE> receiving the value read from the registry
-         * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
-         */
-        inline HRESULT get_value_byte_array_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, uint32_t type, ::wil::unique_cotaskmem_array_ptr<BYTE>& return_value) WI_NOEXCEPT
-        {
-            return ::wil::reg::get_value_nothrow(key, subkey, value_name, type, return_value);
-        }
-
-        /**
-         * \brief Reads the raw bytes from a registry value under a specified key of the specified type
-         * \param key An open or well-known registry key
-         * \param value_name The name of the registry value whose data is to be read.
-         *        Can be nullptr to read from the unnamed default registry value.
-         * \param type The registry type for the specified registry value to read from - see RegGetValueW
-         * \param[out] return_value A ::wil::unique_cotaskmem_array_ptr<BYTE> receiving the value read from the registry
-         * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
-         */
-        inline HRESULT get_value_byte_array_nothrow(HKEY key, _In_opt_ PCWSTR value_name, uint32_t type, ::wil::unique_cotaskmem_array_ptr<BYTE>& return_value) WI_NOEXCEPT
-        {
-            return ::wil::reg::get_value_nothrow(key, nullptr, value_name, type, return_value);
+            return ::wil::reg::get_value_binary_nothrow(key, nullptr, value_name, type, return_value);
         }
 #endif// #if defined(__WIL_OBJBASE_H_)
 
@@ -2955,8 +2923,8 @@ namespace wil
          */
         inline HRESULT get_value_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, ::wil::unique_cotaskmem_array_ptr<::wil::unique_cotaskmem_string>& return_value) WI_NOEXCEPT
         {
-            ::wil::unique_cotaskmem_array_ptr<BYTE> rawData;
-            RETURN_IF_FAILED(::wil::reg::get_value_byte_array_nothrow(key, subkey, value_name, REG_MULTI_SZ, rawData));
+            ::wil::unique_cotaskmem_array_ptr<uint8_t> rawData;
+            RETURN_IF_FAILED(::wil::reg::get_value_binary_nothrow(key, subkey, value_name, REG_MULTI_SZ, rawData));
             if (!rawData.empty())
             {
                 auto* const begin = reinterpret_cast<wchar_t*>(rawData.data());

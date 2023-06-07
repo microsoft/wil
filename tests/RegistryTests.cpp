@@ -1261,7 +1261,7 @@ TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
     {
         wil::unique_hkey hkey;
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
-        wil::reg::set_value_byte_vector(hkey.get(), stringValueName, REG_SZ, nonNullTerminatedString);
+        wil::reg::set_value_binary(hkey.get(), stringValueName, REG_SZ, nonNullTerminatedString);
 
         std::wstring result{};
         REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(hkey.get(), stringValueName, &result));
@@ -1269,7 +1269,7 @@ TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
     }
     SECTION("get_value_nothrow with non-null-terminated string: with string key")
     {
-        wil::reg::set_value_byte_vector(HKEY_CURRENT_USER, testSubkey, stringValueName, REG_SZ, nonNullTerminatedString);
+        wil::reg::set_value_binary(HKEY_CURRENT_USER, testSubkey, stringValueName, REG_SZ, nonNullTerminatedString);
 
         std::wstring result{};
         REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, &result));
@@ -1279,14 +1279,14 @@ TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
     {
         wil::unique_hkey hkey;
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
-        wil::reg::set_value_byte_vector(hkey.get(), stringValueName, REG_SZ, nonNullTerminatedString);
+        wil::reg::set_value_binary(hkey.get(), stringValueName, REG_SZ, nonNullTerminatedString);
 
         const std::wstring result{ wil::reg::get_value_string(hkey.get(), stringValueName) };
         REQUIRE(result == nonNullTerminatedStringFixed);
     }
     SECTION("get_value_string with non-null-terminated string: with string key")
     {
-        wil::reg::set_value_byte_vector(HKEY_CURRENT_USER, testSubkey, stringValueName, REG_SZ, nonNullTerminatedString);
+        wil::reg::set_value_binary(HKEY_CURRENT_USER, testSubkey, stringValueName, REG_SZ, nonNullTerminatedString);
 
         const std::wstring result{ wil::reg::get_value_string(HKEY_CURRENT_USER, testSubkey, stringValueName) };
         REQUIRE(result == nonNullTerminatedStringFixed);
@@ -1296,7 +1296,7 @@ TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
     {
         wil::unique_hkey hkey;
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
-        wil::reg::set_value_byte_vector(hkey.get(), stringValueName, REG_SZ, emptyStringTestValue);
+        wil::reg::set_value_binary(hkey.get(), stringValueName, REG_SZ, emptyStringTestValue);
 
         std::wstring result{};
         REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(hkey.get(), stringValueName, &result));
@@ -1304,7 +1304,7 @@ TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
     }
     SECTION("get_value_nothrow with empty string value: with string key")
     {
-        wil::reg::set_value_byte_vector(HKEY_CURRENT_USER, testSubkey, stringValueName, REG_SZ, emptyStringTestValue);
+        wil::reg::set_value_binary(HKEY_CURRENT_USER, testSubkey, stringValueName, REG_SZ, emptyStringTestValue);
 
         std::wstring result{};
         REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, &result));
@@ -1314,14 +1314,14 @@ TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
     {
         wil::unique_hkey hkey;
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
-        wil::reg::set_value_byte_vector(hkey.get(), stringValueName, REG_SZ, emptyStringTestValue);
+        wil::reg::set_value_binary(hkey.get(), stringValueName, REG_SZ, emptyStringTestValue);
 
         const std::wstring result{ wil::reg::get_value_string(hkey.get(), stringValueName) };
         REQUIRE(result.empty());
     }
     SECTION("get_value_string with empty string value: with string key")
     {
-        wil::reg::set_value_byte_vector(HKEY_CURRENT_USER, testSubkey, stringValueName, REG_SZ, emptyStringTestValue);
+        wil::reg::set_value_binary(HKEY_CURRENT_USER, testSubkey, stringValueName, REG_SZ, emptyStringTestValue);
 
         const std::wstring result{ wil::reg::get_value_string(HKEY_CURRENT_USER, testSubkey, stringValueName) };
         REQUIRE(result.empty());
@@ -2427,7 +2427,7 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
         byteBufferArrayOfOne[1] = 0x00;
         *byteBufferArrayOfOne.size_address() = 2;
 
-        REQUIRE_SUCCEEDED(wil::reg::set_value_byte_array_nothrow(hkey.get(), stringValueName, REG_MULTI_SZ, byteBufferArrayOfOne));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_binary_nothrow(hkey.get(), stringValueName, REG_MULTI_SZ, byteBufferArrayOfOne));
 
         wil::unique_cotaskmem_array_ptr<wil::unique_cotaskmem_string> result{};
         REQUIRE_SUCCEEDED(wil::reg::get_value_multistring_nothrow(hkey.get(), stringValueName, result));
@@ -2445,7 +2445,7 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
 
         // and verify default value name
         result = {};
-        REQUIRE_SUCCEEDED(wil::reg::set_value_byte_array_nothrow(hkey.get(), nullptr, REG_MULTI_SZ, byteBufferArrayOfOne));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_binary_nothrow(hkey.get(), nullptr, REG_MULTI_SZ, byteBufferArrayOfOne));
         REQUIRE_SUCCEEDED(wil::reg::get_value_multistring_nothrow(hkey.get(), nullptr, result));
         REQUIRE(AreStringsEqual<1>(result, stringLiteralArrayOfOne));
 
@@ -2460,7 +2460,7 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
         byteBufferArrayOfOne[1] = 0x00;
         *byteBufferArrayOfOne.size_address() = 2;
 
-        REQUIRE_SUCCEEDED(wil::reg::set_value_byte_array_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, REG_MULTI_SZ, byteBufferArrayOfOne));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_binary_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, REG_MULTI_SZ, byteBufferArrayOfOne));
 
         wil::unique_cotaskmem_array_ptr<wil::unique_cotaskmem_string> result{};
         REQUIRE_SUCCEEDED(wil::reg::get_value_multistring_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, result));
@@ -2478,7 +2478,7 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
 
         // and verify default value name
         result = {};
-        REQUIRE_SUCCEEDED(wil::reg::set_value_byte_array_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, REG_MULTI_SZ, byteBufferArrayOfOne));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_binary_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, REG_MULTI_SZ, byteBufferArrayOfOne));
         REQUIRE_SUCCEEDED(wil::reg::get_value_multistring_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, result));
         REQUIRE(AreStringsEqual<1>(result, stringLiteralArrayOfOne));
 
@@ -2497,7 +2497,7 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
 
             wil::unique_cotaskmem_array_ptr<BYTE> no_throw_test_value{ static_cast<BYTE*>(CoTaskMemAlloc(test_value.size())), test_value.size() };
             memcpy_s(no_throw_test_value.get(), no_throw_test_value.size(), test_value.data(), test_value.size());
-            REQUIRE_SUCCEEDED(wil::reg::set_value_byte_array_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, REG_MULTI_SZ, no_throw_test_value));
+            REQUIRE_SUCCEEDED(wil::reg::set_value_binary_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, REG_MULTI_SZ, no_throw_test_value));
 
             wil::unique_cotaskmem_array_ptr<wil::unique_cotaskmem_string> result{};
             REQUIRE_SUCCEEDED(wil::reg::get_value_multistring_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, result));
@@ -2519,7 +2519,7 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
             const auto& test_value = multiStringRawTestVector[i];
             const auto& expected_value = multiStringRawExpectedValues[i];
 
-            wil::reg::set_value_byte_vector(HKEY_CURRENT_USER, testSubkey, stringValueName, REG_MULTI_SZ, test_value);
+            wil::reg::set_value_binary(HKEY_CURRENT_USER, testSubkey, stringValueName, REG_MULTI_SZ, test_value);
             std::vector<std::wstring> result = wil::reg::get_value_multistring(HKEY_CURRENT_USER, testSubkey, stringValueName);
             REQUIRE(result == expected_value);
 
@@ -2825,51 +2825,51 @@ TEST_CASE("BasicRegistryTests::vector-bytes", "[registry]]")
         REQUIRE_SUCCEEDED(deleteHr);
     }
 
-    SECTION("set_value_byte_vector/get_value_byte_vector: with opened key")
+    SECTION("set_value_binary/get_value_binary: with opened key")
     {
         wil::unique_hkey hkey;
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
 
         verify_byte_vector(
-            [&](PCWSTR valueName, DWORD type) { return wil::reg::get_value_byte_vector(hkey.get(), valueName, type); },
-            [&](PCWSTR valueName, DWORD type, const std::vector<BYTE>& input) { wil::reg::set_value_byte_vector(hkey.get(), valueName, type, input); },
+            [&](PCWSTR valueName, DWORD type) { return wil::reg::get_value_binary(hkey.get(), valueName, type); },
+            [&](PCWSTR valueName, DWORD type, const std::vector<BYTE>& input) { wil::reg::set_value_binary(hkey.get(), valueName, type, input); },
             [&](PCWSTR valueName, DWORD input) { wil::reg::set_value_dword(hkey.get(), valueName, input); });
 
         verify_byte_vector_nothrow(
-            [&](PCWSTR valueName, DWORD type, wil::unique_cotaskmem_array_ptr<BYTE>& value) { return wil::reg::get_value_byte_array_nothrow(hkey.get(), valueName, type, value); },
-            [&](PCWSTR valueName, DWORD type, const std::vector<BYTE>& input) { wil::reg::set_value_byte_vector(hkey.get(), valueName, type, input); },
+            [&](PCWSTR valueName, DWORD type, wil::unique_cotaskmem_array_ptr<BYTE>& value) { return wil::reg::get_value_binary_nothrow(hkey.get(), valueName, type, value); },
+            [&](PCWSTR valueName, DWORD type, const std::vector<BYTE>& input) { wil::reg::set_value_binary(hkey.get(), valueName, type, input); },
             [&](PCWSTR valueName, DWORD input) { return wil::reg::set_value_dword_nothrow(hkey.get(), valueName, input); });
     }
-    SECTION("set_value_byte_vector/get_value_byte_vector: with string key")
+    SECTION("set_value_binary/get_value_binary: with string key")
     {
         verify_byte_vector(
-            [](PCWSTR valueName, DWORD type) { return wil::reg::get_value_byte_vector(HKEY_CURRENT_USER, testSubkey, valueName, type); },
-            [](PCWSTR valueName, DWORD type, const std::vector<BYTE>& input) { wil::reg::set_value_byte_vector(HKEY_CURRENT_USER, testSubkey, valueName, type, input); },
+            [](PCWSTR valueName, DWORD type) { return wil::reg::get_value_binary(HKEY_CURRENT_USER, testSubkey, valueName, type); },
+            [](PCWSTR valueName, DWORD type, const std::vector<BYTE>& input) { wil::reg::set_value_binary(HKEY_CURRENT_USER, testSubkey, valueName, type, input); },
             [](PCWSTR valueName, DWORD input) { wil::reg::set_value_dword(HKEY_CURRENT_USER, testSubkey, valueName, input); });
 
         verify_byte_vector_nothrow(
-            [&](PCWSTR valueName, DWORD type, wil::unique_cotaskmem_array_ptr<BYTE>& value) { return wil::reg::get_value_byte_array_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, type, value); },
-            [&](PCWSTR valueName, DWORD type, const std::vector<BYTE>& input) { wil::reg::set_value_byte_vector(HKEY_CURRENT_USER, testSubkey, valueName, type, input); },
+            [&](PCWSTR valueName, DWORD type, wil::unique_cotaskmem_array_ptr<BYTE>& value) { return wil::reg::get_value_binary_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, type, value); },
+            [&](PCWSTR valueName, DWORD type, const std::vector<BYTE>& input) { wil::reg::set_value_binary(HKEY_CURRENT_USER, testSubkey, valueName, type, input); },
             [&](PCWSTR valueName, DWORD input) { return wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, input); });
     }
 
 #if defined(__cpp_lib_optional)
-    SECTION("set_value_byte_vector/try_get_value_byte_vector: with open key")
+    SECTION("set_value_binary/try_get_value_binary: with open key")
     {
         wil::unique_hkey hkey;
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
 
         verify_try_byte_vector(
-            [&](PCWSTR valueName, DWORD type) { return wil::reg::try_get_value_byte_vector(hkey.get(), valueName, type); },
-            [&](PCWSTR valueName, DWORD type, const std::vector<BYTE>& input) { wil::reg::set_value_byte_vector(hkey.get(), valueName, type, input); },
+            [&](PCWSTR valueName, DWORD type) { return wil::reg::try_get_value_binary(hkey.get(), valueName, type); },
+            [&](PCWSTR valueName, DWORD type, const std::vector<BYTE>& input) { wil::reg::set_value_binary(hkey.get(), valueName, type, input); },
             [&](PCWSTR valueName, DWORD input) { wil::reg::set_value_dword(hkey.get(), valueName, input); });
     }
 
-    SECTION("set_value/try_get_value_byte_vector: with string key")
+    SECTION("set_value/try_get_value_binary: with string key")
     {
         verify_try_byte_vector(
-            [](PCWSTR valueName, DWORD type) { return wil::reg::try_get_value_byte_vector(HKEY_CURRENT_USER, testSubkey, valueName, type); },
-            [](PCWSTR valueName, DWORD type, const std::vector<BYTE>& input) { wil::reg::set_value_byte_vector(HKEY_CURRENT_USER, testSubkey, valueName, type, input); },
+            [](PCWSTR valueName, DWORD type) { return wil::reg::try_get_value_binary(HKEY_CURRENT_USER, testSubkey, valueName, type); },
+            [](PCWSTR valueName, DWORD type, const std::vector<BYTE>& input) { wil::reg::set_value_binary(HKEY_CURRENT_USER, testSubkey, valueName, type, input); },
             [](PCWSTR valueName, DWORD input) { wil::reg::set_value_dword(HKEY_CURRENT_USER, testSubkey, valueName, input); });
     }
 #endif // #if defined(__cpp_lib_optional)
@@ -2885,32 +2885,22 @@ TEST_CASE("BasicRegistryTests::cotaskmem_array-bytes", "[registry]]")
         REQUIRE_SUCCEEDED(deleteHr);
     }
 
-    SECTION("set_value_cotaskmem_array_byte_nothrow/get_value_byte_array_nothrow: with opened key")
+    SECTION("set_value_cotaskmem_array_byte_nothrow/get_value_binary_nothrow: with opened key")
     {
         wil::unique_hkey hkey;
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
 
         verify_cotaskmem_array_nothrow(
-            [&](PCWSTR valueName, DWORD type, wil::unique_cotaskmem_array_ptr<BYTE>& output) { return wil::reg::get_value_byte_array_nothrow(hkey.get(), valueName, type, output); },
-            [&](PCWSTR valueName, DWORD type, const wil::unique_cotaskmem_array_ptr<BYTE>& input) { return wil::reg::set_value_byte_array_nothrow(hkey.get(), nullptr, valueName, type, input); },
+            [&](PCWSTR valueName, DWORD type, wil::unique_cotaskmem_array_ptr<BYTE>& output) { return wil::reg::get_value_binary_nothrow(hkey.get(), valueName, type, output); },
+            [&](PCWSTR valueName, DWORD type, const wil::unique_cotaskmem_array_ptr<BYTE>& input) { return wil::reg::set_value_binary_nothrow(hkey.get(), nullptr, valueName, type, input); },
             [&](PCWSTR valueName, DWORD input) { return wil::reg::set_value_dword_nothrow(hkey.get(), valueName, input); });
-        // also with the generic functions
-        verify_cotaskmem_array_nothrow(
-            [&](PCWSTR valueName, DWORD type, wil::unique_cotaskmem_array_ptr<BYTE>& output) { return wil::reg::get_value_nothrow(hkey.get(), valueName, type, output); },
-            [&](PCWSTR valueName, DWORD type, const wil::unique_cotaskmem_array_ptr<BYTE>& input) { return wil::reg::set_value_nothrow(hkey.get(), nullptr, valueName, type, input); },
-            [&](PCWSTR valueName, DWORD input) { return wil::reg::set_value_nothrow(hkey.get(), valueName, input); });
     }
-    SECTION("set_value_cotaskmem_array_byte_nothrow/get_value_byte_array_nothrow: with string key")
+    SECTION("set_value_cotaskmem_array_byte_nothrow/get_value_binary_nothrow: with string key")
     {
         verify_cotaskmem_array_nothrow(
-            [](PCWSTR valueName, DWORD type, wil::unique_cotaskmem_array_ptr<BYTE>& output) { return wil::reg::get_value_byte_array_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, type, output); },
-            [](PCWSTR valueName, DWORD type, const  wil::unique_cotaskmem_array_ptr<BYTE>& input) { return wil::reg::set_value_byte_array_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, type, input); },
+            [](PCWSTR valueName, DWORD type, wil::unique_cotaskmem_array_ptr<BYTE>& output) { return wil::reg::get_value_binary_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, type, output); },
+            [](PCWSTR valueName, DWORD type, const  wil::unique_cotaskmem_array_ptr<BYTE>& input) { return wil::reg::set_value_binary_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, type, input); },
             [](PCWSTR valueName, DWORD input) { return wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, input); });
-        // also with the generic functions
-        verify_cotaskmem_array_nothrow(
-            [](PCWSTR valueName, DWORD type, wil::unique_cotaskmem_array_ptr<BYTE>& output) { return wil::reg::get_value_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, type, output); },
-            [](PCWSTR valueName, DWORD type, const  wil::unique_cotaskmem_array_ptr<BYTE>& input) { return wil::reg::set_value_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, type, input); },
-            [](PCWSTR valueName, DWORD input) { return wil::reg::set_value_nothrow(HKEY_CURRENT_USER, testSubkey, valueName, input); });
     }
 }
 #endif // #if defined(__WIL_OBJBASE_H_)

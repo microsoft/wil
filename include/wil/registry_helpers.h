@@ -195,10 +195,11 @@ namespace wil
             }
 #endif // #if defined(_VECTOR_) && defined(_STRING_) && defined(WIL_ENABLE_EXCEPTIONS)
 
+#if defined(__WIL_OBJBASE_H_)
             template <size_t C>
             void get_multistring_bytearray_from_strings_nothrow(const PCWSTR data[C], ::wil::unique_cotaskmem_array_ptr<BYTE>& multistring) WI_NOEXCEPT
             {
-                constexpr BYTE nullTermination[2]{ 0x00, 0x00 };
+                constexpr uint8_t nullTermination[2]{ 0x00, 0x00 };
 
                 size_t total_array_length_bytes = 0;
                 for (size_t i = 0; i < C; ++i)
@@ -208,7 +209,7 @@ namespace wil
                 }
                 total_array_length_bytes += sizeof(wchar_t); // plus one for the ending double-null-terminator
 
-                *multistring.addressof() = static_cast<BYTE*>(::CoTaskMemAlloc(total_array_length_bytes));
+                *multistring.addressof() = static_cast<uint8_t*>(::CoTaskMemAlloc(total_array_length_bytes));
                 if (!multistring.get())
                 {
                     multistring.reset();
@@ -232,7 +233,6 @@ namespace wil
                 memcpy(multistring.get() + array_offset, nullTermination, sizeof(nullTermination));
             }
 
-#if defined(__WIL_OBJBASE_H_)
             /**
              * \brief A translation function taking iterators referencing wchar_t characters and returns extracted individual wil::unique_cotaskmem_string objects
              *        The translation follows the rules for how MULTI_SZ registry value can be formatted, notably with embedded null characters
@@ -431,22 +431,22 @@ namespace wil
                 }
 
 #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
-                inline void* get_buffer(const ::std::vector<BYTE>& buffer) WI_NOEXCEPT
+                inline void* get_buffer(const ::std::vector<uint8_t>& buffer) WI_NOEXCEPT
                 {
-                    return const_cast<BYTE*>(buffer.data());
+                    return const_cast<uint8_t*>(buffer.data());
                 }
 
-                inline DWORD get_buffer_size_bytes(const ::std::vector<BYTE>& value) WI_NOEXCEPT
+                inline DWORD get_buffer_size_bytes(const ::std::vector<uint8_t>& value) WI_NOEXCEPT
                 {
                     return static_cast<DWORD>(value.size());
                 }
 
                 template <>
-                constexpr bool supports_prepare_buffer<::std::vector<BYTE>>() WI_NOEXCEPT
+                constexpr bool supports_prepare_buffer<::std::vector<uint8_t>>() WI_NOEXCEPT
                 {
                     return true;
                 }
-                inline HRESULT prepare_buffer(::std::vector<BYTE>& value) WI_NOEXCEPT try
+                inline HRESULT prepare_buffer(::std::vector<uint8_t>& value) WI_NOEXCEPT try
                 {
                     // resize the initial vector to at least 1 byte
                     // this is needed so we can detect when the registry value exists
@@ -465,11 +465,11 @@ namespace wil
                 CATCH_RETURN();
 
                 template <>
-                constexpr bool supports_resize_buffer<::std::vector<BYTE>>() WI_NOEXCEPT
+                constexpr bool supports_resize_buffer<::std::vector<uint8_t>>() WI_NOEXCEPT
                 {
                     return true;
                 }
-                inline HRESULT resize_buffer(::std::vector<BYTE>& buffer, DWORD byteSize) WI_NOEXCEPT try
+                inline HRESULT resize_buffer(::std::vector<uint8_t>& buffer, DWORD byteSize) WI_NOEXCEPT try
                 {
                     buffer.resize(byteSize);
                     return S_OK;
@@ -752,26 +752,26 @@ namespace wil
                     return S_OK;
                 }
 
-                inline void* get_buffer(const ::wil::unique_cotaskmem_array_ptr<BYTE>& value) WI_NOEXCEPT
+                inline void* get_buffer(const ::wil::unique_cotaskmem_array_ptr<uint8_t>& value) WI_NOEXCEPT
                 {
                     return value.get();
                 }
 
-                inline DWORD get_buffer_size_bytes(const ::wil::unique_cotaskmem_array_ptr<BYTE>& value) WI_NOEXCEPT
+                inline DWORD get_buffer_size_bytes(const ::wil::unique_cotaskmem_array_ptr<uint8_t>& value) WI_NOEXCEPT
                 {
                     return static_cast<DWORD>(value.size());
                 }
 
                 template<>
-                constexpr bool supports_resize_buffer<::wil::unique_cotaskmem_array_ptr<BYTE>>() WI_NOEXCEPT
+                constexpr bool supports_resize_buffer<::wil::unique_cotaskmem_array_ptr<uint8_t>>() WI_NOEXCEPT
                 {
                     return true;
                 }
 
-                inline HRESULT resize_buffer(::wil::unique_cotaskmem_array_ptr<BYTE>& arrayValue, DWORD byteSize) WI_NOEXCEPT
+                inline HRESULT resize_buffer(::wil::unique_cotaskmem_array_ptr<uint8_t>& arrayValue, DWORD byteSize) WI_NOEXCEPT
                 {
-                    ::wil::unique_cotaskmem_array_ptr<BYTE> tempValue;
-                    *tempValue.addressof() = static_cast<BYTE*>(::CoTaskMemAlloc(byteSize));
+                    ::wil::unique_cotaskmem_array_ptr<uint8_t> tempValue;
+                    *tempValue.addressof() = static_cast<uint8_t*>(::CoTaskMemAlloc(byteSize));
                     RETURN_IF_NULL_ALLOC(tempValue.get());
                     *tempValue.size_address() = byteSize;
 
@@ -1102,7 +1102,7 @@ namespace wil
                             subkey,
                             value_name,
                             type,
-                            static_cast<BYTE*>(reg_value_type_info::get_buffer(value)),
+                            static_cast<uint8_t*>(reg_value_type_info::get_buffer(value)),
                             reg_value_type_info::get_buffer_size_bytes(value))));
                 }
 
