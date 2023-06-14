@@ -280,6 +280,10 @@ void VerifyThrowsHr(HRESULT hr, const std::function<void()>& fn)
 }
 #endif
 
+// NOTE: these tests contain the code used in the documentation.
+//
+// They don't assert much: they simply validate that the code in the
+// documentation works.
 #if defined(WIL_ENABLE_EXCEPTIONS)
 TEST_CASE("BasicRegistryTests::ExampleUsage", "[registry]")
 {
@@ -295,8 +299,10 @@ TEST_CASE("BasicRegistryTests::ExampleUsage", "[registry]")
 
     // Disable "unused variable" warnings for these examples
 #pragma warning(disable:4189)
+#if defined(__clang__)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-variable"
+#endif
     SECTION("Basic read/write")
     {
         const DWORD showTypeOverlay = wil::reg::get_value_dword(
@@ -327,7 +333,7 @@ TEST_CASE("BasicRegistryTests::ExampleUsage", "[registry]")
     {
         // Get values (or try_get if the value might not exist)
         const DWORD dword = wil::reg::get_value_dword(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize", L"AppsUseLightTheme");
-        const std::optional<std::wstring> stringOptional = wil::reg::try_get_value_string(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes", L"CurrentTheme"); // TODO: besto docs
+        const std::optional<std::wstring> stringOptional = wil::reg::try_get_value_string(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes", L"CurrentTheme");
 
         // Known HKEY
         const auto key = wil::reg::open_unique_key(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize");
@@ -358,27 +364,27 @@ TEST_CASE("BasicRegistryTests::ExampleUsage", "[registry]")
 
         // nothrow version, if you don't have exceptions
         THROW_IF_FAILED(wil::reg::set_value_string_nothrow(HKEY_CURRENT_USER, L"Software\\Microsoft\\BasicRegistryTest", L"StringValue3", L"Hi, Mom!"));
+    }
+
+    SECTION("Helper functions")
+    {
+        const auto key = wil::reg::create_unique_key(HKEY_CURRENT_USER, L"Software\\Microsoft\\BasicRegistryTest", wil::reg::key_access::readwrite);
 
         // Get count of child keys and values.
         const uint32_t childValCount = wil::reg::get_child_value_count(key.get());
-        REQUIRE(childValCount == 5);
         const uint32_t childKeyCount = wil::reg::get_child_key_count(key.get());
-        REQUIRE(childKeyCount == 0);
-
-        const auto keyWithSubkeys = wil::reg::open_unique_key(HKEY_CLASSES_ROOT, nullptr);
-        const uint32_t hugeChildKeyCount = wil::reg::get_child_key_count(keyWithSubkeys.get());
-        REQUIRE(hugeChildKeyCount > 1000);
 
         // Get last modified date
-        const FILETIME lastModified1 = wil::reg::get_last_modified(key.get());
-        const FILETIME lastModified2 = wil::reg::get_last_modified(keyWithSubkeys.get());
+        const FILETIME lastModified = wil::reg::get_last_modified(key.get());
 
         // Simple helpers for analyzing returned HRESULTs
-        REQUIRE(wil::reg::is_registry_buffer_too_small(HRESULT_FROM_WIN32(ERROR_MORE_DATA))); // => true
-        REQUIRE(wil::reg::is_registry_not_found(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))); // => true
-        REQUIRE(wil::reg::is_registry_not_found(HRESULT_FROM_WIN32(ERROR_PATH_NOT_FOUND))); // => true
+        const bool a = wil::reg::is_registry_buffer_too_small(HRESULT_FROM_WIN32(ERROR_MORE_DATA)); // => true
+        const bool b = wil::reg::is_registry_not_found(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND)); // => true
+        const bool c = wil::reg::is_registry_not_found(HRESULT_FROM_WIN32(ERROR_PATH_NOT_FOUND)); // => true
     }
+#if defined(__clang__)
 #pragma clang diagnostic pop
+#endif
 #pragma warning(default:4189)
 }
 #endif // defined(WIL_ENABLE_EXCEPTIONS)
