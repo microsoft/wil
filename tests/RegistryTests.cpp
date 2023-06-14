@@ -2650,20 +2650,20 @@ void verify_cotaskmem_array_nothrow(
         wil::unique_cotaskmem_array_ptr<BYTE> result{};
         REQUIRE_SUCCEEDED(setFn(stringValueName, REG_BINARY, value));
         REQUIRE_SUCCEEDED(getFn(stringValueName, REG_BINARY, result));
-        REQUIRE(result.size() == value.size());
-        REQUIRE(value.size() == RtlCompareMemory(result.get(), value.get(), result.size()));
+
+        REQUIRE(std::equal(result.cbegin(), result.cend(), value.cbegin()));
 
         // verify reusing the same allocated buffer
         REQUIRE_SUCCEEDED(getFn(stringValueName, REG_BINARY, result));
         REQUIRE(result.size() == value.size());
-        REQUIRE(value.size() == RtlCompareMemory(result.get(), value.get(), result.size()));
+        REQUIRE(std::equal(result.cbegin(), result.cend(), value.cbegin()));
 
         // and verify default value name
         result = {};
         REQUIRE_SUCCEEDED(setFn(nullptr, REG_BINARY, value));
         REQUIRE_SUCCEEDED(getFn(nullptr, REG_BINARY, result));
         REQUIRE(result.size() == value.size());
-        REQUIRE(value.size() == RtlCompareMemory(result.get(), value.get(), result.size()));
+        REQUIRE(std::equal(result.cbegin(), result.cend(), value.cbegin()));
     }
 
     // fail get* if the value doesn't exist
