@@ -802,9 +802,6 @@ namespace
     // We also have separate tests for edge cases (for example, reading strings
     // without nullptr terminators, or reading completely blank multistrings).
 
-    // TODO: ensure we verify std::wstring is the default type
-    // TODO: fix dereferencing losing wil::unique_* in string code
-
     template<typename RetType, typename SetType>
     struct GenericBaseFns
     {
