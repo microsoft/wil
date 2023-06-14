@@ -2218,6 +2218,25 @@ namespace
     }
 
 #if defined(WIL_ENABLE_EXCEPTIONS)
+    void verify_expanded_string()
+    {
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
+
+        verify_expanded_string<std::wstring>(
+            [&](PCWSTR valueName) -> std::wstring { return wil::reg::get_value_expanded_string(hkey.get(), valueName); },
+            [&](PCWSTR valueName, PCWSTR input) { wil::reg::set_value_expanded_string(hkey.get(), valueName, input); },
+            [&](PCWSTR valueName) { wil::reg::set_value_dword(hkey.get(), valueName, test_dword_zero); });
+    }
+
+    void verify_expanded_string_subkey()
+    {
+        verify_expanded_string<std::wstring>(
+            [](PCWSTR valueName) -> std::wstring { return wil::reg::get_value_expanded_string(HKEY_CURRENT_USER, testSubkey, valueName); },
+            [](PCWSTR valueName, PCWSTR input) { wil::reg::set_value_expanded_string(HKEY_CURRENT_USER, testSubkey, valueName, input); },
+            [](PCWSTR valueName) { wil::reg::set_value_dword(HKEY_CURRENT_USER, testSubkey, valueName, test_dword_zero); });
+    }
+
     template<typename StringT>
     void verify_expanded_string()
     {
@@ -2274,6 +2293,25 @@ namespace
             {
                 getFn(dwordValueName);
             });
+    }
+
+    void verify_try_expanded_string()
+    {
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
+
+        verify_try_expanded_string<std::wstring>(
+            [&](PCWSTR valueName) { return wil::reg::try_get_value_expanded_string(hkey.get(), valueName); },
+            [&](PCWSTR valueName, PCWSTR input) { wil::reg::set_value_expanded_string(hkey.get(), valueName, input); },
+            [&](PCWSTR valueName) { wil::reg::set_value_dword(hkey.get(), valueName, test_dword_zero); });
+    }
+
+    void verify_try_expanded_string_subkey()
+    {
+        verify_try_expanded_string<std::wstring>(
+            [](PCWSTR valueName) { return wil::reg::try_get_value_expanded_string(HKEY_CURRENT_USER, testSubkey, valueName); },
+            [](PCWSTR valueName, PCWSTR input) { wil::reg::set_value_expanded_string(HKEY_CURRENT_USER, testSubkey, valueName, input); },
+            [](PCWSTR valueName) { wil::reg::set_value_dword(HKEY_CURRENT_USER, testSubkey, valueName, test_dword_zero); });
     }
 
     template<typename StringT>
@@ -2345,6 +2383,7 @@ TEST_CASE("BasicRegistryTests::expanded_string", "[registry]")
 #if defined(WIL_ENABLE_EXCEPTIONS)
     SECTION("set_value_expanded_string/get_value_expanded_string: with opened key")
     {
+        verify_expanded_string();
         verify_expanded_string<std::wstring>();
 
 #if defined(__WIL_OLEAUTO_H_)
@@ -2364,6 +2403,7 @@ TEST_CASE("BasicRegistryTests::expanded_string", "[registry]")
 
     SECTION("set_value_expanded_string/get_value_expanded_string: with string key")
     {
+        verify_expanded_string_subkey();
         verify_expanded_string_subkey<std::wstring>();
 
 #if defined(__WIL_OLEAUTO_H_)
@@ -2384,6 +2424,7 @@ TEST_CASE("BasicRegistryTests::expanded_string", "[registry]")
 #if defined(__cpp_lib_optional)
     SECTION("set_value_expanded_string/try_get_value_expanded_string: with open key")
     {
+        verify_try_expanded_string();
         verify_try_expanded_string<std::wstring>();
 
 #if defined(__WIL_OLEAUTO_H_STL)
@@ -2399,6 +2440,7 @@ TEST_CASE("BasicRegistryTests::expanded_string", "[registry]")
 
     SECTION("set_value_expanded_string/try_get_value_expanded_string: with string key")
     {
+        verify_try_expanded_string_subkey();
         verify_try_expanded_string_subkey<std::wstring>();
 
 #if defined(__WIL_OLEAUTO_H_STL)
@@ -2413,7 +2455,6 @@ TEST_CASE("BasicRegistryTests::expanded_string", "[registry]")
     }
 #endif
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS)
-    // TODO: verify std::wstring is the default
 }
 
 TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
