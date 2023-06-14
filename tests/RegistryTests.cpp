@@ -295,6 +295,8 @@ TEST_CASE("BasicRegistryTests::ExampleUsage", "[registry]")
 
     // Disable "unused variable" warnings for these examples
 #pragma warning(disable:4189)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-variable"
     SECTION("Basic read/write")
     {
         const DWORD showTypeOverlay = wil::reg::get_value_dword(
@@ -376,6 +378,7 @@ TEST_CASE("BasicRegistryTests::ExampleUsage", "[registry]")
         REQUIRE(wil::reg::is_registry_not_found(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))); // => true
         REQUIRE(wil::reg::is_registry_not_found(HRESULT_FROM_WIN32(ERROR_PATH_NOT_FOUND))); // => true
     }
+#pragma clang diagnostic pop
 #pragma warning(default:4189)
 }
 #endif // defined(WIL_ENABLE_EXCEPTIONS)
@@ -2514,7 +2517,7 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
     {
         REQUIRE(multiStringRawTestVector.size() == multiStringRawExpectedValues.size());
 
-        for (auto i = 0; i < multiStringRawTestVector.size(); ++i)
+        for (size_t i = 0; i < multiStringRawTestVector.size(); ++i)
         {
             const auto& test_value = multiStringRawTestVector[i];
             const auto& expected_value = multiStringRawExpectedValues[i];
@@ -2623,7 +2626,7 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
 
         result = wil::reg::try_get_value<::std::vector<::std::wstring>>(HKEY_CURRENT_USER, testSubkey, nullptr);
         REQUIRE(result.value() == arrayOfOne);
-#endif #ifdef __WIL_WINREG_STL
+#endif // #ifdef __WIL_WINREG_STL
     }
 #endif
 #endif
