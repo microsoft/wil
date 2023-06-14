@@ -814,7 +814,7 @@ namespace wil
          * \param value A ::wil::unique_cotaskmem_array_ptr<BYTE> holding the bytes to write into the specified registry value
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        inline HRESULT set_value_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, uint32_t type, const ::wil::unique_cotaskmem_array_ptr<uint8_t>& value) WI_NOEXCEPT
+        inline HRESULT set_value_binary_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, uint32_t type, const ::wil::unique_cotaskmem_array_ptr<uint8_t>& value) WI_NOEXCEPT
         {
             const reg_view_details::reg_view_nothrow regview{ key };
             RETURN_IF_FAILED(regview.set_value<::wil::unique_cotaskmem_array_ptr<uint8_t>>(subkey, value_name, value, type));
@@ -830,39 +830,9 @@ namespace wil
          * \param value A ::wil::unique_cotaskmem_array_ptr<BYTE> holding the bytes to write into the specified registry value
          * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
-        inline HRESULT set_value_nothrow(HKEY key, _In_opt_ PCWSTR value_name, uint32_t type, const ::wil::unique_cotaskmem_array_ptr<uint8_t>& value) WI_NOEXCEPT
-        {
-            return ::wil::reg::set_value_nothrow(key, nullptr, value_name, type, value);
-        }
-
-        /**
-         * \brief Writes raw bytes into a registry value under a specified key of the specified type
-         * \param key An open or well-known registry key
-         * \param subkey The name of the subkey to append to `key`.
-         *        If `nullptr`, then `key` is used without modification.
-         * \param value_name The name of the registry value whose data is to be updated.
-         *        Can be nullptr to write to the unnamed default registry value.
-         * \param type The registry type for the specified registry value to write to - see RegSetValue
-         * \param value A ::wil::unique_cotaskmem_array_ptr<BYTE> holding the bytes to write into the specified registry value
-         * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
-         */
-        inline HRESULT set_value_binary_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, uint32_t type, const ::wil::unique_cotaskmem_array_ptr<uint8_t>& value) WI_NOEXCEPT
-        {
-            return ::wil::reg::set_value_nothrow(key, subkey, value_name, type, value);
-        }
-
-        /**
-         * \brief Writes raw bytes into a registry value under a specified key of the specified type
-         * \param key An open or well-known registry key
-         * \param value_name The name of the registry value whose data is to be updated.
-         *        Can be nullptr to write to the unnamed default registry value.
-         * \param type The registry type for the specified registry value to write to - see RegSetValue
-         * \param value A ::wil::unique_cotaskmem_array_ptr<BYTE> holding the bytes to write into the specified registry value
-         * \return HRESULT error code indicating success or failure (does not throw C++ exceptions)
-         */
         inline HRESULT set_value_binary_nothrow(HKEY key, _In_opt_ PCWSTR value_name, uint32_t type, const ::wil::unique_cotaskmem_array_ptr<uint8_t>& value) WI_NOEXCEPT
         {
-            return ::wil::reg::set_value_nothrow(key, nullptr, value_name, type, value);
+            return ::wil::reg::set_value_binary_nothrow(key, nullptr, value_name, type, value);
         }
 #endif
 
