@@ -373,7 +373,6 @@ TEST_CASE("BasicRegistryTests::ExampleUsage", "[registry]")
         REQUIRE(wil::reg::get_value_string(HKEY_CURRENT_USER, L"Software\\Microsoft\\BasicRegistryTest", L"StringValue2") == L"Besto wuz here");
         REQUIRE(wil::reg::get_value_dword(key.get(), L"DwordValue3") == 42);
         REQUIRE(wil::reg::get_value_string(HKEY_CURRENT_USER, L"Software\\Microsoft\\BasicRegistryTest", L"StringValue3") == L"Hi, Mom!");
-
     }
 
     SECTION("Helper functions")
