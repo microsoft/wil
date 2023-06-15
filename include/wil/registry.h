@@ -229,12 +229,12 @@ namespace wil
         }
 
         /**
-         * \brief Queries for the filetime when the registry key was last modified
+         * \brief Queries for the filetime when the registry key was last written
          * \param key The HKEY to query for number of values
-         * \param[out] lastModified A pointer to a FILETIME to receive the last time modified
+         * \param[out] lastModified A pointer to a FILETIME to receive the last write time
          * \exception std::exception (including wil::ResultException) will be thrown on all failures
          */
-        inline HRESULT get_last_modified_nothrow(HKEY key, _Out_ FILETIME* lastModified) WI_NOEXCEPT
+        inline HRESULT get_last_write_filetime_nothrow(HKEY key, _Out_ FILETIME* lastModified) WI_NOEXCEPT
         {
             RETURN_IF_WIN32_ERROR(
                 RegQueryInfoKeyW(
@@ -281,15 +281,15 @@ namespace wil
         }
 
         /**
-         * \brief Queries for the filetime when the registry key was last modified
+         * \brief Queries for the filetime when the registry key was last written
          * \param key The HKEY to query for number of values
          * \return The queried filetime if succeeded
          * \exception std::exception (including wil::ResultException) will be thrown on all failures
          */
-        inline FILETIME get_last_modified(HKEY key)
+        inline FILETIME get_last_write_filetime(HKEY key)
         {
             FILETIME lastModified{};
-            THROW_IF_FAILED(::wil::reg::get_last_modified_nothrow(key, &lastModified));
+            THROW_IF_FAILED(::wil::reg::get_last_write_filetime_nothrow(key, &lastModified));
             return lastModified;
         }
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS)

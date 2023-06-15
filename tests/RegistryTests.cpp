@@ -384,8 +384,8 @@ TEST_CASE("BasicRegistryTests::ExampleUsage", "[registry]")
         const uint32_t childKeyCount = wil::reg::get_child_key_count(key.get());
         const uint32_t largeChildKeyCount = wil::reg::get_child_key_count(HKEY_CLASSES_ROOT);
 
-        // Get last modified date
-        const FILETIME lastModified = wil::reg::get_last_modified(key.get());
+        // Get last write time
+        const FILETIME lastModified = wil::reg::get_last_write_filetime(key.get());
 
         // Simple helpers for analyzing returned HRESULTs
         const bool a = wil::reg::is_registry_buffer_too_small(HRESULT_FROM_WIN32(ERROR_MORE_DATA)); // => true
