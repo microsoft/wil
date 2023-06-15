@@ -577,7 +577,7 @@ namespace wil
          *        The vector contents will be directly marshalled to the specified value.
          * \exception std::exception (including wil::ResultException) will be thrown on all failures
          */
-        void set_value_binary(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, uint32_t type, const ::std::vector<uint8_t>& data)
+        inline void set_value_binary(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, uint32_t type, const ::std::vector<uint8_t>& data)
         {
             const reg_view_details::reg_view regview{ key };
             regview.set_value(subkey, value_name, data, type);
@@ -593,7 +593,7 @@ namespace wil
          *        The vector contents will be directly marshalled to the specified value.
          * \exception std::exception (including wil::ResultException) will be thrown on all failures
          */
-        void set_value_binary(HKEY key, _In_opt_ PCWSTR value_name, uint32_t type, const ::std::vector<uint8_t>& data)
+        inline void set_value_binary(HKEY key, _In_opt_ PCWSTR value_name, uint32_t type, const ::std::vector<uint8_t>& data)
         {
             ::wil::reg::set_value_binary(key, nullptr, value_name, type, data);
         }
