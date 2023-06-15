@@ -187,7 +187,7 @@ bool AreStringsEqual(wil::unique_cotaskmem_array_ptr<wil::unique_cotaskmem_strin
 {
     if (C != cotaskmemarray_strings.size())
     {
-        wprintf(L"array_literals[C] size (%llu) is not equal to cotaskmemarray_strings.size() (%llu)", C, cotaskmemarray_strings.size());
+        wprintf(L"array_literals[C] size (%zu) is not equal to cotaskmemarray_strings.size() (%zu)", C, cotaskmemarray_strings.size());
         return false;
     }
 
@@ -248,7 +248,7 @@ bool AreStringsEqual(const wil::unique_cotaskmem_array_ptr<BYTE>& lhs, const std
 {
     if (lhs.size() != rhs.size())
     {
-        wprintf(L"lhs size (%llu) is not equal to rhs.size() (%llu)", lhs.size(), rhs.size());
+        wprintf(L"lhs size (%zu) is not equal to rhs.size() (%zu)", lhs.size(), rhs.size());
         return false;
     }
 
