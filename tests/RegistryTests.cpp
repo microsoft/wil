@@ -348,22 +348,32 @@ TEST_CASE("BasicRegistryTests::ExampleUsage", "[registry]")
     }
 #endif // defined(__cpp_lib_optional)
 
-    SECTION("Write values + Helper functions")
+    SECTION("Write values")
     {
         // Set values
-        wil::reg::set_value(HKEY_CURRENT_USER, L"Software\\Microsoft\\BasicRegistryTest", L"StringValue", L"Wowee zowee");
-        wil::reg::set_value(HKEY_CURRENT_USER, L"Software\\Microsoft\\BasicRegistryTest", L"DwordValue", 18);
+        wil::reg::set_value_dword(HKEY_CURRENT_USER, L"Software\\Microsoft\\BasicRegistryTest", L"DwordValue", 18);
+        wil::reg::set_value_string(HKEY_CURRENT_USER, L"Software\\Microsoft\\BasicRegistryTest", L"StringValue", L"Wowee zowee");
 
-        // Provide explicit types to avoid caller error, if you'd like.
-        wil::reg::set_value_dword(HKEY_CURRENT_USER, L"Software\\Microsoft\\BasicRegistryTest", L"DwordValue2", 1);
-        wil::reg::set_value_string(HKEY_CURRENT_USER, L"Software\\Microsoft\\BasicRegistryTest", L"StringValue2", L"Bananas");
+        // Generic versions, if you don't want to specify type.
+        wil::reg::set_value(HKEY_CURRENT_USER, L"Software\\Microsoft\\BasicRegistryTest", L"DwordValue2", 1);
+        wil::reg::set_value(HKEY_CURRENT_USER, L"Software\\Microsoft\\BasicRegistryTest", L"StringValue2", L"Besto wuz here");
 
         // Known HKEY
         const auto key = wil::reg::create_unique_key(HKEY_CURRENT_USER, L"Software\\Microsoft\\BasicRegistryTest", wil::reg::key_access::readwrite);
-        wil::reg::set_value_dword(key.get(), L"DwordValue2", 42);
+        wil::reg::set_value_dword(key.get(), L"DwordValue3", 42);
 
         // nothrow version, if you don't have exceptions
         THROW_IF_FAILED(wil::reg::set_value_string_nothrow(HKEY_CURRENT_USER, L"Software\\Microsoft\\BasicRegistryTest", L"StringValue3", L"Hi, Mom!"));
+
+        // --- validation, not included in documentation ---
+
+        REQUIRE(wil::reg::get_value_dword(HKEY_CURRENT_USER, L"Software\\Microsoft\\BasicRegistryTest", L"DwordValue") == 18);
+        REQUIRE(wil::reg::get_value_string(HKEY_CURRENT_USER, L"Software\\Microsoft\\BasicRegistryTest", L"StringValue") == L"Wowee zowee");
+        REQUIRE(wil::reg::get_value_dword(HKEY_CURRENT_USER, L"Software\\Microsoft\\BasicRegistryTest", L"DwordValue2") == 1);
+        REQUIRE(wil::reg::get_value_string(HKEY_CURRENT_USER, L"Software\\Microsoft\\BasicRegistryTest", L"StringValue2") == L"Besto wuz here");
+        REQUIRE(wil::reg::get_value_dword(key.get(), L"DwordValue3") == 42);
+        REQUIRE(wil::reg::get_value_string(HKEY_CURRENT_USER, L"Software\\Microsoft\\BasicRegistryTest", L"StringValue3") == L"Hi, Mom!");
+
     }
 
     SECTION("Helper functions")
@@ -373,6 +383,7 @@ TEST_CASE("BasicRegistryTests::ExampleUsage", "[registry]")
         // Get count of child keys and values.
         const uint32_t childValCount = wil::reg::get_child_value_count(key.get());
         const uint32_t childKeyCount = wil::reg::get_child_key_count(key.get());
+        const uint32_t largeChildKeyCount = wil::reg::get_child_key_count(HKEY_CLASSES_ROOT);
 
         // Get last modified date
         const FILETIME lastModified = wil::reg::get_last_modified(key.get());
@@ -381,6 +392,14 @@ TEST_CASE("BasicRegistryTests::ExampleUsage", "[registry]")
         const bool a = wil::reg::is_registry_buffer_too_small(HRESULT_FROM_WIN32(ERROR_MORE_DATA)); // => true
         const bool b = wil::reg::is_registry_not_found(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND)); // => true
         const bool c = wil::reg::is_registry_not_found(HRESULT_FROM_WIN32(ERROR_PATH_NOT_FOUND)); // => true
+
+        // --- validation, not included in documentation ---
+        REQUIRE(childKeyCount == 0);
+        REQUIRE(childValCount == 0);
+        REQUIRE(largeChildKeyCount > 1000);
+        REQUIRE(a == true);
+        REQUIRE(b == true);
+        REQUIRE(c == true);
     }
 #if defined(__clang__)
 #pragma clang diagnostic pop
