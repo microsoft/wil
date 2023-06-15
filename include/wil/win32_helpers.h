@@ -550,6 +550,24 @@ namespace wil
         });
     }
 
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM | WINAPI_PARTITION_GAMES)
+    template <typename string_type, size_t stackBufferLength = 256>
+    HRESULT GetWindowsDirectoryW(string_type& result) WI_NOEXCEPT
+    {
+        return wil::AdaptFixedSizeToAllocatedResult<string_type, stackBufferLength>(result,
+            [&](_Out_writes_(valueLength) PWSTR value, size_t valueLength, _Out_ size_t* valueLengthNeededWithNul) -> HRESULT
+        {
+            *valueLengthNeededWithNul = ::GetWindowsDirectoryW(value, static_cast<DWORD>(valueLength));
+            RETURN_LAST_ERROR_IF(*valueLengthNeededWithNul == 0);
+            if (*valueLengthNeededWithNul < valueLength)
+            {
+                (*valueLengthNeededWithNul)++; // it fit, account for the null
+            }
+            return S_OK;
+        });
+    }
+#endif
+
 #ifdef WIL_ENABLE_EXCEPTIONS
     /** Expands the '%' quoted environment variables in 'input' using ExpandEnvironmentStringsW(); */
     template <typename string_type = wil::unique_cotaskmem_string, size_t stackBufferLength = 256>
@@ -605,6 +623,16 @@ namespace wil
         THROW_IF_FAILED((wil::GetModuleFileNameExW<string_type, initialBufferLength>(process, module, result)));
         return result;
     }
+
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM | WINAPI_PARTITION_GAMES)
+    template <typename string_type = wil::unique_cotaskmem_string, size_t stackBufferLength = 256>
+    string_type GetWindowsDirectoryW()
+    {
+        string_type result;
+        THROW_IF_FAILED((wil::GetWindowsDirectoryW<string_type, stackBufferLength>(result)));
+        return result;
+    }
+#endif
 
     template <typename string_type = wil::unique_cotaskmem_string, size_t stackBufferLength = 256>
     string_type GetSystemDirectoryW()

@@ -622,6 +622,9 @@ namespace wil
                     if (m_folderHandle)
                     {
                         CancelIoEx(m_folderHandle.get(), &m_overlapped);
+
+                        DWORD bytesTransferredIgnored = 0;
+                        GetOverlappedResult(m_folderHandle.get(), &m_overlapped, &bytesTransferredIgnored, TRUE);
                     }
 
                     // Wait for callbacks to complete.
@@ -867,7 +870,6 @@ namespace wil
     // TODO: add support for these and other similar APIs.
     // GetShortPathNameW()
     // GetLongPathNameW()
-    // GetWindowsDirectory()
     // GetTempDirectory()
 
     /// @cond
