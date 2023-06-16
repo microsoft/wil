@@ -12,6 +12,7 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     target_compile_definitions(witest.asan PRIVATE
         # Not compatible with using lld-link
         -D_DISABLE_VECTOR_ANNOTATION
+        -D_DISABLE_STRING_ANNOTATION
         # See below; not compatible with exceptions
         -DCATCH_CONFIG_DISABLE_EXCEPTIONS
         )
