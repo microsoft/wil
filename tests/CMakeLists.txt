@@ -96,5 +96,6 @@ if (${ASAN_AVAILABLE})
 endif()
 
 if (${UBSAN_AVAILABLE})
-    add_subdirectory(sanitize-undefined-behavior)
+    # TODO: Disabled until https://github.com/microsoft/STL/issues/3568 is resolved
+    # add_subdirectory(sanitize-undefined-behavior)
 endif()
