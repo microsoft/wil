@@ -6,9 +6,12 @@
 #include <thread>
 #endif
 #include <winrt/Windows.Foundation.Collections.h>
+#include <winrt/Windows.ApplicationModel.Activation.h>
 #include <wil/cppwinrt_helpers.h>
 #include <winrt/Windows.System.h>
 #include <wil/cppwinrt_helpers.h> // Verify can include a second time to unlock more features
+
+using namespace winrt::Windows::ApplicationModel::Activation;
 
 #include "catch.hpp"
 
@@ -154,6 +157,13 @@ TEST_CASE("CppWinRTTests::VectorToVector", "[cppwinrt]")
                 REQUIRE(false);
             }
         }
+    }
+    {
+        std::vector<BackgroundActivatedEventArgs> src_vector;
+        src_vector.emplace_back(BackgroundActivatedEventArgs{ nullptr });
+        src_vector.emplace_back(BackgroundActivatedEventArgs{ nullptr });
+        auto sv = winrt::single_threaded_vector(copy_thing(src_vector));
+        REQUIRE(wil::to_vector(sv) == src_vector);
     }
     
     REQUIRE_THROWS(wil::to_vector(winrt::make<unstable_vector>()));
