@@ -17,9 +17,9 @@ Some things that WIL includes to whet your appetite:
   that save you the work of manually specifying buffer sizes, calling a function twice
   to get the needed buffer size and then allocate and pass the right-size buffer,
   casting or converting between types, and so on.
-- [`include/wil/registry.h`](include/wil/registry.h): Registry watchers that can
-  call a lambda function or callback you provide whenever a certain tree within
-  the Windows registry changes.
+- [`include/wil/registry.h`](include/wil/registry.h): Type-safe functions to read from, write to,
+  and watch the registry. Also, registry watchers that can call a lambda function or a callback function
+  you provide whenever a certain tree within the Windows registry changes.
 - [`include/wil/result.h`](include/wil/result.h)
   ([documentation](https://github.com/Microsoft/wil/wiki/Error-handling-helpers)):
   Preprocessor macros to help you check for errors from Windows API functions,
