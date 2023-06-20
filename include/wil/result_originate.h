@@ -59,6 +59,7 @@ namespace wil
 
                 if (shouldOriginate)
                 {
+                    auto message = wil::make_unique_string_nothrow{ failure.pszMessage };
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
                     wil::unique_hmodule errorModule;
                     if (GetModuleHandleExW(0, L"api-ms-win-core-winrt-error-l1-1-1.dll", &errorModule))
@@ -66,11 +67,11 @@ namespace wil
                         auto pfn = reinterpret_cast<decltype(&::RoOriginateError)>(GetProcAddress(errorModule.get(), "RoOriginateError"));
                         if (pfn != nullptr)
                         {
-                            pfn(failure.hr, nullptr);
+                            pfn(failure.hr, message.get());
                         }
                     }
 #else // DESKTOP | SYSTEM
-                    ::RoOriginateError(failure.hr, nullptr);
+                    ::RoOriginateError(failure.hr, message.get());
 #endif // DESKTOP | SYSTEM
                 }
                 else if (restrictedErrorInformation)
