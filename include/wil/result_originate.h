@@ -27,6 +27,7 @@
 
 #include "result.h"
 #include <OleAuto.h> // RestrictedErrorInfo uses BSTRs :(
+#include <winstring.h>
 #include "resource.h"
 #include "com.h"
 #include <roerrorapi.h>
@@ -59,7 +60,7 @@ namespace wil
 
                 if (shouldOriginate)
                 {
-                    auto message = wil::make_unique_string_nothrow(failure.pszMessage);
+                    auto message = wil::make_unique_string_nothrow<wil::unique_hstring>(failure.pszMessage);
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
                     wil::unique_hmodule errorModule;
                     if (GetModuleHandleExW(0, L"api-ms-win-core-winrt-error-l1-1-1.dll", &errorModule))
