@@ -284,7 +284,7 @@ namespace wil
                 {
                     throw winrt::hresult_changed_state();
                 }
-                result.resize(actual);
+                result.resize(actual, details::empty<T>());
             }
             return result;
         }
@@ -300,7 +300,7 @@ namespace wil
                 auto fetched = src.GetMany({result.data() + lastSize, result.data() + lastSize + chunkSize });
                 if (fetched < chunkSize)
                 {
-                    result.resize(lastSize + fetched);
+                    result.resize(lastSize + fetched, details::empty<T>());
                     break;
                 }
             }
