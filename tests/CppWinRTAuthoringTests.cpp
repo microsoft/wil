@@ -11,6 +11,16 @@
 #include <wil/winrt.h>
 #include <wil/resource.h>
 
+struct my_async_status : winrt::implements<my_async_status, winrt::Windows::Foundation::IAsyncInfo>
+{
+    wil::single_threaded_property<winrt::Windows::Foundation::AsyncStatus> Status{ winrt::Windows::Foundation::AsyncStatus::Started };
+    wil::single_threaded_property<winrt::hresult> ErrorCode;
+    wil::single_threaded_property<uint32_t> Id{ 16 };
+
+    void Cancel() {};
+    void Close() {};
+};
+
 TEST_CASE("CppWinRTAuthoringTests::Read", "[property]")
 {
     int value = 42;
@@ -28,6 +38,11 @@ TEST_CASE("CppWinRTAuthoringTests::Read", "[property]")
 
     wil::single_threaded_property<winrt::hstring> prop3;
     REQUIRE(prop3.empty());
+
+    auto my_status = winrt::make<my_async_status>();
+    REQUIRE(my_status.Status() == winrt::Windows::Foundation::AsyncStatus::Started);
+    REQUIRE(my_status.ErrorCode() == S_OK);
+    REQUIRE(my_status.Id() == 16);
 }
 
 TEST_CASE("CppWinRTAuthoringTests::ReadWrite", "[property]")
