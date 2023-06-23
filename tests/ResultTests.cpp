@@ -4,7 +4,9 @@
 
 #if (NTDDI_VERSION >= NTDDI_WIN8)
 #include <wil/result_originate.h>
+#include <wil/result_macros.h>
 #endif
+
 
 #include <roerrorapi.h>
 
@@ -574,6 +576,31 @@ TEST_CASE("ResultTests::AutomaticOriginationOnFailure", "[result]")
         return S_OK;
     }();
     REQUIRE(S_FALSE == GetRestrictedErrorInfo(&restrictedErrorInformation));
+}
+
+TEST_CASE("ResultTests::OriginatedWithMessagePreserved", "[result]")
+{
+#ifdef WIL_ENABLE_EXCEPTIONS
+    try
+    {
+        THROW_HR_MSG(E_FAIL, "Puppies not allowed");
+    }
+    catch (...) {}
+#else
+    []()
+    {
+        RETURN_HR_MSG(E_FAIL, "Puppies not allowed");
+    }();
+#endif
+    wil::com_ptr_nothrow<IRestrictedErrorInfo> errorInfo;
+    REQUIRE_SUCCEEDED(GetRestrictedErrorInfo(&errorInfo));
+    wil::unique_bstr description;
+    wil::unique_bstr restrictedDescription;
+    wil::unique_bstr capabilitySid;
+    HRESULT errorCode;
+    REQUIRE_SUCCEEDED(errorInfo->GetErrorDetails(&description, &errorCode, &restrictedDescription, &capabilitySid));
+    REQUIRE(E_FAIL == errorCode);
+    REQUIRE(wcscmp(restrictedDescription.get(), L"Puppies not allowed") == 0);
 }
 #endif
 
