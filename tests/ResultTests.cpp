@@ -578,20 +578,6 @@ TEST_CASE("ResultTests::AutomaticOriginationOnFailure", "[result]")
     REQUIRE(S_FALSE == GetRestrictedErrorInfo(&restrictedErrorInformation));
 }
 
-void ExpectRestrictedError(HRESULT err, LPCWSTR text)
-{
-    wil::com_ptr_nothrow<IRestrictedErrorInfo> errorInfo;
-    REQUIRE_SUCCEEDED(GetRestrictedErrorInfo(&errorInfo));
-    wil::unique_bstr description;
-    wil::unique_bstr restrictedDescription;
-    wil::unique_bstr capabilitySid;
-    HRESULT errorCode;
-    REQUIRE(errorInfo != nullptr);
-    REQUIRE_SUCCEEDED(errorInfo->GetErrorDetails(&description, &errorCode, &restrictedDescription, &capabilitySid));
-    REQUIRE(err == errorCode);
-    REQUIRE(wcscmp(restrictedDescription.get(), text) == 0);
-}
-
 TEST_CASE("ResultTests::OriginatedWithMessagePreserved", "[result]")
 {
     SetRestrictedErrorInfo(nullptr);
