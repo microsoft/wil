@@ -594,14 +594,15 @@ void ExpectRestrictedError(HRESULT err, LPCWSTR text)
 
 TEST_CASE("ResultTests::OriginatedWithMessagePreserved", "[result]")
 {
+    SetRestrictedErrorInfo(nullptr);
+
 #ifdef WIL_ENABLE_EXCEPTIONS
     try
     {
         THROW_HR_MSG(E_FAIL, "Puppies not allowed");
     }
     catch (...) {}
-    ExpectRestrictedError(E_FAIL, L"Puppies not allowed");
-    SetRestrictedErrorInfo(nullptr);
+    witest::RequireRestrictedErrorInfo(E_FAIL, L"Puppies not allowed");
 
     []()
     {
@@ -611,8 +612,7 @@ TEST_CASE("ResultTests::OriginatedWithMessagePreserved", "[result]")
         }
         CATCH_RETURN();
     }();
-    ExpectRestrictedError(HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION), L"std::exception: Puppies not allowed");
-    SetRestrictedErrorInfo(nullptr);
+    witest::RequireRestrictedErrorInfo(HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION), L"std::exception: Puppies not allowed");
 
 #endif
 
@@ -620,8 +620,7 @@ TEST_CASE("ResultTests::OriginatedWithMessagePreserved", "[result]")
     {
         RETURN_HR_MSG(E_FAIL, "Puppies not allowed");
     }();
-    ExpectRestrictedError(E_FAIL, L"Puppies not allowed");
-    SetRestrictedErrorInfo(nullptr);
+    witest::RequireRestrictedErrorInfo(E_FAIL, L"Puppies not allowed");
 }
 
 #endif

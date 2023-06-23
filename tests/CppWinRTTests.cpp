@@ -15,6 +15,7 @@ using namespace winrt::Windows::ApplicationModel::Activation;
 
 #include "catch.hpp"
 #include <roerrorapi.h>
+#include "common.h"
 
 // HRESULT values that C++/WinRT throws as something other than winrt::hresult_error - e.g. a type derived from
 // winrt::hresult_error, std::*, etc.
@@ -651,6 +652,7 @@ TEST_CASE("CppWinRTTests::ResumeForegroundTests", "[cppwinrt]")
 TEST_CASE("CppWinRTTests::ThrownExceptionWithMessage", "[cppwinrt]")
 {
     SetRestrictedErrorInfo(nullptr);
+
     []()
     {
         try
@@ -659,14 +661,16 @@ TEST_CASE("CppWinRTTests::ThrownExceptionWithMessage", "[cppwinrt]")
         }
         CATCH_RETURN();
     }();
-    winrt::com_ptr<IRestrictedErrorInfo> errorInfo;
-    winrt::check_hresult(GetRestrictedErrorInfo(errorInfo.put()));
-    REQUIRE(errorInfo != nullptr);
-    wil::unique_bstr description;
-    wil::unique_bstr restrictedDescription;
-    wil::unique_bstr capabilitySid;
-    HRESULT errorCode;
-    winrt::check_hresult(errorInfo->GetErrorDetails(&description, &errorCode, &restrictedDescription, &capabilitySid));
-    REQUIRE(errorCode == E_ACCESSDENIED);
-    REQUIRE(wcscmp(restrictedDescription.get(), L"Puppies not allowed") == 0);
+    witest::RequireRestrictedErrorInfo(E_ACCESSDENIED, L"Puppies not allowed");
+
+    []()
+    {
+        try
+        {
+            winrt::check_hresult(E_INVALIDARG);
+            return S_OK;
+        }
+        CATCH_RETURN();
+    }();
+    witest::RequireRestrictedErrorInfo(E_INVALIDARG, L"The parameter is incorrect.\r\n");
 }
