@@ -14,6 +14,8 @@
 using namespace winrt::Windows::ApplicationModel::Activation;
 
 #include "catch.hpp"
+#include <roerrorapi.h>
+#include "common.h"
 
 // HRESULT values that C++/WinRT throws as something other than winrt::hresult_error - e.g. a type derived from
 // winrt::hresult_error, std::*, etc.
@@ -646,3 +648,29 @@ TEST_CASE("CppWinRTTests::ResumeForegroundTests", "[cppwinrt]")
     }().get();
 }
 #endif // coroutines
+
+TEST_CASE("CppWinRTTests::ThrownExceptionWithMessage", "[cppwinrt]")
+{
+    SetRestrictedErrorInfo(nullptr);
+
+    []()
+    {
+        try
+        {
+            throw winrt::hresult_access_denied(L"Puppies not allowed");
+        }
+        CATCH_RETURN();
+    }();
+    witest::RequireRestrictedErrorInfo(E_ACCESSDENIED, L"Puppies not allowed");
+
+    []()
+    {
+        try
+        {
+            winrt::check_hresult(E_INVALIDARG);
+            return S_OK;
+        }
+        CATCH_RETURN();
+    }();
+    witest::RequireRestrictedErrorInfo(E_INVALIDARG, L"The parameter is incorrect.\r\n");
+}

@@ -580,29 +580,37 @@ TEST_CASE("ResultTests::AutomaticOriginationOnFailure", "[result]")
 
 TEST_CASE("ResultTests::OriginatedWithMessagePreserved", "[result]")
 {
+    SetRestrictedErrorInfo(nullptr);
+
 #ifdef WIL_ENABLE_EXCEPTIONS
     try
     {
         THROW_HR_MSG(E_FAIL, "Puppies not allowed");
     }
     catch (...) {}
-#else
+    witest::RequireRestrictedErrorInfo(E_FAIL, L"Puppies not allowed");
+
+    []()
+    {
+        try
+        {
+            throw std::exception("Puppies not allowed");
+        }
+        CATCH_RETURN();
+    }();
+    witest::RequireRestrictedErrorInfo(HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION), L"std::exception: Puppies not allowed");
+
+#endif
+
     []()
     {
         RETURN_HR_MSG(E_FAIL, "Puppies not allowed");
     }();
-#endif
-    wil::com_ptr_nothrow<IRestrictedErrorInfo> errorInfo;
-    REQUIRE_SUCCEEDED(GetRestrictedErrorInfo(&errorInfo));
-    wil::unique_bstr description;
-    wil::unique_bstr restrictedDescription;
-    wil::unique_bstr capabilitySid;
-    HRESULT errorCode;
-    REQUIRE_SUCCEEDED(errorInfo->GetErrorDetails(&description, &errorCode, &restrictedDescription, &capabilitySid));
-    REQUIRE(E_FAIL == errorCode);
-    REQUIRE(wcscmp(restrictedDescription.get(), L"Puppies not allowed") == 0);
+    witest::RequireRestrictedErrorInfo(E_FAIL, L"Puppies not allowed");
 }
+
 #endif
+
 
 TEST_CASE("ResultTests::ReportDoesNotChangeLastError", "[result]")
 {
@@ -616,3 +624,4 @@ TEST_CASE("ResultTests::ReportDoesNotChangeLastError", "[result]")
     LOG_IF_WIN32_BOOL_FALSE(FALSE);
     REQUIRE(::GetLastError() == ERROR_ABIOS_ERROR);
 }
+
