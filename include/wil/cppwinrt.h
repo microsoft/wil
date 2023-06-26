@@ -28,15 +28,14 @@
 namespace wil::details
 {
     // Since the C++/WinRT version macro is a string...
-    // For example: "2.0.210122.3"
+    // For example: "2.0.221104.6"
     inline constexpr int version_from_string(const char* versionString)
     {
         int result = 0;
-        auto str = versionString;
-        while ((*str >= '0') && (*str <= '9'))
+        while ((*versionString >= '0') && (*versionString <= '9'))
         {
-            result = result * 10 + (*str - '0');
-            ++str;
+            result = result * 10 + (*versionString - '0');
+            ++versionString;
         }
 
         return result;
@@ -49,28 +48,22 @@ namespace wil::details
 
     inline constexpr int minor_version_from_string(const char* versionString)
     {
-        auto str = versionString;
         int dotCount = 0;
-        while ((*str != '\0'))
+        while ((*versionString != '\0'))
         {
-            if (*str == '.')
+            if (*versionString == '.')
             {
                 ++dotCount;
             }
 
-            ++str;
+            ++versionString;
             if (dotCount == 2)
             {
-                break;
+                return version_from_string(versionString);
             }
         }
 
-        if (*str == '\0')
-        {
-            return 0;
-        }
-
-        return version_from_string(str);
+        return 0;
     }
 }
 /// @endcond
@@ -241,12 +234,12 @@ namespace wil
         {
             WI_ASSERT(winrt_to_hresult_handler == nullptr);
             winrt_to_hresult_handler = winrt_to_hresult;
-        }
 
-        if constexpr ((details::major_version_from_string(CPPWINRT_VERSION) >= 2) && (details::minor_version_from_string(CPPWINRT_VERSION) >= 210122))
-        {
-            WI_ASSERT(winrt_throw_hresult_handler == nullptr);
-            winrt_throw_hresult_handler = winrt_throw_hresult;
+            if constexpr (details::minor_version_from_string(CPPWINRT_VERSION) >= 210122)
+            {
+                WI_ASSERT(winrt_throw_hresult_handler == nullptr);
+                winrt_throw_hresult_handler = winrt_throw_hresult;
+            }
         }
     }
 
@@ -282,6 +275,11 @@ namespace wil
     inline auto get_abi(winrt::hstring const& object) noexcept
     {
         return static_cast<HSTRING>(winrt::get_abi(object));
+    }
+
+    inline auto str_raw_ptr(const winrt::hstring& str) noexcept
+    {
+        return str.c_str();
     }
 
     template <typename T>
@@ -403,6 +401,89 @@ namespace wil
         ~winrt_module_reference()
         {
             --winrt::get_module_lock();
+        }
+    };
+
+    /** Implements a C++/WinRT class where some interfaces are conditionally supported.
+    ~~~~
+    // Assume the existence of a class "Version2" which says whether
+    // the IMyThing2 interface should be supported.
+    struct Version2 { static bool IsEnabled(); };
+
+    // Declare implementation class which conditionally supports IMyThing2.
+    struct MyThing : wil::winrt_conditionally_implements<MyThingT<MyThing>,
+                         Version2, IMyThing2>
+    {
+        // implementation goes here
+    };
+
+    ~~~~
+
+    If `Version2::IsEnabled()` returns `false`, then the `QueryInterface`
+    for `IMyThing2` will fail.
+
+    Any interface not listed as conditional is assumed to be enabled unconditionally.
+
+    You can add additional Version / Interface pairs to the template parameter list.
+    Interfaces may be conditionalized on at most one Version class. If you need a
+    complex conditional, create a new helper class.
+
+    ~~~~
+    // Helper class for testing two Versions.
+    struct Version2_or_greater {
+        static bool IsEnabled() { return Version2::IsEnabled() || Version3::IsEnabled(); }
+    };
+
+    // This implementation supports IMyThing2 if either Version2 or Version3 is enabled,
+    // and supports IMyThing3 only if Version3 is enabled.
+    struct MyThing : wil::winrt_conditionally_implements<MyThingT<MyThing>,
+    Version2_or_greater, IMyThing2, Version3, IMyThing3>
+    {
+        // implementation goes here
+    };
+    ~~~~
+    */
+    template<typename Implements, typename... Rest>
+    struct winrt_conditionally_implements : Implements
+    {
+        using Implements::Implements;
+
+        void* find_interface(winrt::guid const& iid) const noexcept override
+        {
+            static_assert(sizeof...(Rest) % 2 == 0, "Extra template parameters should come in groups of two");
+            if (is_enabled<0, std::tuple<Rest...>>(iid))
+            {
+                return Implements::find_interface(iid);
+            }
+            return nullptr;
+        }
+
+    private:
+        template<std::size_t index, typename Tuple>
+        static bool is_enabled(winrt::guid const& iid)
+        {
+            if constexpr (index >= std::tuple_size_v<Tuple>)
+            {
+                return true;
+            }
+            else
+            {
+                check_no_duplicates<1, index + 1, Tuple>();
+                return (iid == winrt::guid_of<std::tuple_element_t<index + 1, Tuple>>()) ?
+                    std::tuple_element_t<index, Tuple>::IsEnabled() :
+                    is_enabled<index + 2, Tuple>(iid);
+            }
+        }
+
+        template<std::size_t index, std::size_t upto, typename Tuple>
+        static constexpr void check_no_duplicates()
+        {
+            if constexpr (index < upto)
+            {
+                static_assert(!std::is_same_v<std::tuple_element_t<index, Tuple>, std::tuple_element_t<upto, Tuple>>,
+                    "Duplicate interfaces found in winrt_conditionally_implements");
+                check_no_duplicates<index + 2, upto, Tuple>();
+            }
         }
     };
 }

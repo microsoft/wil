@@ -12,8 +12,6 @@
 #ifndef __WIL_CPPWINRT_HELPERS_DEFINED
 #define __WIL_CPPWINRT_HELPERS_DEFINED
 
-#include <memory>
-
 /// @cond
 namespace wil::details
 {
@@ -59,7 +57,7 @@ namespace wil::details
 {
     struct dispatched_handler_state
     {
-        details::coroutine_handle<> handle;
+        details::coroutine_handle<> handle{};
         bool orphaned = false;
     };
 
@@ -212,5 +210,143 @@ namespace wil::details
     };
 }
 #endif // __WIL_CPPWINRT_MICROSOFT_UI_DISPATCHING_HELPERS
-
 /// @endcond
+
+#if defined(WINRT_Windows_Foundation_Collections_H) && !defined(__WIL_CPPWINRT_WINDOWS_FOUNDATION_COLLECTION_HELPERS)
+#define __WIL_CPPWINRT_WINDOWS_FOUNDATION_COLLECTION_HELPERS
+namespace wil
+{
+    /// @cond
+    namespace details
+    {
+        template<typename T> struct is_winrt_vector_like {
+        private:
+            template <typename U,
+                typename = decltype(std::declval<U>().GetMany(std::declval<U>().Size(),
+                    winrt::array_view<decltype(std::declval<U>().GetAt(0))>{}))>
+            static constexpr bool get_value(int) { return true; }
+            template <typename> static constexpr bool get_value(...) { return false; }
+        public:
+            static constexpr bool value = get_value<T>(0);
+        };
+
+        template<typename T> struct is_winrt_iterator_like {
+        private:
+            template <typename U,
+                typename = decltype(std::declval<U>().GetMany(winrt::array_view<decltype(std::declval<U>().Current())>{}))>
+            static constexpr bool get_value(int) { return true; }
+            template <typename> static constexpr bool get_value(...) { return false; }
+        public:
+            static constexpr bool value = get_value<T>(0);
+        };
+
+        template<typename T> constexpr T empty() noexcept
+        {
+            if constexpr (std::is_base_of_v<winrt::Windows::Foundation::IUnknown, T>)
+            {
+                return nullptr;
+            }
+            else
+            {
+                return {};
+            }
+        }
+    }
+    /// @endcond
+
+    /** Converts C++ / WinRT vectors, iterators, and iterables to std::vector by requesting the
+    collection's data in bulk. This can be more efficient in terms of IPC cost than iteratively
+    processing the collection.
+    ~~~
+    winrt::IVector<winrt::hstring> collection = GetCollection();
+    std::vector<winrt::hstring> allData = wil::to_vector(collection); // read all data from collection
+    for (winrt::hstring const& item : allData)
+    {
+        // use item
+    }
+    ~~~
+    Can be used for IVector<T>, IVectorView<T>, IIterable<T>, IIterator<T>, and any type or
+    interface that C++/WinRT projects those interfaces for (PropertySet, IMap<T,K>, etc.)
+    Iterable-only types fetch content in units of 64. When used with an iterator, the returned
+    vector contains the iterator's current position and any others after it.
+    */
+    template<typename TSrc> auto to_vector(TSrc const& src)
+    {
+        if constexpr (details::is_winrt_vector_like<TSrc>::value)
+        {
+            using T = decltype(src.GetAt(0));
+            std::vector<T> result;
+            if (auto expected = src.Size())
+            {
+                result.resize(expected + 1, details::empty<T>());
+                auto actual = src.GetMany(0, result);
+                if (actual > expected)
+                {
+                    throw winrt::hresult_changed_state();
+                }
+                result.resize(actual, details::empty<T>());
+            }
+            return result;
+        }
+        else if constexpr (details::is_winrt_iterator_like<TSrc>::value)
+        {
+            using T = decltype(src.Current());
+            std::vector<T> result;
+            constexpr uint32_t chunkSize = 64;
+            while (true)
+            {
+                auto const lastSize = result.size();
+                result.resize(lastSize + chunkSize, details::empty<T>());
+                auto fetched = src.GetMany({result.data() + lastSize, result.data() + lastSize + chunkSize });
+                if (fetched < chunkSize)
+                {
+                    result.resize(lastSize + fetched, details::empty<T>());
+                    break;
+                }
+            }
+            return result;
+        }
+        else
+        {
+            return to_vector(src.First());
+        }
+    }
+}
+#endif
+
+#if defined(WINRT_Windows_UI_H) && defined(_WINDOWS_UI_INTEROP_H_) && !defined(__WIL_CPPWINRT_WINDOWS_UI_INTEROP_HELPERS)
+#define __WIL_CPPWINRT_WINDOWS_UI_INTEROP_HELPERS
+#if !defined(____x_ABI_CWindows_CFoundation_CIClosable_FWD_DEFINED__) && !defined(MIDL_NS_PREFIX)
+#pragma push_macro("ABI")
+#undef ABI
+#define ABI
+#endif
+
+namespace wil
+{
+#if defined(NTDDI_VERSION) && (NTDDI_VERSION >= NTDDI_WIN10_CU)
+    //! The following methods require that you include both <winrt/Windows.UI.h>
+    //! <Windows.UI.Interop.h> before including wil/cppwinrt_helpers.h, and that NTDDI_VERSION
+    //! is at least NTDDI_WIN10_CU. It is okay to include wil\cppwinrt_helpers.h multiple times:
+    //! support will be enabled for any headers that were included since the previous inclusion
+    //! of wil\cppwinrt_headers.h.
+    inline winrt::Windows::UI::WindowId GetWindowIdFromWindow(HWND hwnd)
+    {
+        ABI::Windows::UI::WindowId abiWindowId;
+        winrt::check_hresult(::GetWindowIdFromWindow(hwnd, &abiWindowId));
+        return winrt::Windows::UI::WindowId{ abiWindowId.Value };
+    }
+
+    inline HWND GetWindowFromWindowId(winrt::Windows::UI::WindowId windowId)
+    {
+        HWND hwnd;
+        winrt::check_hresult(::GetWindowFromWindowId({ windowId.Value }, &hwnd));
+        return hwnd;
+    }
+#endif /*defined(NTDDI_VERSION) && (NTDDI_VERSION >= NTDDI_WIN10_CU)*/
+}
+
+#if !defined(____x_ABI_CWindows_CFoundation_CIClosable_FWD_DEFINED__) && !defined(MIDL_NS_PREFIX)
+#pragma pop_macro("ABI")
+#endif
+#endif // __WIL_CPPWINRT_WINDOWS_UI_INTEROP_HELPERS

@@ -16,6 +16,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <utility>
 #if _HAS_CXX17
 #include <string_view>
 #endif
@@ -39,7 +40,7 @@ namespace wil
         template<typename Other>
         struct rebind
         {
-            typedef secure_allocator<Other> other;
+            using other = secure_allocator<Other>;
         };
 
         secure_allocator()
@@ -142,35 +143,43 @@ namespace wil
 
         template<size_t stringArrayLength>
         constexpr basic_zstring_view(const TChar(&stringArray)[stringArrayLength]) noexcept
-            : std::basic_string_view<TChar>(&stringArray[0])
+            : std::basic_string_view<TChar>(&stringArray[0], length_n(&stringArray[0], stringArrayLength))
         {
-            if (stringArrayLength < this->size()) { WI_STL_FAIL_FAST_IF(true); }
         }
 
         // Construct from nul-terminated char ptr. To prevent this from overshadowing array construction,
         // we disable this constructor if the value is an array (including string literal).
         template<typename TPtr, std::enable_if_t<
             std::is_convertible<TPtr, const TChar*>::value && !std::is_array<TPtr>::value>* = nullptr>
-        constexpr basic_zstring_view(const TPtr pStr) noexcept
-            : std::basic_string_view<TChar>(pStr) {}
+        constexpr basic_zstring_view(TPtr&& pStr) noexcept
+            : std::basic_string_view<TChar>(std::forward<TPtr>(pStr)) {}
 
         constexpr basic_zstring_view(const std::basic_string<TChar>& str) noexcept
             : std::basic_string_view<TChar>(&str[0], str.size()) {}
 
         // basic_string_view [] precondition won't let us read view[view.size()]; so we define our own.
-        constexpr const TChar& operator[](size_type idx) const noexcept
+        WI_NODISCARD constexpr const TChar& operator[](size_type idx) const noexcept
         {
             WI_ASSERT(idx <= this->size() && this->data() != nullptr);
             return this->data()[idx];
         }
 
-        constexpr const TChar* c_str() const noexcept
+        WI_NODISCARD constexpr const TChar* c_str() const noexcept
         {
             WI_ASSERT(this->data() == nullptr || this->data()[this->size()] == 0);
             return this->data();
         }
 
     private:
+        // Bounds-checked version of char_traits::length, like strnlen. Requires that the input contains a null terminator.
+        static constexpr size_type length_n(_In_reads_opt_(buf_size) const TChar* str, size_type buf_size) noexcept
+        {
+            const std::basic_string_view<TChar> view(str, buf_size);
+            auto pos = view.find_first_of(TChar());
+            if (pos == view.npos) { WI_STL_FAIL_FAST_IF(true); }
+            return pos;
+        }
+
         // The following basic_string_view methods must not be allowed because they break the nul-termination.
         using std::basic_string_view<TChar>::swap;
         using std::basic_string_view<TChar>::remove_suffix;

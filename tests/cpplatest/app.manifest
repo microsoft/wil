@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1" xmlns:asmv3="urn:schemas-microsoft-com:asm.v3">
+  <!-- 
+  This file is needed because:
+    - PropertyTests::NotifyPropertyChanged requires creating a PropertyChangedEventArgs object behind the scenes
+    - This requires a XAML core to have been initialized; so either the test needs to be a UWP app, or we need to use XAML islands
+    - But to use XAML islands, we have to include the maxversiontested value below which requires this manifest.
+  -->
+  <compatibility xmlns="urn:schemas-microsoft-com:compatibility.v1">
+    <application>
+      <!-- This Id value indicates the application supports Windows 10 functionality -->
+      <supportedOS Id="{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}" />
+      <!-- See https://docs.microsoft.com/windows/win32/sbscs/application-manifests#maxversiontested before changing this value -->
+      <maxversiontested Id="10.0.18362.0" />
+    </application>
+  </compatibility>
+
+  <assemblyIdentity
+    name="witest.cpplatest"
+    type="winb32"
+    version="1.0.0.0" />
+
+</assembly>
