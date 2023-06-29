@@ -16,6 +16,7 @@
 #include <iterator>
 #endif
 
+#include <stdint.h>
 #include <Windows.h>
 #include "resource.h"
 
@@ -34,8 +35,8 @@ namespace wil
          */
         constexpr bool is_registry_not_found(HRESULT hr) WI_NOEXCEPT
         {
-            return (hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND)) ||
-                (hr == HRESULT_FROM_WIN32(ERROR_PATH_NOT_FOUND));
+            return (hr == __HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND)) ||
+                (hr == __HRESULT_FROM_WIN32(ERROR_PATH_NOT_FOUND));
         }
 
         /**
@@ -45,7 +46,7 @@ namespace wil
          */
         constexpr bool is_registry_buffer_too_small(HRESULT hr) WI_NOEXCEPT
         {
-            return hr == HRESULT_FROM_WIN32(ERROR_MORE_DATA);
+            return hr == __HRESULT_FROM_WIN32(ERROR_MORE_DATA);
         }
 
         // Access rights for opening registry keys. See https://learn.microsoft.com/en-us/windows/win32/sysinfo/registry-key-security-and-access-rights.
@@ -182,7 +183,7 @@ namespace wil
                 if (last - first < 3)
                 {
                     // it doesn't have the required 2 terminating null characters - return an empty string
-                    return { ::std::wstring{} };
+                    return ::std::vector<::std::wstring>(1);
                 }
 
                 ::std::vector<::std::wstring> strings;
@@ -666,7 +667,7 @@ namespace wil
                     constexpr bool transferringOwnership = false;
                     RETURN_IF_FAILED(resize_buffer(temp_bstr, byteSize, transferringOwnership));
 
-                    // if succeeded in creating a new BSTR, move ownership of the new BSTR into string 
+                    // if succeeded in creating a new BSTR, move ownership of the new BSTR into string
                     string.reset(temp_bstr);
                     return S_OK;
                 }
@@ -715,7 +716,7 @@ namespace wil
                     constexpr bool transferringOwnership = false;
                     RETURN_IF_FAILED(resize_buffer(temp_bstr, byteSize, transferringOwnership));
 
-                    // if succeeded in creating a new BSTR, move ownership of the new BSTR into string 
+                    // if succeeded in creating a new BSTR, move ownership of the new BSTR into string
                     string.reset(temp_bstr);
                     return S_OK;
                 }
@@ -748,7 +749,7 @@ namespace wil
                     auto new_string = ::wil::make_unique_string_nothrow<::wil::unique_cotaskmem_string>(string.get(), length);
                     RETURN_IF_NULL_ALLOC(new_string.get());
 
-                    string = ::std::move(new_string);
+                    string = ::wistd::move(new_string);
                     return S_OK;
                 }
 
@@ -778,7 +779,7 @@ namespace wil
                     const auto bytesToCopy = arrayValue.size() < byteSize ? arrayValue.size() : byteSize;
                     CopyMemory(tempValue.get(), arrayValue.get(), bytesToCopy);
 
-                    arrayValue = ::std::move(tempValue);
+                    arrayValue = ::wistd::move(tempValue);
                     return S_OK;
                 }
 #endif // #if defined(__WIL_OBJBASE_H_)
@@ -810,7 +811,7 @@ namespace wil
                     auto new_string = ::wil::make_unique_string_nothrow<::wil::unique_cotaskmem_string>(string.get(), length);
                     RETURN_IF_NULL_ALLOC(new_string.get());
 
-                    string = ::std::move(new_string);
+                    string = ::wistd::move(new_string);
                     return S_OK;
                 }
                 CATCH_RETURN();
@@ -1045,7 +1046,7 @@ namespace wil
 
                 // typename D supports unsigned 32-bit values; i.e. allows the caller to pass a DWORD* as well as uint32_t*
                 template <size_t Length, typename DwordType,
-                    std::enable_if_t<std::is_same_v<DwordType, uint32_t> || std::is_same_v<DwordType, unsigned long>>* = nullptr>
+                    wistd::enable_if_t<wistd::is_same_v<DwordType, uint32_t> || wistd::is_same_v<DwordType, unsigned long>>* = nullptr>
                 typename err_policy::result get_value_char_array(_In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length], DWORD type, _Out_opt_ DwordType * requiredBytes) const
                 {
                     constexpr DwordType zero_value{ 0ul };
@@ -1070,7 +1071,7 @@ namespace wil
                     const auto hr = get_value_with_type<R, ::wil::err_returncode_policy>(subkey, value_name, value, type);
                     if (SUCCEEDED(hr))
                     {
-                        return ::std::optional(::std::move(value));
+                        return ::std::optional(::wistd::move(value));
                     }
 
                     if (::wil::reg::is_registry_not_found(hr))
