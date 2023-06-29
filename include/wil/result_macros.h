@@ -802,6 +802,7 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 #define THROW_IF_NULL_ALLOC(ptr)                                __R_FN(Throw_IfNullAlloc)(__R_INFO(#ptr) ptr)
 #define THROW_HR_IF(hr, condition)                              __R_FN(Throw_HrIf)(__R_INFO(#condition) wil::verify_hresult(hr), wil::verify_bool(condition))
 #define THROW_HR_IF_NULL(hr, ptr)                               __R_FN(Throw_HrIfNull)(__R_INFO(#ptr) wil::verify_hresult(hr), ptr)
+#define THROW_WIN32_IF(win32err, condition)                     __R_FN(Throw_Win32If)(__R_INFO(#condition) wil::verify_win32(win32err), wil::verify_bool(condition))
 #define THROW_LAST_ERROR_IF(condition)                          __R_FN(Throw_GetLastErrorIf)(__R_INFO(#condition) wil::verify_bool(condition))
 #define THROW_LAST_ERROR_IF_NULL(ptr)                           __R_FN(Throw_GetLastErrorIfNull)(__R_INFO(#ptr) ptr)
 #define THROW_IF_NTSTATUS_FAILED(status)                        __R_FN(Throw_IfNtStatusFailed)(__R_INFO(#status) status)
@@ -820,6 +821,7 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 #define THROW_IF_NULL_ALLOC_MSG(ptr, fmt, ...)                  __R_FN(Throw_IfNullAllocMsg)(__R_INFO(#ptr) ptr, fmt, ##__VA_ARGS__)
 #define THROW_HR_IF_MSG(hr, condition, fmt, ...)                __R_FN(Throw_HrIfMsg)(__R_INFO(#condition) wil::verify_hresult(hr), wil::verify_bool(condition), fmt, ##__VA_ARGS__)
 #define THROW_HR_IF_NULL_MSG(hr, ptr, fmt, ...)                 __R_FN(Throw_HrIfNullMsg)(__R_INFO(#ptr) wil::verify_hresult(hr), ptr, fmt, ##__VA_ARGS__)
+#define THROW_WIN32_IF_MSG(win32err, condition, fmt, ...)       __R_FN(Throw_Win32IfMsg)(__R_INFO(#condition) wil::verify_win32(win32err), wil::verify_bool(condition), fmt, ##__VA_ARGS__)
 #define THROW_LAST_ERROR_IF_MSG(condition, fmt, ...)            __R_FN(Throw_GetLastErrorIfMsg)(__R_INFO(#condition) wil::verify_bool(condition), fmt, ##__VA_ARGS__)
 #define THROW_LAST_ERROR_IF_NULL_MSG(ptr, fmt, ...)             __R_FN(Throw_GetLastErrorIfNullMsg)(__R_INFO(#ptr) ptr, fmt, ##__VA_ARGS__)
 #define THROW_IF_NTSTATUS_FAILED_MSG(status, fmt, ...)          __R_FN(Throw_IfNtStatusFailedMsg)(__R_INFO(#status) status, fmt, ##__VA_ARGS__)
@@ -1128,7 +1130,7 @@ namespace wil
                 break;
             }
 
-            wchar_t szErrorText[256];
+            wchar_t szErrorText[256]{};
             szErrorText[0] = L'\0';
             LONG errorCode = 0;
 
@@ -2118,7 +2120,7 @@ __WI_POP_WARNINGS
 
         _Must_inspect_result_ STRSAFEAPI StringCchLengthA(_In_reads_or_z_(cchMax) STRSAFE_PCNZCH psz, _In_ _In_range_(1, STRSAFE_MAX_CCH) size_t cchMax, _Out_opt_ _Deref_out_range_(<, cchMax) _Deref_out_range_(<= , _String_length_(psz)) size_t* pcchLength)
         {
-            HRESULT hr;
+            HRESULT hr = S_OK;
             if ((psz == nullptr) || (cchMax > STRSAFE_MAX_CCH))
             {
                 hr = STRSAFE_E_INVALID_PARAMETER;
@@ -2148,7 +2150,7 @@ __WI_POP_WARNINGS
         static STRSAFEAPI WilStringVPrintfWorkerA(_Out_writes_(cchDest) _Always_(_Post_z_) STRSAFE_LPSTR pszDest, _In_ _In_range_(1, STRSAFE_MAX_CCH) size_t cchDest, _Always_(_Out_opt_ _Deref_out_range_(<=, cchDest - 1)) size_t* pcchNewDestLength, _In_ _Printf_format_string_ STRSAFE_LPCSTR pszFormat, _In_ va_list argList)
         {
             HRESULT hr = S_OK;
-            int iRet;
+            int iRet{};
 
             // leave the last space for the null terminator
             size_t cchMax = cchDest - 1;
@@ -2249,7 +2251,7 @@ __WI_POP_WARNINGS
             }
 
             memcpy_s(pStart, bufferSize, pszString, stringSize);
-            assign_to_opt_param(ppszBufferString, reinterpret_cast<TString>(pStart));
+            assign_to_opt_param(ppszBufferString, reinterpret_cast<TString>(pStart));// lgtm[cpp/incorrect-string-type-conversion] False positive - The query is misinterpreting a buffer (char *) with a MBS string, the cast to TString is expected.
             return pStart + stringSize;
         }
 
@@ -2761,7 +2763,7 @@ __WI_POP_WARNINGS
 
         inline HRESULT ResultFromKnownException(const ResultException& exception, const DiagnosticsInfo& diagnostics, void* returnAddress)
         {
-            wchar_t message[2048];
+            wchar_t message[2048]{};
             message[0] = L'\0';
             MaybeGetExceptionString(exception, message, ARRAYSIZE(message));
             auto hr = exception.GetErrorCode();
@@ -2771,7 +2773,7 @@ __WI_POP_WARNINGS
 
         inline HRESULT ResultFromKnownException(const std::bad_alloc& exception, const DiagnosticsInfo& diagnostics, void* returnAddress)
         {
-            wchar_t message[2048];
+            wchar_t message[2048]{};
             message[0] = L'\0';
             MaybeGetExceptionString(exception, message, ARRAYSIZE(message));
             constexpr auto hr = E_OUTOFMEMORY;
@@ -2781,7 +2783,7 @@ __WI_POP_WARNINGS
 
         inline HRESULT ResultFromKnownException(const std::exception& exception, const DiagnosticsInfo& diagnostics, void* returnAddress)
         {
-            wchar_t message[2048];
+            wchar_t message[2048]{};
             message[0] = L'\0';
             MaybeGetExceptionString(exception, message, ARRAYSIZE(message));
             constexpr auto hr = __HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION);
@@ -2793,7 +2795,7 @@ __WI_POP_WARNINGS
         {
             if (g_pfnResultFromCaughtException_CppWinRt)
             {
-                wchar_t message[2048];
+                wchar_t message[2048]{};
                 message[0] = L'\0';
                 bool ignored;
                 auto hr = g_pfnResultFromCaughtException_CppWinRt(message, ARRAYSIZE(message), &ignored);
@@ -4042,7 +4044,7 @@ __WI_SUPPRESS_4127_E
         template<FailureType T>
         __declspec(noinline) inline HRESULT ReportFailure_CaughtException(__R_FN_PARAMS_FULL, SupportedExceptions supported)
         {
-            wchar_t message[2048];
+            wchar_t message[2048]{};
             message[0] = L'\0';
             return ReportFailure_CaughtExceptionCommon<T>(__R_FN_CALL_FULL, message, ARRAYSIZE(message), supported).hr;
         }
@@ -4050,7 +4052,7 @@ __WI_SUPPRESS_4127_E
         template<>
         __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_CaughtException<FailureType::FailFast>(__R_FN_PARAMS_FULL, SupportedExceptions supported)
         {
-            wchar_t message[2048];
+            wchar_t message[2048]{};
             message[0] = L'\0';
             RESULT_NORETURN_RESULT(ReportFailure_CaughtExceptionCommon<FailureType::FailFast>(__R_FN_CALL_FULL, message, ARRAYSIZE(message), supported).hr);
         }
@@ -4058,7 +4060,7 @@ __WI_SUPPRESS_4127_E
         template<>
         __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_CaughtException<FailureType::Exception>(__R_FN_PARAMS_FULL, SupportedExceptions supported)
         {
-            wchar_t message[2048];
+            wchar_t message[2048]{};
             message[0] = L'\0';
             RESULT_NORETURN_RESULT(ReportFailure_CaughtExceptionCommon<FailureType::Exception>(__R_FN_CALL_FULL, message, ARRAYSIZE(message), supported).hr);
         }
@@ -5810,6 +5812,16 @@ __WI_SUPPRESS_4127_E
             }
 
             _Post_satisfies_(return == condition) _When_(condition, _Analysis_noreturn_)
+            __R_CONDITIONAL_METHOD(bool, Throw_Win32If)(__R_CONDITIONAL_FN_PARAMS DWORD err, bool condition)
+            {
+                if (condition)
+                {
+                    __R_CALL_INTERNAL_METHOD(_Throw_Win32)(__R_CONDITIONAL_FN_CALL err);
+                }
+                return condition;
+            }
+
+            _Post_satisfies_(return == condition) _When_(condition, _Analysis_noreturn_)
             __R_CONDITIONAL_METHOD(bool, Throw_GetLastErrorIf)(__R_CONDITIONAL_FN_PARAMS bool condition)
             {
                 if (condition)
@@ -6065,6 +6077,18 @@ __WI_SUPPRESS_4127_E
                     va_start(argList, formatString);
                     __R_CALL_INTERNAL_NOINLINE_METHOD(_Throw_HrMsg)(__R_CONDITIONAL_NOINLINE_FN_CALL hr, formatString, argList);
                 }
+            }
+
+            _Post_satisfies_(return == condition) _When_(condition, _Analysis_noreturn_)
+            __R_CONDITIONAL_NOINLINE_METHOD(bool, Throw_Win32IfMsg)(__R_CONDITIONAL_FN_PARAMS DWORD err, bool condition, _Printf_format_string_ PCSTR formatString, ...)
+            {
+                if (condition)
+                {
+                    va_list argList;
+                    va_start(argList, formatString);
+                    __R_CALL_INTERNAL_NOINLINE_METHOD(_Throw_Win32Msg)(__R_CONDITIONAL_NOINLINE_FN_CALL err, formatString, argList);
+                }
+                return condition;
             }
 
             _Post_satisfies_(return == condition) _When_(condition, _Analysis_noreturn_)

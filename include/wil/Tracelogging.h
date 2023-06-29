@@ -239,18 +239,18 @@ namespace wil
         class StoredCallContextInfo : public wil::CallContextInfo
         {
         public:
-            StoredCallContextInfo()
+            StoredCallContextInfo() WI_NOEXCEPT
             {
                 ::ZeroMemory(this, sizeof(*this));
             }
 
-            StoredCallContextInfo(StoredCallContextInfo &&other) :
+            StoredCallContextInfo(StoredCallContextInfo &&other) WI_NOEXCEPT :
                 StoredCallContextInfo()
             {
                 operator=(wistd::move(other));
             }
 
-            StoredCallContextInfo& operator=(StoredCallContextInfo &&other)
+            StoredCallContextInfo& operator=(StoredCallContextInfo &&other) WI_NOEXCEPT
             {
                 contextId = other.contextId;
                 contextName = other.contextName;
@@ -262,7 +262,7 @@ namespace wil
                 return *this;
             }
 
-            StoredCallContextInfo(StoredCallContextInfo const &other) :
+            StoredCallContextInfo(StoredCallContextInfo const &other) WI_NOEXCEPT :
                 m_ownsMessage(false)
             {
                 contextId = other.contextId;
@@ -277,7 +277,7 @@ namespace wil
                 }
             }
 
-            StoredCallContextInfo(_In_opt_ PCSTR staticContextName) :
+            StoredCallContextInfo(_In_opt_ PCSTR staticContextName) WI_NOEXCEPT :
                 m_ownsMessage(false)
             {
                 contextId = 0;
@@ -285,7 +285,7 @@ namespace wil
                 contextMessage = nullptr;
             }
 
-            StoredCallContextInfo(PCSTR staticContextName, _Printf_format_string_ PCSTR formatString, va_list argList) :
+            StoredCallContextInfo(PCSTR staticContextName, _Printf_format_string_ PCSTR formatString, va_list argList) WI_NOEXCEPT :
                 StoredCallContextInfo(staticContextName)
             {
                 SetMessage(formatString, argList);
@@ -581,9 +581,9 @@ namespace wil
             Initialize();
         }
 
-        TraceLoggingHProvider m_providerHandle;
-        bool m_ownsProviderHandle;
-        ErrorReportingType m_errorReportingType;
+        TraceLoggingHProvider m_providerHandle{};
+        bool m_ownsProviderHandle{};
+        ErrorReportingType m_errorReportingType{};
     };
 
     template<
@@ -1389,10 +1389,10 @@ namespace wil
 
 #define __IMPLEMENT_CALLCONTEXT_CLASS(ActivityClassName) \
     protected: \
-        ActivityClassName(_In_ void **, PCSTR contextName, _In_opt_ _Printf_format_string_ PCSTR formatString, _In_opt_ va_list argList) : \
+        ActivityClassName(_In_opt_ void **, PCSTR contextName, _In_opt_ _Printf_format_string_ PCSTR formatString, _In_opt_ va_list argList) : \
             ActivityBase(contextName) \
             { GetCallContext()->SetMessage(formatString, argList); StartActivity(); } \
-        ActivityClassName(_In_ void **, PCSTR contextName) : \
+        ActivityClassName(_In_opt_ void **, PCSTR contextName) : \
             ActivityBase(contextName) \
             { StartActivity(); } \
     public: \
@@ -3315,8 +3315,8 @@ namespace wil
                 if (m_fireEventThreadPoolTimer && !ProcessShutdownInProgress())
                 {
                     // Note this will override any pending scheduled callback
-                    FILETIME dueTime;
-                    *reinterpret_cast<PLONGLONG>(&dueTime) = -static_cast<LONGLONG>(m_fireEventDelay * 10000);
+                    FILETIME dueTime{};
+                    *reinterpret_cast<PLONGLONG>(&dueTime) = -static_cast<LONGLONG>(m_fireEventDelay) * 10000;
                     SetThreadpoolTimer(m_fireEventThreadPoolTimer.get(), &dueTime, 0, 0);
                 }
             }
@@ -3325,7 +3325,7 @@ namespace wil
             wil::unique_threadpool_timer m_fireEventThreadPoolTimer;
 
             // The timer used to determine when to fire the next telemetry event (when it's fired based on a timer).
-            UINT m_fireEventDelay;
+            UINT m_fireEventDelay{};
             DWORD const c_fireEventDelayLimit = 20 * 60 * 1000; // 20 minutes
         };
     } // namespace details
