@@ -4593,7 +4593,10 @@ namespace wil
 
 #if defined(__propidl_h__) && !defined(_WIL__propidl_h__) && !defined(WIL_KERNEL_MODE)
 #define _WIL__propidl_h__
+    // if language extensions (/Za) disabled, PropVariantInit will not exist, PROPVARIANT has forward declaration only
+#if defined(_MSC_EXTENSIONS)
     using unique_prop_variant = wil::unique_struct<PROPVARIANT, decltype(&::PropVariantClear), ::PropVariantClear, decltype(&::PropVariantInit), ::PropVariantInit>;
+#endif
 #endif // _WIL__propidl_h__
 
 #if defined(_OLEAUTO_H_) && !defined(__WIL_OLEAUTO_H_) && !defined(WIL_KERNEL_MODE) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_SYSTEM)
