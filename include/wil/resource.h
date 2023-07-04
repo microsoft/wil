@@ -6560,6 +6560,8 @@ namespace wil
         return{};
     }
 
+//! WDM version of EX_PUSH_LOCK is available starting with Windows 10 1809
+#if (NTDDI_VERSION >= NTDDI_WIN10_RS5)
     namespace details
     {
         _IRQL_requires_max_(APC_LEVEL)
@@ -6636,6 +6638,7 @@ namespace wil
     private:
         EX_PUSH_LOCK m_pushLock;
     };
+#endif
 
     namespace details
     {
