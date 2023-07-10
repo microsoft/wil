@@ -6,11 +6,16 @@
 #include <thread>
 #endif
 #include <winrt/Windows.Foundation.Collections.h>
+#include <winrt/Windows.ApplicationModel.Activation.h>
 #include <wil/cppwinrt_helpers.h>
 #include <winrt/Windows.System.h>
 #include <wil/cppwinrt_helpers.h> // Verify can include a second time to unlock more features
 
+using namespace winrt::Windows::ApplicationModel::Activation;
+
 #include "catch.hpp"
+#include <roerrorapi.h>
+#include "common.h"
 
 // HRESULT values that C++/WinRT throws as something other than winrt::hresult_error - e.g. a type derived from
 // winrt::hresult_error, std::*, etc.
@@ -154,6 +159,13 @@ TEST_CASE("CppWinRTTests::VectorToVector", "[cppwinrt]")
                 REQUIRE(false);
             }
         }
+    }
+    {
+        std::vector<BackgroundActivatedEventArgs> src_vector;
+        src_vector.emplace_back(BackgroundActivatedEventArgs{ nullptr });
+        src_vector.emplace_back(BackgroundActivatedEventArgs{ nullptr });
+        auto sv = winrt::single_threaded_vector(copy_thing(src_vector));
+        REQUIRE(wil::to_vector(sv) == src_vector);
     }
     
     REQUIRE_THROWS(wil::to_vector(winrt::make<unstable_vector>()));
@@ -636,3 +648,29 @@ TEST_CASE("CppWinRTTests::ResumeForegroundTests", "[cppwinrt]")
     }().get();
 }
 #endif // coroutines
+
+TEST_CASE("CppWinRTTests::ThrownExceptionWithMessage", "[cppwinrt]")
+{
+    SetRestrictedErrorInfo(nullptr);
+
+    []()
+    {
+        try
+        {
+            throw winrt::hresult_access_denied(L"Puppies not allowed");
+        }
+        CATCH_RETURN();
+    }();
+    witest::RequireRestrictedErrorInfo(E_ACCESSDENIED, L"Puppies not allowed");
+
+    []()
+    {
+        try
+        {
+            winrt::check_hresult(E_INVALIDARG);
+            return S_OK;
+        }
+        CATCH_RETURN();
+    }();
+    witest::RequireRestrictedErrorInfo(E_INVALIDARG, L"The parameter is incorrect.\r\n");
+}

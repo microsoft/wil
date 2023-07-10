@@ -39,7 +39,7 @@ namespace wil
 
         using base_type = std::conditional_t<std::is_scalar_v<T> || std::is_final_v<T>, wil::details::single_threaded_property_storage<T>, T>;
 
-        const auto& operator()()
+        T operator()() const
         {
             return *this;
         }
