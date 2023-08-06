@@ -2972,7 +2972,8 @@ TEST_CASE("BasicRegistryTests::cotaskmem_array-bytes", "[registry]]")
 }
 #endif // #if defined(__WIL_OBJBASE_H_)
 
-#if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
+#if defined(WIL_ENABLE_EXCEPTIONS)
+#if !defined(_VECTOR_)
 TEST_CASE("BasicRegistryTests::enumerate_values", "[registry]]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
@@ -2997,55 +2998,38 @@ TEST_CASE("BasicRegistryTests::enumerate_values", "[registry]]")
         const auto value_enum = wil::reg::enumerate_values(hkey.get());
         REQUIRE(value_enum.begin() != value_enum.end());
         auto value_iterator = value_enum.begin();
-        REQUIRE(std::wstring(*value_iterator) == L"first_value");
+
+        // both ways to access the iterator data
+        REQUIRE(std::wstring((*value_iterator).name.get()) == L"first_value)");
+        REQUIRE(std::wstring(value_iterator->name.get()) == L"first_value");
         ++value_iterator;
         REQUIRE(value_iterator == value_enum.end());
 
         value_iterator = value_enum.begin();
-        REQUIRE(std::wstring(*value_iterator) == L"first_value");
+        REQUIRE(std::wstring((*value_iterator).name.get()) == L"first_value)");
+        REQUIRE(std::wstring(value_iterator->name.get()) == L"first_value");
         value_iterator += 1;
         REQUIRE(value_iterator == value_enum.end());
 
-        const auto uniquevalue_enum = wil::reg::enumerate_values(wistd::move(hkey));
-        REQUIRE(uniquevalue_enum.begin() != uniquevalue_enum.end());
-        value_iterator = uniquevalue_enum.begin();
-        REQUIRE(std::wstring(*value_iterator) == L"first_value");
+        const auto unique_value_enum = wil::reg::enumerate_values(wistd::move(hkey));
+        REQUIRE(unique_value_enum.begin() != unique_value_enum.end());
+        value_iterator = unique_value_enum.begin();
+        REQUIRE(std::wstring((*value_iterator).name.get()) == L"first_value)");
+        REQUIRE(std::wstring(value_iterator->name.get()) == L"first_value");
         ++value_iterator;
-        REQUIRE(value_iterator == uniquevalue_enum.end());
+        REQUIRE(value_iterator == unique_value_enum.end());
 
-        value_iterator = uniquevalue_enum.begin();
-        REQUIRE(std::wstring(*value_iterator) == L"first_value");
+        value_iterator = unique_value_enum.begin();
+        REQUIRE(std::wstring((*value_iterator).name.get()) == L"first_value)");
+        REQUIRE(std::wstring(value_iterator->name.get()) == L"first_value");
         value_iterator += 1;
-        REQUIRE(value_iterator == uniquevalue_enum.end());
+        REQUIRE(value_iterator == unique_value_enum.end());
     }
 
     SECTION("enumerate_values with one value - std::for_each usage")
     {
-        wil::unique_hkey hkey{wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite)};
-        wil::reg::set_value(hkey.get(), L"first_value", 0);
-
-        uint32_t count = 0;
-        auto enumerator = wil::reg::enumerate_values(hkey.get());
-        std::for_each(enumerator.begin(), enumerator.end(), [&](PCWSTR key_name) {
-            ++count;
-            REQUIRE(std::wstring(key_name) == L"first_value");
-            });
-        REQUIRE(count == 1);
-
-        count = 0;
-        std::for_each(wil::reg::enumerate_values(hkey.get()).begin(), wil::reg::enumerate_values(hkey.get()).end(), [&](PCWSTR key_name) {
-            ++count;
-            REQUIRE(std::wstring(key_name) == L"first_value");
-            });
-        REQUIRE(count == 1);
-
-        count = 0;
-        auto uniquevalue_enumerator = wil::reg::enumerate_values(wistd::move(hkey));
-        std::for_each(uniquevalue_enumerator.begin(), uniquevalue_enumerator.end(), [&](PCWSTR key_name) {
-            ++count;
-            REQUIRE(std::wstring(key_name) == L"first_value");
-            });
-        REQUIRE(count == 1);
+        // std::for_each is only supported when using std::vector with iterators
+        // this is because std::for_each must be able to copy the iterator data
     }
 
     SECTION("enumerate_values with one value - range-for iterator usage")
@@ -3056,16 +3040,16 @@ TEST_CASE("BasicRegistryTests::enumerate_values", "[registry]]")
         wil::reg::set_value(hkey.get(), L"third_value", 2);
 
         uint32_t count = 0;
-        for (const auto key_name : wil::reg::enumerate_values(hkey.get()))
+        for (const auto& key_name : wil::reg::enumerate_values(hkey.get()))
         {
             ++count;
             switch (count)
             {
-                case 1: REQUIRE(std::wstring(key_name) == L"first_value");
+                case 1: REQUIRE(std::wstring(key_name.name.get()) == L"first_value");
                 break;
-                case 2: REQUIRE(std::wstring(key_name) == L"second_value");
+                case 2: REQUIRE(std::wstring(key_name.name.get()) == L"second_value");
                 break;
-                case 3: REQUIRE(std::wstring(key_name) == L"third_value");
+                case 3: REQUIRE(std::wstring(key_name.name.get()) == L"third_value");
                 break;
                 default: REQUIRE_FAILED(false);
             }
@@ -3073,16 +3057,16 @@ TEST_CASE("BasicRegistryTests::enumerate_values", "[registry]]")
         REQUIRE(count == 3);
 
         count = 0;
-        for (const auto key_name : wil::reg::enumerate_values(wistd::move(hkey)))
+        for (const auto& key_name : wil::reg::enumerate_values(wistd::move(hkey)))
         {
             ++count;
             switch (count)
             {
-                case 1: REQUIRE(std::wstring(key_name) == L"first_value");
+                case 1: REQUIRE(std::wstring(key_name.name.get()) == L"first_value");
                 break;
-                case 2: REQUIRE(std::wstring(key_name) == L"second_value");
+                case 2: REQUIRE(std::wstring(key_name.name.get()) == L"second_value");
                 break;
-                case 3: REQUIRE(std::wstring(key_name) == L"third_value");
+                case 3: REQUIRE(std::wstring(key_name.name.get()) == L"third_value");
                 break;
                 default: REQUIRE_FAILED(false);
             }
@@ -3106,8 +3090,8 @@ TEST_CASE("BasicRegistryTests::enumerate_keys", "[registry]]")
         const wil::reg::key_enumerator<HKEY> key_enum = wil::reg::enumerate_keys(hkey.get());
         REQUIRE(key_enum.begin() == key_enum.end());
 
-        const wil::reg::key_enumerator<wil::unique_hkey> uniquekey_enum = wil::reg::enumerate_keys(wistd::move(hkey));
-        REQUIRE(uniquekey_enum.begin() == uniquekey_enum.end());
+        const wil::reg::key_enumerator<wil::unique_hkey> unique_key_enum = wil::reg::enumerate_keys(wistd::move(hkey));
+        REQUIRE(unique_key_enum.begin() == unique_key_enum.end());
     }
 
     SECTION("enumerate_keys with one subkey - manual iterator usage")
@@ -3118,26 +3102,248 @@ TEST_CASE("BasicRegistryTests::enumerate_keys", "[registry]]")
         const auto key_enum = wil::reg::enumerate_keys(hkey.get());
         REQUIRE(key_enum.begin() != key_enum.end());
         auto key_iterator = key_enum.begin();
-        REQUIRE(std::wstring(*key_iterator) == L"first_key");
+        REQUIRE(std::wstring(key_iterator->name.get()) == L"first_key");
         ++key_iterator;
         REQUIRE(key_iterator == key_enum.end());
 
         key_iterator = key_enum.begin();
-        REQUIRE(std::wstring(*key_iterator) == L"first_key");
+        REQUIRE(std::wstring(key_iterator->name.get()) == L"first_key");
         key_iterator += 1;
         REQUIRE(key_iterator == key_enum.end());
 
-        const auto uniquekey_enum = wil::reg::enumerate_keys(wistd::move(hkey));
-        REQUIRE(uniquekey_enum.begin() != uniquekey_enum.end());
-        key_iterator = uniquekey_enum.begin();
-        REQUIRE(std::wstring(*key_iterator) == L"first_key");
+        const auto unique_key_enum = wil::reg::enumerate_keys(wistd::move(hkey));
+        REQUIRE(unique_key_enum.begin() != unique_key_enum.end());
+        key_iterator = unique_key_enum.begin();
+        REQUIRE(std::wstring((*key_iterator).name.get()) == L"first_key");
         ++key_iterator;
-        REQUIRE(key_iterator == uniquekey_enum.end());
+        REQUIRE(key_iterator == unique_key_enum.end());
 
-        key_iterator = uniquekey_enum.begin();
-        REQUIRE(std::wstring(*key_iterator) == L"first_key");
+        key_iterator = unique_key_enum.begin();
+        REQUIRE(std::wstring((*key_iterator).name.get()) == L"first_key");
         key_iterator += 1;
-        REQUIRE(key_iterator == uniquekey_enum.end());
+        REQUIRE(key_iterator == unique_key_enum.end());
+    }
+
+    SECTION("enumerate_keys with one subkey - std::for_each usage")
+    {
+        // std::for_each is only supported when using std::vector with iterators
+        // this is because std::for_each must be able to copy the iterator data
+    }
+
+    SECTION("enumerate_keys with subkeys - range-for iterator usage")
+    {
+        wil::unique_hkey hkey{wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite)};
+        wil::reg::create_unique_key(hkey.get(), L"first_key");
+        wil::reg::create_unique_key(hkey.get(), L"second_key");
+        wil::reg::create_unique_key(hkey.get(), L"third_key");
+
+        uint32_t count = 0;
+        for (const auto& key_name : wil::reg::enumerate_keys(hkey.get()))
+        {
+            ++count;
+            switch (count)
+            {
+                case 1: REQUIRE(std::wstring(key_name.name.get()) == L"first_key");
+                break;
+                case 2: REQUIRE(std::wstring(key_name.name.get()) == L"second_key");
+                break;
+                case 3: REQUIRE(std::wstring(key_name.name.get()) == L"third_key");
+                break;
+                default: REQUIRE_FAILED(false);
+            }
+        }
+        REQUIRE(count == 3);
+
+        count = 0;
+        for (const auto& key_name : wil::reg::enumerate_keys(wistd::move(hkey)))
+        {
+            ++count;
+            switch (count)
+            {
+                case 1: REQUIRE(std::wstring(key_name.name.get()) == L"first_key");
+                break;
+                case 2: REQUIRE(std::wstring(key_name.name.get()) == L"second_key");
+                break;
+                case 3: REQUIRE(std::wstring(key_name.name.get()) == L"third_key");
+                break;
+                default: REQUIRE_FAILED(false);
+            }
+        }
+        REQUIRE(count == 3);
+    }
+}
+#else
+TEST_CASE("BasicRegistryTests::enumerate_values", "[registry]]")
+{
+    const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
+    if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+    {
+        REQUIRE_SUCCEEDED(deleteHr);
+    }
+
+    SECTION("enumerate_values with no values")
+    {
+        const wil::unique_hkey hkey{wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey)};
+        const auto value_enum = wil::reg::enumerate_values(hkey.get());
+
+        REQUIRE(value_enum.begin() == value_enum.end());
+    }
+
+    SECTION("enumerate_values with one value - manual iterator usage")
+    {
+        wil::unique_hkey hkey{wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite)};
+        wil::reg::set_value(hkey.get(), L"first_value", 0);
+
+        const auto value_enum = wil::reg::enumerate_values(hkey.get());
+        REQUIRE(value_enum.begin() != value_enum.end());
+        auto value_iterator = value_enum.begin();
+
+        // both ways to access the iterator data
+        REQUIRE(std::wstring((*value_iterator).name.data()) == L"first_value)");
+        REQUIRE(std::wstring(value_iterator->name.data()) == L"first_value");
+        ++value_iterator;
+        REQUIRE(value_iterator == value_enum.end());
+
+        value_iterator = value_enum.begin();
+        REQUIRE(std::wstring((*value_iterator).name.data()) == L"first_value)");
+        REQUIRE(std::wstring(value_iterator->name.data()) == L"first_value");
+        value_iterator += 1;
+        REQUIRE(value_iterator == value_enum.end());
+
+        const auto unique_value_enum = wil::reg::enumerate_values(wistd::move(hkey));
+        REQUIRE(unique_value_enum.begin() != unique_value_enum.end());
+        value_iterator = unique_value_enum.begin();
+        REQUIRE(std::wstring((*value_iterator).name.data()) == L"first_value)");
+        REQUIRE(std::wstring(value_iterator->name.data()) == L"first_value");
+        ++value_iterator;
+        REQUIRE(value_iterator == unique_value_enum.end());
+
+        value_iterator = unique_value_enum.begin();
+        REQUIRE(std::wstring((*value_iterator).name.data()) == L"first_value)");
+        REQUIRE(std::wstring(value_iterator->name.data()) == L"first_value");
+        value_iterator += 1;
+        REQUIRE(value_iterator == unique_value_enum.end());
+    }
+
+    SECTION("enumerate_values with one value - std::for_each usage")
+    {
+        wil::unique_hkey hkey{wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite)};
+        wil::reg::set_value(hkey.get(), L"first_value", 0);
+
+        uint32_t count = 0;
+        auto enumerator = wil::reg::enumerate_values(hkey.get());
+        std::for_each(enumerator.begin(), enumerator.end(), [&](const auto& iterator_data) {
+            ++count;
+            REQUIRE(std::wstring(iterator_data.name.data()) == L"first_value");
+            });
+        REQUIRE(count == 1);
+
+        count = 0;
+        std::for_each(wil::reg::enumerate_values(hkey.get()).begin(), wil::reg::enumerate_values(hkey.get()).end(), [&](const auto& iterator_data) {
+            ++count;
+            REQUIRE(std::wstring(iterator_data.name.data()) == L"first_value");
+            });
+        REQUIRE(count == 1);
+
+        count = 0;
+        auto uniquevalue_enumerator = wil::reg::enumerate_values(wistd::move(hkey));
+        std::for_each(uniquevalue_enumerator.begin(), uniquevalue_enumerator.end(), [&](const auto& iterator_data) {
+            ++count;
+            REQUIRE(std::wstring(iterator_data.name.data()) == L"first_value");
+            });
+        REQUIRE(count == 1);
+    }
+
+    SECTION("enumerate_values with one value - range-for iterator usage")
+    {
+        wil::unique_hkey hkey{wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite)};
+        wil::reg::set_value(hkey.get(), L"first_value", 0);
+        wil::reg::set_value(hkey.get(), L"second_value", 1);
+        wil::reg::set_value(hkey.get(), L"third_value", 2);
+
+        uint32_t count = 0;
+        for (const auto& key_name : wil::reg::enumerate_values(hkey.get()))
+        {
+            ++count;
+            switch (count)
+            {
+                case 1: REQUIRE(std::wstring(key_name.name.data()) == L"first_value");
+                break;
+                case 2: REQUIRE(std::wstring(key_name.name.data()) == L"second_value");
+                break;
+                case 3: REQUIRE(std::wstring(key_name.name.data()) == L"third_value");
+                break;
+                default: REQUIRE_FAILED(false);
+            }
+        }
+        REQUIRE(count == 3);
+
+        count = 0;
+        for (const auto& key_name : wil::reg::enumerate_values(wistd::move(hkey)))
+        {
+            ++count;
+            switch (count)
+            {
+                case 1: REQUIRE(std::wstring(key_name.name.data()) == L"first_value");
+                break;
+                case 2: REQUIRE(std::wstring(key_name.name.data()) == L"second_value");
+                break;
+                case 3: REQUIRE(std::wstring(key_name.name.data()) == L"third_value");
+                break;
+                default: REQUIRE_FAILED(false);
+            }
+        }
+        REQUIRE(count == 3);
+    }
+}
+
+TEST_CASE("BasicRegistryTests::enumerate_keys", "[registry]]")
+{
+    const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
+    if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+    {
+        REQUIRE_SUCCEEDED(deleteHr);
+    }
+
+    SECTION("enumerate_keys with no subkeys")
+    {
+        wil::unique_hkey hkey{wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey)};
+
+        const wil::reg::key_enumerator<HKEY> key_enum = wil::reg::enumerate_keys(hkey.get());
+        REQUIRE(key_enum.begin() == key_enum.end());
+
+        const wil::reg::key_enumerator<wil::unique_hkey> unique_key_enum = wil::reg::enumerate_keys(wistd::move(hkey));
+        REQUIRE(unique_key_enum.begin() == unique_key_enum.end());
+    }
+
+    SECTION("enumerate_keys with one subkey - manual iterator usage")
+    {
+        wil::unique_hkey hkey{wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite)};
+        wil::reg::create_unique_key(hkey.get(), L"first_key");
+
+        const auto key_enum = wil::reg::enumerate_keys(hkey.get());
+        REQUIRE(key_enum.begin() != key_enum.end());
+        auto key_iterator = key_enum.begin();
+        REQUIRE(std::wstring(key_iterator->name.data()) == L"first_key");
+        ++key_iterator;
+        REQUIRE(key_iterator == key_enum.end());
+
+        key_iterator = key_enum.begin();
+        REQUIRE(std::wstring(key_iterator->name.data()) == L"first_key");
+        key_iterator += 1;
+        REQUIRE(key_iterator == key_enum.end());
+
+        const auto unique_key_enum = wil::reg::enumerate_keys(wistd::move(hkey));
+        REQUIRE(unique_key_enum.begin() != unique_key_enum.end());
+        key_iterator = unique_key_enum.begin();
+        REQUIRE(std::wstring((*key_iterator).name.data()) == L"first_key");
+        ++key_iterator;
+        REQUIRE(key_iterator == unique_key_enum.end());
+
+        key_iterator = unique_key_enum.begin();
+        REQUIRE(std::wstring((*key_iterator).name.data()) == L"first_key");
+        key_iterator += 1;
+        REQUIRE(key_iterator == unique_key_enum.end());
     }
 
     SECTION("enumerate_keys with one subkey - std::for_each usage")
@@ -3147,24 +3353,24 @@ TEST_CASE("BasicRegistryTests::enumerate_keys", "[registry]]")
 
         uint32_t count = 0;
         auto enumerator = wil::reg::enumerate_keys(hkey.get());
-        std::for_each(enumerator.begin(), enumerator.end(), [&](PCWSTR key_name) {
+        std::for_each(enumerator.begin(), enumerator.end(), [&](const auto& iterator_data) {
             ++count;
-            REQUIRE(std::wstring(key_name) == L"first_key");
+            REQUIRE(std::wstring(iterator_data.name.data()) == L"first_key");
             });
         REQUIRE(count == 1);
 
         count = 0;
-        std::for_each(wil::reg::enumerate_keys(hkey.get()).begin(), wil::reg::enumerate_keys(hkey.get()).end(), [&](PCWSTR key_name) {
+        std::for_each(wil::reg::enumerate_keys(hkey.get()).begin(), wil::reg::enumerate_keys(hkey.get()).end(), [&](const auto& iterator_data) {
             ++count;
-            REQUIRE(std::wstring(key_name) == L"first_key");
+            REQUIRE(std::wstring(iterator_data.name.data()) == L"first_key");
             });
         REQUIRE(count == 1);
 
         count = 0;
-        auto uniquekey_enumerator = wil::reg::enumerate_keys(wistd::move(hkey));
-        std::for_each(uniquekey_enumerator.begin(), uniquekey_enumerator.end(), [&](PCWSTR key_name) {
+        auto unique_key_enumerator = wil::reg::enumerate_keys(wistd::move(hkey));
+        std::for_each(unique_key_enumerator.begin(), unique_key_enumerator.end(), [&](const auto& iterator_data) {
             ++count;
-            REQUIRE(std::wstring(key_name) == L"first_key");
+            REQUIRE(std::wstring(iterator_data.name.data()) == L"first_key");
             });
         REQUIRE(count == 1);
     }
@@ -3177,16 +3383,16 @@ TEST_CASE("BasicRegistryTests::enumerate_keys", "[registry]]")
         wil::reg::create_unique_key(hkey.get(), L"third_key");
 
         uint32_t count = 0;
-        for (const auto key_name : wil::reg::enumerate_keys(hkey.get()))
+        for (const auto& key_name : wil::reg::enumerate_keys(hkey.get()))
         {
             ++count;
             switch (count)
             {
-                case 1: REQUIRE(std::wstring(key_name) == L"first_key");
+                case 1: REQUIRE(std::wstring(key_name.name.data()) == L"first_key");
                 break;
-                case 2: REQUIRE(std::wstring(key_name) == L"second_key");
+                case 2: REQUIRE(std::wstring(key_name.name.data()) == L"second_key");
                 break;
-                case 3: REQUIRE(std::wstring(key_name) == L"third_key");
+                case 3: REQUIRE(std::wstring(key_name.name.data()) == L"third_key");
                 break;
                 default: REQUIRE_FAILED(false);
             }
@@ -3194,16 +3400,16 @@ TEST_CASE("BasicRegistryTests::enumerate_keys", "[registry]]")
         REQUIRE(count == 3);
 
         count = 0;
-        for (const auto key_name : wil::reg::enumerate_keys(wistd::move(hkey)))
+        for (const auto& key_name : wil::reg::enumerate_keys(wistd::move(hkey)))
         {
             ++count;
             switch (count)
             {
-                case 1: REQUIRE(std::wstring(key_name) == L"first_key");
+                case 1: REQUIRE(std::wstring(key_name.name.data()) == L"first_key");
                 break;
-                case 2: REQUIRE(std::wstring(key_name) == L"second_key");
+                case 2: REQUIRE(std::wstring(key_name.name.data()) == L"second_key");
                 break;
-                case 3: REQUIRE(std::wstring(key_name) == L"third_key");
+                case 3: REQUIRE(std::wstring(key_name.name.data()) == L"third_key");
                 break;
                 default: REQUIRE_FAILED(false);
             }
@@ -3211,4 +3417,5 @@ TEST_CASE("BasicRegistryTests::enumerate_keys", "[registry]]")
         REQUIRE(count == 3);
     }
 }
-#endif // #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS
+#endif // #if !defined(_VECTOR_)
+#endif // #if defined(WIL_ENABLE_EXCEPTIONS)

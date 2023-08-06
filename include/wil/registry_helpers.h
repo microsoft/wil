@@ -96,7 +96,7 @@ namespace wil
             }
 
             /**
-             * \brief A utility function that walks a contigous wchar_t container looking for strings within a multi-string
+             * \brief A utility function that walks a contiguous wchar_t container looking for strings within a multi-string
              * \tparam InputIt An iterator type that reference a container that holds wchar_t characters to translate into individual strings
              * \tparam Fn A callback function to be called each time a string is found - given the [begin, end] iterators referencing the found string
              * \param first An iterator referencing to the beginning of the target container (like a std::begin iterator)
@@ -242,7 +242,7 @@ namespace wil
              * \param first An iterator referencing to the beginning of the target container (like a std::begin iterator)
              * \param last An iterator referencing one-past-the-end of the target container (like a std::end iterator)
              * \param cotaskmem_array The [out] wil::unique_cotaskmem_array_ptr<wil::unique_cotaskmem_string> to contain the array of strings
-             * \return A wil::unique_cotaskmem_array_ptr<wil::unique_cotaskmem_string> of the extracted strings from the input container of wchar_t characters
+             *         A wil::unique_cotaskmem_array_ptr<wil::unique_cotaskmem_string> of the extracted strings from the input container of wchar_t characters
              *         An empty wil::unique_cotaskmem_array_ptr should be translated as out-of-memory as there should always be at least one wil::unique_cotaskmem_string
              */
             template <class InputIt>
@@ -586,7 +586,7 @@ namespace wil
                 {
                     return true;
                 }
-                inline HRESULT prepare_buffer(BSTR& value) WI_NOEXCEPT
+                inline HRESULT prepare_buffer(const BSTR& value) WI_NOEXCEPT
                 {
                     if (value)
                     {
@@ -608,7 +608,7 @@ namespace wil
                 // and the caller maintained ownership of the original BSTR.
                 inline HRESULT resize_buffer(BSTR& string, DWORD byteSize, bool transferringOwnership = true) WI_NOEXCEPT
                 {
-                    // convert bytes to length (number of WCHARs)
+                    // convert bytes to length (number of WCHAR's)
                     DWORD length = byteSize / sizeof(WCHAR);
                     // SysAllocStringLen adds a null, so subtract a wchar_t from the input length
                     length = length > 0 ? length - 1 : length;
@@ -640,7 +640,7 @@ namespace wil
                 {
                     return true;
                 }
-                inline HRESULT prepare_buffer(::wil::unique_bstr& value) WI_NOEXCEPT
+                inline HRESULT prepare_buffer(const ::wil::unique_bstr& value) WI_NOEXCEPT
                 {
                     if (value)
                     {
@@ -689,7 +689,7 @@ namespace wil
                 {
                     return true;
                 }
-                inline HRESULT prepare_buffer(::wil::shared_bstr& value) WI_NOEXCEPT
+                inline HRESULT prepare_buffer(const ::wil::shared_bstr& value) WI_NOEXCEPT
                 {
                     if (value)
                     {
@@ -742,7 +742,7 @@ namespace wil
                 }
                 inline HRESULT resize_buffer(::wil::unique_cotaskmem_string& string, DWORD byteSize) WI_NOEXCEPT
                 {
-                    // convert bytes to length (number of WCHARs)
+                    // convert bytes to length (number of WCHAR's)
                     size_t length = byteSize / sizeof(wchar_t);
                     // ::wil::make_unique_string_nothrow adds one to the length when it allocates, so subtracting 1 from the input length
                     length = length > 0 ? length - 1 : length;
@@ -804,7 +804,7 @@ namespace wil
                 }
                 inline HRESULT resize_buffer(::wil::shared_cotaskmem_string& string, DWORD byteSize) WI_NOEXCEPT try
                 {
-                    // convert bytes to length (number of WCHARs)
+                    // convert bytes to length (number of WCHAR's)
                     size_t length = byteSize / sizeof(wchar_t);
                     // ::wil::make_unique_string_nothrow adds one to the length when it allocates, so subtracting 1 from the input length
                     length = length > 0 ? length - 1 : length;
@@ -817,7 +817,7 @@ namespace wil
                 CATCH_RETURN();
 #endif // #if defined(__WIL_OBJBASE_H_STL)
 
-                // constexpr expressions to determing the get* and set* registry value types
+                // constexpr expressions to determining the get* and set* registry value types
                 // for all supported types T to read/write values
                 template <typename T>
                 DWORD get_value_type() WI_NOEXCEPT
@@ -1218,11 +1218,11 @@ namespace wil
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS)
         }
 
-        // registry iterator support requires <vector>
-#if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
+        // registry iterator support requires exceptions
+#if defined(WIL_ENABLE_EXCEPTIONS)
         namespace reg_iterator_details
         {
-            const uint32_t iterator_end_offset = 0xffffffff;
+            constexpr uint32_t iterator_end_offset = 0xffffffff;
 
             enum class iterator_creation_flag
             {
@@ -1230,162 +1230,116 @@ namespace wil
                 end
             };
 
-            struct key_iterator_data
+#if defined(_VECTOR_)
+            inline wchar_t* address_of_name(::std::vector<wchar_t>& name) WI_NOEXCEPT
             {
-                key_iterator_data(HKEY key) : m_hkey{ key }
-                {
-                }
-                HKEY m_hkey{};
-                ::std::vector<wchar_t> m_nextName;
-                uint32_t m_index = iterator_end_offset;
-            };
-
-            struct value_iterator_data
+                return name.data();
+            }
+            inline void clear_name(::std::vector<wchar_t>& name, size_t)
             {
-                value_iterator_data(HKEY key) : m_hkey{ key }
-                {
-                }
-                HKEY m_hkey{};
-                DWORD m_nextType = REG_NONE;
-                ::std::vector<wchar_t> m_nextName;
-                uint32_t m_index = iterator_end_offset;
-            };
+                name.assign(name.size(), L'\0');
+            }
 
-            // These iterator classes facilitates STL iterator semantics to walk a set of subkeys and values
-            template <typename T>
-            class iterator_t;
-
-            // The template implementation for registry iterator support 2 types: for keys and values
-            // These typedefs are designed to simplify types for callers and mask the implementation details
-            using key_iterator = iterator_t<key_iterator_data>;
-            using value_iterator = iterator_t<value_iterator_data>;
-
-            template <typename T>
-            class iterator_t
+            inline size_t resize_name(::std::vector<wchar_t>& name, size_t, size_t new_length)
             {
-            public:
-                // defining iterator_traits allows STL <algorithm> functions to be used with this iterator class.
-                // Notice this is a forward_iterator
-                // - does not support random-access (e.g. vector::iterator)
-                // - does not support bi-directional access (e.g. list::iterator)
-                using iterator_category = ::std::forward_iterator_tag;
-                using value_type = PCWSTR;
-                using difference_type = size_t;
-                using distance_type = size_t;
-                using pointer = PCWSTR*;
-                using reference = PCWSTR;
-
-                iterator_t() = default;
-                ~iterator_t() = default;
-
-                iterator_t(HKEY hkey, ::wil::reg::reg_iterator_details::iterator_creation_flag type) : m_data(hkey)
-                {
-                    if (type == ::wil::reg::reg_iterator_details::iterator_creation_flag::begin)
-                    {
-                        constexpr size_t iterator_default_buffer_size = 16;
-                        m_data.m_nextName.resize(iterator_default_buffer_size);
-                        m_data.m_index = 0;
-                        this->enumerate_next();
-                    }
-                }
-
-                // copy construction can throw ::std::bad_alloc
-                iterator_t(const iterator_t&) = default;
-                iterator_t& operator=(const iterator_t&) = default;
-
-                // moves cannot fail/throw
-                iterator_t(iterator_t&& rhs) WI_NOEXCEPT = default;
-                iterator_t& operator=(iterator_t&& rhs) WI_NOEXCEPT = default;
-
-                // operator support
-                PCWSTR operator*() const
-                {
-                    if (::wil::reg::reg_iterator_details::iterator_end_offset == m_data.m_index)
-                    {
-                        THROW_WIN32(ERROR_NO_MORE_ITEMS);
-                    }
-                    return m_data.m_nextName.size() < 2 ? L"" : &m_data.m_nextName[0];
-                }
-
-                bool operator==(const iterator_t& rhs) const WI_NOEXCEPT
-                {
-                    if (::wil::reg::reg_iterator_details::iterator_end_offset == m_data.m_index || ::wil::reg::reg_iterator_details::iterator_end_offset == rhs.m_data.m_index)
-                    {
-                        // if either is not initialized (or end), both must not be initialized (or end) to be equal
-                        return m_data.m_index == rhs.m_data.m_index;
-                    }
-                    return m_data.m_hkey == rhs.m_data.m_hkey && m_data.m_index == rhs.m_data.m_index;
-                }
-
-                bool operator!=(const iterator_t& rhs) const WI_NOEXCEPT
-                {
-                    return !(*this == rhs);
-                }
-
-                // pre-increment
-                iterator_t& operator++()
-                {
-                    this->operator +=(1);
-                    return *this;
-                }
-
-                // increment by integer
-                iterator_t& operator+=(size_t offset)
-                {
-                    // fail on overflow
-                    uint32_t newIndex = m_data.m_index + static_cast<uint32_t>(offset);
-                    // fail on integer overflow
-                    if (newIndex < m_data.m_index)
-                    {
-                        THROW_HR(E_INVALIDARG);
-                    }
-                    // fail if this creates an end iterator
-                    if (newIndex == ::wil::reg::reg_iterator_details::iterator_end_offset)
-                    {
-                        THROW_HR(E_INVALIDARG);
-                    }
-
-                    // iterate by the integer offset
-                    for (size_t count = 0; count < offset; ++count)
-                    {
-                        ++m_data.m_index;
-                        this->enumerate_next();
-                    }
-                    return *this;
-                }
-
-                // not supporting post-increment - which would require copy-construction
-                iterator_t operator++(int) = delete;
-
-                // must be specialized per template type
-                DWORD type() const WI_NOEXCEPT;
-
-            private:
-                void make_end_iterator() WI_NOEXCEPT
-                {
-                    m_data.m_nextName.clear();
-                    m_data.m_index = ::wil::reg::reg_iterator_details::iterator_end_offset;
-                }
-
-                // must be specialized per template type
-                void enumerate_next();
-
-                // container based on the class template type
-                T m_data{};
-            };
-
-            template <>
-            inline void iterator_t<::wil::reg::reg_iterator_details::key_iterator_data>::enumerate_next()
+                name.resize(new_length);
+                clear_name(name, name.size());
+                return name.size();
+            }
+#else
+            inline wchar_t* address_of_name(::wil::unique_process_heap_string& name) WI_NOEXCEPT
             {
-                for (auto vectorSize = static_cast<DWORD>(m_data.m_nextName.capacity());;)
+                return name.get();
+            }
+            inline void clear_name(::wil::unique_process_heap_string& name, size_t length)
+            {
+                if (length > 0)
                 {
-                    m_data.m_nextName.resize(vectorSize);
-                    auto tempVectorSize = vectorSize;
+                    memset(name.get(), 0, length * sizeof(wchar_t));
+                }
+            }
+
+            inline size_t resize_name(::wil::unique_process_heap_string& name, size_t current_length, size_t new_length)
+            {
+                if (new_length > current_length)
+                {
+                    auto newString{ ::wil::make_unique_string_nothrow<::wil::unique_process_heap_string>(name.get(), new_length) };
+                    name.swap(newString);
+                    return new_length;
+                }
+
+                // continue to use the existing buffer since the requested length is less than the current length
+                clear_name(name, current_length);
+                return current_length;
+            }
+#endif
+        };
+
+        // forward declaration
+        template <typename T> class iterator_t;
+
+        class key_iterator_data
+        {
+        public:
+#if defined(_VECTOR_)
+            ::std::vector<wchar_t> name;
+#else
+            ::wil::unique_process_heap_string name;
+#endif
+            key_iterator_data(HKEY key) : m_hkey{ key }
+            {
+            }
+            ~key_iterator_data() WI_NOEXCEPT = default;
+
+#if defined (_VECTOR_)
+            // only copyable when using std::vector
+            key_iterator_data(const key_iterator_data&) = default;
+            key_iterator_data& operator=(const key_iterator_data&) = default;
+#else
+            key_iterator_data(const key_iterator_data&) = delete;
+            key_iterator_data& operator=(const key_iterator_data&) = delete;
+#endif
+
+            key_iterator_data(key_iterator_data&&) WI_NOEXCEPT = default;
+            key_iterator_data& operator=(key_iterator_data&& rhs) WI_NOEXCEPT
+            {
+                name = ::wistd::move(rhs.name);
+                m_hkey = rhs.m_hkey;
+                m_index = rhs.m_index;
+                m_capacity = rhs.m_capacity;
+                return *this;
+            }
+
+        private:
+            friend class ::wil::reg::iterator_t<key_iterator_data>;
+
+            bool is_end() const noexcept
+            {
+                return m_index == ::wil::reg::reg_iterator_details::iterator_end_offset;
+            }
+
+            void make_end_iterator() WI_NOEXCEPT
+            {
+                ::wil::reg::reg_iterator_details::clear_name(name, m_capacity);
+                m_index = ::wil::reg::reg_iterator_details::iterator_end_offset;
+            }
+
+            void resize(size_t new_length)
+            {
+                m_capacity = ::wil::reg::reg_iterator_details::resize_name(name, m_capacity, new_length);
+            }
+
+            void enum_next()
+            {
+                for (auto string_length = static_cast<DWORD>(m_capacity);;)
+                {
+                    resize(string_length);
+
                     const auto error = ::RegEnumKeyExW(
-                        m_data.m_hkey,
-                        m_data.m_index,
-                        m_data.m_nextName.data(),
-                        &tempVectorSize,
+                        m_hkey, // hKey
+                        m_index, // dwIndex
+                        string_length == 0 ? nullptr : ::wil::reg::reg_iterator_details::address_of_name(name), // lpName
+                        &string_length, // lpcchName
                         nullptr, // lpReserved
                         nullptr, // lpClass
                         nullptr, // lpcchClass
@@ -1397,14 +1351,14 @@ namespace wil
                     }
                     if (error == ERROR_NO_MORE_ITEMS)
                     {
-                        this->make_end_iterator();
+                        make_end_iterator();
                         break;
                     }
                     if (error == ERROR_MORE_DATA)
                     {
                         // resize to one-more-than-returned for the null-terminator
                         // then continue the loop
-                        vectorSize = tempVectorSize + 1;
+                        string_length += 1;
                         continue;
                     }
 
@@ -1413,36 +1367,94 @@ namespace wil
                 }
             }
 
-            template <>
-            inline void iterator_t<::wil::reg::reg_iterator_details::value_iterator_data>::enumerate_next()
+            HKEY m_hkey{};
+            uint32_t m_index = ::wil::reg::reg_iterator_details::iterator_end_offset;
+            size_t m_capacity{};
+        };
+
+        class value_iterator_data
+        {
+        public:
+#if defined(_VECTOR_)
+            ::std::vector<wchar_t> name;
+#else
+            ::wil::unique_process_heap_string name;
+#endif
+            DWORD type = REG_NONE;
+
+            value_iterator_data(HKEY key) : m_hkey{ key }
             {
-                for (auto vectorSize = static_cast<DWORD>(m_data.m_nextName.capacity());;)
+            }
+            ~value_iterator_data() WI_NOEXCEPT = default;
+
+#if defined (_VECTOR_)
+            // only copyable when using std::vector
+            value_iterator_data(const value_iterator_data&) = default;
+            value_iterator_data& operator=(const value_iterator_data&) = default;
+#else
+            value_iterator_data(const value_iterator_data&) = delete;
+            value_iterator_data& operator=(const value_iterator_data&) = delete;
+#endif
+
+            value_iterator_data(value_iterator_data&&) WI_NOEXCEPT = default;
+            value_iterator_data& operator=(value_iterator_data&& rhs) WI_NOEXCEPT
+            {
+                name = ::wistd::move(rhs.name);
+                type = rhs.type;
+                m_hkey = rhs.m_hkey;
+                m_index = rhs.m_index;
+                m_capacity = rhs.m_capacity;
+                return *this;
+            }
+
+        private:
+            friend class ::wil::reg::iterator_t<value_iterator_data>;
+
+            bool is_end() const noexcept
+            {
+                return m_index == ::wil::reg::reg_iterator_details::iterator_end_offset;
+            }
+
+            void make_end_iterator() WI_NOEXCEPT
+            {
+                ::wil::reg::reg_iterator_details::clear_name(name, m_capacity);
+                m_index = ::wil::reg::reg_iterator_details::iterator_end_offset;
+            }
+
+            void resize(size_t new_length)
+            {
+                m_capacity = ::wil::reg::reg_iterator_details::resize_name(name, m_capacity, new_length);
+            }
+
+            void enum_next()
+            {
+                for (auto string_length = static_cast<DWORD>(m_capacity);;)
                 {
-                    m_data.m_nextName.resize(vectorSize);
-                    auto tempVectorSize = vectorSize;
+                    resize(string_length);
                     const auto error = ::RegEnumValueW(
-                        m_data.m_hkey,
-                        m_data.m_index,
-                        m_data.m_nextName.data(),
-                        &tempVectorSize,
+                        m_hkey, // hKey
+                        m_index, // dwIndex
+                        string_length == 0 ? nullptr : ::wil::reg::reg_iterator_details::address_of_name(name), // lpValueName
+                        &string_length, // lpcchValueName
                         nullptr, // lpReserved
-                        &m_data.m_nextType,
+                        &type, // lpType
                         nullptr, // lpData
                         nullptr); // lpcbData
+
                     if (error == ERROR_SUCCESS)
                     {
                         break;
                     }
                     if (error == ERROR_NO_MORE_ITEMS)
                     {
-                        this->make_end_iterator();
+                        make_end_iterator();
                         break;
                     }
                     if (error == ERROR_MORE_DATA)
                     {
                         // resize to one-more-than-returned for the null-terminator
                         // then continue the loop
-                        vectorSize = tempVectorSize + 1;
+                        string_length += 1;
                         continue;
                     }
 
@@ -1451,111 +1463,244 @@ namespace wil
                 }
             }
 
-            template <>
-            inline DWORD iterator_t<::wil::reg::reg_iterator_details::key_iterator_data>::type() const WI_NOEXCEPT
+            HKEY m_hkey{};
+            uint32_t m_index = ::wil::reg::reg_iterator_details::iterator_end_offset;
+            size_t m_capacity{};
+        };
+
+        template <typename T>
+        class iterator_t
+        {
+        public:
+            // defining iterator_traits allows STL <algorithm> functions to be used with this iterator class.
+            // Notice this is a forward_iterator
+            // - does not support random-access (e.g. vector::iterator)
+            // - does not support bi-directional access (e.g. list::iterator)
+#if defined(_ITERATOR_)
+            using iterator_category = ::std::forward_iterator_tag;
+#endif
+            using value_type = T;
+            using difference_type = size_t;
+            using distance_type = size_t;
+            using pointer = T*;
+            using reference = T&;
+
+            iterator_t() = default;
+            ~iterator_t() = default;
+
+            iterator_t(HKEY hkey, ::wil::reg::reg_iterator_details::iterator_creation_flag type) : m_data(hkey)
             {
-                return REG_NONE;
+                if (type == ::wil::reg::reg_iterator_details::iterator_creation_flag::begin)
+                {
+                    constexpr size_t iterator_default_buffer_size = 16;
+                    m_data.resize(iterator_default_buffer_size);
+                    m_data.m_index = 0;
+                    m_data.enum_next();
+                }
             }
 
-            template <>
-            inline DWORD iterator_t<::wil::reg::reg_iterator_details::value_iterator_data>::type() const WI_NOEXCEPT
+#if defined (_VECTOR_)
+            // only copyable when using std::vector
+            iterator_t(const iterator_t&) = default;
+            iterator_t& operator=(const iterator_t&) = default;
+#else
+            iterator_t(const iterator_t&) = delete;
+            iterator_t& operator=(const iterator_t&) = delete;
+#endif
+            // moves cannot fail/throw
+            iterator_t(iterator_t&&) WI_NOEXCEPT = default;
+            iterator_t& operator=(iterator_t&&) WI_NOEXCEPT = default;
+
+            // operator support
+            const T& operator*() const
             {
-                return m_data.m_nextType;
+                if (m_data.is_end())
+                {
+                    THROW_WIN32(ERROR_NO_MORE_ITEMS);
+                }
+                return m_data;
             }
-        } // namespace reg_iterator_details
+            const T& operator*()
+            {
+                if (m_data.is_end())
+                {
+                    THROW_WIN32(ERROR_NO_MORE_ITEMS);
+                }
+                return m_data;
+            }
+            const T* operator->() const
+            {
+                if (m_data.is_end())
+                {
+                    THROW_WIN32(ERROR_NO_MORE_ITEMS);
+                }
+                return &m_data;
+            }
+            const T* operator->()
+            {
+                if (m_data.is_end())
+                {
+                    THROW_WIN32(ERROR_NO_MORE_ITEMS);
+                }
+                return &m_data;
+            }
+
+            bool operator==(const iterator_t& rhs) const WI_NOEXCEPT
+            {
+                if (m_data.is_end() || rhs.m_data.is_end())
+                {
+                    // if either is not initialized (or end), both must not be initialized (or end) to be equal
+                    return m_data.m_index == rhs.m_data.m_index;
+                }
+                return m_data.m_hkey == rhs.m_data.m_hkey && m_data.m_index == rhs.m_data.m_index;
+            }
+
+            bool operator!=(const iterator_t& rhs) const WI_NOEXCEPT
+            {
+                return !(*this == rhs);
+            }
+
+            // pre-increment
+            iterator_t& operator++()
+            {
+                this->operator +=(1);
+                return *this;
+            }
+
+            // increment by integer
+            iterator_t& operator+=(size_t offset)
+            {
+                // fail on overflow
+                uint32_t newIndex = m_data.m_index + static_cast<uint32_t>(offset);
+                // fail on integer overflow
+                if (newIndex < m_data.m_index)
+                {
+                    THROW_HR(E_INVALIDARG);
+                }
+                // fail if this creates an end iterator
+                if (newIndex == ::wil::reg::reg_iterator_details::iterator_end_offset)
+                {
+                    THROW_HR(E_INVALIDARG);
+                }
+
+                // iterate by the integer offset
+                for (size_t count = 0; count < offset; ++count)
+                {
+                    ++m_data.m_index;
+                    m_data.enum_next();
+                }
+                return *this;
+            }
+
+            // not supporting post-increment - which would require copy-construction
+            iterator_t operator++(int) = delete;
+
+        private:
+            // container based on the class template type
+            T m_data{};
+        };
+
+        using key_iterator = ::wil::reg::iterator_t<::wil::reg::key_iterator_data>;
+        using value_iterator = ::wil::reg::iterator_t<::wil::reg::value_iterator_data>;
 
         template <typename T>
         struct key_enumerator
         {
-            explicit key_enumerator(T&& key) : m_hkey(wistd::move(key))
+            explicit key_enumerator(T&& key) WI_NOEXCEPT : m_hkey(wistd::move(key))
             {
             }
-            ~key_enumerator() = default;
+            ~key_enumerator() WI_NOEXCEPT = default;
 
             key_enumerator(const key_enumerator&) = delete;
             key_enumerator& operator=(const key_enumerator&) = delete;
             // only movable
-            key_enumerator(key_enumerator&&) = default;
-            key_enumerator& operator=(key_enumerator&&) = default;
+            key_enumerator(key_enumerator&&) WI_NOEXCEPT = default;
+            key_enumerator& operator=(key_enumerator&&) WI_NOEXCEPT = default;
 
-            [[nodiscard]] ::wil::reg::reg_iterator_details::key_iterator begin() const
+            ::wil::reg::key_iterator begin() const
             {
-                return ::wil::reg::reg_iterator_details::key_iterator(get_hkey(), ::wil::reg::reg_iterator_details::iterator_creation_flag::begin);
+                return ::wil::reg::key_iterator(get_hkey(), ::wil::reg::reg_iterator_details::iterator_creation_flag::begin);
             }
 
-            [[nodiscard]] ::wil::reg::reg_iterator_details::key_iterator end() const WI_NOEXCEPT
+            ::wil::reg::key_iterator end() const WI_NOEXCEPT
             {
-                return ::wil::reg::reg_iterator_details::key_iterator(get_hkey(), ::wil::reg::reg_iterator_details::iterator_creation_flag::end);
+                return ::wil::reg::key_iterator(get_hkey(), ::wil::reg::reg_iterator_details::iterator_creation_flag::end);
             }
 
         private:
+            T m_hkey;
+
             // must be specialized per template type
             HKEY get_hkey() const WI_NOEXCEPT;
-
-            T m_hkey;
         };
-        HKEY key_enumerator<HKEY>::get_hkey() const WI_NOEXCEPT
-        {
-            return m_hkey;
-        }
-        HKEY key_enumerator<::wil::unique_hkey>::get_hkey() const WI_NOEXCEPT
-        {
-            return m_hkey.get();
-        }
 
         template <typename T>
         struct value_enumerator
         {
-            explicit value_enumerator(T&& key) : m_hkey(wistd::move(key))
+            explicit value_enumerator(T&& key) WI_NOEXCEPT : m_hkey(wistd::move(key))
             {
             }
-            ~value_enumerator() = default;
+            ~value_enumerator() WI_NOEXCEPT = default;
 
             value_enumerator(const value_enumerator&) = delete;
             value_enumerator& operator=(const value_enumerator&) = delete;
             // only movable
-            value_enumerator(value_enumerator&&) = default;
-            value_enumerator& operator=(value_enumerator&&) = default;
+            value_enumerator(value_enumerator&&) WI_NOEXCEPT = default;
+            value_enumerator& operator=(value_enumerator&&) WI_NOEXCEPT = default;
 
-            [[nodiscard]] ::wil::reg::reg_iterator_details::value_iterator begin() const
+            ::wil::reg::value_iterator begin() const
             {
-                return ::wil::reg::reg_iterator_details::value_iterator(get_hkey(), ::wil::reg::reg_iterator_details::iterator_creation_flag::begin);
+                return ::wil::reg::value_iterator(get_hkey(), ::wil::reg::reg_iterator_details::iterator_creation_flag::begin);
             }
 
-            [[nodiscard]] ::wil::reg::reg_iterator_details::value_iterator end() const WI_NOEXCEPT
+            ::wil::reg::value_iterator end() const WI_NOEXCEPT
             {
-                return ::wil::reg::reg_iterator_details::value_iterator(get_hkey(), ::wil::reg::reg_iterator_details::iterator_creation_flag::end);
+                return ::wil::reg::value_iterator(get_hkey(), ::wil::reg::reg_iterator_details::iterator_creation_flag::end);
             }
 
         private:
+            T m_hkey;
+
             // must be specialized per template type
             HKEY get_hkey() const WI_NOEXCEPT;
-
-            T m_hkey;
         };
-        HKEY value_enumerator<HKEY>::get_hkey() const WI_NOEXCEPT
+
+        template <>
+        inline HKEY key_enumerator<HKEY>::get_hkey() const WI_NOEXCEPT
         {
             return m_hkey;
         }
-        HKEY value_enumerator<::wil::unique_hkey>::get_hkey() const WI_NOEXCEPT
+        template <>
+        inline HKEY key_enumerator<::wil::unique_hkey>::get_hkey() const WI_NOEXCEPT
         {
             return m_hkey.get();
         }
 
-        [[nodiscard]] key_enumerator<HKEY> create_key_enumerator(HKEY key)
+        template <>
+        inline HKEY value_enumerator<HKEY>::get_hkey() const WI_NOEXCEPT
+        {
+            return m_hkey;
+        }
+        template <>
+        inline HKEY value_enumerator<::wil::unique_hkey>::get_hkey() const WI_NOEXCEPT
+        {
+            return m_hkey.get();
+        }
+
+        inline key_enumerator<HKEY> create_key_enumerator(HKEY key)
         {
             return key_enumerator<HKEY>(wistd::move(key));
         }
-        [[nodiscard]] key_enumerator<::wil::unique_hkey> create_key_enumerator(::wil::unique_hkey&& key)
+        inline key_enumerator<::wil::unique_hkey> create_key_enumerator(::wil::unique_hkey&& key)
         {
             return key_enumerator<::wil::unique_hkey>(wistd::move(key));
         }
 
-        [[nodiscard]] value_enumerator<HKEY> create_value_enumerator(HKEY key)
+        inline value_enumerator<HKEY> create_value_enumerator(HKEY key)
         {
             return value_enumerator<HKEY>(wistd::move(key));
         }
-        [[nodiscard]] value_enumerator<::wil::unique_hkey> create_value_enumerator(::wil::unique_hkey&& key)
+        inline value_enumerator<::wil::unique_hkey> create_value_enumerator(::wil::unique_hkey&& key)
         {
             return value_enumerator<::wil::unique_hkey>(wistd::move(key));
         }
