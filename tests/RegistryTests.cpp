@@ -16,7 +16,7 @@
 
 constexpr auto* testSubkey = L"Software\\Microsoft\\BasicRegistryTest";
 constexpr auto* dwordValueName = L"MyDwordValue";
-constexpr auto* qwordValueName = L"MyQwordvalue";
+constexpr auto* qwordValueName = L"MyQwordValue";
 constexpr auto* stringValueName = L"MyStringValue";
 #if defined(WIL_ENABLE_EXCEPTIONS)
 constexpr auto* multiStringValueName = L"MyMultiStringValue";
@@ -33,6 +33,16 @@ const std::wstring test_string_empty{};
 
 constexpr PCWSTR test_null_terminated_string{ L"testing" };
 constexpr PCWSTR test_empty_null_terminated_string{ L"" };
+
+constexpr PCWSTR test_enum_KeyName1 = L"1first_key";
+constexpr PCWSTR test_enum_KeyName2 = L"2second_key_even_longer";
+constexpr PCWSTR test_enum_KeyName3 = L"3third_key_shorter";
+constexpr PCWSTR test_enum_KeyName4 = L"4fourth_key_very_very_very_very_long";
+
+constexpr PCWSTR test_enum_valueName1 = L"1first_value";
+constexpr PCWSTR test_enum_valueName2 = L"2second_value_even_longer";
+constexpr PCWSTR test_enum_valueName3 = L"3third_value_shorter";
+constexpr PCWSTR test_enum_valueName4 = L"4fourth_value_very_very_very_very_long";
 
 // The empty multistring array has specific behavior: it will be read as an array with one string.
 const std::vector<std::wstring> test_multistring_empty{};
@@ -2973,7 +2983,7 @@ TEST_CASE("BasicRegistryTests::cotaskmem_array-bytes", "[registry]]")
 #endif // #if defined(__WIL_OBJBASE_H_)
 
 #if defined(WIL_ENABLE_EXCEPTIONS)
-#if !defined(_VECTOR_)
+#if !defined(_STRING_)
 TEST_CASE("BasicRegistryTests::enumerate_values", "[registry]]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
@@ -2993,35 +3003,35 @@ TEST_CASE("BasicRegistryTests::enumerate_values", "[registry]]")
     SECTION("enumerate_values with one value - manual iterator usage")
     {
         wil::unique_hkey hkey{wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite)};
-        wil::reg::set_value(hkey.get(), L"first_value", 0);
+        wil::reg::set_value(hkey.get(), test_enum_valueName1, 0);
 
         const auto value_enum = wil::reg::enumerate_values(hkey.get());
         REQUIRE(value_enum.begin() != value_enum.end());
         auto value_iterator = value_enum.begin();
 
         // both ways to access the iterator data
-        REQUIRE(std::wstring((*value_iterator).name.get()) == L"first_value)");
-        REQUIRE(std::wstring(value_iterator->name.get()) == L"first_value");
+        REQUIRE(0 == wcscmp((*value_iterator).name.get(), test_enum_valueName1));
+        REQUIRE(0 == wcscmp(value_iterator->name.get(), test_enum_valueName1));
         ++value_iterator;
         REQUIRE(value_iterator == value_enum.end());
 
         value_iterator = value_enum.begin();
-        REQUIRE(std::wstring((*value_iterator).name.get()) == L"first_value)");
-        REQUIRE(std::wstring(value_iterator->name.get()) == L"first_value");
+        REQUIRE(0 == wcscmp((*value_iterator).name.get(), test_enum_valueName1));
+        REQUIRE(0 == wcscmp(value_iterator->name.get(), test_enum_valueName1));
         value_iterator += 1;
         REQUIRE(value_iterator == value_enum.end());
 
         const auto unique_value_enum = wil::reg::enumerate_values(wistd::move(hkey));
         REQUIRE(unique_value_enum.begin() != unique_value_enum.end());
         value_iterator = unique_value_enum.begin();
-        REQUIRE(std::wstring((*value_iterator).name.get()) == L"first_value)");
-        REQUIRE(std::wstring(value_iterator->name.get()) == L"first_value");
+        REQUIRE(0 == wcscmp((*value_iterator).name.get(), test_enum_valueName1));
+        REQUIRE(0 == wcscmp(value_iterator->name.get(), test_enum_valueName1);
         ++value_iterator;
         REQUIRE(value_iterator == unique_value_enum.end());
 
         value_iterator = unique_value_enum.begin();
-        REQUIRE(std::wstring((*value_iterator).name.get()) == L"first_value)");
-        REQUIRE(std::wstring(value_iterator->name.get()) == L"first_value");
+        REQUIRE(0 == wcscmp((*value_iterator).name.get(), test_enum_valueName1));
+        REQUIRE(0 == wcscmp(value_iterator->name.get(), test_enum_valueName1));
         value_iterator += 1;
         REQUIRE(value_iterator == unique_value_enum.end());
     }
@@ -3032,46 +3042,67 @@ TEST_CASE("BasicRegistryTests::enumerate_values", "[registry]]")
         // this is because std::for_each must be able to copy the iterator data
     }
 
-    SECTION("enumerate_values with one value - range-for iterator usage")
+    SECTION("enumerate_values with many values - range-for iterator usage")
     {
         wil::unique_hkey hkey{wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite)};
-        wil::reg::set_value(hkey.get(), L"first_value", 0);
-        wil::reg::set_value(hkey.get(), L"second_value", 1);
-        wil::reg::set_value(hkey.get(), L"third_value", 2);
+        wil::reg::set_value(hkey.get(), test_enum_valueName1, 0);
+        wil::reg::set_value(hkey.get(), test_enum_valueName2, 1ul);
+        wil::reg::set_value(hkey.get(), test_enum_valueName3, 3ull);
+        wil::reg::set_value(hkey.get(), test_enum_valueName4, L"four");
 
         uint32_t count = 0;
-        for (const auto& key_name : wil::reg::enumerate_values(hkey.get()))
+        for (const auto& value_data : wil::reg::enumerate_values(hkey.get()))
         {
             ++count;
             switch (count)
             {
-                case 1: REQUIRE(std::wstring(key_name.name.get()) == L"first_value");
+            case 1:
+                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName1));
+                REQUIRE(value_data.type == REG_DWORD);
                 break;
-                case 2: REQUIRE(std::wstring(key_name.name.get()) == L"second_value");
+            case 2:
+                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName2));
+                REQUIRE(value_data.type == REG_DWORD);
                 break;
-                case 3: REQUIRE(std::wstring(key_name.name.get()) == L"third_value");
+            case 3:
+                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName3));
+                REQUIRE(value_data.type == REG_QWORD);
                 break;
-                default: REQUIRE_FAILED(false);
+            case 4:
+                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName4));
+                REQUIRE(value_data.type == REG_SZ);
+                break;
+            default: REQUIRE_FAILED(false);
             }
         }
-        REQUIRE(count == 3);
+        REQUIRE(count == 4);
 
         count = 0;
-        for (const auto& key_name : wil::reg::enumerate_values(wistd::move(hkey)))
+        for (const auto& value_data : wil::reg::enumerate_values(wistd::move(hkey)))
         {
             ++count;
             switch (count)
             {
-                case 1: REQUIRE(std::wstring(key_name.name.get()) == L"first_value");
+            case 1:
+                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName1));
+                REQUIRE(value_data.type == REG_DWORD);
                 break;
-                case 2: REQUIRE(std::wstring(key_name.name.get()) == L"second_value");
+            case 2:
+                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName2));
+                REQUIRE(value_data.type == REG_DWORD);
                 break;
-                case 3: REQUIRE(std::wstring(key_name.name.get()) == L"third_value");
+            case 3:
+                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName3));
+                REQUIRE(value_data.type == REG_QWORD);
                 break;
-                default: REQUIRE_FAILED(false);
+            case 4:
+                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName4));
+                REQUIRE(value_data.type == REG_SZ);
+                break;
+            default: REQUIRE_FAILED(false);
             }
         }
-        REQUIRE(count == 3);
+        REQUIRE(count == 4);
     }
 }
 
@@ -3097,29 +3128,29 @@ TEST_CASE("BasicRegistryTests::enumerate_keys", "[registry]]")
     SECTION("enumerate_keys with one subkey - manual iterator usage")
     {
         wil::unique_hkey hkey{wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite)};
-        wil::reg::create_unique_key(hkey.get(), L"first_key");
+        wil::reg::create_unique_key(hkey.get(), test_enum_KeyName1);
 
         const auto key_enum = wil::reg::enumerate_keys(hkey.get());
         REQUIRE(key_enum.begin() != key_enum.end());
         auto key_iterator = key_enum.begin();
-        REQUIRE(std::wstring(key_iterator->name.get()) == L"first_key");
+        REQUIRE(0 == wcscmp(key_iterator->name.get(), test_enum_KeyName1));
         ++key_iterator;
         REQUIRE(key_iterator == key_enum.end());
 
         key_iterator = key_enum.begin();
-        REQUIRE(std::wstring(key_iterator->name.get()) == L"first_key");
+        REQUIRE(0 == wcscmp(key_iterator->name.get(), test_enum_KeyName1));
         key_iterator += 1;
         REQUIRE(key_iterator == key_enum.end());
 
         const auto unique_key_enum = wil::reg::enumerate_keys(wistd::move(hkey));
         REQUIRE(unique_key_enum.begin() != unique_key_enum.end());
         key_iterator = unique_key_enum.begin();
-        REQUIRE(std::wstring((*key_iterator).name.get()) == L"first_key");
+        REQUIRE(0 == wcscmp(key_iterator->name.get(), test_enum_KeyName1));
         ++key_iterator;
         REQUIRE(key_iterator == unique_key_enum.end());
 
         key_iterator = unique_key_enum.begin();
-        REQUIRE(std::wstring((*key_iterator).name.get()) == L"first_key");
+        REQUIRE(0 == wcscmp(key_iterator->name.get(), test_enum_KeyName1));
         key_iterator += 1;
         REQUIRE(key_iterator == unique_key_enum.end());
     }
@@ -3132,44 +3163,49 @@ TEST_CASE("BasicRegistryTests::enumerate_keys", "[registry]]")
 
     SECTION("enumerate_keys with subkeys - range-for iterator usage")
     {
-        wil::unique_hkey hkey{wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite)};
-        wil::reg::create_unique_key(hkey.get(), L"first_key");
-        wil::reg::create_unique_key(hkey.get(), L"second_key");
-        wil::reg::create_unique_key(hkey.get(), L"third_key");
+        wil::unique_hkey enum_hkey{wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite)};
+        wil::reg::create_unique_key(enum_hkey.get(), test_enum_KeyName1);
+        wil::reg::create_unique_key(enum_hkey.get(), test_enum_KeyName2);
+        wil::reg::create_unique_key(enum_hkey.get(), test_enum_KeyName3);
+        wil::reg::create_unique_key(enum_hkey.get(), test_enum_KeyName4);
 
         uint32_t count = 0;
-        for (const auto& key_name : wil::reg::enumerate_keys(hkey.get()))
+        for (const auto& key_name : wil::reg::enumerate_keys(enum_hkey.get()))
         {
             ++count;
             switch (count)
             {
-                case 1: REQUIRE(std::wstring(key_name.name.get()) == L"first_key");
+            case 1: REQUIRE(0 == wcscmp(key_name.name.get(), test_enum_KeyName1));
                 break;
-                case 2: REQUIRE(std::wstring(key_name.name.get()) == L"second_key");
+            case 2: REQUIRE(0 == wcscmp(key_name.name.get(), test_enum_KeyName2));
                 break;
-                case 3: REQUIRE(std::wstring(key_name.name.get()) == L"third_key");
+            case 3: REQUIRE(0 == wcscmp(key_name.name.get(), test_enum_KeyName3));
                 break;
-                default: REQUIRE_FAILED(false);
+            case 4: REQUIRE(0 == wcscmp(key_name.name.get(), test_enum_KeyName4));
+                break;
+            default: REQUIRE_FAILED(false);
             }
         }
-        REQUIRE(count == 3);
+        REQUIRE(count == 4);
 
         count = 0;
-        for (const auto& key_name : wil::reg::enumerate_keys(wistd::move(hkey)))
+        for (const auto& key_name : wil::reg::enumerate_keys(wistd::move(enum_hkey)))
         {
             ++count;
             switch (count)
             {
-                case 1: REQUIRE(std::wstring(key_name.name.get()) == L"first_key");
+            case 1: REQUIRE(0 == wcscmp(key_name.name.get(), test_enum_KeyName1));
                 break;
-                case 2: REQUIRE(std::wstring(key_name.name.get()) == L"second_key");
+            case 2: REQUIRE(0 == wcscmp(key_name.name.get(), test_enum_KeyName2));
                 break;
-                case 3: REQUIRE(std::wstring(key_name.name.get()) == L"third_key");
+            case 3: REQUIRE(0 == wcscmp(key_name.name.get(), test_enum_KeyName3));
                 break;
-                default: REQUIRE_FAILED(false);
+            case 4: REQUIRE(0 == wcscmp(key_name.name.get(), test_enum_KeyName4));
+                break;
+            default: REQUIRE_FAILED(false);
             }
         }
-        REQUIRE(count == 3);
+        REQUIRE(count == 4);
     }
 }
 #else
@@ -3192,108 +3228,181 @@ TEST_CASE("BasicRegistryTests::enumerate_values", "[registry]]")
     SECTION("enumerate_values with one value - manual iterator usage")
     {
         wil::unique_hkey hkey{wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite)};
-        wil::reg::set_value(hkey.get(), L"first_value", 0);
+        wil::reg::set_value(hkey.get(), test_enum_valueName1, 0);
 
         const auto value_enum = wil::reg::enumerate_values(hkey.get());
         REQUIRE(value_enum.begin() != value_enum.end());
         auto value_iterator = value_enum.begin();
 
         // both ways to access the iterator data
-        REQUIRE(std::wstring((*value_iterator).name.data()) == L"first_value)");
-        REQUIRE(std::wstring(value_iterator->name.data()) == L"first_value");
+        REQUIRE((*value_iterator).name == test_enum_valueName1);
+        REQUIRE(value_iterator->name == test_enum_valueName1);
         ++value_iterator;
         REQUIRE(value_iterator == value_enum.end());
 
         value_iterator = value_enum.begin();
-        REQUIRE(std::wstring((*value_iterator).name.data()) == L"first_value)");
-        REQUIRE(std::wstring(value_iterator->name.data()) == L"first_value");
+        REQUIRE((*value_iterator).name == test_enum_valueName1);
+        REQUIRE(value_iterator->name == test_enum_valueName1);
         value_iterator += 1;
         REQUIRE(value_iterator == value_enum.end());
 
         const auto unique_value_enum = wil::reg::enumerate_values(wistd::move(hkey));
         REQUIRE(unique_value_enum.begin() != unique_value_enum.end());
         value_iterator = unique_value_enum.begin();
-        REQUIRE(std::wstring((*value_iterator).name.data()) == L"first_value)");
-        REQUIRE(std::wstring(value_iterator->name.data()) == L"first_value");
+        REQUIRE((*value_iterator).name == test_enum_valueName1);
+        REQUIRE(value_iterator->name == test_enum_valueName1);
         ++value_iterator;
         REQUIRE(value_iterator == unique_value_enum.end());
 
         value_iterator = unique_value_enum.begin();
-        REQUIRE(std::wstring((*value_iterator).name.data()) == L"first_value)");
-        REQUIRE(std::wstring(value_iterator->name.data()) == L"first_value");
+        REQUIRE((*value_iterator).name == test_enum_valueName1);
+        REQUIRE(value_iterator->name == test_enum_valueName1);
         value_iterator += 1;
         REQUIRE(value_iterator == unique_value_enum.end());
     }
 
-    SECTION("enumerate_values with one value - std::for_each usage")
+    SECTION("enumerate_values with many values - std::for_each usage")
     {
         wil::unique_hkey hkey{wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite)};
-        wil::reg::set_value(hkey.get(), L"first_value", 0);
+        wil::reg::set_value(hkey.get(), test_enum_valueName1, 0);
+        wil::reg::set_value(hkey.get(), test_enum_valueName2, 1ul);
+        wil::reg::set_value(hkey.get(), test_enum_valueName3, 3ull);
+        wil::reg::set_value(hkey.get(), test_enum_valueName4, L"four");
 
         uint32_t count = 0;
         auto enumerator = wil::reg::enumerate_values(hkey.get());
-        std::for_each(enumerator.begin(), enumerator.end(), [&](const auto& iterator_data) {
-            ++count;
-            REQUIRE(std::wstring(iterator_data.name.data()) == L"first_value");
+        std::for_each(enumerator.begin(), enumerator.end(), [&](const auto& value_data)
+            {
+                ++count;
+                switch (count)
+                {
+                case 1:
+                    REQUIRE(value_data.name == test_enum_valueName1);
+                    REQUIRE(value_data.name.size() == wcslen(test_enum_valueName1));
+                    REQUIRE(value_data.type == REG_DWORD);
+                    break;
+                case 2:
+                    REQUIRE(value_data.name == test_enum_valueName2);
+                    REQUIRE(value_data.name.size() == wcslen(test_enum_valueName2));
+                    REQUIRE(value_data.type == REG_DWORD);
+                    break;
+                case 3:
+                    REQUIRE(value_data.name == test_enum_valueName3);
+                    REQUIRE(value_data.name.size() == wcslen(test_enum_valueName3));
+                    REQUIRE(value_data.type == REG_QWORD);
+                    break;
+                case 4:
+                    REQUIRE(value_data.name == test_enum_valueName4);
+                    REQUIRE(value_data.name.size() == wcslen(test_enum_valueName4));
+                    REQUIRE(value_data.type == REG_SZ);
+                    break;
+                default: REQUIRE_FAILED(false);
+                }
             });
-        REQUIRE(count == 1);
+        REQUIRE(count == 4);
 
         count = 0;
-        std::for_each(wil::reg::enumerate_values(hkey.get()).begin(), wil::reg::enumerate_values(hkey.get()).end(), [&](const auto& iterator_data) {
-            ++count;
-            REQUIRE(std::wstring(iterator_data.name.data()) == L"first_value");
+        auto unique_value_enumerator = wil::reg::enumerate_values(wistd::move(hkey));
+        std::for_each(unique_value_enumerator.begin(), unique_value_enumerator.end(), [&](const auto& value_data)
+            {
+                ++count;
+                switch (count)
+                {
+                case 1:
+                    REQUIRE(value_data.name == test_enum_valueName1);
+                    REQUIRE(value_data.name.size() == wcslen(test_enum_valueName1));
+                    REQUIRE(value_data.type == REG_DWORD);
+                    break;
+                case 2:
+                    REQUIRE(value_data.name == test_enum_valueName2);
+                    REQUIRE(value_data.name.size() == wcslen(test_enum_valueName2));
+                    REQUIRE(value_data.type == REG_DWORD);
+                    break;
+                case 3:
+                    REQUIRE(value_data.name == test_enum_valueName3);
+                    REQUIRE(value_data.name.size() == wcslen(test_enum_valueName3));
+                    REQUIRE(value_data.type == REG_QWORD);
+                    break;
+                case 4:
+                    REQUIRE(value_data.name == test_enum_valueName4);
+                    REQUIRE(value_data.name.size() == wcslen(test_enum_valueName4));
+                    REQUIRE(value_data.type == REG_SZ);
+                    break;
+                default: REQUIRE_FAILED(false);
+                }
             });
-        REQUIRE(count == 1);
-
-        count = 0;
-        auto uniquevalue_enumerator = wil::reg::enumerate_values(wistd::move(hkey));
-        std::for_each(uniquevalue_enumerator.begin(), uniquevalue_enumerator.end(), [&](const auto& iterator_data) {
-            ++count;
-            REQUIRE(std::wstring(iterator_data.name.data()) == L"first_value");
-            });
-        REQUIRE(count == 1);
+        REQUIRE(count == 4);
     }
 
-    SECTION("enumerate_values with one value - range-for iterator usage")
+    SECTION("enumerate_values with many values - range-for iterator usage")
     {
         wil::unique_hkey hkey{wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite)};
-        wil::reg::set_value(hkey.get(), L"first_value", 0);
-        wil::reg::set_value(hkey.get(), L"second_value", 1);
-        wil::reg::set_value(hkey.get(), L"third_value", 2);
+        wil::reg::set_value(hkey.get(), test_enum_valueName1, 0);
+        wil::reg::set_value(hkey.get(), test_enum_valueName2, 1ul);
+        wil::reg::set_value(hkey.get(), test_enum_valueName3, 3ull);
+        wil::reg::set_value(hkey.get(), test_enum_valueName4, L"four");
 
         uint32_t count = 0;
-        for (const auto& key_name : wil::reg::enumerate_values(hkey.get()))
+        for (const auto& value_data : wil::reg::enumerate_values(hkey.get()))
         {
             ++count;
             switch (count)
             {
-                case 1: REQUIRE(std::wstring(key_name.name.data()) == L"first_value");
+            case 1:
+                REQUIRE(value_data.name == test_enum_valueName1);
+                REQUIRE(value_data.name.size() == wcslen(test_enum_valueName1));
+                REQUIRE(value_data.type == REG_DWORD);
                 break;
-                case 2: REQUIRE(std::wstring(key_name.name.data()) == L"second_value");
+            case 2:
+                REQUIRE(value_data.name == test_enum_valueName2);
+                REQUIRE(value_data.name.size() == wcslen(test_enum_valueName2));
+                REQUIRE(value_data.type == REG_DWORD);
                 break;
-                case 3: REQUIRE(std::wstring(key_name.name.data()) == L"third_value");
+            case 3:
+                REQUIRE(value_data.name == test_enum_valueName3);
+                REQUIRE(value_data.name.size() == wcslen(test_enum_valueName3));
+                REQUIRE(value_data.type == REG_QWORD);
                 break;
-                default: REQUIRE_FAILED(false);
+            case 4:
+                REQUIRE(value_data.name == test_enum_valueName4);
+                REQUIRE(value_data.name.size() == wcslen(test_enum_valueName4));
+                REQUIRE(value_data.type == REG_SZ);
+                break;
+            default: REQUIRE_FAILED(false);
             }
         }
-        REQUIRE(count == 3);
+        REQUIRE(count == 4);
 
         count = 0;
-        for (const auto& key_name : wil::reg::enumerate_values(wistd::move(hkey)))
+        for (const auto& value_data : wil::reg::enumerate_values(wistd::move(hkey)))
         {
             ++count;
             switch (count)
             {
-                case 1: REQUIRE(std::wstring(key_name.name.data()) == L"first_value");
+            case 1:
+                REQUIRE(value_data.name == test_enum_valueName1);
+                REQUIRE(value_data.name.size() == wcslen(test_enum_valueName1));
+                REQUIRE(value_data.type == REG_DWORD);
                 break;
-                case 2: REQUIRE(std::wstring(key_name.name.data()) == L"second_value");
+            case 2:
+                REQUIRE(value_data.name == test_enum_valueName2);
+                REQUIRE(value_data.name.size() == wcslen(test_enum_valueName2));
+                REQUIRE(value_data.type == REG_DWORD);
                 break;
-                case 3: REQUIRE(std::wstring(key_name.name.data()) == L"third_value");
+            case 3:
+                REQUIRE(value_data.name == test_enum_valueName3);
+                REQUIRE(value_data.name.size() == wcslen(test_enum_valueName3));
+                REQUIRE(value_data.type == REG_QWORD);
                 break;
-                default: REQUIRE_FAILED(false);
+            case 4:
+                REQUIRE(value_data.name == test_enum_valueName4);
+                REQUIRE(value_data.name.size() == wcslen(test_enum_valueName4));
+                REQUIRE(value_data.type == REG_SZ);
+                break;
+            default: REQUIRE_FAILED(false);
             }
         }
-        REQUIRE(count == 3);
+        REQUIRE(count == 4);
     }
 }
 
@@ -3319,29 +3428,29 @@ TEST_CASE("BasicRegistryTests::enumerate_keys", "[registry]]")
     SECTION("enumerate_keys with one subkey - manual iterator usage")
     {
         wil::unique_hkey hkey{wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite)};
-        wil::reg::create_unique_key(hkey.get(), L"first_key");
+        wil::reg::create_unique_key(hkey.get(), test_enum_KeyName1);
 
         const auto key_enum = wil::reg::enumerate_keys(hkey.get());
         REQUIRE(key_enum.begin() != key_enum.end());
         auto key_iterator = key_enum.begin();
-        REQUIRE(std::wstring(key_iterator->name.data()) == L"first_key");
+        REQUIRE(key_iterator->name == test_enum_KeyName1);
         ++key_iterator;
         REQUIRE(key_iterator == key_enum.end());
 
         key_iterator = key_enum.begin();
-        REQUIRE(std::wstring(key_iterator->name.data()) == L"first_key");
+        REQUIRE(key_iterator->name == test_enum_KeyName1);
         key_iterator += 1;
         REQUIRE(key_iterator == key_enum.end());
 
         const auto unique_key_enum = wil::reg::enumerate_keys(wistd::move(hkey));
         REQUIRE(unique_key_enum.begin() != unique_key_enum.end());
         key_iterator = unique_key_enum.begin();
-        REQUIRE(std::wstring((*key_iterator).name.data()) == L"first_key");
+        REQUIRE((*key_iterator).name == test_enum_KeyName1);
         ++key_iterator;
         REQUIRE(key_iterator == unique_key_enum.end());
 
         key_iterator = unique_key_enum.begin();
-        REQUIRE(std::wstring((*key_iterator).name.data()) == L"first_key");
+        REQUIRE((*key_iterator).name == test_enum_KeyName1);
         key_iterator += 1;
         REQUIRE(key_iterator == unique_key_enum.end());
     }
@@ -3349,20 +3458,20 @@ TEST_CASE("BasicRegistryTests::enumerate_keys", "[registry]]")
     SECTION("enumerate_keys with one subkey - std::for_each usage")
     {
         wil::unique_hkey hkey{wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite)};
-        wil::reg::create_unique_key(hkey.get(), L"first_key");
+        wil::reg::create_unique_key(hkey.get(), test_enum_KeyName1);
 
         uint32_t count = 0;
         auto enumerator = wil::reg::enumerate_keys(hkey.get());
         std::for_each(enumerator.begin(), enumerator.end(), [&](const auto& iterator_data) {
             ++count;
-            REQUIRE(std::wstring(iterator_data.name.data()) == L"first_key");
+            REQUIRE(iterator_data.name == test_enum_KeyName1);
             });
         REQUIRE(count == 1);
 
         count = 0;
         std::for_each(wil::reg::enumerate_keys(hkey.get()).begin(), wil::reg::enumerate_keys(hkey.get()).end(), [&](const auto& iterator_data) {
             ++count;
-            REQUIRE(std::wstring(iterator_data.name.data()) == L"first_key");
+            REQUIRE(iterator_data.name == test_enum_KeyName1);
             });
         REQUIRE(count == 1);
 
@@ -3370,52 +3479,73 @@ TEST_CASE("BasicRegistryTests::enumerate_keys", "[registry]]")
         auto unique_key_enumerator = wil::reg::enumerate_keys(wistd::move(hkey));
         std::for_each(unique_key_enumerator.begin(), unique_key_enumerator.end(), [&](const auto& iterator_data) {
             ++count;
-            REQUIRE(std::wstring(iterator_data.name.data()) == L"first_key");
+            REQUIRE(iterator_data.name == test_enum_KeyName1);
             });
         REQUIRE(count == 1);
     }
 
     SECTION("enumerate_keys with subkeys - range-for iterator usage")
     {
-        wil::unique_hkey hkey{wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite)};
-        wil::reg::create_unique_key(hkey.get(), L"first_key");
-        wil::reg::create_unique_key(hkey.get(), L"second_key");
-        wil::reg::create_unique_key(hkey.get(), L"third_key");
+        wil::unique_hkey enum_hkey{wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite)};
+        wil::reg::create_unique_key(enum_hkey.get(), test_enum_KeyName1);
+        wil::reg::create_unique_key(enum_hkey.get(), test_enum_KeyName2);
+        wil::reg::create_unique_key(enum_hkey.get(), test_enum_KeyName3);
+        wil::reg::create_unique_key(enum_hkey.get(), test_enum_KeyName4);
 
         uint32_t count = 0;
-        for (const auto& key_name : wil::reg::enumerate_keys(hkey.get()))
+        for (const auto& key_name : wil::reg::enumerate_keys(enum_hkey.get()))
         {
             ++count;
             switch (count)
             {
-                case 1: REQUIRE(std::wstring(key_name.name.data()) == L"first_key");
+            case 1:
+                REQUIRE(key_name.name == test_enum_KeyName1);
+                REQUIRE(key_name.name.size() == wcslen(test_enum_KeyName1));
                 break;
-                case 2: REQUIRE(std::wstring(key_name.name.data()) == L"second_key");
+            case 2:
+                REQUIRE(key_name.name == test_enum_KeyName2);
+                REQUIRE(key_name.name.size() == wcslen(test_enum_KeyName2));
                 break;
-                case 3: REQUIRE(std::wstring(key_name.name.data()) == L"third_key");
+            case 3:
+                REQUIRE(key_name.name == test_enum_KeyName3);
+                REQUIRE(key_name.name.size() == wcslen(test_enum_KeyName3));
+                break;
+            case 4:
+                REQUIRE(key_name.name == test_enum_KeyName4);
+                REQUIRE(key_name.name.size() == wcslen(test_enum_KeyName4));
                 break;
                 default: REQUIRE_FAILED(false);
             }
         }
-        REQUIRE(count == 3);
+        REQUIRE(count == 4);
 
         count = 0;
-        for (const auto& key_name : wil::reg::enumerate_keys(wistd::move(hkey)))
+        for (const auto& key_name : wil::reg::enumerate_keys(wistd::move(enum_hkey)))
         {
             ++count;
             switch (count)
             {
-                case 1: REQUIRE(std::wstring(key_name.name.data()) == L"first_key");
+            case 1:
+                REQUIRE(key_name.name == test_enum_KeyName1);
+                REQUIRE(key_name.name.size() == wcslen(test_enum_KeyName1));
                 break;
-                case 2: REQUIRE(std::wstring(key_name.name.data()) == L"second_key");
+            case 2:
+                REQUIRE(key_name.name == test_enum_KeyName2);
+                REQUIRE(key_name.name.size() == wcslen(test_enum_KeyName2));
                 break;
-                case 3: REQUIRE(std::wstring(key_name.name.data()) == L"third_key");
+            case 3:
+                REQUIRE(key_name.name == test_enum_KeyName3);
+                REQUIRE(key_name.name.size() == wcslen(test_enum_KeyName3));
+                break;
+            case 4:
+                REQUIRE(key_name.name == test_enum_KeyName4);
+                REQUIRE(key_name.name.size() == wcslen(test_enum_KeyName4));
                 break;
                 default: REQUIRE_FAILED(false);
             }
         }
-        REQUIRE(count == 3);
+        REQUIRE(count == 4);
     }
 }
-#endif // #if !defined(_VECTOR_)
+#endif // #if !defined(_STRING_)
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS)

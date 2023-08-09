@@ -1223,6 +1223,7 @@ namespace wil
         namespace reg_iterator_details
         {
             constexpr uint32_t iterator_end_offset = 0xffffffff;
+            constexpr size_t iterator_default_buffer_size = 16;
 
             enum class iterator_creation_flag
             {
@@ -1230,24 +1231,25 @@ namespace wil
                 end
             };
 
-#if defined(_VECTOR_)
-            inline wchar_t* address_of_name(::std::vector<wchar_t>& name) WI_NOEXCEPT
+#if defined(_STRING_)
+            // cannot return a const PCWSTR -- the registry APIs require a PWSTR
+            inline PWSTR address_of_name(::std::wstring& name) WI_NOEXCEPT
             {
-                return name.data();
+                return const_cast<PWSTR>(name.data());
             }
-            inline void clear_name(::std::vector<wchar_t>& name, size_t)
+            inline void clear_name(::std::wstring& name, size_t)
             {
                 name.assign(name.size(), L'\0');
             }
 
-            inline size_t resize_name(::std::vector<wchar_t>& name, size_t, size_t new_length)
+            inline size_t resize_name(::std::wstring& name, size_t, size_t new_length)
             {
                 name.resize(new_length);
                 clear_name(name, name.size());
                 return name.size();
             }
 #else
-            inline wchar_t* address_of_name(::wil::unique_process_heap_string& name) WI_NOEXCEPT
+            inline PWSTR address_of_name(::wil::unique_process_heap_string& name) WI_NOEXCEPT
             {
                 return name.get();
             }
@@ -1281,8 +1283,8 @@ namespace wil
         class key_iterator_data
         {
         public:
-#if defined(_VECTOR_)
-            ::std::vector<wchar_t> name;
+#if defined(_STRING_)
+            ::std::wstring name;
 #else
             ::wil::unique_process_heap_string name;
 #endif
@@ -1291,8 +1293,8 @@ namespace wil
             }
             ~key_iterator_data() WI_NOEXCEPT = default;
 
-#if defined (_VECTOR_)
-            // only copyable when using std::vector
+#if defined (_STRING_)
+            // only copyable when using std::wstring
             key_iterator_data(const key_iterator_data&) = default;
             key_iterator_data& operator=(const key_iterator_data&) = default;
 #else
@@ -1313,7 +1315,7 @@ namespace wil
         private:
             friend class ::wil::reg::iterator_t<key_iterator_data>;
 
-            bool is_end() const noexcept
+            bool is_end() const WI_NOEXCEPT
             {
                 return m_index == ::wil::reg::reg_iterator_details::iterator_end_offset;
             }
@@ -1347,6 +1349,8 @@ namespace wil
 
                     if (error == ERROR_SUCCESS)
                     {
+                        // some types, like std::wstring, cannot have embedded nulls
+                        ::wil::reg::reg_view_details::reg_value_type_info::trim_buffer(name);
                         break;
                     }
                     if (error == ERROR_NO_MORE_ITEMS)
@@ -1356,9 +1360,8 @@ namespace wil
                     }
                     if (error == ERROR_MORE_DATA)
                     {
-                        // resize to one-more-than-returned for the null-terminator
-                        // then continue the loop
-                        string_length += 1;
+                        // resize to iterator_default_buffer_size and try again
+                        string_length += ::wil::reg::reg_iterator_details::iterator_default_buffer_size;
                         continue;
                     }
 
@@ -1375,8 +1378,8 @@ namespace wil
         class value_iterator_data
         {
         public:
-#if defined(_VECTOR_)
-            ::std::vector<wchar_t> name;
+#if defined(_STRING_)
+            ::std::wstring name;
 #else
             ::wil::unique_process_heap_string name;
 #endif
@@ -1387,8 +1390,8 @@ namespace wil
             }
             ~value_iterator_data() WI_NOEXCEPT = default;
 
-#if defined (_VECTOR_)
-            // only copyable when using std::vector
+#if defined (_STRING_)
+            // only copyable when using std::wstring
             value_iterator_data(const value_iterator_data&) = default;
             value_iterator_data& operator=(const value_iterator_data&) = default;
 #else
@@ -1431,6 +1434,7 @@ namespace wil
                 for (auto string_length = static_cast<DWORD>(m_capacity);;)
                 {
                     resize(string_length);
+
                     const auto error = ::RegEnumValueW(
                         m_hkey, // hKey
                         m_index, // dwIndex
@@ -1443,6 +1447,8 @@ namespace wil
 
                     if (error == ERROR_SUCCESS)
                     {
+                        // some types, like std::wstring, cannot have embedded nulls
+                        ::wil::reg::reg_view_details::reg_value_type_info::trim_buffer(name);
                         break;
                     }
                     if (error == ERROR_NO_MORE_ITEMS)
@@ -1452,9 +1458,8 @@ namespace wil
                     }
                     if (error == ERROR_MORE_DATA)
                     {
-                        // resize to one-more-than-returned for the null-terminator
-                        // then continue the loop
-                        string_length += 1;
+                        // resize to iterator_default_buffer_size and try again
+                        string_length += ::wil::reg::reg_iterator_details::iterator_default_buffer_size;
                         continue;
                     }
 
@@ -1492,15 +1497,14 @@ namespace wil
             {
                 if (type == ::wil::reg::reg_iterator_details::iterator_creation_flag::begin)
                 {
-                    constexpr size_t iterator_default_buffer_size = 16;
-                    m_data.resize(iterator_default_buffer_size);
+                    m_data.resize(::wil::reg::reg_iterator_details::iterator_default_buffer_size);
                     m_data.m_index = 0;
                     m_data.enum_next();
                 }
             }
 
-#if defined (_VECTOR_)
-            // only copyable when using std::vector
+#if defined (_STRING_)
+            // only copyable when using std::wstring
             iterator_t(const iterator_t&) = default;
             iterator_t& operator=(const iterator_t&) = default;
 #else
@@ -1705,7 +1709,7 @@ namespace wil
             return value_enumerator<::wil::unique_hkey>(wistd::move(key));
         }
 
-#endif // #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
+#endif // #if defined(WIL_ENABLE_EXCEPTIONS)
 
     } // namespace reg
 } // namespace wil

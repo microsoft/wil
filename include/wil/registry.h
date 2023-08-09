@@ -162,7 +162,7 @@ namespace wil
         }
 #endif // #define __WIL_WINREG_STL
 
-#if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
+#if defined(WIL_ENABLE_EXCEPTIONS)
         /**
          * \brief Returns an iterator object to iterate through the registry values under the specified key
          * \param key An open registry key
@@ -200,7 +200,7 @@ namespace wil
         {
             return ::wil::reg::create_key_enumerator(wistd::move(key));
         }
-#endif // #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
+#endif // #if defined(WIL_ENABLE_EXCEPTIONS)
 
         /**
          * \brief Queries for number of sub-keys
