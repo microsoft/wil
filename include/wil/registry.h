@@ -162,9 +162,42 @@ namespace wil
         }
 #endif // #define __WIL_WINREG_STL
 
-#if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
+#if defined(WIL_ENABLE_EXCEPTIONS)
+        //
+        // wil::reg::value_enumerator<HKEY> enumerate_values(HKEY key)
+        // wil::reg::key_enumerator<HKEY> enumerate_keys(HKEY key)
+        //
+        //  - Enumerates registry keys and values under the given HKEY
+        //  - Throws a std::exception on failure (including wil::ResultException)
+        //
+        // Examples of usage when std::wstring is included:
+        //
+        //     for (const auto& key_data : wil::make_range(wil::reg::key_iterator{hkey}, wil::reg::key_iterator{}))
+        //     {
+        //         key_data.name; // the std::wstring of the enumerated key
+        //     }
+        //
+        //     for (const auto& key_data : wil::reg::enumerate_keys(hkey))
+        //     {
+        //         key_data.name; // the std::wstring of the enumerated key
+        //     }
+        //
+        //     for (const auto& value_data : wil::make_range(wil::reg::value_iterator{hkey}, wil::reg::value_iterator{}))
+        //     {
+        //         value_data.name; // the std::wstring of the enumerated value
+        //         value_data.type; // the REG_ type of the enumerated value
+        //     }
+        //
+        //     for (const auto& value_data : wil::reg::enumerate_values(hkey.get()))
+        //     {
+        //         value_data.name; // the std::wstring of the enumerated value
+        //         value_data.type; // the REG_ type of the enumerated value
+        //     }
+        //
+        // When std::wstring is *not* included, the above functions return a 'name' field of type wil::unique_process_heap_string
+        //
         /**
-         * \brief Returns an iterator object to iterate through the registry values under the specified key
+         * \brief Returns an enumerator object that exposes begin() and end() to iterate through the registry values under the specified key
          * \param key An open registry key
          *        Note: the caller must guarantee the registry key must be valid for the lifetime of the returned registry enumerator object
          * \return wil::reg::value_enumerator The object to iterate values - exposing the iterator semantics of being() and end()
@@ -175,7 +208,7 @@ namespace wil
         }
 
         /**
-         * \brief Returns an iterator object to iterate through the registry values under the specified key
+         * \brief Returns an enumerator object that exposes begin() and end() to iterate through the registry values under the specified key
          * \param key An open registry key stored within a wil::unique_key
          *        Note: this is passed by R-value so the returned enumerator object will own the HKEY
          * \return wil::reg::value_enumerator The object to iterate values - exposing the iterator semantics of being() and end()
@@ -186,7 +219,7 @@ namespace wil
          }
 
          /**
-          * \brief Returns an iterator object to iterate through the registry subkeys under the specified key
+          * \brief Returns an enumerator object that exposes begin() and end() to iterate through the registry subkeys under the specified key
           * \param key An open registry key
           *        Note: the caller must guarantee the registry key must be valid for the lifetime of the returned registry enumerator object
           * \return wil::reg::key_enumerator The object to iterate subkeys - exposing the iterator semantics of being() and end()
@@ -196,11 +229,17 @@ namespace wil
             return ::wil::reg::create_key_enumerator(key);
         }
 
+         /**
+          * \brief Returns an enumerator object that exposes begin() and end() to iterate through the registry subkeys under the specified key
+         * \param key An open registry key stored within a wil::unique_key
+         *        Note: this is passed by R-value so the returned enumerator object will own the HKEY
+          * \return wil::reg::key_enumerator The object to iterate subkeys - exposing the iterator semantics of being() and end()
+          */
         inline ::wil::reg::key_enumerator<::wil::unique_hkey> enumerate_keys(::wil::unique_hkey&& key)
         {
             return ::wil::reg::create_key_enumerator(wistd::move(key));
         }
-#endif // #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
+#endif // #if defined(WIL_ENABLE_EXCEPTIONS)
 
         /**
          * \brief Queries for number of sub-keys
