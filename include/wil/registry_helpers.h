@@ -1245,7 +1245,8 @@ namespace wil
 
             inline bool compare_name(const ::std::wstring& name, PCWSTR comparand) WI_NOEXCEPT
             {
-                return name == comparand;
+                // not using operat== as that creates a temp std::wstring, which could fail/throw
+                return 0 == wcscmp(name.c_str(), comparand);
             }
 #else
             inline PWSTR address_of_name(::wil::unique_process_heap_string& name) WI_NOEXCEPT
