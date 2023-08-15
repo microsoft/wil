@@ -208,37 +208,60 @@ namespace wil
         }
 
         /**
-         * \brief Returns an enumerator object that exposes begin() and end() to iterate through the registry values under the specified key
-         * \param key An open registry key stored within a wil::unique_key
-         *        Note: this is passed by R-value so the returned enumerator object will own the HKEY
-         * \return wil::reg::value_enumerator The object to iterate values - exposing the iterator semantics of being() and end()
+         * \brief Returns an enumerator object that exposes begin() and end() to iterate through the registry subkeys under the specified key
+         * \param key An open registry key
+         *        Note: the caller must guarantee the registry key must be valid for the lifetime of the returned registry enumerator object
+         * \return wil::reg::key_enumerator The object to iterate subkeys - exposing the iterator semantics of being() and end()
          */
-         inline ::wil::reg::value_enumerator<::wil::unique_hkey> enumerate_values(::wil::unique_hkey&& key)
-         {
-             return ::wil::reg::create_value_enumerator(wistd::move(key));
-         }
-
-         /**
-          * \brief Returns an enumerator object that exposes begin() and end() to iterate through the registry subkeys under the specified key
-          * \param key An open registry key
-          *        Note: the caller must guarantee the registry key must be valid for the lifetime of the returned registry enumerator object
-          * \return wil::reg::key_enumerator The object to iterate subkeys - exposing the iterator semantics of being() and end()
-          */
         inline ::wil::reg::key_enumerator<HKEY> enumerate_keys(HKEY key)
         {
             return ::wil::reg::create_key_enumerator(key);
         }
 
-         /**
-          * \brief Returns an enumerator object that exposes begin() and end() to iterate through the registry subkeys under the specified key
-         * \param key An open registry key stored within a wil::unique_key
+        /**
+         * \brief Returns an enumerator object that exposes begin() and end() to iterate through the registry values under the specified key
+         * \param key An open registry key stored within a wil::unique_hkey
          *        Note: this is passed by R-value so the returned enumerator object will own the HKEY
-          * \return wil::reg::key_enumerator The object to iterate subkeys - exposing the iterator semantics of being() and end()
-          */
+         * \return wil::reg::value_enumerator The object to iterate values - exposing the iterator semantics of being() and end()
+         */
+        inline ::wil::reg::value_enumerator<::wil::unique_hkey> enumerate_values(::wil::unique_hkey&& key)
+        {
+            return ::wil::reg::create_value_enumerator(wistd::move(key));
+        }
+
+        /**
+         * \brief Returns an enumerator object that exposes begin() and end() to iterate through the registry subkeys under the specified key
+        * \param key An open registry key stored within a wil::unique_hkey
+        *        Note: this is passed by R-value so the returned enumerator object will own the HKEY
+         * \return wil::reg::key_enumerator The object to iterate subkeys - exposing the iterator semantics of being() and end()
+         */
         inline ::wil::reg::key_enumerator<::wil::unique_hkey> enumerate_keys(::wil::unique_hkey&& key)
         {
             return ::wil::reg::create_key_enumerator(wistd::move(key));
         }
+
+#if defined(__WIL_WINREG_STL)
+        /**
+         * \brief Returns an enumerator object that exposes begin() and end() to iterate through the registry values under the specified key
+         * \param key An open registry key stored within a wil::shared_hkey
+         * \return wil::reg::value_enumerator The object to iterate values - exposing the iterator semantics of being() and end()
+         */
+        inline ::wil::reg::value_enumerator<::wil::shared_hkey> enumerate_values(::wil::shared_hkey key)
+        {
+            return ::wil::reg::create_value_enumerator(wistd::move(key));
+        }
+
+        /**
+         * \brief Returns an enumerator object that exposes begin() and end() to iterate through the registry subkeys under the specified key
+        * \param key An open registry key stored within a wil::shared_hkey
+         * \return wil::reg::key_enumerator The object to iterate subkeys - exposing the iterator semantics of being() and end()
+         */
+        inline ::wil::reg::key_enumerator<::wil::shared_hkey> enumerate_keys(::wil::shared_hkey key)
+        {
+            return ::wil::reg::create_key_enumerator(wistd::move(key));
+        }
+#endif // #if defined(__WIL_WINREG_STL)
+
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS)
 
         /**

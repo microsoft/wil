@@ -3441,7 +3441,7 @@ TEST_CASE("BasicRegistryTests::enumerate_keys", "[registry]]")
 
     SECTION("enumerate_keys with one subkey - manual iterator usage")
     {
-        wil::unique_hkey write_hkey{wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite)};
+        wil::unique_hkey write_hkey{ wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite) };
         wil::reg::create_unique_key(write_hkey.get(), test_enum_KeyName1);
 
         const auto key_enum = wil::reg::enumerate_keys(hkey.get());
@@ -3639,7 +3639,7 @@ TEST_CASE("BasicRegistryTests::enumerate_keys", "[registry]]")
 
     SECTION("enumerate_keys with subkeys - range-for iterator usage")
     {
-        wil::unique_hkey enum_hkey{wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite)};
+        wil::unique_hkey enum_hkey{ wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite) };
         wil::reg::create_unique_key(enum_hkey.get(), test_enum_KeyName1);
         wil::reg::create_unique_key(enum_hkey.get(), test_enum_KeyName2);
         wil::reg::create_unique_key(enum_hkey.get(), test_enum_KeyName3);
@@ -4048,7 +4048,7 @@ TEST_CASE("BasicRegistryTests::enumerate_values", "[registry]]")
 
         std_count = std::count_if(
             wil::reg::enumerate_values(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey)).begin(),
-             wil::reg::enumerate_values(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey)).end(),
+            wil::reg::enumerate_values(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey)).end(),
             [&](const auto& value_data) {
                 return  (value_data.name == test_enum_valueName2) &&
                     (value_data.name.size() == wcslen(test_enum_valueName2)) &&
@@ -4058,7 +4058,7 @@ TEST_CASE("BasicRegistryTests::enumerate_values", "[registry]]")
 
         std_count = std::count_if(
             wil::reg::enumerate_values(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey)).begin(),
-             wil::reg::enumerate_values(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey)).end(),
+            wil::reg::enumerate_values(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey)).end(),
             [&](const auto& value_data) {
                 return  (value_data.name == test_enum_valueName3) &&
                     (value_data.name.size() == wcslen(test_enum_valueName3)) &&
@@ -4068,7 +4068,7 @@ TEST_CASE("BasicRegistryTests::enumerate_values", "[registry]]")
 
         std_count = std::count_if(
             wil::reg::enumerate_values(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey)).begin(),
-             wil::reg::enumerate_values(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey)).end(),
+            wil::reg::enumerate_values(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey)).end(),
             [&](const auto& value_data) {
                 return  (value_data.name == test_enum_valueName4) &&
                     (value_data.name.size() == wcslen(test_enum_valueName4)) &&
@@ -4078,7 +4078,7 @@ TEST_CASE("BasicRegistryTests::enumerate_values", "[registry]]")
 
         std_count = std::count_if(
             wil::reg::enumerate_values(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey)).begin(),
-             wil::reg::enumerate_values(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey)).end(),
+            wil::reg::enumerate_values(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey)).end(),
             [&](const auto& value_data) {
                 return  (value_data.name == L"xyz");
             });
@@ -4247,7 +4247,7 @@ TEST_CASE("BasicRegistryTests::enumerate_keys", "[registry]]")
 
     SECTION("enumerate_keys with one subkey - manual iterator usage")
     {
-        wil::unique_hkey hkey{wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite)};
+        wil::unique_hkey hkey{ wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite) };
         wil::reg::create_unique_key(hkey.get(), test_enum_KeyName1);
 
         const auto key_enum = wil::reg::enumerate_keys(hkey.get());
@@ -4473,11 +4473,59 @@ TEST_CASE("BasicRegistryTests::enumerate_keys", "[registry]]")
             wil::reg::enumerate_keys(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey)).end(),
             L"xyz");
         REQUIRE(std_count == 0);
+
+#if defined(__WIL_WINREG_STL)
+        // repeat with wil::shared_hkey
+        std_count = std::count(wil::reg::key_iterator(wil::reg::open_shared_key(HKEY_CURRENT_USER, testSubkey).get()), wil::reg::key_iterator{}, test_enum_KeyName1);
+        REQUIRE(std_count == 1);
+
+        std_count = std::count(wil::reg::key_iterator(wil::reg::open_shared_key(HKEY_CURRENT_USER, testSubkey).get()), wil::reg::key_iterator{}, test_enum_KeyName2);
+        REQUIRE(std_count == 1);
+
+        std_count = std::count(wil::reg::key_iterator(wil::reg::open_shared_key(HKEY_CURRENT_USER, testSubkey).get()), wil::reg::key_iterator{}, test_enum_KeyName3);
+        REQUIRE(std_count == 1);
+
+        std_count = std::count(wil::reg::key_iterator(wil::reg::open_shared_key(HKEY_CURRENT_USER, testSubkey).get()), wil::reg::key_iterator{}, test_enum_KeyName4);
+        REQUIRE(std_count == 1);
+
+        std_count = std::count(wil::reg::key_iterator(wil::reg::open_shared_key(HKEY_CURRENT_USER, testSubkey).get()), wil::reg::key_iterator{}, L"xyz");
+        REQUIRE(std_count == 0);
+
+        std_count = std::count(
+            wil::reg::enumerate_keys(wil::reg::open_shared_key(HKEY_CURRENT_USER, testSubkey)).begin(),
+            wil::reg::enumerate_keys(wil::reg::open_shared_key(HKEY_CURRENT_USER, testSubkey)).end(),
+            test_enum_KeyName1);
+        REQUIRE(std_count == 1);
+
+        std_count = std::count(
+            wil::reg::enumerate_keys(wil::reg::open_shared_key(HKEY_CURRENT_USER, testSubkey)).begin(),
+            wil::reg::enumerate_keys(wil::reg::open_shared_key(HKEY_CURRENT_USER, testSubkey)).end(),
+            test_enum_KeyName2);
+        REQUIRE(std_count == 1);
+
+        std_count = std::count(
+            wil::reg::enumerate_keys(wil::reg::open_shared_key(HKEY_CURRENT_USER, testSubkey)).begin(),
+            wil::reg::enumerate_keys(wil::reg::open_shared_key(HKEY_CURRENT_USER, testSubkey)).end(),
+            test_enum_KeyName3);
+        REQUIRE(std_count == 1);
+
+        std_count = std::count(
+            wil::reg::enumerate_keys(wil::reg::open_shared_key(HKEY_CURRENT_USER, testSubkey)).begin(),
+            wil::reg::enumerate_keys(wil::reg::open_shared_key(HKEY_CURRENT_USER, testSubkey)).end(),
+            test_enum_KeyName4);
+        REQUIRE(std_count == 1);
+
+        std_count = std::count(
+            wil::reg::enumerate_keys(wil::reg::open_shared_key(HKEY_CURRENT_USER, testSubkey)).begin(),
+            wil::reg::enumerate_keys(wil::reg::open_shared_key(HKEY_CURRENT_USER, testSubkey)).end(),
+            L"xyz");
+        REQUIRE(std_count == 0);
+#endif // #if defined(__WIL_WINREG_STL)
     }
 
     SECTION("enumerate_keys with many subkeys - range-for iterator usage")
     {
-        wil::unique_hkey enum_hkey{wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite)};
+        wil::unique_hkey enum_hkey{ wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite) };
         wil::reg::create_unique_key(enum_hkey.get(), test_enum_KeyName1);
         wil::reg::create_unique_key(enum_hkey.get(), test_enum_KeyName2);
         wil::reg::create_unique_key(enum_hkey.get(), test_enum_KeyName3);

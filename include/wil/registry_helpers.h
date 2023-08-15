@@ -1225,34 +1225,25 @@ namespace wil
             constexpr uint32_t iterator_end_offset = 0xffffffff;
             constexpr size_t iterator_default_buffer_size = 16;
 
-#if defined(_STRING_)
-            // cannot return a const PCWSTR -- the registry APIs require a PWSTR
-            inline PWSTR address_of_name(::std::wstring& name) WI_NOEXCEPT
+            // function overloads to allow *_enumerator objects to be constructed from all 3 types of HKEY representatives
+            inline HKEY get_hkey(HKEY h) WI_NOEXCEPT
             {
-                return const_cast<PWSTR>(name.data());
+                return h;
             }
-            inline void clear_name(::std::wstring& name, size_t)
+            inline HKEY get_hkey(const ::wil::unique_hkey& h) WI_NOEXCEPT
             {
-                name.assign(name.size(), L'\0');
+                return h.get();
             }
+#if defined(__WIL_WINREG_STL)
+            inline HKEY get_hkey(const ::wil::shared_hkey& h) WI_NOEXCEPT
+            {
+                return h.get();
+            }
+#endif // #if defined(__WIL_WINREG_STL)
 
-            inline size_t resize_name(::std::wstring& name, size_t, size_t new_length)
-            {
-                name.resize(new_length);
-                clear_name(name, name.size());
-                return name.size();
-            }
-
-            inline bool compare_name(const ::std::wstring& name, PCWSTR comparand) WI_NOEXCEPT
-            {
-                // not using operat== as that creates a temp std::wstring, which could fail/throw
-                return 0 == wcscmp(name.c_str(), comparand);
-            }
-#else
-            inline PWSTR address_of_name(::wil::unique_process_heap_string& name) WI_NOEXCEPT
-            {
-                return name.get();
-            }
+            // function overloads to allow *_iterator_data objects to hold different types to contain the string value
+            // if more string values are desired, all 5 functions must be implement for that type:
+            // clear_name, copy_name, compare_name, resize_name, address_of_name
             inline void clear_name(::wil::unique_process_heap_string& name, size_t length)
             {
                 if (length > 0)
@@ -1260,19 +1251,14 @@ namespace wil
                     memset(name.get(), 0, length * sizeof(wchar_t));
                 }
             }
-
-            inline size_t resize_name(::wil::unique_process_heap_string& name, size_t current_length, size_t new_length)
+            inline ::wil::unique_process_heap_string copy_name(const ::wil::unique_process_heap_string& str, size_t capacity)
             {
-                if (new_length > current_length)
+                if (!str)
                 {
-                    auto newString{ ::wil::make_unique_string_nothrow<::wil::unique_process_heap_string>(name.get(), new_length) };
-                    name.swap(newString);
-                    return new_length;
-                }
+                    return {};
 
-                // continue to use the existing buffer since the requested length is less than the current length
-                clear_name(name, current_length);
-                return current_length;
+                }
+                return ::wil::make_process_heap_string(str.get(), capacity);
             }
             inline bool compare_name(const ::wil::unique_process_heap_string& name, PCWSTR comparand) WI_NOEXCEPT
             {
@@ -1282,35 +1268,74 @@ namespace wil
                 }
                 return 0 == wcscmp(name.get(), comparand);
             }
-#endif
+            inline size_t resize_name(::wil::unique_process_heap_string& name, size_t current_length, size_t new_length)
+            {
+                if (new_length > current_length)
+                {
+                    auto newString{ ::wil::make_unique_string_nothrow<::wil::unique_process_heap_string>(name.get(), new_length) };
+                    name.swap(newString);
+                    return new_length;
+                }
+
+                // continue to use the existing buffer since the requested length is less than or equals to the current length
+                clear_name(name, current_length);
+                return current_length;
+            }
+            inline PWSTR address_of_name(::wil::unique_process_heap_string& name) WI_NOEXCEPT
+            {
+                return name.get();
+            }
+
+#if defined(_STRING_)
+            inline void clear_name(::std::wstring& name, size_t)
+            {
+                name.assign(name.size(), L'\0');
+            }
+            inline ::std::wstring copy_name(const ::std::wstring& str, size_t)
+            {
+                return str;
+            }
+            inline bool compare_name(const ::std::wstring& name, PCWSTR comparand) WI_NOEXCEPT
+            {
+                // not using operat== as that creates a temp std::wstring, which could fail/throw
+                return 0 == wcscmp(name.c_str(), comparand);
+            }
+            inline size_t resize_name(::std::wstring& name, size_t, size_t new_length)
+            {
+                name.resize(new_length);
+                clear_name(name, name.size());
+                return name.size();
+            }
+            inline PWSTR address_of_name(::std::wstring& name) WI_NOEXCEPT
+            {
+                // cannot return a const PCWSTR -- the registry APIs require a PWSTR
+                return const_cast<PWSTR>(name.data());
+            }
+#endif // #if defined(_STRING_)
         };
 
-        // forward declaration
+        // forward declaration to allow friend-ing the template iterator class
         template <typename T> class iterator_t;
 
+        template <typename T =
+#if defined(_STRING_)
+            ::std::wstring>
+#else
+            ::wil::unique_process_heap_string >
+#endif
         class key_iterator_data
         {
         public:
-#if defined(_STRING_)
-            ::std::wstring name;
-#else
-            ::wil::unique_process_heap_string name;
-#endif
+            T name{};
+
             key_iterator_data(HKEY key = nullptr) : m_hkey{ key }
             {
             }
             ~key_iterator_data() WI_NOEXCEPT = default;
 
-#if defined (_STRING_)
-            key_iterator_data(const key_iterator_data&) = default;
-            key_iterator_data& operator=(const key_iterator_data&) = default;
-#else
             key_iterator_data(const key_iterator_data& rhs)
             {
-                if (rhs.name)
-                {
-                    name = ::wil::make_process_heap_string(rhs.name.get(), rhs.m_capacity);
-                }
+                name = ::wil::reg::reg_iterator_details::copy_name(rhs.name, rhs.m_capacity);
                 m_hkey = rhs.m_hkey;
                 m_index = rhs.m_index;
                 m_capacity = rhs.m_capacity;
@@ -1324,7 +1349,6 @@ namespace wil
                 }
                 return *this;
             }
-#endif
 
             key_iterator_data(key_iterator_data&&) WI_NOEXCEPT = default;
             key_iterator_data& operator=(key_iterator_data&& rhs) WI_NOEXCEPT = default;
@@ -1400,14 +1424,16 @@ namespace wil
             size_t m_capacity{};
         };
 
+        template <typename T =
+#if defined(_STRING_)
+            ::std::wstring>
+#else
+            ::wil::unique_process_heap_string >
+#endif
         class value_iterator_data
         {
         public:
-#if defined(_STRING_)
-            ::std::wstring name;
-#else
-            ::wil::unique_process_heap_string name;
-#endif
+            T name{};
             DWORD type = REG_NONE;
 
             value_iterator_data(HKEY key = nullptr) : m_hkey{ key }
@@ -1415,16 +1441,9 @@ namespace wil
             }
             ~value_iterator_data() WI_NOEXCEPT = default;
 
-#if defined (_STRING_)
-            value_iterator_data(const value_iterator_data&) = default;
-            value_iterator_data& operator=(const value_iterator_data&) = default;
-#else
             value_iterator_data(const value_iterator_data& rhs)
             {
-                if (rhs.name)
-                {
-                    name = ::wil::make_process_heap_string(rhs.name.get(), rhs.m_capacity);
-                }
+                name = ::wil::reg::reg_iterator_details::copy_name(rhs.name, rhs.m_capacity);
                 type = rhs.type;
                 m_hkey = rhs.m_hkey;
                 m_index = rhs.m_index;
@@ -1439,7 +1458,6 @@ namespace wil
                 }
                 return *this;
             }
-#endif
 
             value_iterator_data(value_iterator_data&&) WI_NOEXCEPT = default;
             value_iterator_data& operator=(value_iterator_data&& rhs) WI_NOEXCEPT = default;
@@ -1633,8 +1651,17 @@ namespace wil
             T m_data{};
         };
 
-        using key_iterator = ::wil::reg::iterator_t<::wil::reg::key_iterator_data>;
-        using value_iterator = ::wil::reg::iterator_t<::wil::reg::value_iterator_data>;
+        // will default to std::wstring if available
+        using key_iterator = ::wil::reg::iterator_t<::wil::reg::key_iterator_data<>>;
+        using value_iterator = ::wil::reg::iterator_t<::wil::reg::value_iterator_data<>>;
+
+#if defined (_STRING_)
+        using key_wstring_iterator = ::wil::reg::iterator_t<::wil::reg::key_iterator_data<::std::wstring>>;
+        using value_wstring_iterator = ::wil::reg::iterator_t<::wil::reg::value_iterator_data<::std::wstring>>;
+#endif // #if defined (_STRING_)
+        using key_heap_string_iterator = ::wil::reg::iterator_t<::wil::reg::key_iterator_data<::wil::unique_process_heap_string>>;
+        using value_heap_string_iterator = ::wil::reg::iterator_t<::wil::reg::value_iterator_data<::wil::unique_process_heap_string>>;
+
 
         template <typename T>
         struct key_enumerator
@@ -1652,7 +1679,7 @@ namespace wil
 
             ::wil::reg::key_iterator begin() const
             {
-                return ::wil::reg::key_iterator(get_hkey());
+                return ::wil::reg::key_iterator{ get_hkey() };
             }
 
             ::wil::reg::key_iterator end() const WI_NOEXCEPT
@@ -1663,8 +1690,10 @@ namespace wil
         private:
             T m_hkey;
 
-            // must be specialized per template type
-            HKEY get_hkey() const WI_NOEXCEPT;
+            HKEY get_hkey() const WI_NOEXCEPT
+            {
+                return ::wil::reg::reg_iterator_details::get_hkey(m_hkey);
+            }
         };
 
         template <typename T>
@@ -1683,7 +1712,7 @@ namespace wil
 
             ::wil::reg::value_iterator begin() const
             {
-                return ::wil::reg::value_iterator(get_hkey());
+                return ::wil::reg::value_iterator{ get_hkey() };
             }
 
             ::wil::reg::value_iterator end() const WI_NOEXCEPT
@@ -1694,50 +1723,24 @@ namespace wil
         private:
             T m_hkey;
 
-            // must be specialized per template type
-            HKEY get_hkey() const WI_NOEXCEPT;
+            HKEY get_hkey() const WI_NOEXCEPT
+            {
+                return ::wil::reg::reg_iterator_details::get_hkey(m_hkey);
+            }
         };
 
-        template <>
-        inline HKEY key_enumerator<HKEY>::get_hkey() const WI_NOEXCEPT
+        // Create an *_enumerator from either an HKEY, wil::unique_hkey, or wil::shared_hkey
+        template <typename T>
+        inline key_enumerator<T> create_key_enumerator(T key)
         {
-            return m_hkey;
-        }
-        template <>
-        inline HKEY key_enumerator<::wil::unique_hkey>::get_hkey() const WI_NOEXCEPT
-        {
-            return m_hkey.get();
+            return key_enumerator<T>(wistd::move(key));
         }
 
-        template <>
-        inline HKEY value_enumerator<HKEY>::get_hkey() const WI_NOEXCEPT
+        template <typename T>
+        inline value_enumerator<T> create_value_enumerator(T key)
         {
-            return m_hkey;
+            return value_enumerator<T>(wistd::move(key));
         }
-        template <>
-        inline HKEY value_enumerator<::wil::unique_hkey>::get_hkey() const WI_NOEXCEPT
-        {
-            return m_hkey.get();
-        }
-
-        inline key_enumerator<HKEY> create_key_enumerator(HKEY key)
-        {
-            return key_enumerator<HKEY>(wistd::move(key));
-        }
-        inline key_enumerator<::wil::unique_hkey> create_key_enumerator(::wil::unique_hkey&& key)
-        {
-            return key_enumerator<::wil::unique_hkey>(wistd::move(key));
-        }
-
-        inline value_enumerator<HKEY> create_value_enumerator(HKEY key)
-        {
-            return value_enumerator<HKEY>(wistd::move(key));
-        }
-        inline value_enumerator<::wil::unique_hkey> create_value_enumerator(::wil::unique_hkey&& key)
-        {
-            return value_enumerator<::wil::unique_hkey>(wistd::move(key));
-        }
-
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS)
 
     } // namespace reg
