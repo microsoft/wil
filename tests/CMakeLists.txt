@@ -57,6 +57,7 @@ set(COMMON_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/Rpc.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/SafeCastTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/TraceLoggingTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/TraceLoggingTests_PartB.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/WistdTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/wiTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../natvis/wil.natvis
