@@ -4593,7 +4593,10 @@ namespace wil
 
 #if defined(__propidl_h__) && !defined(_WIL__propidl_h__) && !defined(WIL_KERNEL_MODE)
 #define _WIL__propidl_h__
+    // if language extensions (/Za) disabled, PropVariantInit will not exist, PROPVARIANT has forward declaration only
+#if defined(_MSC_EXTENSIONS)
     using unique_prop_variant = wil::unique_struct<PROPVARIANT, decltype(&::PropVariantClear), ::PropVariantClear, decltype(&::PropVariantInit), ::PropVariantInit>;
+#endif
 #endif // _WIL__propidl_h__
 
 #if defined(_OLEAUTO_H_) && !defined(__WIL_OLEAUTO_H_) && !defined(WIL_KERNEL_MODE) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_SYSTEM)
@@ -6557,6 +6560,8 @@ namespace wil
         return{};
     }
 
+//! WDM version of EX_PUSH_LOCK is available starting with Windows 10 1809
+#if (NTDDI_VERSION >= NTDDI_WIN10_RS5)
     namespace details
     {
         _IRQL_requires_max_(APC_LEVEL)
@@ -6633,6 +6638,7 @@ namespace wil
     private:
         EX_PUSH_LOCK m_pushLock;
     };
+#endif
 
     namespace details
     {
