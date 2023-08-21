@@ -1216,10 +1216,8 @@ namespace wil
 #if defined(WIL_ENABLE_EXCEPTIONS)
             using reg_view = ::wil::reg::reg_view_details::reg_view_t<::wil::err_exception_policy>;
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS)
-        }
+        } // namespace reg_view_details
 
-        // registry iterator support requires exceptions
-#if defined(WIL_ENABLE_EXCEPTIONS)
         namespace reg_iterator_details
         {
             constexpr uint32_t iterator_end_offset = 0xffffffff;
@@ -1242,39 +1240,44 @@ namespace wil
 #endif // #if defined(__WIL_WINREG_STL)
 
             // function overloads to allow *_iterator_data objects to hold different types to contain the string value
-            // if more string values are desired, all 5 functions must be implement for that type:
-            // clear_name, copy_name, compare_name, resize_name, address_of_name
-            inline void clear_name(::wil::unique_process_heap_string& name, size_t length)
+            // if more string values are desired, all 6 functions must be implement for that type - all must be noexcept:
+            // is_valid, clear_name, copy_name, compare_name, resize_name, address_of_name
+            inline bool is_valid(const ::wil::unique_process_heap_string& name) WI_NOEXCEPT
             {
-                if (length > 0)
+                return static_cast<bool>(name.get());
+            }
+            inline void clear_name(::wil::unique_process_heap_string& name, size_t length) WI_NOEXCEPT
+            {
+                if (is_valid(name) && length > 0)
                 {
                     memset(name.get(), 0, length * sizeof(wchar_t));
                 }
             }
-            inline ::wil::unique_process_heap_string copy_name(const ::wil::unique_process_heap_string& str, size_t capacity)
+            inline ::wil::unique_process_heap_string copy_name(const ::wil::unique_process_heap_string& str, size_t capacity) WI_NOEXCEPT
             {
                 if (!str)
                 {
                     return {};
 
                 }
-                return ::wil::make_process_heap_string(str.get(), capacity);
+                return ::wil::make_process_heap_string_nothrow(str.get(), capacity);
             }
             inline bool compare_name(const ::wil::unique_process_heap_string& name, PCWSTR comparand) WI_NOEXCEPT
             {
-                if (!name)
+                if (!is_valid(name))
                 {
                     return false;
                 }
                 return 0 == wcscmp(name.get(), comparand);
             }
-            inline size_t resize_name(::wil::unique_process_heap_string& name, size_t current_length, size_t new_length)
+            // failure returns zero
+            inline size_t resize_name(::wil::unique_process_heap_string& name, size_t current_length, size_t new_length) WI_NOEXCEPT
             {
                 if (new_length > current_length)
                 {
-                    auto newString{ ::wil::make_unique_string_nothrow<::wil::unique_process_heap_string>(name.get(), new_length) };
-                    name.swap(newString);
-                    return new_length;
+                    auto new_string{ ::wil::make_unique_string_nothrow<::wil::unique_process_heap_string>(name.get(), new_length) };
+                    name.swap(new_string);
+                    return is_valid(name) ? new_length : 0;
                 }
 
                 // continue to use the existing buffer since the requested length is less than or equals to the current length
@@ -1286,23 +1289,39 @@ namespace wil
                 return name.get();
             }
 
-#if defined(_STRING_)
-            inline void clear_name(::std::wstring& name, size_t)
+#if defined(WIL_ENABLE_EXCEPTIONS) && defined(_STRING_)
+            inline void clear_name(::std::wstring& name, size_t) WI_NOEXCEPT
             {
                 name.assign(name.size(), L'\0');
             }
-            inline ::std::wstring copy_name(const ::std::wstring& str, size_t)
+            inline ::std::wstring copy_name(const ::std::wstring& str, size_t) WI_NOEXCEPT
             {
-                return str;
+                try
+                {
+                    return str;
+                }
+                catch (...)
+                {
+                    return {};
+                }
             }
             inline bool compare_name(const ::std::wstring& name, PCWSTR comparand) WI_NOEXCEPT
             {
                 // not using operat== as that creates a temp std::wstring, which could fail/throw
                 return 0 == wcscmp(name.c_str(), comparand);
             }
-            inline size_t resize_name(::std::wstring& name, size_t, size_t new_length)
+            // failure returns zero
+            inline size_t resize_name(::std::wstring& name, size_t, size_t new_length) WI_NOEXCEPT
             {
-                name.resize(new_length);
+                try
+                {
+                    name.resize(new_length);
+                }
+                catch (...)
+                {
+                    return 0;
+                }
+
                 clear_name(name, name.size());
                 return name.size();
             }
@@ -1311,36 +1330,41 @@ namespace wil
                 // cannot return a const PCWSTR -- the registry APIs require a PWSTR
                 return const_cast<PWSTR>(name.data());
             }
-#endif // #if defined(_STRING_)
+            inline bool is_valid(const ::std::wstring& name) WI_NOEXCEPT
+            {
+                return !name.empty();
+            }
+#endif // #if defined(WIL_ENABLE_EXCEPTIONS) && defined(_STRING_)
         };
 
         // forward declaration to allow friend-ing the template iterator class
+#if defined(WIL_ENABLE_EXCEPTIONS)
         template <typename T> class iterator_t;
-
-        template <typename T =
-#if defined(_STRING_)
-            ::std::wstring>
-#else
-            ::wil::unique_process_heap_string >
 #endif
+        template <typename T>
+        class iterator_nothrow_t;
+
+        // all methods must be noexcept - to be usable with any iterator type (throwing or non-throwing)
+        template <typename T>
         class key_iterator_data
         {
         public:
             T name{};
 
-            key_iterator_data(HKEY key = nullptr) : m_hkey{ key }
+            key_iterator_data(HKEY key = nullptr) WI_NOEXCEPT : m_hkey{ key }
             {
             }
             ~key_iterator_data() WI_NOEXCEPT = default;
 
-            key_iterator_data(const key_iterator_data& rhs)
+            key_iterator_data(const key_iterator_data& rhs) WI_NOEXCEPT
             {
+                // might return null/empty string on failure
                 name = ::wil::reg::reg_iterator_details::copy_name(rhs.name, rhs.m_capacity);
                 m_hkey = rhs.m_hkey;
                 m_index = rhs.m_index;
-                m_capacity = rhs.m_capacity;
+                m_capacity = ::wil::reg::reg_iterator_details::is_valid(name) ? rhs.m_capacity : 0;
             }
-            key_iterator_data& operator=(const key_iterator_data& rhs)
+            key_iterator_data& operator=(const key_iterator_data& rhs) WI_NOEXCEPT
             {
                 if (&rhs != this)
                 {
@@ -1360,9 +1384,12 @@ namespace wil
             }
 
         private:
+#if defined(WIL_ENABLE_EXCEPTIONS)
             friend class ::wil::reg::iterator_t<key_iterator_data>;
+#endif
+            friend class ::wil::reg::iterator_nothrow_t<key_iterator_data>;
 
-            bool is_end() const WI_NOEXCEPT
+            bool at_end() const WI_NOEXCEPT
             {
                 return m_index == ::wil::reg::reg_iterator_details::iterator_end_offset;
             }
@@ -1373,18 +1400,23 @@ namespace wil
                 m_index = ::wil::reg::reg_iterator_details::iterator_end_offset;
             }
 
-            void resize(size_t new_length)
+            bool resize(size_t new_length) WI_NOEXCEPT
             {
                 m_capacity = ::wil::reg::reg_iterator_details::resize_name(name, m_capacity, new_length);
+                // if failed to resize_name, will return 0
+                return m_capacity > 0;
             }
 
-            void enum_next()
+            HRESULT enumerate_current_index() WI_NOEXCEPT
             {
-                FAIL_FAST_IF(is_end());
+                FAIL_FAST_IF(at_end());
 
                 for (auto string_length = static_cast<DWORD>(m_capacity);;)
                 {
-                    resize(string_length);
+                    if (!resize(string_length))
+                    {
+                        return E_OUTOFMEMORY;
+                    }
 
                     const auto error = ::RegEnumKeyExW(
                         m_hkey, // hKey
@@ -1413,10 +1445,10 @@ namespace wil
                         string_length += ::wil::reg::reg_iterator_details::iterator_default_buffer_size;
                         continue;
                     }
-
-                    // any other error will throw
-                    THROW_WIN32(error);
+                    // any other error will fail
+                    RETURN_WIN32(error);
                 }
+                return S_OK;
             }
 
             HKEY m_hkey{};
@@ -1424,32 +1456,29 @@ namespace wil
             size_t m_capacity{};
         };
 
-        template <typename T =
-#if defined(_STRING_)
-            ::std::wstring>
-#else
-            ::wil::unique_process_heap_string >
-#endif
+        // all methods must be noexcept - to be usable with any iterator type (throwing or non-throwing)
+        template <typename T>
         class value_iterator_data
         {
         public:
             T name{};
             DWORD type = REG_NONE;
 
-            value_iterator_data(HKEY key = nullptr) : m_hkey{ key }
+            value_iterator_data(HKEY key = nullptr) WI_NOEXCEPT : m_hkey{ key }
             {
             }
             ~value_iterator_data() WI_NOEXCEPT = default;
 
-            value_iterator_data(const value_iterator_data& rhs)
+            value_iterator_data(const value_iterator_data& rhs) WI_NOEXCEPT
             {
+                // might return null/empty string on failure
                 name = ::wil::reg::reg_iterator_details::copy_name(rhs.name, rhs.m_capacity);
                 type = rhs.type;
                 m_hkey = rhs.m_hkey;
                 m_index = rhs.m_index;
-                m_capacity = rhs.m_capacity;
+                m_capacity = ::wil::reg::reg_iterator_details::is_valid(name) ? rhs.m_capacity : 0;
             }
-            value_iterator_data& operator=(const value_iterator_data& rhs)
+            value_iterator_data& operator=(const value_iterator_data& rhs) WI_NOEXCEPT
             {
                 if (&rhs != this)
                 {
@@ -1462,13 +1491,16 @@ namespace wil
             value_iterator_data(value_iterator_data&&) WI_NOEXCEPT = default;
             value_iterator_data& operator=(value_iterator_data&& rhs) WI_NOEXCEPT = default;
 
-        private:
-            friend class ::wil::reg::iterator_t<value_iterator_data>;
-
-            bool is_end() const noexcept
+            bool at_end() const WI_NOEXCEPT
             {
                 return m_index == ::wil::reg::reg_iterator_details::iterator_end_offset;
             }
+
+        private:
+#if defined(WIL_ENABLE_EXCEPTIONS)
+            friend class ::wil::reg::iterator_t<value_iterator_data>;
+#endif
+            friend class ::wil::reg::iterator_nothrow_t<value_iterator_data>;
 
             void make_end_iterator() WI_NOEXCEPT
             {
@@ -1476,18 +1508,23 @@ namespace wil
                 m_index = ::wil::reg::reg_iterator_details::iterator_end_offset;
             }
 
-            void resize(size_t new_length)
+            bool resize(size_t new_length)
             {
                 m_capacity = ::wil::reg::reg_iterator_details::resize_name(name, m_capacity, new_length);
+                // if failed to resize_name, will return 0
+                return m_capacity > 0;
             }
 
-            void enum_next()
+            HRESULT enumerate_current_index() WI_NOEXCEPT
             {
-                FAIL_FAST_IF(is_end());
+                FAIL_FAST_IF(at_end());
 
                 for (auto string_length = static_cast<DWORD>(m_capacity);;)
                 {
-                    resize(string_length);
+                    if (!resize(string_length))
+                    {
+                        return E_OUTOFMEMORY;
+                    }
 
                     const auto error = ::RegEnumValueW(
                         m_hkey, // hKey
@@ -1517,9 +1554,10 @@ namespace wil
                         continue;
                     }
 
-                    // any other error will throw
-                    THROW_WIN32(error);
+                    // any other error will fail
+                    RETURN_WIN32(error);
                 }
+                return S_OK;
             }
 
             HKEY m_hkey{};
@@ -1527,6 +1565,7 @@ namespace wil
             size_t m_capacity{};
         };
 
+#if defined(WIL_ENABLE_EXCEPTIONS)
         template <typename T>
         class iterator_t
         {
@@ -1553,7 +1592,7 @@ namespace wil
                 {
                     m_data.resize(::wil::reg::reg_iterator_details::iterator_default_buffer_size);
                     m_data.m_index = 0;
-                    m_data.enum_next();
+                    m_data.enumerate_current_index();
                 }
             }
 
@@ -1565,40 +1604,28 @@ namespace wil
             // operator support
             const T& operator*() const
             {
-                if (m_data.is_end())
-                {
-                    THROW_WIN32(ERROR_NO_MORE_ITEMS);
-                }
+                FAIL_FAST_IF(m_data.at_end());
                 return m_data;
             }
             const T& operator*()
             {
-                if (m_data.is_end())
-                {
-                    THROW_WIN32(ERROR_NO_MORE_ITEMS);
-                }
+                FAIL_FAST_IF(m_data.at_end());
                 return m_data;
             }
             const T* operator->() const
             {
-                if (m_data.is_end())
-                {
-                    THROW_WIN32(ERROR_NO_MORE_ITEMS);
-                }
+                FAIL_FAST_IF(m_data.at_end());
                 return &m_data;
             }
             const T* operator->()
             {
-                if (m_data.is_end())
-                {
-                    THROW_WIN32(ERROR_NO_MORE_ITEMS);
-                }
+                FAIL_FAST_IF(m_data.at_end());
                 return &m_data;
             }
 
             bool operator==(const iterator_t& rhs) const WI_NOEXCEPT
             {
-                if (m_data.is_end() || rhs.m_data.is_end())
+                if (m_data.at_end() || rhs.m_data.at_end())
                 {
                     // if either is not initialized (or end), both must not be initialized (or end) to be equal
                     return m_data.m_index == rhs.m_data.m_index;
@@ -1617,20 +1644,24 @@ namespace wil
                 this->operator +=(1);
                 return *this;
             }
+            const iterator_t& operator++() const
+            {
+                this->operator +=(1);
+                return *this;
+            }
 
             // increment by integer
             iterator_t& operator+=(size_t offset)
             {
-                // fail on overflow
                 uint32_t newIndex = m_data.m_index + static_cast<uint32_t>(offset);
-                // fail on integer overflow
                 if (newIndex < m_data.m_index)
                 {
+                    // fail on integer overflow
                     THROW_HR(E_INVALIDARG);
                 }
-                // fail if this creates an end iterator
                 if (newIndex == ::wil::reg::reg_iterator_details::iterator_end_offset)
                 {
+                    // fail if this creates an end iterator
                     THROW_HR(E_INVALIDARG);
                 }
 
@@ -1638,7 +1669,7 @@ namespace wil
                 for (size_t count = 0; count < offset; ++count)
                 {
                     ++m_data.m_index;
-                    m_data.enum_next();
+                    m_data.enumerate_current_index();
                 }
                 return *this;
             }
@@ -1650,98 +1681,134 @@ namespace wil
             // container based on the class template type
             T m_data{};
         };
-
-        // will default to std::wstring if available
-        using key_iterator = ::wil::reg::iterator_t<::wil::reg::key_iterator_data<>>;
-        using value_iterator = ::wil::reg::iterator_t<::wil::reg::value_iterator_data<>>;
-
-#if defined (_STRING_)
-        using key_wstring_iterator = ::wil::reg::iterator_t<::wil::reg::key_iterator_data<::std::wstring>>;
-        using value_wstring_iterator = ::wil::reg::iterator_t<::wil::reg::value_iterator_data<::std::wstring>>;
-#endif // #if defined (_STRING_)
-        using key_heap_string_iterator = ::wil::reg::iterator_t<::wil::reg::key_iterator_data<::wil::unique_process_heap_string>>;
-        using value_heap_string_iterator = ::wil::reg::iterator_t<::wil::reg::value_iterator_data<::wil::unique_process_heap_string>>;
-
+#endif
 
         template <typename T>
-        struct key_enumerator
+        class iterator_nothrow_t
         {
-            explicit key_enumerator(T&& key) WI_NOEXCEPT : m_hkey(wistd::move(key))
+        public:
+            struct nothrow_data
             {
+                nothrow_data() WI_NOEXCEPT = default;
+                nothrow_data(HKEY key) : registry_data(key)
+                {
+                }
+                bool at_end() const WI_NOEXCEPT
+                {
+                    return registry_data.at_end();
+                }
+                T registry_data{};
+                HRESULT last_error{};
+            };
+            iterator_nothrow_t() WI_NOEXCEPT = default;
+            ~iterator_nothrow_t() WI_NOEXCEPT = default;
+
+            iterator_nothrow_t(HKEY hkey) WI_NOEXCEPT : m_nothrow_data(hkey)
+            {
+                if (hkey != nullptr)
+                {
+                    m_nothrow_data.registry_data.m_index = 0;
+                    if (!m_nothrow_data.registry_data.resize(::wil::reg::reg_iterator_details::iterator_default_buffer_size))
+                    {
+                        m_nothrow_data.last_error = E_OUTOFMEMORY;
+                    }
+                    else
+                    {
+                        m_nothrow_data.last_error = m_nothrow_data.registry_data.enumerate_current_index();
+                    }
+                }
             }
-            ~key_enumerator() WI_NOEXCEPT = default;
 
-            key_enumerator(const key_enumerator&) = delete;
-            key_enumerator& operator=(const key_enumerator&) = delete;
-            // only movable
-            key_enumerator(key_enumerator&&) WI_NOEXCEPT = default;
-            key_enumerator& operator=(key_enumerator&&) WI_NOEXCEPT = default;
+            iterator_nothrow_t(const iterator_nothrow_t&) WI_NOEXCEPT = default;
+            iterator_nothrow_t& operator=(const iterator_nothrow_t&) WI_NOEXCEPT = default;
+            iterator_nothrow_t(iterator_nothrow_t&&) WI_NOEXCEPT = default;
+            iterator_nothrow_t& operator=(iterator_nothrow_t&&) WI_NOEXCEPT = default;
 
-            ::wil::reg::key_iterator begin() const
+            bool at_end() const WI_NOEXCEPT
             {
-                return ::wil::reg::key_iterator{ get_hkey() };
+                return m_nothrow_data.registry_data.at_end();
             }
 
-            ::wil::reg::key_iterator end() const WI_NOEXCEPT
+            HRESULT last_error() const WI_NOEXCEPT
             {
-                return { nullptr };
+                return m_nothrow_data.last_error;
+            }
+
+            HRESULT move_next() WI_NOEXCEPT
+            {
+                const auto newIndex = m_nothrow_data.registry_data.m_index + 1;
+                if (newIndex < m_nothrow_data.registry_data.m_index)
+                {
+                    // fail on integer overflow
+                    m_nothrow_data.last_error = E_INVALIDARG;
+                }
+                else if (newIndex == ::wil::reg::reg_iterator_details::iterator_end_offset)
+                {
+                    // fail if this creates an end iterator
+                    m_nothrow_data.last_error = E_INVALIDARG;
+                }
+                else
+                {
+                    m_nothrow_data.registry_data.m_index = newIndex;
+                    m_nothrow_data.last_error = m_nothrow_data.registry_data.enumerate_current_index();
+                }
+
+                if (FAILED(m_nothrow_data.last_error))
+                {
+                    // on failure, set the iterator to an end iterator
+                    m_nothrow_data.registry_data.make_end_iterator();
+                }
+
+                return m_nothrow_data.last_error;
+            }
+
+            // operator support
+            const nothrow_data& operator*() const WI_NOEXCEPT
+            {
+                return m_nothrow_data;
+            }
+            const nothrow_data& operator*() WI_NOEXCEPT
+            {
+                return m_nothrow_data;
+            }
+            const nothrow_data* operator->() const WI_NOEXCEPT
+            {
+                return &m_nothrow_data;
+            }
+            const nothrow_data* operator->() WI_NOEXCEPT
+            {
+                return &m_nothrow_data;
+            }
+            bool operator==(const iterator_nothrow_t& rhs) const WI_NOEXCEPT
+            {
+                if (m_nothrow_data.registry_data.at_end() || rhs.m_nothrow_data.registry_data.at_end())
+                {
+                    // if either is not initialized (or end), both must not be initialized (or end) to be equal
+                    return m_nothrow_data.registry_data.m_index == rhs.m_nothrow_data.registry_data.m_index;
+                }
+                return m_nothrow_data.registry_data.m_hkey == rhs.m_nothrow_data.registry_data.m_hkey && m_nothrow_data.registry_data.m_index == rhs.m_nothrow_data.registry_data.m_index;
+            }
+
+            bool operator!=(const iterator_nothrow_t& rhs) const WI_NOEXCEPT
+            {
+                return !(*this == rhs);
+            }
+
+            iterator_nothrow_t& operator++() WI_NOEXCEPT
+            {
+                move_next();
+                return *this;
+            }
+            const iterator_nothrow_t& operator++() const WI_NOEXCEPT
+            {
+                move_next();
+                return *this;
             }
 
         private:
-            T m_hkey;
-
-            HKEY get_hkey() const WI_NOEXCEPT
-            {
-                return ::wil::reg::reg_iterator_details::get_hkey(m_hkey);
-            }
+            // container based on the class template type
+            nothrow_data m_nothrow_data{};
         };
-
-        template <typename T>
-        struct value_enumerator
-        {
-            explicit value_enumerator(T&& key) WI_NOEXCEPT : m_hkey(wistd::move(key))
-            {
-            }
-            ~value_enumerator() WI_NOEXCEPT = default;
-
-            value_enumerator(const value_enumerator&) = delete;
-            value_enumerator& operator=(const value_enumerator&) = delete;
-            // only movable
-            value_enumerator(value_enumerator&&) WI_NOEXCEPT = default;
-            value_enumerator& operator=(value_enumerator&&) WI_NOEXCEPT = default;
-
-            ::wil::reg::value_iterator begin() const
-            {
-                return ::wil::reg::value_iterator{ get_hkey() };
-            }
-
-            ::wil::reg::value_iterator end() const WI_NOEXCEPT
-            {
-                return { nullptr };
-            }
-
-        private:
-            T m_hkey;
-
-            HKEY get_hkey() const WI_NOEXCEPT
-            {
-                return ::wil::reg::reg_iterator_details::get_hkey(m_hkey);
-            }
-        };
-
-        // Create an *_enumerator from either an HKEY, wil::unique_hkey, or wil::shared_hkey
-        template <typename T>
-        inline key_enumerator<T> create_key_enumerator(T key)
-        {
-            return key_enumerator<T>(wistd::move(key));
-        }
-
-        template <typename T>
-        inline value_enumerator<T> create_value_enumerator(T key)
-        {
-            return value_enumerator<T>(wistd::move(key));
-        }
-#endif // #if defined(WIL_ENABLE_EXCEPTIONS)
 
     } // namespace reg
 } // namespace wil

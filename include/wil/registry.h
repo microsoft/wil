@@ -161,23 +161,12 @@ namespace wil
             return regview.create_key(subKey, hkey.put(), access);
         }
 #endif // #define __WIL_WINREG_STL
-
-#if defined(WIL_ENABLE_EXCEPTIONS)
         //
-        // wil::reg::value_enumerator<HKEY> enumerate_values(HKEY key)
-        // wil::reg::key_enumerator<HKEY> enumerate_keys(HKEY key)
-        //
-        //  - Enumerates registry keys and values under the given HKEY
-        //  - Throws a std::exception on failure (including wil::ResultException)
+        //  wil::key_iterator and wil::value_iterator objects enable enumerating registry keys and values.
         //
         // Examples of usage when std::wstring is included:
         //
         //     for (const auto& key_data : wil::make_range(wil::reg::key_iterator{hkey}, wil::reg::key_iterator{}))
-        //     {
-        //         key_data.name; // the std::wstring of the enumerated key
-        //     }
-        //
-        //     for (const auto& key_data : wil::reg::enumerate_keys(hkey))
         //     {
         //         key_data.name; // the std::wstring of the enumerated key
         //     }
@@ -188,81 +177,52 @@ namespace wil
         //         value_data.type; // the REG_ type of the enumerated value
         //     }
         //
-        //     for (const auto& value_data : wil::reg::enumerate_values(hkey.get()))
+        // When std::wstring is not included, wil::unique_process_heap_string can be used instead:
+        //
+        //     for (const auto& key_data : wil::make_range(wil::reg::key_heap_string_iterator{hkey}, wil::reg::key_heap_string_iterator{}))
         //     {
-        //         value_data.name; // the std::wstring of the enumerated value
+        //         key_data.name.get(); // the PCWSTR of the enumerated key
+        //     }
+        //
+        //     for (const auto& value_data : wil::make_range(wil::reg::value_heap_string_iterator{hkey}, wil::reg::value_heap_string_iterator{}))
+        //     {
+        //         value_data.name.get(); // the PCWSTR of the enumerated value
         //         value_data.type; // the REG_ type of the enumerated value
         //     }
         //
-        // When std::wstring is *not* included, the above functions return a 'name' field of type wil::unique_process_heap_string
+        // When not using exceptions, can manually walk the iterator using wil::unique_process_heap_string:
         //
-        /**
-         * \brief Returns an enumerator object that exposes begin() and end() to iterate through the registry values under the specified key
-         * \param key An open registry key
-         *        Note: the caller must guarantee the registry key must be valid for the lifetime of the returned registry enumerator object
-         * \return wil::reg::value_enumerator The object to iterate values - exposing the iterator semantics of being() and end()
-         */
-        inline ::wil::reg::value_enumerator<HKEY> enumerate_values(HKEY key)
-        {
-            return ::wil::reg::create_value_enumerator(key);
-        }
-
-        /**
-         * \brief Returns an enumerator object that exposes begin() and end() to iterate through the registry subkeys under the specified key
-         * \param key An open registry key
-         *        Note: the caller must guarantee the registry key must be valid for the lifetime of the returned registry enumerator object
-         * \return wil::reg::key_enumerator The object to iterate subkeys - exposing the iterator semantics of being() and end()
-         */
-        inline ::wil::reg::key_enumerator<HKEY> enumerate_keys(HKEY key)
-        {
-            return ::wil::reg::create_key_enumerator(key);
-        }
-
-        /**
-         * \brief Returns an enumerator object that exposes begin() and end() to iterate through the registry values under the specified key
-         * \param key An open registry key stored within a wil::unique_hkey
-         *        Note: this is passed by R-value so the returned enumerator object will own the HKEY
-         * \return wil::reg::value_enumerator The object to iterate values - exposing the iterator semantics of being() and end()
-         */
-        inline ::wil::reg::value_enumerator<::wil::unique_hkey> enumerate_values(::wil::unique_hkey&& key)
-        {
-            return ::wil::reg::create_value_enumerator(wistd::move(key));
-        }
-
-        /**
-         * \brief Returns an enumerator object that exposes begin() and end() to iterate through the registry subkeys under the specified key
-        * \param key An open registry key stored within a wil::unique_hkey
-        *        Note: this is passed by R-value so the returned enumerator object will own the HKEY
-         * \return wil::reg::key_enumerator The object to iterate subkeys - exposing the iterator semantics of being() and end()
-         */
-        inline ::wil::reg::key_enumerator<::wil::unique_hkey> enumerate_keys(::wil::unique_hkey&& key)
-        {
-            return ::wil::reg::create_key_enumerator(wistd::move(key));
-        }
-
-#if defined(__WIL_WINREG_STL)
-        /**
-         * \brief Returns an enumerator object that exposes begin() and end() to iterate through the registry values under the specified key
-         * \param key An open registry key stored within a wil::shared_hkey
-         * \return wil::reg::value_enumerator The object to iterate values - exposing the iterator semantics of being() and end()
-         */
-        inline ::wil::reg::value_enumerator<::wil::shared_hkey> enumerate_values(::wil::shared_hkey key)
-        {
-            return ::wil::reg::create_value_enumerator(wistd::move(key));
-        }
-
-        /**
-         * \brief Returns an enumerator object that exposes begin() and end() to iterate through the registry subkeys under the specified key
-        * \param key An open registry key stored within a wil::shared_hkey
-         * \return wil::reg::key_enumerator The object to iterate subkeys - exposing the iterator semantics of being() and end()
-         */
-        inline ::wil::reg::key_enumerator<::wil::shared_hkey> enumerate_keys(::wil::shared_hkey key)
-        {
-            return ::wil::reg::create_key_enumerator(wistd::move(key));
-        }
-#endif // #if defined(__WIL_WINREG_STL)
-
+        //     auto iterate_keys = wil::reg::key_heap_string_nothrow_iterator{hkey};
+        //     for (; !iterate_keys.at_end(); iterate_keys.move_next())
+        //     {
+        //         manual_iterator->registry_data.name.get();
+        //     }
+        //     if (FAILED(iterate_keys.last_error()))
+        //     {
+        //         // the HRESULT last_error() returns the registry error that prevented enumeration
+        //     }
+        //
+        //     auto iterate_values = wil::reg::value_heap_string_nothrow_iterator{hkey};
+        //     for (; !iterate_values.at_end(); iterate_values.move_next())
+        //     {
+        //         manual_iterator->registry_data.name.get(); // the PCWSTR of the enumerated value
+        //         manual_iterator->registry_data.type; // the REG_ type of the enumerated value
+        //     }
+        //     if (FAILED(iterate_values.last_error()))
+        //     {
+        //         // the HRESULT last_error() returns the registry error that prevented enumeration
+        //     }
+        //
+#if defined(WIL_ENABLE_EXCEPTIONS)
+#if defined(_STRING_)
+        using key_iterator = ::wil::reg::iterator_t<::wil::reg::key_iterator_data<::std::wstring>>;
+        using value_iterator = ::wil::reg::iterator_t<::wil::reg::value_iterator_data<::std::wstring>>;
+#endif
+        using key_heap_string_iterator = ::wil::reg::iterator_t<::wil::reg::key_iterator_data<::wil::unique_process_heap_string>>;
+        using value_heap_string_iterator = ::wil::reg::iterator_t<::wil::reg::value_iterator_data<::wil::unique_process_heap_string>>;
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS)
+        using key_heap_string_nothrow_iterator = ::wil::reg::iterator_nothrow_t<::wil::reg::key_iterator_data<::wil::unique_process_heap_string>>;
+        using value_heap_string_nothrow_iterator = ::wil::reg::iterator_nothrow_t<::wil::reg::value_iterator_data<::wil::unique_process_heap_string>>;
 
         /**
          * \brief Queries for number of sub-keys
