@@ -193,9 +193,9 @@ namespace wil
         // When not using exceptions, can manually walk the iterator using wil::unique_process_heap_string:
         //
         //     auto iterate_keys = wil::reg::key_heap_string_nothrow_iterator{hkey};
-        //     for (; !iterate_keys.at_end(); iterate_keys.move_next())
+        //     for (const auto& key_data : wil::make_range(iterate_keys, wil::reg::key_heap_string_nothrow_iterator{}))
         //     {
-        //         manual_iterator->registry_data.name.get();
+        //         key_data.name.get(); // the PCWSTR of the enumerated key
         //     }
         //     if (FAILED(iterate_keys.last_error()))
         //     {
@@ -203,10 +203,10 @@ namespace wil
         //     }
         //
         //     auto iterate_values = wil::reg::value_heap_string_nothrow_iterator{hkey};
-        //     for (; !iterate_values.at_end(); iterate_values.move_next())
+        //     for (const auto& value_data : wil::make_range(iterate_values, wil::reg::value_heap_string_nothrow_iterator{}))
         //     {
-        //         manual_iterator->registry_data.name.get(); // the PCWSTR of the enumerated value
-        //         manual_iterator->registry_data.type; // the REG_ type of the enumerated value
+        //         value_data.name.get(); // the PCWSTR of the enumerated value
+        //         value_data.type; // the REG_ type of the enumerated value
         //     }
         //     if (FAILED(iterate_values.last_error()))
         //     {

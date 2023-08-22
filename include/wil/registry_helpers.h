@@ -1687,34 +1687,21 @@ namespace wil
         class iterator_nothrow_t
         {
         public:
-            struct nothrow_data
-            {
-                nothrow_data() WI_NOEXCEPT = default;
-                nothrow_data(HKEY key) : registry_data(key)
-                {
-                }
-                bool at_end() const WI_NOEXCEPT
-                {
-                    return registry_data.at_end();
-                }
-                T registry_data{};
-                HRESULT last_error{};
-            };
             iterator_nothrow_t() WI_NOEXCEPT = default;
             ~iterator_nothrow_t() WI_NOEXCEPT = default;
 
-            iterator_nothrow_t(HKEY hkey) WI_NOEXCEPT : m_nothrow_data(hkey)
+            iterator_nothrow_t(HKEY hkey) WI_NOEXCEPT : m_data(hkey)
             {
                 if (hkey != nullptr)
                 {
-                    m_nothrow_data.registry_data.m_index = 0;
-                    if (!m_nothrow_data.registry_data.resize(::wil::reg::reg_iterator_details::iterator_default_buffer_size))
+                    m_data.m_index = 0;
+                    if (!m_data.resize(::wil::reg::reg_iterator_details::iterator_default_buffer_size))
                     {
-                        m_nothrow_data.last_error = E_OUTOFMEMORY;
+                        m_last_error = E_OUTOFMEMORY;
                     }
                     else
                     {
-                        m_nothrow_data.last_error = m_nothrow_data.registry_data.enumerate_current_index();
+                        m_last_error = m_data.enumerate_current_index();
                     }
                 }
             }
@@ -1726,67 +1713,67 @@ namespace wil
 
             bool at_end() const WI_NOEXCEPT
             {
-                return m_nothrow_data.registry_data.at_end();
+                return m_data.at_end();
             }
 
             HRESULT last_error() const WI_NOEXCEPT
             {
-                return m_nothrow_data.last_error;
+                return m_last_error;
             }
 
             HRESULT move_next() WI_NOEXCEPT
             {
-                const auto newIndex = m_nothrow_data.registry_data.m_index + 1;
-                if (newIndex < m_nothrow_data.registry_data.m_index)
+                const auto newIndex = m_data.m_index + 1;
+                if (newIndex < m_data.m_index)
                 {
                     // fail on integer overflow
-                    m_nothrow_data.last_error = E_INVALIDARG;
+                    m_last_error = E_INVALIDARG;
                 }
                 else if (newIndex == ::wil::reg::reg_iterator_details::iterator_end_offset)
                 {
                     // fail if this creates an end iterator
-                    m_nothrow_data.last_error = E_INVALIDARG;
+                    m_last_error = E_INVALIDARG;
                 }
                 else
                 {
-                    m_nothrow_data.registry_data.m_index = newIndex;
-                    m_nothrow_data.last_error = m_nothrow_data.registry_data.enumerate_current_index();
+                    m_data.m_index = newIndex;
+                    m_last_error = m_data.enumerate_current_index();
                 }
 
-                if (FAILED(m_nothrow_data.last_error))
+                if (FAILED(m_last_error))
                 {
                     // on failure, set the iterator to an end iterator
-                    m_nothrow_data.registry_data.make_end_iterator();
+                    m_data.make_end_iterator();
                 }
 
-                return m_nothrow_data.last_error;
+                return m_last_error;
             }
 
             // operator support
-            const nothrow_data& operator*() const WI_NOEXCEPT
+            const T& operator*() const WI_NOEXCEPT
             {
-                return m_nothrow_data;
+                return m_data;
             }
-            const nothrow_data& operator*() WI_NOEXCEPT
+            const T& operator*() WI_NOEXCEPT
             {
-                return m_nothrow_data;
+                return m_data;
             }
-            const nothrow_data* operator->() const WI_NOEXCEPT
+            const T* operator->() const WI_NOEXCEPT
             {
-                return &m_nothrow_data;
+                return &m_data;
             }
-            const nothrow_data* operator->() WI_NOEXCEPT
+            const T* operator->() WI_NOEXCEPT
             {
-                return &m_nothrow_data;
+                return &m_data;
             }
             bool operator==(const iterator_nothrow_t& rhs) const WI_NOEXCEPT
             {
-                if (m_nothrow_data.registry_data.at_end() || rhs.m_nothrow_data.registry_data.at_end())
+                if (m_data.at_end() || rhs.m_data.at_end())
                 {
                     // if either is not initialized (or end), both must not be initialized (or end) to be equal
-                    return m_nothrow_data.registry_data.m_index == rhs.m_nothrow_data.registry_data.m_index;
+                    return m_data.m_index == rhs.m_data.m_index;
                 }
-                return m_nothrow_data.registry_data.m_hkey == rhs.m_nothrow_data.registry_data.m_hkey && m_nothrow_data.registry_data.m_index == rhs.m_nothrow_data.registry_data.m_index;
+                return m_data.m_hkey == rhs.m_data.m_hkey && m_data.m_index == rhs.m_data.m_index;
             }
 
             bool operator!=(const iterator_nothrow_t& rhs) const WI_NOEXCEPT
@@ -1807,7 +1794,8 @@ namespace wil
 
         private:
             // container based on the class template type
-            nothrow_data m_nothrow_data{};
+            T m_data{};
+            HRESULT m_last_error{};
         };
 
     } // namespace reg

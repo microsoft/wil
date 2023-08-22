@@ -3910,14 +3910,14 @@ TEST_CASE("BasicRegistryTests::value_heap_string_nothrow_iterator", "[registry]]
         // both ways to access the iterator data
         auto test_iterator = wil::reg::value_heap_string_nothrow_iterator(hkey.get());
         REQUIRE(test_iterator == wil::reg::value_heap_string_nothrow_iterator(hkey.get()));
-        REQUIRE(0 == wcscmp((*test_iterator).registry_data.name.get(), test_enum_valueName1));
-        REQUIRE(0 == wcscmp(test_iterator->registry_data.name.get(), test_enum_valueName1));
+        REQUIRE(0 == wcscmp((*test_iterator).name.get(), test_enum_valueName1));
+        REQUIRE(0 == wcscmp(test_iterator->name.get(), test_enum_valueName1));
         auto test_iterator_copy = test_iterator;
         REQUIRE(test_iterator_copy == wil::reg::value_heap_string_nothrow_iterator(hkey.get()));
-        REQUIRE(0 == wcscmp((*test_iterator_copy).registry_data.name.get(), test_enum_valueName1));
-        REQUIRE(0 == wcscmp(test_iterator_copy->registry_data.name.get(), test_enum_valueName1));
+        REQUIRE(0 == wcscmp((*test_iterator_copy).name.get(), test_enum_valueName1));
+        REQUIRE(0 == wcscmp(test_iterator_copy->name.get(), test_enum_valueName1));
         REQUIRE_SUCCEEDED(test_iterator.move_next());
-        REQUIRE_SUCCEEDED(test_iterator->last_error);
+        REQUIRE_SUCCEEDED(test_iterator.last_error());
         REQUIRE(test_iterator.at_end());
         REQUIRE(test_iterator == wil::reg::value_heap_string_nothrow_iterator{});
         test_iterator_copy = test_iterator;
@@ -3927,16 +3927,16 @@ TEST_CASE("BasicRegistryTests::value_heap_string_nothrow_iterator", "[registry]]
         test_iterator = wil::reg::value_heap_string_nothrow_iterator(hkey.get());
         REQUIRE(test_iterator != wil::reg::value_heap_string_nothrow_iterator{});
         REQUIRE(test_iterator == wil::reg::value_heap_string_nothrow_iterator(hkey.get()));
-        REQUIRE(0 == wcscmp((*test_iterator).registry_data.name.get(), test_enum_valueName1));
-        REQUIRE(0 == wcscmp(test_iterator->registry_data.name.get(), test_enum_valueName1));
+        REQUIRE(0 == wcscmp((*test_iterator).name.get(), test_enum_valueName1));
+        REQUIRE(0 == wcscmp(test_iterator->name.get(), test_enum_valueName1));
         REQUIRE(!test_iterator.at_end());
         test_iterator_copy = test_iterator;
         REQUIRE(test_iterator_copy == wil::reg::value_heap_string_nothrow_iterator(hkey.get()));
-        REQUIRE(0 == wcscmp((*test_iterator_copy).registry_data.name.get(), test_enum_valueName1));
-        REQUIRE(0 == wcscmp(test_iterator_copy->registry_data.name.get(), test_enum_valueName1));
+        REQUIRE(0 == wcscmp((*test_iterator_copy).name.get(), test_enum_valueName1));
+        REQUIRE(0 == wcscmp(test_iterator_copy->name.get(), test_enum_valueName1));
         REQUIRE(!test_iterator_copy.at_end());
         REQUIRE_SUCCEEDED(test_iterator.move_next());
-        REQUIRE_SUCCEEDED(test_iterator->last_error);
+        REQUIRE_SUCCEEDED(test_iterator.last_error());
         REQUIRE(test_iterator.at_end());
         REQUIRE(test_iterator == wil::reg::value_heap_string_nothrow_iterator{});
         test_iterator_copy = test_iterator;
@@ -3946,15 +3946,15 @@ TEST_CASE("BasicRegistryTests::value_heap_string_nothrow_iterator", "[registry]]
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey2));
         test_iterator = wil::reg::value_heap_string_nothrow_iterator(hkey2.get());
         REQUIRE(test_iterator != wil::reg::value_heap_string_nothrow_iterator{});
-        REQUIRE(0 == wcscmp((*test_iterator).registry_data.name.get(), test_enum_valueName1));
-        REQUIRE(0 == wcscmp(test_iterator->registry_data.name.get(), test_enum_valueName1));
+        REQUIRE(0 == wcscmp((*test_iterator).name.get(), test_enum_valueName1));
+        REQUIRE(0 == wcscmp(test_iterator->name.get(), test_enum_valueName1));
         REQUIRE(!test_iterator.at_end());
         test_iterator_copy = test_iterator;
-        REQUIRE(0 == wcscmp((*test_iterator_copy).registry_data.name.get(), test_enum_valueName1));
-        REQUIRE(0 == wcscmp(test_iterator_copy->registry_data.name.get(), test_enum_valueName1));
+        REQUIRE(0 == wcscmp((*test_iterator_copy).name.get(), test_enum_valueName1));
+        REQUIRE(0 == wcscmp(test_iterator_copy->name.get(), test_enum_valueName1));
         REQUIRE(!test_iterator_copy.at_end());
         REQUIRE_SUCCEEDED(test_iterator.move_next());
-        REQUIRE_SUCCEEDED(test_iterator->last_error);
+        REQUIRE_SUCCEEDED(test_iterator.last_error());
         REQUIRE(test_iterator.at_end());
         REQUIRE(test_iterator == wil::reg::value_heap_string_nothrow_iterator{});
         test_iterator_copy = test_iterator;
@@ -3974,8 +3974,7 @@ TEST_CASE("BasicRegistryTests::value_heap_string_nothrow_iterator", "[registry]]
         uint32_t count = 0;
         for (const auto& value_data : wil::make_range(wil::reg::value_heap_string_nothrow_iterator{ hkey.get() }, wil::reg::value_heap_string_nothrow_iterator{}))
         {
-            REQUIRE_SUCCEEDED(value_data.last_error);
-            if (value_data.registry_data.at_end())
+            if (value_data.at_end())
             {
                 break;
             }
@@ -3984,20 +3983,20 @@ TEST_CASE("BasicRegistryTests::value_heap_string_nothrow_iterator", "[registry]]
             switch (count)
             {
             case 1:
-                REQUIRE(0 == wcscmp(value_data.registry_data.name.get(), test_enum_valueName1));
-                REQUIRE(value_data.registry_data.type == REG_DWORD);
+                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName1));
+                REQUIRE(value_data.type == REG_DWORD);
                 break;
             case 2:
-                REQUIRE(0 == wcscmp(value_data.registry_data.name.get(), test_enum_valueName2));
-                REQUIRE(value_data.registry_data.type == REG_DWORD);
+                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName2));
+                REQUIRE(value_data.type == REG_DWORD);
                 break;
             case 3:
-                REQUIRE(0 == wcscmp(value_data.registry_data.name.get(), test_enum_valueName3));
-                REQUIRE(value_data.registry_data.type == REG_QWORD);
+                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName3));
+                REQUIRE(value_data.type == REG_QWORD);
                 break;
             case 4:
-                REQUIRE(0 == wcscmp(value_data.registry_data.name.get(), test_enum_valueName4));
-                REQUIRE(value_data.registry_data.type == REG_SZ);
+                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName4));
+                REQUIRE(value_data.type == REG_SZ);
                 break;
             default:
                 REQUIRE_FAILED(false);
@@ -4010,7 +4009,6 @@ TEST_CASE("BasicRegistryTests::value_heap_string_nothrow_iterator", "[registry]]
         const auto testEndIterator = wil::reg::value_heap_string_nothrow_iterator{};
         for (const auto& value_data : wil::make_range(testIterator, testEndIterator))
         {
-            REQUIRE_SUCCEEDED(value_data.last_error);
             if (value_data.at_end())
             {
                 break;
@@ -4020,59 +4018,60 @@ TEST_CASE("BasicRegistryTests::value_heap_string_nothrow_iterator", "[registry]]
             switch (count)
             {
             case 1:
-                REQUIRE(0 == wcscmp(value_data.registry_data.name.get(), test_enum_valueName1));
-                REQUIRE(value_data.registry_data.type == REG_DWORD);
+                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName1));
+                REQUIRE(value_data.type == REG_DWORD);
                 break;
             case 2:
-                REQUIRE(0 == wcscmp(value_data.registry_data.name.get(), test_enum_valueName2));
-                REQUIRE(value_data.registry_data.type == REG_DWORD);
+                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName2));
+                REQUIRE(value_data.type == REG_DWORD);
                 break;
             case 3:
-                REQUIRE(0 == wcscmp(value_data.registry_data.name.get(), test_enum_valueName3));
-                REQUIRE(value_data.registry_data.type == REG_QWORD);
+                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName3));
+                REQUIRE(value_data.type == REG_QWORD);
                 break;
             case 4:
-                REQUIRE(0 == wcscmp(value_data.registry_data.name.get(), test_enum_valueName4));
-                REQUIRE(value_data.registry_data.type == REG_SZ);
+                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName4));
+                REQUIRE(value_data.type == REG_SZ);
                 break;
             default:
                 REQUIRE_FAILED(false);
             }
         }
+        REQUIRE_SUCCEEDED(testIterator.last_error());
         REQUIRE(count == 4);
 
         count = 0;
         auto manual_iterator = wil::reg::value_heap_string_nothrow_iterator{ hkey.get() };
-        REQUIRE_SUCCEEDED(manual_iterator->last_error);
+        REQUIRE_SUCCEEDED(manual_iterator.last_error());
         while (!manual_iterator.at_end())
         {
             ++count;
             switch (count)
             {
             case 1:
-                REQUIRE(0 == wcscmp(manual_iterator->registry_data.name.get(), test_enum_valueName1));
-                REQUIRE(manual_iterator->registry_data.type == REG_DWORD);
+                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_valueName1));
+                REQUIRE(manual_iterator->type == REG_DWORD);
                 break;
             case 2:
-                REQUIRE(0 == wcscmp(manual_iterator->registry_data.name.get(), test_enum_valueName2));
-                REQUIRE(manual_iterator->registry_data.type == REG_DWORD);
+                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_valueName2));
+                REQUIRE(manual_iterator->type == REG_DWORD);
                 break;
             case 3:
-                REQUIRE(0 == wcscmp(manual_iterator->registry_data.name.get(), test_enum_valueName3));
-                REQUIRE(manual_iterator->registry_data.type == REG_QWORD);
+                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_valueName3));
+                REQUIRE(manual_iterator->type == REG_QWORD);
                 break;
             case 4:
-                REQUIRE(0 == wcscmp(manual_iterator->registry_data.name.get(), test_enum_valueName4));
-                REQUIRE(manual_iterator->registry_data.type == REG_SZ);
+                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_valueName4));
+                REQUIRE(manual_iterator->type == REG_SZ);
                 break;
             default: REQUIRE_FAILED(false);
             }
 
             const auto hr = manual_iterator.move_next();
             REQUIRE_SUCCEEDED(hr);
-            REQUIRE_SUCCEEDED(manual_iterator->last_error);
+            REQUIRE_SUCCEEDED(manual_iterator.last_error());
         }
-        REQUIRE_SUCCEEDED(manual_iterator->last_error);
+        REQUIRE_SUCCEEDED(manual_iterator.last_error());
         REQUIRE(manual_iterator->at_end());
         REQUIRE(count == 4);
 
@@ -4084,26 +4083,26 @@ TEST_CASE("BasicRegistryTests::value_heap_string_nothrow_iterator", "[registry]]
             switch (count)
             {
             case 1:
-                REQUIRE(0 == wcscmp(manual_iterator->registry_data.name.get(), test_enum_valueName1));
-                REQUIRE(manual_iterator->registry_data.type == REG_DWORD);
+                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_valueName1));
+                REQUIRE(manual_iterator->type == REG_DWORD);
                 break;
             case 2:
-                REQUIRE(0 == wcscmp(manual_iterator->registry_data.name.get(), test_enum_valueName2));
-                REQUIRE(manual_iterator->registry_data.type == REG_DWORD);
+                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_valueName2));
+                REQUIRE(manual_iterator->type == REG_DWORD);
                 break;
             case 3:
-                REQUIRE(0 == wcscmp(manual_iterator->registry_data.name.get(), test_enum_valueName3));
-                REQUIRE(manual_iterator->registry_data.type == REG_QWORD);
+                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_valueName3));
+                REQUIRE(manual_iterator->type == REG_QWORD);
                 break;
             case 4:
-                REQUIRE(0 == wcscmp(manual_iterator->registry_data.name.get(), test_enum_valueName4));
-                REQUIRE(manual_iterator->registry_data.type == REG_SZ);
+                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_valueName4));
+                REQUIRE(manual_iterator->type == REG_SZ);
                 break;
             default: REQUIRE_FAILED(false);
             }
         }
         REQUIRE_SUCCEEDED(manual_iterator.last_error());
-        REQUIRE_SUCCEEDED(manual_iterator->last_error);
+        REQUIRE_SUCCEEDED(manual_iterator.last_error());
         REQUIRE(manual_iterator->at_end());
         REQUIRE(count == 4);
     }
@@ -4145,14 +4144,14 @@ TEST_CASE("BasicRegistryTests::key_heap_string_nothrow_iterator", "[registry]]")
 
         auto key_iterator = wil::reg::key_heap_string_nothrow_iterator(hkey.get());
         REQUIRE(key_iterator == wil::reg::key_heap_string_nothrow_iterator(hkey.get()));
-        REQUIRE(0 == wcscmp((*key_iterator).registry_data.name.get(), test_enum_KeyName1));
-        REQUIRE(0 == wcscmp(key_iterator->registry_data.name.get(), test_enum_KeyName1));
+        REQUIRE(0 == wcscmp((*key_iterator).name.get(), test_enum_KeyName1));
+        REQUIRE(0 == wcscmp(key_iterator->name.get(), test_enum_KeyName1));
         auto key_iterator_copy = key_iterator;
         REQUIRE(key_iterator_copy == wil::reg::key_heap_string_nothrow_iterator(hkey.get()));
-        REQUIRE(0 == wcscmp((*key_iterator_copy).registry_data.name.get(), test_enum_KeyName1));
-        REQUIRE(0 == wcscmp(key_iterator_copy->registry_data.name.get(), test_enum_KeyName1));
+        REQUIRE(0 == wcscmp((*key_iterator_copy).name.get(), test_enum_KeyName1));
+        REQUIRE(0 == wcscmp(key_iterator_copy->name.get(), test_enum_KeyName1));
         REQUIRE_SUCCEEDED(key_iterator.move_next());
-        REQUIRE_SUCCEEDED(key_iterator->last_error);
+        REQUIRE_SUCCEEDED(key_iterator.last_error());
         REQUIRE(key_iterator == key_end);
         REQUIRE(key_iterator == wil::reg::key_heap_string_nothrow_iterator{});
         key_iterator_copy = key_iterator;
@@ -4162,14 +4161,14 @@ TEST_CASE("BasicRegistryTests::key_heap_string_nothrow_iterator", "[registry]]")
         key_iterator = wil::reg::key_heap_string_nothrow_iterator(hkey.get());
         REQUIRE(key_iterator != wil::reg::key_heap_string_nothrow_iterator{});
         REQUIRE(key_iterator == wil::reg::key_heap_string_nothrow_iterator(hkey.get()));
-        REQUIRE(0 == wcscmp((*key_iterator).registry_data.name.get(), test_enum_KeyName1));
-        REQUIRE(0 == wcscmp(key_iterator->registry_data.name.get(), test_enum_KeyName1));
+        REQUIRE(0 == wcscmp((*key_iterator).name.get(), test_enum_KeyName1));
+        REQUIRE(0 == wcscmp(key_iterator->name.get(), test_enum_KeyName1));
         key_iterator_copy = key_iterator;
         REQUIRE(key_iterator_copy == wil::reg::key_heap_string_nothrow_iterator(hkey.get()));
-        REQUIRE(0 == wcscmp((*key_iterator_copy).registry_data.name.get(), test_enum_KeyName1));
-        REQUIRE(0 == wcscmp(key_iterator_copy->registry_data.name.get(), test_enum_KeyName1));
+        REQUIRE(0 == wcscmp((*key_iterator_copy).name.get(), test_enum_KeyName1));
+        REQUIRE(0 == wcscmp(key_iterator_copy->name.get(), test_enum_KeyName1));
         REQUIRE_SUCCEEDED(key_iterator.move_next());
-        REQUIRE_SUCCEEDED(key_iterator->last_error);
+        REQUIRE_SUCCEEDED(key_iterator.last_error());
         REQUIRE(key_iterator == key_end);
         REQUIRE(key_iterator == wil::reg::key_heap_string_nothrow_iterator{});
         key_iterator_copy = key_iterator;
@@ -4180,13 +4179,13 @@ TEST_CASE("BasicRegistryTests::key_heap_string_nothrow_iterator", "[registry]]")
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey2));
         key_iterator = wil::reg::key_heap_string_nothrow_iterator(hkey2.get());
         REQUIRE(key_iterator != wil::reg::key_heap_string_nothrow_iterator{});
-        REQUIRE(0 == wcscmp((*key_iterator).registry_data.name.get(), test_enum_KeyName1));
-        REQUIRE(0 == wcscmp(key_iterator->registry_data.name.get(), test_enum_KeyName1));
+        REQUIRE(0 == wcscmp((*key_iterator).name.get(), test_enum_KeyName1));
+        REQUIRE(0 == wcscmp(key_iterator->name.get(), test_enum_KeyName1));
         key_iterator_copy = key_iterator;
-        REQUIRE(0 == wcscmp((*key_iterator_copy).registry_data.name.get(), test_enum_KeyName1));
-        REQUIRE(0 == wcscmp(key_iterator_copy->registry_data.name.get(), test_enum_KeyName1));
+        REQUIRE(0 == wcscmp((*key_iterator_copy).name.get(), test_enum_KeyName1));
+        REQUIRE(0 == wcscmp(key_iterator_copy->name.get(), test_enum_KeyName1));
         REQUIRE_SUCCEEDED(key_iterator.move_next());
-        REQUIRE_SUCCEEDED(key_iterator->last_error);
+        REQUIRE_SUCCEEDED(key_iterator.last_error());
         REQUIRE(key_iterator == wil::reg::key_heap_string_nothrow_iterator{});
         key_iterator_copy = key_iterator;
         REQUIRE(key_iterator_copy == wil::reg::key_heap_string_nothrow_iterator{});
@@ -4206,21 +4205,20 @@ TEST_CASE("BasicRegistryTests::key_heap_string_nothrow_iterator", "[registry]]")
         uint32_t count = 0;
         for (const auto& key_data : wil::make_range(wil::reg::key_heap_string_nothrow_iterator{ enum_hkey.get() }, wil::reg::key_heap_string_nothrow_iterator{}))
         {
-            REQUIRE_SUCCEEDED(key_data.last_error);
             ++count;
             switch (count)
             {
             case 1:
-                REQUIRE(0 == wcscmp(key_data.registry_data.name.get(), test_enum_KeyName1));
+                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName1));
                 break;
             case 2:
-                REQUIRE(0 == wcscmp(key_data.registry_data.name.get(), test_enum_KeyName2));
+                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName2));
                 break;
             case 3:
-                REQUIRE(0 == wcscmp(key_data.registry_data.name.get(), test_enum_KeyName3));
+                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName3));
                 break;
             case 4:
-                REQUIRE(0 == wcscmp(key_data.registry_data.name.get(), test_enum_KeyName4));
+                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName4));
                 break;
             default: REQUIRE_FAILED(false);
             }
@@ -4232,56 +4230,56 @@ TEST_CASE("BasicRegistryTests::key_heap_string_nothrow_iterator", "[registry]]")
         const auto testEndIterator = wil::reg::key_heap_string_nothrow_iterator{};
         for (const auto& key_data : wil::make_range(testIterator, testEndIterator))
         {
-            REQUIRE_SUCCEEDED(key_data.last_error);
             ++count;
             switch (count)
             {
             case 1:
-                REQUIRE(0 == wcscmp(key_data.registry_data.name.get(), test_enum_KeyName1));
+                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName1));
                 break;
             case 2:
-                REQUIRE(0 == wcscmp(key_data.registry_data.name.get(), test_enum_KeyName2));
+                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName2));
                 break;
             case 3:
-                REQUIRE(0 == wcscmp(key_data.registry_data.name.get(), test_enum_KeyName3));
+                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName3));
                 break;
             case 4:
-                REQUIRE(0 == wcscmp(key_data.registry_data.name.get(), test_enum_KeyName4));
+                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName4));
                 break;
             default: REQUIRE_FAILED(false);
             }
         }
+        REQUIRE_SUCCEEDED(testIterator.last_error());
         REQUIRE(count == 4);
 
         count = 0;
         auto manual_iterator = wil::reg::key_heap_string_nothrow_iterator{ enum_hkey.get() };
-        REQUIRE_SUCCEEDED(manual_iterator->last_error);
+        REQUIRE_SUCCEEDED(manual_iterator.last_error());
         while (!manual_iterator.at_end())
         {
             ++count;
             switch (count)
             {
             case 1:
-                REQUIRE(0 == wcscmp(manual_iterator->registry_data.name.get(), test_enum_KeyName1));
+                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_KeyName1));
                 break;
             case 2:
-                REQUIRE(0 == wcscmp(manual_iterator->registry_data.name.get(), test_enum_KeyName2));
+                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_KeyName2));
                 break;
             case 3:
-                REQUIRE(0 == wcscmp(manual_iterator->registry_data.name.get(), test_enum_KeyName3));
+                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_KeyName3));
                 break;
             case 4:
-                REQUIRE(0 == wcscmp(manual_iterator->registry_data.name.get(), test_enum_KeyName4));
+                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_KeyName4));
                 break;
             default: REQUIRE_FAILED(false);
             }
 
             const auto hr = manual_iterator.move_next();
             REQUIRE_SUCCEEDED(hr);
-            REQUIRE_SUCCEEDED(manual_iterator->last_error);
+            REQUIRE_SUCCEEDED(manual_iterator.last_error());
         }
-        REQUIRE_SUCCEEDED(manual_iterator->last_error);
-        REQUIRE(manual_iterator->at_end());
+        REQUIRE_SUCCEEDED(manual_iterator.last_error());
+        REQUIRE(manual_iterator.at_end());
         REQUIRE(count == 4);
 
         count = 0;
@@ -4292,22 +4290,22 @@ TEST_CASE("BasicRegistryTests::key_heap_string_nothrow_iterator", "[registry]]")
             switch (count)
             {
             case 1:
-                REQUIRE(0 == wcscmp(manual_iterator->registry_data.name.get(), test_enum_KeyName1));
+                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_KeyName1));
                 break;
             case 2:
-                REQUIRE(0 == wcscmp(manual_iterator->registry_data.name.get(), test_enum_KeyName2));
+                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_KeyName2));
                 break;
             case 3:
-                REQUIRE(0 == wcscmp(manual_iterator->registry_data.name.get(), test_enum_KeyName3));
+                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_KeyName3));
                 break;
             case 4:
-                REQUIRE(0 == wcscmp(manual_iterator->registry_data.name.get(), test_enum_KeyName4));
+                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_KeyName4));
                 break;
             default: REQUIRE_FAILED(false);
             }
         }
         REQUIRE_SUCCEEDED(manual_iterator.last_error());
-        REQUIRE_SUCCEEDED(manual_iterator->last_error);
+        REQUIRE_SUCCEEDED(manual_iterator.last_error());
         REQUIRE(count == 4);
     }
 }
