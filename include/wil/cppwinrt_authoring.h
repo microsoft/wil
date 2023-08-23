@@ -87,9 +87,9 @@ namespace wil
     {
         template<typename T>
         struct event_base {
-            winrt::event_token operator()(T&& handler)
+            winrt::event_token operator()(const T& handler)
             {
-                return m_handler.add(std::forward<T>(handler));
+                return m_handler.add(handler);
             }
 
             auto operator()(const winrt::event_token& token) noexcept
