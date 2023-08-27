@@ -768,7 +768,6 @@ namespace wil
                 {
                     return true;
                 }
-
                 inline HRESULT resize_buffer(::wil::unique_cotaskmem_array_ptr<uint8_t>& arrayValue, DWORD byteSize) WI_NOEXCEPT
                 {
                     ::wil::unique_cotaskmem_array_ptr<uint8_t> tempValue;
@@ -802,7 +801,7 @@ namespace wil
                 {
                     return true;
                 }
-                inline HRESULT resize_buffer(::wil::shared_cotaskmem_string& string, DWORD byteSize) WI_NOEXCEPT try
+                inline HRESULT resize_buffer(::wil::shared_cotaskmem_string& string, DWORD byteSize) WI_NOEXCEPT
                 {
                     // convert bytes to length (number of WCHAR's)
                     size_t length = byteSize / sizeof(wchar_t);
@@ -814,8 +813,37 @@ namespace wil
                     string = ::wistd::move(new_string);
                     return S_OK;
                 }
-                CATCH_RETURN();
 #endif // #if defined(__WIL_OBJBASE_H_STL)
+
+                inline void* get_buffer(const ::wil::unique_process_heap_string& value) WI_NOEXCEPT
+                {
+                    return value.get();
+                }
+
+                constexpr DWORD get_buffer_size_bytes(const ::wil::unique_process_heap_string&) WI_NOEXCEPT
+                {
+                    // wil::unique_process_heap_string does not intrinsically track its internal buffer size
+                    // thus the caller must track the buffer size it requested to be allocated
+                    return 0;
+                }
+
+                template<>
+                constexpr bool supports_resize_buffer<::wil::unique_process_heap_string>() WI_NOEXCEPT
+                {
+                    return true;
+                }
+                inline HRESULT resize_buffer(::wil::unique_process_heap_string& string, DWORD byteSize) WI_NOEXCEPT
+                {
+                    // convert bytes to length (number of WCHAR's)
+                    size_t length = byteSize / sizeof(wchar_t);
+                    // ::wil::make_unique_string_nothrow adds one to the length when it allocates, so subtracting 1 from the input length
+                    length = length > 0 ? length - 1 : length;
+                    auto new_string = ::wil::make_unique_string_nothrow<::wil::unique_process_heap_string>(string.get(), length);
+                    RETURN_IF_NULL_ALLOC(new_string.get());
+
+                    string = ::wistd::move(new_string);
+                    return S_OK;
+                }
 
                 // constexpr expressions to determining the get* and set* registry value types
                 // for all supported types T to read/write values
@@ -1221,7 +1249,7 @@ namespace wil
         namespace reg_iterator_details
         {
             constexpr uint32_t iterator_end_offset = 0xffffffff;
-            constexpr size_t iterator_default_buffer_size = 16;
+            constexpr size_t iterator_default_buffer_length = 16;
 
             // function overloads to allow *_enumerator objects to be constructed from all 3 types of HKEY representatives
             inline HKEY get_hkey(HKEY h) WI_NOEXCEPT
@@ -1239,102 +1267,131 @@ namespace wil
             }
 #endif // #if defined(__WIL_WINREG_STL)
 
-            // function overloads to allow *_iterator_data objects to hold different types to contain the string value
-            // if more string values are desired, all 6 functions must be implement for that type - all must be noexcept:
-            // is_valid, clear_name, copy_name, compare_name, resize_name, address_of_name
-            inline bool is_valid(const ::wil::unique_process_heap_string& name) WI_NOEXCEPT
-            {
-                return static_cast<bool>(name.get());
-            }
-            inline void clear_name(::wil::unique_process_heap_string& name, size_t length) WI_NOEXCEPT
-            {
-                if (is_valid(name) && length > 0)
-                {
-                    memset(name.get(), 0, length * sizeof(wchar_t));
-                }
-            }
-            inline ::wil::unique_process_heap_string copy_name(const ::wil::unique_process_heap_string& str, size_t capacity) WI_NOEXCEPT
-            {
-                if (!str)
-                {
-                    return {};
-
-                }
-                return ::wil::make_process_heap_string_nothrow(str.get(), capacity);
-            }
-            inline bool compare_name(const ::wil::unique_process_heap_string& name, PCWSTR comparand) WI_NOEXCEPT
-            {
-                if (!is_valid(name))
-                {
-                    return false;
-                }
-                return 0 == wcscmp(name.get(), comparand);
-            }
-            // failure returns zero
-            inline size_t resize_name(::wil::unique_process_heap_string& name, size_t current_length, size_t new_length) WI_NOEXCEPT
-            {
-                if (new_length > current_length)
-                {
-                    auto new_string{ ::wil::make_unique_string_nothrow<::wil::unique_process_heap_string>(name.get(), new_length) };
-                    name.swap(new_string);
-                    return is_valid(name) ? new_length : 0;
-                }
-
-                // continue to use the existing buffer since the requested length is less than or equals to the current length
-                clear_name(name, current_length);
-                return current_length;
-            }
-            inline PWSTR address_of_name(::wil::unique_process_heap_string& name) WI_NOEXCEPT
-            {
-                return name.get();
-            }
-
 #if defined(WIL_ENABLE_EXCEPTIONS) && defined(_STRING_)
+            // overloads for some of the below string functions - specific for std::wstring
+            // these overloads must be declared before the template functions below, as some of those template functions
+            // reference these overload functions
             inline void clear_name(::std::wstring& name, size_t) WI_NOEXCEPT
             {
                 name.assign(name.size(), L'\0');
             }
-            inline ::std::wstring copy_name(const ::std::wstring& str, size_t) WI_NOEXCEPT
+            inline ::std::wstring copy_name(const ::std::wstring& str, size_t length) WI_NOEXCEPT
             {
                 try
                 {
-                    return str;
+                    // guarantee that the copied string has the specified internal length
+                    // i.e., the same length assumptions hold when the string is copied
+                    ::std::wstring tempString(length, L'0');
+                    tempString.assign(str);
+                    return tempString;
                 }
                 catch (...)
                 {
                     return {};
                 }
-            }
-            inline bool compare_name(const ::std::wstring& name, PCWSTR comparand) WI_NOEXCEPT
-            {
-                // not using operat== as that creates a temp std::wstring, which could fail/throw
-                return 0 == wcscmp(name.c_str(), comparand);
-            }
-            // failure returns zero
-            inline size_t resize_name(::std::wstring& name, size_t, size_t new_length) WI_NOEXCEPT
-            {
-                try
-                {
-                    name.resize(new_length);
-                }
-                catch (...)
-                {
-                    return 0;
-                }
-
-                clear_name(name, name.size());
-                return name.size();
-            }
-            inline PWSTR address_of_name(::std::wstring& name) WI_NOEXCEPT
-            {
-                // cannot return a const PCWSTR -- the registry APIs require a PWSTR
-                return const_cast<PWSTR>(name.data());
             }
             inline bool is_valid(const ::std::wstring& name) WI_NOEXCEPT
             {
                 return !name.empty();
             }
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS) && defined(_STRING_)
+
+            // string manipulation functions needed for iterator functions
+            template <typename T>
+            PWSTR address_of_name(const T& name) WI_NOEXCEPT
+            {
+                return static_cast<PWSTR>(::wil::reg::reg_view_details::reg_value_type_info::get_buffer(name));
+            }
+
+            template <typename T>
+            bool is_valid(const T& name) WI_NOEXCEPT
+            {
+                return static_cast<bool>(address_of_name(name));
+            }
+
+            template <typename T>
+            bool compare_name(const T& name, PCWSTR comparand) WI_NOEXCEPT
+            {
+                if (!is_valid(name) || !comparand)
+                {
+                    return false;
+                }
+                return 0 == wcscmp(address_of_name(name), comparand);
+            }
+
+            template <typename T>
+            void clear_name(const T& name, size_t length) WI_NOEXCEPT
+            {
+                if (is_valid(name) && length > 0)
+                {
+                    memset(address_of_name(name), 0, length * sizeof(wchar_t));
+                }
+            }
+
+            // failure returns zero
+            template <typename T>
+            size_t resize_name(T& name, size_t current_length, size_t new_length) WI_NOEXCEPT
+            {
+                if (new_length > current_length)
+                {
+                    // resize_buffer takes size in bytes
+                    if (FAILED(::wil::reg::reg_view_details::reg_value_type_info::resize_buffer(name, static_cast<DWORD>(new_length * sizeof(wchar_t)))))
+                    {
+                        return 0;
+                    }
+                    return new_length;
+                }
+
+                // continue to use the existing buffer since the requested length is less than or equals to the current length
+                clear_name(name, current_length);
+                return current_length;
+            }
+
+            template <typename T>
+            T copy_name(const T& name, size_t length) WI_NOEXCEPT
+            {
+                if (!is_valid(name))
+                {
+                    return {};
+
+                }
+                return ::wil::make_unique_string_nothrow<T>(address_of_name(name), length);
+            }
+
+#if defined(__WIL_OLEAUTO_H_)
+            // overloads for some of the above string functions - specific for wil::unique_bstr
+            // these should come after the template functions - as they reference some of those functions
+            inline size_t resize_name(::wil::unique_bstr& name, size_t current_length, size_t new_length) WI_NOEXCEPT
+            {
+                if (new_length > current_length)
+                {
+                    // SysAllocStringLen adds a null, so subtract a wchar_t from the input length
+                    new_length = new_length > 0 ? new_length - 1 : new_length;
+                    const BSTR new_bstr{ ::SysAllocStringLen(nullptr, static_cast<UINT>(new_length)) };
+                    if (!new_bstr)
+                    {
+                        return 0;
+                    }
+                    name.reset(new_bstr);
+                    return new_length;
+                }
+
+                // continue to use the existing buffer since the requested length is less than or equals to the current length
+                clear_name(name, current_length);
+                return current_length;
+            }
+            inline ::wil::unique_bstr copy_name(const ::wil::unique_bstr& name, size_t length) WI_NOEXCEPT
+            {
+                if (!is_valid(name))
+                {
+                    return {};
+                }
+
+                // SysAllocStringLen adds a null, so subtract a wchar_t from the input length
+                length = length > 0 ? length - 1 : length;
+                return ::wil::unique_bstr{ ::SysAllocStringLen(name.get(), static_cast<UINT>(length)) };
+            }
+#endif // #if defined(__WIL_OLEAUTO_H_)
         };
 
         // forward declaration to allow friend-ing the template iterator class
@@ -1359,10 +1416,10 @@ namespace wil
             key_iterator_data(const key_iterator_data& rhs) WI_NOEXCEPT
             {
                 // might return null/empty string on failure
-                name = ::wil::reg::reg_iterator_details::copy_name(rhs.name, rhs.m_capacity);
+                name = ::wil::reg::reg_iterator_details::copy_name(rhs.name, rhs.m_name_length);
                 m_hkey = rhs.m_hkey;
                 m_index = rhs.m_index;
-                m_capacity = ::wil::reg::reg_iterator_details::is_valid(name) ? rhs.m_capacity : 0;
+                m_name_length = ::wil::reg::reg_iterator_details::is_valid(name) ? rhs.m_name_length : 0;
             }
             key_iterator_data& operator=(const key_iterator_data& rhs) WI_NOEXCEPT
             {
@@ -1396,22 +1453,22 @@ namespace wil
 
             void make_end_iterator() WI_NOEXCEPT
             {
-                ::wil::reg::reg_iterator_details::clear_name(name, m_capacity);
+                ::wil::reg::reg_iterator_details::clear_name(name, m_name_length);
                 m_index = ::wil::reg::reg_iterator_details::iterator_end_offset;
             }
 
             bool resize(size_t new_length) WI_NOEXCEPT
             {
-                m_capacity = ::wil::reg::reg_iterator_details::resize_name(name, m_capacity, new_length);
+                m_name_length = ::wil::reg::reg_iterator_details::resize_name(name, m_name_length, new_length);
                 // if failed to resize_name, will return 0
-                return m_capacity > 0;
+                return m_name_length > 0;
             }
 
             HRESULT enumerate_current_index() WI_NOEXCEPT
             {
                 FAIL_FAST_IF(at_end());
 
-                for (auto string_length = static_cast<DWORD>(m_capacity);;)
+                for (auto string_length = static_cast<DWORD>(m_name_length);;)
                 {
                     if (!resize(string_length))
                     {
@@ -1441,8 +1498,8 @@ namespace wil
                     }
                     if (error == ERROR_MORE_DATA)
                     {
-                        // resize to iterator_default_buffer_size and try again
-                        string_length += ::wil::reg::reg_iterator_details::iterator_default_buffer_size;
+                        // resize to iterator_default_buffer_length and try again
+                        string_length += ::wil::reg::reg_iterator_details::iterator_default_buffer_length;
                         continue;
                     }
                     // any other error will fail
@@ -1453,7 +1510,7 @@ namespace wil
 
             HKEY m_hkey{};
             uint32_t m_index = ::wil::reg::reg_iterator_details::iterator_end_offset;
-            size_t m_capacity{};
+            size_t m_name_length{};
         };
 
         // all methods must be noexcept - to be usable with any iterator type (throwing or non-throwing)
@@ -1472,11 +1529,11 @@ namespace wil
             value_iterator_data(const value_iterator_data& rhs) WI_NOEXCEPT
             {
                 // might return null/empty string on failure
-                name = ::wil::reg::reg_iterator_details::copy_name(rhs.name, rhs.m_capacity);
+                name = ::wil::reg::reg_iterator_details::copy_name(rhs.name, rhs.m_name_length);
                 type = rhs.type;
                 m_hkey = rhs.m_hkey;
                 m_index = rhs.m_index;
-                m_capacity = ::wil::reg::reg_iterator_details::is_valid(name) ? rhs.m_capacity : 0;
+                m_name_length = ::wil::reg::reg_iterator_details::is_valid(name) ? rhs.m_name_length : 0;
             }
             value_iterator_data& operator=(const value_iterator_data& rhs) WI_NOEXCEPT
             {
@@ -1504,22 +1561,22 @@ namespace wil
 
             void make_end_iterator() WI_NOEXCEPT
             {
-                ::wil::reg::reg_iterator_details::clear_name(name, m_capacity);
+                ::wil::reg::reg_iterator_details::clear_name(name, m_name_length);
                 m_index = ::wil::reg::reg_iterator_details::iterator_end_offset;
             }
 
             bool resize(size_t new_length)
             {
-                m_capacity = ::wil::reg::reg_iterator_details::resize_name(name, m_capacity, new_length);
+                m_name_length = ::wil::reg::reg_iterator_details::resize_name(name, m_name_length, new_length);
                 // if failed to resize_name, will return 0
-                return m_capacity > 0;
+                return m_name_length > 0;
             }
 
             HRESULT enumerate_current_index() WI_NOEXCEPT
             {
                 FAIL_FAST_IF(at_end());
 
-                for (auto string_length = static_cast<DWORD>(m_capacity);;)
+                for (auto string_length = static_cast<DWORD>(m_name_length);;)
                 {
                     if (!resize(string_length))
                     {
@@ -1549,8 +1606,8 @@ namespace wil
                     }
                     if (error == ERROR_MORE_DATA)
                     {
-                        // resize to iterator_default_buffer_size and try again
-                        string_length += ::wil::reg::reg_iterator_details::iterator_default_buffer_size;
+                        // resize to iterator_default_buffer_length and try again
+                        string_length += ::wil::reg::reg_iterator_details::iterator_default_buffer_length;
                         continue;
                     }
 
@@ -1562,7 +1619,7 @@ namespace wil
 
             HKEY m_hkey{};
             uint32_t m_index = ::wil::reg::reg_iterator_details::iterator_end_offset;
-            size_t m_capacity{};
+            size_t m_name_length{};
         };
 
 #if defined(WIL_ENABLE_EXCEPTIONS)
@@ -1590,7 +1647,7 @@ namespace wil
             {
                 if (hkey != nullptr)
                 {
-                    m_data.resize(::wil::reg::reg_iterator_details::iterator_default_buffer_size);
+                    m_data.resize(::wil::reg::reg_iterator_details::iterator_default_buffer_length);
                     m_data.m_index = 0;
                     m_data.enumerate_current_index();
                 }
@@ -1695,7 +1752,7 @@ namespace wil
                 if (hkey != nullptr)
                 {
                     m_data.m_index = 0;
-                    if (!m_data.resize(::wil::reg::reg_iterator_details::iterator_default_buffer_size))
+                    if (!m_data.resize(::wil::reg::reg_iterator_details::iterator_default_buffer_length))
                     {
                         m_last_error = E_OUTOFMEMORY;
                     }

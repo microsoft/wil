@@ -214,13 +214,26 @@ namespace wil
         //     }
         //
 #if defined(WIL_ENABLE_EXCEPTIONS)
+
 #if defined(_STRING_)
         using key_iterator = ::wil::reg::iterator_t<::wil::reg::key_iterator_data<::std::wstring>>;
         using value_iterator = ::wil::reg::iterator_t<::wil::reg::value_iterator_data<::std::wstring>>;
 #endif
+
+#if defined(__WIL_OLEAUTO_H_)
+        using key_bstr_iterator = ::wil::reg::iterator_t<::wil::reg::key_iterator_data<::wil::unique_bstr>>;
+        using value_bstr_iterator = ::wil::reg::iterator_t<::wil::reg::value_iterator_data<::wil::unique_bstr>>;
+#endif // #if defined(__WIL_OLEAUTO_H_)
+
         using key_heap_string_iterator = ::wil::reg::iterator_t<::wil::reg::key_iterator_data<::wil::unique_process_heap_string>>;
         using value_heap_string_iterator = ::wil::reg::iterator_t<::wil::reg::value_iterator_data<::wil::unique_process_heap_string>>;
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS)
+
+        // no-throw versions of applicable registry iterators
+#if defined(__WIL_OLEAUTO_H_)
+        using key_bstr_nothrow_iterator = ::wil::reg::iterator_nothrow_t<::wil::reg::key_iterator_data<::wil::unique_bstr>>;
+        using value_bstr_nothrow_iterator = ::wil::reg::iterator_nothrow_t<::wil::reg::value_iterator_data<::wil::unique_bstr>>;
+#endif // #if defined(__WIL_OLEAUTO_H_)
         using key_heap_string_nothrow_iterator = ::wil::reg::iterator_nothrow_t<::wil::reg::key_iterator_data<::wil::unique_process_heap_string>>;
         using value_heap_string_nothrow_iterator = ::wil::reg::iterator_nothrow_t<::wil::reg::value_iterator_data<::wil::unique_process_heap_string>>;
 
