@@ -112,10 +112,10 @@ namespace wil
      * @tparam T The event data type.
     */
     template<typename T>
-    struct simple_event : wil::details::event_base<winrt::Windows::Foundation::EventHandler<T>> {};
+    struct untyped_event : wil::details::event_base<winrt::Windows::Foundation::EventHandler<T>> {};
 
     /**
-     * @brief A default event handler that maps to [Windows.Foundation.TypedEventHandler](https://docs.microsoft.com/uwp/api/windows.foundation.typedeventhandler-2).
+     * @brief A default event handler that mapsg to [Windows.Foundation.TypedEventHandler](https://docs.microsoft.com/uwp/api/windows.foundation.typedeventhandler-2).
      * @tparam T The event data type.
      * @details Usage example:
      * @code

@@ -168,7 +168,7 @@ TEST_CASE("CppWinRTAuthoringTests::Events", "[property]")
 {
     struct Test
     {
-        wil::simple_event<int> MyEvent;
+        wil::untyped_event<int> MyEvent;
 
         wil::typed_event<winrt::Windows::Foundation::IInspectable, int> MyTypedEvent;
     } test;
