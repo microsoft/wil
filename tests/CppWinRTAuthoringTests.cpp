@@ -201,6 +201,7 @@ TEST_CASE("CppWinRTAuthoringTests::EventsAndCppWinRt", "[property]")
     });
     winrt::get_self<Test>(test)->Closed.invoke(test, nullptr);
     REQUIRE(invoked == true);
+    test.Closed(token);
 }
 #endif // WINRT_Windows_Foundation_H
 
