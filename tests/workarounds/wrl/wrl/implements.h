@@ -411,7 +411,7 @@ struct VerifyInterfaceHelper<WinRt, I, doStrictCheck, false>
             (__is_base_of(IInspectable, I) && !(doStrictCheck && IsSame<IInspectable, I>::value)),
                 "'I' has to derive from 'IWeakReferenceSource' or 'IInspectable' and must not be IInspectable");
 #else
-        // IWeakReference and IWeakReferneceSource are exceptions for WinRT
+        // IWeakReference and IWeakReferenceSource are exceptions for WinRT
         static_assert(__is_base_of(IWeakReference, I) ||
                         __is_base_of(IWeakReferenceSource, I) ||
                             __is_base_of(IInspectable, I), "'I' has to derive from 'IWeakReference', 'IWeakReferenceSource' or 'IInspectable'");
@@ -431,7 +431,7 @@ struct VerifyInterfaceHelper<type, I, true, true>
         static_assert(I::ClassFlags::value == type ||
                 type == WinRtClassicComMix ||
                     __is_base_of(::Microsoft::WRL::Details::FtmBaseMarker, I),
-            "Implements class must have the same and/or compatibile flags configuration");
+            "Implements class must have the same and/or compatible flags configuration");
 #endif
     }
 };

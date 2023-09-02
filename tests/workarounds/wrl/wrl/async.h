@@ -91,7 +91,7 @@ enum ErrorPropagationPolicy
 
 namespace Details
 {
-  // contains states indicating existance or lack of options
+  // contains states indicating existence or lack of options
   struct AsyncOptionsBase
   {
       static const bool hasCausalityOptions = false;

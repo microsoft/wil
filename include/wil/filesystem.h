@@ -449,7 +449,7 @@ namespace wil
 
     enum class FolderChangeEvent : DWORD
     {
-        ChangesLost = 0, // requies special handling, reset state as events were lost
+        ChangesLost = 0, // requires special handling, reset state as events were lost
         Added = FILE_ACTION_ADDED,
         Removed = FILE_ACTION_REMOVED,
         Modified = FILE_ACTION_MODIFIED,
@@ -713,10 +713,10 @@ namespace wil
             {
                 for (auto const& info : create_next_entry_offset_iterator(reinterpret_cast<FILE_NOTIFY_INFORMATION *>(readerState->m_readBuffer)))
                 {
-                    wchar_t realtiveFileName[MAX_PATH];
-                    StringCchCopyNW(realtiveFileName, ARRAYSIZE(realtiveFileName), info.FileName, info.FileNameLength / sizeof(info.FileName[0]));
+                    wchar_t relativeFileName[MAX_PATH];
+                    StringCchCopyNW(relativeFileName, ARRAYSIZE(relativeFileName), info.FileName, info.FileNameLength / sizeof(info.FileName[0]));
 
-                    readerState->m_callback(static_cast<FolderChangeEvent>(info.Action), realtiveFileName);
+                    readerState->m_callback(static_cast<FolderChangeEvent>(info.Action), relativeFileName);
                 }
             }
             else if (result == ERROR_NOTIFY_ENUM_DIR)
