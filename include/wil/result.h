@@ -1169,7 +1169,7 @@ namespace details
     __declspec(selectany)::wil::details_abi::ProcessLocalStorage<::wil::details_abi::ProcessLocalData> g_processLocalData("WilError_03");
     __declspec(selectany)::wil::details_abi::ThreadLocalStorage<ThreadFailureCallbackHolder*> g_threadFailureCallbacks;
 
-    WI_HEADER_INITITALIZATION_FUNCTION(InitializeResultHeader, [] {
+    WI_HEADER_INITIALIZATION_FUNCTION(InitializeResultHeader, [] {
         g_pfnGetContextAndNotifyFailure = GetContextAndNotifyFailure;
         ::wil::details_abi::g_pProcessLocalData = &g_processLocalData;
         g_pThreadFailureCallbacks = &g_threadFailureCallbacks;

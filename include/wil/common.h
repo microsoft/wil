@@ -526,7 +526,7 @@ to be able to layer additional functionality into other libraries by their mere 
 of initialization should be used whenever they are available.
 ~~~~
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
-WI_HEADER_INITITALIZATION_FUNCTION(InitializeDesktopFamilyApis, []
+WI_HEADER_INITIALIZATION_FUNCTION(InitializeDesktopFamilyApis, []
 {
     g_pfnGetModuleName              = GetCurrentModuleName;
     g_pfnFailFastInLoaderCallout    = FailFastInLoaderCallout;
@@ -537,16 +537,16 @@ WI_HEADER_INITITALIZATION_FUNCTION(InitializeDesktopFamilyApis, []
 The above example is used within WIL to decide whether or not the library containing WIL is allowed to use
 desktop APIs.  Building this functionality as `#IFDEF`s within functions would create ODR violations, whereas
 doing it with global function pointers and header initialization allows a runtime determination. */
-#define WI_HEADER_INITITALIZATION_FUNCTION(name, fn)
+#define WI_HEADER_INITIALIZATION_FUNCTION(name, fn)
 #elif defined(_M_IX86)
-#define WI_HEADER_INITITALIZATION_FUNCTION(name, fn) \
+#define WI_HEADER_INITIALIZATION_FUNCTION(name, fn) \
     extern "C" \
     { \
         __declspec(selectany) unsigned char g_header_init_##name = static_cast<unsigned char>(fn()); \
     } \
     __pragma(comment(linker, "/INCLUDE:_g_header_init_" #name))
 #elif defined(_M_IA64) || defined(_M_AMD64) || defined(_M_ARM) || defined(_M_ARM64)
-#define WI_HEADER_INITITALIZATION_FUNCTION(name, fn) \
+#define WI_HEADER_INITIALIZATION_FUNCTION(name, fn) \
     extern "C" \
     { \
         __declspec(selectany) unsigned char g_header_init_##name = static_cast<unsigned char>(fn()); \

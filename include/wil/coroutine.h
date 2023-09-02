@@ -191,7 +191,7 @@ struct com_task;
 /// @cond
 namespace wil::details::coro
 {
-// task and com_task are convertable to each other.  However, not
+// task and com_task are convertible to each other.  However, not
 // all consumers of this header have COM enabled.  Support for saving
 // COM thread-local error information and restoring it on the resuming
 // thread is enabled using these function pointers.  If COM is not
@@ -925,7 +925,7 @@ auto task_base<T>::resume_same_apartment() && noexcept
 
 // This section is lit up when COM headers are available.  Initialize the global function
 // pointers such that error information can be saved and restored across thread boundaries.
-WI_HEADER_INITITALIZATION_FUNCTION(CoroutineRestrictedErrorInitialize, [] {
+WI_HEADER_INITIALIZATION_FUNCTION(CoroutineRestrictedErrorInitialize, [] {
     ::wil::details::coro::g_pfnCaptureRestrictedErrorInformation = ::wil::details::coro::CaptureRestrictedErrorInformation;
     ::wil::details::coro::g_pfnRestoreRestrictedErrorInformation = ::wil::details::coro::RestoreRestrictedErrorInformation;
     ::wil::details::coro::g_pfnDestroyRestrictedErrorInformation = ::wil::details::coro::DestroyRestrictedErrorInformation;

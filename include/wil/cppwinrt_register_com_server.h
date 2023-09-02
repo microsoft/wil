@@ -68,7 +68,7 @@ template <typename T, typename... Rest>
     std::vector<wil::unique_com_class_object_cookie> registrations;
     registrations.reserve(sizeof...(Rest) + 1);
     details::register_com_server<T, Rest...>(registrations);
-    // C++17 doesn't provide guaranteed copy ellision, but the copy should be elided nonetheless.
+    // C++17 doesn't provide guaranteed copy elision, but the copy should be elided nonetheless.
     return registrations;
 }
 } // namespace wil
