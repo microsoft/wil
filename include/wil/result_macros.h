@@ -2147,76 +2147,6 @@ __WI_POP_WARNINGS
             return hr;
         }
 
-        static STRSAFEAPI WilStringVPrintfWorkerA(_Out_writes_(cchDest) _Always_(_Post_z_) STRSAFE_LPSTR pszDest, _In_ _In_range_(1, STRSAFE_MAX_CCH) size_t cchDest, _Always_(_Out_opt_ _Deref_out_range_(<=, cchDest - 1)) size_t* pcchNewDestLength, _In_ _Printf_format_string_ STRSAFE_LPCSTR pszFormat, _In_ va_list argList)
-        {
-            HRESULT hr = S_OK;
-            int iRet{};
-
-            // leave the last space for the null terminator
-            size_t cchMax = cchDest - 1;
-            size_t cchNewDestLength = 0;
-#undef STRSAFE_USE_SECURE_CRT
-#define STRSAFE_USE_SECURE_CRT 1
-        #if (STRSAFE_USE_SECURE_CRT == 1) && !defined(STRSAFE_LIB_IMPL)
-            iRet = _vsnprintf_s(pszDest, cchDest, cchMax, pszFormat, argList);
-        #else
-        #pragma warning(push)
-        #pragma warning(disable: __WARNING_BANNED_API_USAGE)// "STRSAFE not included"
-            iRet = _vsnprintf(pszDest, cchMax, pszFormat, argList);
-        #pragma warning(pop)
-        #endif
-            // ASSERT((iRet < 0) || (((size_t)iRet) <= cchMax));
-
-            if ((iRet < 0) || (((size_t)iRet) > cchMax))
-            {
-                // need to null terminate the string
-                pszDest += cchMax;
-                *pszDest = '\0';
-
-                cchNewDestLength = cchMax;
-
-                // we have truncated pszDest
-                hr = STRSAFE_E_INSUFFICIENT_BUFFER;
-            }
-            else if (((size_t)iRet) == cchMax)
-            {
-                // need to null terminate the string
-                pszDest += cchMax;
-                *pszDest = '\0';
-
-                cchNewDestLength = cchMax;
-            }
-            else
-            {
-                cchNewDestLength = (size_t)iRet;
-            }
-
-            if (pcchNewDestLength)
-            {
-                *pcchNewDestLength = cchNewDestLength;
-            }
-
-            return hr;
-        }
-
-        __inline HRESULT StringCchPrintfA( _Out_writes_(cchDest) _Always_(_Post_z_) STRSAFE_LPSTR pszDest, _In_ size_t cchDest, _In_ _Printf_format_string_ STRSAFE_LPCSTR pszFormat, ...)
-        {
-            HRESULT hr;
-            hr = wil::details::WilStringValidateDestA(pszDest, cchDest, STRSAFE_MAX_CCH);
-            if (SUCCEEDED(hr))
-            {
-                va_list argList;
-                va_start(argList, pszFormat);
-                hr = wil::details::WilStringVPrintfWorkerA(pszDest, cchDest, nullptr, pszFormat, argList);
-                va_end(argList);
-            }
-            else if (cchDest > 0)
-            {
-                *pszDest = '\0';
-            }
-            return hr;
-        }
-
         _Ret_range_(sizeof(char), (psz == nullptr) ? sizeof(char) : (_String_length_(psz) + sizeof(char)))
         inline size_t ResultStringSize(_In_opt_ PCSTR psz)
             { return (psz == nullptr) ? sizeof(char) : (strlen(psz) + sizeof(char)); }
@@ -2646,8 +2576,8 @@ __WI_POP_WARNINGS
                 GetFailureLogString(message, ARRAYSIZE(message), m_failure.GetFailureInfo());
 
                 char messageA[1024];
-                wil::details::StringCchPrintfA(messageA, ARRAYSIZE(messageA), "%ws", message);
-                m_what.create(messageA, strlen(messageA) + sizeof(*messageA));
+                int len = WideCharToMultiByte(CP_ACP, 0, message, -1, messageA, ARRAYSIZE(messageA), nullptr, nullptr);
+                m_what.create(messageA, len);
             }
             return static_cast<const char *>(m_what.get());
         }
