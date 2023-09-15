@@ -9,7 +9,9 @@
 #include <winrt/Windows.ApplicationModel.Activation.h>
 #include <wil/cppwinrt_helpers.h>
 #include <winrt/Windows.System.h>
+#include <winrt/Windows.Storage.Streams.h>
 #include <wil/cppwinrt_helpers.h> // Verify can include a second time to unlock more features
+#include <memorybuffer.h>
 
 using namespace winrt::Windows::ApplicationModel::Activation;
 
@@ -180,6 +182,42 @@ TEST_CASE("CppWinRTTests::VectorToVector", "[cppwinrt]")
 
     winrt::clear_factory_cache();
     winrt::uninit_apartment();
+}
+
+TEST_CASE("CppWinRTTests::BufferToArrayView", "[cppwinrt]")
+{
+    // Create a buffer of capacity 8 and length 4.
+    auto buffer = winrt::Windows::Storage::Streams::Buffer(8);
+    buffer.Length(4);
+    // Get a Capacity-based int view and set the ints to 256 and 512.
+    {
+        auto view = wil::to_array_view_for_capacity<int32_t>(buffer);
+        REQUIRE(view.size() == 2);
+        view[0] = 256;
+        view[1] = 512;
+    }
+    // Get a Length-based byte view and confirm that the four bytes are { 0, 1, 0, 0 }.
+    // (Assumes little-endian system.)
+    {
+        auto view = wil::to_array_view(buffer);
+        REQUIRE(view.size() == 4);
+        REQUIRE(view == winrt::array_view(std::array<uint8_t, 4>{ 0, 1, 0, 0 }));
+    }
+    // Create an IMemoryBuffer around the Buffer.
+    auto mbuffer = winrt::Windows::Storage::Streams::Buffer::CreateMemoryBufferOverIBuffer(buffer);
+    // Verify that the buffer is the 2 ints 256 and 512.
+    {
+        auto view = wil::to_array_view<int>(mbuffer);
+        REQUIRE(view.size() == 2);
+        REQUIRE(view == winrt::array_view(std::array{ 256, 512 }));
+    }
+    // Verify that the buffer reference is the 8 bytes { 0, 1, 0, 0, 0, 2, 0, 0 }.
+    // (Assumes little-endian system.)
+    {
+        auto view = wil::to_array_view(mbuffer.CreateReference());
+        REQUIRE(view.size() == 8);
+        REQUIRE(view == winrt::array_view(std::array<uint8_t, 8>{ 0, 1, 0, 0, 0, 2, 0, 0 }));
+    }
 }
 
 TEST_CASE("CppWinRTTests::WilToCppWinRTExceptionTranslationTest", "[cppwinrt]")

@@ -212,6 +212,48 @@ namespace wil::details
 #endif // __WIL_CPPWINRT_MICROSOFT_UI_DISPATCHING_HELPERS
 /// @endcond
 
+#if defined(WINRT_Windows_Foundation_H) && !defined(__WIL_CPPWINRT_WINDOWS_FOUNDATION_HELPERS)
+#define __WIL_CPPWINRT_WINDOWS_FOUNDATION_HELPERS
+namespace Windows::Foundation
+{
+    /// @cond
+    struct IMemoryBufferByteAccess;
+    /// @endcond
+}
+
+namespace wil
+{
+    //! Returns a view into the underlying bytes of a memory buffer
+    //! provided in the form of an IMemoryBufferReference.
+    //! The caller is responsible for ensuring that the memory buffer's
+    //! lifetime encompasses the lifetime of the returned view.
+    //! By default, returns an array_view<uint8_t>, but you can provide an alternate
+    //! type such as to_array_view<double>.
+    //! You must include memorybuffer.h in order to use this overload of to_array_view.
+    template<typename T = uint8_t, int V = 0>
+    winrt::array_view<T> to_array_view(winrt::Windows::Foundation::IMemoryBufferReference const& reference)
+    {
+        uint8_t* data;
+        uint32_t capacity;
+        winrt::check_hresult(reference.as<std::enable_if_t<!V, ::Windows::Foundation::IMemoryBufferByteAccess>>()->GetBuffer(&data, &capacity));
+        return { reinterpret_cast<T*>(data), static_cast<uint32_t>(capacity / sizeof(T)) };
+    }
+
+    //! Returns a view into the underlying bytes of a memory buffer
+    //! provided in the form of an IMemoryBuffer.
+    //! The caller is responsible for ensuring that the memory buffer's
+    //! lifetime encompasses the lifetime of the returned view.
+    //! By default, returns an array_view<uint8_t>, but you can provide an alternate
+    //! type such as to_array_view<double>.
+    //! You must include memorybuffer.h in order to use this overload of to_array_view.
+    template<typename T = uint8_t, int V = 0>
+    winrt::array_view<T> to_array_view(winrt::Windows::Foundation::IMemoryBuffer const& buffer)
+    {
+        return to_array_view<T, V>(buffer.CreateReference());
+    }
+}
+#endif
+
 #if defined(WINRT_Windows_Foundation_Collections_H) && !defined(__WIL_CPPWINRT_WINDOWS_FOUNDATION_COLLECTION_HELPERS)
 #define __WIL_CPPWINRT_WINDOWS_FOUNDATION_COLLECTION_HELPERS
 namespace wil
@@ -310,6 +352,34 @@ namespace wil
         {
             return to_vector(src.First());
         }
+    }
+}
+#endif
+
+#if defined(WINRT_Windows_Storage_Streams_H) && !defined(__WIL_CPPWINRT_WINDOWS_STORAGE_STREAMS_HELPERS)
+#define __WIL_CPPWINRT_WINDOWS_STORAGE_STREAMS_HELPERS
+namespace wil
+{
+    //! Returns a view into the underlying bytes of an IBuffer up to its Length.
+    //! The caller is responsible for ensuring that the IBuffer's
+    //! lifetime encompasses the lifetime of the returned view.
+    //! By default, returns an array_view<uint8_t>, but you can provide an alternate
+    //! type such as to_array_view<double>.
+    template<typename T = uint8_t>
+    winrt::array_view<T> to_array_view(winrt::Windows::Storage::Streams::IBuffer const& buffer)
+    {
+        return { reinterpret_cast<T*>(buffer.data()), static_cast<uint32_t>(buffer.Length() / sizeof(T)) };
+    }
+
+    //! Returns a view into the underlying bytes of an IBuffer up to its Capacity.
+    //! The caller is responsible for ensuring that the IBuffer's
+    //! lifetime encompasses the lifetime of the returned view.
+    //! By default, returns an array_view<uint8_t>, but you can provide an alternate
+    //! type such as to_array_view<double>.
+    template<typename T = uint8_t>
+    winrt::array_view<T> to_array_view_for_capacity(winrt::Windows::Storage::Streams::IBuffer const& buffer)
+    {
+        return { reinterpret_cast<T*>(buffer.data()), static_cast<uint32_t>(buffer.Capacity() / sizeof(T)) };
     }
 }
 #endif
