@@ -186,37 +186,39 @@ TEST_CASE("CppWinRTTests::VectorToVector", "[cppwinrt]")
 
 TEST_CASE("CppWinRTTests::BufferToArrayView", "[cppwinrt]")
 {
-    // Create a buffer of capacity 8 and length 4.
-    auto buffer = winrt::Windows::Storage::Streams::Buffer(8);
-    buffer.Length(4);
-    // Get a Capacity-based int view and set the ints to 256 and 512.
+    std::array<int32_t, 2> testData = { 314159265, 27182818 };
+    auto testDataByteStart = reinterpret_cast<uint8_t*>(testData.data());
+
+    // Create a buffer with capacity for our testData, length for one of the int32_t's.
+    auto buffer = winrt::Windows::Storage::Streams::Buffer(sizeof(testData));
+    buffer.Length(sizeof(int32_t));
+
+    // Get a Capacity-based int view and set the test data.
     {
         auto view = wil::to_array_view_for_capacity<int32_t>(buffer);
-        REQUIRE(view.size() == 2);
-        view[0] = 256;
-        view[1] = 512;
+        REQUIRE(view.size() == testData.size());
+        std::copy(view.begin(), view.end(), testData.begin());
     }
-    // Get a Length-based byte view and confirm that the four bytes are { 0, 1, 0, 0 }.
-    // (Assumes little-endian system.)
+    // Get a Length-based byte view and confirm that the four bytes match the first four
+    // bytes of our test data.
     {
         auto view = wil::to_array_view(buffer);
-        REQUIRE(view.size() == 4);
-        REQUIRE(view == winrt::array_view(std::array<uint8_t, 4>{ 0, 1, 0, 0 }));
+        REQUIRE(view.size() == sizeof(int32_t));
+        REQUIRE(view == winrt::array_view(testDataByteStart, sizeof(int32_t)));
     }
-    // Create an IMemoryBuffer around the Buffer.
+    // Create an IMemoryBuffer around the Buffer. This uses the Buffer's Capacity as the MemoryBuffer size.
     auto mbuffer = winrt::Windows::Storage::Streams::Buffer::CreateMemoryBufferOverIBuffer(buffer);
-    // Verify that the buffer is the 2 ints 256 and 512.
+    // Verify that the buffer is the test data as int32_t.
     {
-        auto view = wil::to_array_view<int>(mbuffer);
-        REQUIRE(view.size() == 2);
-        REQUIRE(view == winrt::array_view(std::array{ 256, 512 }));
+        auto view = wil::to_array_view<int32_t>(mbuffer);
+        REQUIRE(view.size() == testData.size());
+        REQUIRE(view == winrt::array_view(testData));
     }
-    // Verify that the buffer reference is the 8 bytes { 0, 1, 0, 0, 0, 2, 0, 0 }.
-    // (Assumes little-endian system.)
+    // Verify that the buffer reference gives us the test data as uint8_t.
     {
         auto view = wil::to_array_view(mbuffer.CreateReference());
-        REQUIRE(view.size() == 8);
-        REQUIRE(view == winrt::array_view(std::array<uint8_t, 8>{ 0, 1, 0, 0, 0, 2, 0, 0 }));
+        REQUIRE(view.size() == sizeof(testData));
+        REQUIRE(view == winrt::array_view(testDataByteStart, sizeof(testData)));
     }
 }
 

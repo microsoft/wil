@@ -230,12 +230,14 @@ namespace wil
     //! By default, returns an array_view<uint8_t>, but you can provide an alternate
     //! type such as to_array_view<double>.
     //! You must include memorybuffer.h in order to use this overload of to_array_view.
-    template<typename T = uint8_t, int V = 0>
+    template<typename T = uint8_t>
     winrt::array_view<T> to_array_view(winrt::Windows::Foundation::IMemoryBufferReference const& reference)
     {
         uint8_t* data;
         uint32_t capacity;
-        winrt::check_hresult(reference.as<std::enable_if_t<!V, ::Windows::Foundation::IMemoryBufferByteAccess>>()->GetBuffer(&data, &capacity));
+        // Make IMemoryBufferByteAccess a dependent type so we can talk about it even if <memorybuffer.h> hasn't been included.
+        using IMemoryBufferByteAccess = std::enable_if_t<std::is_same_v<T, T>, ::Windows::Foundation::IMemoryBufferByteAccess>;
+        winrt::check_hresult(reference.as<IMemoryBufferByteAccess>()->GetBuffer(&data, &capacity));
         return { reinterpret_cast<T*>(data), static_cast<uint32_t>(capacity / sizeof(T)) };
     }
 
@@ -246,10 +248,10 @@ namespace wil
     //! By default, returns an array_view<uint8_t>, but you can provide an alternate
     //! type such as to_array_view<double>.
     //! You must include memorybuffer.h in order to use this overload of to_array_view.
-    template<typename T = uint8_t, int V = 0>
+    template<typename T = uint8_t>
     winrt::array_view<T> to_array_view(winrt::Windows::Foundation::IMemoryBuffer const& buffer)
     {
-        return to_array_view<T, V>(buffer.CreateReference());
+        return to_array_view<T>(buffer.CreateReference());
     }
 }
 #endif
