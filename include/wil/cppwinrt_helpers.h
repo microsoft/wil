@@ -41,12 +41,16 @@ namespace wil::details
 namespace wil::details
 {
     template<typename T = void> using coroutine_handle = std::experimental::coroutine_handle<T>;
+    using suspend_always = std::experimental::suspend_always;
+    using suspend_never = std::experimental::suspend_never;
 }
 #elif defined(__cpp_lib_coroutine) && (__cpp_lib_coroutine >= 201902L)
 #include <coroutine>
 namespace wil::details
 {
     template<typename T = void> using coroutine_handle = std::coroutine_handle<T>;
+    using suspend_always = std::suspend_always;
+    using suspend_never = std::suspend_never;
 }
 #endif
 /// @endcond
@@ -312,6 +316,197 @@ namespace wil
         }
     }
 }
+
+#if defined(_RESUMABLE_FUNCTIONS_SUPPORTED) || (defined(__cpp_lib_coroutine) && (__cpp_lib_coroutine >= 201902L))
+namespace wil::details
+{
+    template<typename TResult>
+    struct iterable_promise : winrt::implements<
+            iterable_promise<TResult>,
+            winrt::Windows::Foundation::Collections::IIterable<TResult>,
+            winrt::Windows::Foundation::Collections::IIterator<TResult>
+            >
+    {
+    private:
+        enum class IterationStatus
+        {
+            Initial,
+            Producing,
+            Value,
+            Done
+        };
+
+    public:
+        unsigned long __stdcall Release() noexcept
+        {
+            uint32_t const remaining = this->subtract_reference();
+
+            if (remaining == 0)
+            {
+                std::atomic_thread_fence(std::memory_order_acquire);
+                coroutine_handle<iterable_promise>::from_promise(*this).destroy();
+            }
+
+            return remaining;
+        }
+
+        winrt::Windows::Foundation::Collections::IIterable<TResult> get_return_object() noexcept
+        {
+            return { winrt::get_abi(static_cast<winrt::Windows::Foundation::Collections::IIterable<TResult> const&>(*this)), winrt::take_ownership_from_abi };
+        }
+
+        suspend_always initial_suspend() const noexcept
+        {
+            return {};
+        }
+
+        suspend_always final_suspend() const noexcept
+        {
+            return {};
+        }
+
+        void unhandled_exception() const
+        {
+            throw;
+        }
+
+        constexpr void await_transform() = delete;
+
+        constexpr void return_void() noexcept
+        {
+            m_status = IterationStatus::Done;
+        }
+
+        template<typename U>
+        auto yield_value(U &&value)
+        {
+            struct YieldAwaiter
+            {
+                bool m_ready;
+
+                constexpr bool await_ready() const noexcept
+                {
+                    return m_ready;
+                }
+
+                constexpr void await_suspend(coroutine_handle<>) const noexcept {}
+                constexpr void await_resume() const noexcept {}
+            };
+
+            *m_current = std::forward<U>(value);
+
+            if (m_current == m_values.end() - 1)
+            {
+                if (m_current != &m_last_value)
+                {
+                    m_last_value = *m_current;
+                }
+
+                m_status = IterationStatus::Value;
+                ++m_current;
+                return YieldAwaiter{ false };
+            }
+            else
+            {
+                ++m_current;
+                return YieldAwaiter{ true };
+            }
+        }
+
+#if defined(_DEBUG) && !defined(WINRT_NO_MAKE_DETECTION)
+        void use_make_function_to_create_this_object() final
+        {
+        }
+#endif
+
+        uint32_t produce_values(winrt::array_view<TResult> const& view)
+        {
+            if (m_status != IterationStatus::Initial && m_status != IterationStatus::Value)
+            {
+                return 0;
+            }
+
+            m_values = view;
+            m_current = m_values.begin();
+            m_status = IterationStatus::Producing;
+
+            coroutine_handle<iterable_promise>::from_promise(*this).resume();
+
+            return static_cast<uint32_t>(m_current - m_values.begin());
+        }
+
+        winrt::Windows::Foundation::Collections::IIterator<TResult> First()
+        {
+            if (m_status != IterationStatus::Initial)
+            {
+                throw winrt::hresult_changed_state();
+            }
+
+            MoveNext();
+
+            return *this;
+        }
+
+        bool HasCurrent() const noexcept
+        {
+            return m_status == IterationStatus::Value;
+        }
+
+        TResult Current() const noexcept
+        {
+            return m_last_value;
+        }
+
+        uint32_t GetMany(winrt::array_view<TResult> values)
+        {
+            if (!HasCurrent() || values.empty())
+            {
+                return 0;
+            }
+
+            values.front() = Current();
+
+            uint32_t result;
+
+            if (values.size() == 1)
+            {
+                result = 1;
+            }
+            else
+            {
+                result = produce_values({ values.data() + 1, values.size() - 1 }) + 1;
+            }
+
+            MoveNext();
+            return result;
+        }
+
+        bool MoveNext()
+        {
+            return produce_values({ &m_last_value, 1 });
+        }
+
+    private:
+        IterationStatus m_status{ IterationStatus::Initial };
+        winrt::array_view<TResult> m_values;
+        TResult* m_current{ nullptr };
+        TResult m_last_value{ empty<TResult>() };
+    };
+}
+
+#ifdef __cpp_lib_coroutine
+namespace std
+#else
+namespace std::experimental
+#endif
+{
+    template<typename T, typename... Args>
+    struct coroutine_traits<winrt::Windows::Foundation::Collections::IIterable<T>, Args...>
+    {
+        using promise_type = wil::details::iterable_promise<T>;
+    };
+}
+#endif
 #endif
 
 #if defined(WINRT_Windows_UI_H) && defined(_WINDOWS_UI_INTEROP_H_) && !defined(__WIL_CPPWINRT_WINDOWS_UI_INTEROP_HELPERS)
