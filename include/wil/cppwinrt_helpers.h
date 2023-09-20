@@ -321,16 +321,14 @@ namespace wil
 namespace wil::details
 {
     template<typename TResult>
-    struct iterable_promise : winrt::implements<
-            iterable_promise<TResult>,
-            winrt::Windows::Foundation::Collections::IIterable<TResult>,
+    struct iterator_promise : winrt::implements<
+            iterator_promise<TResult>,
             winrt::Windows::Foundation::Collections::IIterator<TResult>
             >
     {
     private:
         enum class IterationStatus
         {
-            Initial,
             Producing,
             Value,
             Done
@@ -344,18 +342,18 @@ namespace wil::details
             if (remaining == 0)
             {
                 std::atomic_thread_fence(std::memory_order_acquire);
-                coroutine_handle<iterable_promise>::from_promise(*this).destroy();
+                coroutine_handle<iterator_promise>::from_promise(*this).destroy();
             }
 
             return remaining;
         }
 
-        winrt::Windows::Foundation::Collections::IIterable<TResult> get_return_object() noexcept
+        winrt::Windows::Foundation::Collections::IIterator<TResult> get_return_object() noexcept
         {
-            return { winrt::get_abi(static_cast<winrt::Windows::Foundation::Collections::IIterable<TResult> const&>(*this)), winrt::take_ownership_from_abi };
+            return { winrt::get_abi(static_cast<winrt::Windows::Foundation::Collections::IIterator<TResult> const&>(*this)), winrt::take_ownership_from_abi };
         }
 
-        suspend_always initial_suspend() const noexcept
+        suspend_never initial_suspend() const noexcept
         {
             return {};
         }
@@ -421,7 +419,7 @@ namespace wil::details
 
         uint32_t produce_values(winrt::array_view<TResult> const& view)
         {
-            if (m_status != IterationStatus::Initial && m_status != IterationStatus::Value)
+            if (m_status != IterationStatus::Value)
             {
                 return 0;
             }
@@ -430,21 +428,9 @@ namespace wil::details
             m_current = m_values.begin();
             m_status = IterationStatus::Producing;
 
-            coroutine_handle<iterable_promise>::from_promise(*this).resume();
+            coroutine_handle<iterator_promise>::from_promise(*this).resume();
 
             return static_cast<uint32_t>(m_current - m_values.begin());
-        }
-
-        winrt::Windows::Foundation::Collections::IIterator<TResult> First()
-        {
-            if (m_status != IterationStatus::Initial)
-            {
-                throw winrt::hresult_changed_state();
-            }
-
-            MoveNext();
-
-            return *this;
         }
 
         bool HasCurrent() const noexcept
@@ -487,11 +473,51 @@ namespace wil::details
         }
 
     private:
-        IterationStatus m_status{ IterationStatus::Initial };
-        winrt::array_view<TResult> m_values;
-        TResult* m_current{ nullptr };
+        IterationStatus m_status{ IterationStatus::Producing };
+        winrt::array_view<TResult> m_values{ &m_last_value, 1 };
+        TResult* m_current{ &m_last_value };
         TResult m_last_value{ empty<TResult>() };
     };
+
+    template<typename TResult, typename Func, typename... Args>
+    struct iterable_iterator_helper : winrt::implements<
+            iterable_iterator_helper<TResult, Func, Args...>,
+            winrt::Windows::Foundation::Collections::IIterable<TResult>
+            >
+    {
+        iterable_iterator_helper(Func&& func, Args&&... args) :
+            m_func{ std::forward<Func>(func) },
+            m_args{ std::forward<Args>(args)... }
+        {
+        }
+
+        auto First()
+        {
+            return std::apply(m_func, m_args);
+        }
+
+    private:
+        Func m_func;
+        std::tuple<Args...> m_args;
+    };
+
+    template<typename>
+    struct iterator_result;
+
+    template<typename TResult>
+    struct iterator_result<winrt::Windows::Foundation::Collections::IIterator<TResult>>
+    {
+        using type = TResult;
+    };
+}
+
+namespace wil
+{
+    template<typename Func, typename... Args, typename TResult = typename details::iterator_result<std::invoke_result_t<Func, Args...>>::type>
+    winrt::Windows::Foundation::Collections::IIterable<TResult> make_iterable_from_iterator(Func&& func, Args&&... args)
+    {
+        return winrt::make<details::iterable_iterator_helper<TResult, Func, Args...>>(std::forward<Func>(func), std::forward<Args>(args)...);
+    }
 }
 
 #ifdef __cpp_lib_coroutine
@@ -501,9 +527,9 @@ namespace std::experimental
 #endif
 {
     template<typename T, typename... Args>
-    struct coroutine_traits<winrt::Windows::Foundation::Collections::IIterable<T>, Args...>
+    struct coroutine_traits<winrt::Windows::Foundation::Collections::IIterator<T>, Args...>
     {
-        using promise_type = wil::details::iterable_promise<T>;
+        using promise_type = wil::details::iterator_promise<T>;
     };
 }
 #endif

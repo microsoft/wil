@@ -650,7 +650,7 @@ TEST_CASE("CppWinRTTests::ResumeForegroundTests", "[cppwinrt]")
 
 namespace test
 {
-    winrt::Windows::Foundation::Collections::IIterable<winrt::hstring> hello_world_generator()
+    winrt::Windows::Foundation::Collections::IIterator<winrt::hstring> hello_world_generator()
     {
         co_yield L"Hello";
         co_yield L"World!";
@@ -694,8 +694,7 @@ TEST_CASE("CppWinRTTests::Generator", "[cppwinrt]")
 {
     SECTION("Hello World")
     {
-        auto generator = test::hello_world_generator();
-        auto iterator = generator.First();
+        auto iterator = test::hello_world_generator();
         REQUIRE(iterator.HasCurrent());
         REQUIRE(iterator.Current() == L"Hello");
 
@@ -709,7 +708,7 @@ TEST_CASE("CppWinRTTests::Generator", "[cppwinrt]")
 
     SECTION("Value types")
     {
-        auto generator = []() -> winrt::Windows::Foundation::Collections::IIterable<int>
+        auto iterator = []() -> winrt::Windows::Foundation::Collections::IIterator<int>
         {
             for (int i = 0; i < 10; ++i)
             {
@@ -717,7 +716,6 @@ TEST_CASE("CppWinRTTests::Generator", "[cppwinrt]")
             }
         }();
 
-        auto iterator = generator.First();
         REQUIRE(iterator.HasCurrent());
         REQUIRE(iterator.MoveNext());
         REQUIRE(iterator.Current() == 1);
@@ -732,17 +730,10 @@ TEST_CASE("CppWinRTTests::Generator", "[cppwinrt]")
         REQUIRE(!iterator.HasCurrent());
     }
 
-    SECTION("First can only be called once")
-    {
-        auto generator = test::hello_world_generator();
-        auto iterator = generator.First();
-        REQUIRE_THROWS_AS(generator.First(), winrt::hresult_changed_state);
-    }
-
     SECTION("GetMany")
     {
         {
-            auto iterator = test::hello_world_generator().First();
+            auto iterator = test::hello_world_generator();
 
             std::array<winrt::hstring, 2> values;
             REQUIRE(iterator.GetMany(values) == 2);
@@ -752,7 +743,7 @@ TEST_CASE("CppWinRTTests::Generator", "[cppwinrt]")
         }
 
         {
-            auto iterator = test::hello_world_generator().First();
+            auto iterator = test::hello_world_generator();
             std::array<winrt::hstring, 1> values;
             REQUIRE(iterator.GetMany(values) == 1);
             REQUIRE(values[0] == L"Hello");
@@ -767,7 +758,7 @@ TEST_CASE("CppWinRTTests::Generator", "[cppwinrt]")
 
     SECTION("Coroutine destruction")
     {
-        auto set_true_on_destruction_generator = [](test::set_true_on_destruction) -> winrt::Windows::Foundation::Collections::IIterable<winrt::hstring>
+        auto set_true_on_destruction_generator = [](test::set_true_on_destruction) -> winrt::Windows::Foundation::Collections::IIterator<winrt::hstring>
         {
             co_yield L"Hello";
             co_yield L"World!";
@@ -779,26 +770,11 @@ TEST_CASE("CppWinRTTests::Generator", "[cppwinrt]")
         }
 
         REQUIRE(destroyed);
-
-        destroyed = false;
-        {
-            winrt::Windows::Foundation::Collections::IIterator<winrt::hstring> iterator;
-            {
-                auto generator = set_true_on_destruction_generator(destroyed);
-                iterator = generator.First();
-            }
-
-            REQUIRE(!destroyed);
-            REQUIRE(iterator.HasCurrent());
-            REQUIRE(iterator.Current() == L"Hello");
-        }
-
-        REQUIRE(destroyed);
     }
 
     SECTION("Coroutine destruction with exception")
     {
-        auto set_true_on_destruction_generator = [](test::set_true_on_destruction) -> winrt::Windows::Foundation::Collections::IIterable<winrt::hstring>
+        auto set_true_on_destruction_generator = [](test::set_true_on_destruction) -> winrt::Windows::Foundation::Collections::IIterator<winrt::hstring>
         {
             co_yield L"Hello";
 
@@ -808,14 +784,44 @@ TEST_CASE("CppWinRTTests::Generator", "[cppwinrt]")
         };
 
         bool destroyed = false;
-        auto iterator = set_true_on_destruction_generator(destroyed).First();
+        auto iterator = set_true_on_destruction_generator(destroyed);
         REQUIRE_THROWS_AS(iterator.MoveNext(), winrt::hresult_invalid_argument);
+    }
+
+    SECTION("make_iterable_from_iterator")
+    {
+        auto generator = wil::make_iterable_from_iterator(&test::hello_world_generator);
+        auto iterator = generator.First();
+
+        REQUIRE(iterator.Current() == L"Hello");
+        REQUIRE(iterator.MoveNext());
+        REQUIRE(iterator.Current() == L"World!");
+        REQUIRE(!iterator.MoveNext());
+
+        auto iterator2 = generator.First();
+        REQUIRE(iterator2.Current() == L"Hello");
+        REQUIRE(iterator2.MoveNext());
+        REQUIRE(iterator2.Current() == L"World!");
+        REQUIRE(!iterator2.MoveNext());
+    }
+
+    SECTION("make_iterable_from_iterator with arguments")
+    {
+        auto ptr = std::make_unique<int>(3);
+        auto const_ref_generator = wil::make_iterable_from_iterator([](const std::unique_ptr<int> &ptr) -> winrt::Windows::Foundation::Collections::IIterator<int>
+        {
+            co_yield *ptr;
+        }, ptr);
+
+        REQUIRE(const_ref_generator.First().Current() == 3);
+        *ptr = 4;
+        REQUIRE(const_ref_generator.First().Current() == 4);
     }
 
     SECTION("Range-based for loop")
     {
         std::wstring result;
-        for (const auto &i : test::hello_world_generator())
+        for (const auto &i : wil::make_iterable_from_iterator(&test::hello_world_generator))
         {
             result += i;
         }
