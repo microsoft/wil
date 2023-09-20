@@ -419,9 +419,13 @@ namespace wil::details
 
         uint32_t produce_values(winrt::array_view<TResult> const& view)
         {
-            if (m_status != IterationStatus::Value)
+            if (m_status == IterationStatus::Producing)
             {
                 return 0;
+            }
+            else if (m_status == IterationStatus::Done)
+            {
+                throw winrt::hresult_out_of_bounds();
             }
 
             m_values = view;

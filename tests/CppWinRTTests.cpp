@@ -756,6 +756,16 @@ TEST_CASE("CppWinRTTests::Generator", "[cppwinrt]")
         }
     }
 
+    SECTION("MoveNext")
+    {
+        auto iterator = test::hello_world_generator();
+        REQUIRE(iterator.HasCurrent());
+        REQUIRE(iterator.MoveNext());
+        REQUIRE(iterator.HasCurrent());
+        REQUIRE(!iterator.MoveNext());
+        REQUIRE_THROWS_AS(iterator.MoveNext(), winrt::hresult_out_of_bounds);
+    }
+
     SECTION("Coroutine destruction")
     {
         auto set_true_on_destruction_generator = [](test::set_true_on_destruction) -> winrt::Windows::Foundation::Collections::IIterator<winrt::hstring>
