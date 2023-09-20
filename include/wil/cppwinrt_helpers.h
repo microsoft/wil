@@ -318,6 +318,7 @@ namespace wil
 }
 
 #if defined(_RESUMABLE_FUNCTIONS_SUPPORTED) || (defined(__cpp_lib_coroutine) && (__cpp_lib_coroutine >= 201902L))
+/// @cond
 namespace wil::details
 {
     template<typename TResult>
@@ -514,6 +515,7 @@ namespace wil::details
         using type = TResult;
     };
 }
+/// @endcond
 
 namespace wil
 {
