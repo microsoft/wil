@@ -5195,3 +5195,127 @@ TEST_CASE("BasicRegistryTests::key_heap_string_nothrow_iterator", "[registry]]")
         REQUIRE(count == 4);
     }
 }
+TEST_CASE("BasicRegistryTests::slim_registry_watcher_t", "[registry]]")
+{
+    const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
+    if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+    {
+        REQUIRE_SUCCEEDED(deleteHr);
+    }
+
+    SECTION("unique_slim_registry_watcher_nothrow fails to be created")
+    {
+        // will fail if we pass invalid values - the substring must not be null
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey));
+        const auto watcher = wil::make_slim_registry_watcher_nothrow(hkey.get(), nullptr, true, [&](wil::RegistryChangeKind) {});
+        REQUIRE(watcher.get() == nullptr);
+    }
+
+    SECTION("unique_slim_registry_watcher_nothrow with recurssive changes")
+    {
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
+
+        wil::unique_event_nothrow callbackTracking;
+        REQUIRE_SUCCEEDED(callbackTracking.create());
+
+        uint32_t modifyCount = 0;
+        uint32_t deleteCount = 0;
+        const auto watcher = wil::make_slim_registry_watcher_nothrow(HKEY_CURRENT_USER, testSubkey, true, [&](wil::RegistryChangeKind kind)
+            {
+                switch (kind)
+                {
+                case wil::RegistryChangeKind::Modify:
+                    ++modifyCount;
+                    break;
+                case wil::RegistryChangeKind::Delete:
+                    ++deleteCount;
+                    break;
+                }
+                callbackTracking.SetEvent();
+            });
+        REQUIRE(watcher.get() != nullptr);
+
+        for (uint32_t count = 0; count < 5; ++count)
+        {
+            callbackTracking.ResetEvent();
+            REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(hkey.get(), L"test", count));
+            REQUIRE(callbackTracking.wait(500));
+        }
+        REQUIRE(modifyCount == 5);
+
+        for (uint32_t count = 0; count < 5; ++count)
+        {
+            callbackTracking.ResetEvent();
+            wil::unique_hkey embeddedKey;
+            REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(hkey.get(), L"test\\test", embeddedKey));
+            REQUIRE(callbackTracking.wait(500));
+
+            callbackTracking.ResetEvent();
+            REQUIRE(::RegDeleteKeyW(hkey.get(), L"test\\test") == ERROR_SUCCESS);
+            REQUIRE(callbackTracking.wait(500));
+        }
+
+        // RegCreateKeyExW the first time had 2x callbacks
+        REQUIRE(modifyCount == 16);
+
+        callbackTracking.ResetEvent();
+        ::RegDeleteValueW(hkey.get(), L"test");
+        REQUIRE(callbackTracking.wait(500));
+        REQUIRE(modifyCount == 17);
+
+        callbackTracking.ResetEvent();
+        REQUIRE(::RegDeleteKeyW(hkey.get(), L"test") == ERROR_SUCCESS);
+        REQUIRE(callbackTracking.wait(500));
+        REQUIRE(modifyCount == 18);
+
+        callbackTracking.ResetEvent();
+        REQUIRE(::RegDeleteKeyW(HKEY_CURRENT_USER, testSubkey) == ERROR_SUCCESS);
+        REQUIRE(callbackTracking.wait(500));
+        REQUIRE(deleteCount == 1);
+
+        // after deleting the key, should not have any more callbacks
+        callbackTracking.ResetEvent();
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
+        callbackTracking.wait(500);
+        REQUIRE(modifyCount == 18);
+        REQUIRE(deleteCount == 1);
+
+        callbackTracking.ResetEvent();
+        REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(hkey.get(), L"test", 0));
+        callbackTracking.wait(500);
+        REQUIRE(modifyCount == 18);
+        REQUIRE(deleteCount == 1);
+    }
+
+    SECTION("unique_slim_registry_watcher_nothrow guaranteeing d'tor waits on callbacks")
+    {
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
+
+        wil::unique_event_nothrow callbackEntered;
+        REQUIRE_SUCCEEDED(callbackEntered.create());
+
+        auto watcher = wil::make_slim_registry_watcher_nothrow(HKEY_CURRENT_USER, testSubkey, true, [&](wil::RegistryChangeKind)
+            {
+                callbackEntered.SetEvent();
+                // now wait 5 seconds - ensuring we are in the d'tor on the main thread
+                Sleep(5000);
+            });
+        REQUIRE(watcher.get() != nullptr);
+
+        // initiate a change then destroy the watcher - it must wait for all callbacks
+        callbackEntered.ResetEvent();
+        REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(hkey.get(), L"test", 0));
+        REQUIRE(callbackEntered.wait(500));
+
+        // now we know we are in the callback - destroy the watcher
+        const auto startTime = GetTickCount64();
+        watcher.reset();
+        const auto endTime = GetTickCount64();
+
+        // should have waited ~5 seconds
+        REQUIRE(endTime - startTime > 4000);
+    }
+}
