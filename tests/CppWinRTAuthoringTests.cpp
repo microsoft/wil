@@ -212,7 +212,7 @@ TEST_CASE("CppWinRTAuthoringTests::EventsAndCppWinRt", "[property]")
 TEST_CASE("CppWinRTAuthoringTests::NotifyPropertyChanged", "[property][LocalOnly]")
 {
 #if defined(WIL_ENABLE_EXCEPTIONS)
-    auto uninit = wil::RoInitialize_failfast(RO_INIT_SINGLETHREADED);
+    auto uninit = wil::RoInitialize_failfast(RO_INIT_MULTITHREADED);
     // We need to initialize the XAML core in order to instantiate a PropertyChangedEventArgs.
     // Do all the work on a separate DispatcherQueue thread so we can shut it down cleanly
     // and make sure COM is completely cleaned up before we finish the test.
