@@ -210,7 +210,7 @@ TEST_CASE("CppWinRTAuthoringTests::EventsAndCppWinRt", "[property]")
 
 // This test cannot run in the same process as the malloc spies tests in wiTest.cpp
 // MSFT_internal: https://task.ms/44191550
-TEST_CASE("CppWinRTAuthoringTests::NotifyPropertyChanged", "[property][LocalOnly]")
+TEST_CASE("CppWinRTAuthoringTests::NotifyPropertyChanged", "[property][.]")
 {
 #if defined(WIL_ENABLE_EXCEPTIONS)
     auto uninit = wil::RoInitialize_failfast(RO_INIT_SINGLETHREADED);
