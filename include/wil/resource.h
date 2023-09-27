@@ -5597,7 +5597,7 @@ namespace wil
     /// @cond
     namespace details
     {
-        inline void __stdcall CloseWlanHandle(_Frees_ptr_ HANDLE hClientHandle)
+        inline void __stdcall CloseWlanHandle(_In_ HANDLE hClientHandle)
         {
             ::WlanCloseHandle(hClientHandle, nullptr);
         }
