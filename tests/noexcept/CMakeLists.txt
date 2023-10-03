@@ -15,6 +15,7 @@ endif()
 
 target_sources(witest.noexcept PRIVATE
     ${COMMON_SOURCES}
+    ${CMAKE_CURRENT_SOURCE_DIR}/../RegistryTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../SafearrayTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../TokenHelpersTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../UniqueWinRTEventTokenTests.cpp

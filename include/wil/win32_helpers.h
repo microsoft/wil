@@ -333,7 +333,7 @@ namespace wil
     {
         details::string_maker<string_type> maker;
 
-        wchar_t value[stackBufferLength];
+        wchar_t value[stackBufferLength]{};
         value[0] = L'\0';
         size_t valueLengthNeededWithNull{}; // callback returns the number of characters needed including the null terminator.
         RETURN_IF_FAILED_EXPECTED(callback(value, ARRAYSIZE(value), &valueLengthNeededWithNull));
@@ -422,7 +422,7 @@ namespace wil
             RETURN_LAST_ERROR_IF((success == FALSE) && (::GetLastError() != ERROR_INSUFFICIENT_BUFFER));
 
             // On success, return the amount used; on failure, try doubling
-            *valueLengthNeededWithNul = success ? (lengthToUse + 1) : (lengthToUse * 2);
+            *valueLengthNeededWithNul = success ? (static_cast<size_t>(lengthToUse) + 1) : (static_cast<size_t>(lengthToUse) * 2);
             return S_OK;
         });
     }
@@ -488,17 +488,17 @@ namespace wil
     {
         auto adapter = [&](_Out_writes_(valueLength) PWSTR value, size_t valueLength, _Out_ size_t* valueLengthNeededWithNul) -> HRESULT
         {
-            DWORD copiedCount;
-            size_t valueUsedWithNul;
-            bool copyFailed;
-            bool copySucceededWithNoTruncation;
+            DWORD copiedCount{};
+            size_t valueUsedWithNul{};
+            bool copyFailed{};
+            bool copySucceededWithNoTruncation{};
             if (process != nullptr)
             {
                 // GetModuleFileNameExW truncates and provides no error or other indication it has done so.
                 // The only way to be sure it didn't truncate is if it didn't need the whole buffer. The
                 // count copied to the buffer includes the nul-character as well.
                 copiedCount = ::GetModuleFileNameExW(process, module, value, static_cast<DWORD>(valueLength));
-                valueUsedWithNul = copiedCount + 1;
+                valueUsedWithNul = static_cast<size_t>(copiedCount) + 1;
                 copyFailed = (0 == copiedCount);
                 copySucceededWithNoTruncation = !copyFailed && (copiedCount < valueLength - 1);
             }
@@ -508,7 +508,7 @@ namespace wil
                 // and set the last error to ERROR_INSUFFICIENT_BUFFER. The count returned does not include
                 // the nul-character
                 copiedCount = ::GetModuleFileNameW(module, value, static_cast<DWORD>(valueLength));
-                valueUsedWithNul = copiedCount + 1;
+                valueUsedWithNul = static_cast<size_t>(copiedCount) + 1;
                 copyFailed = (0 == copiedCount);
                 copySucceededWithNoTruncation = !copyFailed && (copiedCount < valueLength);
             }
@@ -573,7 +573,7 @@ namespace wil
     template <typename string_type = wil::unique_cotaskmem_string, size_t stackBufferLength = 256>
     string_type ExpandEnvironmentStringsW(_In_ PCWSTR input)
     {
-        string_type result;
+        string_type result{};
         THROW_IF_FAILED((wil::ExpandEnvironmentStringsW<string_type, stackBufferLength>(input, result)));
         return result;
     }
@@ -583,7 +583,7 @@ namespace wil
     template <typename string_type = wil::unique_cotaskmem_string, size_t stackBufferLength = 256>
     string_type TrySearchPathW(_In_opt_ PCWSTR path, _In_ PCWSTR fileName, PCWSTR _In_opt_ extension)
     {
-        string_type result;
+        string_type result{};
         HRESULT searchHR = wil::SearchPathW<string_type, stackBufferLength>(path, fileName, extension, result);
         THROW_HR_IF(searchHR, FAILED(searchHR) && (searchHR != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND)));
         return result;
@@ -594,7 +594,7 @@ namespace wil
     template <typename string_type = wil::unique_cotaskmem_string, size_t initialBufferLength = 128>
     string_type GetEnvironmentVariableW(_In_ PCWSTR key)
     {
-        string_type result;
+        string_type result{};
         THROW_IF_FAILED((wil::GetEnvironmentVariableW<string_type, initialBufferLength>(key, result)));
         return result;
     }
@@ -603,7 +603,7 @@ namespace wil
     template <typename string_type = wil::unique_cotaskmem_string, size_t initialBufferLength = 128>
     string_type TryGetEnvironmentVariableW(_In_ PCWSTR key)
     {
-        string_type result;
+        string_type result{};
         THROW_IF_FAILED((wil::TryGetEnvironmentVariableW<string_type, initialBufferLength>(key, result)));
         return result;
     }
@@ -611,7 +611,7 @@ namespace wil
     template <typename string_type = wil::unique_cotaskmem_string, size_t initialBufferLength = 128>
     string_type GetModuleFileNameW(HMODULE module = nullptr /* current process module */)
     {
-        string_type result;
+        string_type result{};
         THROW_IF_FAILED((wil::GetModuleFileNameW<string_type, initialBufferLength>(module, result)));
         return result;
     }
@@ -619,7 +619,7 @@ namespace wil
     template <typename string_type = wil::unique_cotaskmem_string, size_t initialBufferLength = 128>
     string_type GetModuleFileNameExW(HANDLE process, HMODULE module)
     {
-        string_type result;
+        string_type result{};
         THROW_IF_FAILED((wil::GetModuleFileNameExW<string_type, initialBufferLength>(process, module, result)));
         return result;
     }
@@ -645,7 +645,7 @@ namespace wil
     template <typename string_type = wil::unique_cotaskmem_string, size_t stackBufferLength = 256>
     string_type QueryFullProcessImageNameW(HANDLE processHandle = GetCurrentProcess(), DWORD flags = 0)
     {
-        string_type result;
+        string_type result{};
         THROW_IF_FAILED((wil::QueryFullProcessImageNameW<string_type, stackBufferLength>(processHandle, flags, result)));
         return result;
     }

@@ -3,6 +3,7 @@ add_executable(witest)
 
 target_sources(witest PRIVATE
     ${COMMON_SOURCES}
+    ${CMAKE_CURRENT_SOURCE_DIR}/../RegistryTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../SafearrayTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../StlTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../TokenHelpersTests.cpp

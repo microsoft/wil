@@ -1779,7 +1779,7 @@ namespace details
         void OnCancel() override { }
     private:
         // needs to be MapToSmartType<TResult>::type to hold non trial types
-        TResult m_result;
+        TResult m_result{};
     };
 
     extern const __declspec(selectany) wchar_t SyncAsyncActionName[] = L"SyncActionAction";
