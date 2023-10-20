@@ -44,12 +44,18 @@ namespace wil
             return *this;
         }
 
-        template<typename Q> auto& operator()(Q&& q)
-        {
-            *this = std::forward<Q>(q);
-            return *this;
-        }
-
+        // This is the only setter exposed. We don't expose `operator()(Q&& q)`,
+        // since that is what C++/WinRT uses to implement public setters. Since
+        // single_threaded_property is intended for readonly properties, we
+        // don't want to expose that.
+        //
+        // To set the value of this property *internally* (within your
+        // implementation), use this `operator=`:
+        //
+        //     MyProperty = 42;
+        //     // MyProperty(42); // won't work
+        //
+        // For settable properties, use single_threaded_rw_property<T> instead.
         template<typename Q> auto& operator=(Q&& q)
         {
             static_cast<base_type&>(*this) = std::forward<Q>(q);
