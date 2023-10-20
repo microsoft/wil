@@ -430,31 +430,31 @@ namespace wil
         //! @{
 
         //! Returns the address of the const internal pointer (does not release the pointer)
-        const pointer* addressof() const WI_NOEXCEPT
+        WI_NODISCARD const pointer* addressof() const WI_NOEXCEPT
         {
             return &m_ptr;
         }
 
         //! Returns 'true' if the pointer is assigned (NOT nullptr)
-        explicit operator bool() const WI_NOEXCEPT
+        WI_NODISCARD explicit operator bool() const WI_NOEXCEPT
         {
             return (m_ptr != nullptr);
         }
 
         //! Returns the pointer
-        pointer get() const WI_NOEXCEPT
+        WI_NODISCARD pointer get() const WI_NOEXCEPT
         {
             return m_ptr;
         }
 
         //! Allows direct calls against the pointer (AV on internal nullptr)
-        pointer operator->() const WI_NOEXCEPT
+        WI_NODISCARD pointer operator->() const WI_NOEXCEPT
         {
             return m_ptr;
         }
 
         //! Dereferences the pointer (AV on internal nullptr)
-        element_type_reference operator*() const WI_NOEXCEPT
+        WI_NODISCARD element_type_reference operator*() const WI_NOEXCEPT
         {
             return *m_ptr;
         }
@@ -488,7 +488,7 @@ namespace wil
         //!         `com_ptr_t` type will be @ref com_ptr or @ref com_ptr_failfast (matching the error handling form of the
         //!         pointer being queried (exception based or fail-fast).
         template <class U>
-        inline com_ptr_t<U, err_policy> query() const
+        WI_NODISCARD inline com_ptr_t<U, err_policy> query() const
         {
             static_assert(wistd::is_same<void, result>::value, "query requires exceptions or fail fast; use try_query or query_to");
             return com_ptr_t<U, err_policy>(m_ptr, details::tag_com_query());
@@ -611,7 +611,7 @@ namespace wil
         //!             not supported.  The returned `com_ptr_t` will have the same error handling policy (exceptions, failfast or error codes) as
         //!             the pointer being queried.
         template <class U>
-        inline com_ptr_t<U, err_policy> try_query() const
+        WI_NODISCARD inline com_ptr_t<U, err_policy> try_query() const
         {
             return com_ptr_t<U, err_policy>(m_ptr, details::tag_try_com_query());
         }
@@ -685,7 +685,7 @@ namespace wil
         //!         `com_ptr_t` type will be @ref com_ptr or @ref com_ptr_failfast (matching the error handling form of the
         //!         pointer being queried (exception based or fail-fast).
         template <class U>
-        inline com_ptr_t<U, err_policy> copy() const
+        WI_NODISCARD inline com_ptr_t<U, err_policy> copy() const
         {
             static_assert(wistd::is_same<void, result>::value, "copy requires exceptions or fail fast; use the try_copy or copy_to method");
             return com_ptr_t<U, err_policy>(m_ptr, details::tag_com_copy());
@@ -773,7 +773,7 @@ namespace wil
         //!             not supported or the pointer being queried is null.  The returned `com_ptr_t` will have the same error handling
         //!             policy (exceptions, failfast or error codes) as the pointer being queried.
         template <class U>
-        inline com_ptr_t<U, err_policy> try_copy() const
+        WI_NODISCARD inline com_ptr_t<U, err_policy> try_copy() const
         {
             return com_ptr_t<U, err_policy>(m_ptr, details::tag_try_com_copy());
         }
@@ -2275,7 +2275,7 @@ namespace wil
     */
     inline HRESULT stream_seek_nothrow(_In_ IStream* stream, long long offset, unsigned long from, _Out_opt_ unsigned long long* value = nullptr)
     {
-        LARGE_INTEGER amount;
+        LARGE_INTEGER amount{};
         ULARGE_INTEGER landed{};
         amount.QuadPart = offset;
         RETURN_IF_FAILED(stream->Seek(amount, from, value ? &landed : nullptr));
@@ -2360,8 +2360,8 @@ namespace wil
     */
     inline HRESULT stream_copy_bytes_nothrow(_In_ IStream* source, _In_ IStream* target, unsigned long long amount, _Out_opt_ unsigned long long* pCopied = nullptr)
     {
-        ULARGE_INTEGER toCopy;
-        ULARGE_INTEGER copied;
+        ULARGE_INTEGER toCopy{};
+        ULARGE_INTEGER copied{};
         toCopy.QuadPart = amount;
         RETURN_IF_FAILED(source->CopyTo(target, toCopy, nullptr, &copied));
         assign_to_opt_param(pCopied, copied.QuadPart);
@@ -2852,7 +2852,7 @@ namespace wil
 
         //! Returns the current position being saved for the stream
         //! @returns The position, in bytes, being saved for the stream
-        unsigned long long position() const
+        WI_NODISCARD unsigned long long position() const
         {
             return m_position;
         }

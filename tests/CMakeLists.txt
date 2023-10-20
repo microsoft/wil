@@ -23,7 +23,7 @@ endif()
 
 set(CPPWINRT ${CMAKE_BINARY_DIR}/packages/Microsoft.Windows.CppWinRT.${CPPWINRT_VERSION}/bin/cppwinrt.exe)
 execute_process(COMMAND
-    ${CPPWINRT} -input sdk -output include
+    ${CPPWINRT} -input sdk+ -output include
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     RESULT_VARIABLE ret)
 if (NOT ret EQUAL 0)
@@ -57,10 +57,13 @@ set(COMMON_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/Rpc.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/SafeCastTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/TraceLoggingTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/TraceLoggingTests_PartB.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/WistdTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/wiTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../natvis/wil.natvis
     )
+
+add_link_options(/NATVIS:${CMAKE_SOURCE_DIR}/natvis/wil.natvis)
 
 add_subdirectory(app)
 add_subdirectory(cpplatest)
@@ -94,5 +97,6 @@ if (${ASAN_AVAILABLE})
 endif()
 
 if (${UBSAN_AVAILABLE})
-    add_subdirectory(sanitize-undefined-behavior)
+    # TODO: Disabled until https://github.com/microsoft/STL/issues/3568 is resolved
+    # add_subdirectory(sanitize-undefined-behavior)
 endif()

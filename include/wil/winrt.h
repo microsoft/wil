@@ -288,7 +288,7 @@ namespace wil
 
         ~TwoPhaseHStringConstructor() = default;
 
-        explicit operator PCWSTR() const
+        WI_NODISCARD explicit operator PCWSTR() const
         {
             // This is set by WindowsPromoteStringBuffer() which must be called to
             // construct this object via the static method Preallocate().
@@ -296,15 +296,15 @@ namespace wil
         }
 
         //! Returns a pointer for the buffer so it can be populated
-        wchar_t* Get() const { return const_cast<wchar_t*>(m_maker.buffer()); }
+        WI_NODISCARD wchar_t* Get() const { return const_cast<wchar_t*>(m_maker.buffer()); }
         //! Used to validate range of buffer when populating.
-        ULONG ByteSize() const { return m_characterLength * sizeof(wchar_t); }
+        WI_NODISCARD ULONG ByteSize() const { return m_characterLength * sizeof(wchar_t); }
 
         /** Ensure that the size of the data provided is consistent with the pre-allocated buffer.
         It seems that WindowsPreallocateStringBuffer() provides the null terminator in the buffer
         (based on testing) so this can be called before populating the buffer.
         */
-        HRESULT Validate(ULONG bytesRead) const
+        WI_NODISCARD HRESULT Validate(ULONG bytesRead) const
         {
             // Null termination is required for the buffer before calling WindowsPromoteStringBuffer().
             RETURN_HR_IF(HRESULT_FROM_WIN32(ERROR_INVALID_DATA),
@@ -389,7 +389,7 @@ namespace wil
         using is_transparent = void;
 
         template <typename LhsT, typename RhsT>
-        auto operator()(const LhsT& lhs, const RhsT& rhs) const WI_NOEXCEPT ->
+        WI_NODISCARD auto operator()(const LhsT& lhs, const RhsT& rhs) const WI_NOEXCEPT ->
             decltype(details::hstring_compare<true, false>::less(lhs, rhs))
         {
             return details::hstring_compare<true, false>::less(lhs, rhs);
@@ -416,7 +416,7 @@ namespace wil
         using is_transparent = void;
 
         template <typename LhsT, typename RhsT>
-        auto operator()(const LhsT& lhs, const RhsT& rhs) const WI_NOEXCEPT ->
+        WI_NODISCARD auto operator()(const LhsT& lhs, const RhsT& rhs) const WI_NOEXCEPT ->
             decltype(details::hstring_compare<true, true>::less(lhs, rhs))
         {
             return details::hstring_compare<true, true>::less(lhs, rhs);
@@ -448,15 +448,15 @@ namespace wil
             {
                 type() = default;
                 type(T&& value) : m_value(wistd::forward<T>(value)) {}
-                operator T() const { return m_value; }
+                WI_NODISCARD operator T() const { return m_value; }
                 type& operator=(T&& value) { m_value = wistd::forward<T>(value); return *this; }
-                T Get() const { return m_value; }
+                WI_NODISCARD T Get() const { return m_value; }
 
                 // Returning T&& to support move only types
                 // In case of absence of T::operator=(T&&) a call to T::operator=(const T&) will happen
                 T&& Get()          { return wistd::move(m_value); }
 
-                HRESULT CopyTo(T* result) const { *result = m_value; return S_OK; }
+                WI_NODISCARD HRESULT CopyTo(T* result) const { *result = m_value; return S_OK; }
                 T* GetAddressOf()  { return &m_value; }
                 T* ReleaseAndGetAddressOf() { return &m_value; }
                 T* operator&()     { return &m_value; }
@@ -663,51 +663,51 @@ namespace wil
                 return *this;
             }
 
-            vector_iterator operator+(int n) const
+            WI_NODISCARD vector_iterator operator+(int n) const
             {
                 vector_iterator ret(*this);
                 ret += n;
                 return ret;
             }
 
-            vector_iterator operator-(int n) const
+            WI_NODISCARD vector_iterator operator-(int n) const
             {
                 vector_iterator ret(*this);
                 ret -= n;
                 return ret;
             }
 
-            ptrdiff_t operator-(const vector_iterator& other) const
+            WI_NODISCARD ptrdiff_t operator-(const vector_iterator& other) const
             {
                 return m_i - other.m_i;
             }
 
-            bool operator==(const vector_iterator& other) const
+            WI_NODISCARD bool operator==(const vector_iterator& other) const
             {
                 return m_i == other.m_i;
             }
 
-            bool operator!=(const vector_iterator& other) const
+            WI_NODISCARD bool operator!=(const vector_iterator& other) const
             {
                 return m_i != other.m_i;
             }
 
-            bool operator<(const vector_iterator& other) const
+            WI_NODISCARD bool operator<(const vector_iterator& other) const
             {
                 return m_i < other.m_i;
             }
 
-            bool operator>(const vector_iterator& other) const
+            WI_NODISCARD bool operator>(const vector_iterator& other) const
             {
                 return m_i > other.m_i;
             }
 
-            bool operator<=(const vector_iterator& other) const
+            WI_NODISCARD bool operator<=(const vector_iterator& other) const
             {
                 return m_i <= other.m_i;
             }
 
-            bool operator>=(const vector_iterator& other) const
+            WI_NODISCARD bool operator>=(const vector_iterator& other) const
             {
                 return m_i >= other.m_i;
             }
@@ -777,12 +777,12 @@ namespace wil
             {
             }
 
-            reference operator*() const
+            WI_NODISCARD reference operator*() const
             {
                 return m_range->m_currentElement;
             }
 
-            pointer operator->() const
+            WI_NODISCARD pointer operator->() const
             {
                 return wistd::addressof(m_range->m_currentElement);
             }
@@ -829,12 +829,12 @@ namespace wil
                 return *this;
             }
 
-            bool operator==(vector_iterator_nothrow const& other) const
+            WI_NODISCARD bool operator==(vector_iterator_nothrow const& other) const
             {
                 return FAILED(*m_range->m_result) || (m_i == other.m_i);
             }
 
-            bool operator!=(vector_iterator_nothrow const& other) const
+            WI_NODISCARD bool operator!=(vector_iterator_nothrow const& other) const
             {
                 return !operator==(other);
             }
@@ -937,12 +937,12 @@ namespace wil
                 return *this;
             }
 
-            bool operator==(iterable_iterator const& other) const
+            WI_NODISCARD bool operator==(iterable_iterator const& other) const
             {
                 return m_i == other.m_i;
             }
 
-            bool operator!=(iterable_iterator const& other) const
+            WI_NODISCARD bool operator!=(iterable_iterator const& other) const
             {
                 return !operator==(other);
             }
@@ -1102,22 +1102,22 @@ namespace wil
             {
             }
 
-            bool operator==(iterable_iterator_nothrow const& other) const
+            WI_NODISCARD bool operator==(iterable_iterator_nothrow const& other) const
             {
                 return FAILED(*m_range->m_result) || (m_i == other.m_i);
             }
 
-            bool operator!=(iterable_iterator_nothrow const& other) const
+            WI_NODISCARD bool operator!=(iterable_iterator_nothrow const& other) const
             {
                 return !operator==(other);
             }
 
-            reference operator*() const WI_NOEXCEPT
+            WI_NODISCARD reference operator*() const WI_NOEXCEPT
             {
                 return m_range->m_element;
             }
 
-            pointer operator->() const WI_NOEXCEPT
+            WI_NODISCARD pointer operator->() const WI_NOEXCEPT
             {
                 return wistd::addressof(m_range->m_element);
             }
@@ -1463,12 +1463,12 @@ namespace details
                 return S_OK;
             }
 
-            HANDLE GetEvent() const
+            WI_NODISCARD HANDLE GetEvent() const
             {
                 return m_completedEventHandle.get();
             }
 
-            ABI::Windows::Foundation::AsyncStatus GetStatus() const
+            WI_NODISCARD ABI::Windows::Foundation::AsyncStatus GetStatus() const
             {
                 return m_status;
             }
@@ -1781,7 +1781,7 @@ namespace details
         void OnCancel() override { }
     private:
         // needs to be MapToSmartType<TResult>::type to hold non trial types
-        TResult m_result;
+        TResult m_result{};
     };
 
     extern const __declspec(selectany) wchar_t SyncAsyncActionName[] = L"SyncActionAction";
@@ -1937,12 +1937,12 @@ public:
         reset();
     }
 
-    explicit operator bool() const WI_NOEXCEPT
+    WI_NODISCARD explicit operator bool() const WI_NOEXCEPT
     {
         return (m_token.Value != 0);
     }
 
-    Windows::Foundation::EventRegistrationToken get() const WI_NOEXCEPT
+    WI_NODISCARD Windows::Foundation::EventRegistrationToken get() const WI_NOEXCEPT
     {
         return m_token;
     }
@@ -2045,12 +2045,12 @@ public:
         reset();
     }
 
-    explicit operator bool() const WI_NOEXCEPT
+    WI_NODISCARD explicit operator bool() const WI_NOEXCEPT
     {
         return (m_token.value != 0);
     }
 
-    ::EventRegistrationToken get() const WI_NOEXCEPT
+    WI_NODISCARD ::EventRegistrationToken get() const WI_NOEXCEPT
     {
         return m_token;
     }

@@ -485,8 +485,8 @@ namespace wil
         {
         public:
             pointer_range(T begin_, T end_) : m_begin(begin_), m_end(end_) {}
-            T begin() const  { return m_begin; }
-            T end() const    { return m_end; }
+            WI_NODISCARD T begin() const  { return m_begin; }
+            WI_NODISCARD T end() const    { return m_end; }
         private:
             T m_begin;
             T m_end;
