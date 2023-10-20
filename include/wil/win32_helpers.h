@@ -334,7 +334,6 @@ namespace wil
         details::string_maker<string_type> maker;
 
         wchar_t value[stackBufferLength]{};
-        value[0] = L'\0';
         size_t valueLengthNeededWithNull{}; // callback returns the number of characters needed including the null terminator.
         RETURN_IF_FAILED_EXPECTED(callback(value, ARRAYSIZE(value), &valueLengthNeededWithNull));
         WI_ASSERT(valueLengthNeededWithNull > 0);
