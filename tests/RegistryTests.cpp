@@ -16,7 +16,7 @@
 
 constexpr auto* testSubkey = L"Software\\Microsoft\\BasicRegistryTest";
 constexpr auto* dwordValueName = L"MyDwordValue";
-constexpr auto* qwordValueName = L"MyQwordvalue";
+constexpr auto* qwordValueName = L"MyQwordValue";
 constexpr auto* stringValueName = L"MyStringValue";
 #if defined(WIL_ENABLE_EXCEPTIONS)
 constexpr auto* multiStringValueName = L"MyMultiStringValue";
@@ -33,6 +33,16 @@ const std::wstring test_string_empty{};
 
 constexpr PCWSTR test_null_terminated_string{ L"testing" };
 constexpr PCWSTR test_empty_null_terminated_string{ L"" };
+
+constexpr PCWSTR test_enum_KeyName1 = L"1first_key";
+constexpr PCWSTR test_enum_KeyName2 = L"2second_key_even_longer";
+constexpr PCWSTR test_enum_KeyName3 = L"3third_key_shorter";
+constexpr PCWSTR test_enum_KeyName4 = L"4fourth_key_very_very_very_very_long";
+
+constexpr PCWSTR test_enum_valueName1 = L"1first_value";
+constexpr PCWSTR test_enum_valueName2 = L"2second_value_even_longer";
+constexpr PCWSTR test_enum_valueName3 = L"3third_value_shorter";
+constexpr PCWSTR test_enum_valueName4 = L"4fourth_value_very_very_very_very_long";
 
 // The empty multistring array has specific behavior: it will be read as an array with one string.
 const std::vector<std::wstring> test_multistring_empty{};
@@ -2971,3 +2981,2217 @@ TEST_CASE("BasicRegistryTests::cotaskmem_array-bytes", "[registry]]")
     }
 }
 #endif // #if defined(__WIL_OBJBASE_H_)
+
+#if defined(WIL_ENABLE_EXCEPTIONS)
+#if defined(_STRING_)
+TEST_CASE("BasicRegistryTests::value_iterator", "[registry]]")
+{
+    const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
+    if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+    {
+        REQUIRE_SUCCEEDED(deleteHr);
+    }
+
+    SECTION("value_iterator with no values")
+    {
+        wil::unique_hkey hkey{ wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey) };
+
+        auto test_iterator{ wil::reg::value_iterator(hkey.get()) };
+        auto test_end_iterator{ wil::reg::value_iterator{} };
+        REQUIRE(test_iterator == test_end_iterator);
+
+        const auto iterator_copy = test_iterator;
+        REQUIRE(iterator_copy == test_iterator);
+        REQUIRE(iterator_copy == test_end_iterator);
+    }
+
+    SECTION("value_iterator with one value - manual iterator usage")
+    {
+        wil::unique_hkey write_hkey{ wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite) };
+        wil::reg::set_value(write_hkey.get(), test_enum_valueName1, 0);
+
+        wil::unique_hkey hkey{ wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey) };
+
+        // both ways to access the iterator data
+        auto test_iterator = wil::reg::value_iterator(hkey.get());
+        REQUIRE(test_iterator == wil::reg::value_iterator(hkey.get()));
+        REQUIRE((*test_iterator).name == test_enum_valueName1);
+        REQUIRE(test_iterator->name == test_enum_valueName1);
+        auto test_iterator_copy = test_iterator;
+        REQUIRE(test_iterator_copy == wil::reg::value_iterator(hkey.get()));
+        REQUIRE((*test_iterator_copy).name == test_enum_valueName1);
+        REQUIRE(test_iterator_copy->name == test_enum_valueName1);
+        ++test_iterator;
+        REQUIRE(test_iterator == wil::reg::value_iterator{});
+        test_iterator_copy = test_iterator;
+        REQUIRE(test_iterator_copy == wil::reg::value_iterator{});
+
+        test_iterator = wil::reg::value_iterator(hkey.get());
+        REQUIRE(test_iterator != wil::reg::value_iterator{});
+        REQUIRE(test_iterator == wil::reg::value_iterator(hkey.get()));
+        REQUIRE((*test_iterator).name == test_enum_valueName1);
+        REQUIRE(test_iterator->name == test_enum_valueName1);
+        test_iterator_copy = test_iterator;
+        REQUIRE(test_iterator_copy == wil::reg::value_iterator(hkey.get()));
+        REQUIRE((*test_iterator_copy).name == test_enum_valueName1);
+        REQUIRE(test_iterator_copy->name == test_enum_valueName1);
+        ++test_iterator;
+        REQUIRE(test_iterator == wil::reg::value_iterator{});
+        test_iterator_copy = test_iterator;
+        REQUIRE(test_iterator_copy == wil::reg::value_iterator{});
+
+        const wil::unique_hkey hkey2{ wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey) };
+        test_iterator = wil::reg::value_iterator(hkey2.get());
+        REQUIRE(test_iterator != wil::reg::value_iterator{});
+        REQUIRE((*test_iterator).name == test_enum_valueName1);
+        REQUIRE(test_iterator->name == test_enum_valueName1);
+        test_iterator_copy = test_iterator;
+        REQUIRE((*test_iterator_copy).name == test_enum_valueName1);
+        REQUIRE(test_iterator_copy->name == test_enum_valueName1);
+        test_iterator += 1;
+        REQUIRE(test_iterator == wil::reg::value_iterator{});
+        test_iterator_copy = test_iterator;
+        REQUIRE(test_iterator_copy == wil::reg::value_iterator{});
+    }
+
+    SECTION("value_iterator with many values - std::for_each usage")
+    {
+        wil::unique_hkey hkey{ wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite) };
+        wil::reg::set_value(hkey.get(), test_enum_valueName1, 0);
+        wil::reg::set_value(hkey.get(), test_enum_valueName2, 1ul);
+        wil::reg::set_value(hkey.get(), test_enum_valueName3, 3ull);
+        wil::reg::set_value(hkey.get(), test_enum_valueName4, L"four");
+
+        uint32_t count = 0;
+        std::for_each(wil::reg::value_iterator(hkey.get()), wil::reg::value_iterator{}, [&](const auto& value_data)
+            {
+                ++count;
+                switch (count)
+                {
+                case 1:
+                    REQUIRE(value_data.name == test_enum_valueName1);
+                    REQUIRE(value_data.name.size() == wcslen(test_enum_valueName1));
+                    REQUIRE(value_data.type == REG_DWORD);
+                    break;
+                case 2:
+                    REQUIRE(value_data.name == test_enum_valueName2);
+                    REQUIRE(value_data.name.size() == wcslen(test_enum_valueName2));
+                    REQUIRE(value_data.type == REG_DWORD);
+                    break;
+                case 3:
+                    REQUIRE(value_data.name == test_enum_valueName3);
+                    REQUIRE(value_data.name.size() == wcslen(test_enum_valueName3));
+                    REQUIRE(value_data.type == REG_QWORD);
+                    break;
+                case 4:
+                    REQUIRE(value_data.name == test_enum_valueName4);
+                    REQUIRE(value_data.name.size() == wcslen(test_enum_valueName4));
+                    REQUIRE(value_data.type == REG_SZ);
+                    break;
+                default: REQUIRE_FAILED(false);
+                }
+            });
+        REQUIRE(count == 4);
+
+        count = 0;
+        const auto testIterator = wil::reg::value_iterator(hkey.get());
+        const auto testEndIterator = wil::reg::value_iterator{};
+        std::for_each(testIterator, testEndIterator, [&](const auto& value_data)
+            {
+                ++count;
+                switch (count)
+                {
+                case 1:
+                    REQUIRE(value_data.name == test_enum_valueName1);
+                    REQUIRE(value_data.name.size() == wcslen(test_enum_valueName1));
+                    REQUIRE(value_data.type == REG_DWORD);
+                    break;
+                case 2:
+                    REQUIRE(value_data.name == test_enum_valueName2);
+                    REQUIRE(value_data.name.size() == wcslen(test_enum_valueName2));
+                    REQUIRE(value_data.type == REG_DWORD);
+                    break;
+                case 3:
+                    REQUIRE(value_data.name == test_enum_valueName3);
+                    REQUIRE(value_data.name.size() == wcslen(test_enum_valueName3));
+                    REQUIRE(value_data.type == REG_QWORD);
+                    break;
+                case 4:
+                    REQUIRE(value_data.name == test_enum_valueName4);
+                    REQUIRE(value_data.name.size() == wcslen(test_enum_valueName4));
+                    REQUIRE(value_data.type == REG_SZ);
+                    break;
+                default: REQUIRE_FAILED(false);
+                }
+            });
+        REQUIRE(count == 4);
+
+        auto std_count = std::count_if(
+            wil::reg::value_iterator(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey).get()),
+            wil::reg::value_iterator{},
+            [&](const auto& value_data) {
+                return  (value_data.name == test_enum_valueName1) &&
+                    (value_data.name.size() == wcslen(test_enum_valueName1)) &&
+                    (value_data.type == REG_DWORD);
+            });
+        REQUIRE(std_count == 1);
+
+        std_count = std::count_if(
+            wil::reg::value_iterator(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey).get()),
+            wil::reg::value_iterator{},
+            [&](const auto& value_data) {
+                return  (value_data.name == test_enum_valueName2) &&
+                    (value_data.name.size() == wcslen(test_enum_valueName2)) &&
+                    (value_data.type == REG_DWORD);
+            });
+        REQUIRE(std_count == 1);
+
+        std_count = std::count_if(
+            wil::reg::value_iterator(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey).get()),
+            wil::reg::value_iterator{},
+            [&](const auto& value_data) {
+                return  (value_data.name == test_enum_valueName3) &&
+                    (value_data.name.size() == wcslen(test_enum_valueName3)) &&
+                    (value_data.type == REG_QWORD);
+            });
+        REQUIRE(std_count == 1);
+
+        std_count = std::count_if(
+            wil::reg::value_iterator(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey).get()),
+            wil::reg::value_iterator{},
+            [&](const auto& value_data) {
+                return  (value_data.name == test_enum_valueName4) &&
+                    (value_data.name.size() == wcslen(test_enum_valueName4)) &&
+                    (value_data.type == REG_SZ);
+            });
+        REQUIRE(std_count == 1);
+
+        std_count = std::count_if(
+            wil::reg::value_iterator(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey).get()),
+            wil::reg::value_iterator{},
+            [&](const auto& value_data) {
+                return  (value_data.name == L"xyz");
+            });
+        REQUIRE(std_count == 0);
+    }
+
+    SECTION("value_iterator with many values - range-for iterator usage")
+    {
+        wil::unique_hkey hkey{ wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite) };
+        wil::reg::set_value(hkey.get(), test_enum_valueName1, 0);
+        wil::reg::set_value(hkey.get(), test_enum_valueName2, 1ul);
+        wil::reg::set_value(hkey.get(), test_enum_valueName3, 3ull);
+        wil::reg::set_value(hkey.get(), test_enum_valueName4, L"four");
+
+        uint32_t count = 0;
+        for (const auto& value_data : wil::make_range(wil::reg::value_iterator{ hkey.get() }, wil::reg::value_iterator{}))
+        {
+            ++count;
+            switch (count)
+            {
+            case 1:
+                REQUIRE(value_data.name == test_enum_valueName1);
+                REQUIRE(value_data.name.size() == wcslen(test_enum_valueName1));
+                REQUIRE(value_data.type == REG_DWORD);
+                break;
+            case 2:
+                REQUIRE(value_data.name == test_enum_valueName2);
+                REQUIRE(value_data.name.size() == wcslen(test_enum_valueName2));
+                REQUIRE(value_data.type == REG_DWORD);
+                break;
+            case 3:
+                REQUIRE(value_data.name == test_enum_valueName3);
+                REQUIRE(value_data.name.size() == wcslen(test_enum_valueName3));
+                REQUIRE(value_data.type == REG_QWORD);
+                break;
+            case 4:
+                REQUIRE(value_data.name == test_enum_valueName4);
+                REQUIRE(value_data.name.size() == wcslen(test_enum_valueName4));
+                REQUIRE(value_data.type == REG_SZ);
+                break;
+            default: REQUIRE_FAILED(false);
+            }
+        }
+
+        count = 0;
+        const auto testIterator = wil::reg::value_iterator(hkey.get());
+        const auto testEndIterator = wil::reg::value_iterator{};
+        for (const auto& value_data : wil::make_range(testIterator, testEndIterator))
+        {
+            ++count;
+            switch (count)
+            {
+            case 1:
+                REQUIRE(value_data.name == test_enum_valueName1);
+                REQUIRE(value_data.name.size() == wcslen(test_enum_valueName1));
+                REQUIRE(value_data.type == REG_DWORD);
+                break;
+            case 2:
+                REQUIRE(value_data.name == test_enum_valueName2);
+                REQUIRE(value_data.name.size() == wcslen(test_enum_valueName2));
+                REQUIRE(value_data.type == REG_DWORD);
+                break;
+            case 3:
+                REQUIRE(value_data.name == test_enum_valueName3);
+                REQUIRE(value_data.name.size() == wcslen(test_enum_valueName3));
+                REQUIRE(value_data.type == REG_QWORD);
+                break;
+            case 4:
+                REQUIRE(value_data.name == test_enum_valueName4);
+                REQUIRE(value_data.name.size() == wcslen(test_enum_valueName4));
+                REQUIRE(value_data.type == REG_SZ);
+                break;
+            default: REQUIRE_FAILED(false);
+            }
+        }
+        REQUIRE(count == 4);
+    }
+}
+
+TEST_CASE("BasicRegistryTests::key_iterator", "[registry]]")
+{
+    const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
+    if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+    {
+        REQUIRE_SUCCEEDED(deleteHr);
+    }
+
+    SECTION("key_iterator with no subkeys")
+    {
+        wil::unique_hkey hkey{ wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey) };
+
+        auto test_iterator{ wil::reg::key_iterator(hkey.get()) };
+        auto test_end_iterator{ wil::reg::key_iterator{} };
+        REQUIRE(test_iterator == test_end_iterator);
+
+        const auto iterator_copy = test_iterator;
+        REQUIRE(iterator_copy == test_iterator);
+        REQUIRE(iterator_copy == test_end_iterator);
+    }
+
+    SECTION("key_iterator with one subkey - manual iterator usage")
+    {
+        wil::unique_hkey hkey{ wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite) };
+        wil::reg::create_unique_key(hkey.get(), test_enum_KeyName1);
+
+        const auto key_enum = wil::reg::key_iterator(hkey.get());
+        const auto key_end = wil::reg::key_iterator{};
+        REQUIRE(key_enum != key_end);
+
+        auto test_iterator = wil::reg::key_iterator(hkey.get());
+        REQUIRE(test_iterator == wil::reg::key_iterator(hkey.get()));
+        REQUIRE((*test_iterator).name == test_enum_KeyName1);
+        REQUIRE(test_iterator->name == test_enum_KeyName1);
+        auto test_iterator_copy = test_iterator;
+        REQUIRE(test_iterator_copy == wil::reg::key_iterator(hkey.get()));
+        REQUIRE((*test_iterator_copy).name == test_enum_KeyName1);
+        REQUIRE(test_iterator_copy->name == test_enum_KeyName1);
+        ++test_iterator;
+        REQUIRE(test_iterator == key_end);
+        REQUIRE(test_iterator == wil::reg::key_iterator{});
+        test_iterator_copy = test_iterator;
+        REQUIRE(test_iterator_copy == key_end);
+        REQUIRE(test_iterator_copy == wil::reg::key_iterator{});
+
+        test_iterator = wil::reg::key_iterator(hkey.get());
+        REQUIRE(test_iterator != wil::reg::key_iterator{});
+        REQUIRE(test_iterator == wil::reg::key_iterator(hkey.get()));
+        REQUIRE((*test_iterator).name == test_enum_KeyName1);
+        REQUIRE(test_iterator->name == test_enum_KeyName1);
+        test_iterator_copy = test_iterator;
+        REQUIRE(test_iterator_copy == wil::reg::key_iterator(hkey.get()));
+        REQUIRE((*test_iterator_copy).name == test_enum_KeyName1);
+        REQUIRE(test_iterator_copy->name == test_enum_KeyName1);
+        ++test_iterator;
+        REQUIRE(test_iterator == key_end);
+        REQUIRE(test_iterator == wil::reg::key_iterator{});
+        test_iterator_copy = test_iterator;
+        REQUIRE(test_iterator_copy == key_end);
+        REQUIRE(test_iterator_copy == wil::reg::key_iterator{});
+
+        const wil::unique_hkey hkey2{ wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey) };
+        test_iterator = wil::reg::key_iterator(hkey2.get());
+        REQUIRE(test_iterator != wil::reg::key_iterator{});
+        REQUIRE((*test_iterator).name == test_enum_KeyName1);
+        REQUIRE(test_iterator->name == test_enum_KeyName1);
+        test_iterator_copy = test_iterator;
+        REQUIRE((*test_iterator_copy).name == test_enum_KeyName1);
+        REQUIRE(test_iterator_copy->name == test_enum_KeyName1);
+        test_iterator += 1;
+        REQUIRE(test_iterator == wil::reg::key_iterator{});
+        test_iterator_copy = test_iterator;
+        REQUIRE(test_iterator_copy == wil::reg::key_iterator{});
+    }
+
+    SECTION("key_iterator with many subkeys - std::for_each and std::count usage")
+    {
+        wil::unique_hkey enum_hkey{ wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey) };
+        wil::reg::create_unique_key(enum_hkey.get(), test_enum_KeyName1);
+        wil::reg::create_unique_key(enum_hkey.get(), test_enum_KeyName2);
+        wil::reg::create_unique_key(enum_hkey.get(), test_enum_KeyName3);
+        wil::reg::create_unique_key(enum_hkey.get(), test_enum_KeyName4);
+
+        uint32_t count = 0;
+        std::for_each(wil::reg::key_iterator{ enum_hkey.get() }, wil::reg::key_iterator{}, [&](const auto& key_data) {
+            ++count;
+            switch (count)
+            {
+            case 1:
+                REQUIRE(key_data.name == test_enum_KeyName1);
+                REQUIRE(key_data.name.size() == wcslen(test_enum_KeyName1));
+                break;
+            case 2:
+                REQUIRE(key_data.name == test_enum_KeyName2);
+                REQUIRE(key_data.name.size() == wcslen(test_enum_KeyName2));
+                break;
+            case 3:
+                REQUIRE(key_data.name == test_enum_KeyName3);
+                REQUIRE(key_data.name.size() == wcslen(test_enum_KeyName3));
+                break;
+            case 4:
+                REQUIRE(key_data.name == test_enum_KeyName4);
+                REQUIRE(key_data.name.size() == wcslen(test_enum_KeyName4));
+                break;
+            default: REQUIRE_FAILED(false);
+            }
+            });
+        REQUIRE(count == 4);
+
+        auto std_count = std::count(wil::reg::key_iterator(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey).get()), wil::reg::key_iterator{}, test_enum_KeyName1);
+        REQUIRE(std_count == 1);
+
+        std_count = std::count(wil::reg::key_iterator(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey).get()), wil::reg::key_iterator{}, test_enum_KeyName2);
+        REQUIRE(std_count == 1);
+
+        std_count = std::count(wil::reg::key_iterator(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey).get()), wil::reg::key_iterator{}, test_enum_KeyName3);
+        REQUIRE(std_count == 1);
+
+        std_count = std::count(wil::reg::key_iterator(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey).get()), wil::reg::key_iterator{}, test_enum_KeyName4);
+        REQUIRE(std_count == 1);
+
+        std_count = std::count(wil::reg::key_iterator(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey).get()), wil::reg::key_iterator{}, L"xyz");
+        REQUIRE(std_count == 0);
+
+#if defined(__WIL_WINREG_STL)
+        // repeat with wil::shared_hkey
+        std_count = std::count(wil::reg::key_iterator(wil::reg::open_shared_key(HKEY_CURRENT_USER, testSubkey).get()), wil::reg::key_iterator{}, test_enum_KeyName1);
+        REQUIRE(std_count == 1);
+
+        std_count = std::count(wil::reg::key_iterator(wil::reg::open_shared_key(HKEY_CURRENT_USER, testSubkey).get()), wil::reg::key_iterator{}, test_enum_KeyName2);
+        REQUIRE(std_count == 1);
+
+        std_count = std::count(wil::reg::key_iterator(wil::reg::open_shared_key(HKEY_CURRENT_USER, testSubkey).get()), wil::reg::key_iterator{}, test_enum_KeyName3);
+        REQUIRE(std_count == 1);
+
+        std_count = std::count(wil::reg::key_iterator(wil::reg::open_shared_key(HKEY_CURRENT_USER, testSubkey).get()), wil::reg::key_iterator{}, test_enum_KeyName4);
+        REQUIRE(std_count == 1);
+
+        std_count = std::count(wil::reg::key_iterator(wil::reg::open_shared_key(HKEY_CURRENT_USER, testSubkey).get()), wil::reg::key_iterator{}, L"xyz");
+        REQUIRE(std_count == 0);
+#endif // #if defined(__WIL_WINREG_STL)
+    }
+
+    SECTION("key_iterator with many subkeys - range-for iterator usage")
+    {
+        wil::unique_hkey enum_hkey{ wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite) };
+        wil::reg::create_unique_key(enum_hkey.get(), test_enum_KeyName1);
+        wil::reg::create_unique_key(enum_hkey.get(), test_enum_KeyName2);
+        wil::reg::create_unique_key(enum_hkey.get(), test_enum_KeyName3);
+        wil::reg::create_unique_key(enum_hkey.get(), test_enum_KeyName4);
+
+        uint32_t count = 0;
+        for (const auto& key_data : wil::make_range(wil::reg::key_iterator{ enum_hkey.get() }, wil::reg::key_iterator{}))
+        {
+            ++count;
+            switch (count)
+            {
+            case 1:
+                REQUIRE(key_data.name == test_enum_KeyName1);
+                REQUIRE(key_data.name.size() == wcslen(test_enum_KeyName1));
+                break;
+            case 2:
+                REQUIRE(key_data.name == test_enum_KeyName2);
+                REQUIRE(key_data.name.size() == wcslen(test_enum_KeyName2));
+                break;
+            case 3:
+                REQUIRE(key_data.name == test_enum_KeyName3);
+                REQUIRE(key_data.name.size() == wcslen(test_enum_KeyName3));
+                break;
+            case 4:
+                REQUIRE(key_data.name == test_enum_KeyName4);
+                REQUIRE(key_data.name.size() == wcslen(test_enum_KeyName4));
+                break;
+            default: REQUIRE_FAILED(false);
+            }
+        }
+    }
+}
+#endif // #if !defined(_STRING_)
+
+#if defined(__WIL_OLEAUTO_H_)
+TEST_CASE("BasicRegistryTests::value_bstr_iterator", "[registry]]")
+{
+    const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
+    if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+    {
+        REQUIRE_SUCCEEDED(deleteHr);
+    }
+
+    SECTION("value_bstr_iterator with no values")
+    {
+        wil::unique_hkey hkey{ wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey) };
+
+        auto test_iterator{ wil::reg::value_bstr_iterator(hkey.get()) };
+        auto test_end_iterator{ wil::reg::value_bstr_iterator{} };
+        REQUIRE(test_iterator == test_end_iterator);
+
+        const auto iterator_copy = test_iterator;
+        REQUIRE(iterator_copy == test_iterator);
+        REQUIRE(iterator_copy == test_end_iterator);
+    }
+
+    SECTION("value_bstr_iterator with one value - manual iterator usage")
+    {
+        wil::unique_hkey write_hkey{ wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite) };
+        wil::reg::set_value(write_hkey.get(), test_enum_valueName1, 0);
+
+        wil::unique_hkey hkey{ wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey) };
+
+        // both ways to access the iterator data
+        auto test_iterator = wil::reg::value_bstr_iterator(hkey.get());
+        REQUIRE(test_iterator == wil::reg::value_bstr_iterator(hkey.get()));
+        REQUIRE(0 == wcscmp((*test_iterator).name.get(), test_enum_valueName1));
+        REQUIRE(0 == wcscmp(test_iterator->name.get(), test_enum_valueName1));
+        auto test_iterator_copy = test_iterator;
+        REQUIRE(test_iterator_copy == wil::reg::value_bstr_iterator(hkey.get()));
+        REQUIRE(0 == wcscmp((*test_iterator_copy).name.get(), test_enum_valueName1));
+        REQUIRE(0 == wcscmp(test_iterator_copy->name.get(), test_enum_valueName1));
+        ++test_iterator;
+        REQUIRE(test_iterator == wil::reg::value_bstr_iterator{});
+        test_iterator_copy = test_iterator;
+        REQUIRE(test_iterator_copy == wil::reg::value_bstr_iterator{});
+
+        test_iterator = wil::reg::value_bstr_iterator(hkey.get());
+        REQUIRE(test_iterator != wil::reg::value_bstr_iterator{});
+        REQUIRE(test_iterator == wil::reg::value_bstr_iterator(hkey.get()));
+        REQUIRE(0 == wcscmp((*test_iterator).name.get(), test_enum_valueName1));
+        REQUIRE(0 == wcscmp(test_iterator->name.get(), test_enum_valueName1));
+        test_iterator_copy = test_iterator;
+        REQUIRE(test_iterator_copy == wil::reg::value_bstr_iterator(hkey.get()));
+        REQUIRE(0 == wcscmp((*test_iterator_copy).name.get(), test_enum_valueName1));
+        REQUIRE(0 == wcscmp(test_iterator_copy->name.get(), test_enum_valueName1));
+        ++test_iterator;
+        REQUIRE(test_iterator == wil::reg::value_bstr_iterator{});
+        test_iterator_copy = test_iterator;
+        REQUIRE(test_iterator_copy == wil::reg::value_bstr_iterator{});
+
+        const wil::unique_hkey hkey2{ wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey) };
+        test_iterator = wil::reg::value_bstr_iterator(hkey2.get());
+        REQUIRE(test_iterator != wil::reg::value_bstr_iterator{});
+        REQUIRE(0 == wcscmp((*test_iterator).name.get(), test_enum_valueName1));
+        REQUIRE(0 == wcscmp(test_iterator->name.get(), test_enum_valueName1));
+        test_iterator_copy = test_iterator;
+        REQUIRE(0 == wcscmp((*test_iterator_copy).name.get(), test_enum_valueName1));
+        REQUIRE(0 == wcscmp(test_iterator_copy->name.get(), test_enum_valueName1));
+        test_iterator += 1;
+        REQUIRE(test_iterator == wil::reg::value_bstr_iterator{});
+        test_iterator_copy = test_iterator;
+        REQUIRE(test_iterator_copy == wil::reg::value_bstr_iterator{});
+    }
+
+    SECTION("value_bstr_iterator with many values - std::for_each usage")
+    {
+        wil::unique_hkey hkey{ wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite) };
+        wil::reg::set_value(hkey.get(), test_enum_valueName1, 0);
+        wil::reg::set_value(hkey.get(), test_enum_valueName2, 1ul);
+        wil::reg::set_value(hkey.get(), test_enum_valueName3, 3ull);
+        wil::reg::set_value(hkey.get(), test_enum_valueName4, L"four");
+
+        uint32_t count = 0;
+        std::for_each(wil::reg::value_bstr_iterator(hkey.get()), wil::reg::value_bstr_iterator{}, [&](const auto& value_data)
+            {
+                ++count;
+                switch (count)
+                {
+                case 1:
+                    REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName1));
+                    REQUIRE(value_data.type == REG_DWORD);
+                    break;
+                case 2:
+                    REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName2));
+                    REQUIRE(value_data.type == REG_DWORD);
+                    break;
+                case 3:
+                    REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName3));
+                    REQUIRE(value_data.type == REG_QWORD);
+                    break;
+                case 4:
+                    REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName4));
+                    REQUIRE(value_data.type == REG_SZ);
+                    break;
+                default: REQUIRE_FAILED(false);
+                }
+            });
+        REQUIRE(count == 4);
+
+        count = 0;
+        const auto testIterator = wil::reg::value_bstr_iterator(hkey.get());
+        const auto testEndIterator = wil::reg::value_bstr_iterator{};
+        std::for_each(testIterator, testEndIterator, [&](const auto& value_data)
+            {
+                ++count;
+                switch (count)
+                {
+                case 1:
+                    REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName1));
+                    REQUIRE(value_data.type == REG_DWORD);
+                    break;
+                case 2:
+                    REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName2));
+                    REQUIRE(value_data.type == REG_DWORD);
+                    break;
+                case 3:
+                    REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName3));
+                    REQUIRE(value_data.type == REG_QWORD);
+                    break;
+                case 4:
+                    REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName4));
+                    REQUIRE(value_data.type == REG_SZ);
+                    break;
+                default: REQUIRE_FAILED(false);
+                }
+            });
+        REQUIRE(count == 4);
+
+        auto std_count = std::count_if(
+            wil::reg::value_bstr_iterator(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey).get()),
+            wil::reg::value_bstr_iterator{},
+            [&](const auto& value_data) {
+                return  (0 == wcscmp(value_data.name.get(), test_enum_valueName1)) &&
+                    (value_data.type == REG_DWORD);
+            });
+        REQUIRE(std_count == 1);
+
+        std_count = std::count_if(
+            wil::reg::value_bstr_iterator(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey).get()),
+            wil::reg::value_bstr_iterator{},
+            [&](const auto& value_data) {
+                return  (0 == wcscmp(value_data.name.get(), test_enum_valueName2)) &&
+                    (value_data.type == REG_DWORD);
+            });
+        REQUIRE(std_count == 1);
+
+        std_count = std::count_if(
+            wil::reg::value_bstr_iterator(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey).get()),
+            wil::reg::value_bstr_iterator{},
+            [&](const auto& value_data) {
+                return  (0 == wcscmp(value_data.name.get(), test_enum_valueName3)) &&
+                    (value_data.type == REG_QWORD);
+            });
+        REQUIRE(std_count == 1);
+
+        std_count = std::count_if(
+            wil::reg::value_bstr_iterator(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey).get()),
+            wil::reg::value_bstr_iterator{},
+            [&](const auto& value_data) {
+                return  (0 == wcscmp(value_data.name.get(), test_enum_valueName4)) &&
+                    (value_data.type == REG_SZ);
+            });
+        REQUIRE(std_count == 1);
+
+        std_count = std::count_if(
+            wil::reg::value_bstr_iterator(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey).get()),
+            wil::reg::value_bstr_iterator{},
+            [&](const auto& value_data) {
+                return  (0 == wcscmp(value_data.name.get(), L"xyz"));
+            });
+        REQUIRE(std_count == 0);
+    }
+
+    SECTION("value_bstr_iterator with many values - range-for iterator usage")
+    {
+        wil::unique_hkey hkey{ wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite) };
+        wil::reg::set_value(hkey.get(), test_enum_valueName1, 0);
+        wil::reg::set_value(hkey.get(), test_enum_valueName2, 1ul);
+        wil::reg::set_value(hkey.get(), test_enum_valueName3, 3ull);
+        wil::reg::set_value(hkey.get(), test_enum_valueName4, L"four");
+
+        uint32_t count = 0;
+        for (const auto& value_data : wil::make_range(wil::reg::value_bstr_iterator{ hkey.get() }, wil::reg::value_bstr_iterator{}))
+        {
+            ++count;
+            switch (count)
+            {
+            case 1:
+                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName1));
+                REQUIRE(value_data.type == REG_DWORD);
+                break;
+            case 2:
+                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName2));
+                REQUIRE(value_data.type == REG_DWORD);
+                break;
+            case 3:
+                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName3));
+                REQUIRE(value_data.type == REG_QWORD);
+                break;
+            case 4:
+                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName4));
+                REQUIRE(value_data.type == REG_SZ);
+                break;
+            default: REQUIRE_FAILED(false);
+            }
+        }
+
+        count = 0;
+        const auto testIterator = wil::reg::value_bstr_iterator(hkey.get());
+        const auto testEndIterator = wil::reg::value_bstr_iterator{};
+        for (const auto& value_data : wil::make_range(testIterator, testEndIterator))
+        {
+            ++count;
+            switch (count)
+            {
+            case 1:
+                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName1));
+                REQUIRE(value_data.type == REG_DWORD);
+                break;
+            case 2:
+                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName2));
+                REQUIRE(value_data.type == REG_DWORD);
+                break;
+            case 3:
+                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName3));
+                REQUIRE(value_data.type == REG_QWORD);
+                break;
+            case 4:
+                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName4));
+                REQUIRE(value_data.type == REG_SZ);
+                break;
+            default: REQUIRE_FAILED(false);
+            }
+        }
+        REQUIRE(count == 4);
+    }
+}
+
+TEST_CASE("BasicRegistryTests::key_bstr_iterator", "[registry]]")
+{
+    const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
+    if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+    {
+        REQUIRE_SUCCEEDED(deleteHr);
+    }
+
+    SECTION("key_bstr_iterator with no subkeys")
+    {
+        wil::unique_hkey hkey{ wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey) };
+
+        auto test_iterator{ wil::reg::key_bstr_iterator(hkey.get()) };
+        auto test_end_iterator{ wil::reg::key_bstr_iterator{} };
+        REQUIRE(test_iterator == test_end_iterator);
+
+        const auto iterator_copy = test_iterator;
+        REQUIRE(iterator_copy == test_iterator);
+        REQUIRE(iterator_copy == test_end_iterator);
+    }
+
+    SECTION("key_bstr_iterator with one subkey - manual iterator usage")
+    {
+        wil::unique_hkey hkey{ wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite) };
+        wil::reg::create_unique_key(hkey.get(), test_enum_KeyName1);
+
+        const auto key_enum = wil::reg::key_bstr_iterator(hkey.get());
+        const auto key_end = wil::reg::key_bstr_iterator{};
+        REQUIRE(key_enum != key_end);
+
+        auto test_iterator = wil::reg::key_bstr_iterator(hkey.get());
+        REQUIRE(test_iterator == wil::reg::key_bstr_iterator(hkey.get()));
+        REQUIRE(0 == wcscmp((*test_iterator).name.get(), test_enum_KeyName1));
+        REQUIRE(0 == wcscmp(test_iterator->name.get(), test_enum_KeyName1));
+        auto test_iterator_copy = test_iterator;
+        REQUIRE(test_iterator_copy == wil::reg::key_bstr_iterator(hkey.get()));
+        REQUIRE(0 == wcscmp((*test_iterator_copy).name.get(), test_enum_KeyName1));
+        REQUIRE(0 == wcscmp(test_iterator_copy->name.get(), test_enum_KeyName1));
+        ++test_iterator;
+        REQUIRE(test_iterator == key_end);
+        REQUIRE(test_iterator == wil::reg::key_bstr_iterator{});
+        test_iterator_copy = test_iterator;
+        REQUIRE(test_iterator_copy == key_end);
+        REQUIRE(test_iterator_copy == wil::reg::key_bstr_iterator{});
+
+        test_iterator = wil::reg::key_bstr_iterator(hkey.get());
+        REQUIRE(test_iterator != wil::reg::key_bstr_iterator{});
+        REQUIRE(test_iterator == wil::reg::key_bstr_iterator(hkey.get()));
+        REQUIRE(0 == wcscmp((*test_iterator).name.get(), test_enum_KeyName1));
+        REQUIRE(0 == wcscmp(test_iterator->name.get(), test_enum_KeyName1));
+        test_iterator_copy = test_iterator;
+        REQUIRE(test_iterator_copy == wil::reg::key_bstr_iterator(hkey.get()));
+        REQUIRE(0 == wcscmp((*test_iterator_copy).name.get(), test_enum_KeyName1));
+        REQUIRE(0 == wcscmp(test_iterator_copy->name.get(), test_enum_KeyName1));
+        ++test_iterator;
+        REQUIRE(test_iterator == key_end);
+        REQUIRE(test_iterator == wil::reg::key_bstr_iterator{});
+        test_iterator_copy = test_iterator;
+        REQUIRE(test_iterator_copy == key_end);
+        REQUIRE(test_iterator_copy == wil::reg::key_bstr_iterator{});
+
+        const wil::unique_hkey hkey2{ wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey) };
+        test_iterator = wil::reg::key_bstr_iterator(hkey2.get());
+        REQUIRE(test_iterator != wil::reg::key_bstr_iterator{});
+        REQUIRE(0 == wcscmp((*test_iterator).name.get(), test_enum_KeyName1));
+        REQUIRE(0 == wcscmp(test_iterator->name.get(), test_enum_KeyName1));
+        test_iterator_copy = test_iterator;
+        REQUIRE(0 == wcscmp((*test_iterator_copy).name.get(), test_enum_KeyName1));
+        REQUIRE(0 == wcscmp(test_iterator_copy->name.get(), test_enum_KeyName1));
+        test_iterator += 1;
+        REQUIRE(test_iterator == wil::reg::key_bstr_iterator{});
+        test_iterator_copy = test_iterator;
+        REQUIRE(test_iterator_copy == wil::reg::key_bstr_iterator{});
+    }
+
+    SECTION("key_bstr_iterator with many subkeys - std::for_each and std::count usage")
+    {
+        wil::unique_hkey enum_hkey{ wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey) };
+        wil::reg::create_unique_key(enum_hkey.get(), test_enum_KeyName1);
+        wil::reg::create_unique_key(enum_hkey.get(), test_enum_KeyName2);
+        wil::reg::create_unique_key(enum_hkey.get(), test_enum_KeyName3);
+        wil::reg::create_unique_key(enum_hkey.get(), test_enum_KeyName4);
+
+        uint32_t count = 0;
+        std::for_each(wil::reg::key_bstr_iterator{ enum_hkey.get() }, wil::reg::key_bstr_iterator{}, [&](const auto& key_data) {
+            ++count;
+            switch (count)
+            {
+            case 1:
+                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName1));
+                break;
+            case 2:
+                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName2));
+                break;
+            case 3:
+                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName3));
+                break;
+            case 4:
+                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName4));
+                break;
+            default: REQUIRE_FAILED(false);
+            }
+            });
+        REQUIRE(count == 4);
+
+        auto std_count = std::count_if(wil::reg::key_bstr_iterator(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey).get()), wil::reg::key_bstr_iterator{},
+            [](const auto& test_data) {
+                return 0 == wcscmp(test_data.name.get(), test_enum_KeyName1);
+            });
+        REQUIRE(std_count == 1);
+
+        std_count = std::count_if(wil::reg::key_bstr_iterator(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey).get()), wil::reg::key_bstr_iterator{},
+            [](const auto& test_data) {
+                return 0 == wcscmp(test_data.name.get(), test_enum_KeyName2);
+            });
+        REQUIRE(std_count == 1);
+
+        std_count = std::count_if(wil::reg::key_bstr_iterator(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey).get()), wil::reg::key_bstr_iterator{},
+            [](const auto& test_data) {
+                return 0 == wcscmp(test_data.name.get(), test_enum_KeyName3);
+            });
+        REQUIRE(std_count == 1);
+
+        std_count = std::count_if(wil::reg::key_bstr_iterator(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey).get()), wil::reg::key_bstr_iterator{},
+            [](const auto& test_data) {
+                return 0 == wcscmp(test_data.name.get(), test_enum_KeyName4);
+            });
+        REQUIRE(std_count == 1);
+
+        std_count = std::count_if(wil::reg::key_bstr_iterator(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey).get()), wil::reg::key_bstr_iterator{},
+            [](const auto& test_data) {
+                return 0 == wcscmp(test_data.name.get(), L"xyz");
+            });
+        REQUIRE(std_count == 0);
+
+#if defined(__WIL_WINREG_STL)
+        // repeat with wil::shared_hkey
+        std_count = std::count_if(wil::reg::key_bstr_iterator(wil::reg::open_shared_key(HKEY_CURRENT_USER, testSubkey).get()), wil::reg::key_bstr_iterator{},
+            [](const auto& test_data) {
+                return 0 == wcscmp(test_data.name.get(), test_enum_KeyName1);
+            });
+        REQUIRE(std_count == 1);
+
+        std_count = std::count_if(wil::reg::key_bstr_iterator(wil::reg::open_shared_key(HKEY_CURRENT_USER, testSubkey).get()), wil::reg::key_bstr_iterator{},
+            [](const auto& test_data) {
+                return 0 == wcscmp(test_data.name.get(), test_enum_KeyName2);
+            });
+        REQUIRE(std_count == 1);
+
+        std_count = std::count_if(wil::reg::key_bstr_iterator(wil::reg::open_shared_key(HKEY_CURRENT_USER, testSubkey).get()), wil::reg::key_bstr_iterator{},
+            [](const auto& test_data) {
+                return 0 == wcscmp(test_data.name.get(), test_enum_KeyName3);
+            });
+        REQUIRE(std_count == 1);
+
+        std_count = std::count_if(wil::reg::key_bstr_iterator(wil::reg::open_shared_key(HKEY_CURRENT_USER, testSubkey).get()), wil::reg::key_bstr_iterator{},
+            [](const auto& test_data) {
+                return 0 == wcscmp(test_data.name.get(), test_enum_KeyName4);
+            });
+        REQUIRE(std_count == 1);
+
+        std_count = std::count_if(wil::reg::key_bstr_iterator(wil::reg::open_shared_key(HKEY_CURRENT_USER, testSubkey).get()), wil::reg::key_bstr_iterator{},
+            [](const auto& test_data) {
+                return 0 == wcscmp(test_data.name.get(), L"xyz");
+            });
+        REQUIRE(std_count == 0);
+#endif // #if defined(__WIL_WINREG_STL)
+    }
+
+    SECTION("key_bstr_iterator with many subkeys - range-for iterator usage")
+    {
+        wil::unique_hkey enum_hkey{ wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite) };
+        wil::reg::create_unique_key(enum_hkey.get(), test_enum_KeyName1);
+        wil::reg::create_unique_key(enum_hkey.get(), test_enum_KeyName2);
+        wil::reg::create_unique_key(enum_hkey.get(), test_enum_KeyName3);
+        wil::reg::create_unique_key(enum_hkey.get(), test_enum_KeyName4);
+
+        uint32_t count = 0;
+        for (const auto& key_data : wil::make_range(wil::reg::key_bstr_iterator{ enum_hkey.get() }, wil::reg::key_bstr_iterator{}))
+        {
+            ++count;
+            switch (count)
+            {
+            case 1:
+                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName1));
+                break;
+            case 2:
+                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName2));
+                break;
+            case 3:
+                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName3));
+                break;
+            case 4:
+                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName4));
+                break;
+            default: REQUIRE_FAILED(false);
+            }
+        }
+    }
+}
+#endif
+
+TEST_CASE("BasicRegistryTests::value_heap_string_iterator", "[registry]]")
+{
+    const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
+    if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+    {
+        REQUIRE_SUCCEEDED(deleteHr);
+    }
+
+    SECTION("value_heap_string_iterator with no values")
+    {
+        wil::unique_hkey hkey{ wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey) };
+
+        auto test_iterator{ wil::reg::value_heap_string_iterator(hkey.get()) };
+        auto test_end_iterator{ wil::reg::value_heap_string_iterator{} };
+        REQUIRE(test_iterator == test_end_iterator);
+
+        const auto iterator_copy = test_iterator;
+        REQUIRE(iterator_copy == test_iterator);
+        REQUIRE(iterator_copy == test_end_iterator);
+    }
+
+    SECTION("value_heap_string_iterator with one value - manual iterator usage")
+    {
+        wil::unique_hkey write_hkey{ wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite) };
+        wil::reg::set_value(write_hkey.get(), test_enum_valueName1, 0);
+
+        wil::unique_hkey hkey{ wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey) };
+
+        // both ways to access the iterator data
+        auto test_iterator = wil::reg::value_heap_string_iterator(hkey.get());
+        REQUIRE(test_iterator == wil::reg::value_heap_string_iterator(hkey.get()));
+        REQUIRE(0 == wcscmp((*test_iterator).name.get(), test_enum_valueName1));
+        REQUIRE(0 == wcscmp(test_iterator->name.get(), test_enum_valueName1));
+        auto test_iterator_copy = test_iterator;
+        REQUIRE(test_iterator_copy == wil::reg::value_heap_string_iterator(hkey.get()));
+        REQUIRE(0 == wcscmp((*test_iterator_copy).name.get(), test_enum_valueName1));
+        REQUIRE(0 == wcscmp(test_iterator_copy->name.get(), test_enum_valueName1));
+        ++test_iterator;
+        REQUIRE(test_iterator == wil::reg::value_heap_string_iterator{});
+        test_iterator_copy = test_iterator;
+        REQUIRE(test_iterator_copy == wil::reg::value_heap_string_iterator{});
+
+        test_iterator = wil::reg::value_heap_string_iterator(hkey.get());
+        REQUIRE(test_iterator != wil::reg::value_heap_string_iterator{});
+        REQUIRE(test_iterator == wil::reg::value_heap_string_iterator(hkey.get()));
+        REQUIRE(0 == wcscmp((*test_iterator).name.get(), test_enum_valueName1));
+        REQUIRE(0 == wcscmp(test_iterator->name.get(), test_enum_valueName1));
+        test_iterator_copy = test_iterator;
+        REQUIRE(test_iterator_copy == wil::reg::value_heap_string_iterator(hkey.get()));
+        REQUIRE(0 == wcscmp((*test_iterator_copy).name.get(), test_enum_valueName1));
+        REQUIRE(0 == wcscmp(test_iterator_copy->name.get(), test_enum_valueName1));
+        ++test_iterator;
+        REQUIRE(test_iterator == wil::reg::value_heap_string_iterator{});
+        test_iterator_copy = test_iterator;
+        REQUIRE(test_iterator_copy == wil::reg::value_heap_string_iterator{});
+
+        const wil::unique_hkey hkey2{ wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey) };
+        test_iterator = wil::reg::value_heap_string_iterator(hkey2.get());
+        REQUIRE(test_iterator != wil::reg::value_heap_string_iterator{});
+        REQUIRE(0 == wcscmp((*test_iterator).name.get(), test_enum_valueName1));
+        REQUIRE(0 == wcscmp(test_iterator->name.get(), test_enum_valueName1));
+        test_iterator_copy = test_iterator;
+        REQUIRE(0 == wcscmp((*test_iterator_copy).name.get(), test_enum_valueName1));
+        REQUIRE(0 == wcscmp(test_iterator_copy->name.get(), test_enum_valueName1));
+        test_iterator += 1;
+        REQUIRE(test_iterator == wil::reg::value_heap_string_iterator{});
+        test_iterator_copy = test_iterator;
+        REQUIRE(test_iterator_copy == wil::reg::value_heap_string_iterator{});
+    }
+
+    SECTION("value_heap_string_iterator with many values - std::for_each usage")
+    {
+        wil::unique_hkey hkey{ wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite) };
+        wil::reg::set_value(hkey.get(), test_enum_valueName1, 0);
+        wil::reg::set_value(hkey.get(), test_enum_valueName2, 1ul);
+        wil::reg::set_value(hkey.get(), test_enum_valueName3, 3ull);
+        wil::reg::set_value(hkey.get(), test_enum_valueName4, L"four");
+
+        uint32_t count = 0;
+        std::for_each(wil::reg::value_heap_string_iterator(hkey.get()), wil::reg::value_heap_string_iterator{}, [&](const auto& value_data)
+            {
+                ++count;
+                switch (count)
+                {
+                case 1:
+                    REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName1));
+                    REQUIRE(value_data.type == REG_DWORD);
+                    break;
+                case 2:
+                    REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName2));
+                    REQUIRE(value_data.type == REG_DWORD);
+                    break;
+                case 3:
+                    REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName3));
+                    REQUIRE(value_data.type == REG_QWORD);
+                    break;
+                case 4:
+                    REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName4));
+                    REQUIRE(value_data.type == REG_SZ);
+                    break;
+                default: REQUIRE_FAILED(false);
+                }
+            });
+        REQUIRE(count == 4);
+
+        count = 0;
+        const auto testIterator = wil::reg::value_heap_string_iterator(hkey.get());
+        const auto testEndIterator = wil::reg::value_heap_string_iterator{};
+        std::for_each(testIterator, testEndIterator, [&](const auto& value_data)
+            {
+                ++count;
+                switch (count)
+                {
+                case 1:
+                    REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName1));
+                    REQUIRE(value_data.type == REG_DWORD);
+                    break;
+                case 2:
+                    REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName2));
+                    REQUIRE(value_data.type == REG_DWORD);
+                    break;
+                case 3:
+                    REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName3));
+                    REQUIRE(value_data.type == REG_QWORD);
+                    break;
+                case 4:
+                    REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName4));
+                    REQUIRE(value_data.type == REG_SZ);
+                    break;
+                default: REQUIRE_FAILED(false);
+                }
+            });
+        REQUIRE(count == 4);
+
+        auto std_count = std::count_if(
+            wil::reg::value_heap_string_iterator(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey).get()),
+            wil::reg::value_heap_string_iterator{},
+            [&](const auto& value_data) {
+                return  (0 == wcscmp(value_data.name.get(), test_enum_valueName1)) &&
+                    (value_data.type == REG_DWORD);
+            });
+        REQUIRE(std_count == 1);
+
+        std_count = std::count_if(
+            wil::reg::value_heap_string_iterator(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey).get()),
+            wil::reg::value_heap_string_iterator{},
+            [&](const auto& value_data) {
+                return  (0 == wcscmp(value_data.name.get(), test_enum_valueName2)) &&
+                    (value_data.type == REG_DWORD);
+            });
+        REQUIRE(std_count == 1);
+
+        std_count = std::count_if(
+            wil::reg::value_heap_string_iterator(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey).get()),
+            wil::reg::value_heap_string_iterator{},
+            [&](const auto& value_data) {
+                return  (0 == wcscmp(value_data.name.get(), test_enum_valueName3)) &&
+                    (value_data.type == REG_QWORD);
+            });
+        REQUIRE(std_count == 1);
+
+        std_count = std::count_if(
+            wil::reg::value_heap_string_iterator(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey).get()),
+            wil::reg::value_heap_string_iterator{},
+            [&](const auto& value_data) {
+                return  (0 == wcscmp(value_data.name.get(), test_enum_valueName4)) &&
+                    (value_data.type == REG_SZ);
+            });
+        REQUIRE(std_count == 1);
+
+        std_count = std::count_if(
+            wil::reg::value_heap_string_iterator(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey).get()),
+            wil::reg::value_heap_string_iterator{},
+            [&](const auto& value_data) {
+                return  (0 == wcscmp(value_data.name.get(), L"xyz"));
+            });
+        REQUIRE(std_count == 0);
+    }
+
+    SECTION("value_heap_string_iterator with many values - range-for iterator usage")
+    {
+        wil::unique_hkey hkey{ wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite) };
+        wil::reg::set_value(hkey.get(), test_enum_valueName1, 0);
+        wil::reg::set_value(hkey.get(), test_enum_valueName2, 1ul);
+        wil::reg::set_value(hkey.get(), test_enum_valueName3, 3ull);
+        wil::reg::set_value(hkey.get(), test_enum_valueName4, L"four");
+
+        uint32_t count = 0;
+        for (const auto& value_data : wil::make_range(wil::reg::value_heap_string_iterator{ hkey.get() }, wil::reg::value_heap_string_iterator{}))
+        {
+            ++count;
+            switch (count)
+            {
+            case 1:
+                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName1));
+                REQUIRE(value_data.type == REG_DWORD);
+                break;
+            case 2:
+                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName2));
+                REQUIRE(value_data.type == REG_DWORD);
+                break;
+            case 3:
+                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName3));
+                REQUIRE(value_data.type == REG_QWORD);
+                break;
+            case 4:
+                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName4));
+                REQUIRE(value_data.type == REG_SZ);
+                break;
+            default: REQUIRE_FAILED(false);
+            }
+        }
+
+        count = 0;
+        const auto testIterator = wil::reg::value_heap_string_iterator(hkey.get());
+        const auto testEndIterator = wil::reg::value_heap_string_iterator{};
+        for (const auto& value_data : wil::make_range(testIterator, testEndIterator))
+        {
+            ++count;
+            switch (count)
+            {
+            case 1:
+                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName1));
+                REQUIRE(value_data.type == REG_DWORD);
+                break;
+            case 2:
+                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName2));
+                REQUIRE(value_data.type == REG_DWORD);
+                break;
+            case 3:
+                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName3));
+                REQUIRE(value_data.type == REG_QWORD);
+                break;
+            case 4:
+                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName4));
+                REQUIRE(value_data.type == REG_SZ);
+                break;
+            default: REQUIRE_FAILED(false);
+            }
+        }
+        REQUIRE(count == 4);
+    }
+}
+
+TEST_CASE("BasicRegistryTests::key_heap_string_iterator", "[registry]]")
+{
+    const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
+    if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+    {
+        REQUIRE_SUCCEEDED(deleteHr);
+    }
+
+    SECTION("key_heap_string_iterator with no subkeys")
+    {
+        wil::unique_hkey hkey{ wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey) };
+
+        auto test_iterator{ wil::reg::key_heap_string_iterator(hkey.get()) };
+        auto test_end_iterator{ wil::reg::key_heap_string_iterator{} };
+        REQUIRE(test_iterator == test_end_iterator);
+
+        const auto iterator_copy = test_iterator;
+        REQUIRE(iterator_copy == test_iterator);
+        REQUIRE(iterator_copy == test_end_iterator);
+    }
+
+    SECTION("key_heap_string_iterator with one subkey - manual iterator usage")
+    {
+        wil::unique_hkey hkey{ wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite) };
+        wil::reg::create_unique_key(hkey.get(), test_enum_KeyName1);
+
+        const auto key_enum = wil::reg::key_heap_string_iterator(hkey.get());
+        const auto key_end = wil::reg::key_heap_string_iterator{};
+        REQUIRE(key_enum != key_end);
+
+        auto test_iterator = wil::reg::key_heap_string_iterator(hkey.get());
+        REQUIRE(test_iterator == wil::reg::key_heap_string_iterator(hkey.get()));
+        REQUIRE(0 == wcscmp((*test_iterator).name.get(), test_enum_KeyName1));
+        REQUIRE(0 == wcscmp(test_iterator->name.get(), test_enum_KeyName1));
+        auto test_iterator_copy = test_iterator;
+        REQUIRE(test_iterator_copy == wil::reg::key_heap_string_iterator(hkey.get()));
+        REQUIRE(0 == wcscmp((*test_iterator_copy).name.get(), test_enum_KeyName1));
+        REQUIRE(0 == wcscmp(test_iterator_copy->name.get(), test_enum_KeyName1));
+        ++test_iterator;
+        REQUIRE(test_iterator == key_end);
+        REQUIRE(test_iterator == wil::reg::key_heap_string_iterator{});
+        test_iterator_copy = test_iterator;
+        REQUIRE(test_iterator_copy == key_end);
+        REQUIRE(test_iterator_copy == wil::reg::key_heap_string_iterator{});
+
+        test_iterator = wil::reg::key_heap_string_iterator(hkey.get());
+        REQUIRE(test_iterator != wil::reg::key_heap_string_iterator{});
+        REQUIRE(test_iterator == wil::reg::key_heap_string_iterator(hkey.get()));
+        REQUIRE(0 == wcscmp((*test_iterator).name.get(), test_enum_KeyName1));
+        REQUIRE(0 == wcscmp(test_iterator->name.get(), test_enum_KeyName1));
+        test_iterator_copy = test_iterator;
+        REQUIRE(test_iterator_copy == wil::reg::key_heap_string_iterator(hkey.get()));
+        REQUIRE(0 == wcscmp((*test_iterator_copy).name.get(), test_enum_KeyName1));
+        REQUIRE(0 == wcscmp(test_iterator_copy->name.get(), test_enum_KeyName1));
+        ++test_iterator;
+        REQUIRE(test_iterator == key_end);
+        REQUIRE(test_iterator == wil::reg::key_heap_string_iterator{});
+        test_iterator_copy = test_iterator;
+        REQUIRE(test_iterator_copy == key_end);
+        REQUIRE(test_iterator_copy == wil::reg::key_heap_string_iterator{});
+
+        const wil::unique_hkey hkey2{ wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey) };
+        test_iterator = wil::reg::key_heap_string_iterator(hkey2.get());
+        REQUIRE(test_iterator != wil::reg::key_heap_string_iterator{});
+        REQUIRE(0 == wcscmp((*test_iterator).name.get(), test_enum_KeyName1));
+        REQUIRE(0 == wcscmp(test_iterator->name.get(), test_enum_KeyName1));
+        test_iterator_copy = test_iterator;
+        REQUIRE(0 == wcscmp((*test_iterator_copy).name.get(), test_enum_KeyName1));
+        REQUIRE(0 == wcscmp(test_iterator_copy->name.get(), test_enum_KeyName1));
+        test_iterator += 1;
+        REQUIRE(test_iterator == wil::reg::key_heap_string_iterator{});
+        test_iterator_copy = test_iterator;
+        REQUIRE(test_iterator_copy == wil::reg::key_heap_string_iterator{});
+    }
+
+    SECTION("key_heap_string_iterator with many subkeys - std::for_each and std::count usage")
+    {
+        wil::unique_hkey enum_hkey{ wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey) };
+        wil::reg::create_unique_key(enum_hkey.get(), test_enum_KeyName1);
+        wil::reg::create_unique_key(enum_hkey.get(), test_enum_KeyName2);
+        wil::reg::create_unique_key(enum_hkey.get(), test_enum_KeyName3);
+        wil::reg::create_unique_key(enum_hkey.get(), test_enum_KeyName4);
+
+        uint32_t count = 0;
+        std::for_each(wil::reg::key_heap_string_iterator{ enum_hkey.get() }, wil::reg::key_heap_string_iterator{}, [&](const auto& key_data) {
+            ++count;
+            switch (count)
+            {
+            case 1:
+                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName1));
+                break;
+            case 2:
+                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName2));
+                break;
+            case 3:
+                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName3));
+                break;
+            case 4:
+                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName4));
+                break;
+            default: REQUIRE_FAILED(false);
+            }
+            });
+        REQUIRE(count == 4);
+
+        auto std_count = std::count_if(wil::reg::key_heap_string_iterator(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey).get()), wil::reg::key_heap_string_iterator{},
+            [](const auto& test_data) {
+                return 0 == wcscmp(test_data.name.get(), test_enum_KeyName1);
+            });
+        REQUIRE(std_count == 1);
+
+        std_count = std::count_if(wil::reg::key_heap_string_iterator(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey).get()), wil::reg::key_heap_string_iterator{},
+            [](const auto& test_data) {
+                return 0 == wcscmp(test_data.name.get(), test_enum_KeyName2);
+            });
+        REQUIRE(std_count == 1);
+
+        std_count = std::count_if(wil::reg::key_heap_string_iterator(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey).get()), wil::reg::key_heap_string_iterator{},
+            [](const auto& test_data) {
+                return 0 == wcscmp(test_data.name.get(), test_enum_KeyName3);
+            });
+        REQUIRE(std_count == 1);
+
+        std_count = std::count_if(wil::reg::key_heap_string_iterator(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey).get()), wil::reg::key_heap_string_iterator{},
+            [](const auto& test_data) {
+                return 0 == wcscmp(test_data.name.get(), test_enum_KeyName4);
+            });
+        REQUIRE(std_count == 1);
+
+        std_count = std::count_if(wil::reg::key_heap_string_iterator(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey).get()), wil::reg::key_heap_string_iterator{},
+            [](const auto& test_data) {
+                return 0 == wcscmp(test_data.name.get(), L"xyz");
+            });
+        REQUIRE(std_count == 0);
+
+#if defined(__WIL_WINREG_STL)
+        // repeat with wil::shared_hkey
+        std_count = std::count_if(wil::reg::key_heap_string_iterator(wil::reg::open_shared_key(HKEY_CURRENT_USER, testSubkey).get()), wil::reg::key_heap_string_iterator{},
+            [](const auto& test_data) {
+                return 0 == wcscmp(test_data.name.get(), test_enum_KeyName1);
+            });
+        REQUIRE(std_count == 1);
+
+        std_count = std::count_if(wil::reg::key_heap_string_iterator(wil::reg::open_shared_key(HKEY_CURRENT_USER, testSubkey).get()), wil::reg::key_heap_string_iterator{},
+            [](const auto& test_data) {
+                return 0 == wcscmp(test_data.name.get(), test_enum_KeyName2);
+            });
+        REQUIRE(std_count == 1);
+
+        std_count = std::count_if(wil::reg::key_heap_string_iterator(wil::reg::open_shared_key(HKEY_CURRENT_USER, testSubkey).get()), wil::reg::key_heap_string_iterator{},
+            [](const auto& test_data) {
+                return 0 == wcscmp(test_data.name.get(), test_enum_KeyName3);
+            });
+        REQUIRE(std_count == 1);
+
+        std_count = std::count_if(wil::reg::key_heap_string_iterator(wil::reg::open_shared_key(HKEY_CURRENT_USER, testSubkey).get()), wil::reg::key_heap_string_iterator{},
+            [](const auto& test_data) {
+                return 0 == wcscmp(test_data.name.get(), test_enum_KeyName4);
+            });
+        REQUIRE(std_count == 1);
+
+        std_count = std::count_if(wil::reg::key_heap_string_iterator(wil::reg::open_shared_key(HKEY_CURRENT_USER, testSubkey).get()), wil::reg::key_heap_string_iterator{},
+            [](const auto& test_data) {
+                return 0 == wcscmp(test_data.name.get(), L"xyz");
+            });
+        REQUIRE(std_count == 0);
+#endif // #if defined(__WIL_WINREG_STL)
+    }
+
+    SECTION("key_heap_string_iterator with many subkeys - range-for iterator usage")
+    {
+        wil::unique_hkey enum_hkey{ wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite) };
+        wil::reg::create_unique_key(enum_hkey.get(), test_enum_KeyName1);
+        wil::reg::create_unique_key(enum_hkey.get(), test_enum_KeyName2);
+        wil::reg::create_unique_key(enum_hkey.get(), test_enum_KeyName3);
+        wil::reg::create_unique_key(enum_hkey.get(), test_enum_KeyName4);
+
+        uint32_t count = 0;
+        for (const auto& key_data : wil::make_range(wil::reg::key_heap_string_iterator{ enum_hkey.get() }, wil::reg::key_heap_string_iterator{}))
+        {
+            ++count;
+            switch (count)
+            {
+            case 1:
+                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName1));
+                break;
+            case 2:
+                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName2));
+                break;
+            case 3:
+                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName3));
+                break;
+            case 4:
+                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName4));
+                break;
+            default: REQUIRE_FAILED(false);
+            }
+        }
+    }
+}
+#endif // #if defined(WIL_ENABLE_EXCEPTIONS)
+
+#if defined(__WIL_OLEAUTO_H_)
+TEST_CASE("BasicRegistryTests::value_bstr_nothrow_iterator", "[registry]]")
+{
+    const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
+    if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+    {
+        REQUIRE_SUCCEEDED(deleteHr);
+    }
+
+    SECTION("value_bstr_nothrow_iterator with no values")
+    {
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey));
+
+        auto test_iterator{ wil::reg::value_bstr_nothrow_iterator(hkey.get()) };
+        auto test_end_iterator{ wil::reg::value_bstr_nothrow_iterator{} };
+        REQUIRE(test_iterator == test_end_iterator);
+        REQUIRE(test_iterator.at_end());
+        REQUIRE(test_end_iterator.at_end());
+
+        const auto iterator_copy = test_iterator;
+        REQUIRE(iterator_copy == test_iterator);
+        REQUIRE(iterator_copy == test_end_iterator);
+        REQUIRE(iterator_copy.at_end());
+    }
+
+    SECTION("value_bstr_nothrow_iterator with one value - manual iterator usage")
+    {
+        wil::unique_hkey write_hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, write_hkey, wil::reg::key_access::readwrite));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(write_hkey.get(), test_enum_valueName1, 0));
+
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey));
+
+        // both ways to access the iterator data
+        auto test_iterator = wil::reg::value_bstr_nothrow_iterator(hkey.get());
+        REQUIRE(test_iterator == wil::reg::value_bstr_nothrow_iterator(hkey.get()));
+        REQUIRE(0 == wcscmp((*test_iterator).name.get(), test_enum_valueName1));
+        REQUIRE(0 == wcscmp(test_iterator->name.get(), test_enum_valueName1));
+        auto test_iterator_copy = test_iterator;
+        REQUIRE(test_iterator_copy == wil::reg::value_bstr_nothrow_iterator(hkey.get()));
+        REQUIRE(0 == wcscmp((*test_iterator_copy).name.get(), test_enum_valueName1));
+        REQUIRE(0 == wcscmp(test_iterator_copy->name.get(), test_enum_valueName1));
+        REQUIRE_SUCCEEDED(test_iterator.move_next());
+        REQUIRE_SUCCEEDED(test_iterator.last_error());
+        REQUIRE(test_iterator.at_end());
+        REQUIRE(test_iterator == wil::reg::value_bstr_nothrow_iterator{});
+        test_iterator_copy = test_iterator;
+        REQUIRE(test_iterator_copy == wil::reg::value_bstr_nothrow_iterator{});
+        REQUIRE(test_iterator_copy.at_end());
+
+        test_iterator = wil::reg::value_bstr_nothrow_iterator(hkey.get());
+        REQUIRE(test_iterator != wil::reg::value_bstr_nothrow_iterator{});
+        REQUIRE(test_iterator == wil::reg::value_bstr_nothrow_iterator(hkey.get()));
+        REQUIRE(0 == wcscmp((*test_iterator).name.get(), test_enum_valueName1));
+        REQUIRE(0 == wcscmp(test_iterator->name.get(), test_enum_valueName1));
+        REQUIRE(!test_iterator.at_end());
+        test_iterator_copy = test_iterator;
+        REQUIRE(test_iterator_copy == wil::reg::value_bstr_nothrow_iterator(hkey.get()));
+        REQUIRE(0 == wcscmp((*test_iterator_copy).name.get(), test_enum_valueName1));
+        REQUIRE(0 == wcscmp(test_iterator_copy->name.get(), test_enum_valueName1));
+        REQUIRE(!test_iterator_copy.at_end());
+        REQUIRE_SUCCEEDED(test_iterator.move_next());
+        REQUIRE_SUCCEEDED(test_iterator.last_error());
+        REQUIRE(test_iterator.at_end());
+        REQUIRE(test_iterator == wil::reg::value_bstr_nothrow_iterator{});
+        test_iterator_copy = test_iterator;
+        REQUIRE(test_iterator_copy == wil::reg::value_bstr_nothrow_iterator{});
+
+        wil::unique_hkey hkey2;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey2));
+        test_iterator = wil::reg::value_bstr_nothrow_iterator(hkey2.get());
+        REQUIRE(test_iterator != wil::reg::value_bstr_nothrow_iterator{});
+        REQUIRE(0 == wcscmp((*test_iterator).name.get(), test_enum_valueName1));
+        REQUIRE(0 == wcscmp(test_iterator->name.get(), test_enum_valueName1));
+        REQUIRE(!test_iterator.at_end());
+        test_iterator_copy = test_iterator;
+        REQUIRE(0 == wcscmp((*test_iterator_copy).name.get(), test_enum_valueName1));
+        REQUIRE(0 == wcscmp(test_iterator_copy->name.get(), test_enum_valueName1));
+        REQUIRE(!test_iterator_copy.at_end());
+        REQUIRE_SUCCEEDED(test_iterator.move_next());
+        REQUIRE_SUCCEEDED(test_iterator.last_error());
+        REQUIRE(test_iterator.at_end());
+        REQUIRE(test_iterator == wil::reg::value_bstr_nothrow_iterator{});
+        test_iterator_copy = test_iterator;
+        REQUIRE(test_iterator_copy == wil::reg::value_bstr_nothrow_iterator{});
+        REQUIRE(test_iterator_copy.at_end());
+    }
+
+    SECTION("value_bstr_nothrow_iterator with many values - range-for iterator usage")
+    {
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(hkey.get(), test_enum_valueName1, 0));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(hkey.get(), test_enum_valueName2, 1ul));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(hkey.get(), test_enum_valueName3, 3ull));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(hkey.get(), test_enum_valueName4, L"four"));
+
+        uint32_t count = 0;
+        for (const auto& value_data : wil::make_range(wil::reg::value_bstr_nothrow_iterator{ hkey.get() }, wil::reg::value_bstr_nothrow_iterator{}))
+        {
+            if (value_data.at_end())
+            {
+                break;
+            }
+
+            ++count;
+            switch (count)
+            {
+            case 1:
+                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName1));
+                REQUIRE(value_data.type == REG_DWORD);
+                break;
+            case 2:
+                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName2));
+                REQUIRE(value_data.type == REG_DWORD);
+                break;
+            case 3:
+                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName3));
+                REQUIRE(value_data.type == REG_QWORD);
+                break;
+            case 4:
+                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName4));
+                REQUIRE(value_data.type == REG_SZ);
+                break;
+            default:
+                REQUIRE_FAILED(false);
+            }
+        }
+        REQUIRE(count == 4);
+
+        count = 0;
+        const auto testIterator = wil::reg::value_bstr_nothrow_iterator(hkey.get());
+        const auto testEndIterator = wil::reg::value_bstr_nothrow_iterator{};
+        for (const auto& value_data : wil::make_range(testIterator, testEndIterator))
+        {
+            if (value_data.at_end())
+            {
+                break;
+            }
+
+            ++count;
+            switch (count)
+            {
+            case 1:
+                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName1));
+                REQUIRE(value_data.type == REG_DWORD);
+                break;
+            case 2:
+                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName2));
+                REQUIRE(value_data.type == REG_DWORD);
+                break;
+            case 3:
+                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName3));
+                REQUIRE(value_data.type == REG_QWORD);
+                break;
+            case 4:
+                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName4));
+                REQUIRE(value_data.type == REG_SZ);
+                break;
+            default:
+                REQUIRE_FAILED(false);
+            }
+        }
+        REQUIRE_SUCCEEDED(testIterator.last_error());
+        REQUIRE(count == 4);
+
+        count = 0;
+        auto manual_iterator = wil::reg::value_bstr_nothrow_iterator{ hkey.get() };
+        REQUIRE_SUCCEEDED(manual_iterator.last_error());
+        while (!manual_iterator.at_end())
+        {
+            ++count;
+            switch (count)
+            {
+            case 1:
+                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_valueName1));
+                REQUIRE(manual_iterator->type == REG_DWORD);
+                break;
+            case 2:
+                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_valueName2));
+                REQUIRE(manual_iterator->type == REG_DWORD);
+                break;
+            case 3:
+                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_valueName3));
+                REQUIRE(manual_iterator->type == REG_QWORD);
+                break;
+            case 4:
+                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_valueName4));
+                REQUIRE(manual_iterator->type == REG_SZ);
+                break;
+            default: REQUIRE_FAILED(false);
+            }
+
+            const auto hr = manual_iterator.move_next();
+            REQUIRE_SUCCEEDED(hr);
+            REQUIRE_SUCCEEDED(manual_iterator.last_error());
+        }
+        REQUIRE_SUCCEEDED(manual_iterator.last_error());
+        REQUIRE(manual_iterator->at_end());
+        REQUIRE(count == 4);
+
+        count = 0;
+        manual_iterator = wil::reg::value_bstr_nothrow_iterator{ hkey.get() };
+        for (; !manual_iterator.at_end(); manual_iterator.move_next())
+        {
+            ++count;
+            switch (count)
+            {
+            case 1:
+                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_valueName1));
+                REQUIRE(manual_iterator->type == REG_DWORD);
+                break;
+            case 2:
+                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_valueName2));
+                REQUIRE(manual_iterator->type == REG_DWORD);
+                break;
+            case 3:
+                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_valueName3));
+                REQUIRE(manual_iterator->type == REG_QWORD);
+                break;
+            case 4:
+                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_valueName4));
+                REQUIRE(manual_iterator->type == REG_SZ);
+                break;
+            default: REQUIRE_FAILED(false);
+            }
+        }
+        REQUIRE_SUCCEEDED(manual_iterator.last_error());
+        REQUIRE_SUCCEEDED(manual_iterator.last_error());
+        REQUIRE(manual_iterator->at_end());
+        REQUIRE(count == 4);
+    }
+}
+
+TEST_CASE("BasicRegistryTests::key_bstr_nothrow_iterator", "[registry]]")
+{
+    const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
+    if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+    {
+        REQUIRE_SUCCEEDED(deleteHr);
+    }
+
+    SECTION("key_bstr_nothrow_iterator with no subkeys")
+    {
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey));
+
+        auto test_iterator{ wil::reg::key_bstr_nothrow_iterator(hkey.get()) };
+        auto test_end_iterator{ wil::reg::key_bstr_nothrow_iterator{} };
+        REQUIRE(test_iterator == test_end_iterator);
+
+        const auto iterator_copy = test_iterator;
+        REQUIRE(iterator_copy == test_iterator);
+        REQUIRE(iterator_copy == test_end_iterator);
+    }
+
+    SECTION("key_bstr_nothrow_iterator with one subkey - manual iterator usage")
+    {
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
+        wil::unique_hkey subkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(hkey.get(), test_enum_KeyName1, subkey));
+        subkey.reset();
+
+        const auto key_enum = wil::reg::key_bstr_nothrow_iterator(hkey.get());
+        const auto key_end = wil::reg::key_bstr_nothrow_iterator{};
+        REQUIRE(key_enum != key_end);
+
+        auto key_iterator = wil::reg::key_bstr_nothrow_iterator(hkey.get());
+        REQUIRE(key_iterator == wil::reg::key_bstr_nothrow_iterator(hkey.get()));
+        REQUIRE(0 == wcscmp((*key_iterator).name.get(), test_enum_KeyName1));
+        REQUIRE(0 == wcscmp(key_iterator->name.get(), test_enum_KeyName1));
+        auto key_iterator_copy = key_iterator;
+        REQUIRE(key_iterator_copy == wil::reg::key_bstr_nothrow_iterator(hkey.get()));
+        REQUIRE(0 == wcscmp((*key_iterator_copy).name.get(), test_enum_KeyName1));
+        REQUIRE(0 == wcscmp(key_iterator_copy->name.get(), test_enum_KeyName1));
+        REQUIRE_SUCCEEDED(key_iterator.move_next());
+        REQUIRE_SUCCEEDED(key_iterator.last_error());
+        REQUIRE(key_iterator == key_end);
+        REQUIRE(key_iterator == wil::reg::key_bstr_nothrow_iterator{});
+        key_iterator_copy = key_iterator;
+        REQUIRE(key_iterator_copy == key_end);
+        REQUIRE(key_iterator_copy == wil::reg::key_bstr_nothrow_iterator{});
+
+        key_iterator = wil::reg::key_bstr_nothrow_iterator(hkey.get());
+        REQUIRE(key_iterator != wil::reg::key_bstr_nothrow_iterator{});
+        REQUIRE(key_iterator == wil::reg::key_bstr_nothrow_iterator(hkey.get()));
+        REQUIRE(0 == wcscmp((*key_iterator).name.get(), test_enum_KeyName1));
+        REQUIRE(0 == wcscmp(key_iterator->name.get(), test_enum_KeyName1));
+        key_iterator_copy = key_iterator;
+        REQUIRE(key_iterator_copy == wil::reg::key_bstr_nothrow_iterator(hkey.get()));
+        REQUIRE(0 == wcscmp((*key_iterator_copy).name.get(), test_enum_KeyName1));
+        REQUIRE(0 == wcscmp(key_iterator_copy->name.get(), test_enum_KeyName1));
+        REQUIRE_SUCCEEDED(key_iterator.move_next());
+        REQUIRE_SUCCEEDED(key_iterator.last_error());
+        REQUIRE(key_iterator == key_end);
+        REQUIRE(key_iterator == wil::reg::key_bstr_nothrow_iterator{});
+        key_iterator_copy = key_iterator;
+        REQUIRE(key_iterator_copy == key_end);
+        REQUIRE(key_iterator_copy == wil::reg::key_bstr_nothrow_iterator{});
+
+        wil::unique_hkey hkey2;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey2));
+        key_iterator = wil::reg::key_bstr_nothrow_iterator(hkey2.get());
+        REQUIRE(key_iterator != wil::reg::key_bstr_nothrow_iterator{});
+        REQUIRE(0 == wcscmp((*key_iterator).name.get(), test_enum_KeyName1));
+        REQUIRE(0 == wcscmp(key_iterator->name.get(), test_enum_KeyName1));
+        key_iterator_copy = key_iterator;
+        REQUIRE(0 == wcscmp((*key_iterator_copy).name.get(), test_enum_KeyName1));
+        REQUIRE(0 == wcscmp(key_iterator_copy->name.get(), test_enum_KeyName1));
+        REQUIRE_SUCCEEDED(key_iterator.move_next());
+        REQUIRE_SUCCEEDED(key_iterator.last_error());
+        REQUIRE(key_iterator == wil::reg::key_bstr_nothrow_iterator{});
+        key_iterator_copy = key_iterator;
+        REQUIRE(key_iterator_copy == wil::reg::key_bstr_nothrow_iterator{});
+    }
+
+    SECTION("key_bstr_nothrow_iterator with many subkeys - range-for iterator usage")
+    {
+        wil::unique_hkey enum_hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, enum_hkey, wil::reg::key_access::readwrite));
+        wil::unique_hkey subkey;
+        wil::reg::create_unique_key_nothrow(enum_hkey.get(), test_enum_KeyName1, subkey);
+        wil::reg::create_unique_key_nothrow(enum_hkey.get(), test_enum_KeyName2, subkey);
+        wil::reg::create_unique_key_nothrow(enum_hkey.get(), test_enum_KeyName3, subkey);
+        wil::reg::create_unique_key_nothrow(enum_hkey.get(), test_enum_KeyName4, subkey);
+        subkey.reset();
+
+        uint32_t count = 0;
+        for (const auto& key_data : wil::make_range(wil::reg::key_bstr_nothrow_iterator{ enum_hkey.get() }, wil::reg::key_bstr_nothrow_iterator{}))
+        {
+            ++count;
+            switch (count)
+            {
+            case 1:
+                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName1));
+                break;
+            case 2:
+                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName2));
+                break;
+            case 3:
+                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName3));
+                break;
+            case 4:
+                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName4));
+                break;
+            default: REQUIRE_FAILED(false);
+            }
+        }
+        REQUIRE(count == 4);
+
+        count = 0;
+        const auto testIterator = wil::reg::key_bstr_nothrow_iterator(enum_hkey.get());
+        const auto testEndIterator = wil::reg::key_bstr_nothrow_iterator{};
+        for (const auto& key_data : wil::make_range(testIterator, testEndIterator))
+        {
+            ++count;
+            switch (count)
+            {
+            case 1:
+                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName1));
+                break;
+            case 2:
+                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName2));
+                break;
+            case 3:
+                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName3));
+                break;
+            case 4:
+                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName4));
+                break;
+            default: REQUIRE_FAILED(false);
+            }
+        }
+        REQUIRE_SUCCEEDED(testIterator.last_error());
+        REQUIRE(count == 4);
+
+        count = 0;
+        auto manual_iterator = wil::reg::key_bstr_nothrow_iterator{ enum_hkey.get() };
+        REQUIRE_SUCCEEDED(manual_iterator.last_error());
+        while (!manual_iterator.at_end())
+        {
+            ++count;
+            switch (count)
+            {
+            case 1:
+                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_KeyName1));
+                break;
+            case 2:
+                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_KeyName2));
+                break;
+            case 3:
+                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_KeyName3));
+                break;
+            case 4:
+                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_KeyName4));
+                break;
+            default: REQUIRE_FAILED(false);
+            }
+
+            const auto hr = manual_iterator.move_next();
+            REQUIRE_SUCCEEDED(hr);
+            REQUIRE_SUCCEEDED(manual_iterator.last_error());
+        }
+        REQUIRE_SUCCEEDED(manual_iterator.last_error());
+        REQUIRE(manual_iterator.at_end());
+        REQUIRE(count == 4);
+
+        count = 0;
+        manual_iterator = wil::reg::key_bstr_nothrow_iterator{ enum_hkey.get() };
+        for (; !manual_iterator.at_end(); manual_iterator.move_next())
+        {
+            ++count;
+            switch (count)
+            {
+            case 1:
+                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_KeyName1));
+                break;
+            case 2:
+                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_KeyName2));
+                break;
+            case 3:
+                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_KeyName3));
+                break;
+            case 4:
+                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_KeyName4));
+                break;
+            default: REQUIRE_FAILED(false);
+            }
+        }
+        REQUIRE_SUCCEEDED(manual_iterator.last_error());
+        REQUIRE_SUCCEEDED(manual_iterator.last_error());
+        REQUIRE(count == 4);
+    }
+}
+#endif
+TEST_CASE("BasicRegistryTests::value_heap_string_nothrow_iterator", "[registry]]")
+{
+    const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
+    if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+    {
+        REQUIRE_SUCCEEDED(deleteHr);
+    }
+
+    SECTION("value_heap_string_nothrow_iterator with no values")
+    {
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey));
+
+        auto test_iterator{ wil::reg::value_heap_string_nothrow_iterator(hkey.get()) };
+        auto test_end_iterator{ wil::reg::value_heap_string_nothrow_iterator{} };
+        REQUIRE(test_iterator == test_end_iterator);
+        REQUIRE(test_iterator.at_end());
+        REQUIRE(test_end_iterator.at_end());
+
+        const auto iterator_copy = test_iterator;
+        REQUIRE(iterator_copy == test_iterator);
+        REQUIRE(iterator_copy == test_end_iterator);
+        REQUIRE(iterator_copy.at_end());
+    }
+
+    SECTION("value_heap_string_nothrow_iterator with one value - manual iterator usage")
+    {
+        wil::unique_hkey write_hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, write_hkey, wil::reg::key_access::readwrite));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(write_hkey.get(), test_enum_valueName1, 0));
+
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey));
+
+        // both ways to access the iterator data
+        auto test_iterator = wil::reg::value_heap_string_nothrow_iterator(hkey.get());
+        REQUIRE(test_iterator == wil::reg::value_heap_string_nothrow_iterator(hkey.get()));
+        REQUIRE(0 == wcscmp((*test_iterator).name.get(), test_enum_valueName1));
+        REQUIRE(0 == wcscmp(test_iterator->name.get(), test_enum_valueName1));
+        auto test_iterator_copy = test_iterator;
+        REQUIRE(test_iterator_copy == wil::reg::value_heap_string_nothrow_iterator(hkey.get()));
+        REQUIRE(0 == wcscmp((*test_iterator_copy).name.get(), test_enum_valueName1));
+        REQUIRE(0 == wcscmp(test_iterator_copy->name.get(), test_enum_valueName1));
+        REQUIRE_SUCCEEDED(test_iterator.move_next());
+        REQUIRE_SUCCEEDED(test_iterator.last_error());
+        REQUIRE(test_iterator.at_end());
+        REQUIRE(test_iterator == wil::reg::value_heap_string_nothrow_iterator{});
+        test_iterator_copy = test_iterator;
+        REQUIRE(test_iterator_copy == wil::reg::value_heap_string_nothrow_iterator{});
+        REQUIRE(test_iterator_copy.at_end());
+
+        test_iterator = wil::reg::value_heap_string_nothrow_iterator(hkey.get());
+        REQUIRE(test_iterator != wil::reg::value_heap_string_nothrow_iterator{});
+        REQUIRE(test_iterator == wil::reg::value_heap_string_nothrow_iterator(hkey.get()));
+        REQUIRE(0 == wcscmp((*test_iterator).name.get(), test_enum_valueName1));
+        REQUIRE(0 == wcscmp(test_iterator->name.get(), test_enum_valueName1));
+        REQUIRE(!test_iterator.at_end());
+        test_iterator_copy = test_iterator;
+        REQUIRE(test_iterator_copy == wil::reg::value_heap_string_nothrow_iterator(hkey.get()));
+        REQUIRE(0 == wcscmp((*test_iterator_copy).name.get(), test_enum_valueName1));
+        REQUIRE(0 == wcscmp(test_iterator_copy->name.get(), test_enum_valueName1));
+        REQUIRE(!test_iterator_copy.at_end());
+        REQUIRE_SUCCEEDED(test_iterator.move_next());
+        REQUIRE_SUCCEEDED(test_iterator.last_error());
+        REQUIRE(test_iterator.at_end());
+        REQUIRE(test_iterator == wil::reg::value_heap_string_nothrow_iterator{});
+        test_iterator_copy = test_iterator;
+        REQUIRE(test_iterator_copy == wil::reg::value_heap_string_nothrow_iterator{});
+
+        wil::unique_hkey hkey2;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey2));
+        test_iterator = wil::reg::value_heap_string_nothrow_iterator(hkey2.get());
+        REQUIRE(test_iterator != wil::reg::value_heap_string_nothrow_iterator{});
+        REQUIRE(0 == wcscmp((*test_iterator).name.get(), test_enum_valueName1));
+        REQUIRE(0 == wcscmp(test_iterator->name.get(), test_enum_valueName1));
+        REQUIRE(!test_iterator.at_end());
+        test_iterator_copy = test_iterator;
+        REQUIRE(0 == wcscmp((*test_iterator_copy).name.get(), test_enum_valueName1));
+        REQUIRE(0 == wcscmp(test_iterator_copy->name.get(), test_enum_valueName1));
+        REQUIRE(!test_iterator_copy.at_end());
+        REQUIRE_SUCCEEDED(test_iterator.move_next());
+        REQUIRE_SUCCEEDED(test_iterator.last_error());
+        REQUIRE(test_iterator.at_end());
+        REQUIRE(test_iterator == wil::reg::value_heap_string_nothrow_iterator{});
+        test_iterator_copy = test_iterator;
+        REQUIRE(test_iterator_copy == wil::reg::value_heap_string_nothrow_iterator{});
+        REQUIRE(test_iterator_copy.at_end());
+    }
+
+    SECTION("value_heap_string_nothrow_iterator with many values - range-for iterator usage")
+    {
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(hkey.get(), test_enum_valueName1, 0));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(hkey.get(), test_enum_valueName2, 1ul));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(hkey.get(), test_enum_valueName3, 3ull));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(hkey.get(), test_enum_valueName4, L"four"));
+
+        uint32_t count = 0;
+        for (const auto& value_data : wil::make_range(wil::reg::value_heap_string_nothrow_iterator{ hkey.get() }, wil::reg::value_heap_string_nothrow_iterator{}))
+        {
+            if (value_data.at_end())
+            {
+                break;
+            }
+
+            ++count;
+            switch (count)
+            {
+            case 1:
+                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName1));
+                REQUIRE(value_data.type == REG_DWORD);
+                break;
+            case 2:
+                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName2));
+                REQUIRE(value_data.type == REG_DWORD);
+                break;
+            case 3:
+                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName3));
+                REQUIRE(value_data.type == REG_QWORD);
+                break;
+            case 4:
+                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName4));
+                REQUIRE(value_data.type == REG_SZ);
+                break;
+            default:
+                REQUIRE_FAILED(false);
+            }
+        }
+        REQUIRE(count == 4);
+
+        count = 0;
+        const auto testIterator = wil::reg::value_heap_string_nothrow_iterator(hkey.get());
+        const auto testEndIterator = wil::reg::value_heap_string_nothrow_iterator{};
+        for (const auto& value_data : wil::make_range(testIterator, testEndIterator))
+        {
+            if (value_data.at_end())
+            {
+                break;
+            }
+
+            ++count;
+            switch (count)
+            {
+            case 1:
+                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName1));
+                REQUIRE(value_data.type == REG_DWORD);
+                break;
+            case 2:
+                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName2));
+                REQUIRE(value_data.type == REG_DWORD);
+                break;
+            case 3:
+                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName3));
+                REQUIRE(value_data.type == REG_QWORD);
+                break;
+            case 4:
+                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName4));
+                REQUIRE(value_data.type == REG_SZ);
+                break;
+            default:
+                REQUIRE_FAILED(false);
+            }
+        }
+        REQUIRE_SUCCEEDED(testIterator.last_error());
+        REQUIRE(count == 4);
+
+        count = 0;
+        auto manual_iterator = wil::reg::value_heap_string_nothrow_iterator{ hkey.get() };
+        REQUIRE_SUCCEEDED(manual_iterator.last_error());
+        while (!manual_iterator.at_end())
+        {
+            ++count;
+            switch (count)
+            {
+            case 1:
+                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_valueName1));
+                REQUIRE(manual_iterator->type == REG_DWORD);
+                break;
+            case 2:
+                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_valueName2));
+                REQUIRE(manual_iterator->type == REG_DWORD);
+                break;
+            case 3:
+                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_valueName3));
+                REQUIRE(manual_iterator->type == REG_QWORD);
+                break;
+            case 4:
+                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_valueName4));
+                REQUIRE(manual_iterator->type == REG_SZ);
+                break;
+            default: REQUIRE_FAILED(false);
+            }
+
+            const auto hr = manual_iterator.move_next();
+            REQUIRE_SUCCEEDED(hr);
+            REQUIRE_SUCCEEDED(manual_iterator.last_error());
+        }
+        REQUIRE_SUCCEEDED(manual_iterator.last_error());
+        REQUIRE(manual_iterator->at_end());
+        REQUIRE(count == 4);
+
+        count = 0;
+        manual_iterator = wil::reg::value_heap_string_nothrow_iterator{ hkey.get() };
+        for (; !manual_iterator.at_end(); manual_iterator.move_next())
+        {
+            ++count;
+            switch (count)
+            {
+            case 1:
+                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_valueName1));
+                REQUIRE(manual_iterator->type == REG_DWORD);
+                break;
+            case 2:
+                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_valueName2));
+                REQUIRE(manual_iterator->type == REG_DWORD);
+                break;
+            case 3:
+                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_valueName3));
+                REQUIRE(manual_iterator->type == REG_QWORD);
+                break;
+            case 4:
+                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_valueName4));
+                REQUIRE(manual_iterator->type == REG_SZ);
+                break;
+            default: REQUIRE_FAILED(false);
+            }
+        }
+        REQUIRE_SUCCEEDED(manual_iterator.last_error());
+        REQUIRE_SUCCEEDED(manual_iterator.last_error());
+        REQUIRE(manual_iterator->at_end());
+        REQUIRE(count == 4);
+    }
+}
+
+TEST_CASE("BasicRegistryTests::key_heap_string_nothrow_iterator", "[registry]]")
+{
+    const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
+    if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+    {
+        REQUIRE_SUCCEEDED(deleteHr);
+    }
+
+    SECTION("key_heap_string_nothrow_iterator with no subkeys")
+    {
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey));
+
+        auto test_iterator{ wil::reg::key_heap_string_nothrow_iterator(hkey.get()) };
+        auto test_end_iterator{ wil::reg::key_heap_string_nothrow_iterator{} };
+        REQUIRE(test_iterator == test_end_iterator);
+
+        const auto iterator_copy = test_iterator;
+        REQUIRE(iterator_copy == test_iterator);
+        REQUIRE(iterator_copy == test_end_iterator);
+    }
+
+    SECTION("key_heap_string_nothrow_iterator with one subkey - manual iterator usage")
+    {
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
+        wil::unique_hkey subkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(hkey.get(), test_enum_KeyName1, subkey));
+        subkey.reset();
+
+        const auto key_enum = wil::reg::key_heap_string_nothrow_iterator(hkey.get());
+        const auto key_end = wil::reg::key_heap_string_nothrow_iterator{};
+        REQUIRE(key_enum != key_end);
+
+        auto key_iterator = wil::reg::key_heap_string_nothrow_iterator(hkey.get());
+        REQUIRE(key_iterator == wil::reg::key_heap_string_nothrow_iterator(hkey.get()));
+        REQUIRE(0 == wcscmp((*key_iterator).name.get(), test_enum_KeyName1));
+        REQUIRE(0 == wcscmp(key_iterator->name.get(), test_enum_KeyName1));
+        auto key_iterator_copy = key_iterator;
+        REQUIRE(key_iterator_copy == wil::reg::key_heap_string_nothrow_iterator(hkey.get()));
+        REQUIRE(0 == wcscmp((*key_iterator_copy).name.get(), test_enum_KeyName1));
+        REQUIRE(0 == wcscmp(key_iterator_copy->name.get(), test_enum_KeyName1));
+        REQUIRE_SUCCEEDED(key_iterator.move_next());
+        REQUIRE_SUCCEEDED(key_iterator.last_error());
+        REQUIRE(key_iterator == key_end);
+        REQUIRE(key_iterator == wil::reg::key_heap_string_nothrow_iterator{});
+        key_iterator_copy = key_iterator;
+        REQUIRE(key_iterator_copy == key_end);
+        REQUIRE(key_iterator_copy == wil::reg::key_heap_string_nothrow_iterator{});
+
+        key_iterator = wil::reg::key_heap_string_nothrow_iterator(hkey.get());
+        REQUIRE(key_iterator != wil::reg::key_heap_string_nothrow_iterator{});
+        REQUIRE(key_iterator == wil::reg::key_heap_string_nothrow_iterator(hkey.get()));
+        REQUIRE(0 == wcscmp((*key_iterator).name.get(), test_enum_KeyName1));
+        REQUIRE(0 == wcscmp(key_iterator->name.get(), test_enum_KeyName1));
+        key_iterator_copy = key_iterator;
+        REQUIRE(key_iterator_copy == wil::reg::key_heap_string_nothrow_iterator(hkey.get()));
+        REQUIRE(0 == wcscmp((*key_iterator_copy).name.get(), test_enum_KeyName1));
+        REQUIRE(0 == wcscmp(key_iterator_copy->name.get(), test_enum_KeyName1));
+        REQUIRE_SUCCEEDED(key_iterator.move_next());
+        REQUIRE_SUCCEEDED(key_iterator.last_error());
+        REQUIRE(key_iterator == key_end);
+        REQUIRE(key_iterator == wil::reg::key_heap_string_nothrow_iterator{});
+        key_iterator_copy = key_iterator;
+        REQUIRE(key_iterator_copy == key_end);
+        REQUIRE(key_iterator_copy == wil::reg::key_heap_string_nothrow_iterator{});
+
+        wil::unique_hkey hkey2;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey2));
+        key_iterator = wil::reg::key_heap_string_nothrow_iterator(hkey2.get());
+        REQUIRE(key_iterator != wil::reg::key_heap_string_nothrow_iterator{});
+        REQUIRE(0 == wcscmp((*key_iterator).name.get(), test_enum_KeyName1));
+        REQUIRE(0 == wcscmp(key_iterator->name.get(), test_enum_KeyName1));
+        key_iterator_copy = key_iterator;
+        REQUIRE(0 == wcscmp((*key_iterator_copy).name.get(), test_enum_KeyName1));
+        REQUIRE(0 == wcscmp(key_iterator_copy->name.get(), test_enum_KeyName1));
+        REQUIRE_SUCCEEDED(key_iterator.move_next());
+        REQUIRE_SUCCEEDED(key_iterator.last_error());
+        REQUIRE(key_iterator == wil::reg::key_heap_string_nothrow_iterator{});
+        key_iterator_copy = key_iterator;
+        REQUIRE(key_iterator_copy == wil::reg::key_heap_string_nothrow_iterator{});
+    }
+
+    SECTION("key_heap_string_nothrow_iterator with many subkeys - range-for iterator usage")
+    {
+        wil::unique_hkey enum_hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, enum_hkey, wil::reg::key_access::readwrite));
+        wil::unique_hkey subkey;
+        wil::reg::create_unique_key_nothrow(enum_hkey.get(), test_enum_KeyName1, subkey);
+        wil::reg::create_unique_key_nothrow(enum_hkey.get(), test_enum_KeyName2, subkey);
+        wil::reg::create_unique_key_nothrow(enum_hkey.get(), test_enum_KeyName3, subkey);
+        wil::reg::create_unique_key_nothrow(enum_hkey.get(), test_enum_KeyName4, subkey);
+        subkey.reset();
+
+        uint32_t count = 0;
+        for (const auto& key_data : wil::make_range(wil::reg::key_heap_string_nothrow_iterator{ enum_hkey.get() }, wil::reg::key_heap_string_nothrow_iterator{}))
+        {
+            ++count;
+            switch (count)
+            {
+            case 1:
+                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName1));
+                break;
+            case 2:
+                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName2));
+                break;
+            case 3:
+                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName3));
+                break;
+            case 4:
+                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName4));
+                break;
+            default: REQUIRE_FAILED(false);
+            }
+        }
+        REQUIRE(count == 4);
+
+        count = 0;
+        const auto testIterator = wil::reg::key_heap_string_nothrow_iterator(enum_hkey.get());
+        const auto testEndIterator = wil::reg::key_heap_string_nothrow_iterator{};
+        for (const auto& key_data : wil::make_range(testIterator, testEndIterator))
+        {
+            ++count;
+            switch (count)
+            {
+            case 1:
+                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName1));
+                break;
+            case 2:
+                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName2));
+                break;
+            case 3:
+                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName3));
+                break;
+            case 4:
+                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName4));
+                break;
+            default: REQUIRE_FAILED(false);
+            }
+        }
+        REQUIRE_SUCCEEDED(testIterator.last_error());
+        REQUIRE(count == 4);
+
+        count = 0;
+        auto manual_iterator = wil::reg::key_heap_string_nothrow_iterator{ enum_hkey.get() };
+        REQUIRE_SUCCEEDED(manual_iterator.last_error());
+        while (!manual_iterator.at_end())
+        {
+            ++count;
+            switch (count)
+            {
+            case 1:
+                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_KeyName1));
+                break;
+            case 2:
+                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_KeyName2));
+                break;
+            case 3:
+                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_KeyName3));
+                break;
+            case 4:
+                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_KeyName4));
+                break;
+            default: REQUIRE_FAILED(false);
+            }
+
+            const auto hr = manual_iterator.move_next();
+            REQUIRE_SUCCEEDED(hr);
+            REQUIRE_SUCCEEDED(manual_iterator.last_error());
+        }
+        REQUIRE_SUCCEEDED(manual_iterator.last_error());
+        REQUIRE(manual_iterator.at_end());
+        REQUIRE(count == 4);
+
+        count = 0;
+        manual_iterator = wil::reg::key_heap_string_nothrow_iterator{ enum_hkey.get() };
+        for (; !manual_iterator.at_end(); manual_iterator.move_next())
+        {
+            ++count;
+            switch (count)
+            {
+            case 1:
+                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_KeyName1));
+                break;
+            case 2:
+                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_KeyName2));
+                break;
+            case 3:
+                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_KeyName3));
+                break;
+            case 4:
+                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_KeyName4));
+                break;
+            default: REQUIRE_FAILED(false);
+            }
+        }
+        REQUIRE_SUCCEEDED(manual_iterator.last_error());
+        REQUIRE_SUCCEEDED(manual_iterator.last_error());
+        REQUIRE(count == 4);
+    }
+}

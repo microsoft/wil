@@ -1131,7 +1131,6 @@ namespace wil
             }
 
             wchar_t szErrorText[256]{};
-            szErrorText[0] = L'\0';
             LONG errorCode = 0;
 
             if (WI_IsFlagSet(failure.flags, FailureFlags::NtStatus))
@@ -2694,7 +2693,6 @@ __WI_POP_WARNINGS
         inline HRESULT ResultFromKnownException(const ResultException& exception, const DiagnosticsInfo& diagnostics, void* returnAddress)
         {
             wchar_t message[2048]{};
-            message[0] = L'\0';
             MaybeGetExceptionString(exception, message, ARRAYSIZE(message));
             auto hr = exception.GetErrorCode();
             wil::details::ReportFailure_Base<FailureType::Log>(__R_DIAGNOSTICS_RA(diagnostics, returnAddress), ResultStatus::FromResult(hr), message);
@@ -2704,7 +2702,6 @@ __WI_POP_WARNINGS
         inline HRESULT ResultFromKnownException(const std::bad_alloc& exception, const DiagnosticsInfo& diagnostics, void* returnAddress)
         {
             wchar_t message[2048]{};
-            message[0] = L'\0';
             MaybeGetExceptionString(exception, message, ARRAYSIZE(message));
             constexpr auto hr = E_OUTOFMEMORY;
             wil::details::ReportFailure_Base<FailureType::Log>(__R_DIAGNOSTICS_RA(diagnostics, returnAddress), ResultStatus::FromResult(hr), message);
@@ -2714,7 +2711,6 @@ __WI_POP_WARNINGS
         inline HRESULT ResultFromKnownException(const std::exception& exception, const DiagnosticsInfo& diagnostics, void* returnAddress)
         {
             wchar_t message[2048]{};
-            message[0] = L'\0';
             MaybeGetExceptionString(exception, message, ARRAYSIZE(message));
             constexpr auto hr = __HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION);
             ReportFailure_Base<FailureType::Log>(__R_DIAGNOSTICS_RA(diagnostics, returnAddress), ResultStatus::FromResult(hr), message);
@@ -2726,7 +2722,6 @@ __WI_POP_WARNINGS
             if (g_pfnResultFromCaughtException_CppWinRt)
             {
                 wchar_t message[2048]{};
-                message[0] = L'\0';
                 bool ignored;
                 auto hr = g_pfnResultFromCaughtException_CppWinRt(message, ARRAYSIZE(message), &ignored);
                 if (FAILED(hr))
@@ -3975,7 +3970,6 @@ __WI_SUPPRESS_4127_E
         __declspec(noinline) inline HRESULT ReportFailure_CaughtException(__R_FN_PARAMS_FULL, SupportedExceptions supported)
         {
             wchar_t message[2048]{};
-            message[0] = L'\0';
             return ReportFailure_CaughtExceptionCommon<T>(__R_FN_CALL_FULL, message, ARRAYSIZE(message), supported).hr;
         }
 
@@ -3983,7 +3977,6 @@ __WI_SUPPRESS_4127_E
         __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_CaughtException<FailureType::FailFast>(__R_FN_PARAMS_FULL, SupportedExceptions supported)
         {
             wchar_t message[2048]{};
-            message[0] = L'\0';
             RESULT_NORETURN_RESULT(ReportFailure_CaughtExceptionCommon<FailureType::FailFast>(__R_FN_CALL_FULL, message, ARRAYSIZE(message), supported).hr);
         }
 
@@ -3991,7 +3984,6 @@ __WI_SUPPRESS_4127_E
         __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_CaughtException<FailureType::Exception>(__R_FN_PARAMS_FULL, SupportedExceptions supported)
         {
             wchar_t message[2048]{};
-            message[0] = L'\0';
             RESULT_NORETURN_RESULT(ReportFailure_CaughtExceptionCommon<FailureType::Exception>(__R_FN_CALL_FULL, message, ARRAYSIZE(message), supported).hr);
         }
 
