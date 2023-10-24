@@ -2574,9 +2574,14 @@ __WI_POP_WARNINGS
                 wchar_t message[2048];
                 GetFailureLogString(message, ARRAYSIZE(message), m_failure.GetFailureInfo());
 
-                char messageA[1024];
-                int len = WideCharToMultiByte(CP_ACP, 0, message, -1, messageA, ARRAYSIZE(messageA), nullptr, nullptr);
-                m_what.create(messageA, len);
+                int len = WideCharToMultiByte(CP_ACP, 0, message, -1, nullptr, 0, nullptr, nullptr);
+                if (!m_what.create(len))
+                {
+                    // Allocation failed, return placeholder string.
+                    return "WIL Exception";
+                }
+
+                WideCharToMultiByte(CP_ACP, 0, message, -1, static_cast<char *>(m_what.get()), len, nullptr, nullptr);
             }
             return static_cast<const char *>(m_what.get());
         }
