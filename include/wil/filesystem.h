@@ -1045,6 +1045,125 @@ namespace wil
     }
 #endif // _CPPUNWIND
 #endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && (_WIN32_WINNT >= _WIN32_WINNT_WIN7)
+
+// Helpers to make the CreateFileW API easier to use. This segregates the OPEN_EXISTING "open an existing file"
+// cases from the "create a new file" that has 4 variations represented in the create_file_create_behavior enum.
+
+// https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew?devlangs=cpp&f1url=%3FappId%3DDev16IDEF1%26l%3DEN-US%26k%3Dk(FILEAPI%252FCreateFileW)%3Bk(CreateFileW)%3Bk(DevLang-C%252B%252B)%3Bk(TargetOS-Windows)%26rd%3Dtrue
+
+enum class create_file_create_behavior : uint32_t
+{
+    // Creates a new file, always.
+    // If the specified file exists and is writable, the function overwrites the file, the function succeeds, and
+    // last-error code is set to ERROR_ALREADY_EXISTS (183).
+    // In the case where the overwrite is required, the identity of original file is assumed by the new one.
+    // The FileId and ObjectId of the file are not changed. So in this sense the file is not new.
+    overwrite_existing = CREATE_ALWAYS,
+
+    // Creates a new file, only if it does not already exist.
+    // If the specified file exists, the function fails and the last-error code is set to ERROR_FILE_EXISTS (80).
+    // If the specified file does not exist and is a valid path to a writable location, a new file is created.
+    create_only_if_new = CREATE_NEW,
+
+    // Opens a file, always.
+    // If the specified file exists, the function succeeds and the last-error code is set to ERROR_ALREADY_EXISTS (183).
+    // If the specified file does not exist and is a valid path to a writable location, the function creates a file and
+    // the last-error code is set to zero.
+    open_or_create_if_needed = OPEN_ALWAYS,
+
+    // Opens a file and truncates it so that its size is zero bytes, only if it exists.
+    // If the specified file does not exist, the function fails and the last-error code is set to ERROR_FILE_NOT_FOUND (2).
+    // The calling process must open the file with the GENERIC_WRITE bit set as part of the dwDesiredAccess parameter.
+    overwrite_and_truncate_only_if_exists = TRUNCATE_EXISTING
+};
+
+/** Non-throwing open existing, test GetLastError() with the handle is invalid.
+~~~
+auto handle = wil::create_file_try_open(filePath.c_str());
+~~~
+*/
+inline wil::unique_hfile create_file_try_open(PCWSTR path, DWORD dwDesiredAccess = FILE_READ_ACCESS,
+    DWORD dwShareMode = FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+    bool inheritHandle = false,
+    DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL) noexcept
+{
+    SECURITY_ATTRIBUTES secAttributes{sizeof(secAttributes)};
+    secAttributes.bInheritHandle = inheritHandle;
+    return wil::unique_hfile{CreateFileW(
+        path, dwDesiredAccess, dwShareMode, &secAttributes, OPEN_EXISTING, dwFlagsAndAttributes, nullptr)};
 }
+
+/** open existing, throws on error.
+~~~
+auto handle = wil::create_file_open(filePath.c_str());
+~~~
+*/
+inline wil::unique_hfile create_file_open(PCWSTR path, DWORD dwDesiredAccess = FILE_READ_ACCESS,
+    DWORD dwShareMode = FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+    bool inheritHandle = false,
+    DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL)
+{
+    auto handleResult = create_file_try_open(path, dwDesiredAccess, dwShareMode, inheritHandle, dwFlagsAndAttributes);
+    THROW_LAST_ERROR_IF(!handleResult.is_valid());
+    return handleResult;
+}
+
+/** create, non-throwing, returns handle and error code as a pair.
+~~~
+auto [handle, error] = wil::create_file_try_create(filePath.c_str());
+~~~
+*/
+template<create_file_create_behavior CreateDisposition = create_file_create_behavior::overwrite_existing>
+std::pair<wil::unique_hfile, DWORD> create_file_try_create(PCWSTR path, DWORD dwDesiredAccess = FILE_READ_ACCESS | FILE_WRITE_ACCESS,
+    DWORD dwShareMode = FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+    LPSECURITY_ATTRIBUTES lpSecurityAttributes = nullptr,
+    DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL,
+    HANDLE hTemplateFile = nullptr) noexcept
+{
+    return std::pair<wil::unique_hfile, DWORD>{CreateFileW(
+        path, dwDesiredAccess, dwShareMode, lpSecurityAttributes, static_cast<DWORD>(CreateDisposition), dwFlagsAndAttributes, hTemplateFile),
+        GetLastError()};
+}
+
+/** create, throws on error.
+~~~
+auto handle = wil::create_file_create(filePath.c_str());
+~~~
+
+There are 4 create behaviors, overwrite_existing is default. To specify the others use the template parameter.
+~~~
+auto [fileHandle, error] = create_file_try_create<create_file_create_behavior::create_only_if_new>(overWriteTarget.c_str());
+~~~
+*/
+template<create_file_create_behavior CreateDisposition = create_file_create_behavior::overwrite_existing>
+wil::unique_hfile create_file_create(PCWSTR path, DWORD dwDesiredAccess = FILE_READ_ACCESS | FILE_WRITE_ACCESS,
+    DWORD dwShareMode = FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+    LPSECURITY_ATTRIBUTES lpSecurityAttributes = nullptr,
+    DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL,
+    HANDLE hTemplateFile = nullptr)
+{
+    auto [fileHandle, error] = std::pair<wil::unique_hfile, DWORD>{CreateFileW(
+        path, dwDesiredAccess, dwShareMode, lpSecurityAttributes, static_cast<DWORD>(CreateDisposition), dwFlagsAndAttributes, hTemplateFile),
+        GetLastError()};
+    THROW_WIN32_IF(error, !fileHandle.is_valid());
+    return std::move(fileHandle);
+}
+
+}
+
+#ifndef NO_FILE_TYPE_OPERATORS
+// namespace scope
+inline bool operator!=(const FILE_ID_128& left, const FILE_ID_128& right)
+{
+    static_assert(sizeof(left) == sizeof(right), "size must match");
+    return memcmp(&left, &right, sizeof(left)) != 0;
+}
+
+inline bool operator==(const FILE_ID_128& left, const FILE_ID_128& right)
+{
+    static_assert(sizeof(left) == sizeof(right), "size must match");
+    return memcmp(&left, &right, sizeof(left)) == 0;
+}
+#endif
 
 #endif // __WIL_FILESYSTEM_INCLUDED
