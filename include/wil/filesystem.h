@@ -19,6 +19,7 @@
 #include <combaseapi.h> // Needed for CoTaskMemFree() used in output of some helpers.
 #include <winbase.h> // LocalAlloc
 #include <PathCch.h>
+#include "wistd_type_traits.h"
 #include "result.h"
 #include "win32_helpers.h"
 #include "resource.h"
@@ -716,10 +717,10 @@ namespace wil
             {
                 for (auto const& info : create_next_entry_offset_iterator(reinterpret_cast<FILE_NOTIFY_INFORMATION *>(readerState->m_readBuffer)))
                 {
-                    wchar_t realtiveFileName[MAX_PATH];
-                    StringCchCopyNW(realtiveFileName, ARRAYSIZE(realtiveFileName), info.FileName, info.FileNameLength / sizeof(info.FileName[0]));
+                    wchar_t relativeFileName[MAX_PATH];
+                    StringCchCopyNW(relativeFileName, ARRAYSIZE(relativeFileName), info.FileName, info.FileNameLength / sizeof(info.FileName[0]));
 
-                    readerState->m_callback(static_cast<FolderChangeEvent>(info.Action), realtiveFileName);
+                    readerState->m_callback(static_cast<FolderChangeEvent>(info.Action), relativeFileName);
                 }
             }
             else if (result == ERROR_NOTIFY_ENUM_DIR)
@@ -1047,8 +1048,6 @@ namespace wil
         THROW_IF_FAILED(GetFileInfoNoThrow<infoClass>(fileHandle, result));
         return result;
     }
-#endif // _CPPUNWIND
-#endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && (_WIN32_WINNT >= _WIN32_WINNT_WIN7)
 
 // Helpers to make the CreateFileW API easier to use. This segregates the OPEN_EXISTING "open an existing file"
 // cases from the "create a new file" that has 4 variations represented in the create_file_create_behavior enum.
@@ -1118,15 +1117,15 @@ auto [handle, error] = wil::create_file_try_create(filePath.c_str());
 ~~~
 */
 template<create_file_create_behavior CreateDisposition = create_file_create_behavior::overwrite_existing>
-std::pair<wil::unique_hfile, DWORD> create_file_try_create(PCWSTR path, DWORD dwDesiredAccess = FILE_READ_ACCESS | FILE_WRITE_ACCESS,
+wistd::pair<wil::unique_hfile, DWORD> create_file_try_create(PCWSTR path, DWORD dwDesiredAccess = FILE_READ_ACCESS | FILE_WRITE_ACCESS,
     DWORD dwShareMode = FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
     LPSECURITY_ATTRIBUTES lpSecurityAttributes = nullptr,
     DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL,
     HANDLE hTemplateFile = nullptr) noexcept
 {
-    return std::pair<wil::unique_hfile, DWORD>{CreateFileW(
+    return wistd::pair<wil::unique_hfile, DWORD>{CreateFileW(
         path, dwDesiredAccess, dwShareMode, lpSecurityAttributes, static_cast<DWORD>(CreateDisposition), dwFlagsAndAttributes, hTemplateFile),
-        GetLastError()};
+        ::GetLastError()};
 }
 
 /** create, throws on error.
@@ -1146,13 +1145,15 @@ wil::unique_hfile create_file_create(PCWSTR path, DWORD dwDesiredAccess = FILE_R
     DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL,
     HANDLE hTemplateFile = nullptr)
 {
-    auto [fileHandle, error] = std::pair<wil::unique_hfile, DWORD>{CreateFileW(
+    auto [fileHandle, error] = wistd::pair<wil::unique_hfile, DWORD>{CreateFileW(
         path, dwDesiredAccess, dwShareMode, lpSecurityAttributes, static_cast<DWORD>(CreateDisposition), dwFlagsAndAttributes, hTemplateFile),
-        GetLastError()};
+        ::GetLastError()};
     THROW_WIN32_IF(error, !fileHandle.is_valid());
     return std::move(fileHandle);
 }
 
+#endif // _CPPUNWIND
+#endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && (_WIN32_WINNT >= _WIN32_WINNT_WIN7)
 }
 
 #ifndef NO_FILE_TYPE_OPERATORS
