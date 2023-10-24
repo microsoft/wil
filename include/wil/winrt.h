@@ -163,12 +163,14 @@ namespace wil
             // on STL headers
             template <typename StringT>
             static wistd::enable_if_t<wistd::conjunction_v<
-                wistd::is_same<const wchar_t*, decltype(wistd::declval<StringT>().c_str())>,
-                wistd::is_same<typename StringT::size_type, decltype(wistd::declval<StringT>().length())>>,
+                wistd::is_constructible<StringT, wchar_t*>,
+                wistd::is_convertible<decltype(wistd::declval<StringT>().data()), const wchar_t*>,
+                wistd::is_same<typename StringT::size_type, decltype(wistd::declval<StringT>().size())>>,
             const wchar_t*> get_buffer(const StringT& str, UINT32* length) WI_NOEXCEPT
             {
-                *length = static_cast<UINT32>(str.length());
-                return str.c_str();
+                *length = static_cast<UINT32>(str.size());
+                const wchar_t* ret = str.data();
+                return ret ? ret : L"";
             }
 
             template <typename LhsT, typename RhsT>
