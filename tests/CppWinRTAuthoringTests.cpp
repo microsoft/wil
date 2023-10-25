@@ -4,7 +4,9 @@
 // check if at least C++17
 #if _MSVC_LANG >= 201703L
 #include <winrt/Windows.Foundation.h>
+#include <winrt/Windows.System.h>
 #include <winrt/Windows.UI.Xaml.Data.h>
+#include <winrt/Windows.UI.Xaml.Input.h>
 #endif
 
 #include <wil/cppwinrt_authoring.h>
@@ -19,6 +21,18 @@ struct my_async_status : winrt::implements<my_async_status, winrt::Windows::Foun
 
     void Cancel() {};
     void Close() {};
+};
+
+// This type has a settable property
+struct my_pointer_args : winrt::implements<my_pointer_args, winrt::Windows::UI::Xaml::Input::PointerRoutedEventArgs>
+{
+    wil::single_threaded_rw_property<bool> Handled{ false };
+    wil::single_threaded_property<bool> IsGenerated{ false };
+    wil::single_threaded_property<winrt::Windows::System::VirtualKeyModifiers> KeyModifiers{ winrt::Windows::System::VirtualKeyModifiers::None };
+    wil::single_threaded_property<winrt::Windows::UI::Xaml::Input::Pointer> Pointer{ nullptr };
+
+    winrt::Windows::UI::Input::PointerPoint GetCurrentPoint(winrt::Windows::UI::Xaml::UIElement const&) { throw winrt::hresult_not_implemented(); }
+    winrt::Windows::Foundation::Collections::IVector<winrt::Windows::UI::Input::PointerPoint> GetIntermediatePoints(winrt::Windows::UI::Xaml::UIElement const&) { throw winrt::hresult_not_implemented(); }
 };
 
 TEST_CASE("CppWinRTAuthoringTests::Read", "[property]")
@@ -77,6 +91,11 @@ TEST_CASE("CppWinRTAuthoringTests::ReadWrite", "[property]")
     REQUIRE(prop3 == "baz");
     prop3alias = "foo";
     REQUIRE(prop3 == "foo");
+
+    auto my_args = winrt::make<my_pointer_args>();
+    REQUIRE(my_args.Handled() == false);
+    my_args.Handled(true);
+    REQUIRE(my_args.Handled() == true);
 }
 
 TEST_CASE("CppWinRTAuthoringTests::ReadWriteFromReadOnly", "[property]")
@@ -149,7 +168,7 @@ TEST_CASE("CppWinRTAuthoringTests::Events", "[property]")
 {
     struct Test
     {
-        wil::simple_event<int> MyEvent;
+        wil::untyped_event<int> MyEvent;
 
         wil::typed_event<winrt::Windows::Foundation::IInspectable, int> MyTypedEvent;
     } test;
@@ -162,60 +181,97 @@ TEST_CASE("CppWinRTAuthoringTests::Events", "[property]")
     test.MyTypedEvent.invoke(nullptr, 42);
     test.MyTypedEvent(token2);
 }
+
+TEST_CASE("CppWinRTAuthoringTests::EventsAndCppWinRt", "[property]")
+{
+    struct Test : winrt::implements<Test, winrt::Windows::Foundation::IMemoryBufferReference>
+    {
+        wil::single_threaded_property<uint32_t> Capacity{ 0 };
+        wil::typed_event<winrt::Windows::Foundation::IMemoryBufferReference, winrt::Windows::Foundation::IInspectable> Closed;
+
+        void Close() { throw winrt::hresult_not_implemented(); }
+        void Dispose() { throw winrt::hresult_not_implemented(); }
+    };
+
+    auto test = winrt::make<Test>();
+    bool invoked = false;
+    auto token = test.Closed([&](winrt::Windows::Foundation::IMemoryBufferReference, winrt::Windows::Foundation::IInspectable)
+    {
+        invoked = true;
+    });
+    winrt::get_self<Test>(test)->Closed.invoke(test, nullptr);
+    REQUIRE(invoked == true);
+    test.Closed(token);
+}
 #endif // WINRT_Windows_Foundation_H
 
 #if defined(WINRT_Windows_UI_Xaml_Data_H)
+#include <winrt/Windows.System.h>
 #include <winrt/Windows.UI.Xaml.Hosting.h>
 
-// This test cannot run in the same process as the malloc spies tests in wiTest.cpp
-// MSFT_internal: https://task.ms/44191550
+// This test seems to have issues on the CI machines, so enabling only when run locally
 TEST_CASE("CppWinRTAuthoringTests::NotifyPropertyChanged", "[property][LocalOnly]")
 {
 #if defined(WIL_ENABLE_EXCEPTIONS)
-    auto uninit = wil::RoInitialize_failfast(RO_INIT_SINGLETHREADED);
+    auto uninit = wil::RoInitialize_failfast(RO_INIT_MULTITHREADED);
     // We need to initialize the XAML core in order to instantiate a PropertyChangedEventArgs.
-    auto manager = winrt::Windows::UI::Xaml::Hosting::WindowsXamlManager::InitializeForCurrentThread();
-    {
-        struct Test : winrt::implements<Test, winrt::Windows::UI::Xaml::Data::INotifyPropertyChanged>, wil::notify_property_changed_base<Test>
-        {
-            wil::single_threaded_notifying_property<int> MyProperty;
-            Test() : INIT_NOTIFYING_PROPERTY(MyProperty, 42) {}
-        };
-        auto test = winrt::make<Test>();
-        auto testImpl = winrt::get_self<Test>(test);
-        bool notified = false;
-        auto token = test.PropertyChanged([&](winrt::Windows::Foundation::IInspectable, winrt::Windows::UI::Xaml::Data::PropertyChangedEventArgs args)
-            {
-                REQUIRE(args.PropertyName() == L"MyProperty");
-                REQUIRE(testImpl->MyProperty() == 43);
-                notified = true;
-            });
+    // Do all the work on a separate DispatcherQueue thread so we can shut it down cleanly
+    // and make sure COM is completely cleaned up before we finish the test.
 
-        testImpl->MyProperty(43);
-        REQUIRE(notified);
-        test.PropertyChanged(token);
-        REQUIRE(testImpl->MyProperty.Name() == L"MyProperty");
-    }
-    {
-        struct Test : winrt::implements<Test, winrt::Windows::UI::Xaml::Data::INotifyPropertyChanged>, wil::notify_property_changed_base<Test>
-        {
-            WIL_NOTIFYING_PROPERTY(int, MyProperty, 42);
-        };
-        auto test = winrt::make<Test>();
-        auto testImpl = winrt::get_self<Test>(test);
-        bool notified = false;
-        auto token = test.PropertyChanged([&](winrt::Windows::Foundation::IInspectable, winrt::Windows::UI::Xaml::Data::PropertyChangedEventArgs args)
-            {
-                REQUIRE(args.PropertyName() == L"MyProperty");
-                REQUIRE(testImpl->MyProperty() == 43);
-                notified = true;
-            });
+    auto controller = winrt::Windows::System::DispatcherQueueController::CreateOnDedicatedThread();
+    winrt::handle dispatcherThreadHandle;
 
-        testImpl->MyProperty(43);
-        REQUIRE(notified);
-        test.PropertyChanged(token);
-    }
-    manager.Close();
+    auto enqueueResult = controller.DispatcherQueue().TryEnqueue([&]
+        {
+            winrt::check_bool(DuplicateHandle(GetCurrentProcess(), GetCurrentThread(), GetCurrentProcess(), dispatcherThreadHandle.put(), SYNCHRONIZE, FALSE, 0));
+            auto manager = winrt::Windows::UI::Xaml::Hosting::WindowsXamlManager::InitializeForCurrentThread();
+            {
+                struct Test : winrt::implements<Test, winrt::Windows::UI::Xaml::Data::INotifyPropertyChanged>, wil::notify_property_changed_base<Test>
+                {
+                    wil::single_threaded_notifying_property<int> MyProperty;
+                    Test() : INIT_NOTIFYING_PROPERTY(MyProperty, 42) {}
+                };
+                auto test = winrt::make<Test>();
+                auto testImpl = winrt::get_self<Test>(test);
+                bool notified = false;
+                auto token = test.PropertyChanged([&](winrt::Windows::Foundation::IInspectable, winrt::Windows::UI::Xaml::Data::PropertyChangedEventArgs args)
+                    {
+                        REQUIRE(args.PropertyName() == L"MyProperty");
+                        REQUIRE(testImpl->MyProperty() == 43);
+                        notified = true;
+                    });
+
+                testImpl->MyProperty(43);
+                REQUIRE(notified);
+                test.PropertyChanged(token);
+                REQUIRE(testImpl->MyProperty.Name() == L"MyProperty");
+            }
+            {
+                struct Test : winrt::implements<Test, winrt::Windows::UI::Xaml::Data::INotifyPropertyChanged>, wil::notify_property_changed_base<Test>
+                {
+                    WIL_NOTIFYING_PROPERTY(int, MyProperty, 42);
+                };
+                auto test = winrt::make<Test>();
+                auto testImpl = winrt::get_self<Test>(test);
+                bool notified = false;
+                auto token = test.PropertyChanged([&](winrt::Windows::Foundation::IInspectable, winrt::Windows::UI::Xaml::Data::PropertyChangedEventArgs args)
+                    {
+                        REQUIRE(args.PropertyName() == L"MyProperty");
+                        REQUIRE(testImpl->MyProperty() == 43);
+                        notified = true;
+                    });
+
+                testImpl->MyProperty(43);
+                REQUIRE(notified);
+                test.PropertyChanged(token);
+            }
+            manager.Close();
+        });
+    REQUIRE(enqueueResult);
+    controller.ShutdownQueueAsync();
+    // Make sure the dispatcher thread has terminated and shut down COM.
+    // Give CoUninitialize a generous 5 seconds to complete.
+    REQUIRE(WaitForSingleObject(dispatcherThreadHandle.get(), 5000) == WAIT_OBJECT_0);
 #endif
 }
 #endif // msvc

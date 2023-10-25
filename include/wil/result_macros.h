@@ -1141,7 +1141,6 @@ namespace wil
             }
 
             wchar_t szErrorText[256]{};
-            szErrorText[0] = L'\0';
             LONG errorCode = 0;
 
             if (WI_IsFlagSet(failure.flags, FailureFlags::NtStatus))
@@ -2157,76 +2156,6 @@ __WI_POP_WARNINGS
             return hr;
         }
 
-        static STRSAFEAPI WilStringVPrintfWorkerA(_Out_writes_(cchDest) _Always_(_Post_z_) STRSAFE_LPSTR pszDest, _In_ _In_range_(1, STRSAFE_MAX_CCH) size_t cchDest, _Always_(_Out_opt_ _Deref_out_range_(<=, cchDest - 1)) size_t* pcchNewDestLength, _In_ _Printf_format_string_ STRSAFE_LPCSTR pszFormat, _In_ va_list argList)
-        {
-            HRESULT hr = S_OK;
-            int iRet{};
-
-            // leave the last space for the null terminator
-            size_t cchMax = cchDest - 1;
-            size_t cchNewDestLength = 0;
-#undef STRSAFE_USE_SECURE_CRT
-#define STRSAFE_USE_SECURE_CRT 1
-        #if (STRSAFE_USE_SECURE_CRT == 1) && !defined(STRSAFE_LIB_IMPL)
-            iRet = _vsnprintf_s(pszDest, cchDest, cchMax, pszFormat, argList);
-        #else
-        #pragma warning(push)
-        #pragma warning(disable: __WARNING_BANNED_API_USAGE)// "STRSAFE not included"
-            iRet = _vsnprintf(pszDest, cchMax, pszFormat, argList);
-        #pragma warning(pop)
-        #endif
-            // ASSERT((iRet < 0) || (((size_t)iRet) <= cchMax));
-
-            if ((iRet < 0) || (((size_t)iRet) > cchMax))
-            {
-                // need to null terminate the string
-                pszDest += cchMax;
-                *pszDest = '\0';
-
-                cchNewDestLength = cchMax;
-
-                // we have truncated pszDest
-                hr = STRSAFE_E_INSUFFICIENT_BUFFER;
-            }
-            else if (((size_t)iRet) == cchMax)
-            {
-                // need to null terminate the string
-                pszDest += cchMax;
-                *pszDest = '\0';
-
-                cchNewDestLength = cchMax;
-            }
-            else
-            {
-                cchNewDestLength = (size_t)iRet;
-            }
-
-            if (pcchNewDestLength)
-            {
-                *pcchNewDestLength = cchNewDestLength;
-            }
-
-            return hr;
-        }
-
-        __inline HRESULT StringCchPrintfA( _Out_writes_(cchDest) _Always_(_Post_z_) STRSAFE_LPSTR pszDest, _In_ size_t cchDest, _In_ _Printf_format_string_ STRSAFE_LPCSTR pszFormat, ...)
-        {
-            HRESULT hr;
-            hr = wil::details::WilStringValidateDestA(pszDest, cchDest, STRSAFE_MAX_CCH);
-            if (SUCCEEDED(hr))
-            {
-                va_list argList;
-                va_start(argList, pszFormat);
-                hr = wil::details::WilStringVPrintfWorkerA(pszDest, cchDest, nullptr, pszFormat, argList);
-                va_end(argList);
-            }
-            else if (cchDest > 0)
-            {
-                *pszDest = '\0';
-            }
-            return hr;
-        }
-
         _Ret_range_(sizeof(char), (psz == nullptr) ? sizeof(char) : (_String_length_(psz) + sizeof(char)))
         inline size_t ResultStringSize(_In_opt_ PCSTR psz)
             { return (psz == nullptr) ? sizeof(char) : (strlen(psz) + sizeof(char)); }
@@ -2655,9 +2584,14 @@ __WI_POP_WARNINGS
                 wchar_t message[2048];
                 GetFailureLogString(message, ARRAYSIZE(message), m_failure.GetFailureInfo());
 
-                char messageA[1024];
-                wil::details::StringCchPrintfA(messageA, ARRAYSIZE(messageA), "%ws", message);
-                m_what.create(messageA, strlen(messageA) + sizeof(*messageA));
+                int len = WideCharToMultiByte(CP_ACP, 0, message, -1, nullptr, 0, nullptr, nullptr);
+                if (!m_what.create(len))
+                {
+                    // Allocation failed, return placeholder string.
+                    return "WIL Exception";
+                }
+
+                WideCharToMultiByte(CP_ACP, 0, message, -1, static_cast<char *>(m_what.get()), len, nullptr, nullptr);
             }
             return static_cast<const char *>(m_what.get());
         }
@@ -2774,7 +2708,6 @@ __WI_POP_WARNINGS
         inline HRESULT ResultFromKnownException(const ResultException& exception, const DiagnosticsInfo& diagnostics, void* returnAddress)
         {
             wchar_t message[2048]{};
-            message[0] = L'\0';
             MaybeGetExceptionString(exception, message, ARRAYSIZE(message));
             auto hr = exception.GetErrorCode();
             wil::details::ReportFailure_Base<FailureType::Log>(__R_DIAGNOSTICS_RA(diagnostics, returnAddress), ResultStatus::FromResult(hr), message);
@@ -2784,7 +2717,6 @@ __WI_POP_WARNINGS
         inline HRESULT ResultFromKnownException(const std::bad_alloc& exception, const DiagnosticsInfo& diagnostics, void* returnAddress)
         {
             wchar_t message[2048]{};
-            message[0] = L'\0';
             MaybeGetExceptionString(exception, message, ARRAYSIZE(message));
             constexpr auto hr = E_OUTOFMEMORY;
             wil::details::ReportFailure_Base<FailureType::Log>(__R_DIAGNOSTICS_RA(diagnostics, returnAddress), ResultStatus::FromResult(hr), message);
@@ -2794,7 +2726,6 @@ __WI_POP_WARNINGS
         inline HRESULT ResultFromKnownException(const std::exception& exception, const DiagnosticsInfo& diagnostics, void* returnAddress)
         {
             wchar_t message[2048]{};
-            message[0] = L'\0';
             MaybeGetExceptionString(exception, message, ARRAYSIZE(message));
             constexpr auto hr = __HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION);
             ReportFailure_Base<FailureType::Log>(__R_DIAGNOSTICS_RA(diagnostics, returnAddress), ResultStatus::FromResult(hr), message);
@@ -2806,7 +2737,6 @@ __WI_POP_WARNINGS
             if (g_pfnResultFromCaughtException_CppWinRt)
             {
                 wchar_t message[2048]{};
-                message[0] = L'\0';
                 bool ignored;
                 auto hr = g_pfnResultFromCaughtException_CppWinRt(message, ARRAYSIZE(message), &ignored);
                 if (FAILED(hr))
@@ -4055,7 +3985,6 @@ __WI_SUPPRESS_4127_E
         __declspec(noinline) inline HRESULT ReportFailure_CaughtException(__R_FN_PARAMS_FULL, SupportedExceptions supported)
         {
             wchar_t message[2048]{};
-            message[0] = L'\0';
             return ReportFailure_CaughtExceptionCommon<T>(__R_FN_CALL_FULL, message, ARRAYSIZE(message), supported).hr;
         }
 
@@ -4063,7 +3992,6 @@ __WI_SUPPRESS_4127_E
         __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_CaughtException<FailureType::FailFast>(__R_FN_PARAMS_FULL, SupportedExceptions supported)
         {
             wchar_t message[2048]{};
-            message[0] = L'\0';
             RESULT_NORETURN_RESULT(ReportFailure_CaughtExceptionCommon<FailureType::FailFast>(__R_FN_CALL_FULL, message, ARRAYSIZE(message), supported).hr);
         }
 
@@ -4071,7 +3999,6 @@ __WI_SUPPRESS_4127_E
         __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_CaughtException<FailureType::Exception>(__R_FN_PARAMS_FULL, SupportedExceptions supported)
         {
             wchar_t message[2048]{};
-            message[0] = L'\0';
             RESULT_NORETURN_RESULT(ReportFailure_CaughtExceptionCommon<FailureType::Exception>(__R_FN_CALL_FULL, message, ARRAYSIZE(message), supported).hr);
         }
 

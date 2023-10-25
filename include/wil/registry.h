@@ -161,6 +161,81 @@ namespace wil
             return regview.create_key(subKey, hkey.put(), access);
         }
 #endif // #define __WIL_WINREG_STL
+        //
+        //  wil::key_iterator and wil::value_iterator objects enable enumerating registry keys and values.
+        //
+        // Examples of usage when std::wstring is included:
+        //
+        //     for (const auto& key_data : wil::make_range(wil::reg::key_iterator{hkey}, wil::reg::key_iterator{}))
+        //     {
+        //         key_data.name; // the std::wstring of the enumerated key
+        //     }
+        //
+        //     for (const auto& value_data : wil::make_range(wil::reg::value_iterator{hkey}, wil::reg::value_iterator{}))
+        //     {
+        //         value_data.name; // the std::wstring of the enumerated value
+        //         value_data.type; // the REG_ type of the enumerated value
+        //     }
+        //
+        // When std::wstring is not included, wil::unique_process_heap_string can be used instead:
+        //
+        //     for (const auto& key_data : wil::make_range(wil::reg::key_heap_string_iterator{hkey}, wil::reg::key_heap_string_iterator{}))
+        //     {
+        //         key_data.name.get(); // the PCWSTR of the enumerated key
+        //     }
+        //
+        //     for (const auto& value_data : wil::make_range(wil::reg::value_heap_string_iterator{hkey}, wil::reg::value_heap_string_iterator{}))
+        //     {
+        //         value_data.name.get(); // the PCWSTR of the enumerated value
+        //         value_data.type; // the REG_ type of the enumerated value
+        //     }
+        //
+        // When not using exceptions, can manually walk the iterator using wil::unique_process_heap_string:
+        //
+        //     auto iterate_keys = wil::reg::key_heap_string_nothrow_iterator{hkey};
+        //     for (const auto& key_data : wil::make_range(iterate_keys, wil::reg::key_heap_string_nothrow_iterator{}))
+        //     {
+        //         key_data.name.get(); // the PCWSTR of the enumerated key
+        //     }
+        //     if (FAILED(iterate_keys.last_error()))
+        //     {
+        //         // the HRESULT last_error() returns the registry error that prevented enumeration
+        //     }
+        //
+        //     auto iterate_values = wil::reg::value_heap_string_nothrow_iterator{hkey};
+        //     for (const auto& value_data : wil::make_range(iterate_values, wil::reg::value_heap_string_nothrow_iterator{}))
+        //     {
+        //         value_data.name.get(); // the PCWSTR of the enumerated value
+        //         value_data.type; // the REG_ type of the enumerated value
+        //     }
+        //     if (FAILED(iterate_values.last_error()))
+        //     {
+        //         // the HRESULT last_error() returns the registry error that prevented enumeration
+        //     }
+        //
+#if defined(WIL_ENABLE_EXCEPTIONS)
+
+#if defined(_STRING_)
+        using key_iterator = ::wil::reg::iterator_t<::wil::reg::key_iterator_data<::std::wstring>>;
+        using value_iterator = ::wil::reg::iterator_t<::wil::reg::value_iterator_data<::std::wstring>>;
+#endif
+
+#if defined(__WIL_OLEAUTO_H_)
+        using key_bstr_iterator = ::wil::reg::iterator_t<::wil::reg::key_iterator_data<::wil::unique_bstr>>;
+        using value_bstr_iterator = ::wil::reg::iterator_t<::wil::reg::value_iterator_data<::wil::unique_bstr>>;
+#endif // #if defined(__WIL_OLEAUTO_H_)
+
+        using key_heap_string_iterator = ::wil::reg::iterator_t<::wil::reg::key_iterator_data<::wil::unique_process_heap_string>>;
+        using value_heap_string_iterator = ::wil::reg::iterator_t<::wil::reg::value_iterator_data<::wil::unique_process_heap_string>>;
+#endif // #if defined(WIL_ENABLE_EXCEPTIONS)
+
+        // no-throw versions of applicable registry iterators
+#if defined(__WIL_OLEAUTO_H_)
+        using key_bstr_nothrow_iterator = ::wil::reg::iterator_nothrow_t<::wil::reg::key_iterator_data<::wil::unique_bstr>>;
+        using value_bstr_nothrow_iterator = ::wil::reg::iterator_nothrow_t<::wil::reg::value_iterator_data<::wil::unique_bstr>>;
+#endif // #if defined(__WIL_OLEAUTO_H_)
+        using key_heap_string_nothrow_iterator = ::wil::reg::iterator_nothrow_t<::wil::reg::key_iterator_data<::wil::unique_process_heap_string>>;
+        using value_heap_string_nothrow_iterator = ::wil::reg::iterator_nothrow_t<::wil::reg::value_iterator_data<::wil::unique_process_heap_string>>;
 
         /**
          * \brief Queries for number of sub-keys
@@ -509,7 +584,7 @@ namespace wil
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to write to the unnamed default registry value.
          * \param data A std::vector<std::wstring> to write to the specified registry value.
-         *        Each string will be marshalled to a contiguous null-terminator-delimited multi-sz string
+         *        Each string will be marshaled to a contiguous null-terminator-delimited multi-sz string
          * \exception std::exception (including wil::ResultException) will be thrown on all failures
          */
         inline void set_value(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const ::std::vector<::std::wstring>& data)
@@ -525,7 +600,7 @@ namespace wil
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to write to the unnamed default registry value.
          * \param data A std::vector<std::wstring> to write to the specified registry value.
-         *        Each string will be marshalled to a contiguous null-terminator-delimited multi-sz string.
+         *        Each string will be marshaled to a contiguous null-terminator-delimited multi-sz string.
          * \exception std::exception (including wil::ResultException) will be thrown on all failures
          */
         inline void set_value(HKEY key, _In_opt_ PCWSTR value_name, const ::std::vector<::std::wstring>& data)
@@ -541,7 +616,7 @@ namespace wil
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to write to the unnamed default registry value.
          * \param data A std::vector<std::wstring> to write to the specified registry value.
-         *        Each string will be marshalled to a contiguous null-terminator-delimited multi-sz string
+         *        Each string will be marshaled to a contiguous null-terminator-delimited multi-sz string
          * \exception std::exception (including wil::ResultException) will be thrown on all failures
          */
         inline void set_value_multistring(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const ::std::vector<::std::wstring>& data)
@@ -555,7 +630,7 @@ namespace wil
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to write to the unnamed default registry value.
          * \param data A std::vector<std::wstring> to write to the specified registry value.
-         *        Each string will be marshalled to a contiguous null-terminator-delimited multi-sz string.
+         *        Each string will be marshaled to a contiguous null-terminator-delimited multi-sz string.
          * \exception std::exception (including wil::ResultException) will be thrown on all failures
          */
         inline void set_value_multistring(HKEY key, _In_opt_ PCWSTR value_name, const ::std::vector<::std::wstring>& data)
@@ -574,7 +649,7 @@ namespace wil
          *        Can be nullptr to write to the unnamed default registry value.
          * \param type The registry type for the specified registry value - see RegSetKeyValueW
          * \param data A std::vector<uint8_t>/std::vector<BYTE> to write to the specified registry value.
-         *        The vector contents will be directly marshalled to the specified value.
+         *        The vector contents will be directly marshaled to the specified value.
          * \exception std::exception (including wil::ResultException) will be thrown on all failures
          */
         inline void set_value_binary(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, uint32_t type, const ::std::vector<uint8_t>& data)
@@ -590,7 +665,7 @@ namespace wil
          *        Can be nullptr to write to the unnamed default registry value.
          * \param type The registry type for the specified registry value - see RegSetKeyValueW
          * \param data A std::vector<uint8_t>/std::vector<BYTE> to write to the specified registry value.
-         *        The vector contents will be directly marshalled to the specified value.
+         *        The vector contents will be directly marshaled to the specified value.
          * \exception std::exception (including wil::ResultException) will be thrown on all failures
          */
         inline void set_value_binary(HKEY key, _In_opt_ PCWSTR value_name, uint32_t type, const ::std::vector<uint8_t>& data)
@@ -626,7 +701,6 @@ namespace wil
         //     std::vector<BYTE> data { 0x00, 0xff, 0xee, 0xdd, 0xcc };
         //     hr = wil::reg::set_value_binary_nothrow(key, L"binary_value_name", REG_BINARY, data);
         //
-
         /**
         * \brief Writes a value to a specified key and subkey, deducing the type from the given data.
         * \tparam T The type of the data being set (the registry value type is deduced from T).
@@ -862,7 +936,7 @@ namespace wil
         //     std::wstring string_value = wil::reg::get_value_string(key, L"string_value_name");
         //
         // Values with REG_EXPAND_SZ can be read into each of the string types; e.g.:
-        //     std::wstring expaned_string_value = wil::reg::get_value_expanded_string(key, L"string_value_name_with_environment_variables");
+        //     std::wstring expanded_string_value = wil::reg::get_value_expanded_string(key, L"string_value_name_with_environment_variables");
         //
         // Values can be read directly into a vector of bytes - the registry type must be specified; e.g.:
         //     std::vector<BYTE> data = wil::reg::get_value_binary(key, L"binary_value_name", REG_BINARY);
@@ -877,7 +951,7 @@ namespace wil
         //
         // Reading REG_SZ and REG_EXPAND_SZ types are done through the below templated get_value_string and get_value_expanded_string functions
         // Where the template type is the type to receive the string value
-        // The default template type is std::wstring, availble if the caller has included the STL <string> header
+        // The default template type is std::wstring, available if the caller has included the STL <string> header
         //
         // Reading a bstr can be stored in a wil::shared_bstr or wil::unique_bstr - wil::shared_bstr has a c'tor taking a wil::unique_bstr
         //     wil::unique_bstr unique_value { wil::reg::get_value_string<::wil::unique_bstr>(key, L"string_value_name") };
@@ -1160,7 +1234,7 @@ namespace wil
         }
 
         /**
-         * \brief Reads a REG_EXPAND_SZ value, returning a wil::unqiue_bstr
+         * \brief Reads a REG_EXPAND_SZ value, returning a wil::unique_bstr
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
@@ -1225,7 +1299,7 @@ namespace wil
         }
 
         /**
-         * \brief Reads a REG_EXPAND_SZ value, returning a wil::unqiue_bstr
+         * \brief Reads a REG_EXPAND_SZ value, returning a wil::unique_bstr
          * \param key An open or well-known registry key
          * \param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
@@ -1515,83 +1589,83 @@ namespace wil
 #endif // #if defined(_VECTOR_) && defined(_STRING_)
 
 #if defined (_OPTIONAL_) && defined(__cpp_lib_optional)
-    //
-    // template <typename T>
-    // void try_get_value(...)
-    //
-    //  - Reads a value under a specified key and subkey, deducing registry type from the type parameter T.
-    //  - throws a std::exception on failure (including wil::ResultException), except if the registry value was not found
-    //    returns a std::nullopt if the registry value is not found
-    //
-    // Examples using the returned std::optional<uint32_t>
-    //  - Caller should ensure the code handles a possible std::exception that will be thrown on all errors except value not found
-    //
-    //     std::optional<uint32_t> opt_dword_value = wil::reg::try_get_value<uint32_t>(key, L"dword_value_name");
-    //     if (opt_dword_value.has_value())
-    //     {
-    //         // opt_dword_value.value() returns the uint32_t read from the registry
-    //     }
-    //     else
-    //     {
-    //         // the registry value did not exist
-    //     }
-    //     // if the caller wants to apply a default value of 0, they can call value_or()
-    //     uint32_t opt_dword_value = wil::reg::try_get_value<uint32_t>(key, L"dword_value_name").value_or(0);
-    //
-    // Examples using the returned std::optional<std::wstring>
-    //     std::optional<std::wstring> opt_string_value = wil::reg::try_get_value_string(key, L"string_value_name");
-    //     if (opt_string_value.has_value())
-    //     {
-    //         // opt_string_value.value() returns the std::wstring read from the registry
-    //         // the below avoids copying the std::wstring as value() here returns a std::wstring&
-    //         PCWSTR string_value = opt_string_value.value().c_str();
-    //     }
-    //     else
-    //     {
-    //         // the registry value did not exist
-    //     }
-    //
-    //     // if the caller wants to apply a default value of L"default", they can call value_or()
-    //     // note that std::optional only attempts to construct a std::wstring for L"default" if the std::optional is empty (std::nullopt)
-    //     // thus only allocating a new std::wsting for the default value when it's needed
-    //     std::optional<std::wstring> opt_string_value = wil::reg::try_get_value_string(key, L"string_value_name").value_or(L"default");
-    //
-    // Examples of usage:
-    //     std::optional<uint32_t> opt_dword_value = wil::reg::try_get_value<uint32_t>(key, L"subkey", L"dword_value_name");
-    //     std::optional<uint64_t> opt_qword_value = wil::reg::try_get_value<uint64_t>(key, L"subkey", L"qword_value_name);
-    //     std::optional<std::wstring> opt_string_value = wil::reg::try_get_value<std::wstring>(key, L"subkey", L"string_value_name");
-    //
-    // A subkey is not required if the key is opened where this should write the value; e.g.
-    //     std::optional<uint32_t> opt_dword_value = wil::reg::try_get_value<uint32_t>(key, L"dword_value_name");
-    //     std::optional<uint64_t> opt_qword_value = wil::reg::try_get_value<uint64_t>(key, L"qword_value_name);
-    //     std::optional<std::wstring> opt_string_value = wil::reg::try_get_value<std::wstring>(key, L"string_value_name");
-    //
-    // The template type does not need to be specified if using functions written for a targeted type; e.g.
-    //     std::optional<uint32_t> opt_dword_value = wil::reg::try_get_value_dword(key, L"dword_value_name");
-    //     std::optional<uint64_t> opt_qword_value = wil::reg::try_get_value_qword(key, L"qword_value_name");
-    //     std::optional<std::wstring> opt_string_value = wil::reg::try_get_value_string(key, L"string_value_name");
-    //
-    // Values with REG_EXPAND_SZ can be read into each of the string types; e.g.:
-    //     std::optional<std::wstring> opt_expaned_string_value = wil::reg::try_get_value_expanded_string(key, L"string_value_name_with_environment_variables");
-    //
-    // Values can be read directly into a vector of bytes - the registry type must be specified; e.g.:
-    //     std::optional<std::vector<BYTE>> opt_data = wil::reg::try_get_value_binary(key, L"binary_value_name", REG_BINARY);
-    //
-    // Multi-string values can be read into a std::vector<std::wstring>; e.g.:
-    //     std::optional<::std::vector<::std::wstring>> try_get_value_multistring(key, L"multi_string_value_name");
-    //     See the definition of try_get_value_multistring before for usage guidance
-    //
-    // Reading REG_SZ and REG_EXPAND_SZ types are done through the below templated try_get_value_string and try_get_value_expanded_string functions
-    // Where the template type is the type to receive the string value
-    // The default template type is std::wstring, availble if the caller has included the STL <string> header
-    //
-    // Reading a bstr is returned in a std::optional<wil::shared_bstr> - because wil::unique_bstr cannot be copied and thus is difficult to work with a std::optional
-    //     std::optional<wil::shared_bstr> shared_value { wil::reg::try_get_value_string<::wil::shared_bstr>(key, L"string_value_name") };
-    //
-    // Reading a cotaskmem string is returned in a std::optional<wil::shared_cotaskmem_string> - because wil::unique_cotaskmem_string cannot be copied and thus is difficult to work with a std::optional
-    //     std::optional<wil::shared_cotaskmem_string> opt_shared_value { wil::reg::try_get_value_string<wil::shared_cotaskmem_string>(key, L"string_value_name") };
-    //
-    // Blocking try_get_value_string template types that are not already specialized - this gives a much friendlier compiler error message
+        //
+        // template <typename T>
+        // void try_get_value(...)
+        //
+        //  - Reads a value under a specified key and subkey, deducing registry type from the type parameter T.
+        //  - throws a std::exception on failure (including wil::ResultException), except if the registry value was not found
+        //    returns a std::nullopt if the registry value is not found
+        //
+        // Examples using the returned std::optional<uint32_t>
+        //  - Caller should ensure the code handles a possible std::exception that will be thrown on all errors except value not found
+        //
+        //     std::optional<uint32_t> opt_dword_value = wil::reg::try_get_value<uint32_t>(key, L"dword_value_name");
+        //     if (opt_dword_value.has_value())
+        //     {
+        //         // opt_dword_value.value() returns the uint32_t read from the registry
+        //     }
+        //     else
+        //     {
+        //         // the registry value did not exist
+        //     }
+        //     // if the caller wants to apply a default value of 0, they can call value_or()
+        //     uint32_t opt_dword_value = wil::reg::try_get_value<uint32_t>(key, L"dword_value_name").value_or(0);
+        //
+        // Examples using the returned std::optional<std::wstring>
+        //     std::optional<std::wstring> opt_string_value = wil::reg::try_get_value_string(key, L"string_value_name");
+        //     if (opt_string_value.has_value())
+        //     {
+        //         // opt_string_value.value() returns the std::wstring read from the registry
+        //         // the below avoids copying the std::wstring as value() here returns a std::wstring&
+        //         PCWSTR string_value = opt_string_value.value().c_str();
+        //     }
+        //     else
+        //     {
+        //         // the registry value did not exist
+        //     }
+        //
+        //     // if the caller wants to apply a default value of L"default", they can call value_or()
+        //     // note that std::optional only attempts to construct a std::wstring for L"default" if the std::optional is empty (std::nullopt)
+        //     // thus only allocating a new std::wstring for the default value when it's needed
+        //     std::optional<std::wstring> opt_string_value = wil::reg::try_get_value_string(key, L"string_value_name").value_or(L"default");
+        //
+        // Examples of usage:
+        //     std::optional<uint32_t> opt_dword_value = wil::reg::try_get_value<uint32_t>(key, L"subkey", L"dword_value_name");
+        //     std::optional<uint64_t> opt_qword_value = wil::reg::try_get_value<uint64_t>(key, L"subkey", L"qword_value_name);
+        //     std::optional<std::wstring> opt_string_value = wil::reg::try_get_value<std::wstring>(key, L"subkey", L"string_value_name");
+        //
+        // A subkey is not required if the key is opened where this should write the value; e.g.
+        //     std::optional<uint32_t> opt_dword_value = wil::reg::try_get_value<uint32_t>(key, L"dword_value_name");
+        //     std::optional<uint64_t> opt_qword_value = wil::reg::try_get_value<uint64_t>(key, L"qword_value_name);
+        //     std::optional<std::wstring> opt_string_value = wil::reg::try_get_value<std::wstring>(key, L"string_value_name");
+        //
+        // The template type does not need to be specified if using functions written for a targeted type; e.g.
+        //     std::optional<uint32_t> opt_dword_value = wil::reg::try_get_value_dword(key, L"dword_value_name");
+        //     std::optional<uint64_t> opt_qword_value = wil::reg::try_get_value_qword(key, L"qword_value_name");
+        //     std::optional<std::wstring> opt_string_value = wil::reg::try_get_value_string(key, L"string_value_name");
+        //
+        // Values with REG_EXPAND_SZ can be read into each of the string types; e.g.:
+        //     std::optional<std::wstring> opt_expanded_string_value = wil::reg::try_get_value_expanded_string(key, L"string_value_name_with_environment_variables");
+        //
+        // Values can be read directly into a vector of bytes - the registry type must be specified; e.g.:
+        //     std::optional<std::vector<BYTE>> opt_data = wil::reg::try_get_value_binary(key, L"binary_value_name", REG_BINARY);
+        //
+        // Multi-string values can be read into a std::vector<std::wstring>; e.g.:
+        //     std::optional<::std::vector<::std::wstring>> try_get_value_multistring(key, L"multi_string_value_name");
+        //     See the definition of try_get_value_multistring before for usage guidance
+        //
+        // Reading REG_SZ and REG_EXPAND_SZ types are done through the below templated try_get_value_string and try_get_value_expanded_string functions
+        // Where the template type is the type to receive the string value
+        // The default template type is std::wstring, available if the caller has included the STL <string> header
+        //
+        // Reading a bstr is returned in a std::optional<wil::shared_bstr> - because wil::unique_bstr cannot be copied and thus is difficult to work with a std::optional
+        //     std::optional<wil::shared_bstr> shared_value { wil::reg::try_get_value_string<::wil::shared_bstr>(key, L"string_value_name") };
+        //
+        // Reading a cotaskmem string is returned in a std::optional<wil::shared_cotaskmem_string> - because wil::unique_cotaskmem_string cannot be copied and thus is difficult to work with a std::optional
+        //     std::optional<wil::shared_cotaskmem_string> opt_shared_value { wil::reg::try_get_value_string<wil::shared_cotaskmem_string>(key, L"string_value_name") };
+        //
+        // Blocking try_get_value_string template types that are not already specialized - this gives a much friendlier compiler error message
         template <typename T>
         ::std::optional<T> try_get_value_string(HKEY /*key*/, _In_opt_ PCWSTR /*subkey*/, _In_opt_ PCWSTR /*value_name*/)
         {
@@ -2044,7 +2118,7 @@ namespace wil
          *        If `nullptr`, then `key` is used without modification.
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to read from the unnamed default registry value.
-         * \return The value read from the registry value marshalled to a std::optional<std::vector<std::wstring>>.
+         * \return The value read from the registry value marshaled to a std::optional<std::vector<std::wstring>>.
          *         Returns std::nullopt if the value does not exist.
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
          */
@@ -2073,7 +2147,7 @@ namespace wil
          * \param key An open or well-known registry key
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to read from the unnamed default registry value.
-         * \return The value read from the registry value marshalled to a std::optional<std::vector<std::wstring>>.
+         * \return The value read from the registry value marshaled to a std::optional<std::vector<std::wstring>>.
          *         Returns std::nullopt if the value does not exist.
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
          */
@@ -2090,7 +2164,7 @@ namespace wil
          *        If `nullptr`, then `key` is used without modification.
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to read from the unnamed default registry value.
-         * \return The value read from the registry value marshalled to a std::optional<std::vector<std::wstring>>.
+         * \return The value read from the registry value marshaled to a std::optional<std::vector<std::wstring>>.
          *         Returns std::nullopt if the value does not exist.
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
          */
@@ -2104,7 +2178,7 @@ namespace wil
          * \param key An open or well-known registry key
          * \param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to read from the unnamed default registry value.
-         * \return The value read from the registry value marshalled to a std::optional<std::vector<std::wstring>>.
+         * \return The value read from the registry value marshaled to a std::optional<std::vector<std::wstring>>.
          *         Returns std::nullopt if the value does not exist.
          * \exception std::exception (including wil::ResultException) will be thrown on failures except value not found
          */
@@ -2142,7 +2216,7 @@ namespace wil
         //     hr = wil::reg::get_value_qword_nothrow(key, L"qword_value_name", &qword_value); // reads a REG_QWORD
         //     hr = wil::reg::get_value_string_nothrow(key, L"string_value_name", string_value); // reads a REG_SZ
         //
-        // Example storing directly intto a WCHAR array - note will return the required number of bytes if the supplied array is too small
+        // Example storing directly into a WCHAR array - note will return the required number of bytes if the supplied array is too small
         //     WCHAR string_value[100]{};
         //     uint32_t requiredBytes{};
         //     hr = wil::reg::get_value_string_nothrow(key, L"string_value_name", string_value, &requiredBytes);
@@ -2155,31 +2229,31 @@ namespace wil
         //     wil::unique_cotaskmem_array_ptr<BYTE> raw_value{};
         //     hr = wil::reg::get_value_binary_nothrow(key, L"binary_value_name", REG_BINARY, raw_value);
         //
-        // Reading REG_SZ and REG_EXPAND_SZ types are done through the below templated get_value_string_nothrow and get_value_expaneded_string_nothrow functions
+        // Reading REG_SZ and REG_EXPAND_SZ types are done through the below templated get_value_string_nothrow and get_value_expanded_string_nothrow functions
         // Where the template type is the type to receive the string value
-        // The default template type is std::wstring, availble if the caller has included the STL <string> header
+        // The default template type is std::wstring, available if the caller has included the STL <string> header
         //
         // Example storing a string in a wil::unique_bstr, wil::shared_bstr, wil::unique_cotaskmem_string, or wil::shared_cotaskmem_string
         /// - These string types are passed by reference, not by pointer, because the wil types overload the & operator
         //
         //     wil::unique_bstr bstr_value{};
         //     hr = wil::reg::get_value_nothrow(key, L"string_value_name", bstr_value);
-        //     // or can specify explicity reading a string into a wil::unique_bstr type
+        //     // or can specify explicitly reading a string into a wil::unique_bstr type
         //     hr = wil::reg::get_value_string_nothrow(key, L"string_value_name", bstr_value);
         //
         //     wil::shared_bstr shared_bstr_value{};
         //     hr = wil::reg::get_value_nothrow(key, L"string_value_name", shared_bstr_value);
-        //     // or can specify explicity reading a string into a wil::shared_bstr type
+        //     // or can specify explicitly reading a string into a wil::shared_bstr type
         //     hr = wil::reg::get_value_string_nothrow(key, L"string_value_name", shared_bstr_value);
         //
         //     wil::unique_cotaskmem_string string_value{};
         //     hr = wil::reg::get_value_nothrow(key, L"string_value_name", string_value);
-        //     // or can specify explicity reading a string into a wil::unique_cotaskmem_string type
+        //     // or can specify explicitly reading a string into a wil::unique_cotaskmem_string type
         //     hr = wil::reg::get_value_string_nothrow(key, L"string_value_name", string_value);
         //
         //     wil::shared_cotaskmem_string shared_string_value{};
         //     hr = wil::reg::get_value_nothrow(key, L"string_value_name", shared_string_value);
-        //     // or can specify explicity reading a string into a wil::shared_cotaskmem_string type
+        //     // or can specify explicitly reading a string into a wil::shared_cotaskmem_string type
         //     hr = wil::reg::get_value_string_nothrow(key, L"string_value_name", shared_string_value);
         //
 
@@ -2272,9 +2346,9 @@ namespace wil
         template <size_t Length>
         HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length]) WI_NOEXCEPT
         {
-            constexpr uint32_t* null_outparam = nullptr;
+            constexpr uint32_t* null_out_param = nullptr;
             const reg_view_details::reg_view_nothrow regview{ key };
-            return regview.get_value_char_array(subkey, value_name, return_value, REG_SZ, null_outparam);
+            return regview.get_value_char_array(subkey, value_name, return_value, REG_SZ, null_out_param);
         }
 
         /**
@@ -2725,9 +2799,9 @@ namespace wil
         template <size_t Length>
         HRESULT get_value_expanded_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, WCHAR(&return_value)[Length]) WI_NOEXCEPT
         {
-            constexpr uint32_t* null_outparam = nullptr;
+            constexpr uint32_t* null_out_param = nullptr;
             const reg_view_details::reg_view_nothrow regview{ key };
-            return regview.get_value_char_array(subkey, value_name, return_value, REG_EXPAND_SZ, null_outparam);
+            return regview.get_value_char_array(subkey, value_name, return_value, REG_EXPAND_SZ, null_out_param);
         }
 
         /**
@@ -2998,8 +3072,8 @@ namespace wil
             volatile long m_refCount = 1;
             srwlock m_lock;
 
-            // Returns true if the refcount can be increased from a non zero value,
-            // false it was zero impling that the object is in or on the way to the destructor.
+            // Returns true if the ref-count can be increased from a non zero value,
+            // false it was zero implying that the object is in or on the way to the destructor.
             // In this case ReleaseFromCallback() should not be called.
             bool TryAddRef()
             {
