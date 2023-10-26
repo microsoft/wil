@@ -667,5 +667,24 @@ TEST_CASE("FileSystemTests::QueryFullProcessImageNameW", "[filesystem]")
     REQUIRE_SUCCEEDED((wil::QueryFullProcessImageNameW<wil::unique_cotaskmem_string, 15>(::GetCurrentProcess(), 0, path)));
 }
 
+#if _HAS_CXX17
+#ifdef WIL_ENABLE_EXCEPTIONS
+
+TEST_CASE("FileSystemTests::CreateFile helpers", "[filesystem]")
+{
+    auto path = wil::ExpandEnvironmentStringsW<std::wstring>(LR"(%TEMP%\open_existing_test)");
+
+    // arrange
+    {
+        auto handle = wil::open_or_create_file(path.c_str());
+    }
+
+    auto [createHandle, secondLastError] = wil::try_open_or_create_file(path.c_str());
+    REQUIRE(createHandle.is_valid());
+    REQUIRE(secondLastError == ERROR_ALREADY_EXISTS);
+}
+
+#endif
+#endif
 
 #endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)

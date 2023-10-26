@@ -198,6 +198,7 @@ namespace wil
     };
     DEFINE_ENUM_FLAG_OPERATORS(RemoveDirectoryOptions);
 
+    /// @cond
     namespace details
     {
         // Reparse points should not be traversed in most recursive walks of the file system,
@@ -209,6 +210,7 @@ namespace wil
                     (IsReparseTagDirectory(info.ReparseTag) || (info.ReparseTag == IO_REPARSE_TAG_WCI))));
         }
     }
+    /// @endcond
 
     // Retrieve a handle to a directory only if it is safe to recurse into.
     inline wil::unique_hfile TryCreateFileCanRecurseIntoDirectory(PCWSTR path, PWIN32_FIND_DATAW fileFindData, DWORD access = GENERIC_READ | /*DELETE*/ 0x00010000L, DWORD share = FILE_SHARE_READ)
@@ -1049,108 +1051,205 @@ namespace wil
         return result;
     }
 
-// Helpers to make the CreateFileW API easier to use. This segregates the OPEN_EXISTING "open an existing file"
-// cases from the "create a new file" that has 4 variations represented in the create_file_create_behavior enum.
+    // Helpers to make the CreateFileW API easier to use. This segregates the OPEN_EXISTING "open an existing file"
+    // cases from the "create a new file" that has 4 variations represented in the create_file_create_behavior enum.
 
-// https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew?devlangs=cpp&f1url=%3FappId%3DDev16IDEF1%26l%3DEN-US%26k%3Dk(FILEAPI%252FCreateFileW)%3Bk(CreateFileW)%3Bk(DevLang-C%252B%252B)%3Bk(TargetOS-Windows)%26rd%3Dtrue
+    // https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew?devlangs=cpp&f1url=%3FappId%3DDev16IDEF1%26l%3DEN-US%26k%3Dk(FILEAPI%252FCreateFileW)%3Bk(CreateFileW)%3Bk(DevLang-C%252B%252B)%3Bk(TargetOS-Windows)%26rd%3Dtrue
 
-enum class create_file_create_behavior : uint32_t
-{
-    // Creates a new file, always.
-    // If the specified file exists and is writable, the function overwrites the file, the function succeeds, and
-    // last-error code is set to ERROR_ALREADY_EXISTS (183).
-    // In the case where the overwrite is required, the identity of original file is assumed by the new one.
-    // The FileId and ObjectId of the file are not changed. So in this sense the file is not new.
-    overwrite_existing = CREATE_ALWAYS,
+    struct file_and_error_result
+    {
+        file_and_error_result(HANDLE file_handle, DWORD error) : file(file_handle), last_error(error)
+        {
+        }
 
-    // Creates a new file, only if it does not already exist.
-    // If the specified file exists, the function fails and the last-error code is set to ERROR_FILE_EXISTS (80).
-    // If the specified file does not exist and is a valid path to a writable location, a new file is created.
-    create_only_if_new = CREATE_NEW,
+        wil::unique_hfile file;
+        DWORD last_error{};
+    };
 
-    // Opens a file, always.
-    // If the specified file exists, the function succeeds and the last-error code is set to ERROR_ALREADY_EXISTS (183).
-    // If the specified file does not exist and is a valid path to a writable location, the function creates a file and
-    // the last-error code is set to zero.
-    open_or_create_if_needed = OPEN_ALWAYS,
+    /** Non-throwing open existing using OPEN_EXISTING.
+    ~~~
+    auto handle = wil::try_open_file(filePath.c_str());
+    ~~~
+    */
+    inline file_and_error_result try_open_file(PCWSTR path, DWORD dwDesiredAccess = FILE_READ_ACCESS,
+        DWORD dwShareMode = FILE_SHARE_READ,
+        bool inheritHandle = false,
+        DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL) noexcept
+    {
+        SECURITY_ATTRIBUTES secAttributes{ sizeof(secAttributes) };
+        secAttributes.bInheritHandle = inheritHandle;
+        return { CreateFileW(path, dwDesiredAccess, dwShareMode, &secAttributes, OPEN_EXISTING, dwFlagsAndAttributes, nullptr),
+            ::GetLastError() };
+    }
 
-    // Opens a file and truncates it so that its size is zero bytes, only if it exists.
-    // If the specified file does not exist, the function fails and the last-error code is set to ERROR_FILE_NOT_FOUND (2).
-    // The calling process must open the file with the GENERIC_WRITE bit set as part of the dwDesiredAccess parameter.
-    overwrite_and_truncate_only_if_exists = TRUNCATE_EXISTING
-};
+    /** open existing using OPEN_EXISTING, throws on error.
+    ~~~
+    auto handle = wil::open_file(filePath.c_str());
+    ~~~
+    */
+    inline wil::unique_hfile open_file(PCWSTR path, DWORD dwDesiredAccess = FILE_READ_ACCESS,
+        DWORD dwShareMode = FILE_SHARE_READ,
+        bool inheritHandle = false,
+        DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL)
+    {
+        auto result = try_open_file(path, dwDesiredAccess, dwShareMode, inheritHandle, dwFlagsAndAttributes);
+        THROW_WIN32_IF(result.last_error, !result.file.is_valid());
+        return std::move(result.file);
+    }
 
-/** Non-throwing open existing, test GetLastError() with the handle is invalid.
-~~~
-auto handle = wil::create_file_try_open(filePath.c_str());
-~~~
-*/
-inline wil::unique_hfile create_file_try_open(PCWSTR path, DWORD dwDesiredAccess = FILE_READ_ACCESS,
-    DWORD dwShareMode = FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-    bool inheritHandle = false,
-    DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL) noexcept
-{
-    SECURITY_ATTRIBUTES secAttributes{sizeof(secAttributes)};
-    secAttributes.bInheritHandle = inheritHandle;
-    return wil::unique_hfile{CreateFileW(
-        path, dwDesiredAccess, dwShareMode, &secAttributes, OPEN_EXISTING, dwFlagsAndAttributes, nullptr)};
-}
+    /// @cond
+    namespace details
+    {
+        template<DWORD dwCreateDisposition>
+        file_and_error_result create_file(PCWSTR path, DWORD dwDesiredAccess,
+            DWORD dwShareMode,
+            LPSECURITY_ATTRIBUTES lpSecurityAttributes,
+            DWORD dwFlagsAndAttributes,
+            HANDLE hTemplateFile) noexcept
+        {
+            return { CreateFileW(
+                path, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreateDisposition, dwFlagsAndAttributes, hTemplateFile),
+                ::GetLastError() };
+        }
+    }
+    /// @endcond
 
-/** open existing, throws on error.
-~~~
-auto handle = wil::create_file_open(filePath.c_str());
-~~~
-*/
-inline wil::unique_hfile create_file_open(PCWSTR path, DWORD dwDesiredAccess = FILE_READ_ACCESS,
-    DWORD dwShareMode = FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-    bool inheritHandle = false,
-    DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL)
-{
-    auto handleResult = create_file_try_open(path, dwDesiredAccess, dwShareMode, inheritHandle, dwFlagsAndAttributes);
-    THROW_LAST_ERROR_IF(!handleResult.is_valid());
-    return handleResult;
-}
 
-/** create, non-throwing, returns handle and error code as a pair.
-~~~
-auto [handle, error] = wil::create_file_try_create(filePath.c_str());
-~~~
-*/
-template<create_file_create_behavior CreateDisposition = create_file_create_behavior::overwrite_existing>
-wistd::pair<wil::unique_hfile, DWORD> create_file_try_create(PCWSTR path, DWORD dwDesiredAccess = FILE_READ_ACCESS | FILE_WRITE_ACCESS,
-    DWORD dwShareMode = FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-    LPSECURITY_ATTRIBUTES lpSecurityAttributes = nullptr,
-    DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL,
-    HANDLE hTemplateFile = nullptr) noexcept
-{
-    return wistd::pair<wil::unique_hfile, DWORD>{CreateFileW(
-        path, dwDesiredAccess, dwShareMode, lpSecurityAttributes, static_cast<DWORD>(CreateDisposition), dwFlagsAndAttributes, hTemplateFile),
-        ::GetLastError()};
-}
+    /** create using CREATE_NEW, returns handle and error code.
+    ~~~
+    auto [handle, error = wil::try_create_new_file(filePath.c_str());
+    ~~~
+    */
+    inline file_and_error_result try_create_new_file(PCWSTR path,
+        DWORD dwDesiredAccess = FILE_READ_ACCESS | FILE_WRITE_ACCESS,
+        DWORD dwShareMode = FILE_SHARE_READ,
+        LPSECURITY_ATTRIBUTES lpSecurityAttributes = nullptr,
+        DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL,
+        HANDLE hTemplateFile = nullptr) noexcept
+    {
+        return details::create_file<CREATE_NEW>(
+            path, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwFlagsAndAttributes, hTemplateFile);
+    }
 
-/** create, throws on error.
-~~~
-auto handle = wil::create_file_create(filePath.c_str());
-~~~
+    /** create using OPEN_ALWAYS, returns handle and error code.
+    ~~~
+    auto [handle, error = wil::try_open_or_create_file(filePath.c_str());
+    ~~~
+    */
+    inline file_and_error_result try_open_or_create_file(PCWSTR path,
+        DWORD dwDesiredAccess = FILE_READ_ACCESS | FILE_WRITE_ACCESS,
+        DWORD dwShareMode = FILE_SHARE_READ,
+        LPSECURITY_ATTRIBUTES lpSecurityAttributes = nullptr,
+        DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL,
+        HANDLE hTemplateFile = nullptr) noexcept
+    {
+        return details::create_file<OPEN_ALWAYS>(
+            path, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwFlagsAndAttributes, hTemplateFile);
+    }
 
-There are 4 create behaviors, overwrite_existing is default. To specify the others use the template parameter.
-~~~
-auto [fileHandle, error] = create_file_try_create<create_file_create_behavior::create_only_if_new>(overWriteTarget.c_str());
-~~~
-*/
-template<create_file_create_behavior CreateDisposition = create_file_create_behavior::overwrite_existing>
-wil::unique_hfile create_file_create(PCWSTR path, DWORD dwDesiredAccess = FILE_READ_ACCESS | FILE_WRITE_ACCESS,
-    DWORD dwShareMode = FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-    LPSECURITY_ATTRIBUTES lpSecurityAttributes = nullptr,
-    DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL,
-    HANDLE hTemplateFile = nullptr)
-{
-    auto [fileHandle, error] = wistd::pair<wil::unique_hfile, DWORD>{CreateFileW(
-        path, dwDesiredAccess, dwShareMode, lpSecurityAttributes, static_cast<DWORD>(CreateDisposition), dwFlagsAndAttributes, hTemplateFile),
-        ::GetLastError()};
-    THROW_WIN32_IF(error, !fileHandle.is_valid());
-    return std::move(fileHandle);
-}
+    /** create using CREATE_ALWAYS, returns handle and error code.
+    ~~~
+    auto [handle, error = wil::try_open_or_truncate_existing_file(filePath.c_str());
+    ~~~
+    */
+    inline file_and_error_result try_open_or_truncate_existing_file(PCWSTR path,
+        DWORD dwDesiredAccess = FILE_READ_ACCESS | FILE_WRITE_ACCESS,
+        DWORD dwShareMode = FILE_SHARE_READ,
+        LPSECURITY_ATTRIBUTES lpSecurityAttributes = nullptr,
+        DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL,
+        HANDLE hTemplateFile = nullptr) noexcept
+    {
+        return details::create_file<CREATE_ALWAYS>(
+            path, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwFlagsAndAttributes, hTemplateFile);
+    }
+
+    /** create using TRUNCATE_EXISTING, returns handle and error code.
+    ~~~
+    auto [handle, error = wil::try_truncate_existing_file(filePath.c_str());
+    ~~~
+    */
+    inline file_and_error_result try_truncate_existing_file(PCWSTR path,
+        DWORD dwDesiredAccess = FILE_READ_ACCESS | FILE_WRITE_ACCESS | GENERIC_WRITE,
+        DWORD dwShareMode = FILE_SHARE_READ,
+        LPSECURITY_ATTRIBUTES lpSecurityAttributes = nullptr,
+        DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL,
+        HANDLE hTemplateFile = nullptr) noexcept
+    {
+        return details::create_file<TRUNCATE_EXISTING>(
+            path, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwFlagsAndAttributes, hTemplateFile);
+    }
+
+    /** create using CREATE_NEW, returns the file handle, throws on error.
+    ~~~
+    auto handle = wil::create_new_file(filePath.c_str());
+    ~~~
+    */
+    inline wil::unique_hfile create_new_file(PCWSTR path,
+        DWORD dwDesiredAccess = FILE_READ_ACCESS | FILE_WRITE_ACCESS,
+        DWORD dwShareMode = FILE_SHARE_READ,
+        LPSECURITY_ATTRIBUTES lpSecurityAttributes = nullptr,
+        DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL,
+        HANDLE hTemplateFile = nullptr) noexcept
+    {
+        auto result = try_create_new_file(
+            path, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwFlagsAndAttributes, hTemplateFile);
+        THROW_WIN32_IF(result.last_error, !result.file.is_valid());
+        return std::move(result.file);
+    }
+
+    /** create using OPEN_ALWAYS, returns the file handle, throws on error.
+    ~~~
+    auto handle = wil::open_or_create_file(filePath.c_str());
+    ~~~
+    */
+    inline wil::unique_hfile open_or_create_file(PCWSTR path,
+        DWORD dwDesiredAccess = FILE_READ_ACCESS | FILE_WRITE_ACCESS,
+        DWORD dwShareMode = FILE_SHARE_READ,
+        LPSECURITY_ATTRIBUTES lpSecurityAttributes = nullptr,
+        DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL,
+        HANDLE hTemplateFile = nullptr) noexcept
+    {
+        auto result = try_open_or_create_file(
+            path, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwFlagsAndAttributes, hTemplateFile);
+        THROW_WIN32_IF(result.last_error, !result.file.is_valid());
+        return std::move(result.file);
+    }
+
+    /** create using CREATE_ALWAYS, returns the file handle, throws on error.
+    ~~~
+    auto handle = wil::open_or_truncate_existing_file(filePath.c_str());
+    ~~~
+    */
+    inline wil::unique_hfile open_or_truncate_existing_file(PCWSTR path,
+        DWORD dwDesiredAccess = FILE_READ_ACCESS | FILE_WRITE_ACCESS,
+        DWORD dwShareMode = FILE_SHARE_READ,
+        LPSECURITY_ATTRIBUTES lpSecurityAttributes = nullptr,
+        DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL,
+        HANDLE hTemplateFile = nullptr) noexcept
+    {
+        auto result = try_open_or_truncate_existing_file(
+            path, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwFlagsAndAttributes, hTemplateFile);
+        THROW_WIN32_IF(result.last_error, !result.file.is_valid());
+        return std::move(result.file);
+    }
+
+    /** create using TRUNCATE_EXISTING, returns the file handle, throws on error.
+    ~~~
+    auto handle = wil::truncate_existing_file(filePath.c_str());
+    ~~~
+    */
+    inline wil::unique_hfile truncate_existing_file(PCWSTR path,
+        DWORD dwDesiredAccess = FILE_READ_ACCESS | FILE_WRITE_ACCESS,
+        DWORD dwShareMode = FILE_SHARE_READ,
+        LPSECURITY_ATTRIBUTES lpSecurityAttributes = nullptr,
+        DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL,
+        HANDLE hTemplateFile = nullptr) noexcept
+    {
+        auto result = try_truncate_existing_file(
+            path, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwFlagsAndAttributes, hTemplateFile);
+        THROW_WIN32_IF(result.last_error, !result.file.is_valid());
+        return std::move(result.file);
+    }
 
 #endif // _CPPUNWIND
 #endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && (_WIN32_WINNT >= _WIN32_WINNT_WIN7)
