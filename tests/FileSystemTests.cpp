@@ -663,9 +663,9 @@ TEST_CASE("FileSystemTests::CreateFile helpers", "[filesystem]")
         auto handle = wil::open_or_create_file(path.c_str());
     }
 
-    auto [createHandle, secondLastError] = wil::try_open_or_create_file(path.c_str());
-    REQUIRE(createHandle.is_valid());
-    REQUIRE(secondLastError == ERROR_ALREADY_EXISTS);
+    auto [handle, error] = wil::try_open_file(path.c_str());
+    REQUIRE(handle.is_valid());
+    REQUIRE(error == ERROR_ALREADY_EXISTS);
 }
 
 #endif
