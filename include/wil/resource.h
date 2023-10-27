@@ -5721,6 +5721,14 @@ namespace wil
             ::WdfWaitLockRelease,
             details::pointer_access_none>;
 
+#if defined(WIL_KERNEL_MODE)
+    using unique_wdf_device_init =
+        unique_any<
+            WDFDEVICE_INIT *,
+            decltype(&::WdfDeviceInitFree),
+            ::WdfDeviceInitFree>;
+#endif
+
     inline
     WI_NODISCARD
     _IRQL_requires_max_(PASSIVE_LEVEL)
