@@ -2649,6 +2649,7 @@ __WI_POP_WARNINGS
         //! Provides a string representing the FailureInfo from this exception.
         WI_NODISCARD inline const char* __CLR_OR_THIS_CALL what() const WI_NOEXCEPT override
         {
+#if !defined(NONLS) && !defined(NOAPISET)
             if (!m_what)
             {
                 wchar_t message[2048];
@@ -2664,6 +2665,18 @@ __WI_POP_WARNINGS
                 WideCharToMultiByte(CP_ACP, 0, message, -1, static_cast<char *>(m_what.get()), len, nullptr, nullptr);
             }
             return static_cast<const char *>(m_what.get());
+#else
+            if (!m_what)
+            {
+                wchar_t message[2048];
+                GetFailureLogString(message, ARRAYSIZE(message), m_failure.GetFailureInfo());
+
+                char messageA[1024];
+                wil::details::StringCchPrintfA(messageA, ARRAYSIZE(messageA), "%ws", message);
+                m_what.create(messageA, strlen(messageA) + sizeof(*messageA));
+            }
+            return static_cast<const char *>(m_what.get());
+#endif
         }
 
         // Relies upon auto-generated copy constructor and assignment operator
