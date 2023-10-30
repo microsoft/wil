@@ -667,7 +667,6 @@ TEST_CASE("FileSystemTests::QueryFullProcessImageNameW", "[filesystem]")
 
 TEST_CASE("FileSystemTests::CreateFileW helpers", "[filesystem]")
 {
-#ifdef _HAS_CXX17
     // OPEN_EXISTING
     {
         auto path = wil::ExpandEnvironmentStringsW<std::wstring>(LR"(%TEMP%\open_existing_test)");
@@ -771,9 +770,6 @@ TEST_CASE("FileSystemTests::CreateFileW helpers", "[filesystem]")
         auto overWrittenEndOfFile = wil::GetFileInfo<FileStandardInfo>(result.file.get()).EndOfFile;
         REQUIRE(overWrittenEndOfFile.QuadPart == 0);
     }
-
-#endif
-
 }
 
 #endif
