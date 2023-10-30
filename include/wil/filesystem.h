@@ -1072,9 +1072,8 @@ namespace wil
     ~~~
     */
     inline file_and_error_result try_open_file(PCWSTR path, DWORD dwDesiredAccess = FILE_READ_ACCESS,
-        DWORD dwShareMode = FILE_SHARE_READ,
-        bool inheritHandle = false,
-        DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL) noexcept
+        DWORD dwShareMode = FILE_SHARE_READ, DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL,
+        bool inheritHandle = false) noexcept
     {
         SECURITY_ATTRIBUTES secAttributes{ sizeof(secAttributes) };
         secAttributes.bInheritHandle = inheritHandle;
@@ -1088,9 +1087,8 @@ namespace wil
     ~~~
     */
     inline wil::unique_hfile open_file(PCWSTR path, DWORD dwDesiredAccess = FILE_READ_ACCESS,
-        DWORD dwShareMode = FILE_SHARE_READ,
-        bool inheritHandle = false,
-        DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL)
+        DWORD dwShareMode = FILE_SHARE_READ, DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL,
+        bool inheritHandle = false) noexcept
     {
         auto result = try_open_file(path, dwDesiredAccess, dwShareMode, inheritHandle, dwFlagsAndAttributes);
         THROW_WIN32_IF(result.last_error, !result.file.is_valid());
