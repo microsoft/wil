@@ -1253,7 +1253,7 @@ namespace wil
 #endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && (_WIN32_WINNT >= _WIN32_WINNT_WIN7)
 }
 
-#ifndef NO_FILE_TYPE_OPERATORS
+#ifndef WIL_NO_FILE_TYPE_OPERATORS
 inline bool operator==(const FILE_ID_128& left, const FILE_ID_128& right)
 {
     return memcmp(&left, &right, sizeof(left)) == 0;
