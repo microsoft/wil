@@ -684,6 +684,7 @@ TEST_CASE("FileSystemTests::CreateFileW helpers", "[filesystem]")
 
     // CREATE_ALWAYS
     {
+#if (NTDDI_VERSION >= NTDDI_WIN8)
         FILE_ID_128 originalFileId{};
 
         // arrange
@@ -703,6 +704,7 @@ TEST_CASE("FileSystemTests::CreateFileW helpers", "[filesystem]")
 
         auto newFileId = wil::GetFileInfo<FileIdInfo>(result.file.get()).FileId;
         REQUIRE(originalFileId == newFileId); // Identity is the same
+#endif
     }
 
     // CREATE_NEW
