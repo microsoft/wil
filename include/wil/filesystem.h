@@ -1256,7 +1256,6 @@ namespace wil
 #ifndef NO_FILE_TYPE_OPERATORS
 inline bool operator==(const FILE_ID_128& left, const FILE_ID_128& right)
 {
-    static_assert(sizeof(left) == sizeof(right), "size must match");
     return memcmp(&left, &right, sizeof(left)) == 0;
 }
 
