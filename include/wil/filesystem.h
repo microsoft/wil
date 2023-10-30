@@ -1054,7 +1054,7 @@ namespace wil
     // Helpers to make the CreateFileW API easier to use. This segregates the OPEN_EXISTING "open an existing file"
     // cases from the "create a new file" that has 4 variations represented in the create_file_create_behavior enum.
 
-    // https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew?devlangs=cpp&f1url=%3FappId%3DDev16IDEF1%26l%3DEN-US%26k%3Dk(FILEAPI%252FCreateFileW)%3Bk(CreateFileW)%3Bk(DevLang-C%252B%252B)%3Bk(TargetOS-Windows)%26rd%3Dtrue
+    // https://learn.microsoft.com/windows/win32/api/fileapi/nf-fileapi-createfilew
 
     struct file_and_error_result
     {
