@@ -637,6 +637,22 @@ TEST_CASE("FileSystemTests::QueryFullProcessImageNameW and GetModuleFileNameW", 
 #endif
 }
 
+TEST_CASE("FileSystemTests::GetFileInfo<FileStreamInfo>", "[filesystem]")
+{
+#ifdef WIL_ENABLE_EXCEPTIONS
+    auto path = wil::ExpandEnvironmentStringsW<std::wstring>(L"%TEMP%");
+    wil::unique_hfile handle(CreateFileW(path.c_str(), FILE_READ_ATTRIBUTES,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING,
+        FILE_FLAG_BACKUP_SEMANTICS, nullptr));
+    THROW_LAST_ERROR_IF(!handle.is_valid());
+
+    // Test the ERROR_HANDLE_EOF case with a folder
+    wistd::unique_ptr<FILE_STREAM_INFO> streamInfo;
+    auto hr = wil::GetFileInfoNoThrow<FileStreamInfo>(handle.get(), streamInfo);
+    REQUIRE(hr == S_OK);
+#endif
+}
+
 TEST_CASE("FileSystemTests::QueryFullProcessImageNameW", "[filesystem]")
 {
     WCHAR fullName[MAX_PATH * 4];
