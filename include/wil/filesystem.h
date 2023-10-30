@@ -1077,8 +1077,8 @@ namespace wil
     {
         SECURITY_ATTRIBUTES secAttributes{ sizeof(secAttributes) };
         secAttributes.bInheritHandle = inheritHandle;
-        return { CreateFileW(path, dwDesiredAccess, dwShareMode, &secAttributes, OPEN_EXISTING, dwFlagsAndAttributes, nullptr),
-            ::GetLastError() };
+        auto handle = CreateFileW(path, dwDesiredAccess, dwShareMode, &secAttributes, OPEN_EXISTING, dwFlagsAndAttributes, nullptr);
+        return { handle, ::GetLastError() };
     }
 
     /** open existing using OPEN_EXISTING, throws on error.
@@ -1105,9 +1105,9 @@ namespace wil
             DWORD dwFlagsAndAttributes,
             HANDLE hTemplateFile) noexcept
         {
-            return { CreateFileW(
-                path, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreateDisposition, dwFlagsAndAttributes, hTemplateFile),
-                ::GetLastError() };
+            auto handle = CreateFileW(
+                path, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreateDisposition, dwFlagsAndAttributes, hTemplateFile);
+            return { handle, ::GetLastError() };
         }
     }
     /// @endcond
