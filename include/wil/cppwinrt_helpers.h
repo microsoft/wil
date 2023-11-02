@@ -520,7 +520,7 @@ namespace wil::details
 namespace wil
 {
     template<typename Func, typename... Args, typename TResult = typename details::iterator_result<std::invoke_result_t<Func, Args...>>::type>
-    winrt::Windows::Foundation::Collections::IIterable<TResult> make_iterable_from_iterator(Func&& func, Args&&... args)
+    winrt::Windows::Foundation::Collections::IIterable<TResult> make_iterable_from_generator(Func&& func, Args&&... args)
     {
         return winrt::make<details::iterable_iterator_helper<TResult, Func, Args...>>(std::forward<Func>(func), std::forward<Args>(args)...);
     }
