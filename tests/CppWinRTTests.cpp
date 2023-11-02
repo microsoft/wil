@@ -798,9 +798,9 @@ TEST_CASE("CppWinRTTests::Generator", "[cppwinrt]")
         REQUIRE_THROWS_AS(iterator.MoveNext(), winrt::hresult_invalid_argument);
     }
 
-    SECTION("make_iterable_from_iterator")
+    SECTION("make_iterable_from_generator")
     {
-        auto generator = wil::make_iterable_from_iterator(&test::hello_world_generator);
+        auto generator = wil::make_iterable_from_generator(&test::hello_world_generator);
         auto iterator = generator.First();
 
         REQUIRE(iterator.Current() == L"Hello");
@@ -815,10 +815,10 @@ TEST_CASE("CppWinRTTests::Generator", "[cppwinrt]")
         REQUIRE(!iterator2.MoveNext());
     }
 
-    SECTION("make_iterable_from_iterator with arguments")
+    SECTION("make_iterable_from_generator with arguments")
     {
         auto ptr = std::make_unique<int>(3);
-        auto const_ref_generator = wil::make_iterable_from_iterator([](const std::unique_ptr<int> &ptr) -> winrt::Windows::Foundation::Collections::IIterator<int>
+        auto const_ref_generator = wil::make_iterable_from_generator([](const std::unique_ptr<int> &ptr) -> winrt::Windows::Foundation::Collections::IIterator<int>
         {
             co_yield *ptr;
         }, ptr);
@@ -831,7 +831,7 @@ TEST_CASE("CppWinRTTests::Generator", "[cppwinrt]")
     SECTION("Range-based for loop")
     {
         std::wstring result;
-        for (const auto &i : wil::make_iterable_from_iterator(&test::hello_world_generator))
+        for (const auto &i : wil::make_iterable_from_generator(&test::hello_world_generator))
         {
             result += i;
         }
