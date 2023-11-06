@@ -142,6 +142,8 @@ goto :init
     :: Formulate CMake arguments
     if %GENERATOR%==ninja set CMAKE_ARGS=%CMAKE_ARGS% -G Ninja
 
+    :: NOTE: clang++ seems to currently have an issue handling SEH & destructors, so use clang-cl for now which, for
+    :: some reason, doesn't seem to have the same issue
     if %COMPILER%==clang set CMAKE_ARGS=%CMAKE_ARGS% -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl
     if %COMPILER%==msvc set CMAKE_ARGS=%CMAKE_ARGS% -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl
 
