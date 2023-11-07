@@ -12,10 +12,18 @@ macro(replace_cxx_flag pattern text)
 endmacro()
 
 # Fixup default compiler settings
-add_compile_options(
-    # Be as strict as reasonably possible, since we want to support consumers using strict warning levels
-    /W4 /WX
+if (MSVC)
+    add_compile_options(
+        # Be as strict as reasonably possible, since we want to support consumers using strict warning levels
+        /W4 /WX
+        )
+else()
+    # Clang with non-MSVC commandline syntax
+    add_compile_options(
+        # Effectively the same as /W4 /WX
+        -Wall -Werror
     )
+endif()
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     add_compile_options(
