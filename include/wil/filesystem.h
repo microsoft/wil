@@ -886,25 +886,25 @@ namespace wil
 
         MAP_INFOCLASS_TO_STRUCT(FileBasicInfo, FILE_BASIC_INFO, true, 0);
         MAP_INFOCLASS_TO_STRUCT(FileStandardInfo, FILE_STANDARD_INFO, true, 0);
-        MAP_INFOCLASS_TO_STRUCT(FileNameInfo, FILE_NAME_INFO, false, 32);
-        MAP_INFOCLASS_TO_STRUCT(FileRenameInfo, FILE_RENAME_INFO, false, 32);
+        MAP_INFOCLASS_TO_STRUCT(FileNameInfo, FILE_NAME_INFO, false, 64);
+        MAP_INFOCLASS_TO_STRUCT(FileRenameInfo, FILE_RENAME_INFO, false, 64);
         MAP_INFOCLASS_TO_STRUCT(FileDispositionInfo, FILE_DISPOSITION_INFO, true, 0);
         MAP_INFOCLASS_TO_STRUCT(FileAllocationInfo, FILE_ALLOCATION_INFO, true, 0);
         MAP_INFOCLASS_TO_STRUCT(FileEndOfFileInfo, FILE_END_OF_FILE_INFO, true, 0);
-        MAP_INFOCLASS_TO_STRUCT(FileStreamInfo, FILE_STREAM_INFO, false, 32);
+        MAP_INFOCLASS_TO_STRUCT(FileStreamInfo, FILE_STREAM_INFO, false, 64);
         MAP_INFOCLASS_TO_STRUCT(FileCompressionInfo, FILE_COMPRESSION_INFO, true, 0);
         MAP_INFOCLASS_TO_STRUCT(FileAttributeTagInfo, FILE_ATTRIBUTE_TAG_INFO, true, 0);
-        MAP_INFOCLASS_TO_STRUCT(FileIdBothDirectoryInfo, FILE_ID_BOTH_DIR_INFO, false, 4096);
+        MAP_INFOCLASS_TO_STRUCT(FileIdBothDirectoryInfo, FILE_ID_BOTH_DIR_INFO, false, 8192);
         MAP_INFOCLASS_TO_STRUCT(FileIdBothDirectoryRestartInfo, FILE_ID_BOTH_DIR_INFO, true, 0);
         MAP_INFOCLASS_TO_STRUCT(FileIoPriorityHintInfo, FILE_IO_PRIORITY_HINT_INFO, true, 0);
         MAP_INFOCLASS_TO_STRUCT(FileRemoteProtocolInfo, FILE_REMOTE_PROTOCOL_INFO, true, 0);
-        MAP_INFOCLASS_TO_STRUCT(FileFullDirectoryInfo, FILE_FULL_DIR_INFO, false, 4096);
+        MAP_INFOCLASS_TO_STRUCT(FileFullDirectoryInfo, FILE_FULL_DIR_INFO, false, 8192);
         MAP_INFOCLASS_TO_STRUCT(FileFullDirectoryRestartInfo, FILE_FULL_DIR_INFO, true, 0);
 #if (_WIN32_WINNT >= _WIN32_WINNT_WIN8)
         MAP_INFOCLASS_TO_STRUCT(FileStorageInfo, FILE_STORAGE_INFO, true, 0);
         MAP_INFOCLASS_TO_STRUCT(FileAlignmentInfo, FILE_ALIGNMENT_INFO, true, 0);
         MAP_INFOCLASS_TO_STRUCT(FileIdInfo, FILE_ID_INFO, true, 0);
-        MAP_INFOCLASS_TO_STRUCT(FileIdExtdDirectoryInfo, FILE_ID_EXTD_DIR_INFO, false, 4096);
+        MAP_INFOCLASS_TO_STRUCT(FileIdExtdDirectoryInfo, FILE_ID_EXTD_DIR_INFO, false, 8192);
         MAP_INFOCLASS_TO_STRUCT(FileIdExtdDirectoryRestartInfo, FILE_ID_EXTD_DIR_INFO, true, 0);
 #endif
 
@@ -940,6 +940,10 @@ namespace wil
                     else if (lastError == ERROR_INVALID_PARAMETER) // operation not supported by file system
                     {
                         return HRESULT_FROM_WIN32(lastError);
+                    }
+                    else if ((lastError == ERROR_HANDLE_EOF) && (infoClass == FileStreamInfo))
+                    {
+                        break;
                     }
                     else
                     {
