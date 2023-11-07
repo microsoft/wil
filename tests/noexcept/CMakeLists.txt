@@ -2,7 +2,12 @@
 add_executable(witest.noexcept)
 
 # Turn off exceptions for this test
-replace_cxx_flag("/EHsc" "/EHs-c-")
+if (MSVC)
+    replace_cxx_flag("/EHsc" "/EHs-c-")
+else()
+    target_compile_options(witest.noexcept PRIVATE -fno-exceptions)
+endif()
+
 target_compile_definitions(witest.noexcept PRIVATE
     -DCATCH_CONFIG_DISABLE_EXCEPTIONS
     )
