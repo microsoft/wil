@@ -120,6 +120,17 @@ TEST_CASE("StlTests::TestZStringView", "[stl][zstring_view]")
     REQUIRE(fromCustomString == (PCSTR)customString);
 }
 
+TEST_CASE("StlTests::TestZWStringView literal", "[stl][zwstring_view]") {
+    using namespace wil;
+
+    SECTION("Literal creates correct zwstring_view") {
+        auto str = L"Hello, world!"_zw;
+        REQUIRE(str.length() == 13);
+        REQUIRE(str[0] == L'H');
+        REQUIRE(str[12] == L'!');
+    }
+}
+
 TEST_CASE("StlTests::TestZWStringView", "[stl][zstring_view]")
 {
     // Test empty cases

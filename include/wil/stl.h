@@ -187,6 +187,10 @@ namespace wil
 
     using zstring_view = basic_zstring_view<char>;
     using zwstring_view = basic_zstring_view<wchar_t>;
+
+    constexpr zwstring_view operator "" _zw(const wchar_t* str, std::size_t len) noexcept {
+        return zwstring_view(str, len);
+    }
 #endif // _HAS_CXX17
 
 } // namespace wil
