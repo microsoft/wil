@@ -120,7 +120,7 @@ TEST_CASE("StlTests::TestZStringView", "[stl][zstring_view]")
     REQUIRE(fromCustomString == (PCSTR)customString);
 }
 
-TEST_CASE("StlTests::TestZWStringView  literal", "[zwstring_view]") {
+TEST_CASE("StlTests::TestZWStringView literal", "[stl][zwstring_view]") {
     using namespace wil;
 
     SECTION("Literal creates correct zwstring_view") {

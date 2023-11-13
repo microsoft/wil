@@ -188,7 +188,6 @@ namespace wil
     using zstring_view = basic_zstring_view<char>;
     using zwstring_view = basic_zstring_view<wchar_t>;
 
-    // Add the literal operator here
     constexpr zwstring_view operator "" _zw(const wchar_t* str, std::size_t len) noexcept {
         return zwstring_view(str, len);
     }
