@@ -11,7 +11,7 @@ struct dummy
 {
     char value;
 };
-
+using namespace wil;
 // Specialize std::allocator<> so that we don't actually allocate/deallocate memory
 dummy g_memoryBuffer[256];
 namespace std
@@ -121,7 +121,6 @@ TEST_CASE("StlTests::TestZStringView", "[stl][zstring_view]")
 }
 
 TEST_CASE("StlTests::TestZWStringView literal", "[stl][zwstring_view]") {
-    using namespace wil;
 
     SECTION("Literal creates correct zwstring_view") {
         auto str = L"Hello, world!"_zw;
