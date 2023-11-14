@@ -123,10 +123,20 @@ TEST_CASE("StlTests::TestZStringView", "[stl][zstring_view]")
 TEST_CASE("StlTests::TestZWStringView literal", "[stl][zwstring_view]") {
 
     SECTION("Literal creates correct zwstring_view") {
-        auto str = L"Hello, world!"_zw;
+        auto str = L"Hello, world!"zv;
         REQUIRE(str.length() == 13);
         REQUIRE(str[0] == L'H');
         REQUIRE(str[12] == L'!');
+    }
+}
+
+TEST_CASE("StlTests::TestZStringView literal", "[stl][zstring_view]") {
+
+    SECTION("Literal creates correct zstring_view") {
+        auto str = "Hello, world!"zv;
+        REQUIRE(str.length() == 13);
+        REQUIRE(str[0] == 'H');
+        REQUIRE(str[12] == '!');
     }
 }
 
