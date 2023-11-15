@@ -11,7 +11,11 @@ struct dummy
 {
     char value;
 };
-using namespace wil::literals;
+
+#if _HAS_CXX17
+    using namespace wil::literals;
+#endif // _HAS_CXX17
+
 // Specialize std::allocator<> so that we don't actually allocate/deallocate memory
 dummy g_memoryBuffer[256];
 namespace std
