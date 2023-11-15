@@ -11,6 +11,7 @@ struct dummy
 {
     char value;
 };
+using namespace wil::literals;
 // Specialize std::allocator<> so that we don't actually allocate/deallocate memory
 dummy g_memoryBuffer[256];
 namespace std
