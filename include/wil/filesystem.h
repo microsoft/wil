@@ -19,6 +19,7 @@
 #include <combaseapi.h> // Needed for CoTaskMemFree() used in output of some helpers.
 #include <winbase.h> // LocalAlloc
 #include <PathCch.h>
+#include <cassert>
 #include "wistd_type_traits.h"
 #include "result.h"
 #include "win32_helpers.h"
@@ -29,6 +30,7 @@ namespace wil
     //! Determines if a path is an extended length path that can be used to access paths longer than MAX_PATH.
     inline bool is_extended_length_path(_In_ PCWSTR path)
     {
+        assert(path != NULL);
         return wcsncmp(path, L"\\\\?\\", 4) == 0;
     }
 
