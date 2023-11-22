@@ -773,6 +773,64 @@ TEST_CASE("FileSystemTests::CreateFileW helpers", "[filesystem]")
 }
 
 #endif
+TEST_CASE("FileSystemTest::FolderChangeReader destructor does not hang", "[filesystem]")
+{
+    std::wstring testRootDir;
+    testRootDir = wil::ExpandEnvironmentStringsW<std::wstring>(L"%TEMP%\\wil_test_filesystem");
+    std::wstring testFile = testRootDir + L"\\test.dat";
+    bool deleteDir = false;
+    wil::unique_handle opCompleteEv(::CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    wil::unique_handle wilReaderNotify(::CreateEventW(nullptr, TRUE, FALSE, nullptr));
 
+    REQUIRE_FALSE(DirectoryExists(testRootDir.c_str()));
+    REQUIRE(SUCCEEDED(wil::CreateDirectoryDeepNoThrow(testRootDir.c_str())));
+    REQUIRE(DirectoryExists(testRootDir.c_str()));
+
+    /**
+     * Move to a new thread.
+     * The destructor of unique_folder_change_reader might hang. If this happens, 
+     * we want to report an test error instead of hanging forever. 
+     */
+    auto reader = wil::make_folder_change_reader_nothrow(testRootDir.c_str(), false, wil::FolderChangeEvents::All,
+    [&](wil::FolderChangeEvent, PCWSTR)
+    {
+        if (deleteDir)
+            RemoveDirectoryW(testRootDir.c_str());
+
+        SetEvent(opCompleteEv.get());
+    });
+
+    struct ThreadContext
+    {
+        wil::unique_folder_change_reader_nothrow reader;
+        HANDLE threadStopEv = NULL;
+        static DWORD WINAPI ThreadFn(LPVOID lpParam)
+        {
+            auto ctx = reinterpret_cast<ThreadContext*>(lpParam);
+            WaitForSingleObject(ctx->threadStopEv, INFINITE);
+            delete ctx;
+            return 0;
+        }
+    };
+    auto ctx = new ThreadContext();
+    ctx->reader = std::move(reader);
+    ctx->threadStopEv = wilReaderNotify.get();
+    wil::unique_handle readerThreadH(::CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)ThreadContext::ThreadFn,
+        ctx, 0, nullptr));
+
+    wil::unique_hfile testFileOut(::CreateFileW(testFile.c_str(), GENERIC_ALL,
+        FILE_SHARE_READ, nullptr, CREATE_ALWAYS, 0, nullptr));
+    REQUIRE(testFileOut);
+    testFileOut.reset();
+    WaitForSingleObject(opCompleteEv.get(), INFINITE);
+
+    ResetEvent(opCompleteEv.get());
+    deleteDir = true;
+    REQUIRE(DeleteFileW(testFile.c_str()));
+    WaitForSingleObject(opCompleteEv.get(), INFINITE);
+    
+    SetEvent(wilReaderNotify.get());
+    REQUIRE(WaitForSingleObject(readerThreadH.get(), 30 * 1000) == WAIT_OBJECT_0);
+}
 
 #endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
