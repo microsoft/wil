@@ -3002,6 +3002,135 @@ namespace wil
 
 #endif // __IObjectWithSite_INTERFACE_DEFINED__
 
+
+// if C++17 or greater
+#if WIL_HAS_CXX_17
+#ifdef WIL_ENABLE_EXCEPTIONS
+namespace details
+{
+    template<typename>
+    struct com_enumerator_next_traits;
+
+    template<typename Itf, typename T, typename Ret>
+    struct com_enumerator_next_traits<Ret(__stdcall Itf::*)(ULONG, T*, ULONG*)>
+    {
+        using Interface = Itf;
+        using Result = T;
+    };
+
+
+    template<typename Interface>
+    struct com_enumerator_traits
+    {
+        using Result = typename com_enumerator_next_traits<decltype(&Interface::Next)>::Result;
+        using smart_result = std::conditional_t<
+            std::is_pointer_v<Result> &&
+            std::is_base_of_v<::IUnknown, std::remove_pointer_t<Result>>, wil::com_ptr<std::remove_pointer_t<Result>>, Result>;
+    };
+}
+
+template<typename T>
+struct is_com_ptr : std::false_type {};
+
+template<typename T>
+struct is_com_ptr<wil::com_ptr<T>> : std::true_type {};
+
+template <typename IEnumType, typename TStoredType = typename details::com_enumerator_traits<IEnumType>::smart_result>
+struct iterator
+{
+    wil::com_ptr<IEnumType> m_enum{};
+    TStoredType m_currentValue{};
+
+    static constexpr bool is_com_ptr_v = is_com_ptr<TStoredType>::value;
+
+    iterator(iterator&&) = default;
+    iterator(iterator const&) = default;
+    iterator& operator=(iterator&&) = default;
+    iterator& operator=(iterator const&) = default;
+
+    iterator(IEnumType* enumPtr) : m_enum(enumPtr)
+    {
+        FetchNext();
+    }
+
+    auto operator->()
+    {
+        return wistd::addressof(m_currentValue);
+    }
+
+    auto& operator*()
+    {
+        return m_currentValue;
+    }
+
+    iterator& operator++()
+    {
+        // If we're already at the end, don't try to advance. Otherwise, use Next to advance.
+        if (m_enum)
+        {
+            FetchNext();
+        }
+
+        return *this;
+    }
+
+    bool operator!=(iterator const& other) const
+    {
+        return !(*this == other);
+    }
+
+    bool operator==(iterator const& other) const
+    {
+        return (m_enum.get() == other.m_enum.get());
+    }
+
+private:
+    void FetchNext()
+    {
+        if (m_enum)
+        {
+            m_currentValue = TStoredType{};
+            auto hr = m_enum->Next(1, &m_currentValue, nullptr);
+            if (hr == S_FALSE)
+            {
+                m_enum = nullptr;
+            }
+            else 
+            {
+                THROW_IF_FAILED_MSG(hr, "Failed to get next");
+            }
+        }
+    }
+};
+
+template<typename IEnumXXX>
+struct iterator_range
+{
+    iterator<IEnumXXX> m_begin;
+
+    iterator_range(IEnumXXX* enumPtr) : m_begin(enumPtr)
+    {
+    }
+
+    WI_NODISCARD auto begin()
+    {
+        return m_begin;
+    }
+
+    WI_NODISCARD constexpr auto end() const noexcept
+    {
+        return iterator<IEnumXXX>(nullptr);
+    }
+};
+
+template<typename IEnumXxx, typename TStoredType = typename wil::details::com_enumerator_traits<IEnumXxx>::smart_result>
+WI_NODISCARD auto make_range(IEnumXxx* enumPtr)
+{
+    return wil::iterator_range<IEnumXxx>(enumPtr);
+}
+#endif // WIL_HAS_CXX_17
+#endif // WIL_ENABLE_EXCEPTIONS
+
 } // wil
 
 #endif

@@ -5,7 +5,10 @@
 #include <wrl/implements.h>
 
 #include "common.h"
-
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+#include <ShObjIdl_core.h>
+#include <ShlObj_core.h>
+#endif
 #include <Bits.h>
 
 using namespace Microsoft::WRL;
@@ -2819,4 +2822,72 @@ TEST_CASE("StreamTests::Saver", "[com][IStream]")
         REQUIRE(250ULL == second.Position);
     }
 }
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && WIL_HAS_CXX_17
+
+// msvc raises an unreachable code warning when early-returning in a range-based for loop, which turns into an error
+// https://developercommunity.visualstudio.com/t/warning-C4702-for-Range-based-for-loop/859129
+#pragma warning(push)
+#pragma warning(disable : 4702)
+TEST_CASE("COMEnumerator", "[com][IEnumIDList]")
+{
+
+    REQUIRE_SUCCEEDED(::CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED));
+    auto exit = wil::scope_exit([] { ::CoUninitialize(); });
+
+    {
+        using real_next_t = decltype(&IEnumIDList::Next);
+        using deduced_next_t = wil::details::com_enumerator_next_traits<real_next_t>;
+        static_assert(std::is_same_v<deduced_next_t::Interface, IEnumIDList>);
+        static_assert(std::is_same_v<deduced_next_t::Result, LPITEMIDLIST>);
+
+        using traits_t = wil::details::com_enumerator_traits<IEnumIDList>;
+        static_assert(std::is_same_v<traits_t::Result, LPITEMIDLIST>);
+        static_assert(std::is_same_v<traits_t::smart_result, LPITEMIDLIST>);
+    }
+    {
+        using iterator_t = wil::iterator<IEnumIDList>;
+        iterator_t it(nullptr);
+        static_assert(std::is_same_v<LPITEMIDLIST&, decltype(*it)>);
+    }
+    {
+#if (NTDDI_VERSION >= NTDDI_VISTA)
+        wil::com_ptr<IEnumAssocHandlers> enumAssocHandlers;
+        wil::verify_hresult(SHAssocEnumHandlers(L".jpg", ASSOC_FILTER_RECOMMENDED, &enumAssocHandlers));
+        REQUIRE(enumAssocHandlers);
+
+        using traits_t = wil::details::com_enumerator_traits<IEnumAssocHandlers>;
+        static_assert(std::is_same_v<traits_t::Result, IAssocHandler*>);
+        static_assert(std::is_same_v<traits_t::smart_result, wil::com_ptr<IAssocHandler>>);
+
+        auto count = 0;
+        for (auto assocHandler : wil::make_range(enumAssocHandlers.get()))
+        {
+            REQUIRE(assocHandler);
+            count++;
+            break; 
+        }
+        REQUIRE(count > 0);
 #endif
+    }
+    {
+        wil::com_ptr<IShellFolder> desktop;
+        REQUIRE_SUCCEEDED(::SHGetDesktopFolder(&desktop));
+        wil::com_ptr<IEnumIDList> enumIDList;
+        REQUIRE_SUCCEEDED(desktop->EnumObjects(nullptr, SHCONTF_NONFOLDERS, &enumIDList));
+        REQUIRE(enumIDList);
+        
+        auto count = 0;
+        for (auto pidl : wil::make_range(enumIDList.get()))
+        {
+            REQUIRE(pidl);
+            count++;
+            ILFree(pidl);
+            break;
+        }
+        REQUIRE(count > 0);
+    }
+}
+#pragma warning(pop)
+#endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && WIL_HAS_CXX_17
+
+#endif // WIL_ENABLE_EXCEPTIONS
