@@ -3018,30 +3018,29 @@ namespace details
         using Result = T;
     };
 
+    template<typename Itf, typename T, typename Ret>
+    struct com_enumerator_next_traits<Ret(__stdcall Itf::*)(ULONG, T*, ULONG*) noexcept>
+    {
+        using Interface = Itf;
+        using Result = T;
+    };
+
 
     template<typename Interface>
     struct com_enumerator_traits
     {
         using Result = typename com_enumerator_next_traits<decltype(&Interface::Next)>::Result;
-        using smart_result = std::conditional_t<
-            std::is_pointer_v<Result> &&
-            std::is_base_of_v<::IUnknown, std::remove_pointer_t<Result>>, wil::com_ptr<std::remove_pointer_t<Result>>, Result>;
+        // If the result is a COM pointer type (IFoo*), then we use wil::com_ptr<IFoo>. Otherwise, we use IFoo*.
+        using smart_result = std::conditional_t<std::is_pointer_v<Result> && std::is_base_of_v<::IUnknown, std::remove_pointer_t<Result>>,
+            wil::com_ptr<std::remove_pointer_t<Result>>, Result>;
     };
 }
-
-template<typename T>
-struct is_com_ptr : std::false_type {};
-
-template<typename T>
-struct is_com_ptr<wil::com_ptr<T>> : std::true_type {};
 
 template <typename IEnumType, typename TStoredType = typename details::com_enumerator_traits<IEnumType>::smart_result>
 struct iterator
 {
     wil::com_ptr<IEnumType> m_enum{};
     TStoredType m_currentValue{};
-
-    static constexpr bool is_com_ptr_v = is_com_ptr<TStoredType>::value;
 
     iterator(iterator&&) = default;
     iterator(iterator const&) = default;
@@ -3089,6 +3088,7 @@ private:
     {
         if (m_enum)
         {
+            // we cannot say m_currentValue = {} because com_ptr has 2 operator= overloads: one for T* and one for nullptr_t
             m_currentValue = TStoredType{};
             auto hr = m_enum->Next(1, &m_currentValue, nullptr);
             if (hr == S_FALSE)
@@ -3103,30 +3103,30 @@ private:
     }
 };
 
-template<typename IEnumXXX>
-struct iterator_range
-{
-    iterator<IEnumXXX> m_begin;
-
-    iterator_range(IEnumXXX* enumPtr) : m_begin(enumPtr)
-    {
-    }
-
-    WI_NODISCARD auto begin()
-    {
-        return m_begin;
-    }
-
-    WI_NODISCARD constexpr auto end() const noexcept
-    {
-        return iterator<IEnumXXX>(nullptr);
-    }
-};
 
 template<typename IEnumXxx, typename TStoredType = typename wil::details::com_enumerator_traits<IEnumXxx>::smart_result>
 WI_NODISCARD auto make_range(IEnumXxx* enumPtr)
 {
-    return wil::iterator_range<IEnumXxx>(enumPtr);
+    struct iterator_range
+    {
+        iterator<IEnumXxx, TStoredType> m_begin;
+
+        iterator_range(IEnumXxx* enumPtr) : m_begin(enumPtr)
+        {
+        }
+
+        WI_NODISCARD auto begin()
+        {
+            return m_begin;
+        }
+
+        WI_NODISCARD constexpr auto end() const noexcept
+        {
+            return iterator<IEnumXxx, TStoredType>(nullptr);
+        }
+    };
+
+    return iterator_range(enumPtr);
 }
 #endif // WIL_HAS_CXX_17
 #endif // WIL_ENABLE_EXCEPTIONS
