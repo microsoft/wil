@@ -3030,24 +3030,24 @@ namespace details
     struct com_enumerator_traits
     {
         using Result = typename com_enumerator_next_traits<decltype(&Interface::Next)>::Result;
-        // If the result is a COM pointer type (IFoo*), then we use wil::com_ptr<IFoo>. Otherwise, we use IFoo*.
-        using smart_result = std::conditional_t<std::is_pointer_v<Result> && std::is_base_of_v<::IUnknown, std::remove_pointer_t<Result>>,
-            wil::com_ptr<std::remove_pointer_t<Result>>, Result>;
+        // If the result is a COM pointer type (IFoo*), then we use wil::com_ptr<IFoo>. Otherwise, we use the raw pointer type IFoo*.
+        using smart_result = wistd::conditional_t<std::is_pointer_v<Result> && wistd::is_base_of_v<::IUnknown, wistd::remove_pointer_t<Result>>,
+            wil::com_ptr<wistd::remove_pointer_t<Result>>, Result>;
     };
 }
 
 template <typename IEnumType, typename TStoredType = typename details::com_enumerator_traits<IEnumType>::smart_result>
-struct iterator
+struct com_iterator
 {
     wil::com_ptr<IEnumType> m_enum{};
     TStoredType m_currentValue{};
 
-    iterator(iterator&&) = default;
-    iterator(iterator const&) = default;
-    iterator& operator=(iterator&&) = default;
-    iterator& operator=(iterator const&) = default;
+    com_iterator(com_iterator&&) = default;
+    com_iterator(com_iterator const&) = default;
+    com_iterator& operator=(com_iterator&&) = default;
+    com_iterator& operator=(com_iterator const&) = default;
 
-    iterator(IEnumType* enumPtr) : m_enum(enumPtr)
+    com_iterator(IEnumType* enumPtr) : m_enum(enumPtr)
     {
         FetchNext();
     }
@@ -3062,7 +3062,7 @@ struct iterator
         return m_currentValue;
     }
 
-    iterator& operator++()
+    com_iterator& operator++()
     {
         // If we're already at the end, don't try to advance. Otherwise, use Next to advance.
         if (m_enum)
@@ -3073,12 +3073,12 @@ struct iterator
         return *this;
     }
 
-    bool operator!=(iterator const& other) const
+    bool operator!=(com_iterator const& other) const
     {
         return !(*this == other);
     }
 
-    bool operator==(iterator const& other) const
+    bool operator==(com_iterator const& other) const
     {
         return (m_enum.get() == other.m_enum.get());
     }
@@ -3109,7 +3109,7 @@ WI_NODISCARD auto make_range(IEnumXxx* enumPtr)
 {
     struct iterator_range
     {
-        iterator<IEnumXxx, TStoredType> m_begin;
+        com_iterator<IEnumXxx, TStoredType> m_begin;
 
         iterator_range(IEnumXxx* enumPtr) : m_begin(enumPtr)
         {
@@ -3122,7 +3122,7 @@ WI_NODISCARD auto make_range(IEnumXxx* enumPtr)
 
         WI_NODISCARD constexpr auto end() const noexcept
         {
-            return iterator<IEnumXxx, TStoredType>(nullptr);
+            return com_iterator<IEnumXxx, TStoredType>(nullptr);
         }
     };
 

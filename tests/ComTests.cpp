@@ -2845,7 +2845,7 @@ TEST_CASE("COMEnumerator", "[com][IEnumIDList]")
         static_assert(std::is_same_v<traits_t::smart_result, LPITEMIDLIST>);
     }
     {
-        using iterator_t = wil::iterator<IEnumIDList>;
+        using iterator_t = wil::com_iterator<IEnumIDList>;
         iterator_t it(nullptr);
         static_assert(std::is_same_v<LPITEMIDLIST&, decltype(*it)>);
     }
