@@ -2855,7 +2855,6 @@ struct EnumT : IUnknown
 #pragma warning(disable : 4702)
 TEST_CASE("COMEnumerator", "[com][enumerator]")
 {
-
     auto init = wil::CoInitializeEx_failfast();
 
     using IEnumMuffins = EnumT<int32_t>;
@@ -2922,7 +2921,6 @@ TEST_CASE("COMEnumerator", "[com][enumerator]")
             break;
         }
         REQUIRE(found);
-        
     }
 #if (NTDDI_VERSION >= NTDDI_VISTA)
     SECTION("static_assert enumeration types for IEnumAssocHandlers")
