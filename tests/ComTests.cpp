@@ -2824,15 +2824,44 @@ TEST_CASE("StreamTests::Saver", "[com][IStream]")
 }
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && WIL_HAS_CXX_17
 
+template<typename T>
+struct EnumT : IUnknown
+{
+    // IUnknown
+    HRESULT __stdcall QueryInterface(REFIID, void**) noexcept { return E_NOINTERFACE; }
+    ULONG __stdcall AddRef() noexcept { return 0; }
+    ULONG __stdcall Release() noexcept { return 0; }
+    // IEnumXxx
+    HRESULT __stdcall Next(ULONG, T* output, ULONG*) noexcept
+    {
+        if (m_nextIndex++ < m_nItems)
+        {
+            *output = m_mockValue; 
+            return S_OK;
+        }
+        return S_FALSE;
+    }
+
+    EnumT(int nItems, const T& value) : m_nItems(nItems), m_mockValue(value) {}
+
+    int m_nItems = 0;
+    int m_nextIndex = 0;
+    T m_mockValue;
+};
+
 // msvc raises an unreachable code warning when early-returning in a range-based for loop, which turns into an error
 // https://developercommunity.visualstudio.com/t/warning-C4702-for-Range-based-for-loop/859129
 #pragma warning(push)
 #pragma warning(disable : 4702)
-TEST_CASE("COMEnumerator", "[com][IEnumIDList]")
+TEST_CASE("COMEnumerator", "[com][enumerator]")
 {
 
     auto init = wil::CoInitializeEx_failfast();
 
+    using IEnumMuffins = EnumT<int32_t>;
+    using IEnumMuffinsCOM = EnumT<IUnknown*>;
+
+    SECTION("static_assert COM enumerator details")
     {
         using real_next_t = decltype(&IEnumIDList::Next);
         using deduced_next_t = wil::details::com_enumerator_next_traits<real_next_t>;
@@ -2842,68 +2871,62 @@ TEST_CASE("COMEnumerator", "[com][IEnumIDList]")
         using traits_t = wil::details::com_enumerator_traits<IEnumIDList>;
         static_assert(std::is_same_v<traits_t::Result, LPITEMIDLIST>);
         static_assert(std::is_same_v<traits_t::smart_result, LPITEMIDLIST>);
-    }
-    {
-        using iterator_t = wil::com_iterator<IEnumIDList>;
-        iterator_t it(nullptr);
-        static_assert(std::is_same_v<LPITEMIDLIST&, decltype(*it)>);
-    }
-    {
-        // mock 0-size iterator
-        struct IEnumMuffins : IUnknown
-        {
-            // IUnknown
-            HRESULT __stdcall QueryInterface(REFIID, void**) noexcept { return E_NOINTERFACE; }
-            ULONG __stdcall AddRef() noexcept { return 0; }
-            ULONG __stdcall Release() noexcept { return 0; }
-            // IEnumMuffins
-            HRESULT __stdcall Next(ULONG, int32_t*, ULONG*) noexcept { return S_FALSE; }
-        };
+
         static_assert(std::is_same_v<wil::details::com_enumerator_next_traits<decltype(&IEnumMuffins::Next)>::Result, int32_t>);
         static_assert(std::is_same_v<wil::details::com_enumerator_next_traits<decltype(&IEnumMuffins::Next)>::Interface, IEnumMuffins>);
         static_assert(std::is_same_v<wil::details::com_enumerator_traits<IEnumMuffins>::Result, int32_t>);
         static_assert(std::is_same_v<wil::details::com_enumerator_traits<IEnumMuffins>::smart_result, int32_t>);
 
-        auto count = 0;
-        auto muffins = IEnumMuffins{};
-        for (auto muffin : wil::make_range(&muffins))
-        {
-            REQUIRE(muffin == 0);
-            count++;
-            break;
-        }
-        REQUIRE(count == 0);
-
-        struct IEnumMuffinsCOM : IUnknown
-        {
-            // IUnknown
-            HRESULT __stdcall QueryInterface(REFIID, void**) noexcept { return E_NOINTERFACE; }
-            ULONG __stdcall AddRef() noexcept { return 0; }
-            ULONG __stdcall Release() noexcept { return 0; }
-            // IEnumMuffinsCOM
-            HRESULT __stdcall Next(ULONG, IUnknown**, ULONG*) noexcept { return S_FALSE; }
-        };
         static_assert(std::is_same_v<wil::details::com_enumerator_next_traits<decltype(&IEnumMuffinsCOM::Next)>::Result, IUnknown*>);
         static_assert(std::is_same_v<wil::details::com_enumerator_next_traits<decltype(&IEnumMuffinsCOM::Next)>::Interface, IEnumMuffinsCOM>);
         static_assert(std::is_same_v<wil::details::com_enumerator_traits<IEnumMuffinsCOM>::Result, IUnknown*>);
         static_assert(std::is_same_v<wil::details::com_enumerator_traits<IEnumMuffinsCOM>::smart_result, wil::com_ptr<IUnknown>>);
-        auto muffinsCOM = IEnumMuffinsCOM{};
-        count = 0;
+    }
+    SECTION("static_assert com_iterator types")
+    {
+        using iterator_t = wil::com_iterator<IEnumIDList>;
+        static_assert(std::is_same_v<LPITEMIDLIST&, decltype(*iterator_t{nullptr})>);
+    }
+    SECTION("Enumerate empty, non-COM type")
+    {
+      auto found = false;
+      auto muffins = IEnumMuffins(0, 42);
+      for (auto muffin : wil::make_range(&muffins))
+      {
+        REQUIRE(muffin == 0);
+        found = true;
+        break;
+      }
+      REQUIRE(!found);
+    }
+    SECTION("Enumerate non-empty, non-COM type")
+    {
+      auto found = false;
+      auto muffins = IEnumMuffins(3, 42);
+      for (auto muffin : wil::make_range(&muffins))
+      {
+        REQUIRE(muffin == 42);
+        found = true;
+        break;
+      }
+      REQUIRE(found);
+    }
+    SECTION("Enumerate COM type")
+    {
+        auto muffinsCOM = IEnumMuffinsCOM(1, nullptr);
+        auto found = false;
         for (auto muffin : wil::make_range(&muffinsCOM))
         {
             REQUIRE(muffin == nullptr);
-            count++;
+            found = true;
             break;
         }
-        REQUIRE(count == 0);
+        REQUIRE(found);
         
     }
-    {
 #if (NTDDI_VERSION >= NTDDI_VISTA)
-        wil::com_ptr<IEnumAssocHandlers> enumAssocHandlers;
-        wil::verify_hresult(SHAssocEnumHandlers(L".jpg", ASSOC_FILTER_RECOMMENDED, &enumAssocHandlers));
-        REQUIRE(enumAssocHandlers);
-
+    SECTION("static_assert enumeration types for IEnumAssocHandlers")
+    {
         using range_idlist = decltype(wil::make_range(std::declval<IEnumIDList*>()));
         using range_assochandler = decltype(wil::make_range(std::declval<IEnumAssocHandlers*>()));
         // this iterator_range is not the same as this other iterator_range
@@ -2912,28 +2935,35 @@ TEST_CASE("COMEnumerator", "[com][IEnumIDList]")
         using traits_t = wil::details::com_enumerator_traits<IEnumAssocHandlers>;
         static_assert(std::is_same_v<traits_t::Result, IAssocHandler*>);
         static_assert(std::is_same_v<traits_t::smart_result, wil::com_ptr<IAssocHandler>>);
-
-        auto count = 0;
+    }
+    SECTION("Enumerate IAssocHandler")
+    {
+        wil::com_ptr<IEnumAssocHandlers> enumAssocHandlers;
+        wil::verify_hresult(SHAssocEnumHandlers(L".jpg", ASSOC_FILTER_RECOMMENDED, &enumAssocHandlers));
+        REQUIRE(enumAssocHandlers);
+        auto found = false;
         for (auto assocHandler : wil::make_range(enumAssocHandlers.get()))
         {
             REQUIRE(assocHandler);
-            count++;
+            found = true;
             break; 
         }
-        REQUIRE(count > 0);
-
-        {
-            wil::verify_hresult(SHAssocEnumHandlers(L".jpg", ASSOC_FILTER_RECOMMENDED, &enumAssocHandlers));
-            REQUIRE(enumAssocHandlers);
-            auto iterator = wil::make_range(enumAssocHandlers.get());
-            const auto it = std::find_if(iterator.begin(), iterator.end(), [](const wil::com_ptr<IAssocHandler>& assocHandler)
-            {
-                return assocHandler != nullptr;
-            });
-            REQUIRE(*it != nullptr);
-        }
-#endif
+        REQUIRE(found);
     }
+    SECTION("Use find_if on IEnumAssocHandlers")
+    {
+        wil::com_ptr<IEnumAssocHandlers> enumAssocHandlers;
+        wil::verify_hresult(SHAssocEnumHandlers(L".jpg", ASSOC_FILTER_RECOMMENDED, &enumAssocHandlers));
+        REQUIRE(enumAssocHandlers);
+        auto iterator = wil::make_range(enumAssocHandlers.get());
+        const auto it = std::find_if(iterator.begin(), iterator.end(), [](const wil::com_ptr<IAssocHandler>& assocHandler)
+        {
+            return assocHandler != nullptr;
+        });
+        REQUIRE(*it != nullptr);
+    }
+#endif
+    SECTION("Enumerate IShellFolder")
     {
         wil::com_ptr<IShellFolder> desktop;
         REQUIRE_SUCCEEDED(::SHGetDesktopFolder(&desktop));
