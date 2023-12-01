@@ -253,7 +253,9 @@ TEST_CASE("ResultTests::ExceptionHandling", "[result]")
             }
             catch (...)
             {
+                // clang-format off
                 line = __LINE__;  THROW_NORMALIZED_CAUGHT_EXCEPTION();
+                // clang-format on
             }
         }
         catch (const wil::ResultException& exception)
@@ -279,7 +281,9 @@ TEST_CASE("ResultTests::ExceptionHandling", "[result]")
         {
             try
             {
+                // clang-format off
                 line = __LINE__;  THROW_HR(E_OUTOFMEMORY);
+                // clang-format on
             }
             catch (...)
             {
@@ -384,10 +388,12 @@ TEST_CASE("ResultTests::ExceptionHandling", "[result]")
 
     SECTION("Standard")
     {
+        // clang-format off
         auto line = __LINE__;  auto hr = wil::ResultFromExceptionDebug(WI_DIAGNOSTICS_INFO, [&]
         {
             THROW_HR(E_INVALIDARG);
         });
+        // clang-format on
         REQUIRE(failures.size() == 2);
         REQUIRE(static_cast<decltype(line)>(failures[1].uLineNumber) == line);
         REQUIRE(hr == E_INVALIDARG);
