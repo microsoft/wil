@@ -2889,27 +2889,27 @@ TEST_CASE("COMEnumerator", "[com][enumerator]")
     }
     SECTION("Enumerate empty, non-COM type")
     {
-      auto found = false;
-      auto muffins = IEnumMuffins(0, 42);
-      for (auto muffin : wil::make_range(&muffins))
-      {
-        REQUIRE(muffin == 0);
-        found = true;
-        break;
-      }
-      REQUIRE(!found);
+        auto found = false;
+        auto muffins = IEnumMuffins(0, 42);
+        for (auto muffin : wil::make_range(&muffins))
+        {
+          REQUIRE(muffin == 0);
+          found = true;
+          break;
+        }
+        REQUIRE(!found);
     }
     SECTION("Enumerate non-empty, non-COM type")
     {
-      auto found = false;
-      auto muffins = IEnumMuffins(3, 42);
-      for (auto muffin : wil::make_range(&muffins))
-      {
-        REQUIRE(muffin == 42);
-        found = true;
-        break;
-      }
-      REQUIRE(found);
+        auto found = false;
+        auto muffins = IEnumMuffins(3, 42);
+        for (auto muffin : wil::make_range(&muffins))
+        {
+          REQUIRE(muffin == 42);
+          found = true;
+          break;
+        }
+        REQUIRE(found);
     }
     SECTION("Enumerate COM type")
     {
