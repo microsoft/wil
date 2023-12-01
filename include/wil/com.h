@@ -3028,13 +3028,13 @@ namespace details
     template<typename T>
     struct has_next
     {
-      template <typename U = T>
-      static auto test(int) -> decltype(wistd::declval<U>()->Next(0, nullptr, nullptr), wistd::true_type{});
+        template <typename U = T>
+        static auto test(int) -> decltype(wistd::declval<U>()->Next(0, nullptr, nullptr), wistd::true_type{});
 
-      template <typename>
-			static auto test(...) -> wistd::false_type;
+        template <typename>
+        static auto test(...) -> wistd::false_type;
 
-			static constexpr bool value = decltype(test<T>(0))::value;
+        static constexpr bool value = decltype(test<T>(0))::value;
     };
 
     template<typename T>
