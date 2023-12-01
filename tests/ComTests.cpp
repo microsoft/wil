@@ -2831,8 +2831,7 @@ TEST_CASE("StreamTests::Saver", "[com][IStream]")
 TEST_CASE("COMEnumerator", "[com][IEnumIDList]")
 {
 
-    REQUIRE_SUCCEEDED(::CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED));
-    auto exit = wil::scope_exit([] { ::CoUninitialize(); });
+    auto init = wil::CoInitializeEx_failfast();
 
     {
         using real_next_t = decltype(&IEnumIDList::Next);

@@ -3025,8 +3025,22 @@ namespace details
         using Result = T;
     };
 
+    template<typename T>
+    struct has_next
+    {
+      template <typename U = T>
+      static auto test(int) -> decltype(wistd::declval<U>()->Next(0, nullptr, nullptr), wistd::true_type{});
 
-    template<typename Interface>
+      template <typename>
+			static auto test(...) -> wistd::false_type;
+
+			static constexpr bool value = decltype(test<T>(0))::value;
+    };
+
+    template<typename T>
+    constexpr bool has_next_v = has_next<T>::value;
+
+    template<typename Interface, wistd::enable_if_t<has_next_v<Interface*>, int> = 0>
     struct com_enumerator_traits
     {
         using Result = typename com_enumerator_next_traits<decltype(&Interface::Next)>::Result;
@@ -3104,9 +3118,10 @@ private:
 };
 
 
-template<typename IEnumXxx, typename TStoredType = typename wil::details::com_enumerator_traits<IEnumXxx>::smart_result>
+template<typename IEnumXxx, wistd::enable_if_t<wil::details::has_next_v<IEnumXxx*>, int> = 0>
 WI_NODISCARD auto make_range(IEnumXxx* enumPtr)
 {
+    using TStoredType = typename wil::details::com_enumerator_traits<IEnumXxx>::smart_result;
     struct iterator_range
     {
         com_iterator<IEnumXxx, TStoredType> m_begin;
