@@ -2893,9 +2893,9 @@ TEST_CASE("COMEnumerator", "[com][enumerator]")
         auto muffins = IEnumMuffins(0, 42);
         for (auto muffin : wil::make_range(&muffins))
         {
-          REQUIRE(muffin == 0);
-          found = true;
-          break;
+            REQUIRE(muffin == 0);
+            found = true;
+            break;
         }
         REQUIRE(!found);
     }
@@ -2905,9 +2905,9 @@ TEST_CASE("COMEnumerator", "[com][enumerator]")
         auto muffins = IEnumMuffins(3, 42);
         for (auto muffin : wil::make_range(&muffins))
         {
-          REQUIRE(muffin == 42);
-          found = true;
-          break;
+            REQUIRE(muffin == 42);
+            found = true;
+            break;
         }
         REQUIRE(found);
     }
