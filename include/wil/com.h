@@ -3040,12 +3040,12 @@ namespace details
     template<typename T>
     constexpr bool has_next_v = has_next<T>::value;
 
-    template<typename Interface, wistd::enable_if_t<has_next_v<Interface*>, int> = 0>
+    template<typename Interface>
     struct com_enumerator_traits
     {
         using Result = typename com_enumerator_next_traits<decltype(&Interface::Next)>::Result;
         // If the result is a COM pointer type (IFoo*), then we use wil::com_ptr<IFoo>. Otherwise, we use the raw pointer type IFoo*.
-        using smart_result = wistd::conditional_t<std::is_pointer_v<Result> && wistd::is_base_of_v<::IUnknown, wistd::remove_pointer_t<Result>>,
+        using smart_result = wistd::conditional_t<wistd::is_pointer_v<Result> && wistd::is_base_of_v<::IUnknown, wistd::remove_pointer_t<Result>>,
             wil::com_ptr<wistd::remove_pointer_t<Result>>, Result>;
     };
 }
@@ -3072,6 +3072,11 @@ struct com_iterator
     }
 
     auto& operator*()
+    {
+        return m_currentValue;
+    }
+
+    const auto& operator*() const
     {
         return m_currentValue;
     }
@@ -3121,9 +3126,9 @@ private:
 template<typename IEnumXxx, wistd::enable_if_t<wil::details::has_next_v<IEnumXxx*>, int> = 0>
 WI_NODISCARD auto make_range(IEnumXxx* enumPtr)
 {
-    using TStoredType = typename wil::details::com_enumerator_traits<IEnumXxx>::smart_result;
     struct iterator_range
     {
+        using TStoredType = typename wil::details::com_enumerator_traits<IEnumXxx>::smart_result;
         com_iterator<IEnumXxx, TStoredType> m_begin;
 
         iterator_range(IEnumXxx* enumPtr) : m_begin(enumPtr)

@@ -2921,6 +2921,17 @@ TEST_CASE("COMEnumerator", "[com][IEnumIDList]")
             break; 
         }
         REQUIRE(count > 0);
+
+        {
+            wil::verify_hresult(SHAssocEnumHandlers(L".jpg", ASSOC_FILTER_RECOMMENDED, &enumAssocHandlers));
+            REQUIRE(enumAssocHandlers);
+            auto iterator = wil::make_range(enumAssocHandlers.get());
+            const auto it = std::find_if(iterator.begin(), iterator.end(), [](const wil::com_ptr<IAssocHandler>& assocHandler)
+            {
+                return assocHandler != nullptr;
+            });
+            REQUIRE(*it != nullptr);
+        }
 #endif
     }
     {
