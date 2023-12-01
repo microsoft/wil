@@ -4,12 +4,23 @@ setlocal EnableDelayedExpansion
 
 set TEST_ARGS=%*
 
+:: For some reason, '__asan_default_options' seems to have no effect under some unknown circumstances (despite the
+:: function being called), so set the environment variable as a workaround. This ensures that we get the correct
+:: behavior at least when this script is being used, which should cover most developer scenarios as well as the CI
+set ASAN_OPTIONS=allocator_may_return_null=1:new_delete_type_mismatch=0
+
 set BUILD_ROOT=%~dp0\..\build
 
-:: Unlike building, we don't need to limit ourselves to the Platform of the command window
 set COMPILERS=clang msvc
-set ARCHITECTURES=32 64
 set BUILD_TYPES=debug release relwithdebinfo minsizerel
+
+:: The asan binaries are architecture specific, so we unfortunately must limit the tests we run by the architecture of
+:: the command window.
+if "%Platform%"=="x64" (
+    set ARCHITECTURES=64
+) else (
+    set ARCHITECTURES=32
+)
 
 for %%c in (%COMPILERS%) do (
     for %%a in (%ARCHITECTURES%) do (
@@ -42,6 +53,7 @@ call :execute_test sanitize-undefined-behavior witest.ubsan.exe
 if %ERRORLEVEL% NEQ 0 ( goto :execute_tests_done )
 call :execute_test win7 witest.win7.exe
 if %ERRORLEVEL% NEQ 0 ( goto :execute_tests_done )
+:: Fall through
 
 :execute_tests_done
 set EXIT_CODE=%ERRORLEVEL%

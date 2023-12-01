@@ -23,7 +23,7 @@ endif()
 
 set(CPPWINRT ${CMAKE_BINARY_DIR}/packages/Microsoft.Windows.CppWinRT.${CPPWINRT_VERSION}/bin/cppwinrt.exe)
 execute_process(COMMAND
-    ${CPPWINRT} -input sdk -output include
+    ${CPPWINRT} -input sdk+ -output include
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     RESULT_VARIABLE ret)
 if (NOT ret EQUAL 0)
@@ -34,14 +34,19 @@ include_directories(BEFORE SYSTEM ${CMAKE_BINARY_DIR}/include)
 
 # The build pipelines have limitations that local development environments do not, so turn a few knobs
 if (${FAST_BUILD})
-    replace_cxx_flag("/GR" "/GR-") # Disables RTTI
+    if (MSVC)
+        replace_cxx_flag("/GR" "/GR-") # Disables RTTI
+    else()
+        add_compile_options(-fno-rtti)
+    endif()
+
     add_definitions(-DCATCH_CONFIG_FAST_COMPILE -DWIL_FAST_BUILD)
 endif()
 
 # For some unknown reason, 'RelWithDebInfo' compiles with '/Ob1' as opposed to '/Ob2' which prevents inlining of
 # functions not marked 'inline'. The reason we prefer 'RelWithDebInfo' over 'Release' is to get debug info, so manually
 # revert to the desired (and default) inlining behavior as that exercises more interesting code paths
-if (${CMAKE_BUILD_TYPE} STREQUAL "RelWithDebInfo")
+if (MSVC AND ${CMAKE_BUILD_TYPE} STREQUAL "RelWithDebInfo")
     # TODO: This is currently blocked by an apparent Clang bug: https://github.com/llvm/llvm-project/issues/59690
     # replace_cxx_flag("/Ob1" "/Ob2")
 endif()
@@ -57,10 +62,15 @@ set(COMMON_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/Rpc.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/SafeCastTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/TraceLoggingTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/TraceLoggingTests_PartB.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/WistdTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/wiTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../natvis/wil.natvis
     )
+
+if (MSVC)
+    add_link_options(/NATVIS:${CMAKE_SOURCE_DIR}/natvis/wil.natvis)
+endif()
 
 add_subdirectory(app)
 add_subdirectory(cpplatest)
@@ -94,5 +104,6 @@ if (${ASAN_AVAILABLE})
 endif()
 
 if (${UBSAN_AVAILABLE})
-    add_subdirectory(sanitize-undefined-behavior)
+    # TODO: Disabled until https://github.com/microsoft/STL/issues/3568 is resolved
+    # add_subdirectory(sanitize-undefined-behavior)
 endif()

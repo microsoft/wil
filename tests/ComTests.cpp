@@ -5,7 +5,10 @@
 #include <wrl/implements.h>
 
 #include "common.h"
-
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+#include <ShObjIdl_core.h>
+#include <ShlObj_core.h>
+#endif
 #include <Bits.h>
 
 using namespace Microsoft::WRL;
@@ -562,7 +565,7 @@ TEST_CASE("ComTests::Test_ConstPointer", "[com][com_ptr]")
 
     REQUIRE(spUnk.get() != nullptr);
     REQUIRE(spUnk);
-    spUnk.addressof();
+    (void)spUnk.addressof();
     spUnk.copy_to(spUnkHelper.addressof());
     spUnk.copy_to(spInspectable.addressof());
     spUnk.copy_to(IID_PPV_ARGS(&spInspectable));
@@ -637,7 +640,7 @@ IAlways : public IUnknown
    STDMETHOD_(void, Always)() = 0;
 };
 
-class __declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20b00")) // non-implemented to allow QI for the class to be attempted (and fail)
+class __declspec(empty_bases) __declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20b00")) // non-implemented to allow QI for the class to be attempted (and fail)
 ComObject : witest::AllocatedObject,
     public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::RuntimeClassType::ClassicCom>,
                                         Microsoft::WRL::ChainInterfaces<IDerivedTest, ITest>,
@@ -648,7 +651,7 @@ public:
     COM_DECLSPEC_NOTHROW IFACEMETHODIMP_(void) Always() {}
 };
 
-class __declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20b01")) // non-implemented to allow QI for the class to be attempted (and fail)
+class __declspec(empty_bases) __declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20b01")) // non-implemented to allow QI for the class to be attempted (and fail)
 WinRtObject : witest::AllocatedObject,
     public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::RuntimeClassType::WinRtClassicComMix>,
                                         ITest, IDerivedTest, ITestInspectable, IDerivedTestInspectable, IAlways, Microsoft::WRL::FtmBase>
@@ -661,7 +664,7 @@ public:
     COM_DECLSPEC_NOTHROW IFACEMETHODIMP_(void) Always() {}
 };
 
-class NoCom : witest::AllocatedObject
+class __declspec(empty_bases) NoCom : witest::AllocatedObject
 {
 public:
     ULONG __stdcall AddRef()
@@ -801,7 +804,7 @@ void TestSmartPointer(const Ptr& ptr1, const Ptr& ptr2)
         auto address = ptr1.addressof();
         REQUIRE(*address == ptr1.get());
         (void)static_cast<bool>(ptr1);
-        ptr1.get();
+        (void)ptr1.get();
         auto deref = ptr1.operator->();
         (void)deref;
         if (ptr1)
@@ -1452,7 +1455,7 @@ void TestSmartPointerQueryIidPpv(wistd::true_type, const Ptr& source)       // i
         if (source)
         {
             DestPtr dest;
-            source.query_to(IID_PPV_ARGS(&dest));
+            REQUIRE_NOERROR(source.query_to(IID_PPV_ARGS(&dest)));
             REQUIRE_ERROR(source.query_to(IID_PPV_ARGS(&never)));
             REQUIRE((dest && !never));
         }
@@ -1488,15 +1491,15 @@ void TestSmartPointerQueryIidPpv(wistd::true_type, const Ptr& source)       // i
         if (source)
         {
             DestPtr dest;
-            source.copy_to(IID_PPV_ARGS(&dest));
+            REQUIRE_NOERROR(source.copy_to(IID_PPV_ARGS(&dest)));
             REQUIRE_ERROR(source.copy_to(IID_PPV_ARGS(&never)));
             REQUIRE((dest && !never));
         }
         else
         {
             DestPtr dest;
-            source.copy_to(IID_PPV_ARGS(&dest));
-            source.copy_to(IID_PPV_ARGS(&never));
+            REQUIRE_NOERROR(source.copy_to(IID_PPV_ARGS(&dest)));
+            REQUIRE_NOERROR(source.copy_to(IID_PPV_ARGS(&never)));
             REQUIRE((!dest && !never));
         }
     }
@@ -1539,7 +1542,7 @@ void TestSmartPointerQuery(const Ptr& source)
         if (source)
         {
             DestPtr dest;
-            source.query_to(&dest);
+            REQUIRE_NOERROR(source.query_to(&dest));
             REQUIRE_ERROR(source.query_to(&never));
             REQUIRE((dest && !never));
         }
@@ -1589,15 +1592,15 @@ void TestSmartPointerQuery(const Ptr& source)
         if (source)
         {
             DestPtr dest;
-            source.copy_to(&dest);
+            REQUIRE_NOERROR(source.copy_to(&dest));
             REQUIRE_ERROR(source.copy_to(&never));
             REQUIRE((dest && !never));
         }
         else
         {
             DestPtr dest;
-            source.copy_to(&dest);
-            source.copy_to(&never);
+            REQUIRE_NOERROR(source.copy_to(&dest));
+            REQUIRE_NOERROR(source.copy_to(&never));
             REQUIRE((!dest && !never));
         }
     }
@@ -2819,4 +2822,165 @@ TEST_CASE("StreamTests::Saver", "[com][IStream]")
         REQUIRE(250ULL == second.Position);
     }
 }
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && WIL_HAS_CXX_17
+
+template<typename T>
+struct EnumT : IUnknown
+{
+    // IUnknown
+    HRESULT __stdcall QueryInterface(REFIID, void**) noexcept { return E_NOINTERFACE; }
+    ULONG __stdcall AddRef() noexcept { return 0; }
+    ULONG __stdcall Release() noexcept { return 0; }
+    // IEnumXxx
+    HRESULT __stdcall Next(ULONG, T* output, ULONG*) noexcept
+    {
+        if (m_nextIndex++ < m_nItems)
+        {
+            *output = m_mockValue; 
+            return S_OK;
+        }
+        return S_FALSE;
+    }
+
+    EnumT(int nItems, const T& value) : m_nItems(nItems), m_mockValue(value) {}
+
+    int m_nItems = 0;
+    int m_nextIndex = 0;
+    T m_mockValue;
+};
+
+// msvc raises an unreachable code warning when early-returning in a range-based for loop, which turns into an error
+// https://developercommunity.visualstudio.com/t/warning-C4702-for-Range-based-for-loop/859129
+#pragma warning(push)
+#pragma warning(disable : 4702)
+TEST_CASE("COMEnumerator", "[com][enumerator]")
+{
+    auto init = wil::CoInitializeEx_failfast();
+
+    using IEnumMuffins = EnumT<int32_t>;
+    using IEnumMuffinsCOM = EnumT<IUnknown*>;
+
+    SECTION("static_assert COM enumerator details")
+    {
+        using real_next_t = decltype(&IEnumIDList::Next);
+        using deduced_next_t = wil::details::com_enumerator_next_traits<real_next_t>;
+        static_assert(std::is_same_v<deduced_next_t::Interface, IEnumIDList>);
+        static_assert(std::is_same_v<deduced_next_t::Result, LPITEMIDLIST>);
+
+        using traits_t = wil::details::com_enumerator_traits<IEnumIDList>;
+        static_assert(std::is_same_v<traits_t::Result, LPITEMIDLIST>);
+        static_assert(std::is_same_v<traits_t::smart_result, LPITEMIDLIST>);
+
+        static_assert(std::is_same_v<wil::details::com_enumerator_next_traits<decltype(&IEnumMuffins::Next)>::Result, int32_t>);
+        static_assert(std::is_same_v<wil::details::com_enumerator_next_traits<decltype(&IEnumMuffins::Next)>::Interface, IEnumMuffins>);
+        static_assert(std::is_same_v<wil::details::com_enumerator_traits<IEnumMuffins>::Result, int32_t>);
+        static_assert(std::is_same_v<wil::details::com_enumerator_traits<IEnumMuffins>::smart_result, int32_t>);
+
+        static_assert(std::is_same_v<wil::details::com_enumerator_next_traits<decltype(&IEnumMuffinsCOM::Next)>::Result, IUnknown*>);
+        static_assert(std::is_same_v<wil::details::com_enumerator_next_traits<decltype(&IEnumMuffinsCOM::Next)>::Interface, IEnumMuffinsCOM>);
+        static_assert(std::is_same_v<wil::details::com_enumerator_traits<IEnumMuffinsCOM>::Result, IUnknown*>);
+        static_assert(std::is_same_v<wil::details::com_enumerator_traits<IEnumMuffinsCOM>::smart_result, wil::com_ptr<IUnknown>>);
+    }
+    SECTION("static_assert com_iterator types")
+    {
+        using iterator_t = wil::com_iterator<IEnumIDList>;
+        static_assert(std::is_same_v<LPITEMIDLIST&, decltype(*iterator_t{nullptr})>);
+    }
+    SECTION("Enumerate empty, non-COM type")
+    {
+        auto found = false;
+        auto muffins = IEnumMuffins(0, 42);
+        for (auto muffin : wil::make_range(&muffins))
+        {
+            REQUIRE(muffin == 0);
+            found = true;
+            break;
+        }
+        REQUIRE(!found);
+    }
+    SECTION("Enumerate non-empty, non-COM type")
+    {
+        auto found = false;
+        auto muffins = IEnumMuffins(3, 42);
+        for (auto muffin : wil::make_range(&muffins))
+        {
+            REQUIRE(muffin == 42);
+            found = true;
+            break;
+        }
+        REQUIRE(found);
+    }
+    SECTION("Enumerate COM type")
+    {
+        auto muffinsCOM = IEnumMuffinsCOM(1, nullptr);
+        auto found = false;
+        for (auto muffin : wil::make_range(&muffinsCOM))
+        {
+            REQUIRE(muffin == nullptr);
+            found = true;
+            break;
+        }
+        REQUIRE(found);
+    }
+#if (NTDDI_VERSION >= NTDDI_VISTA)
+    SECTION("static_assert enumeration types for IEnumAssocHandlers")
+    {
+        using range_idlist = decltype(wil::make_range(std::declval<IEnumIDList*>()));
+        using range_assochandler = decltype(wil::make_range(std::declval<IEnumAssocHandlers*>()));
+        // this iterator_range is not the same as this other iterator_range
+        static_assert(!std::is_same_v<range_idlist, range_assochandler>);
+
+        using traits_t = wil::details::com_enumerator_traits<IEnumAssocHandlers>;
+        static_assert(std::is_same_v<traits_t::Result, IAssocHandler*>);
+        static_assert(std::is_same_v<traits_t::smart_result, wil::com_ptr<IAssocHandler>>);
+    }
+    SECTION("Enumerate IAssocHandler")
+    {
+        wil::com_ptr<IEnumAssocHandlers> enumAssocHandlers;
+        wil::verify_hresult(SHAssocEnumHandlers(L".jpg", ASSOC_FILTER_RECOMMENDED, &enumAssocHandlers));
+        REQUIRE(enumAssocHandlers);
+        auto found = false;
+        for (auto assocHandler : wil::make_range(enumAssocHandlers.get()))
+        {
+            REQUIRE(assocHandler);
+            found = true;
+            break; 
+        }
+        REQUIRE(found);
+    }
+    SECTION("Use find_if on IEnumAssocHandlers")
+    {
+        wil::com_ptr<IEnumAssocHandlers> enumAssocHandlers;
+        wil::verify_hresult(SHAssocEnumHandlers(L".jpg", ASSOC_FILTER_RECOMMENDED, &enumAssocHandlers));
+        REQUIRE(enumAssocHandlers);
+        auto iterator = wil::make_range(enumAssocHandlers.get());
+        const auto it = std::find_if(iterator.begin(), iterator.end(), [](const wil::com_ptr<IAssocHandler>& assocHandler)
+        {
+            return assocHandler != nullptr;
+        });
+        REQUIRE(*it != nullptr);
+    }
 #endif
+    SECTION("Enumerate IShellFolder")
+    {
+        wil::com_ptr<IShellFolder> desktop;
+        REQUIRE_SUCCEEDED(::SHGetDesktopFolder(&desktop));
+        wil::com_ptr<IEnumIDList> enumIDList;
+        REQUIRE_SUCCEEDED(desktop->EnumObjects(nullptr, SHCONTF_NONFOLDERS, &enumIDList));
+        REQUIRE(enumIDList);
+
+        auto count = 0;
+        for (auto pidl : wil::make_range(enumIDList.get()))
+        {
+            REQUIRE(pidl);
+            count++;
+            ILFree(pidl);
+            break;
+        }
+        REQUIRE(count > 0);
+    }
+}
+#pragma warning(pop)
+#endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && WIL_HAS_CXX_17
+
+#endif // WIL_ENABLE_EXCEPTIONS

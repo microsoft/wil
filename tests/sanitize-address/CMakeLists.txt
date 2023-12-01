@@ -12,12 +12,17 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     target_compile_definitions(witest.asan PRIVATE
         # Not compatible with using lld-link
         -D_DISABLE_VECTOR_ANNOTATION
+        -D_DISABLE_STRING_ANNOTATION
         # See below; not compatible with exceptions
         -DCATCH_CONFIG_DISABLE_EXCEPTIONS
         )
 
     # Clang ASan on Windows has issues with exceptions: https://github.com/google/sanitizers/issues/749
-    replace_cxx_flag("/EHsc" "/EHs-c-")
+    if (MSVC)
+        replace_cxx_flag("/EHsc" "/EHs-c-")
+    else()
+        target_compile_options(witest.asan PRIVATE -fno-exceptions)
+    endif()
 
     if ($ENV{Platform} STREQUAL "x86")
         target_link_libraries(witest.asan PRIVATE

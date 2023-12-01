@@ -2,7 +2,12 @@
 add_executable(witest.noexcept)
 
 # Turn off exceptions for this test
-replace_cxx_flag("/EHsc" "/EHs-c-")
+if (MSVC)
+    replace_cxx_flag("/EHsc" "/EHs-c-")
+else()
+    target_compile_options(witest.noexcept PRIVATE -fno-exceptions)
+endif()
+
 target_compile_definitions(witest.noexcept PRIVATE
     -DCATCH_CONFIG_DISABLE_EXCEPTIONS
     )
@@ -15,6 +20,7 @@ endif()
 
 target_sources(witest.noexcept PRIVATE
     ${COMMON_SOURCES}
+    ${CMAKE_CURRENT_SOURCE_DIR}/../RegistryTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../TokenHelpersTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../UniqueWinRTEventTokenTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../WatcherTests.cpp

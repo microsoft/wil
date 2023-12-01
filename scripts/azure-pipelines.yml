@@ -27,6 +27,17 @@ jobs:
       call scripts\build_all.cmd
     displayName: 'Build x86'
 
+  # NOTE: We run the tests in the 32-bit cross-tools window out of convenience as this adds all necessary directories to
+  # the PATH that are necessary for finding the ASan/UBSan DLLs
+  - script: |
+      call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsamd64_x86.bat""
+      call scripts\runtests.cmd ~[LocalOnly]
+    displayName: 'Run x86 Tests'
+
+  - script: |
+      rmdir /s /q build
+    displayName: 'Clean x86 Output'
+
   - script: |
       call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
       if %ERRORLEVEL% NEQ 0 goto :eof
@@ -42,4 +53,4 @@ jobs:
   - script: |
       call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsamd64_x86.bat""
       call scripts\runtests.cmd ~[LocalOnly]
-    displayName: 'Run Tests'
+    displayName: 'Run x64 Tests'

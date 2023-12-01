@@ -1982,7 +1982,7 @@ TEST_CASE("WindowsInternalTests::WistdTests", "[resource][wistd]")
     sp->Method();
     decltype(sp) sp2;
     sp2 = wistd::move(sp);
-    sp2.get();
+    (void)sp2.get();
 
     wistd::unique_ptr<int> spConstruct;
     wistd::unique_ptr<int> spConstruct2 = nullptr;
@@ -1995,7 +1995,7 @@ TEST_CASE("WindowsInternalTests::WistdTests", "[resource][wistd]")
     spConstruct = std::move(spConstruct2);
     spConstruct.swap(spConstruct2);
     REQUIRE(*spConstruct4 == 4);
-    spConstruct4.get();
+    (void)spConstruct4.get();
     if (spConstruct4)
     {
     }
@@ -2870,7 +2870,7 @@ interface __declspec(uuid("EDCA4ADC-DF46-442A-A69D-FDFD8BC37B31")) IFakeObject :
    STDMETHOD_(void, DoStuff)() = 0;
 };
 
-class ArrayTestObject : witest::AllocatedObject,
+class __declspec(empty_bases) ArrayTestObject : witest::AllocatedObject,
     public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::RuntimeClassType::ClassicCom>, IFakeObject>
 {
 public:

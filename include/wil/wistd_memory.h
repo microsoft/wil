@@ -106,7 +106,7 @@ namespace wistd     // ("Windows Implementation" std)
 #endif
 
       __WI_LIBCPP_INLINE_VISIBILITY reference __get() WI_NOEXCEPT { return __value_; }
-      __WI_LIBCPP_INLINE_VISIBILITY
+      __WI_LIBCPP_NODISCARD_ATTRIBUTE __WI_LIBCPP_INLINE_VISIBILITY
       const_reference __get() const WI_NOEXCEPT { return __value_; }
 
     private:
@@ -141,7 +141,7 @@ namespace wistd     // ("Windows Implementation" std)
 #endif
 
       __WI_LIBCPP_INLINE_VISIBILITY reference __get() WI_NOEXCEPT { return *this; }
-      __WI_LIBCPP_INLINE_VISIBILITY
+      __WI_LIBCPP_NODISCARD_ATTRIBUTE __WI_LIBCPP_INLINE_VISIBILITY
       const_reference __get() const WI_NOEXCEPT { return *this; }
     };
 
@@ -213,7 +213,7 @@ namespace wistd     // ("Windows Implementation" std)
         return static_cast<_Base1&>(*this).__get();
       }
 
-      __WI_LIBCPP_INLINE_VISIBILITY
+      __WI_LIBCPP_NODISCARD_ATTRIBUTE __WI_LIBCPP_INLINE_VISIBILITY
       typename _Base1::const_reference first() const WI_NOEXCEPT {
         return static_cast<_Base1 const&>(*this).__get();
       }
@@ -223,7 +223,7 @@ namespace wistd     // ("Windows Implementation" std)
         return static_cast<_Base2&>(*this).__get();
       }
 
-      __WI_LIBCPP_INLINE_VISIBILITY
+      __WI_LIBCPP_NODISCARD_ATTRIBUTE __WI_LIBCPP_INLINE_VISIBILITY
       typename _Base2::const_reference second() const WI_NOEXCEPT {
         return static_cast<_Base2 const&>(*this).__get();
       }
@@ -531,16 +531,16 @@ namespace wistd     // ("Windows Implementation" std)
         return *this;
       }
 
-      __WI_LIBCPP_INLINE_VISIBILITY
+      __WI_LIBCPP_NODISCARD_ATTRIBUTE __WI_LIBCPP_INLINE_VISIBILITY
       typename add_lvalue_reference<_Tp>::type
       operator*() const {
         return *__ptr_.first();
       }
-      __WI_LIBCPP_INLINE_VISIBILITY
+      __WI_LIBCPP_NODISCARD_ATTRIBUTE __WI_LIBCPP_INLINE_VISIBILITY
       pointer operator->() const WI_NOEXCEPT {
         return __ptr_.first();
       }
-      __WI_LIBCPP_INLINE_VISIBILITY
+      __WI_LIBCPP_NODISCARD_ATTRIBUTE __WI_LIBCPP_INLINE_VISIBILITY
       pointer get() const WI_NOEXCEPT {
         return __ptr_.first();
       }
@@ -548,11 +548,11 @@ namespace wistd     // ("Windows Implementation" std)
       deleter_type& get_deleter() WI_NOEXCEPT {
         return __ptr_.second();
       }
-      __WI_LIBCPP_INLINE_VISIBILITY
+      __WI_LIBCPP_NODISCARD_ATTRIBUTE __WI_LIBCPP_INLINE_VISIBILITY
       const deleter_type& get_deleter() const WI_NOEXCEPT {
         return __ptr_.second();
       }
-      __WI_LIBCPP_INLINE_VISIBILITY
+      __WI_LIBCPP_NODISCARD_ATTRIBUTE __WI_LIBCPP_INLINE_VISIBILITY
       __WI_LIBCPP_EXPLICIT operator bool() const WI_NOEXCEPT {
         return __ptr_.first() != nullptr;
       }
@@ -812,12 +812,12 @@ namespace wistd     // ("Windows Implementation" std)
         return *this;
       }
 
-      __WI_LIBCPP_INLINE_VISIBILITY
+      __WI_LIBCPP_NODISCARD_ATTRIBUTE __WI_LIBCPP_INLINE_VISIBILITY
       typename add_lvalue_reference<_Tp>::type
       operator[](size_t __i) const {
         return __ptr_.first()[__i];
       }
-      __WI_LIBCPP_INLINE_VISIBILITY
+      __WI_LIBCPP_NODISCARD_ATTRIBUTE __WI_LIBCPP_INLINE_VISIBILITY
       pointer get() const WI_NOEXCEPT {
         return __ptr_.first();
       }
@@ -827,11 +827,11 @@ namespace wistd     // ("Windows Implementation" std)
         return __ptr_.second();
       }
 
-      __WI_LIBCPP_INLINE_VISIBILITY
+      __WI_LIBCPP_NODISCARD_ATTRIBUTE __WI_LIBCPP_INLINE_VISIBILITY
       const deleter_type& get_deleter() const WI_NOEXCEPT {
         return __ptr_.second();
       }
-      __WI_LIBCPP_INLINE_VISIBILITY
+      __WI_LIBCPP_NODISCARD_ATTRIBUTE __WI_LIBCPP_INLINE_VISIBILITY
       __WI_LIBCPP_EXPLICIT operator bool() const WI_NOEXCEPT {
         return __ptr_.first() != nullptr;
       }

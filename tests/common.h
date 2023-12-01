@@ -7,6 +7,8 @@
 
 #include <wil/filesystem.h>
 #include <wil/result.h>
+#include <roerrorapi.h>
+#include <wil/com.h>
 
 #define REPORTS_ERROR(expr) witest::ReportsError(wistd::is_same<HRESULT, decltype(expr)>{}, [&]() { return expr; })
 #define REQUIRE_ERROR(expr) REQUIRE(REPORTS_ERROR(expr))
@@ -344,6 +346,22 @@ namespace witest
         PathCchRemoveExtension(buffer, ARRAYSIZE(buffer));
         return S_OK;
     }
+
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_SYSTEM) && (_WIN32_WINNT >= _WIN32_WINNT_WIN8)
+    inline void RequireRestrictedErrorInfo(HRESULT error, wchar_t const* message)
+    {
+        wil::com_ptr_nothrow<IRestrictedErrorInfo> errorInfo;
+        REQUIRE_SUCCEEDED(GetRestrictedErrorInfo(&errorInfo));
+        REQUIRE(errorInfo != nullptr);
+        wil::unique_bstr description;
+        wil::unique_bstr restrictedDescription;
+        wil::unique_bstr capabilitySid;
+        HRESULT errorCode;
+        REQUIRE_SUCCEEDED(errorInfo->GetErrorDetails(&description, &errorCode, &restrictedDescription, &capabilitySid));
+        REQUIRE(errorCode == error);
+        REQUIRE(wcscmp(restrictedDescription.get(), message) == 0);
+    }
+#endif
 
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && (_WIN32_WINNT >= _WIN32_WINNT_WIN7)
 
