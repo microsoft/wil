@@ -389,8 +389,7 @@ TEST_CASE("ResultTests::ExceptionHandling", "[result]")
     SECTION("Standard")
     {
         // clang-format off
-        auto line = __LINE__;  auto hr = wil::ResultFromExceptionDebug(WI_DIAGNOSTICS_INFO, [&]
-        {
+        auto line = __LINE__;  auto hr = wil::ResultFromExceptionDebug(WI_DIAGNOSTICS_INFO, [&] {
             THROW_HR(E_INVALIDARG);
         });
         // clang-format on
