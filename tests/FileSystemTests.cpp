@@ -628,13 +628,27 @@ TEST_CASE("FileSystemTests::VerifyGetModuleFileNameExW", "[filesystem]")
 #endif
 }
 
+#ifdef WIL_ENABLE_EXCEPTIONS
+
 TEST_CASE("FileSystemTests::QueryFullProcessImageNameW and GetModuleFileNameW", "[filesystem]")
 {
-#ifdef WIL_ENABLE_EXCEPTIONS
     auto procName = wil::QueryFullProcessImageNameW<std::wstring>();
     auto moduleName = wil::GetModuleFileNameW<std::wstring>();
     REQUIRE(CompareStringOrdinal(procName.c_str(), -1, moduleName.c_str(), -1, TRUE) == CSTR_EQUAL);
-#endif
+}
+
+TEST_CASE("FileSystemTests::GetFileInfo<FileStreamInfo>", "[filesystem]")
+{
+    auto path = wil::ExpandEnvironmentStringsW<std::wstring>(L"%TEMP%");
+    wil::unique_hfile handle(CreateFileW(path.c_str(), FILE_READ_ATTRIBUTES,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING,
+        FILE_FLAG_BACKUP_SEMANTICS, nullptr));
+    THROW_LAST_ERROR_IF(!handle.is_valid());
+
+    // Test the ERROR_HANDLE_EOF case with a folder
+    wistd::unique_ptr<FILE_STREAM_INFO> streamInfo;
+    auto hr = wil::GetFileInfoNoThrow<FileStreamInfo>(handle.get(), streamInfo);
+    REQUIRE(hr == S_OK);
 }
 
 TEST_CASE("FileSystemTests::QueryFullProcessImageNameW", "[filesystem]")
@@ -650,6 +664,115 @@ TEST_CASE("FileSystemTests::QueryFullProcessImageNameW", "[filesystem]")
     wil::unique_cotaskmem nativePath;
     REQUIRE_SUCCEEDED((wil::QueryFullProcessImageNameW<wil::unique_cotaskmem_string, 15>(::GetCurrentProcess(), 0, path)));
 }
+
+TEST_CASE("FileSystemTests::CreateFileW helpers", "[filesystem]")
+{
+    // OPEN_EXISTING
+    {
+        auto path = wil::ExpandEnvironmentStringsW<std::wstring>(LR"(%TEMP%\open_existing_test)");
+
+        // arrange
+        {
+            auto handle = wil::open_or_create_file(path.c_str());
+        }
+
+        auto result = wil::try_open_file(path.c_str());
+        REQUIRE(result.file.is_valid());
+        REQUIRE(result.last_error == ERROR_SUCCESS);
+    }
+
+    // CREATE_ALWAYS
+    {
+#if (NTDDI_VERSION >= NTDDI_WIN8)
+        FILE_ID_128 originalFileId{};
+
+        // arrange
+        auto overWriteTarget = wil::ExpandEnvironmentStringsW<std::wstring>(LR"(%temp%\create_always_test)");
+        DeleteFileW(overWriteTarget.c_str());
+
+        {
+            auto result = wil::try_create_new_file(overWriteTarget.c_str());
+            REQUIRE(result.file.is_valid());
+            REQUIRE(result.last_error == ERROR_SUCCESS); // file did not exist
+            originalFileId = wil::GetFileInfo<FileIdInfo>(result.file.get()).FileId;
+        }
+
+        auto result = wil::try_open_or_create_file(overWriteTarget.c_str());
+        REQUIRE(result.file.is_valid());
+        REQUIRE(result.last_error == ERROR_ALREADY_EXISTS); // file existed
+
+        auto newFileId = wil::GetFileInfo<FileIdInfo>(result.file.get()).FileId;
+        REQUIRE(originalFileId == newFileId); // Identity is the same
+#endif
+    }
+
+    // CREATE_NEW
+    {
+        auto overWriteTarget = wil::ExpandEnvironmentStringsW<std::wstring>(LR"(%temp%\create_new_test)");
+        DeleteFileW(overWriteTarget.c_str());
+
+        {
+            auto result = wil::try_create_new_file(overWriteTarget.c_str());
+            REQUIRE(result.file.is_valid());
+            REQUIRE(result.last_error == ERROR_SUCCESS); // file did not exist
+        }
+
+        // note, file exists now
+        {
+            auto result = wil::try_create_new_file(overWriteTarget.c_str());
+            REQUIRE(!result.file.is_valid());
+            REQUIRE(result.last_error == ERROR_FILE_EXISTS); // file existed
+        }
+
+    }
+
+    // OPEN_ALWAYS
+    {
+        auto overWriteTarget = wil::ExpandEnvironmentStringsW<std::wstring>(LR"(%temp%\open_always_test)");
+
+        // arrange
+        {
+            DeleteFileW(overWriteTarget.c_str());
+        }
+
+        {
+            // act (does not exist case)
+            auto result = wil::try_open_or_create_file(overWriteTarget.c_str());
+
+            REQUIRE(result.file.is_valid());
+            REQUIRE(result.last_error == ERROR_SUCCESS);
+        }
+
+        // act again does exist case
+        auto result = wil::try_open_or_create_file(overWriteTarget.c_str());
+        REQUIRE(result.file.is_valid());
+        REQUIRE(result.last_error == ERROR_ALREADY_EXISTS);
+    }
+
+    // TRUNCATE_EXISTING
+    {
+        auto overWriteTarget = wil::ExpandEnvironmentStringsW<std::wstring>(LR"(%temp%\truncate_existing_test)");
+
+        // arrange
+        {
+            auto result = wil::try_open_or_create_file(overWriteTarget.c_str());
+            THROW_WIN32_IF(result.last_error, !result.file.is_valid());
+            const auto data = L"abcd";
+            DWORD written{};
+            THROW_IF_WIN32_BOOL_FALSE(WriteFile(result.file.get(), data, sizeof(data), &written, nullptr));
+            auto originalEndOfFile = wil::GetFileInfo<FileStandardInfo>(result.file.get()).EndOfFile;
+            THROW_HR_IF(E_UNEXPECTED, originalEndOfFile.QuadPart == 0);
+        }
+
+        // act
+        auto result = wil::try_truncate_existing_file(overWriteTarget.c_str());
+        THROW_WIN32_IF(result.last_error, !result.file.is_valid());
+        auto overWrittenEndOfFile = wil::GetFileInfo<FileStandardInfo>(result.file.get()).EndOfFile;
+        REQUIRE(overWrittenEndOfFile.QuadPart == 0);
+    }
+}
+
+#endif
 
 
 #endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)

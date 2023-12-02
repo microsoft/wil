@@ -5597,7 +5597,7 @@ namespace wil
     /// @cond
     namespace details
     {
-        inline void __stdcall CloseWlanHandle(_Frees_ptr_ HANDLE hClientHandle)
+        inline void __stdcall CloseWlanHandle(_In_ HANDLE hClientHandle)
         {
             ::WlanCloseHandle(hClientHandle, nullptr);
         }
@@ -5720,6 +5720,14 @@ namespace wil
             decltype(&::WdfWaitLockRelease),
             ::WdfWaitLockRelease,
             details::pointer_access_none>;
+
+#if defined(WIL_KERNEL_MODE)
+    using unique_wdf_device_init =
+        unique_any<
+            WDFDEVICE_INIT *,
+            decltype(&::WdfDeviceInitFree),
+            ::WdfDeviceInitFree>;
+#endif
 
     inline
     WI_NODISCARD
