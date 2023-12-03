@@ -277,7 +277,6 @@ This enables exception-free code to directly include WIL headers without worryin
 routines suddenly becoming available. */
 #define WIL_ENABLE_EXCEPTIONS
 #endif
-/// @endcond
 
 /// @cond
 #if defined(WIL_EXCEPTION_MODE)
@@ -292,6 +291,7 @@ static_assert(WIL_EXCEPTION_MODE <= 2, "Invalid exception mode");
 #define WIL_EXCEPTION_MODE 2            // old code optimization:  ONLY support linking libraries that are NOT using exceptions
 #pragma detect_mismatch("ODR_violation_WIL_EXCEPTION_MODE_mismatch", "2")
 #endif
+/// @endcond
 
 #if WIL_EXCEPTION_MODE == 1 && !defined(WIL_ENABLE_EXCEPTIONS)
 #error Must enable exceptions when WIL_EXCEPTION_MODE == 1
@@ -434,7 +434,9 @@ Three exception modes are available:
 #define WI_IsClearOrSingleFlagSet(val)                      wil::details::IsClearOrSingleFlagSetHelper(val)
 //! Evaluates as true if exactly one bit from within the specified `mask` is set within `val` or if there are no bits from `mask` set within `val`.
 #define WI_IsClearOrSingleFlagSetInMask(val, mask)          wil::details::IsClearOrSingleFlagSetHelper((val) & (mask))
-//! @}
+//! @}      // bitwise inspection macros
+
+//! @}      // group bitwise
 
 #if defined(WIL_DOXYGEN)
 /** This macro provides a C++ header with a guaranteed initialization function.
@@ -638,7 +640,7 @@ namespace wil
     /** Verify that `hr` is an HRESULT value.
     Other types will generate an intentional compilation error.  Note that this will accept any `long` value as that is the
     underlying typedef behind HRESULT.
-    //!
+
     Note that occasionally you might run into an HRESULT which is directly defined with a #define, such as:
     ~~~~
     #define UIA_E_NOTSUPPORTED   0x80040204

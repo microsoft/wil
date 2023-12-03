@@ -2301,7 +2301,7 @@ struct ABI::Windows::Foundation::IAsyncOperationWithProgressCompletedHandler<ABI
         return L"IAsyncOperationWithProgressCompletedHandler<IAsyncOperationWithProgress<T,P>*,Z>";
     }
 };
-/// @end
+/// @endcond
 #endif // NTDDI_VERSION >= NTDDI_WINBLUE
 
 #if !defined(MIDL_NS_PREFIX) && !defined(____x_ABI_CWindows_CFoundation_CIClosable_FWD_DEFINED__)

@@ -255,10 +255,9 @@ namespace wil
       /// @endcond
 
 
-      // This class when paired with unique_storage and an optional type-specific specialization class implements
-      // the same interface as STL's unique_ptr<> for resource handle types.  It is a non-copyable, yet movable class
-      // supporting attach (reset), detach (release), retrieval (get()).
-
+    // This class when paired with unique_storage and an optional type-specific specialization class implements
+    // the same interface as STL's unique_ptr<> for resource handle types.  It is a non-copyable, yet movable class
+    // supporting attach (reset), detach (release), retrieval (get()).
     template <typename storage_t>
     class unique_any_t : public storage_t
     {
@@ -325,11 +324,12 @@ namespace wil
             return storage_t::is_valid();
         }
 
-        //! ~~~~
+        //!
+        //! ~~~
         //! BOOL OpenOrCreateWaffle(PCWSTR name, HWAFFLE* handle);
         //! wil::unique_any<HWAFFLE, decltype(&::CloseWaffle), ::CloseWaffle> waffle;
         //! RETURN_IF_WIN32_BOOL_FALSE(OpenOrCreateWaffle(L"tasty.yum", waffle.put()));
-        //! ~~~~
+        //! ~~~
         pointer_storage *put() WI_NOEXCEPT
         {
             static_assert(wistd::is_same<typename policy::pointer_access, details::pointer_access_all>::value, "operator & is not available for this handle");
