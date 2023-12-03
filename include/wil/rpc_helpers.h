@@ -131,6 +131,7 @@ namespace wil
         RpcEndExcept
     }
 
+    /// @cond
     namespace details
     {
         // Provides an adapter around calling the context-handle-close method on an
@@ -144,6 +145,7 @@ namespace wil
             }
         };
     }
+    /// @endcond
 
     /** Manages explicit RPC context handles
     Explicit RPC context handles are used in many RPC interfaces. Most interfaces with

@@ -596,7 +596,7 @@ namespace wil
     //     }));
     //
 
-    // @cond
+    /// @cond
     namespace details
     {
         struct folder_change_reader_state

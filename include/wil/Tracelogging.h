@@ -53,7 +53,7 @@
 #define __TRACELOGGING_TEST_HOOK_API_TELEMETRY_EVENT_DELAY_MS 5000
 #endif
 
-// For use only within wil\TraceLogging.h:
+// For use only within wil/TraceLogging.h:
 #define _wiltlg_STRINGIZE(x)       _wiltlg_STRINGIZE_imp(x)
 #define _wiltlg_STRINGIZE_imp(x)   #x
 #define _wiltlg_LSTRINGIZE(x)      _wiltlg_LSTRINGIZE_imp1(x)

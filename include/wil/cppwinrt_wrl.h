@@ -12,10 +12,10 @@
 #define __WIL_CPPWINRT_WRL_INCLUDED
 
 #include "cppwinrt.h"
-#include <winrt\base.h>
+#include <winrt/base.h>
 
 #include "result_macros.h"
-#include <wrl\module.h>
+#include <wrl/module.h>
 
 // wil::wrl_factory_for_winrt_com_class provides interopability between a
 // C++/WinRT class and the WRL Module system, allowing the winrt class to be
@@ -30,6 +30,7 @@
 //
 namespace wil
 {
+    /// @cond
     namespace details
     {
         template <typename TCppWinRTClass>
@@ -53,6 +54,7 @@ namespace wil
             }
         };
     }
+    /// @endcond
 
     template <typename TCppWinRTClass>
     class wrl_factory_for_winrt_com_class : public ::Microsoft::WRL::ClassFactory<>

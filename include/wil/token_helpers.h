@@ -55,7 +55,7 @@ namespace wil
         template<> struct MapTokenStructToInfoClass<TOKEN_TYPE> { static constexpr TOKEN_INFORMATION_CLASS infoClass = TokenType; static constexpr bool FixedSize = true; };
         template<> struct MapTokenStructToInfoClass<SECURITY_IMPERSONATION_LEVEL> { static constexpr TOKEN_INFORMATION_CLASS infoClass = TokenImpersonationLevel;  static constexpr bool FixedSize = true; };
         template<> struct MapTokenStructToInfoClass<TOKEN_ELEVATION> { static constexpr TOKEN_INFORMATION_CLASS infoClass = TokenElevation; static constexpr bool FixedSize = true; };
-    
+
         struct token_info_deleter
         {
             template<typename T> void operator()(T* p) const
@@ -452,6 +452,7 @@ namespace wil
     }
 #endif // WIL_ENABLE_EXCEPTIONS
 
+    /// @cond
     namespace details
     {
         template<size_t AuthorityCount> struct static_sid_t
@@ -479,6 +480,7 @@ namespace wil
             }
         };
     }
+    /// @endcond
 
     /** Returns a structure containing a Revision 1 SID initialized with the authorities provided
     Replaces AllocateAndInitializeSid by constructing a structure laid out like a PSID, but

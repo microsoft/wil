@@ -91,6 +91,7 @@ namespace wil
         });
     }
 
+    /// @cond
     namespace details
     {
         // For the address of data, you can detect global variables by the ability to resolve the module from the address.
@@ -404,6 +405,7 @@ namespace wil
             }
         };
     }
+    /// @endcond
 
     // Apartment variables enable storing COM objects safely in globals
     // (objects with static storage duration) by creating a unique copy

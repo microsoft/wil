@@ -97,9 +97,9 @@ namespace wil
     //! Windows.System.DispatcherQueue, Microsoft.System.DispatcherQueue,
     //! Microsoft.UI.Dispatching.DispatcherQueue, and Windows.UI.Core.CoreDispatcher,
     //! but you must include the corresponding <winrt/Namespace.h> header before including
-    //! wil\cppwinrt_helpers.h. It is okay to include wil\cppwinrt_helpers.h multiple times:
+    //! wil/cppwinrt_helpers.h. It is okay to include wil/cppwinrt_helpers.h multiple times:
     //! support will be enabled for any winrt/Namespace.h headers that were included since
-    //! the previous inclusion of wil\cppwinrt_headers.h.
+    //! the previous inclusion of wil/cppwinrt_headers.h.
     template<typename Dispatcher>
     [[nodiscard]] auto resume_foreground(Dispatcher const& dispatcher,
         typename details::dispatcher_traits<Dispatcher>::Priority priority = details::dispatcher_traits<Dispatcher>::Priority::Normal)
@@ -327,9 +327,9 @@ namespace wil
 #if defined(NTDDI_VERSION) && (NTDDI_VERSION >= NTDDI_WIN10_CU)
     //! The following methods require that you include both <winrt/Windows.UI.h>
     //! <Windows.UI.Interop.h> before including wil/cppwinrt_helpers.h, and that NTDDI_VERSION
-    //! is at least NTDDI_WIN10_CU. It is okay to include wil\cppwinrt_helpers.h multiple times:
+    //! is at least NTDDI_WIN10_CU. It is okay to include wil/cppwinrt_helpers.h multiple times:
     //! support will be enabled for any headers that were included since the previous inclusion
-    //! of wil\cppwinrt_headers.h.
+    //! of wil/cppwinrt_headers.h.
     inline winrt::Windows::UI::WindowId GetWindowIdFromWindow(HWND hwnd)
     {
         ABI::Windows::UI::WindowId abiWindowId;

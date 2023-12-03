@@ -2958,7 +2958,7 @@ namespace wil
     ~~~
     auto cleanup = wil::com_set_site(execCommand.get(), serviceProvider->GetAsSite());
     ~~~
-    Include ocidl.h before wil\com.h to use this.
+    Include ocidl.h before wil/com.h to use this.
     */
     WI_NODISCARD inline unique_set_site_null_call com_set_site(_In_opt_ IUnknown* obj, _In_opt_ IUnknown* site)
     {
@@ -3114,7 +3114,7 @@ private:
             {
                 m_enum = nullptr;
             }
-            else 
+            else
             {
                 THROW_IF_FAILED_MSG(hr, "Failed to get next");
             }

@@ -1488,7 +1488,7 @@ namespace wil
     /** Use unique_com_call to define an RAII type that demands a particular parameter-less method be called on a COM interface.
     This allows implementing an RAII type that can call a Close() method (think IClosable) or a SetSite(nullptr)
     method (think IObjectWithSite) or some other method when a basic interface call is required as part of the RAII contract.
-    see wil::com_set_site in wil\com.h for the IObjectWithSite support.
+    see wil::com_set_site in wil/com.h for the IObjectWithSite support.
 
     @tparam interface_t A COM interface pointer that provides context to make the call.
     @tparam close_fn_t The type of the function that is called to invoke the method.
@@ -3419,7 +3419,7 @@ namespace wil
     {
         // string_maker abstracts creating a string for common string types. This form supports the
         // wil::unique_xxx_string types. Specializations of other types like HSTRING and std::wstring
-        // are found in wil\winrt.h and wil\stl.h.
+        // are found in wil/winrt.h and wil/stl.h.
         // This design supports creating the string in a single step or using two phase construction.
 
         template<typename string_type> struct string_maker

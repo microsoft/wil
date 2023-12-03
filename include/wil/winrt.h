@@ -12,10 +12,10 @@
 #define __WIL_WINRT_INCLUDED
 
 #include <hstring.h>
-#include <wrl\client.h>
-#include <wrl\implements.h>
-#include <wrl\async.h>
-#include <wrl\wrappers\corewrappers.h>
+#include <wrl/client.h>
+#include <wrl/implements.h>
+#include <wrl/async.h>
+#include <wrl/wrappers/corewrappers.h>
 #include "result.h"
 #include "com.h"
 #include "resource.h"
@@ -2181,7 +2181,7 @@ namespace details
 } // namespace wil
 
 #if (NTDDI_VERSION >= NTDDI_WINBLUE)
-
+/// @cond
 template <>
 struct ABI::Windows::Foundation::IAsyncOperation<ABI::Windows::Foundation::IAsyncAction*> :
     ABI::Windows::Foundation::IAsyncOperation_impl<ABI::Windows::Foundation::IAsyncAction*>
@@ -2301,6 +2301,7 @@ struct ABI::Windows::Foundation::IAsyncOperationWithProgressCompletedHandler<ABI
         return L"IAsyncOperationWithProgressCompletedHandler<IAsyncOperationWithProgress<T,P>*,Z>";
     }
 };
+/// @end
 #endif // NTDDI_VERSION >= NTDDI_WINBLUE
 
 #if !defined(MIDL_NS_PREFIX) && !defined(____x_ABI_CWindows_CFoundation_CIClosable_FWD_DEFINED__)

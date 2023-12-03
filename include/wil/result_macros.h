@@ -2295,7 +2295,7 @@ __WI_POP_WARNINGS
     //
     // Calling WilInitialize_ResultMacros_DesktopOrSystem_SuppressPrivateApiUse provides:
     // - The name of the current module in wil::FailureInfo::pszModule
-    // - The name of the returning-to module during wil\staging.h failures
+    // - The name of the returning-to module during wil/staging.h failures
     //*****************************************************************************
 
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)

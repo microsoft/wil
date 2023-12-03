@@ -13,6 +13,7 @@ namespace wil
 {
 #ifndef __WIL_CPPWINRT_AUTHORING_PROPERTIES_INCLUDED
 #define __WIL_CPPWINRT_AUTHORING_PROPERTIES_INCLUDED
+    /// @cond
     namespace details
     {
         template<typename T>
@@ -30,6 +31,7 @@ namespace wil
             }
         };
     }
+    /// @endcond
 
     template <typename T>
     struct single_threaded_property : std::conditional_t<std::is_scalar_v<T> || std::is_final_v<T>, wil::details::single_threaded_property_storage<T>, T>
@@ -155,8 +157,8 @@ namespace wil
      * @code
      * struct MyPage : MyPageT<MyPage>, wil::notify_property_changed_base<MyPage>
      * {
-     *     wil::single_threaded_notifying_property<int> MyInt; 
-     *     MyPage() : INIT_NOTIFYING_PROPERTY(MyInt, 42) { } 
+     *     wil::single_threaded_notifying_property<int> MyInt;
+     *     MyPage() : INIT_NOTIFYING_PROPERTY(MyInt, 42) { }
      *     // or
      *     WIL_NOTIFYING_PROPERTY(int, MyInt, 42);
      * };
@@ -172,12 +174,12 @@ namespace wil
         {
             return m_propertyChanged.add(value);
         }
-        
+
         void PropertyChanged(winrt::event_token const& token)
         {
             m_propertyChanged.remove(token);
         }
-        
+
         Type& self()
         {
             return *static_cast<Type*>(this);
