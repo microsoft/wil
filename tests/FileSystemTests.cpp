@@ -5,9 +5,8 @@
 #include <wil/common.h>
 #ifdef WIL_ENABLE_EXCEPTIONS
 #include <string>
-#endif
-
 #include <thread>
+#endif
 
 // TODO: str_raw_ptr is not two-phase name lookup clean (https://github.com/Microsoft/wil/issues/8)
 namespace wil
@@ -775,7 +774,6 @@ TEST_CASE("FileSystemTests::CreateFileW helpers", "[filesystem]")
     }
 }
 
-#endif
 TEST_CASE("FileSystemTest::FolderChangeReader destructor does not hang", "[filesystem]")
 {
     wil::unique_cotaskmem_string testRootTmp;
@@ -783,11 +781,9 @@ TEST_CASE("FileSystemTest::FolderChangeReader destructor does not hang", "[files
     std::wstring testRootDir = testRootTmp.get();
     std::wstring testFile = testRootDir + L"\\test.dat";
     bool deleteDir = false;
-    wil::unique_event_nothrow opCompletedEv; 
-    wil::unique_event_nothrow wilReaderNotify;
-
-    REQUIRE_SUCCEEDED(opCompletedEv.create(wil::EventOptions::None));
-    REQUIRE_SUCCEEDED(wilReaderNotify.create(wil::EventOptions::ManualReset));
+    wil::unique_event opCompletedEv(wil::EventOptions::None);
+    wil::unique_event readerDestructNotify(wil::EventOptions::ManualReset);
+    HANDLE readerDestructNotifyRaw = readerDestructNotify.get();
 
     REQUIRE_FALSE(DirectoryExists(testRootDir.c_str()));
     REQUIRE_SUCCEEDED(wil::CreateDirectoryDeepNoThrow(testRootDir.c_str()));
@@ -806,29 +802,24 @@ TEST_CASE("FileSystemTest::FolderChangeReader destructor does not hang", "[files
         if (deleteDir)
             RemoveDirectoryW(testRootDir.c_str());
 
-        SetEvent(opCompletedEv.get());
+        opCompletedEv.SetEvent();
     });
-    auto readerThread = std::thread([&wilReaderNotify, r = std::move(reader)]() mutable {
-
-        /**
-         * moving here to make sure the reader is destructed on a different thread 
-         */
-        auto r2 = std::move(r);
-        WaitForSingleObject(wilReaderNotify.get(), INFINITE);
+    auto readerThread = std::thread([rdn = std::move(readerDestructNotify), r = std::move(reader)]() mutable {
+        rdn.wait(INFINITE);
     });
 
     wil::unique_hfile testFileOut(::CreateFileW(testFile.c_str(), GENERIC_ALL,
         FILE_SHARE_READ, nullptr, CREATE_ALWAYS, 0, nullptr));
     REQUIRE(testFileOut);
     testFileOut.reset();
-    WaitForSingleObject(opCompletedEv.get(), INFINITE);
+    opCompletedEv.wait(INFINITE);
 
     deleteDir = true;
     REQUIRE(DeleteFileW(testFile.c_str()));
-    WaitForSingleObject(opCompletedEv.get(), INFINITE);
-    std::this_thread::sleep_for(std::chrono::seconds(5)); //enough time for the StartIO call to fail
+    opCompletedEv.wait(INFINITE);
+    std::this_thread::sleep_for(std::chrono::seconds(1)); //enough time for the StartIO call to fail
     
-    SetEvent(wilReaderNotify.get());
+    SetEvent(readerDestructNotifyRaw);
     DWORD waitResult = WaitForSingleObject(readerThread.native_handle(), 30 * 1000);
     if (waitResult != WAIT_OBJECT_0)
         readerThread.detach();
@@ -837,5 +828,7 @@ TEST_CASE("FileSystemTest::FolderChangeReader destructor does not hang", "[files
 
     REQUIRE(waitResult == WAIT_OBJECT_0);
 }
+
+#endif
 
 #endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
