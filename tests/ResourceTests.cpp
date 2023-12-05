@@ -122,6 +122,7 @@ interface __declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20b00"))
 ITest : public IUnknown
 {
    STDMETHOD_(void, Test)() = 0;
+   virtual ~ITest() = default;
 };
 
 class __declspec(empty_bases) PointerTestObject : witest::AllocatedObject,
@@ -810,6 +811,7 @@ TEST_CASE("UniqueInvokeCleanupMembers", "[resource]")
 struct ITokenTester : IUnknown
 {
     virtual void DirectClose(DWORD_PTR token) = 0;
+    virtual ~ITokenTester() = default;
 };
 
 struct TokenTester : ITokenTester
