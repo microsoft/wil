@@ -3177,11 +3177,17 @@ namespace details
     struct com_enumerator_traits
     {
         using Result = typename com_enumerator_next_traits<decltype(&Interface::Next)>::Result;
+<<<<<<< HEAD
         // If the result is a COM pointer type (IFoo*), then we use wil::com_ptr<IFoo>. Otherwise, we use the raw pointer type IFoo*.
         using smart_result = wistd::conditional_t<
             wistd::is_pointer_v<Result> && wistd::is_base_of_v<::IUnknown, wistd::remove_pointer_t<Result>>,
             wil::com_ptr<wistd::remove_pointer_t<Result>>,
             Result>;
+=======
+        // If the result is a COM pointer type (IFoo*), then we use wil::com_ptr<IFoo>. Otherwise, smart_result is void.
+        using smart_result = wistd::conditional_t<wistd::is_pointer_v<Result> && wistd::is_base_of_v<::IUnknown, wistd::remove_pointer_t<Result>>,
+            wil::com_ptr<wistd::remove_pointer_t<Result>>, void>;
+>>>>>>> a8d394f (Don't allow raw output type access; either it's a COM pointer, or you need to pass the type you want to hold (like unique_idlist))
     };
 } // namespace details
 /// @endcond
@@ -3192,6 +3198,7 @@ struct com_iterator
     wil::com_ptr<IEnumType> m_enum{};
     TStoredType m_currentValue{};
 
+    using smart_result = TStoredType;
     com_iterator(com_iterator&&) = default;
     com_iterator(com_iterator const&) = default;
     com_iterator& operator=(com_iterator&&) = default;
@@ -3258,30 +3265,42 @@ private:
     }
 };
 
+<<<<<<< HEAD
 template <typename IEnumXxx, wistd::enable_if_t<wil::details::has_next_v<IEnumXxx*>, int> = 0>
+=======
+template<typename TStoredType = void, typename IEnumXxx = void, wistd::enable_if_t<wil::details::has_next_v<IEnumXxx*>, int> = 0>
+>>>>>>> a8d394f (Don't allow raw output type access; either it's a COM pointer, or you need to pass the type you want to hold (like unique_idlist))
 WI_NODISCARD auto make_range(IEnumXxx* enumPtr)
 {
-    struct iterator_range
-    {
-        using TStoredType = typename wil::details::com_enumerator_traits<IEnumXxx>::smart_result;
-        com_iterator<IEnumXxx, TStoredType> m_begin;
+  using TActualStoredType = wistd::conditional_t<wistd::is_same_v<TStoredType, void>, typename wil::details::com_enumerator_traits<IEnumXxx>::smart_result, TStoredType>;
 
-        iterator_range(IEnumXxx* enumPtr) : m_begin(enumPtr)
+  struct iterator_range
+    {
+
+        static_assert(!wistd::is_same_v<TActualStoredType, void>, "You must specify a type to receive the enumerated objects.");
+        
+        // the stored type must be constructible from the output type of the enumerator
+        static_assert(wistd::is_constructible_v<TActualStoredType, typename wil::details::com_enumerator_traits<IEnumXxx>::Result>, "The type you specified cannot be converted to the enumerator's output type.");
+
+        using enumerator_type = com_iterator<IEnumXxx, TActualStoredType>;
+
+        IEnumXxx* m_enumerator{};
+        iterator_range(IEnumXxx* enumPtr) : m_enumerator(enumPtr)
         {
         }
 
         WI_NODISCARD auto begin()
         {
-            return m_begin;
+            return enumerator_type(m_enumerator);
         }
 
         WI_NODISCARD constexpr auto end() const noexcept
         {
-            return com_iterator<IEnumXxx, TStoredType>(nullptr);
+            return enumerator_type(nullptr);
         }
     };
 
-    return iterator_range(enumPtr);
+    return std::move(iterator_range(enumPtr));
 }
 #endif // WIL_HAS_CXX_17
 #endif // WIL_ENABLE_EXCEPTIONS

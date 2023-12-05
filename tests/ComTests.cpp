@@ -2873,6 +2873,27 @@ struct EnumT : IUnknown
     T m_mockValue;
 };
 
+//// Helper type for SFINAE check
+//template <typename TEnum>
+//struct can_invoke_make_range {
+//  template <typename TStoredType = typename wil::details::com_enumerator_traits<TEnum>::smart_result>
+//  static auto test(TStoredType p) -> decltype(wil::make_range<TStoredType, TEnum>(static_cast<TEnum*>(nullptr)), std::true_type());
+//
+//  template <typename>
+//  static auto test(...) -> std::false_type;
+//
+//  template <typename TStoredType = typename wil::details::com_enumerator_traits<TEnum>::smart_result>
+//  static constexpr bool value = decltype(test<TStoredType>(static_cast<TStoredType>(nullptr)))::value;
+//};
+//
+//template<typename TEnum, typename TStoredType = typename wil::details::com_enumerator_traits<TEnum>::smart_result>
+//constexpr bool can_invoke_make_range_v = can_invoke_make_range<TEnum>::template value<TStoredType>;
+//
+//
+//using xyz = decltype(can_invoke_make_range<IEnumAssocHandlers>::test(wil::com_ptr<IAssocHandler>{nullptr}));
+//
+//static_assert(can_invoke_make_range_v<IEnumAssocHandlers>);
+
 // msvc raises an unreachable code warning when early-returning in a range-based for loop, which turns into an error
 // https://developercommunity.visualstudio.com/t/warning-C4702-for-Range-based-for-loop/859129
 #pragma warning(push)
@@ -2884,6 +2905,8 @@ TEST_CASE("COMEnumerator", "[com][enumerator]")
     using IEnumMuffins = EnumT<int32_t>;
     using IEnumMuffinsCOM = EnumT<IUnknown*>;
 
+    using unique_idlist = wil::unique_any<LPITEMIDLIST, decltype(&ILFree), ILFree>;
+
     SECTION("static_assert COM enumerator details")
     {
         using real_next_t = decltype(&IEnumIDList::Next);
@@ -2893,29 +2916,38 @@ TEST_CASE("COMEnumerator", "[com][enumerator]")
 
         using traits_t = wil::details::com_enumerator_traits<IEnumIDList>;
         static_assert(std::is_same_v<traits_t::Result, LPITEMIDLIST>);
-        static_assert(std::is_same_v<traits_t::smart_result, LPITEMIDLIST>);
+        static_assert(std::is_same_v<traits_t::smart_result, void>); // no smart pointer for LPITEMIDLIST specified
 
         static_assert(std::is_same_v<wil::details::com_enumerator_next_traits<decltype(&IEnumMuffins::Next)>::Result, int32_t>);
         static_assert(std::is_same_v<wil::details::com_enumerator_next_traits<decltype(&IEnumMuffins::Next)>::Interface, IEnumMuffins>);
         static_assert(std::is_same_v<wil::details::com_enumerator_traits<IEnumMuffins>::Result, int32_t>);
-        static_assert(std::is_same_v<wil::details::com_enumerator_traits<IEnumMuffins>::smart_result, int32_t>);
+        static_assert(std::is_same_v<wil::details::com_enumerator_traits<IEnumMuffins>::smart_result, void>); // no smart type for int32_t specified
 
         static_assert(std::is_same_v<wil::details::com_enumerator_next_traits<decltype(&IEnumMuffinsCOM::Next)>::Result, IUnknown*>);
         static_assert(
             std::is_same_v<wil::details::com_enumerator_next_traits<decltype(&IEnumMuffinsCOM::Next)>::Interface, IEnumMuffinsCOM>);
         static_assert(std::is_same_v<wil::details::com_enumerator_traits<IEnumMuffinsCOM>::Result, IUnknown*>);
         static_assert(std::is_same_v<wil::details::com_enumerator_traits<IEnumMuffinsCOM>::smart_result, wil::com_ptr<IUnknown>>);
+
+        {
+          using custom_stored_type_enumerator = decltype(wil::make_range<unique_idlist, IEnumIDList>(nullptr).begin());
+          static_assert(std::is_same_v<custom_stored_type_enumerator::smart_result, unique_idlist>);
+        }
+        {
+          using custom_stored_type_enumerator = decltype(wil::make_range<unique_idlist>(wistd::declval<IEnumIDList*>()).begin());
+          static_assert(std::is_same_v<custom_stored_type_enumerator::smart_result, unique_idlist>);
+        }
     }
     SECTION("static_assert com_iterator types")
     {
-        using iterator_t = wil::com_iterator<IEnumIDList>;
-        static_assert(std::is_same_v<LPITEMIDLIST&, decltype(*iterator_t{nullptr})>);
+        using iterator_t = wil::com_iterator<IEnumIDList, unique_idlist>;
+        static_assert(std::is_same_v<unique_idlist&, decltype(*iterator_t{nullptr})>);
     }
     SECTION("Enumerate empty, non-COM type")
     {
         auto found = false;
         auto muffins = IEnumMuffins(0, 42);
-        for (auto muffin : wil::make_range(&muffins))
+        for (auto muffin : wil::make_range<int>(&muffins))
         {
             REQUIRE(muffin == 0);
             found = true;
@@ -2927,7 +2959,7 @@ TEST_CASE("COMEnumerator", "[com][enumerator]")
     {
         auto found = false;
         auto muffins = IEnumMuffins(3, 42);
-        for (auto muffin : wil::make_range(&muffins))
+        for (auto muffin : wil::make_range<int>(&muffins))
         {
             REQUIRE(muffin == 42);
             found = true;
@@ -2946,11 +2978,21 @@ TEST_CASE("COMEnumerator", "[com][enumerator]")
             break;
         }
         REQUIRE(found);
+
+        auto muffinsCOM_nothrow = IEnumMuffinsCOM(1, nullptr);
+        found = false;
+        for (auto muffin : wil::make_range<wil::com_ptr_nothrow<IUnknown>>(&muffinsCOM_nothrow))
+        {
+						REQUIRE(muffin == nullptr);
+						found = true;
+						break;
+        }
+        REQUIRE(found);
     }
 #if (NTDDI_VERSION >= NTDDI_VISTA)
     SECTION("static_assert enumeration types for IEnumAssocHandlers")
     {
-        using range_idlist = decltype(wil::make_range(std::declval<IEnumIDList*>()));
+        using range_idlist = decltype(wil::make_range<unique_idlist>(std::declval<IEnumIDList*>()));
         using range_assochandler = decltype(wil::make_range(std::declval<IEnumAssocHandlers*>()));
         // this iterator_range is not the same as this other iterator_range
         static_assert(!std::is_same_v<range_idlist, range_assochandler>);
@@ -2994,15 +3036,32 @@ TEST_CASE("COMEnumerator", "[com][enumerator]")
         REQUIRE(enumIDList);
 
         auto count = 0;
-        for (auto pidl : wil::make_range(enumIDList.get()))
+        for (const auto& pidl : wil::make_range<unique_idlist>(enumIDList.get()))
         {
             REQUIRE(pidl);
             count++;
-            ILFree(pidl);
             break;
         }
         REQUIRE(count > 0);
     }
+    SECTION("Enumerate IShellFolder, with custom stored type")
+    {
+        wil::com_ptr<IShellFolder> desktop;
+        REQUIRE_SUCCEEDED(::SHGetDesktopFolder(&desktop));
+        wil::com_ptr<IEnumIDList> enumIDList;
+        REQUIRE_SUCCEEDED(desktop->EnumObjects(nullptr, SHCONTF_NONFOLDERS, &enumIDList));
+        REQUIRE(enumIDList);
+
+        auto count = 0;
+        for (auto& pidl : wil::make_range<unique_idlist>(enumIDList.get()))
+        {
+            REQUIRE(pidl);
+            count++;
+            break;
+        }
+        REQUIRE(count > 0);
+    }
+
 }
 #pragma warning(pop)
 #endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && WIL_HAS_CXX_17
