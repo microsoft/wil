@@ -3300,7 +3300,7 @@ WI_NODISCARD auto make_range(IEnumXxx* enumPtr)
         }
     };
 
-    return std::move(iterator_range(enumPtr));
+    return iterator_range(enumPtr);
 }
 #endif // WIL_HAS_CXX_17
 #endif // WIL_ENABLE_EXCEPTIONS

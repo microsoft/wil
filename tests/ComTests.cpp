@@ -2873,27 +2873,6 @@ struct EnumT : IUnknown
     T m_mockValue;
 };
 
-//// Helper type for SFINAE check
-//template <typename TEnum>
-//struct can_invoke_make_range {
-//  template <typename TStoredType = typename wil::details::com_enumerator_traits<TEnum>::smart_result>
-//  static auto test(TStoredType p) -> decltype(wil::make_range<TStoredType, TEnum>(static_cast<TEnum*>(nullptr)), std::true_type());
-//
-//  template <typename>
-//  static auto test(...) -> std::false_type;
-//
-//  template <typename TStoredType = typename wil::details::com_enumerator_traits<TEnum>::smart_result>
-//  static constexpr bool value = decltype(test<TStoredType>(static_cast<TStoredType>(nullptr)))::value;
-//};
-//
-//template<typename TEnum, typename TStoredType = typename wil::details::com_enumerator_traits<TEnum>::smart_result>
-//constexpr bool can_invoke_make_range_v = can_invoke_make_range<TEnum>::template value<TStoredType>;
-//
-//
-//using xyz = decltype(can_invoke_make_range<IEnumAssocHandlers>::test(wil::com_ptr<IAssocHandler>{nullptr}));
-//
-//static_assert(can_invoke_make_range_v<IEnumAssocHandlers>);
-
 // msvc raises an unreachable code warning when early-returning in a range-based for loop, which turns into an error
 // https://developercommunity.visualstudio.com/t/warning-C4702-for-Range-based-for-loop/859129
 #pragma warning(push)
