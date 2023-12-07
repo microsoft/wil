@@ -471,42 +471,42 @@
 
 namespace wistd     // ("Windows Implementation" std)
 {
-     typedef decltype(__nullptr) nullptr_t;
+     using nullptr_t = decltype(__nullptr);
 
      template <class _T1, class _T2 = _T1>
      struct __less
      {
-     __WI_LIBCPP_INLINE_VISIBILITY __WI_LIBCPP_CONSTEXPR_AFTER_CXX11
+     __WI_LIBCPP_NODISCARD_ATTRIBUTE __WI_LIBCPP_INLINE_VISIBILITY __WI_LIBCPP_CONSTEXPR_AFTER_CXX11
      bool operator()(const _T1& __x, const _T1& __y) const {return __x < __y;}
 
-     __WI_LIBCPP_INLINE_VISIBILITY __WI_LIBCPP_CONSTEXPR_AFTER_CXX11
+     __WI_LIBCPP_NODISCARD_ATTRIBUTE __WI_LIBCPP_INLINE_VISIBILITY __WI_LIBCPP_CONSTEXPR_AFTER_CXX11
      bool operator()(const _T1& __x, const _T2& __y) const {return __x < __y;}
 
-     __WI_LIBCPP_INLINE_VISIBILITY __WI_LIBCPP_CONSTEXPR_AFTER_CXX11
+     __WI_LIBCPP_NODISCARD_ATTRIBUTE __WI_LIBCPP_INLINE_VISIBILITY __WI_LIBCPP_CONSTEXPR_AFTER_CXX11
      bool operator()(const _T2& __x, const _T1& __y) const {return __x < __y;}
 
-     __WI_LIBCPP_INLINE_VISIBILITY __WI_LIBCPP_CONSTEXPR_AFTER_CXX11
+     __WI_LIBCPP_NODISCARD_ATTRIBUTE __WI_LIBCPP_INLINE_VISIBILITY __WI_LIBCPP_CONSTEXPR_AFTER_CXX11
      bool operator()(const _T2& __x, const _T2& __y) const {return __x < __y;}
      };
 
      template <class _T1>
      struct __less<_T1, _T1>
      {
-     __WI_LIBCPP_INLINE_VISIBILITY __WI_LIBCPP_CONSTEXPR_AFTER_CXX11
+     __WI_LIBCPP_NODISCARD_ATTRIBUTE __WI_LIBCPP_INLINE_VISIBILITY __WI_LIBCPP_CONSTEXPR_AFTER_CXX11
      bool operator()(const _T1& __x, const _T1& __y) const {return __x < __y;}
      };
 
      template <class _T1>
      struct __less<const _T1, _T1>
      {
-     __WI_LIBCPP_INLINE_VISIBILITY __WI_LIBCPP_CONSTEXPR_AFTER_CXX11
+     __WI_LIBCPP_NODISCARD_ATTRIBUTE __WI_LIBCPP_INLINE_VISIBILITY __WI_LIBCPP_CONSTEXPR_AFTER_CXX11
      bool operator()(const _T1& __x, const _T1& __y) const {return __x < __y;}
      };
 
      template <class _T1>
      struct __less<_T1, const _T1>
      {
-     __WI_LIBCPP_INLINE_VISIBILITY __WI_LIBCPP_CONSTEXPR_AFTER_CXX11
+     __WI_LIBCPP_NODISCARD_ATTRIBUTE __WI_LIBCPP_INLINE_VISIBILITY __WI_LIBCPP_CONSTEXPR_AFTER_CXX11
      bool operator()(const _T1& __x, const _T1& __y) const {return __x < __y;}
      };
 
@@ -554,16 +554,16 @@ namespace wistd     // ("Windows Implementation" std)
     template <class _Arg, class _Result>
     struct __WI_LIBCPP_TEMPLATE_VIS unary_function
     {
-        typedef _Arg    argument_type;
-        typedef _Result result_type;
+        using argument_type = _Arg;
+        using result_type = _Result;
     };
 
     template <class _Arg1, class _Arg2, class _Result>
     struct __WI_LIBCPP_TEMPLATE_VIS binary_function
     {
-        typedef _Arg1   first_argument_type;
-        typedef _Arg2   second_argument_type;
-        typedef _Result result_type;
+        using first_argument_type = _Arg1;
+        using second_argument_type = _Arg2;
+        using result_type = _Result;
     };
 }
 /// @endcond

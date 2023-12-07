@@ -385,7 +385,10 @@ namespace wil
                     while (pNode != nullptr)
                     {
                         auto pCurrent = pNode;
+#pragma warning(push)
+#pragma warning(disable:6001) // https://github.com/microsoft/wil/issues/164
                         pNode = pNode->pNext;
+#pragma warning(pop)
                         pCurrent->~Node();
                         ::HeapFree(::GetProcessHeap(), 0, pCurrent);
                     }
@@ -509,7 +512,7 @@ namespace wil
                 }
             }
 
-            void Get(FailureInfo& info)
+            void Get(FailureInfo& info) const
             {
                 ::ZeroMemory(&info, sizeof(info));
 
@@ -612,7 +615,7 @@ namespace wil
                 errors[errorCurrentIndex].Set(info, ::InterlockedIncrementNoFence(failureSequenceId));
             }
 
-            bool GetLastError(_Inout_ wil::FailureInfo& info, unsigned int minSequenceId, HRESULT matchRequirement)
+            WI_NODISCARD bool GetLastError(_Inout_ wil::FailureInfo& info, unsigned int minSequenceId, HRESULT matchRequirement) const
             {
                 if (!errors)
                 {
@@ -677,8 +680,7 @@ namespace wil
                 }
 
                 // NOTE:  FailureType::Log as it's only informative (no action) and SupportedExceptions::All as it's not a barrier, only recognition.
-                wchar_t message[2048];
-                message[0] = L'\0';
+                wchar_t message[2048]{};
                 const HRESULT hr = details::ReportFailure_CaughtExceptionCommon<FailureType::Log>(__R_DIAGNOSTICS_RA(source, returnAddress), message, ARRAYSIZE(message), SupportedExceptions::All).hr;
 
                 // Now that the exception was logged, we should be able to fetch it.
@@ -874,7 +876,7 @@ namespace wil
         class ThreadFailureCallbackHolder
         {
         public:
-            ThreadFailureCallbackHolder(_In_ IFailureCallback *pCallbackParam, _In_opt_ CallContextInfo *pCallContext = nullptr, bool watchNow = true) WI_NOEXCEPT :
+            ThreadFailureCallbackHolder(_In_opt_ IFailureCallback *pCallbackParam, _In_opt_ CallContextInfo *pCallContext = nullptr, bool watchNow = true) WI_NOEXCEPT :
                 m_ppThreadList(nullptr),
                 m_pCallback(pCallbackParam),
                 m_pNext(nullptr),
@@ -959,7 +961,7 @@ namespace wil
                 m_ppThreadList = nullptr;
             }
 
-            bool IsWatching()
+            WI_NODISCARD bool IsWatching() const
             {
                 return (m_threadId != 0);
             }
@@ -1082,7 +1084,7 @@ namespace wil
             {
             }
 
-            bool NotifyFailure(FailureInfo const &failure) WI_NOEXCEPT
+            bool NotifyFailure(FailureInfo const &failure) WI_NOEXCEPT override
             {
                 return m_errorFunction(failure);
             }
@@ -1249,12 +1251,12 @@ namespace wil
             m_callbackHolder.StopWatching();
         }
 
-        FailureInfo const *GetFailure()
+        FailureInfo const* GetFailure()
         {
             return (FAILED(m_failure.GetFailureInfo().hr) ? &(m_failure.GetFailureInfo()) : nullptr);
         }
 
-        bool NotifyFailure(FailureInfo const &failure) WI_NOEXCEPT
+        bool NotifyFailure(FailureInfo const& failure) WI_NOEXCEPT override
         {
             // When we "cache" a failure, we bias towards trying to find the origin of the last HRESULT
             // generated, so we ignore subsequent failures on the same error code (assuming propagation).

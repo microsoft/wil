@@ -19,6 +19,9 @@
 #if __has_include(<tuple>)
 #include <tuple>
 #endif
+#if __has_include(<type_traits>)
+#include <type_traits>
+#endif
 
 // Forward declaration within WIL (see https://msdn.microsoft.com/en-us/library/br244983.aspx)
 /// @cond
@@ -50,10 +53,10 @@ namespace wil
         {
         };
 
-        typedef wistd::integral_constant<char, 0> tag_com_query;
-        typedef wistd::integral_constant<char, 1> tag_try_com_query;
-        typedef wistd::integral_constant<char, 2> tag_com_copy;
-        typedef wistd::integral_constant<char, 3> tag_try_com_copy;
+        using tag_com_query = wistd::integral_constant<char, 0>;
+        using tag_try_com_query = wistd::integral_constant<char, 1>;
+        using tag_com_copy = wistd::integral_constant<char, 2>;
+        using tag_try_com_copy = wistd::integral_constant<char, 3>;
 
         class default_query_policy
         {
@@ -91,7 +94,7 @@ namespace wil
         template <typename T>
         struct query_policy_helper
         {
-            typedef default_query_policy type;
+            using type = default_query_policy;
         };
 
         class weak_query_policy
@@ -103,7 +106,7 @@ namespace wil
                 *result = nullptr;
 
                 IInspectable* temp;
-                HRESULT hr = ptr->Resolve(__uuidof(IInspectable), reinterpret_cast<IInspectable**>(&temp));
+                HRESULT hr = ptr->Resolve(__uuidof(IInspectable), &temp);
                 if (SUCCEEDED(hr))
                 {
                     if (temp == nullptr)
@@ -148,7 +151,7 @@ namespace wil
         template <>
         struct query_policy_helper<IWeakReference>
         {
-            typedef weak_query_policy type;
+            using type = weak_query_policy;
         };
 
 #if (NTDDI_VERSION >= NTDDI_WINBLUE)
@@ -174,7 +177,7 @@ namespace wil
         template <>
         struct query_policy_helper<IAgileReference>
         {
-            typedef agile_query_policy type;
+            using type = agile_query_policy;
         };
 #endif
 
@@ -194,15 +197,15 @@ namespace wil
     class com_ptr_t
     {
     private:
-        typedef typename wistd::add_lvalue_reference<T>::type element_type_reference;
-        typedef details::query_policy_t<T> query_policy;
+        using element_type_reference = typename wistd::add_lvalue_reference<T>::type;
+        using query_policy = details::query_policy_t<T>;
     public:
         //! The function return result (HRESULT or void) for the given err_policy (see @ref page_errors).
-        typedef typename err_policy::result result;
+        using result = typename err_policy::result;
         //! The template type `T` being held by the com_ptr_t.
-        typedef T element_type;
+        using element_type = T;
         //! A pointer to the template type `T` being held by the com_ptr_t (what `get()` returns).
-        typedef T* pointer;
+        using pointer = T*;
 
         //! @name Constructors
         //! @{
@@ -363,8 +366,7 @@ namespace wil
             m_ptr = other;
             if (ptr)
             {
-                ULONG ref;
-                ref = ptr->Release();
+                ULONG ref = ptr->Release();
                 WI_ASSERT_MSG(((other != ptr) || (ref > 0)), "Bug: Attaching the same already assigned, destructed pointer");
             }
         }
@@ -428,31 +430,31 @@ namespace wil
         //! @{
 
         //! Returns the address of the const internal pointer (does not release the pointer)
-        const pointer* addressof() const WI_NOEXCEPT
+        WI_NODISCARD const pointer* addressof() const WI_NOEXCEPT
         {
             return &m_ptr;
         }
 
         //! Returns 'true' if the pointer is assigned (NOT nullptr)
-        explicit operator bool() const WI_NOEXCEPT
+        WI_NODISCARD explicit operator bool() const WI_NOEXCEPT
         {
             return (m_ptr != nullptr);
         }
 
         //! Returns the pointer
-        pointer get() const WI_NOEXCEPT
+        WI_NODISCARD pointer get() const WI_NOEXCEPT
         {
             return m_ptr;
         }
 
         //! Allows direct calls against the pointer (AV on internal nullptr)
-        pointer operator->() const WI_NOEXCEPT
+        WI_NODISCARD pointer operator->() const WI_NOEXCEPT
         {
             return m_ptr;
         }
 
         //! Dereferences the pointer (AV on internal nullptr)
-        element_type_reference operator*() const WI_NOEXCEPT
+        WI_NODISCARD element_type_reference operator*() const WI_NOEXCEPT
         {
             return *m_ptr;
         }
@@ -486,7 +488,7 @@ namespace wil
         //!         `com_ptr_t` type will be @ref com_ptr or @ref com_ptr_failfast (matching the error handling form of the
         //!         pointer being queried (exception based or fail-fast).
         template <class U>
-        inline com_ptr_t<U, err_policy> query() const
+        WI_NODISCARD inline com_ptr_t<U, err_policy> query() const
         {
             static_assert(wistd::is_same<void, result>::value, "query requires exceptions or fail fast; use try_query or query_to");
             return com_ptr_t<U, err_policy>(m_ptr, details::tag_com_query());
@@ -609,7 +611,7 @@ namespace wil
         //!             not supported.  The returned `com_ptr_t` will have the same error handling policy (exceptions, failfast or error codes) as
         //!             the pointer being queried.
         template <class U>
-        inline com_ptr_t<U, err_policy> try_query() const
+        WI_NODISCARD inline com_ptr_t<U, err_policy> try_query() const
         {
             return com_ptr_t<U, err_policy>(m_ptr, details::tag_try_com_query());
         }
@@ -683,7 +685,7 @@ namespace wil
         //!         `com_ptr_t` type will be @ref com_ptr or @ref com_ptr_failfast (matching the error handling form of the
         //!         pointer being queried (exception based or fail-fast).
         template <class U>
-        inline com_ptr_t<U, err_policy> copy() const
+        WI_NODISCARD inline com_ptr_t<U, err_policy> copy() const
         {
             static_assert(wistd::is_same<void, result>::value, "copy requires exceptions or fail fast; use the try_copy or copy_to method");
             return com_ptr_t<U, err_policy>(m_ptr, details::tag_com_copy());
@@ -771,7 +773,7 @@ namespace wil
         //!             not supported or the pointer being queried is null.  The returned `com_ptr_t` will have the same error handling
         //!             policy (exceptions, failfast or error codes) as the pointer being queried.
         template <class U>
-        inline com_ptr_t<U, err_policy> try_copy() const
+        WI_NODISCARD inline com_ptr_t<U, err_policy> try_copy() const
         {
             return com_ptr_t<U, err_policy>(m_ptr, details::tag_try_com_copy());
         }
@@ -1989,7 +1991,7 @@ namespace wil
         return CoGetClassObjectNoThrow<Interface>(__uuidof(Class), dwClsContext);
     }
 
-#if __has_include(<tuple>) && (__WI_LIBCPP_STD_VER >= 17)
+#if __cpp_lib_apply && __has_include(<type_traits>)
     namespace details
     {
         template <typename error_policy, typename... Results>
@@ -2012,7 +2014,7 @@ namespace wil
 
             std::apply([i = 0, &multiQis](auto&... a) mutable
             {
-                (a.attach(reinterpret_cast<typename std::remove_reference_t<decltype(a)>::pointer>(multiQis[i++].pItf)), ...);
+                (a.attach(reinterpret_cast<typename std::remove_reference<decltype(a)>::type::pointer>(multiQis[i++].pItf)), ...);
             }, resultTuple);
             return std::tuple<HRESULT, decltype(resultTuple)>(hr, std::move(resultTuple));
         }
@@ -2039,7 +2041,7 @@ namespace wil
                 hr = multiQi->QueryMultipleInterfaces(ARRAYSIZE(multiQis), multiQis);
                 std::apply([i = 0, &multiQis](auto&... a) mutable
                 {
-                    (a.attach(reinterpret_cast<typename std::remove_reference_t<decltype(a)>::pointer>(multiQis[i++].pItf)), ...);
+                    (a.attach(reinterpret_cast<typename std::remove_reference<decltype(a)>::type::pointer>(multiQis[i++].pItf)), ...);
                 }, resultTuple);
             }
             return std::tuple<HRESULT, decltype(resultTuple)>{hr, std::move(resultTuple)};
@@ -2120,7 +2122,7 @@ namespace wil
     }
 #endif
 
-#endif // __has_include(<tuple>)
+#endif // __cpp_lib_apply && __has_include(<type_traits>)
 
 #pragma endregion
 
@@ -2273,7 +2275,7 @@ namespace wil
     */
     inline HRESULT stream_seek_nothrow(_In_ IStream* stream, long long offset, unsigned long from, _Out_opt_ unsigned long long* value = nullptr)
     {
-        LARGE_INTEGER amount;
+        LARGE_INTEGER amount{};
         ULARGE_INTEGER landed{};
         amount.QuadPart = offset;
         RETURN_IF_FAILED(stream->Seek(amount, from, value ? &landed : nullptr));
@@ -2358,8 +2360,8 @@ namespace wil
     */
     inline HRESULT stream_copy_bytes_nothrow(_In_ IStream* source, _In_ IStream* target, unsigned long long amount, _Out_opt_ unsigned long long* pCopied = nullptr)
     {
-        ULARGE_INTEGER toCopy;
-        ULARGE_INTEGER copied;
+        ULARGE_INTEGER toCopy{};
+        ULARGE_INTEGER copied{};
         toCopy.QuadPart = amount;
         RETURN_IF_FAILED(source->CopyTo(target, toCopy, nullptr, &copied));
         assign_to_opt_param(pCopied, copied.QuadPart);
@@ -2774,8 +2776,8 @@ namespace wil
     wil::stream_write_string(target, L"Waffles", 3);
     ~~~~
     @param target The stream to which to write a string
-    @param source The string to write. Can be null if `writeLength` is zero
-    @param writeLength The number of characters to write from source into `target`
+    @param source The string to write. Can be null if `toWriteCch` is zero
+    @param toWriteCch The number of characters to write from source into `target`
     */
     inline void stream_write_string(_In_ ISequentialStream* target, _In_reads_opt_(toWriteCch) const wchar_t*  source, _In_ size_t toWriteCch)
     {
@@ -2850,7 +2852,7 @@ namespace wil
 
         //! Returns the current position being saved for the stream
         //! @returns The position, in bytes, being saved for the stream
-        unsigned long long position() const
+        WI_NODISCARD unsigned long long position() const
         {
             return m_position;
         }
@@ -2999,6 +3001,155 @@ namespace wil
     }
 
 #endif // __IObjectWithSite_INTERFACE_DEFINED__
+
+
+// if C++17 or greater
+#if WIL_HAS_CXX_17
+#ifdef WIL_ENABLE_EXCEPTIONS
+namespace details
+{
+    template<typename>
+    struct com_enumerator_next_traits;
+
+    template<typename Itf, typename T, typename Ret>
+    struct com_enumerator_next_traits<Ret(__stdcall Itf::*)(ULONG, T*, ULONG*)>
+    {
+        using Interface = Itf;
+        using Result = T;
+    };
+
+    template<typename Itf, typename T, typename Ret>
+    struct com_enumerator_next_traits<Ret(__stdcall Itf::*)(ULONG, T*, ULONG*) noexcept>
+    {
+        using Interface = Itf;
+        using Result = T;
+    };
+
+    template<typename T>
+    struct has_next
+    {
+        template <typename U = T>
+        static auto test(int) -> decltype(wistd::declval<U>()->Next(0, nullptr, nullptr), wistd::true_type{});
+
+        template <typename>
+        static auto test(...) -> wistd::false_type;
+
+        static constexpr bool value = decltype(test<T>(0))::value;
+    };
+
+    template<typename T>
+    constexpr bool has_next_v = has_next<T>::value;
+
+    template<typename Interface>
+    struct com_enumerator_traits
+    {
+        using Result = typename com_enumerator_next_traits<decltype(&Interface::Next)>::Result;
+        // If the result is a COM pointer type (IFoo*), then we use wil::com_ptr<IFoo>. Otherwise, we use the raw pointer type IFoo*.
+        using smart_result = wistd::conditional_t<wistd::is_pointer_v<Result> && wistd::is_base_of_v<::IUnknown, wistd::remove_pointer_t<Result>>,
+            wil::com_ptr<wistd::remove_pointer_t<Result>>, Result>;
+    };
+}
+
+template <typename IEnumType, typename TStoredType = typename details::com_enumerator_traits<IEnumType>::smart_result>
+struct com_iterator
+{
+    wil::com_ptr<IEnumType> m_enum{};
+    TStoredType m_currentValue{};
+
+    com_iterator(com_iterator&&) = default;
+    com_iterator(com_iterator const&) = default;
+    com_iterator& operator=(com_iterator&&) = default;
+    com_iterator& operator=(com_iterator const&) = default;
+
+    com_iterator(IEnumType* enumPtr) : m_enum(enumPtr)
+    {
+        FetchNext();
+    }
+
+    auto operator->()
+    {
+        return wistd::addressof(m_currentValue);
+    }
+
+    auto& operator*()
+    {
+        return m_currentValue;
+    }
+
+    const auto& operator*() const
+    {
+        return m_currentValue;
+    }
+
+    com_iterator& operator++()
+    {
+        // If we're already at the end, don't try to advance. Otherwise, use Next to advance.
+        if (m_enum)
+        {
+            FetchNext();
+        }
+
+        return *this;
+    }
+
+    bool operator!=(com_iterator const& other) const
+    {
+        return !(*this == other);
+    }
+
+    bool operator==(com_iterator const& other) const
+    {
+        return (m_enum.get() == other.m_enum.get());
+    }
+
+private:
+    void FetchNext()
+    {
+        if (m_enum)
+        {
+            // we cannot say m_currentValue = {} because com_ptr has 2 operator= overloads: one for T* and one for nullptr_t
+            m_currentValue = TStoredType{};
+            auto hr = m_enum->Next(1, &m_currentValue, nullptr);
+            if (hr == S_FALSE)
+            {
+                m_enum = nullptr;
+            }
+            else 
+            {
+                THROW_IF_FAILED_MSG(hr, "Failed to get next");
+            }
+        }
+    }
+};
+
+
+template<typename IEnumXxx, wistd::enable_if_t<wil::details::has_next_v<IEnumXxx*>, int> = 0>
+WI_NODISCARD auto make_range(IEnumXxx* enumPtr)
+{
+    struct iterator_range
+    {
+        using TStoredType = typename wil::details::com_enumerator_traits<IEnumXxx>::smart_result;
+        com_iterator<IEnumXxx, TStoredType> m_begin;
+
+        iterator_range(IEnumXxx* enumPtr) : m_begin(enumPtr)
+        {
+        }
+
+        WI_NODISCARD auto begin()
+        {
+            return m_begin;
+        }
+
+        WI_NODISCARD constexpr auto end() const noexcept
+        {
+            return com_iterator<IEnumXxx, TStoredType>(nullptr);
+        }
+    };
+
+    return iterator_range(enumPtr);
+}
+#endif // WIL_HAS_CXX_17
+#endif // WIL_ENABLE_EXCEPTIONS
 
 } // wil
 

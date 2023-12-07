@@ -1,5 +1,5 @@
+
 include(${PROJECT_SOURCE_DIR}/cmake/common_build_flags.cmake)
-cmake_minimum_required(VERSION 3.11)
 
 # All projects need to reference the WIL headers
 include_directories(${PROJECT_SOURCE_DIR}/include)
@@ -23,7 +23,7 @@ endif()
 
 set(CPPWINRT ${CMAKE_BINARY_DIR}/packages/Microsoft.Windows.CppWinRT.${CPPWINRT_VERSION}/bin/cppwinrt.exe)
 execute_process(COMMAND
-    ${CPPWINRT} -input sdk -output include
+    ${CPPWINRT} -input sdk+ -output include
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     RESULT_VARIABLE ret)
 if (NOT ret EQUAL 0)
@@ -34,8 +34,21 @@ include_directories(BEFORE SYSTEM ${CMAKE_BINARY_DIR}/include)
 
 # The build pipelines have limitations that local development environments do not, so turn a few knobs
 if (${FAST_BUILD})
-    replace_cxx_flag("/GR" "/GR-") # Disables RTTI
+    if (MSVC)
+        replace_cxx_flag("/GR" "/GR-") # Disables RTTI
+    else()
+        add_compile_options(-fno-rtti)
+    endif()
+
     add_definitions(-DCATCH_CONFIG_FAST_COMPILE -DWIL_FAST_BUILD)
+endif()
+
+# For some unknown reason, 'RelWithDebInfo' compiles with '/Ob1' as opposed to '/Ob2' which prevents inlining of
+# functions not marked 'inline'. The reason we prefer 'RelWithDebInfo' over 'Release' is to get debug info, so manually
+# revert to the desired (and default) inlining behavior as that exercises more interesting code paths
+if (MSVC AND ${CMAKE_BUILD_TYPE} STREQUAL "RelWithDebInfo")
+    # TODO: This is currently blocked by an apparent Clang bug: https://github.com/llvm/llvm-project/issues/59690
+    # replace_cxx_flag("/Ob1" "/Ob2")
 endif()
 
 set(COMMON_SOURCES
@@ -48,13 +61,49 @@ set(COMMON_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/ResultTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Rpc.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/SafeCastTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/TraceLoggingTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/TraceLoggingTests_PartB.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/WistdTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/wiTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../natvis/wil.natvis
     )
+
+if (MSVC)
+    add_link_options(/NATVIS:${CMAKE_SOURCE_DIR}/natvis/wil.natvis)
+endif()
 
 add_subdirectory(app)
 add_subdirectory(cpplatest)
 add_subdirectory(noexcept)
 add_subdirectory(normal)
 add_subdirectory(win7)
+
+set(DEBUG_BUILD FALSE)
+set(HAS_DEBUG_INFO FALSE)
+
+if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+    set(DEBUG_BUILD TRUE)
+    set(HAS_DEBUG_INFO TRUE)
+elseif(${CMAKE_BUILD_TYPE} STREQUAL "RelWithDebInfo")
+    set(HAS_DEBUG_INFO TRUE)
+endif()
+
+set(ASAN_AVAILABLE FALSE)
+set(UBSAN_AVAILABLE FALSE)
+if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+    # Address Sanitizer is available for all architectures and build types, but warns/errors if debug info is not enabled
+    set(ASAN_AVAILABLE ${HAS_DEBUG_INFO})
+elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    # Address Sanitizer is not available with debug libraries
+    set(ASAN_AVAILABLE NOT ${DEBUG_BUILD})
+    set(UBSAN_AVAILABLE NOT ${DEBUG_BUILD})
+endif()
+
+if (${ASAN_AVAILABLE})
+    add_subdirectory(sanitize-address)
+endif()
+
+if (${UBSAN_AVAILABLE})
+    # TODO: Disabled until https://github.com/microsoft/STL/issues/3568 is resolved
+    # add_subdirectory(sanitize-undefined-behavior)
+endif()

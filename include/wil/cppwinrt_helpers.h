@@ -12,8 +12,6 @@
 #ifndef __WIL_CPPWINRT_HELPERS_DEFINED
 #define __WIL_CPPWINRT_HELPERS_DEFINED
 
-#include <memory>
-
 /// @cond
 namespace wil::details
 {
@@ -59,7 +57,7 @@ namespace wil::details
 {
     struct dispatched_handler_state
     {
-        details::coroutine_handle<> handle;
+        details::coroutine_handle<> handle{};
         bool orphaned = false;
     };
 
@@ -227,9 +225,9 @@ namespace wil
                 typename = decltype(std::declval<U>().GetMany(std::declval<U>().Size(),
                     winrt::array_view<decltype(std::declval<U>().GetAt(0))>{}))>
             static constexpr bool get_value(int) { return true; }
-            template <typename> static constexpr bool get_value(...) { return false; }  
+            template <typename> static constexpr bool get_value(...) { return false; }
         public:
-            static constexpr bool value = get_value<T>(0);                                                                                                                         
+            static constexpr bool value = get_value<T>(0);
         };
 
         template<typename T> struct is_winrt_iterator_like {
@@ -237,9 +235,9 @@ namespace wil
             template <typename U,
                 typename = decltype(std::declval<U>().GetMany(winrt::array_view<decltype(std::declval<U>().Current())>{}))>
             static constexpr bool get_value(int) { return true; }
-            template <typename> static constexpr bool get_value(...) { return false; }  
+            template <typename> static constexpr bool get_value(...) { return false; }
         public:
-            static constexpr bool value = get_value<T>(0);                                                                                                                         
+            static constexpr bool value = get_value<T>(0);
         };
 
         template<typename T> constexpr T empty() noexcept
@@ -271,7 +269,7 @@ namespace wil
     interface that C++/WinRT projects those interfaces for (PropertySet, IMap<T,K>, etc.)
     Iterable-only types fetch content in units of 64. When used with an iterator, the returned
     vector contains the iterator's current position and any others after it.
-    */ 
+    */
     template<typename TSrc> auto to_vector(TSrc const& src)
     {
         if constexpr (details::is_winrt_vector_like<TSrc>::value)
@@ -286,7 +284,7 @@ namespace wil
                 {
                     throw winrt::hresult_changed_state();
                 }
-                result.resize(actual);
+                result.resize(actual, details::empty<T>());
             }
             return result;
         }
@@ -302,7 +300,7 @@ namespace wil
                 auto fetched = src.GetMany({result.data() + lastSize, result.data() + lastSize + chunkSize });
                 if (fetched < chunkSize)
                 {
-                    result.resize(lastSize + fetched);
+                    result.resize(lastSize + fetched, details::empty<T>());
                     break;
                 }
             }
@@ -315,3 +313,40 @@ namespace wil
     }
 }
 #endif
+
+#if defined(WINRT_Windows_UI_H) && defined(_WINDOWS_UI_INTEROP_H_) && !defined(__WIL_CPPWINRT_WINDOWS_UI_INTEROP_HELPERS)
+#define __WIL_CPPWINRT_WINDOWS_UI_INTEROP_HELPERS
+#if !defined(____x_ABI_CWindows_CFoundation_CIClosable_FWD_DEFINED__) && !defined(MIDL_NS_PREFIX)
+#pragma push_macro("ABI")
+#undef ABI
+#define ABI
+#endif
+
+namespace wil
+{
+#if defined(NTDDI_VERSION) && (NTDDI_VERSION >= NTDDI_WIN10_CU)
+    //! The following methods require that you include both <winrt/Windows.UI.h>
+    //! <Windows.UI.Interop.h> before including wil/cppwinrt_helpers.h, and that NTDDI_VERSION
+    //! is at least NTDDI_WIN10_CU. It is okay to include wil\cppwinrt_helpers.h multiple times:
+    //! support will be enabled for any headers that were included since the previous inclusion
+    //! of wil\cppwinrt_headers.h.
+    inline winrt::Windows::UI::WindowId GetWindowIdFromWindow(HWND hwnd)
+    {
+        ABI::Windows::UI::WindowId abiWindowId;
+        winrt::check_hresult(::GetWindowIdFromWindow(hwnd, &abiWindowId));
+        return winrt::Windows::UI::WindowId{ abiWindowId.Value };
+    }
+
+    inline HWND GetWindowFromWindowId(winrt::Windows::UI::WindowId windowId)
+    {
+        HWND hwnd;
+        winrt::check_hresult(::GetWindowFromWindowId({ windowId.Value }, &hwnd));
+        return hwnd;
+    }
+#endif /*defined(NTDDI_VERSION) && (NTDDI_VERSION >= NTDDI_WIN10_CU)*/
+}
+
+#if !defined(____x_ABI_CWindows_CFoundation_CIClosable_FWD_DEFINED__) && !defined(MIDL_NS_PREFIX)
+#pragma pop_macro("ABI")
+#endif
+#endif // __WIL_CPPWINRT_WINDOWS_UI_INTEROP_HELPERS

@@ -4,7 +4,9 @@
 
 #if (NTDDI_VERSION >= NTDDI_WIN8)
 #include <wil/result_originate.h>
+#include <wil/result_macros.h>
 #endif
+
 
 #include <roerrorapi.h>
 
@@ -326,7 +328,7 @@ TEST_CASE("ResultTests::ExceptionHandling", "[result]")
                 RETURN_CAUGHT_EXCEPTION_EXPECTED();
             }
         }();
-        REQUIRE(failures.size() == 0);
+        REQUIRE(failures.empty());
         REQUIRE(hr == E_OUTOFMEMORY);
     }
     failures.clear();
@@ -342,7 +344,7 @@ TEST_CASE("ResultTests::ExceptionHandling", "[result]")
         {
             throw std::bad_alloc();
         });
-        REQUIRE(failures.size() == 0);
+        REQUIRE(failures.empty());
         REQUIRE(hr == E_OUTOFMEMORY);
     }
     failures.clear();
@@ -575,7 +577,40 @@ TEST_CASE("ResultTests::AutomaticOriginationOnFailure", "[result]")
     }();
     REQUIRE(S_FALSE == GetRestrictedErrorInfo(&restrictedErrorInformation));
 }
+
+TEST_CASE("ResultTests::OriginatedWithMessagePreserved", "[result]")
+{
+    SetRestrictedErrorInfo(nullptr);
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+    try
+    {
+        THROW_HR_MSG(E_FAIL, "Puppies not allowed");
+    }
+    catch (...) {}
+    witest::RequireRestrictedErrorInfo(E_FAIL, L"Puppies not allowed");
+
+    []()
+    {
+        try
+        {
+            throw std::exception("Puppies not allowed");
+        }
+        CATCH_RETURN();
+    }();
+    witest::RequireRestrictedErrorInfo(HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION), L"std::exception: Puppies not allowed");
+
 #endif
+
+    []()
+    {
+        RETURN_HR_MSG(E_FAIL, "Puppies not allowed");
+    }();
+    witest::RequireRestrictedErrorInfo(E_FAIL, L"Puppies not allowed");
+}
+
+#endif
+
 
 TEST_CASE("ResultTests::ReportDoesNotChangeLastError", "[result]")
 {
@@ -589,3 +624,4 @@ TEST_CASE("ResultTests::ReportDoesNotChangeLastError", "[result]")
     LOG_IF_WIN32_BOOL_FALSE(FALSE);
     REQUIRE(::GetLastError() == ERROR_ABIOS_ERROR);
 }
+

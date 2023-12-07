@@ -14,8 +14,8 @@
 #include "result_macros.h"
 
 // Helpers for return macros
-#define __NT_RETURN_NTSTATUS(status, str)                    __WI_SUPPRESS_4127_S do { NTSTATUS __status = (status); if (FAILED_NTSTATUS(__status)) { __R_FN(Return_NtStatus)(__R_INFO(str) __status); } return __status; } while ((void)0, 0)
-#define __NT_RETURN_NTSTATUS_MSG(status, str, fmt, ...)      __WI_SUPPRESS_4127_S do { NTSTATUS __status = (status); if (FAILED_NTSTATUS(__status)) { __R_FN(Return_NtStatusMsg)(__R_INFO(str) __status, fmt, ##__VA_ARGS__); } return __status; } while ((void)0, 0)
+#define __NT_RETURN_NTSTATUS(status, str)                    __WI_SUPPRESS_4127_S do { NTSTATUS __status = (status); if (FAILED_NTSTATUS(__status)) { __R_FN(Return_NtStatus)(__R_INFO(str) __status); } return __status; } __WI_SUPPRESS_4127_E while ((void)0, 0)
+#define __NT_RETURN_NTSTATUS_MSG(status, str, fmt, ...)      __WI_SUPPRESS_4127_S do { NTSTATUS __status = (status); if (FAILED_NTSTATUS(__status)) { __R_FN(Return_NtStatusMsg)(__R_INFO(str) __status, __WI_CHECK_MSG_FMT(fmt, ##__VA_ARGS__)); } return __status; } __WI_SUPPRESS_4127_E while ((void)0, 0)
 
 //*****************************************************************************
 // Macros for returning failures as NTSTATUS
@@ -39,7 +39,7 @@
 
 // Use these macros *within* a catch (...) block to handle exceptions
 #define NT_RETURN_CAUGHT_EXCEPTION()                            return __R_FN(Nt_Return_CaughtException)(__R_INFO_ONLY(nullptr))
-#define NT_RETURN_CAUGHT_EXCEPTION_MSG(fmt, ...)                return __R_FN(Nt_Return_CaughtExceptionMsg)(__R_INFO(nullptr) fmt, ##__VA_ARGS__)
+#define NT_RETURN_CAUGHT_EXCEPTION_MSG(fmt, ...)                return __R_FN(Nt_Return_CaughtExceptionMsg)(__R_INFO(nullptr) __WI_CHECK_MSG_FMT(fmt, ##__VA_ARGS__))
 
 // Use these macros in place of a catch block to handle exceptions
 #define NT_CATCH_RETURN()                                       catch (...) { NT_RETURN_CAUGHT_EXCEPTION(); }

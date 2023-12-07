@@ -19,6 +19,7 @@
 #include <combaseapi.h> // Needed for CoTaskMemFree() used in output of some helpers.
 #include <winbase.h> // LocalAlloc
 #include <PathCch.h>
+#include "wistd_type_traits.h"
 #include "result.h"
 #include "win32_helpers.h"
 #include "resource.h"
@@ -40,7 +41,7 @@ namespace wil
         // If there is a trailing slash ignore that in the search.
         auto const limitedLength = ((pathLength > 0) && (path[pathLength - 1] == L'\\')) ? (pathLength - 1) : pathLength;
 
-        PCWSTR result;
+        PCWSTR result = nullptr;
         auto const offset = FindStringOrdinal(FIND_FROMEND, path, static_cast<int>(limitedLength), L"\\", 1, TRUE);
         if (offset == -1)
         {
@@ -97,7 +98,7 @@ namespace wil
     {
         *parentPathLength = 0;
         bool hasParent = false;
-        PCWSTR rootEnd;
+        PCWSTR rootEnd = nullptr;
         if (SUCCEEDED(PathCchSkipRoot(path, &rootEnd)) && (*rootEnd != L'\0'))
         {
             auto const lastSegment = find_last_path_segment(path);
@@ -116,7 +117,7 @@ namespace wil
             DWORD lastError = ::GetLastError();
             if (lastError == ERROR_PATH_NOT_FOUND)
             {
-                size_t parentLength;
+                size_t parentLength{};
                 if (try_get_parent_path_range(path, &parentLength))
                 {
                     wistd::unique_ptr<wchar_t[]> parent(new (std::nothrow) wchar_t[parentLength + 1]);
@@ -183,7 +184,7 @@ namespace wil
     template <typename string_type = wil::unique_cotaskmem_string, size_t stackBufferLength = 256>
     string_type GetFullPathNameW(PCWSTR file, _Outptr_opt_ PCWSTR* filePart = nullptr)
     {
-        string_type result;
+        string_type result{};
         THROW_IF_FAILED((GetFullPathNameW<string_type, stackBufferLength>(file, result, filePart)));
         return result;
     }
@@ -197,6 +198,7 @@ namespace wil
     };
     DEFINE_ENUM_FLAG_OPERATORS(RemoveDirectoryOptions);
 
+    /// @cond
     namespace details
     {
         // Reparse points should not be traversed in most recursive walks of the file system,
@@ -208,6 +210,7 @@ namespace wil
                     (IsReparseTagDirectory(info.ReparseTag) || (info.ReparseTag == IO_REPARSE_TAG_WCI))));
         }
     }
+    /// @endcond
 
     // Retrieve a handle to a directory only if it is safe to recurse into.
     inline wil::unique_hfile TryCreateFileCanRecurseIntoDirectory(PCWSTR path, PWIN32_FIND_DATAW fileFindData, DWORD access = GENERIC_READ | /*DELETE*/ 0x00010000L, DWORD share = FILE_SHARE_READ)
@@ -216,7 +219,7 @@ namespace wil
             nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, nullptr));
         if (result)
         {
-            FILE_ATTRIBUTE_TAG_INFO fati;
+            FILE_ATTRIBUTE_TAG_INFO fati{};
             if (GetFileInformationByHandleEx(result.get(), FileAttributeTagInfo, &fati, sizeof(fati)) &&
                 details::CanRecurseIntoDirectory(fati))
             {
@@ -261,7 +264,7 @@ namespace wil
         wil::unique_hlocal_string searchPath;
         RETURN_IF_FAILED(::PathAllocCombine(path.get(), L"*", combineOptions, &searchPath));
 
-        WIN32_FIND_DATAW fd;
+        WIN32_FIND_DATAW fd{};
         wil::unique_hfind findHandle(::FindFirstFileW(searchPath.get(), &fd));
         RETURN_LAST_ERROR_IF(!findHandle);
 
@@ -401,7 +404,7 @@ namespace wil
 
         // range based for requires operator!=, operator++ and operator* to do its work
         // on the type returned from begin() and end(), provide those here.
-        bool operator!=(const next_entry_offset_iterator& other) const { return current_ != other.current_; }
+        WI_NODISCARD bool operator!=(const next_entry_offset_iterator& other) const { return current_ != other.current_; }
 
         next_entry_offset_iterator& operator++()
         {
@@ -418,8 +421,8 @@ namespace wil
             return copy;
         }
 
-        reference operator*() const WI_NOEXCEPT { return *current_; }
-        pointer operator->() const WI_NOEXCEPT { return current_; }
+        WI_NODISCARD reference operator*() const WI_NOEXCEPT { return *current_; }
+        WI_NODISCARD pointer operator->() const WI_NOEXCEPT { return current_; }
 
         next_entry_offset_iterator<T> begin() { return *this; }
         next_entry_offset_iterator<T> end()   { return next_entry_offset_iterator<T>(); }
@@ -622,6 +625,9 @@ namespace wil
                     if (m_folderHandle)
                     {
                         CancelIoEx(m_folderHandle.get(), &m_overlapped);
+
+                        DWORD bytesTransferredIgnored = 0;
+                        GetOverlappedResult(m_folderHandle.get(), &m_overlapped, &bytesTransferredIgnored, TRUE);
                     }
 
                     // Wait for callbacks to complete.
@@ -665,7 +671,7 @@ namespace wil
             OVERLAPPED m_overlapped{};
             TP_IO *m_tpIo = __nullptr;
             srwlock m_cancelLock;
-            char m_readBuffer[4096]; // Consider alternative buffer sizes. With 512 byte buffer i was not able to observe overflow.
+            unsigned char m_readBuffer[4096]{}; // Consider alternative buffer sizes. With 512 byte buffer i was not able to observe overflow.
         };
 
         inline void delete_folder_change_reader_state(_In_opt_ folder_change_reader_state *storage) { delete storage; }
@@ -709,15 +715,14 @@ namespace wil
             auto readerState = static_cast<details::folder_change_reader_state *>(context);
             // WI_ASSERT(overlapped == &readerState->m_overlapped);
 
-            bool requeue = true;
             if (result == ERROR_SUCCESS)
             {
                 for (auto const& info : create_next_entry_offset_iterator(reinterpret_cast<FILE_NOTIFY_INFORMATION *>(readerState->m_readBuffer)))
                 {
-                    wchar_t realtiveFileName[MAX_PATH];
-                    StringCchCopyNW(realtiveFileName, ARRAYSIZE(realtiveFileName), info.FileName, info.FileNameLength / sizeof(info.FileName[0]));
+                    wchar_t relativeFileName[MAX_PATH];
+                    StringCchCopyNW(relativeFileName, ARRAYSIZE(relativeFileName), info.FileName, info.FileNameLength / sizeof(info.FileName[0]));
 
-                    readerState->m_callback(static_cast<FolderChangeEvent>(info.Action), realtiveFileName);
+                    readerState->m_callback(static_cast<FolderChangeEvent>(info.Action), relativeFileName);
                 }
             }
             else if (result == ERROR_NOTIFY_ENUM_DIR)
@@ -726,19 +731,17 @@ namespace wil
             }
             else
             {
-                requeue = false;
+                // No need to requeue
+                return;
             }
 
-            if (requeue)
+            // If the lock is held non-shared or the TP IO is nullptr, this
+            // structure is being torn down. Otherwise, monitor for further
+            // changes.
+            auto autoLock = readerState->m_cancelLock.try_lock_shared();
+            if (autoLock && readerState->m_tpIo)
             {
-                // If the lock is held non-shared or the TP IO is nullptr, this
-                // structure is being torn down. Otherwise, monitor for further
-                // changes.
-                auto autoLock = readerState->m_cancelLock.try_lock_shared();
-                if (autoLock && readerState->m_tpIo)
-                {
-                    readerState->StartIo(); // ignoring failure here
-                }
+                readerState->StartIo(); // ignoring failure here
             }
         }
 
@@ -830,7 +833,7 @@ namespace wil
     string_type GetFinalPathNameByHandleW(HANDLE fileHandle,
         wil::VolumePrefix volumePrefix = wil::VolumePrefix::Dos, wil::PathOptions options = wil::PathOptions::Normalized)
     {
-        string_type result;
+        string_type result{};
         THROW_IF_FAILED((GetFinalPathNameByHandleW<string_type, stackBufferLength>(fileHandle, result, volumePrefix, options)));
         return result;
     }
@@ -861,7 +864,7 @@ namespace wil
     template <typename string_type = wil::unique_cotaskmem_string, size_t stackBufferLength = 256>
     string_type GetCurrentDirectoryW()
     {
-        string_type result;
+        string_type result{};
         THROW_IF_FAILED((GetCurrentDirectoryW<string_type, stackBufferLength>(result)));
         return result;
     }
@@ -870,7 +873,6 @@ namespace wil
     // TODO: add support for these and other similar APIs.
     // GetShortPathNameW()
     // GetLongPathNameW()
-    // GetWindowsDirectory()
     // GetTempDirectory()
 
     /// @cond
@@ -887,25 +889,25 @@ namespace wil
 
         MAP_INFOCLASS_TO_STRUCT(FileBasicInfo, FILE_BASIC_INFO, true, 0);
         MAP_INFOCLASS_TO_STRUCT(FileStandardInfo, FILE_STANDARD_INFO, true, 0);
-        MAP_INFOCLASS_TO_STRUCT(FileNameInfo, FILE_NAME_INFO, false, 32);
-        MAP_INFOCLASS_TO_STRUCT(FileRenameInfo, FILE_RENAME_INFO, false, 32);
+        MAP_INFOCLASS_TO_STRUCT(FileNameInfo, FILE_NAME_INFO, false, 64);
+        MAP_INFOCLASS_TO_STRUCT(FileRenameInfo, FILE_RENAME_INFO, false, 64);
         MAP_INFOCLASS_TO_STRUCT(FileDispositionInfo, FILE_DISPOSITION_INFO, true, 0);
         MAP_INFOCLASS_TO_STRUCT(FileAllocationInfo, FILE_ALLOCATION_INFO, true, 0);
         MAP_INFOCLASS_TO_STRUCT(FileEndOfFileInfo, FILE_END_OF_FILE_INFO, true, 0);
-        MAP_INFOCLASS_TO_STRUCT(FileStreamInfo, FILE_STREAM_INFO, false, 32);
+        MAP_INFOCLASS_TO_STRUCT(FileStreamInfo, FILE_STREAM_INFO, false, 64);
         MAP_INFOCLASS_TO_STRUCT(FileCompressionInfo, FILE_COMPRESSION_INFO, true, 0);
         MAP_INFOCLASS_TO_STRUCT(FileAttributeTagInfo, FILE_ATTRIBUTE_TAG_INFO, true, 0);
-        MAP_INFOCLASS_TO_STRUCT(FileIdBothDirectoryInfo, FILE_ID_BOTH_DIR_INFO, false, 4096);
+        MAP_INFOCLASS_TO_STRUCT(FileIdBothDirectoryInfo, FILE_ID_BOTH_DIR_INFO, false, 8192);
         MAP_INFOCLASS_TO_STRUCT(FileIdBothDirectoryRestartInfo, FILE_ID_BOTH_DIR_INFO, true, 0);
         MAP_INFOCLASS_TO_STRUCT(FileIoPriorityHintInfo, FILE_IO_PRIORITY_HINT_INFO, true, 0);
         MAP_INFOCLASS_TO_STRUCT(FileRemoteProtocolInfo, FILE_REMOTE_PROTOCOL_INFO, true, 0);
-        MAP_INFOCLASS_TO_STRUCT(FileFullDirectoryInfo, FILE_FULL_DIR_INFO, false, 4096);
+        MAP_INFOCLASS_TO_STRUCT(FileFullDirectoryInfo, FILE_FULL_DIR_INFO, false, 8192);
         MAP_INFOCLASS_TO_STRUCT(FileFullDirectoryRestartInfo, FILE_FULL_DIR_INFO, true, 0);
 #if (_WIN32_WINNT >= _WIN32_WINNT_WIN8)
         MAP_INFOCLASS_TO_STRUCT(FileStorageInfo, FILE_STORAGE_INFO, true, 0);
         MAP_INFOCLASS_TO_STRUCT(FileAlignmentInfo, FILE_ALIGNMENT_INFO, true, 0);
         MAP_INFOCLASS_TO_STRUCT(FileIdInfo, FILE_ID_INFO, true, 0);
-        MAP_INFOCLASS_TO_STRUCT(FileIdExtdDirectoryInfo, FILE_ID_EXTD_DIR_INFO, false, 4096);
+        MAP_INFOCLASS_TO_STRUCT(FileIdExtdDirectoryInfo, FILE_ID_EXTD_DIR_INFO, false, 8192);
         MAP_INFOCLASS_TO_STRUCT(FileIdExtdDirectoryRestartInfo, FILE_ID_EXTD_DIR_INFO, true, 0);
 #endif
 
@@ -941,6 +943,10 @@ namespace wil
                     else if (lastError == ERROR_INVALID_PARAMETER) // operation not supported by file system
                     {
                         return HRESULT_FROM_WIN32(lastError);
+                    }
+                    else if ((lastError == ERROR_HANDLE_EOF) && (infoClass == FileStreamInfo))
+                    {
+                        break;
                     }
                     else
                     {
@@ -1027,7 +1033,7 @@ namespace wil
     template <FILE_INFO_BY_HANDLE_CLASS infoClass, typename wistd::enable_if<details::MapInfoClassToInfoStruct<infoClass>::isFixed, int>::type = 0>
     typename details::MapInfoClassToInfoStruct<infoClass>::type GetFileInfo(HANDLE fileHandle)
     {
-        typename details::MapInfoClassToInfoStruct<infoClass>::type result;
+        typename details::MapInfoClassToInfoStruct<infoClass>::type result{};
         THROW_IF_FAILED(GetFileInfoNoThrow<infoClass>(fileHandle, &result));
         return result;
     }
@@ -1044,8 +1050,217 @@ namespace wil
         THROW_IF_FAILED(GetFileInfoNoThrow<infoClass>(fileHandle, result));
         return result;
     }
+
+    // Helpers to make the CreateFileW API easier to use.
+    // https://learn.microsoft.com/windows/win32/api/fileapi/nf-fileapi-createfilew
+
+    struct file_and_error_result
+    {
+        file_and_error_result(HANDLE file_handle, DWORD error) : file(file_handle), last_error(error)
+        {
+        }
+
+        wil::unique_hfile file;
+        DWORD last_error{};
+    };
+
+    /** Non-throwing open existing using OPEN_EXISTING.
+    ~~~
+    auto handle = wil::try_open_file(filePath.c_str());
+    ~~~
+    */
+    inline file_and_error_result try_open_file(PCWSTR path, DWORD dwDesiredAccess = FILE_READ_ACCESS,
+        DWORD dwShareMode = FILE_SHARE_READ, DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL,
+        bool inheritHandle = false) noexcept
+    {
+        SECURITY_ATTRIBUTES secAttributes{ sizeof(secAttributes) };
+        secAttributes.bInheritHandle = inheritHandle;
+        auto handle = CreateFileW(path, dwDesiredAccess, dwShareMode, &secAttributes, OPEN_EXISTING, dwFlagsAndAttributes, nullptr);
+        return { handle, ::GetLastError() };
+    }
+
+    /** open existing using OPEN_EXISTING, throws on error.
+    ~~~
+    auto handle = wil::open_file(filePath.c_str());
+    ~~~
+    */
+    inline wil::unique_hfile open_file(PCWSTR path, DWORD dwDesiredAccess = FILE_READ_ACCESS,
+        DWORD dwShareMode = FILE_SHARE_READ, DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL,
+        bool inheritHandle = false) noexcept
+    {
+        auto result = try_open_file(path, dwDesiredAccess, dwShareMode, inheritHandle, dwFlagsAndAttributes);
+        THROW_WIN32_IF(result.last_error, !result.file.is_valid());
+        return std::move(result.file);
+    }
+
+    /// @cond
+    namespace details
+    {
+        template<DWORD dwCreateDisposition>
+        file_and_error_result create_file(PCWSTR path, DWORD dwDesiredAccess,
+            DWORD dwShareMode,
+            LPSECURITY_ATTRIBUTES lpSecurityAttributes,
+            DWORD dwFlagsAndAttributes,
+            HANDLE hTemplateFile) noexcept
+        {
+            auto handle = CreateFileW(
+                path, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreateDisposition, dwFlagsAndAttributes, hTemplateFile);
+            return { handle, ::GetLastError() };
+        }
+    }
+    /// @endcond
+
+
+    /** create using CREATE_NEW, returns handle and error code.
+    ~~~
+    auto [handle, error = wil::try_create_new_file(filePath.c_str());
+    ~~~
+    */
+    inline file_and_error_result try_create_new_file(PCWSTR path,
+        DWORD dwDesiredAccess = FILE_READ_ACCESS | FILE_WRITE_ACCESS,
+        DWORD dwShareMode = FILE_SHARE_READ,
+        LPSECURITY_ATTRIBUTES lpSecurityAttributes = nullptr,
+        DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL,
+        HANDLE hTemplateFile = nullptr) noexcept
+    {
+        return details::create_file<CREATE_NEW>(
+            path, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwFlagsAndAttributes, hTemplateFile);
+    }
+
+    /** create using OPEN_ALWAYS, returns handle and error code.
+    ~~~
+    auto [handle, error = wil::try_open_or_create_file(filePath.c_str());
+    ~~~
+    */
+    inline file_and_error_result try_open_or_create_file(PCWSTR path,
+        DWORD dwDesiredAccess = FILE_READ_ACCESS | FILE_WRITE_ACCESS,
+        DWORD dwShareMode = FILE_SHARE_READ,
+        LPSECURITY_ATTRIBUTES lpSecurityAttributes = nullptr,
+        DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL,
+        HANDLE hTemplateFile = nullptr) noexcept
+    {
+        return details::create_file<OPEN_ALWAYS>(
+            path, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwFlagsAndAttributes, hTemplateFile);
+    }
+
+    /** create using CREATE_ALWAYS, returns handle and error code.
+    ~~~
+    auto [handle, error = wil::try_open_or_truncate_existing_file(filePath.c_str());
+    ~~~
+    */
+    inline file_and_error_result try_open_or_truncate_existing_file(PCWSTR path,
+        DWORD dwDesiredAccess = FILE_READ_ACCESS | FILE_WRITE_ACCESS,
+        DWORD dwShareMode = FILE_SHARE_READ,
+        LPSECURITY_ATTRIBUTES lpSecurityAttributes = nullptr,
+        DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL,
+        HANDLE hTemplateFile = nullptr) noexcept
+    {
+        return details::create_file<CREATE_ALWAYS>(
+            path, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwFlagsAndAttributes, hTemplateFile);
+    }
+
+    /** create using TRUNCATE_EXISTING, returns handle and error code.
+    ~~~
+    auto [handle, error = wil::try_truncate_existing_file(filePath.c_str());
+    ~~~
+    */
+    inline file_and_error_result try_truncate_existing_file(PCWSTR path,
+        DWORD dwDesiredAccess = FILE_READ_ACCESS | FILE_WRITE_ACCESS | GENERIC_WRITE,
+        DWORD dwShareMode = FILE_SHARE_READ,
+        LPSECURITY_ATTRIBUTES lpSecurityAttributes = nullptr,
+        DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL,
+        HANDLE hTemplateFile = nullptr) noexcept
+    {
+        return details::create_file<TRUNCATE_EXISTING>(
+            path, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwFlagsAndAttributes, hTemplateFile);
+    }
+
+    /** create using CREATE_NEW, returns the file handle, throws on error.
+    ~~~
+    auto handle = wil::create_new_file(filePath.c_str());
+    ~~~
+    */
+    inline wil::unique_hfile create_new_file(PCWSTR path,
+        DWORD dwDesiredAccess = FILE_READ_ACCESS | FILE_WRITE_ACCESS,
+        DWORD dwShareMode = FILE_SHARE_READ,
+        LPSECURITY_ATTRIBUTES lpSecurityAttributes = nullptr,
+        DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL,
+        HANDLE hTemplateFile = nullptr) noexcept
+    {
+        auto result = try_create_new_file(
+            path, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwFlagsAndAttributes, hTemplateFile);
+        THROW_WIN32_IF(result.last_error, !result.file.is_valid());
+        return std::move(result.file);
+    }
+
+    /** create using OPEN_ALWAYS, returns the file handle, throws on error.
+    ~~~
+    auto handle = wil::open_or_create_file(filePath.c_str());
+    ~~~
+    */
+    inline wil::unique_hfile open_or_create_file(PCWSTR path,
+        DWORD dwDesiredAccess = FILE_READ_ACCESS | FILE_WRITE_ACCESS,
+        DWORD dwShareMode = FILE_SHARE_READ,
+        LPSECURITY_ATTRIBUTES lpSecurityAttributes = nullptr,
+        DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL,
+        HANDLE hTemplateFile = nullptr) noexcept
+    {
+        auto result = try_open_or_create_file(
+            path, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwFlagsAndAttributes, hTemplateFile);
+        THROW_WIN32_IF(result.last_error, !result.file.is_valid());
+        return std::move(result.file);
+    }
+
+    /** create using CREATE_ALWAYS, returns the file handle, throws on error.
+    ~~~
+    auto handle = wil::open_or_truncate_existing_file(filePath.c_str());
+    ~~~
+    */
+    inline wil::unique_hfile open_or_truncate_existing_file(PCWSTR path,
+        DWORD dwDesiredAccess = FILE_READ_ACCESS | FILE_WRITE_ACCESS,
+        DWORD dwShareMode = FILE_SHARE_READ,
+        LPSECURITY_ATTRIBUTES lpSecurityAttributes = nullptr,
+        DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL,
+        HANDLE hTemplateFile = nullptr) noexcept
+    {
+        auto result = try_open_or_truncate_existing_file(
+            path, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwFlagsAndAttributes, hTemplateFile);
+        THROW_WIN32_IF(result.last_error, !result.file.is_valid());
+        return std::move(result.file);
+    }
+
+    /** create using TRUNCATE_EXISTING, returns the file handle, throws on error.
+    ~~~
+    auto handle = wil::truncate_existing_file(filePath.c_str());
+    ~~~
+    */
+    inline wil::unique_hfile truncate_existing_file(PCWSTR path,
+        DWORD dwDesiredAccess = FILE_READ_ACCESS | FILE_WRITE_ACCESS,
+        DWORD dwShareMode = FILE_SHARE_READ,
+        LPSECURITY_ATTRIBUTES lpSecurityAttributes = nullptr,
+        DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL,
+        HANDLE hTemplateFile = nullptr) noexcept
+    {
+        auto result = try_truncate_existing_file(
+            path, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwFlagsAndAttributes, hTemplateFile);
+        THROW_WIN32_IF(result.last_error, !result.file.is_valid());
+        return std::move(result.file);
+    }
+
 #endif // _CPPUNWIND
 #endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && (_WIN32_WINNT >= _WIN32_WINNT_WIN7)
 }
+
+#ifndef WIL_NO_FILE_TYPE_OPERATORS
+inline bool operator==(const FILE_ID_128& left, const FILE_ID_128& right)
+{
+    return memcmp(&left, &right, sizeof(left)) == 0;
+}
+
+inline bool operator!=(const FILE_ID_128& left, const FILE_ID_128& right)
+{
+    return !operator==(left, right);
+}
+#endif
 
 #endif // __WIL_FILESYSTEM_INCLUDED

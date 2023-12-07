@@ -40,7 +40,7 @@ namespace wil
         template<typename Other>
         struct rebind
         {
-            typedef secure_allocator<Other> other;
+            using other = secure_allocator<Other>;
         };
 
         secure_allocator()
@@ -158,13 +158,13 @@ namespace wil
             : std::basic_string_view<TChar>(&str[0], str.size()) {}
 
         // basic_string_view [] precondition won't let us read view[view.size()]; so we define our own.
-        constexpr const TChar& operator[](size_type idx) const noexcept
+        WI_NODISCARD constexpr const TChar& operator[](size_type idx) const noexcept
         {
             WI_ASSERT(idx <= this->size() && this->data() != nullptr);
             return this->data()[idx];
         }
 
-        constexpr const TChar* c_str() const noexcept
+        WI_NODISCARD constexpr const TChar* c_str() const noexcept
         {
             WI_ASSERT(this->data() == nullptr || this->data()[this->size()] == 0);
             return this->data();
@@ -187,6 +187,18 @@ namespace wil
 
     using zstring_view = basic_zstring_view<char>;
     using zwstring_view = basic_zstring_view<wchar_t>;
+
+    inline namespace literals
+    {
+        constexpr zstring_view operator "" _zv(const char* str, std::size_t len) noexcept {
+            return zstring_view(str, len);
+        }
+
+        constexpr zwstring_view operator "" _zv(const wchar_t* str, std::size_t len) noexcept {
+            return zwstring_view(str, len);
+        }
+    }
+    
 #endif // _HAS_CXX17
 
 } // namespace wil

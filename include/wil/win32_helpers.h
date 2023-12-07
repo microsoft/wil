@@ -136,21 +136,21 @@ namespace wil
 {
     //! Strictly a function of the file system but this is the value for all known file system, NTFS, FAT.
     //! CDFs has a limit of 254.
-    size_t const max_path_segment_length = 255;
+    constexpr size_t max_path_segment_length = 255;
 
     //! Character length not including the null, MAX_PATH (260) includes the null.
-    size_t const max_path_length = 259;
+    constexpr size_t max_path_length = 259;
 
     //! 32743 Character length not including the null. This is a system defined limit.
     //! The 24 is for the expansion of the roots from "C:" to "\Device\HarddiskVolume4"
     //! It will be 25 when there are more than 9 disks.
-    size_t const max_extended_path_length = 0x7FFF - 24;
+    constexpr size_t max_extended_path_length = 0x7FFF - 24;
 
     //! For {guid} string form. Includes space for the null terminator.
-    size_t const guid_string_buffer_length = 39;
+    constexpr size_t guid_string_buffer_length = 39;
 
     //! For {guid} string form. Not including the null terminator.
-    size_t const guid_string_length = 38;
+    constexpr size_t guid_string_length = 38;
 
 #pragma region String and identifier comparisons
     // Using CompareStringOrdinal functions:
@@ -286,6 +286,43 @@ namespace wil
     }
 #pragma endregion
 
+#pragma region RECT helpers
+    template<typename rect_type>
+    constexpr auto rect_width(rect_type const& rect)
+    {
+        return rect.right - rect.left;
+    }
+
+    template<typename rect_type>
+    constexpr auto rect_height(rect_type const& rect)
+    {
+        return rect.bottom - rect.top;
+    }
+
+    template<typename rect_type>
+    constexpr auto rect_is_empty(rect_type const& rect)
+    {
+        return (rect.left >= rect.right) || (rect.top >= rect.bottom);
+    }
+
+    template<typename rect_type, typename point_type>
+    constexpr auto rect_contains_point(rect_type const& rect, point_type const& point)
+    {
+        return (point.x >= rect.left) && (point.x < rect.right) && (point.y >= rect.top) && (point.y < rect.bottom);
+    }
+
+    template<typename rect_type, typename length_type>
+    constexpr rect_type rect_from_size(length_type x, length_type y, length_type width, length_type height)
+    {
+        rect_type rect;
+        rect.left = x;
+        rect.top = y;
+        rect.right = x + width;
+        rect.bottom = y + height;
+        return rect;
+    }
+#pragma endregion
+
     // Use to adapt Win32 APIs that take a fixed size buffer into forms that return
     // an allocated buffer. Supports many types of string representation.
     // See comments below on the expected behavior of the callback.
@@ -296,8 +333,7 @@ namespace wil
     {
         details::string_maker<string_type> maker;
 
-        wchar_t value[stackBufferLength];
-        value[0] = L'\0';
+        wchar_t value[stackBufferLength]{};
         size_t valueLengthNeededWithNull{}; // callback returns the number of characters needed including the null terminator.
         RETURN_IF_FAILED_EXPECTED(callback(value, ARRAYSIZE(value), &valueLengthNeededWithNull));
         WI_ASSERT(valueLengthNeededWithNull > 0);
@@ -385,7 +421,7 @@ namespace wil
             RETURN_LAST_ERROR_IF((success == FALSE) && (::GetLastError() != ERROR_INSUFFICIENT_BUFFER));
 
             // On success, return the amount used; on failure, try doubling
-            *valueLengthNeededWithNul = success ? (lengthToUse + 1) : (lengthToUse * 2);
+            *valueLengthNeededWithNul = success ? (static_cast<size_t>(lengthToUse) + 1) : (static_cast<size_t>(lengthToUse) * 2);
             return S_OK;
         });
     }
@@ -451,17 +487,17 @@ namespace wil
     {
         auto adapter = [&](_Out_writes_(valueLength) PWSTR value, size_t valueLength, _Out_ size_t* valueLengthNeededWithNul) -> HRESULT
         {
-            DWORD copiedCount;
-            size_t valueUsedWithNul;
-            bool copyFailed;
-            bool copySucceededWithNoTruncation;
+            DWORD copiedCount{};
+            size_t valueUsedWithNul{};
+            bool copyFailed{};
+            bool copySucceededWithNoTruncation{};
             if (process != nullptr)
             {
                 // GetModuleFileNameExW truncates and provides no error or other indication it has done so.
                 // The only way to be sure it didn't truncate is if it didn't need the whole buffer. The
                 // count copied to the buffer includes the nul-character as well.
                 copiedCount = ::GetModuleFileNameExW(process, module, value, static_cast<DWORD>(valueLength));
-                valueUsedWithNul = copiedCount + 1;
+                valueUsedWithNul = static_cast<size_t>(copiedCount) + 1;
                 copyFailed = (0 == copiedCount);
                 copySucceededWithNoTruncation = !copyFailed && (copiedCount < valueLength - 1);
             }
@@ -471,7 +507,7 @@ namespace wil
                 // and set the last error to ERROR_INSUFFICIENT_BUFFER. The count returned does not include
                 // the nul-character
                 copiedCount = ::GetModuleFileNameW(module, value, static_cast<DWORD>(valueLength));
-                valueUsedWithNul = copiedCount + 1;
+                valueUsedWithNul = static_cast<size_t>(copiedCount) + 1;
                 copyFailed = (0 == copiedCount);
                 copySucceededWithNoTruncation = !copyFailed && (copiedCount < valueLength);
             }
@@ -513,12 +549,30 @@ namespace wil
         });
     }
 
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM | WINAPI_PARTITION_GAMES)
+    template <typename string_type, size_t stackBufferLength = 256>
+    HRESULT GetWindowsDirectoryW(string_type& result) WI_NOEXCEPT
+    {
+        return wil::AdaptFixedSizeToAllocatedResult<string_type, stackBufferLength>(result,
+            [&](_Out_writes_(valueLength) PWSTR value, size_t valueLength, _Out_ size_t* valueLengthNeededWithNul) -> HRESULT
+        {
+            *valueLengthNeededWithNul = ::GetWindowsDirectoryW(value, static_cast<DWORD>(valueLength));
+            RETURN_LAST_ERROR_IF(*valueLengthNeededWithNul == 0);
+            if (*valueLengthNeededWithNul < valueLength)
+            {
+                (*valueLengthNeededWithNul)++; // it fit, account for the null
+            }
+            return S_OK;
+        });
+    }
+#endif
+
 #ifdef WIL_ENABLE_EXCEPTIONS
     /** Expands the '%' quoted environment variables in 'input' using ExpandEnvironmentStringsW(); */
     template <typename string_type = wil::unique_cotaskmem_string, size_t stackBufferLength = 256>
     string_type ExpandEnvironmentStringsW(_In_ PCWSTR input)
     {
-        string_type result;
+        string_type result{};
         THROW_IF_FAILED((wil::ExpandEnvironmentStringsW<string_type, stackBufferLength>(input, result)));
         return result;
     }
@@ -528,7 +582,7 @@ namespace wil
     template <typename string_type = wil::unique_cotaskmem_string, size_t stackBufferLength = 256>
     string_type TrySearchPathW(_In_opt_ PCWSTR path, _In_ PCWSTR fileName, PCWSTR _In_opt_ extension)
     {
-        string_type result;
+        string_type result{};
         HRESULT searchHR = wil::SearchPathW<string_type, stackBufferLength>(path, fileName, extension, result);
         THROW_HR_IF(searchHR, FAILED(searchHR) && (searchHR != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND)));
         return result;
@@ -539,7 +593,7 @@ namespace wil
     template <typename string_type = wil::unique_cotaskmem_string, size_t initialBufferLength = 128>
     string_type GetEnvironmentVariableW(_In_ PCWSTR key)
     {
-        string_type result;
+        string_type result{};
         THROW_IF_FAILED((wil::GetEnvironmentVariableW<string_type, initialBufferLength>(key, result)));
         return result;
     }
@@ -548,7 +602,7 @@ namespace wil
     template <typename string_type = wil::unique_cotaskmem_string, size_t initialBufferLength = 128>
     string_type TryGetEnvironmentVariableW(_In_ PCWSTR key)
     {
-        string_type result;
+        string_type result{};
         THROW_IF_FAILED((wil::TryGetEnvironmentVariableW<string_type, initialBufferLength>(key, result)));
         return result;
     }
@@ -556,7 +610,7 @@ namespace wil
     template <typename string_type = wil::unique_cotaskmem_string, size_t initialBufferLength = 128>
     string_type GetModuleFileNameW(HMODULE module = nullptr /* current process module */)
     {
-        string_type result;
+        string_type result{};
         THROW_IF_FAILED((wil::GetModuleFileNameW<string_type, initialBufferLength>(module, result)));
         return result;
     }
@@ -564,15 +618,33 @@ namespace wil
     template <typename string_type = wil::unique_cotaskmem_string, size_t initialBufferLength = 128>
     string_type GetModuleFileNameExW(HANDLE process, HMODULE module)
     {
-        string_type result;
+        string_type result{};
         THROW_IF_FAILED((wil::GetModuleFileNameExW<string_type, initialBufferLength>(process, module, result)));
+        return result;
+    }
+
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM | WINAPI_PARTITION_GAMES)
+    template <typename string_type = wil::unique_cotaskmem_string, size_t stackBufferLength = 256>
+    string_type GetWindowsDirectoryW()
+    {
+        string_type result;
+        THROW_IF_FAILED((wil::GetWindowsDirectoryW<string_type, stackBufferLength>(result)));
+        return result;
+    }
+#endif
+
+    template <typename string_type = wil::unique_cotaskmem_string, size_t stackBufferLength = 256>
+    string_type GetSystemDirectoryW()
+    {
+        string_type result;
+        THROW_IF_FAILED((wil::GetSystemDirectoryW<string_type, stackBufferLength>(result)));
         return result;
     }
 
     template <typename string_type = wil::unique_cotaskmem_string, size_t stackBufferLength = 256>
     string_type QueryFullProcessImageNameW(HANDLE processHandle = GetCurrentProcess(), DWORD flags = 0)
     {
-        string_type result;
+        string_type result{};
         THROW_IF_FAILED((wil::QueryFullProcessImageNameW<string_type, stackBufferLength>(processHandle, flags, result)));
         return result;
     }

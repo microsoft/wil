@@ -37,6 +37,11 @@
 #pragma warning(push)
 #pragma warning(disable: 26135)   // Missing locking annotation, Caller failing to hold lock
 
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmicrosoft-template-shadow"
+#endif
+
 #ifndef __TRACELOGGING_TEST_HOOK_ERROR
 #define __TRACELOGGING_TEST_HOOK_ERROR(failure)
 #define __TRACELOGGING_TEST_HOOK_ACTIVITY_ERROR(failure)
@@ -54,12 +59,6 @@
 #define _wiltlg_LSTRINGIZE(x)      _wiltlg_LSTRINGIZE_imp1(x)
 #define _wiltlg_LSTRINGIZE_imp1(x) _wiltlg_LSTRINGIZE_imp2(#x)
 #define _wiltlg_LSTRINGIZE_imp2(s) L##s
-
-#ifdef _GENERIC_PARTB_FIELDS_ENABLED
-#define _TLG_GENERIC_PARTB_FIELDS_ENABLED _GENERIC_PARTB_FIELDS_ENABLED,
-#else
-#define _TLG_GENERIC_PARTB_FIELDS_ENABLED
-#endif
 
 /*
 Macro __TRACELOGGING_DEFINE_PROVIDER_STORAGE_LINK(name1, name2):
@@ -160,10 +159,10 @@ namespace wil
     };
     DEFINE_ENUM_FLAG_OPERATORS(ActivityOptions)
 
-        template <typename ActivityTraceLoggingType,
+    template <typename ActivityTraceLoggingType,
         ActivityOptions options, UINT64 keyword, UINT8 level, UINT64 privacyTag,
         typename TlgReflectorTag>
-        class ActivityBase;
+    class ActivityBase;
 
     /// @cond
     namespace details
@@ -240,18 +239,18 @@ namespace wil
         class StoredCallContextInfo : public wil::CallContextInfo
         {
         public:
-            StoredCallContextInfo()
+            StoredCallContextInfo() WI_NOEXCEPT
             {
                 ::ZeroMemory(this, sizeof(*this));
             }
 
-            StoredCallContextInfo(StoredCallContextInfo &&other) :
+            StoredCallContextInfo(StoredCallContextInfo &&other) WI_NOEXCEPT :
                 StoredCallContextInfo()
             {
                 operator=(wistd::move(other));
             }
 
-            StoredCallContextInfo& operator=(StoredCallContextInfo &&other)
+            StoredCallContextInfo& operator=(StoredCallContextInfo &&other) WI_NOEXCEPT
             {
                 contextId = other.contextId;
                 contextName = other.contextName;
@@ -263,7 +262,7 @@ namespace wil
                 return *this;
             }
 
-            StoredCallContextInfo(StoredCallContextInfo const &other) :
+            StoredCallContextInfo(StoredCallContextInfo const &other) WI_NOEXCEPT :
                 m_ownsMessage(false)
             {
                 contextId = other.contextId;
@@ -278,7 +277,7 @@ namespace wil
                 }
             }
 
-            StoredCallContextInfo(_In_opt_ PCSTR staticContextName) :
+            StoredCallContextInfo(_In_opt_ PCSTR staticContextName) WI_NOEXCEPT :
                 m_ownsMessage(false)
             {
                 contextId = 0;
@@ -286,7 +285,7 @@ namespace wil
                 contextMessage = nullptr;
             }
 
-            StoredCallContextInfo(PCSTR staticContextName, _Printf_format_string_ PCSTR formatString, va_list argList) :
+            StoredCallContextInfo(PCSTR staticContextName, _Printf_format_string_ PCSTR formatString, va_list argList) WI_NOEXCEPT :
                 StoredCallContextInfo(staticContextName)
             {
                 SetMessage(formatString, argList);
@@ -398,13 +397,13 @@ namespace wil
 
         // Uses the supplied StoredCallContextInfo rather than producing one itself
         ActivityThreadWatcher(_In_ details::IFailureCallback *pCallback, _In_ details::StoredCallContextInfo const &callContext) WI_NOEXCEPT :
-        m_callContext(callContext),
+            m_callContext(callContext),
             m_callbackHolder(pCallback, &m_callContext)
         {
         }
 
         ActivityThreadWatcher(ActivityThreadWatcher &&other) WI_NOEXCEPT :
-        m_callContext(wistd::move(other.m_callContext)),
+            m_callContext(wistd::move(other.m_callContext)),
             m_callbackHolder(wistd::move(other.m_callbackHolder))
         {
             m_callbackHolder.SetCallContext(&m_callContext);
@@ -418,6 +417,7 @@ namespace wil
             va_list argList;
             va_start(argList, formatString);
             m_callContext.SetMessage(formatString, argList);
+            va_end(argList);
         }
 
         void SetMessage(_In_opt_ PCWSTR message)
@@ -461,7 +461,7 @@ namespace wil
         // It will be ran once when the single static singleton instance of this class is created.
         virtual void Initialize() WI_NOEXCEPT {}
 
-        // This method can be overriden by a provider to more tightly control what happens in the event
+        // This method can be overridden by a provider to more tightly control what happens in the event
         // of a failure in a CallContext activity, WatchCurrentThread() object, or attributed to a specific failure.
         virtual void OnErrorReported(bool alreadyReported, FailureInfo const &failure) WI_NOEXCEPT
         {
@@ -479,7 +479,7 @@ namespace wil
         }
 
     public:
-        TraceLoggingHProvider const Provider_() const WI_NOEXCEPT
+        WI_NODISCARD TraceLoggingHProvider Provider_() const WI_NOEXCEPT
         {
             return m_providerHandle;
         }
@@ -495,7 +495,7 @@ namespace wil
             }
         }
 
-        bool IsEnabled_(UCHAR eventLevel /* WINEVENT_LEVEL_XXX, e.g. WINEVENT_LEVEL_VERBOSE */, ULONGLONG eventKeywords /* MICROSOFT_KEYWORD_XXX */) const WI_NOEXCEPT
+        WI_NODISCARD bool IsEnabled_(UCHAR eventLevel /* WINEVENT_LEVEL_XXX, e.g. WINEVENT_LEVEL_VERBOSE */, ULONGLONG eventKeywords /* MICROSOFT_KEYWORD_XXX */) const WI_NOEXCEPT
         {
             return ((m_providerHandle != nullptr) && TraceLoggingProviderEnabled(m_providerHandle, eventLevel, eventKeywords)) || __TRACELOGGING_TEST_HOOK_SET_ENABLED;
         }
@@ -516,7 +516,7 @@ namespace wil
         void ReportTelemetryFailure(FailureInfo const &failure) WI_NOEXCEPT
         {
             __TRACELOGGING_TEST_HOOK_ERROR(failure);
-            TraceLoggingWrite(m_providerHandle, "FallbackError", TraceLoggingKeyword(MICROSOFT_KEYWORD_TELEMETRY), TraceLoggingLevel(WINEVENT_LEVEL_ERROR), __RESULT_TELEMETRY_FAILURE_PARAMS(failure));
+            TraceLoggingWrite(m_providerHandle, "FallbackError", TelemetryPrivacyDataTag(PDT_ProductAndServicePerformance), TraceLoggingKeyword(MICROSOFT_KEYWORD_TELEMETRY), TraceLoggingLevel(WINEVENT_LEVEL_ERROR), __RESULT_TELEMETRY_FAILURE_PARAMS(failure));
         }
 
         void ReportTraceLoggingFailure(FailureInfo const &failure) WI_NOEXCEPT
@@ -581,9 +581,9 @@ namespace wil
             Initialize();
         }
 
-        TraceLoggingHProvider m_providerHandle;
-        bool m_ownsProviderHandle;
-        ErrorReportingType m_errorReportingType;
+        TraceLoggingHProvider m_providerHandle{};
+        bool m_ownsProviderHandle{};
+        ErrorReportingType m_errorReportingType{};
     };
 
     template<
@@ -591,13 +591,11 @@ namespace wil
         UINT64 keyword = 0,
         UINT8 level = WINEVENT_LEVEL_VERBOSE,
         typename TlgReflectorTag = _TlgReflectorTag_Param0IsProviderType> // helps TlgReflector understand that this is a wrapper type
-        class BasicActivity
+    class BasicActivity
         : public _TlgActivityBase<BasicActivity<TraceLoggingType, keyword, level, TlgReflectorTag>, keyword, level>
     {
-        typedef
-            _TlgActivityBase<BasicActivity<TraceLoggingType, keyword, level, TlgReflectorTag>, keyword, level>
-            BaseTy;
-        friend class BaseTy;
+        using BaseTy = _TlgActivityBase<BasicActivity<TraceLoggingType, keyword, level, TlgReflectorTag>, keyword, level>;
+        friend BaseTy;
 
         void OnStarted()
         {
@@ -627,7 +625,7 @@ namespace wil
         /*
         Returns a handle to the TraceLogging provider associated with this activity.
         */
-        TraceLoggingHProvider Provider() const
+        WI_NODISCARD TraceLoggingHProvider Provider() const
         {
             return TraceLoggingType::Provider();
         }
@@ -667,13 +665,11 @@ namespace wil
         UINT64 keyword = 0,
         UINT8 level = WINEVENT_LEVEL_VERBOSE,
         typename TlgReflectorTag = _TlgReflectorTag_Param0IsProviderType> // helps TlgReflector understand that this is a wrapper type
-        class BasicThreadActivity
+    class BasicThreadActivity
         : public _TlgActivityBase<BasicThreadActivity<TraceLoggingType, keyword, level, TlgReflectorTag>, keyword, level>
     {
-        typedef
-            _TlgActivityBase<BasicThreadActivity<TraceLoggingType, keyword, level, TlgReflectorTag>, keyword, level>
-            BaseTy;
-        friend class BaseTy;
+        using BaseTy = _TlgActivityBase<BasicThreadActivity<TraceLoggingType, keyword, level, TlgReflectorTag>, keyword, level>;
+        friend BaseTy;
 
         void OnStarted()
         {
@@ -705,7 +701,7 @@ namespace wil
         /*
         Returns a handle to the TraceLogging provider associated with this activity.
         */
-        TraceLoggingHProvider Provider() const
+        WI_NODISCARD TraceLoggingHProvider Provider() const
         {
             return TraceLoggingType::Provider();
         }
@@ -742,14 +738,14 @@ namespace wil
         static UINT64 const PrivacyTag = privacyTag;
 
         ActivityBase(PCSTR contextName, bool shouldWatchErrors = false) WI_NOEXCEPT :
-        m_activityData(contextName),
+            m_activityData(contextName),
             m_pActivityData(&m_activityData),
             m_callbackHolder(this, m_activityData.GetCallContext(), shouldWatchErrors)
         {
         }
 
         ActivityBase(ActivityBase &&other, bool shouldWatchErrors) WI_NOEXCEPT :
-        m_activityData(wistd::move(other.m_activityData)),
+            m_activityData(wistd::move(other.m_activityData)),
             m_sharedActivityData(wistd::move(other.m_sharedActivityData)),
             m_callbackHolder(this, nullptr, shouldWatchErrors)
         {
@@ -763,7 +759,7 @@ namespace wil
         }
 
         ActivityBase(ActivityBase &&other) WI_NOEXCEPT :
-        ActivityBase(wistd::move(other), other.m_callbackHolder.IsWatching())
+            ActivityBase(wistd::move(other), other.m_callbackHolder.IsWatching())
         {
         }
 
@@ -825,6 +821,7 @@ namespace wil
             va_start(argList, formatString);
             auto lock = LockExclusive();
             GetCallContext()->SetMessage(formatString, argList);
+            va_end(argList);
         }
 
         void SetMessage(_In_opt_ PCWSTR message)
@@ -895,6 +892,10 @@ namespace wil
 
             if (WI_IsFlagClear(failure.flags, FailureFlags::RequestSuppressTelemetry))
             {
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-value"
+#endif
 #pragma warning(push)
 #pragma warning(disable: 6319)
                 if (false, WI_IsFlagSet(options, ActivityOptions::TelemetryOnFailure) && !WasAlreadyReportedToTelemetry(failure.failureId))
@@ -910,6 +911,9 @@ namespace wil
                     __WI_TraceLoggingWriteTagged(*this, "ActivityError", TraceLoggingKeyword(Keyword), TraceLoggingLevel(WINEVENT_LEVEL_ERROR), __ACTIVITY_ERROR_TRACELOGGING_FAILURE_PARAMS(failure));
                 }
 #pragma warning(pop)
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
             }
 
             auto lock = LockExclusive();
@@ -932,7 +936,7 @@ namespace wil
         // In addition, for TlgReflector to work correctly, it must be possible for
         // TlgReflector to statically map from typeof(activity) to hProvider.
 
-        GUID const* zInternalRelatedId() const WI_NOEXCEPT
+        WI_NODISCARD GUID const* zInternalRelatedId() const WI_NOEXCEPT
         {
             return m_pActivityData->zInternalRelatedId();
         }
@@ -947,17 +951,17 @@ namespace wil
             auto lock = LockExclusive(); m_pActivityData->zInternalStop();
         }
 
-        static TraceLoggingHProvider const Provider() WI_NOEXCEPT
+        static TraceLoggingHProvider Provider() WI_NOEXCEPT
         {
             return ActivityTraceLoggingType::Provider();
         }
 
-        GUID const* Id() const WI_NOEXCEPT
+        WI_NODISCARD GUID const* Id() const WI_NOEXCEPT
         {
             return m_pActivityData->Id();
         }
 
-        GUID const* providerGuid() const WI_NOEXCEPT
+        WI_NODISCARD GUID const* providerGuid() const WI_NOEXCEPT
         {
             return m_pActivityData->providerGuid();
         }
@@ -965,20 +969,23 @@ namespace wil
         template<class OtherTy>
         void SetRelatedActivity(OtherTy const &relatedActivity) WI_NOEXCEPT
         {
-            auto lock = LockExclusive(); m_pActivityData->SetRelatedActivityId(relatedActivity.Id());
+            auto lock = LockExclusive();
+            m_pActivityData->SetRelatedActivityId(relatedActivity.Id());
         }
 
         void SetRelatedActivityId(_In_ const GUID& relatedActivityId) WI_NOEXCEPT
         {
-            auto lock = LockExclusive(); m_pActivityData->SetRelatedActivityId(&relatedActivityId);
+            auto lock = LockExclusive();
+            m_pActivityData->SetRelatedActivityId(&relatedActivityId);
         }
 
         void SetRelatedActivityId(_In_ const GUID* relatedActivityId) WI_NOEXCEPT
         {
-            auto lock = LockExclusive(); m_pActivityData->SetRelatedActivityId(relatedActivityId);
+            auto lock = LockExclusive();
+            m_pActivityData->SetRelatedActivityId(relatedActivityId);
         }
-        
-        inline bool IsRunning() const WI_NOEXCEPT
+
+        WI_NODISCARD inline bool IsRunning() const WI_NOEXCEPT
         {
             return m_pActivityData->NeedsStopped();
         }
@@ -996,28 +1003,30 @@ namespace wil
 
         void SetStopResult(HRESULT hr, _Out_opt_ HRESULT *phr = nullptr) WI_NOEXCEPT
         {
-            auto lock = LockExclusive(); m_pActivityData->SetStopResult(hr, phr);
+            auto lock = LockExclusive();
+            m_pActivityData->SetStopResult(hr, phr);
         }
 
         void IncrementExpectedStopCount() WI_NOEXCEPT
         {
-            auto lock = LockExclusive(); m_pActivityData->IncrementExpectedStopCount();
+            auto lock = LockExclusive();
+            m_pActivityData->IncrementExpectedStopCount();
         }
 
         // Locking should not be required on these accessors as we only use this at reporting (which will only happen from
         // the final stop)
 
-        FailureInfo const * GetFailureInfo() WI_NOEXCEPT
+        FailureInfo const* GetFailureInfo() WI_NOEXCEPT
         {
             return m_pActivityData->GetFailureInfo();
         }
 
-        inline HRESULT GetResult() const WI_NOEXCEPT
+        WI_NODISCARD inline HRESULT GetResult() const WI_NOEXCEPT
         {
             return m_pActivityData->GetResult();
         }
 
-        details::StoredCallContextInfo *GetCallContext() const WI_NOEXCEPT
+        WI_NODISCARD details::StoredCallContextInfo* GetCallContext() const WI_NOEXCEPT
         {
             return m_pActivityData->GetCallContext();
         }
@@ -1078,11 +1087,11 @@ namespace wil
 
         template <typename ActivityTraceLoggingType,
             typename TlgReflectorTag = _TlgReflectorTag_Param0IsProviderType>
-            class ActivityData :
+        class ActivityData :
             public _TlgActivityBase<ActivityData<ActivityTraceLoggingType, TlgReflectorTag>, keyword, level>
         {
-            typedef _TlgActivityBase<ActivityData<ActivityTraceLoggingType, TlgReflectorTag>, keyword, level> BaseTy;
-            friend class BaseTy;
+            using BaseTy = _TlgActivityBase<ActivityData<ActivityTraceLoggingType, TlgReflectorTag>, keyword, level>;
+            friend BaseTy;
             void OnStarted() {}
             void OnStopped() {}
 
@@ -1116,7 +1125,7 @@ namespace wil
             }
 
             ActivityData(ActivityData &&other) WI_NOEXCEPT :
-            BaseTy(wistd::move(other)),
+                BaseTy(wistd::move(other)),
                 m_callContext(wistd::move(other.m_callContext)),
                 m_result(other.m_result),
                 m_failure(wistd::move(other.m_failure)),
@@ -1152,12 +1161,12 @@ namespace wil
                 return m_lock.lock_exclusive();
             }
 
-            static TraceLoggingHProvider const Provider()
+            static TraceLoggingHProvider Provider()
             {
                 return ActivityTraceLoggingType::Provider();
             }
 
-            bool NeedsStopped() const WI_NOEXCEPT
+            WI_NODISCARD bool NeedsStopped() const WI_NOEXCEPT
             {
                 return BaseTy::IsStarted();
             }
@@ -1195,12 +1204,12 @@ namespace wil
                 m_stopCountExpected++;
             }
 
-            FailureInfo const *GetFailureInfo() const WI_NOEXCEPT
+            WI_NODISCARD FailureInfo const* GetFailureInfo() const WI_NOEXCEPT
             {
                 return (FAILED(m_result) && (m_result == m_failure.GetFailureInfo().hr)) ? &m_failure.GetFailureInfo() : nullptr;
             }
 
-            inline HRESULT GetResult() const WI_NOEXCEPT
+            WI_NODISCARD inline HRESULT GetResult() const WI_NOEXCEPT
             {
                 return m_result;
             }
@@ -1212,16 +1221,16 @@ namespace wil
 
         private:
             details::StoredCallContextInfo m_callContext;
-            int m_stopCountExpected;
             HRESULT m_result;
             StoredFailureInfo m_failure;
+            int m_stopCountExpected;
             wil::srwlock m_lock;
         };
 
-        mutable details::ThreadFailureCallbackHolder m_callbackHolder;
-        mutable ActivityData<ActivityTraceLoggingType, TlgReflectorTag> *m_pActivityData;
         mutable ActivityData<ActivityTraceLoggingType, TlgReflectorTag> m_activityData;
+        mutable ActivityData<ActivityTraceLoggingType, TlgReflectorTag> *m_pActivityData;
         mutable details::shared_object<ActivityData<ActivityTraceLoggingType, TlgReflectorTag>> m_sharedActivityData;
+        mutable details::ThreadFailureCallbackHolder m_callbackHolder;
     };
 
 } // namespace wil
@@ -1337,7 +1346,7 @@ namespace wil
             { ActivityBase::operator=(other); return *this; } \
         ActivityClassName& operator=(ActivityClassName &&other) WI_NOEXCEPT \
             { auto localActivity(wistd::move(*this)); ActivityBase::operator=(wistd::move(other)); return *this; } \
-        explicit operator bool() const WI_NOEXCEPT \
+        WI_NODISCARD explicit operator bool() const WI_NOEXCEPT \
             { return IsRunning(); } \
         void StopWithResult(HRESULT hr) \
             { ActivityBase::Stop(hr); } \
@@ -1380,10 +1389,10 @@ namespace wil
 
 #define __IMPLEMENT_CALLCONTEXT_CLASS(ActivityClassName) \
     protected: \
-        ActivityClassName(_In_ void **, PCSTR contextName, _In_opt_ _Printf_format_string_ PCSTR formatString, _In_opt_ va_list argList) : \
+        ActivityClassName(_In_opt_ void **, PCSTR contextName, _In_opt_ _Printf_format_string_ PCSTR formatString, _In_opt_ va_list argList) : \
             ActivityBase(contextName) \
             { GetCallContext()->SetMessage(formatString, argList); StartActivity(); } \
-        ActivityClassName(_In_ void **, PCSTR contextName) : \
+        ActivityClassName(_In_opt_ void **, PCSTR contextName) : \
             ActivityBase(contextName) \
             { StartActivity(); } \
     public: \
@@ -1398,11 +1407,11 @@ namespace wil
 #define __END_TRACELOGGING_ACTIVITY_CLASS() \
     };
 
-#ifdef _GENERIC_PARTB_FIELDS_DEFINED
+#ifdef _GENERIC_PARTB_FIELDS_ENABLED
     #define DEFINE_TAGGED_TRACELOGGING_EVENT(EventId, ...) \
         void EventId() \
         { \
-            __WI_TraceLoggingWriteTagged(*this, #EventId, _GENERIC_PARTB_FIELDS_DEFINED, __VA_ARGS__); \
+            __WI_TraceLoggingWriteTagged(*this, #EventId, _GENERIC_PARTB_FIELDS_ENABLED, __VA_ARGS__); \
         }
 #else
     #define DEFINE_TAGGED_TRACELOGGING_EVENT(EventId, ...) \
@@ -1412,42 +1421,42 @@ namespace wil
         }
 #endif
 
-#ifdef _GENERIC_PARTB_FIELDS_DEFINED
+#ifdef _GENERIC_PARTB_FIELDS_ENABLED
     #define DEFINE_TAGGED_TRACELOGGING_EVENT_CV(EventId, ...) \
         void EventId(PCSTR correlationVector) \
-        { __WI_TraceLoggingWriteTagged(*this, #EventId, _GENERIC_PARTB_FIELDS_DEFINED, TraceLoggingString(correlationVector, "__TlgCV__"), __VA_ARGS__); }
+        { __WI_TraceLoggingWriteTagged(*this, #EventId, _GENERIC_PARTB_FIELDS_ENABLED, TraceLoggingString(correlationVector, "__TlgCV__"), __VA_ARGS__); }
 #else
     #define DEFINE_TAGGED_TRACELOGGING_EVENT_CV(EventId, ...) \
         void EventId(PCSTR correlationVector) \
         { __WI_TraceLoggingWriteTagged(*this, #EventId, TraceLoggingString(correlationVector, "__TlgCV__"), __VA_ARGS__); }
 #endif
 
-#ifdef _GENERIC_PARTB_FIELDS_DEFINED
+#ifdef _GENERIC_PARTB_FIELDS_ENABLED
     #define DEFINE_TAGGED_TRACELOGGING_EVENT_PARAM1(EventId, VarType1, varName1, ...) \
         template<typename T1> void EventId(T1 &&varName1) \
         { \
             __WI_TraceLoggingWriteTagged(*this, #EventId, \
                 TraceLoggingValue(static_cast<VarType1>(wistd::forward<T1>(varName1)), _wiltlg_STRINGIZE(varName1)), \
-                _GENERIC_PARTB_FIELDS_DEFINED, \
+                _GENERIC_PARTB_FIELDS_ENABLED, \
                 __VA_ARGS__); \
         }
 #else
     #define DEFINE_TAGGED_TRACELOGGING_EVENT_PARAM1(EventId, VarType1, varName1, ...) \
-    template<typename T1> void EventId(T1 &&varName1) \
-    { \
-        __WI_TraceLoggingWriteTagged(*this, #EventId, \
-            TraceLoggingValue(static_cast<VarType1>(wistd::forward<T1>(varName1)), _wiltlg_STRINGIZE(varName1)), \
-            __VA_ARGS__); \
-    }
+        template<typename T1> void EventId(T1 &&varName1) \
+        { \
+            __WI_TraceLoggingWriteTagged(*this, #EventId, \
+                TraceLoggingValue(static_cast<VarType1>(wistd::forward<T1>(varName1)), _wiltlg_STRINGIZE(varName1)), \
+                __VA_ARGS__); \
+        }
 #endif
 
-#ifdef _GENERIC_PARTB_FIELDS_DEFINED
+#ifdef _GENERIC_PARTB_FIELDS_ENABLED
     #define DEFINE_TAGGED_TRACELOGGING_EVENT_PARAM1_CV(EventId, VarType1, varName1, ...) \
         template<typename T1> void EventId(T1 &&varName1, PCSTR correlationVector) \
         { \
             __WI_TraceLoggingWriteTagged(*this, #EventId, \
                 TraceLoggingValue(static_cast<VarType1>(wistd::forward<T1>(varName1)), _wiltlg_STRINGIZE(varName1)), \
-                _GENERIC_PARTB_FIELDS_DEFINED, \
+                _GENERIC_PARTB_FIELDS_ENABLED, \
                 TraceLoggingString(correlationVector, "__TlgCV__"), __VA_ARGS__); \
         }
 #else
@@ -1460,7 +1469,7 @@ namespace wil
         }
 #endif
 
-#ifdef _GENERIC_PARTB_FIELDS_DEFINED
+#ifdef _GENERIC_PARTB_FIELDS_ENABLED
     #define DEFINE_TAGGED_TRACELOGGING_EVENT_PARAM2(EventId, VarType1, varName1, VarType2, varName2, ...) \
         template<typename T1, typename T2> void EventId(T1 &&varName1, T2 &&varName2) \
         { \
@@ -1481,14 +1490,14 @@ namespace wil
         }
 #endif
 
-#ifdef _GENERIC_PARTB_FIELDS_DEFINED
+#ifdef _GENERIC_PARTB_FIELDS_ENABLED
     #define DEFINE_TAGGED_TRACELOGGING_EVENT_PARAM2_CV(EventId, VarType1, varName1, VarType2, varName2, ...) \
         template<typename T1, typename T2> void EventId(T1 &&varName1, T2 &&varName2, PCSTR correlationVector) \
         { \
             __WI_TraceLoggingWriteTagged(*this, #EventId, \
                 TraceLoggingValue(static_cast<VarType1>(wistd::forward<T1>(varName1)), _wiltlg_STRINGIZE(varName1)), \
                 TraceLoggingValue(static_cast<VarType2>(wistd::forward<T2>(varName2)), _wiltlg_STRINGIZE(varName2)), \
-                _GENERIC_PARTB_FIELDS_DEFINED, \
+                _GENERIC_PARTB_FIELDS_ENABLED, \
                 TraceLoggingString(correlationVector, "__TlgCV__"), __VA_ARGS__); \
         }
 #else
@@ -1502,7 +1511,7 @@ namespace wil
         }
 #endif
 
-#ifdef _GENERIC_PARTB_FIELDS_DEFINED
+#ifdef _GENERIC_PARTB_FIELDS_ENABLED
     #define DEFINE_TAGGED_TRACELOGGING_EVENT_PARAM3(EventId, VarType1, varName1, VarType2, varName2, VarType3, varName3, ...) \
         template<typename T1, typename T2, typename T3> void EventId(T1 &&varName1, T2 &&varName2, T3 &&varName3) \
         { \
@@ -1525,7 +1534,7 @@ namespace wil
         }
 #endif
 
-#ifdef _GENERIC_PARTB_FIELDS_DEFINED
+#ifdef _GENERIC_PARTB_FIELDS_ENABLED
     #define DEFINE_TAGGED_TRACELOGGING_EVENT_PARAM3_CV(EventId, VarType1, varName1, VarType2, varName2, VarType3, varName3, ...) \
         template<typename T1, typename T2, typename T3> void EventId(T1 &&varName1, T2 &&varName2, T3 &&varName3, PCSTR correlationVector) \
         { \
@@ -1548,7 +1557,7 @@ namespace wil
         }
 #endif
 
-#ifdef _GENERIC_PARTB_FIELDS_DEFINED
+#ifdef _GENERIC_PARTB_FIELDS_ENABLED
     #define DEFINE_TAGGED_TRACELOGGING_EVENT_PARAM4(EventId, VarType1, varName1, VarType2, varName2, VarType3, varName3, VarType4, varName4, ...) \
         template<typename T1, typename T2, typename T3, typename T4> void EventId(T1 &&varName1, T2 &&varName2, T3 &&varName3, T4 &&varName4) \
         { \
@@ -1573,7 +1582,7 @@ namespace wil
         }
 #endif
 
-#ifdef _GENERIC_PARTB_FIELDS_DEFINED
+#ifdef _GENERIC_PARTB_FIELDS_ENABLED
     #define DEFINE_TAGGED_TRACELOGGING_EVENT_PARAM4_CV(EventId, VarType1, varName1, VarType2, varName2, VarType3, varName3, VarType4, varName4, ...) \
         template<typename T1, typename T2, typename T3, typename T4> void EventId(T1 &&varName1, T2 &&varName2, T3 &&varName3, T4 &&varName4, PCSTR correlationVector) \
         { \
@@ -1598,7 +1607,7 @@ namespace wil
         }
 #endif
 
-#ifdef _GENERIC_PARTB_FIELDS_DEFINED
+#ifdef _GENERIC_PARTB_FIELDS_ENABLED
     #define DEFINE_TAGGED_TRACELOGGING_EVENT_PARAM5(EventId, VarType1, varName1, VarType2, varName2, VarType3, varName3, VarType4, varName4, VarType5, varName5, ...) \
         template<typename T1, typename T2, typename T3, typename T4, typename T5> void EventId(T1 &&varName1, T2 &&varName2, T3 &&varName3, T4 &&varName4, T5 &&varName5) \
         { \
@@ -1625,7 +1634,7 @@ namespace wil
         }
 #endif
 
-#ifdef _GENERIC_PARTB_FIELDS_DEFINED
+#ifdef _GENERIC_PARTB_FIELDS_ENABLED
     #define DEFINE_TAGGED_TRACELOGGING_EVENT_PARAM5_CV(EventId, VarType1, varName1, VarType2, varName2, VarType3, varName3, VarType4, varName4, VarType5, varName5, ...) \
         template<typename T1, typename T2, typename T3, typename T4, typename T5> void EventId(T1 &&varName1, T2 &&varName2, T3 &&varName3, T4 &&varName4, T5 &&varName5, PCSTR correlationVector) \
         { \
@@ -1652,7 +1661,7 @@ namespace wil
         }
 #endif
 
-#ifdef _GENERIC_PARTB_FIELDS_DEFINED
+#ifdef _GENERIC_PARTB_FIELDS_ENABLED
     #define DEFINE_TAGGED_TRACELOGGING_EVENT_PARAM6(EventId, VarType1, varName1, VarType2, varName2, VarType3, varName3, VarType4, varName4, VarType5, varName5, VarType6, varName6, ...) \
         template<typename T1, typename T2, typename T3, typename T4, typename T5, typename T6> void EventId(T1 &&varName1, T2 &&varName2, T3 &&varName3, T4 &&varName4, T5 &&varName5, T6 &&varName6) \
         { \
@@ -1667,7 +1676,7 @@ namespace wil
                 __VA_ARGS__); \
         }
 #else
-     #define DEFINE_TAGGED_TRACELOGGING_EVENT_PARAM6(EventId, VarType1, varName1, VarType2, varName2, VarType3, varName3, VarType4, varName4, VarType5, varName5, VarType6, varName6, ...) \
+    #define DEFINE_TAGGED_TRACELOGGING_EVENT_PARAM6(EventId, VarType1, varName1, VarType2, varName2, VarType3, varName3, VarType4, varName4, VarType5, varName5, VarType6, varName6, ...) \
         template<typename T1, typename T2, typename T3, typename T4, typename T5, typename T6> void EventId(T1 &&varName1, T2 &&varName2, T3 &&varName3, T4 &&varName4, T5 &&varName5, T6 &&varName6) \
         { \
             __WI_TraceLoggingWriteTagged(*this, #EventId, \
@@ -1681,7 +1690,7 @@ namespace wil
         }
 #endif
 
-#ifdef _GENERIC_PARTB_FIELDS_DEFINED
+#ifdef _GENERIC_PARTB_FIELDS_ENABLED
     #define DEFINE_TAGGED_TRACELOGGING_EVENT_PARAM6_CV(EventId, VarType1, varName1, VarType2, varName2, VarType3, varName3, VarType4, varName4, VarType5, varName5, VarType6, varName6, ...) \
         template<typename T1, typename T2, typename T3, typename T4, typename T5, typename T6> void EventId(T1 &&varName1, T2 &&varName2, T3 &&varName3, T4 &&varName4, T5 &&varName5, T6 &&varName6, PCSTR correlationVector) \
         { \
@@ -1710,7 +1719,7 @@ namespace wil
         }
 #endif
 
-#ifdef _GENERIC_PARTB_FIELDS_DEFINED
+#ifdef _GENERIC_PARTB_FIELDS_ENABLED
     #define DEFINE_TAGGED_TRACELOGGING_EVENT_PARAM7(EventId, VarType1, varName1, VarType2, varName2, VarType3, varName3, VarType4, varName4, VarType5, varName5, VarType6, varName6, VarType7, varName7, ...) \
         template<typename T1, typename T2, typename T3, typename T4, typename T5, typename T6, typename T7> void EventId(T1 &&varName1, T2 &&varName2, T3 &&varName3, T4 &&varName4, T5 &&varName5, T6 &&varName6, T7 &&varName7) \
         { \
@@ -1741,7 +1750,7 @@ namespace wil
         }
 #endif
 
-#ifdef _GENERIC_PARTB_FIELDS_DEFINED
+#ifdef _GENERIC_PARTB_FIELDS_ENABLED
     #define DEFINE_TAGGED_TRACELOGGING_EVENT_PARAM7_CV(EventId, VarType1, varName1, VarType2, varName2, VarType3, varName3, VarType4, varName4, VarType5, varName5, VarType6, varName6, VarType7, varName7, ...) \
         template<typename T1, typename T2, typename T3, typename T4, typename T5, typename T6, typename T7> void EventId(T1 &&varName1, T2 &&varName2, T3 &&varName3, T4 &&varName4, T5 &&varName5, T6 &&varName6, T7 &&varName7, PCSTR correlationVector) \
         { \
@@ -1772,7 +1781,7 @@ namespace wil
         }
 #endif
 
-#ifdef _GENERIC_PARTB_FIELDS_DEFINED
+#ifdef _GENERIC_PARTB_FIELDS_ENABLED
     #define DEFINE_TAGGED_TRACELOGGING_EVENT_PARAM8(EventId, VarType1, varName1, VarType2, varName2, VarType3, varName3, VarType4, varName4, VarType5, varName5, VarType6, varName6, VarType7, varName7, VarType8, varName8, ...) \
         template<typename T1, typename T2, typename T3, typename T4, typename T5, typename T6, typename T7, typename T8> void EventId(T1 &&varName1, T2 &&varName2, T3 &&varName3, T4 &&varName4, T5 &&varName5, T6 &&varName6, T7 &&varName7, T8 &&varName8) \
         { \
@@ -1805,7 +1814,7 @@ namespace wil
         }
 #endif
 
-#ifdef _GENERIC_PARTB_FIELDS_DEFINED
+#ifdef _GENERIC_PARTB_FIELDS_ENABLED
     #define DEFINE_TAGGED_TRACELOGGING_EVENT_PARAM8_CV(EventId, VarType1, varName1, VarType2, varName2, VarType3, varName3, VarType4, varName4, VarType5, varName5, VarType6, varName6, VarType7, varName7, VarType8, varName8, ...) \
         template<typename T1, typename T2, typename T3, typename T4, typename T5, typename T6, typename T7, typename T8> void EventId(T1 &&varName1, T2 &&varName2, T3 &&varName3, T4 &&varName4, T5 &&varName5, T6 &&varName6, T7 &&varName7, T8 &&varName8, PCSTR correlationVector) \
         { \
@@ -1822,7 +1831,7 @@ namespace wil
                 TraceLoggingString(correlationVector, "__TlgCV__"), __VA_ARGS__); \
         }
 #else
-        #define DEFINE_TAGGED_TRACELOGGING_EVENT_PARAM8_CV(EventId, VarType1, varName1, VarType2, varName2, VarType3, varName3, VarType4, varName4, VarType5, varName5, VarType6, varName6, VarType7, varName7, VarType8, varName8, ...) \
+    #define DEFINE_TAGGED_TRACELOGGING_EVENT_PARAM8_CV(EventId, VarType1, varName1, VarType2, varName2, VarType3, varName3, VarType4, varName4, VarType5, varName5, VarType6, varName6, VarType7, varName7, VarType8, varName8, ...) \
         template<typename T1, typename T2, typename T3, typename T4, typename T5, typename T6, typename T7, typename T8> void EventId(T1 &&varName1, T2 &&varName2, T3 &&varName3, T4 &&varName4, T5 &&varName5, T6 &&varName6, T7 &&varName7, T8 &&varName8, PCSTR correlationVector) \
         { \
             __WI_TraceLoggingWriteTagged(*this, #EventId, \
@@ -1838,7 +1847,7 @@ namespace wil
         }
 #endif
 
-#ifdef _GENERIC_PARTB_FIELDS_DEFINED
+#ifdef _GENERIC_PARTB_FIELDS_ENABLED
     #define DEFINE_TAGGED_TRACELOGGING_EVENT_PARAM9(EventId, VarType1, varName1, VarType2, varName2, VarType3, varName3, VarType4, varName4, VarType5, varName5, VarType6, varName6, VarType7, varName7, VarType8, varName8, VarType9, varName9, ...) \
         template<typename T1, typename T2, typename T3, typename T4, typename T5, typename T6, typename T7, typename T8, typename T9> void EventId(T1 &&varName1, T2 &&varName2, T3 &&varName3, T4 &&varName4, T5 &&varName5, T6 &&varName6, T7 &&varName7, T8 &&varName8, T9 &&varName9) \
         { \
@@ -1886,7 +1895,7 @@ namespace wil
         typedef TraceLoggingProviderOwnerClassName TraceLoggingType; \
         static bool IsEnabled(UCHAR eventLevel = 0 /* WINEVENT_LEVEL_XXX, e.g. WINEVENT_LEVEL_VERBOSE */, ULONGLONG eventKeywords = 0 /* MICROSOFT_KEYWORD_XXX */) WI_NOEXCEPT \
             { return Instance()->IsEnabled_(eventLevel, eventKeywords); } \
-        static TraceLoggingHProvider const Provider() WI_NOEXCEPT \
+        static TraceLoggingHProvider Provider() WI_NOEXCEPT \
             { return static_cast<TraceLoggingProvider *>(Instance())->Provider_(); } \
         static void SetTelemetryEnabled(bool) WI_NOEXCEPT {} \
         static void SetErrorReportingType(wil::ErrorReportingType type) WI_NOEXCEPT \
@@ -1909,7 +1918,7 @@ namespace wil
         static void TraceLoggingError(_Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT \
             { va_list argList; va_start(argList, formatString); return Instance()->ReportTraceLoggingError(formatString, argList); } \
     private: \
-        TraceLoggingHProvider const Provider_() const WI_NOEXCEPT = delete; \
+        TraceLoggingHProvider Provider_() const WI_NOEXCEPT = delete; \
         TraceLoggingClassName() WI_NOEXCEPT {}; \
     protected: \
         static TraceLoggingClassName* Instance() WI_NOEXCEPT \
@@ -2441,7 +2450,7 @@ namespace wil
 #endif
 
 #ifdef _GENERIC_PARTB_FIELDS_ENABLED
-#define DEFINE_TRACELOGGING_EVENT_PARAM9(EventId, VarType1, varName1, VarType2, varName2, VarType3, varName3, VarType4, varName4, VarType5, varName5, VarType6, varName6, VarType7, varName7, VarType8, varName8, VarType9, varName9, ...) \
+    #define DEFINE_TRACELOGGING_EVENT_PARAM9(EventId, VarType1, varName1, VarType2, varName2, VarType3, varName3, VarType4, varName4, VarType5, varName5, VarType6, varName6, VarType7, varName7, VarType8, varName8, VarType9, varName9, ...) \
         template<typename T1, typename T2, typename T3, typename T4, typename T5, typename T6, typename T7, typename T8, typename T9> static void EventId(T1 &&varName1, T2 &&varName2, T3 &&varName3, T4 &&varName4, T5 &&varName5, T6 &&varName6, T7 &&varName7, T8 &&varName8, T9 &&varName9) \
         { \
             TraceLoggingWrite(TraceLoggingType::Provider(), #EventId, \
@@ -2458,7 +2467,7 @@ namespace wil
                 __VA_ARGS__); \
         }
 #else
-#define DEFINE_TRACELOGGING_EVENT_PARAM9(EventId, VarType1, varName1, VarType2, varName2, VarType3, varName3, VarType4, varName4, VarType5, varName5, VarType6, varName6, VarType7, varName7, VarType8, varName8, VarType9, varName9, ...) \
+    #define DEFINE_TRACELOGGING_EVENT_PARAM9(EventId, VarType1, varName1, VarType2, varName2, VarType3, varName3, VarType4, varName4, VarType5, varName5, VarType6, varName6, VarType7, varName7, VarType8, varName8, VarType9, varName9, ...) \
         template<typename T1, typename T2, typename T3, typename T4, typename T5, typename T6, typename T7, typename T8, typename T9> static void EventId(T1 &&varName1, T2 &&varName2, T3 &&varName3, T4 &&varName4, T5 &&varName5, T6 &&varName6, T7 &&varName7, T8 &&varName8, T9 &&varName9) \
         { \
             TraceLoggingWrite(TraceLoggingType::Provider(), #EventId, \
@@ -2530,21 +2539,21 @@ namespace wil
         }
 #else
     #define DEFINE_TRACELOGGING_EVENT_PARAM10(EventId, VarType1, varName1, VarType2, varName2, VarType3, varName3, VarType4, varName4, VarType5, varName5, VarType6, varName6, VarType7, varName7, VarType8, varName8, VarType9, varName9, VarType10, varName10, ...) \
-            template<typename T1, typename T2, typename T3, typename T4, typename T5, typename T6, typename T7, typename T8, typename T9, typename T10> static void EventId(T1 &&varName1, T2 &&varName2, T3 &&varName3, T4 &&varName4, T5 &&varName5, T6 &&varName6, T7 &&varName7, T8 &&varName8, T9 &&varName9, T10 &&varName10) \
-            { \
-                TraceLoggingWrite(TraceLoggingType::Provider(), #EventId, \
-                    TraceLoggingValue(static_cast<VarType1>(wistd::forward<T1>(varName1)), _wiltlg_STRINGIZE(varName1)), \
-                    TraceLoggingValue(static_cast<VarType2>(wistd::forward<T2>(varName2)), _wiltlg_STRINGIZE(varName2)), \
-                    TraceLoggingValue(static_cast<VarType3>(wistd::forward<T3>(varName3)), _wiltlg_STRINGIZE(varName3)), \
-                    TraceLoggingValue(static_cast<VarType4>(wistd::forward<T4>(varName4)), _wiltlg_STRINGIZE(varName4)), \
-                    TraceLoggingValue(static_cast<VarType5>(wistd::forward<T5>(varName5)), _wiltlg_STRINGIZE(varName5)), \
-                    TraceLoggingValue(static_cast<VarType6>(wistd::forward<T6>(varName6)), _wiltlg_STRINGIZE(varName6)), \
-                    TraceLoggingValue(static_cast<VarType7>(wistd::forward<T7>(varName7)), _wiltlg_STRINGIZE(varName7)), \
-                    TraceLoggingValue(static_cast<VarType8>(wistd::forward<T8>(varName8)), _wiltlg_STRINGIZE(varName8)), \
-                    TraceLoggingValue(static_cast<VarType9>(wistd::forward<T9>(varName9)), _wiltlg_STRINGIZE(varName9)), \
-                    TraceLoggingValue(static_cast<VarType10>(wistd::forward<T10>(varName10)), _wiltlg_STRINGIZE(varName10)), \
-                    __VA_ARGS__); \
-            }
+        template<typename T1, typename T2, typename T3, typename T4, typename T5, typename T6, typename T7, typename T8, typename T9, typename T10> static void EventId(T1 &&varName1, T2 &&varName2, T3 &&varName3, T4 &&varName4, T5 &&varName5, T6 &&varName6, T7 &&varName7, T8 &&varName8, T9 &&varName9, T10 &&varName10) \
+        { \
+            TraceLoggingWrite(TraceLoggingType::Provider(), #EventId, \
+                TraceLoggingValue(static_cast<VarType1>(wistd::forward<T1>(varName1)), _wiltlg_STRINGIZE(varName1)), \
+                TraceLoggingValue(static_cast<VarType2>(wistd::forward<T2>(varName2)), _wiltlg_STRINGIZE(varName2)), \
+                TraceLoggingValue(static_cast<VarType3>(wistd::forward<T3>(varName3)), _wiltlg_STRINGIZE(varName3)), \
+                TraceLoggingValue(static_cast<VarType4>(wistd::forward<T4>(varName4)), _wiltlg_STRINGIZE(varName4)), \
+                TraceLoggingValue(static_cast<VarType5>(wistd::forward<T5>(varName5)), _wiltlg_STRINGIZE(varName5)), \
+                TraceLoggingValue(static_cast<VarType6>(wistd::forward<T6>(varName6)), _wiltlg_STRINGIZE(varName6)), \
+                TraceLoggingValue(static_cast<VarType7>(wistd::forward<T7>(varName7)), _wiltlg_STRINGIZE(varName7)), \
+                TraceLoggingValue(static_cast<VarType8>(wistd::forward<T8>(varName8)), _wiltlg_STRINGIZE(varName8)), \
+                TraceLoggingValue(static_cast<VarType9>(wistd::forward<T9>(varName9)), _wiltlg_STRINGIZE(varName9)), \
+                TraceLoggingValue(static_cast<VarType10>(wistd::forward<T10>(varName10)), _wiltlg_STRINGIZE(varName10)), \
+                __VA_ARGS__); \
+        }
 #endif
 
 #define DEFINE_TRACELOGGING_EVENT_UINT32(EventId, varName, ...)  DEFINE_TRACELOGGING_EVENT_PARAM1(EventId, UINT32, varName, __VA_ARGS__)
@@ -2604,7 +2613,7 @@ WIL_WARN_DEPRECATED_1612_PRAGMA("IMPLEMENT_TRACELOGGING_CLASS")
 
 // [Optional] Custom Events
 // Use these macros to define a Custom Event for a Provider.  Use the TraceLoggingClassWrite or TraceLoggingClassWriteTelemetry
-// from within a cusotm event to issue the event.  Methods will be a no-op (and not be called) if the provider is not
+// from within a custom event to issue the event.  Methods will be a no-op (and not be called) if the provider is not
 // enabled.
 
 #define TraceLoggingClassWrite(EventId, ...) \
@@ -3084,9 +3093,9 @@ WIL_WARN_DEPRECATED_1612_PRAGMA("IMPLEMENT_TRACELOGGING_CLASS")
 
 
 // [Optional] Custom Start or Stop Events for Activities
-// Use these macros to define cusotm start or custom stop methods for an activity.  Any activity can
-// have multiple start or stop methods.  To add cusotm start or stop events, define a StartActivity instance
-// method or a Stop instance method within the BEGIN/END pair of a cusotm activity.  Within that function, use
+// Use these macros to define custom start or custom stop methods for an activity.  Any activity can
+// have multiple start or stop methods.  To add custom start or stop events, define a StartActivity instance
+// method or a Stop instance method within the BEGIN/END pair of a custom activity.  Within that function, use
 // TraceLoggingClassWriteStart or TraceLoggingClassWriteStop.
 
 // Params:  (EventId, ...)
@@ -3355,9 +3364,8 @@ WIL_WARN_DEPRECATED_1612_PRAGMA("IMPLEMENT_TRACELOGGING_CLASS")
         { \
             Stop(HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION)); \
         } \
-        ActivityClassName(const ActivityClassName &) = default; \
         ActivityClassName(ActivityClassName &&) = default; \
-        TraceLoggingHProvider Provider() const \
+        WI_NODISCARD TraceLoggingHProvider Provider() const \
         { \
             return TraceLoggingType::Provider(); \
         } \
@@ -3648,17 +3656,17 @@ namespace wil
                             FAIL_FAST_IF_FAILED(StringCchCatW(apiList.get(), totalApiListLength, node->apiName));
                             if (node->specialization)
                             {
-                                FAIL_FAST_IF_WIN32_ERROR(strncat_s(specializationList.get(), totalSpecializationsLength, node->specialization, strlen(node->specialization)) != 0);
+                                FAIL_FAST_IF(strncat_s(specializationList.get(), totalSpecializationsLength, node->specialization, strlen(node->specialization)) != 0);
                             }
                             else
                             {
-                                FAIL_FAST_IF_WIN32_ERROR(strncat_s(specializationList.get(), totalSpecializationsLength, "-", 1) != 0);
+                                FAIL_FAST_IF(strncat_s(specializationList.get(), totalSpecializationsLength, "-", 1) != 0);
                             }
 
                             if (countArrayIndex != (numCounts - 1))
                             {
                                 FAIL_FAST_IF_FAILED(StringCchCatW(apiList.get(), totalApiListLength, L","));
-                                FAIL_FAST_IF_WIN32_ERROR(strncat_s(specializationList.get(), totalSpecializationsLength, ",", 1) != 0);
+                                FAIL_FAST_IF(strncat_s(specializationList.get(), totalSpecializationsLength, ",", 1) != 0);
                             }
 
                             countArrayIndex++;
@@ -3822,7 +3830,7 @@ namespace wil
                 ScheduleFireEventCallback();
             }
 
-            ~ApiTelemetryLogger() WI_NOEXCEPT
+            ~ApiTelemetryLogger() WI_NOEXCEPT override
             {
                 FireEvent();
 
@@ -3840,8 +3848,8 @@ namespace wil
                 if (m_fireEventThreadPoolTimer && !ProcessShutdownInProgress())
                 {
                     // Note this will override any pending scheduled callback
-                    FILETIME dueTime;
-                    *reinterpret_cast<PLONGLONG>(&dueTime) = -static_cast<LONGLONG>(m_fireEventDelay * 10000);
+                    FILETIME dueTime{};
+                    *reinterpret_cast<PLONGLONG>(&dueTime) = -static_cast<LONGLONG>(m_fireEventDelay) * 10000;
                     SetThreadpoolTimer(m_fireEventThreadPoolTimer.get(), &dueTime, 0, 0);
                 }
             }
@@ -3850,7 +3858,7 @@ namespace wil
             wil::unique_threadpool_timer m_fireEventThreadPoolTimer;
 
             // The timer used to determine when to fire the next telemetry event (when it's fired based on a timer).
-            UINT m_fireEventDelay;
+            UINT m_fireEventDelay{};
             DWORD const c_fireEventDelayLimit = 20 * 60 * 1000; // 20 minutes
         };
     } // namespace details
@@ -3878,7 +3886,7 @@ namespace wil
 //
 // Note: In your DLLMain method, please also add following code snippet
 //
-//		wil::details::g_processShutdownInProgress = (lpReserved == nullptr);
+//      wil::details::g_processShutdownInProgress = (lpReserved == nullptr);
 //
 // Adding this code snippet ensures that during process termination, thread pool timer
 // destructor or SetThreadPoolTimer methods are not called, because they are invalid to call
@@ -3908,6 +3916,10 @@ namespace wil
 
 #define WI_LOG_API_USE(...) \
     WI_MACRO_DISPATCH(__WI_LOG_API_USE, __VA_ARGS__)
+
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
 
 #pragma warning(pop)
 #endif // __WIL_TRACELOGGING_H_INCLUDED

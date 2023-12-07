@@ -46,7 +46,7 @@ namespace wil
     //! to that value when it is destroyed.
     //!
     //! This is useful in library code that runs during a value's destructor. If the library code could
-    //! inadvertantly change the value of GetLastError (by calling a Win32 API or similar), it should
+    //! inadvertently change the value of GetLastError (by calling a Win32 API or similar), it should
     //! instantiate a value of this type before calling the library function in order to preserve the
     //! GetLastError value the user would expect.
     //!
@@ -104,7 +104,7 @@ namespace wil
             m_dismissed = true;
         }
 
-        auto value() const WI_NOEXCEPT
+        WI_NODISCARD auto value() const WI_NOEXCEPT
         {
             return m_error;
         }
@@ -150,7 +150,7 @@ namespace wil
             typename pointer_access_t = pointer_access_all,                   // all, noaddress or none to control pointer method access
             typename pointer_storage_t = pointer_t,                           // The type used to store the handle (usually the same as the handle itself)
             typename invalid_t = pointer_t,                                   // The invalid handle value type
-            invalid_t invalid = invalid_t(),                                  //      * and its value (default ZERO value)
+            invalid_t invalid = invalid_t{},                                  //      * and its value (default ZERO value)
             typename pointer_invalid_t = wistd::nullptr_t>                    // nullptr_t if the invalid handle value is compatible with nullptr, otherwise pointer
             struct resource_policy : close_invoker<close_fn_t, close_fn, pointer_storage_t>
         {
@@ -202,7 +202,7 @@ namespace wil
                 }
             }
 
-            bool is_valid() const WI_NOEXCEPT
+            WI_NODISCARD bool is_valid() const WI_NOEXCEPT
             {
                 return policy::is_valid(m_ptr);
             }
@@ -222,7 +222,7 @@ namespace wil
                 reset();
             }
 
-            pointer get() const WI_NOEXCEPT
+            WI_NODISCARD pointer get() const WI_NOEXCEPT
             {
                 return static_cast<pointer>(m_ptr);
             }
@@ -320,7 +320,7 @@ namespace wil
             other = wistd::move(self);
         }
 
-        explicit operator bool() const WI_NOEXCEPT
+        WI_NODISCARD explicit operator bool() const WI_NOEXCEPT
         {
             return storage_t::is_valid();
         }
@@ -342,7 +342,7 @@ namespace wil
             return put();
         }
 
-        pointer get() const WI_NOEXCEPT
+        WI_NODISCARD pointer get() const WI_NOEXCEPT
         {
             static_assert(!wistd::is_same<typename policy::pointer_access, details::pointer_access_none>::value, "get(): the raw handle value is not available for this resource class");
             return storage_t::get();
@@ -436,7 +436,7 @@ namespace wil
         typename pointer_access = details::pointer_access_all,    // all, noaddress or none to control pointer method access
         typename pointer_storage = pointer,                       // The type used to store the handle (usually the same as the handle itself)
         typename invalid_t = pointer,                             // The invalid handle value type
-        invalid_t invalid = invalid_t(),                          //      * and its value (default ZERO value)
+        invalid_t invalid = invalid_t{},                          //      * and its value (default ZERO value)
         typename pointer_invalid = wistd::nullptr_t>              // nullptr_t if the invalid handle value is compatible with nullptr, otherwise pointer
         using unique_any = unique_any_t<details::unique_storage<details::resource_policy<pointer, close_fn_t, close_fn, pointer_access, pointer_storage, invalid_t, invalid, pointer_invalid>>>;
 
@@ -485,7 +485,7 @@ namespace wil
             }
 
             // Returns true if the scope_exit lambda is still going to be executed
-            explicit operator bool() const WI_NOEXCEPT
+            WI_NODISCARD explicit operator bool() const WI_NOEXCEPT
             {
                 return m_call;
             }
@@ -547,7 +547,7 @@ namespace wil
             }
 
             // Returns true if the scope_exit lambda is still going to be executed
-            explicit operator bool() const WI_NOEXCEPT
+            WI_NODISCARD explicit operator bool() const WI_NOEXCEPT
             {
                 return m_call;
             }
@@ -689,7 +689,7 @@ namespace wil
             {
             }
 
-            out_param_t(out_param_t&& other) :
+            out_param_t(out_param_t&& other) WI_NOEXCEPT :
                 wrapper(other.wrapper),
                 pRaw(other.pRaw)
             {
@@ -729,7 +729,7 @@ namespace wil
             {
             }
 
-            out_param_ptr_t(out_param_ptr_t&& other) :
+            out_param_ptr_t(out_param_ptr_t&& other) WI_NOEXCEPT :
                 wrapper(other.wrapper),
                 pRaw(other.pRaw)
             {
@@ -1009,100 +1009,100 @@ namespace wil
             other.m_size = size;
         }
 
-        iterator begin() WI_NOEXCEPT
+        WI_NODISCARD iterator begin() WI_NOEXCEPT
         {
             return (iterator(m_ptr));
         }
 
-        const_iterator begin() const WI_NOEXCEPT
+        WI_NODISCARD const_iterator begin() const WI_NOEXCEPT
         {
             return (const_iterator(m_ptr));
         }
 
-        iterator end() WI_NOEXCEPT
+        WI_NODISCARD iterator end() WI_NOEXCEPT
         {
             return (iterator(m_ptr + m_size));
         }
 
-        const_iterator end() const WI_NOEXCEPT
+        WI_NODISCARD const_iterator end() const WI_NOEXCEPT
         {
             return (const_iterator(m_ptr + m_size));
         }
 
-        const_iterator cbegin() const WI_NOEXCEPT
+        WI_NODISCARD const_iterator cbegin() const WI_NOEXCEPT
         {
             return (begin());
         }
 
-        const_iterator cend() const WI_NOEXCEPT
+        WI_NODISCARD const_iterator cend() const WI_NOEXCEPT
         {
             return (end());
         }
 
-        size_type size() const WI_NOEXCEPT
+        WI_NODISCARD size_type size() const WI_NOEXCEPT
         {
             return (m_size);
         }
 
-        bool empty() const WI_NOEXCEPT
+        WI_NODISCARD bool empty() const WI_NOEXCEPT
         {
             return (size() == size_type{});
         }
 
-        reference operator[](size_type position)
+        WI_NODISCARD reference operator[](size_type position)
         {
             WI_ASSERT(position < m_size);
             _Analysis_assume_(position < m_size);
             return (m_ptr[position]);
         }
 
-        const_reference operator[](size_type position) const
+        WI_NODISCARD const_reference operator[](size_type position) const
         {
             WI_ASSERT(position < m_size);
             _Analysis_assume_(position < m_size);
             return (m_ptr[position]);
         }
 
-        reference front()
+        WI_NODISCARD reference front()
         {
             WI_ASSERT(!empty());
             return (m_ptr[0]);
         }
 
-        const_reference front() const
+        WI_NODISCARD const_reference front() const
         {
             WI_ASSERT(!empty());
             return (m_ptr[0]);
         }
 
-        reference back()
+        WI_NODISCARD reference back()
         {
             WI_ASSERT(!empty());
             return (m_ptr[m_size - 1]);
         }
 
-        const_reference back() const
+        WI_NODISCARD const_reference back() const
         {
             WI_ASSERT(!empty());
             return (m_ptr[m_size - 1]);
         }
 
-        ValueType* data() WI_NOEXCEPT
+        WI_NODISCARD ValueType* data() WI_NOEXCEPT
         {
             return (m_ptr);
         }
 
-        const ValueType* data() const WI_NOEXCEPT
+        WI_NODISCARD const ValueType* data() const WI_NOEXCEPT
         {
             return (m_ptr);
         }
 
-        pointer get() const WI_NOEXCEPT
+        WI_NODISCARD pointer get() const WI_NOEXCEPT
         {
             return m_ptr;
         }
 
-        explicit operator bool() const WI_NOEXCEPT
+        WI_NODISCARD explicit operator bool() const WI_NOEXCEPT
         {
             return (m_ptr != pointer());
         }
@@ -1166,7 +1166,7 @@ namespace wil
             {
             }
 
-            size_address_ptr(size_address_ptr&& other) :
+            size_address_ptr(size_address_ptr&& other) WI_NOEXCEPT :
                 wrapper(other.wrapper),
                 size(other.size)
             {
@@ -1377,7 +1377,7 @@ namespace wil
         }
 
         //! Determine if the underlying source and token are valid
-        explicit operator bool() const WI_NOEXCEPT
+        WI_NODISCARD explicit operator bool() const WI_NOEXCEPT
         {
             return (m_token != invalid_token) && m_source;
         }
@@ -1472,7 +1472,7 @@ namespace wil
         }
 
         //! Retrieves the token
-        token_t get() const WI_NOEXCEPT
+        WI_NODISCARD token_t get() const WI_NOEXCEPT
         {
             return m_token;
         }
@@ -1572,7 +1572,7 @@ namespace wil
         }
 
         //! Returns true if the call this class was expected to make is still outstanding
-        explicit operator bool() const WI_NOEXCEPT
+        WI_NODISCARD explicit operator bool() const WI_NOEXCEPT
         {
             return (m_ptr != nullptr);
         }
@@ -1683,7 +1683,7 @@ namespace wil
         }
 
         //! Returns true if the call that was expected is still outstanding
-        explicit operator bool() const WI_NOEXCEPT
+        WI_NODISCARD explicit operator bool() const WI_NOEXCEPT
         {
             return m_call;
         }
@@ -1710,6 +1710,7 @@ namespace wil
         return str_raw_ptr(ua.get());
     }
 
+#if !defined(__WIL_MIN_KERNEL) && !defined(WIL_KERNEL_MODE)
     namespace details
     {
         // Forward declaration
@@ -1760,13 +1761,14 @@ namespace wil
         static_assert(sizeof...(str) > 0, "attempting to concatenate no strings");
         return details::str_build_nothrow(buffer, details::string_maker<string_type>::get(buffer), str_raw_ptr(str)...);
     }
+#endif // !defined(__WIL_MIN_KERNEL) && !defined(WIL_KERNEL_MODE)
 
 #ifdef WIL_ENABLE_EXCEPTIONS
     // Concatenate any number of strings together and store it in an automatically allocated string.
     template <typename string_type, typename... arguments>
     string_type str_concat(arguments&&... args)
     {
-        string_type result;
+        string_type result{};
         THROW_IF_FAILED(str_concat_nothrow(result, wistd::forward<arguments>(args)...));
         return result;
     }
@@ -1776,11 +1778,12 @@ namespace wil
     template <typename string_type, typename... arguments>
     string_type str_concat_failfast(arguments&&... args)
     {
-        string_type result;
+        string_type result{};
         FAIL_FAST_IF_FAILED(str_concat_nothrow(result, wistd::forward<arguments>(args)...));
         return result;
     }
 
+#if !defined(__WIL_MIN_KERNEL) && !defined(WIL_KERNEL_MODE)
     namespace details
     {
         // Wraps StringCchPrintFExW and stores it in an automatically allocated string.  Takes a buffer followed by the same format arguments
@@ -1819,7 +1822,7 @@ namespace wil
     template <typename string_type>
     string_type str_printf(_Printf_format_string_ PCWSTR pszFormat, ...)
     {
-        string_type result;
+        string_type result{};
         va_list argsVL;
         va_start(argsVL, pszFormat);
         auto hr = details::str_vprintf_nothrow(result, pszFormat, argsVL);
@@ -1834,7 +1837,7 @@ namespace wil
     template <typename string_type>
     string_type str_printf_failfast(_Printf_format_string_ PCWSTR pszFormat, ...)
     {
-        string_type result;
+        string_type result{};
         va_list argsVL;
         va_start(argsVL, pszFormat);
         auto hr = details::str_vprintf_nothrow(result, pszFormat, argsVL);
@@ -1842,6 +1845,7 @@ namespace wil
         FAIL_FAST_IF_FAILED(hr);
         return result;
     }
+#endif // !defined(__WIL_MIN_KERNEL) && !defined(WIL_KERNEL_MODE)
 
 } // namespace wil
 #endif // __WIL_RESOURCE
@@ -1855,7 +1859,7 @@ namespace std
     template <typename storage_t>
     struct hash<wil::unique_any_t<storage_t>>
     {
-        size_t operator()(wil::unique_any_t<storage_t> const &val) const
+        WI_NODISCARD size_t operator()(wil::unique_any_t<storage_t> const &val) const
         {
             return (hash<typename wil::unique_any_t<storage_t>::pointer>()(val.get()));
         }
@@ -1929,7 +1933,7 @@ namespace wil {
             {
             }
 
-            bool is_valid() const WI_NOEXCEPT
+            WI_NODISCARD bool is_valid() const WI_NOEXCEPT
             {
                 return (m_ptr && m_ptr->is_valid());
             }
@@ -1958,7 +1962,7 @@ namespace wil {
             }
 
             template <typename allow_t = typename policy::pointer_access, typename wistd::enable_if<!wistd::is_same<allow_t, details::pointer_access_none>::value, int>::type = 0>
-            pointer get() const WI_NOEXCEPT
+            WI_NODISCARD pointer get() const WI_NOEXCEPT
             {
                 return (m_ptr ? m_ptr->get() : policy::invalid_value());
             }
@@ -1973,7 +1977,7 @@ namespace wil {
                 return m_ptr->addressof();
             }
 
-            long int use_count() const WI_NOEXCEPT
+            WI_NODISCARD long int use_count() const WI_NOEXCEPT
             {
                 return m_ptr.use_count();
             }
@@ -2069,7 +2073,7 @@ namespace wil {
             other = wistd::move(self);
         }
 
-        explicit operator bool() const WI_NOEXCEPT
+        WI_NODISCARD explicit operator bool() const WI_NOEXCEPT
         {
             return storage_t::is_valid();
         }
@@ -2086,7 +2090,7 @@ namespace wil {
             return put();
         }
 
-        pointer get() const WI_NOEXCEPT
+        WI_NODISCARD pointer get() const WI_NOEXCEPT
         {
             static_assert(!wistd::is_same<typename policy::pointer_access, details::pointer_access_none>::value, "get(): the raw handle value is not available for this resource class");
             return storage_t::get();
@@ -2215,12 +2219,12 @@ namespace wil {
             m_weakPtr.swap(other.m_weakPtr);
         }
 
-        bool expired() const WI_NOEXCEPT
+        WI_NODISCARD bool expired() const WI_NOEXCEPT
         {
             return m_weakPtr.expired();
         }
 
-        shared_t lock() const WI_NOEXCEPT
+        WI_NODISCARD shared_t lock() const WI_NOEXCEPT
         {
             return shared_t(m_weakPtr.lock());
         }
@@ -2249,7 +2253,7 @@ namespace std
     template <typename storage_t>
     struct hash<wil::shared_any_t<storage_t>>
     {
-        size_t operator()(wil::shared_any_t<storage_t> const &val) const
+        WI_NODISCARD size_t operator()(wil::shared_any_t<storage_t> const &val) const
         {
             return (hash<typename wil::shared_any_t<storage_t>::pointer>()(val.get()));
         }
@@ -2547,7 +2551,7 @@ namespace wil
     }
 
     template <ULONG flags = 0>
-    using unique_private_namespace = unique_any_handle_null_only<decltype(details::ClosePrivateNamespaceHelper<flags>), &details::ClosePrivateNamespaceHelper<flags>>;
+    using unique_private_namespace = unique_any_handle_null_only<void(__stdcall*)(HANDLE) WI_PFN_NOEXCEPT, &details::ClosePrivateNamespaceHelper<flags>>;
 
     using unique_private_namespace_close = unique_private_namespace<>;
     using unique_private_namespace_destroy = unique_private_namespace<PRIVATE_NAMESPACE_FLAG_DESTROY>;
@@ -2662,7 +2666,7 @@ namespace wil
 
         // Checks if a *manual reset* event is currently signaled.  The event must not be an auto-reset event.
         // Use when the event will only be set once (cancellation-style) or will only be reset by the polling thread
-        bool is_signaled() const WI_NOEXCEPT
+        WI_NODISCARD bool is_signaled() const WI_NOEXCEPT
         {
             return wil::event_is_signaled(storage_t::get());
         }
@@ -2794,7 +2798,7 @@ namespace wil
 
         // Checks if the event is currently signaled.
         // Note: Unlike Win32 auto-reset event objects, this will not reset the event.
-        bool is_signaled() const WI_NOEXCEPT
+        WI_NODISCARD bool is_signaled() const WI_NOEXCEPT
         {
             return !!ReadAcquire(&m_isSignaled);
         }
@@ -2810,7 +2814,7 @@ namespace wil
                 return wait();
             }
 
-            UINT64 startTime;
+            UINT64 startTime{};
             QueryUnbiasedInterruptTime(&startTime);
 
             UINT64 elapsedTimeMilliseconds = 0;
@@ -2832,7 +2836,7 @@ namespace wil
                 UINT64 currTime;
                 QueryUnbiasedInterruptTime(&currTime);
 
-                elapsedTimeMilliseconds = (currTime - startTime) / (10 * 1000);
+                elapsedTimeMilliseconds = (currTime - startTime) / static_cast<UINT64>(10 * 1000);
             }
 
             return true;
@@ -3335,11 +3339,10 @@ namespace wil
         _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_)
         PCSTR source, size_t length = static_cast<size_t>(-1)) WI_NOEXCEPT
     {
-        // guard against invalid parameters (null source with -1 length)
-        FAIL_FAST_IF(!source && (length == static_cast<size_t>(-1)));
-
         if (length == static_cast<size_t>(-1))
         {
+            // guard against invalid parameters (null source with -1 length)
+            FAIL_FAST_IF(!source);
             length = strlen(source);
         }
         const size_t cb = (length + 1) * sizeof(*source);
@@ -3450,7 +3453,7 @@ namespace wil
             void *pointer;
             size_t sizeBytes;
             SecureZeroData(void *pointer_, size_t sizeBytes_ = 0) WI_NOEXCEPT { pointer = pointer_; sizeBytes = sizeBytes_; }
-            operator void *() const WI_NOEXCEPT { return pointer; }
+            WI_NODISCARD operator void*() const WI_NOEXCEPT { return pointer; }
             static void Close(SecureZeroData data) WI_NOEXCEPT { ::SecureZeroMemory(data.pointer, data.sizeBytes); }
         };
     }
@@ -3659,7 +3662,7 @@ namespace wil
         }
 
         // Provide access to the inner event and the very common SetEvent() method on it.
-        unique_event_nothrow const& get_event() const WI_NOEXCEPT { return storage_t::get()->m_event; }
+        WI_NODISCARD unique_event_nothrow const& get_event() const WI_NOEXCEPT { return storage_t::get()->m_event; }
         void SetEvent() const WI_NOEXCEPT { storage_t::get()->m_event.SetEvent(); }
 
     private:
@@ -4376,7 +4379,7 @@ namespace wil
     WI_NODISCARD inline unique_couninitialize_call CoInitializeEx_failfast(DWORD coinitFlags = 0 /*COINIT_MULTITHREADED*/)
     {
         FAIL_FAST_IF_FAILED(::CoInitializeEx(nullptr, coinitFlags));
-        return unique_couninitialize_call();
+        return {};
     }
 #endif // __WIL__COMBASEAPI_H_APP
 #if defined(__WIL__COMBASEAPI_H_APP) && defined(WIL_ENABLE_EXCEPTIONS) && !defined(__WIL__COMBASEAPI_H_APPEXCEPTIONAL)
@@ -4384,7 +4387,7 @@ namespace wil
     WI_NODISCARD inline unique_couninitialize_call CoInitializeEx(DWORD coinitFlags = 0 /*COINIT_MULTITHREADED*/)
     {
         THROW_IF_FAILED(::CoInitializeEx(nullptr, coinitFlags));
-        return unique_couninitialize_call();
+        return {};
     }
 #endif
 
@@ -4531,8 +4534,8 @@ namespace wil
                 return S_OK;
             }
 
-            wchar_t* buffer() { WI_ASSERT(m_charBuffer != nullptr);  return m_charBuffer; }
-            const wchar_t* buffer() const { return m_charBuffer; }
+            WI_NODISCARD wchar_t* buffer() { WI_ASSERT(m_charBuffer != nullptr);  return m_charBuffer; }
+            WI_NODISCARD const wchar_t* buffer() const { return m_charBuffer; }
 
             HRESULT trim_at_existing_null(size_t length) { return make(buffer(), length); }
 
@@ -4590,7 +4593,10 @@ namespace wil
 
 #if defined(__propidl_h__) && !defined(_WIL__propidl_h__) && !defined(WIL_KERNEL_MODE)
 #define _WIL__propidl_h__
+    // if language extensions (/Za) disabled, PropVariantInit will not exist, PROPVARIANT has forward declaration only
+#if defined(_MSC_EXTENSIONS)
     using unique_prop_variant = wil::unique_struct<PROPVARIANT, decltype(&::PropVariantClear), ::PropVariantClear, decltype(&::PropVariantInit), ::PropVariantInit>;
+#endif
 #endif // _WIL__propidl_h__
 
 #if defined(_OLEAUTO_H_) && !defined(__WIL_OLEAUTO_H_) && !defined(WIL_KERNEL_MODE) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_SYSTEM)
@@ -4613,6 +4619,33 @@ namespace wil
     {
         wil::unique_bstr result(make_bstr_nothrow(source));
         THROW_IF_NULL_ALLOC(result);
+        return result;
+    }
+#endif // WIL_ENABLE_EXCEPTIONS
+
+    inline wil::unique_variant make_variant_bstr_nothrow(PCWSTR source) WI_NOEXCEPT
+    {
+        wil::unique_variant result{};
+        V_UNION(result.addressof(), bstrVal) = ::SysAllocString(source);
+        if (V_UNION(result.addressof(), bstrVal) != nullptr)
+        {
+            V_VT(result.addressof()) = VT_BSTR;
+        }
+        return result;
+    }
+
+    inline wil::unique_variant make_variant_bstr_failfast(PCWSTR source) WI_NOEXCEPT
+    {
+        auto result{make_variant_bstr_nothrow(source)};
+        FAIL_FAST_HR_IF(E_OUTOFMEMORY, V_VT(result.addressof()) == VT_EMPTY);
+        return result;
+    }
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+    inline wil::unique_variant make_variant_bstr(PCWSTR source)
+    {
+        auto result{make_variant_bstr_nothrow(source)};
+        THROW_HR_IF(E_OUTOFMEMORY, V_VT(result.addressof()) == VT_EMPTY);
         return result;
     }
 #endif // WIL_ENABLE_EXCEPTIONS
@@ -4665,7 +4698,7 @@ namespace wil
         HDC dc;
         HWND hwnd;
         window_dc(HDC dc_, HWND hwnd_ = nullptr) WI_NOEXCEPT { dc = dc_; hwnd = hwnd_; }
-        operator HDC() const WI_NOEXCEPT { return dc; }
+        WI_NODISCARD operator HDC() const WI_NOEXCEPT { return dc; }
         static void close(window_dc wdc) WI_NOEXCEPT { ::ReleaseDC(wdc.hwnd, wdc.dc); }
     };
     typedef unique_any<HDC, decltype(&window_dc::close), window_dc::close, details::pointer_access_all, window_dc> unique_hdc_window;
@@ -4675,7 +4708,7 @@ namespace wil
         HWND hwnd;
         PAINTSTRUCT ps;
         paint_dc(HDC hdc = nullptr) { ::ZeroMemory(this, sizeof(*this)); ps.hdc = hdc; }
-        operator HDC() const WI_NOEXCEPT { return ps.hdc; }
+        WI_NODISCARD operator HDC() const WI_NOEXCEPT { return ps.hdc; }
         static void close(paint_dc pdc) WI_NOEXCEPT { ::EndPaint(pdc.hwnd, &pdc.ps); }
     };
     typedef unique_any<HDC, decltype(&paint_dc::close), paint_dc::close, details::pointer_access_all, paint_dc> unique_hdc_paint;
@@ -4685,7 +4718,7 @@ namespace wil
         HGDIOBJ hgdi;
         HDC hdc;
         select_result(HGDIOBJ hgdi_, HDC hdc_ = nullptr) WI_NOEXCEPT { hgdi = hgdi_; hdc = hdc_; }
-        operator HGDIOBJ() const WI_NOEXCEPT { return hgdi; }
+        WI_NODISCARD operator HGDIOBJ() const WI_NOEXCEPT { return hgdi; }
         static void close(select_result sr) WI_NOEXCEPT { ::SelectObject(sr.hdc, sr.hgdi); }
     };
     typedef unique_any<HGDIOBJ, decltype(&select_result::close), select_result::close, details::pointer_access_all, select_result> unique_select_object;
@@ -5353,7 +5386,7 @@ namespace wil
         {
         }
 
-        pointer get() const
+        WI_NODISCARD pointer get() const
         {
             return m_globalMemory;
         }
@@ -5408,6 +5441,11 @@ namespace wil
     typedef unique_any<void*, decltype(&::DestroyEnvironmentBlock), ::DestroyEnvironmentBlock> unique_environment_block;
 #endif // __WIL_INC_USERENV
 #pragma warning(pop)
+
+#if defined(__WINEVT_H__) && !defined(__WIL_INC_EVT_HANDLE) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_PKG_EVENTLOGSERVICE) && !defined(WIL_KERNEL_MODE)
+#define __WIL_INC_EVT_HANDLE
+    typedef unique_any<EVT_HANDLE, decltype(&::EvtClose), ::EvtClose> unique_evt_handle;
+#endif // __WIL_INC_EVT_HANDLE
 
 #if defined(_WINSVC_) && !defined(__WIL_HANDLE_H_WINSVC) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && !defined(WIL_KERNEL_MODE)
 #define __WIL_HANDLE_H_WINSVC
@@ -5559,7 +5597,7 @@ namespace wil
     /// @cond
     namespace details
     {
-        inline void __stdcall CloseWlanHandle(_Frees_ptr_ HANDLE hClientHandle)
+        inline void __stdcall CloseWlanHandle(_In_ HANDLE hClientHandle)
         {
             ::WlanCloseHandle(hClientHandle, nullptr);
         }
@@ -5682,6 +5720,14 @@ namespace wil
             decltype(&::WdfWaitLockRelease),
             ::WdfWaitLockRelease,
             details::pointer_access_none>;
+
+#if defined(WIL_KERNEL_MODE)
+    using unique_wdf_device_init =
+        unique_any<
+            WDFDEVICE_INIT *,
+            decltype(&::WdfDeviceInitFree),
+            ::WdfDeviceInitFree>;
+#endif
 
     inline
     WI_NODISCARD
@@ -5857,17 +5903,17 @@ namespace wil
             reset();
         }
 
-        explicit operator bool() const WI_NOEXCEPT
+        WI_NODISCARD explicit operator bool() const WI_NOEXCEPT
         {
             return m_wdfObject != WDF_NO_HANDLE;
         }
 
-        wdf_object_t get() const WI_NOEXCEPT
+        WI_NODISCARD wdf_object_t get() const WI_NOEXCEPT
         {
             return m_wdfObject;
         }
 
-        void* get_tag() const WI_NOEXCEPT
+        WI_NODISCARD void* get_tag() const WI_NOEXCEPT
         {
             return m_tag;
         }
@@ -6005,7 +6051,7 @@ namespace wil
             reset();
         }
 
-        WDFREQUEST get() const WI_NOEXCEPT
+        WI_NODISCARD WDFREQUEST get() const WI_NOEXCEPT
         {
             return m_wdfRequest;
         }
@@ -6057,7 +6103,7 @@ namespace wil
         }
 #endif
 
-        explicit operator bool() const WI_NOEXCEPT
+        WI_NODISCARD explicit operator bool() const WI_NOEXCEPT
         {
             return m_wdfRequest != WDF_NO_HANDLE;
         }
@@ -6212,7 +6258,7 @@ namespace wil
 
             // Exists to satisfy the interconvertibility requirement for pointer_storage and
             // pointer.
-            explicit operator PKSPIN_LOCK() const
+            WI_NODISCARD explicit operator PKSPIN_LOCK() const
             {
                 return spinLock;
             }
@@ -6341,7 +6387,7 @@ namespace wil
             }
 
             // Checks if the event is currently signaled. Does not change the state of the event.
-            bool is_signaled() const WI_NOEXCEPT
+            WI_NODISCARD bool is_signaled() const WI_NOEXCEPT
             {
                 return ::KeReadStateEvent(const_cast<PRKEVENT>(&m_kernelEvent)) ? true : false;
             }
@@ -6522,6 +6568,8 @@ namespace wil
         return{};
     }
 
+//! WDM version of EX_PUSH_LOCK is available starting with Windows 10 1809
+#if (NTDDI_VERSION >= NTDDI_WIN10_RS5)
     namespace details
     {
         _IRQL_requires_max_(APC_LEVEL)
@@ -6598,6 +6646,7 @@ namespace wil
     private:
         EX_PUSH_LOCK m_pushLock;
     };
+#endif
 
     namespace details
     {
@@ -6677,7 +6726,7 @@ namespace wil
         class crypt_catalog_enumerator
         {
             wil::unique_hcatinfo m_hCatInfo;
-            const BYTE * m_hash;
+            const BYTE* m_hash;
             DWORD m_hashLen;
             bool m_initialized = false;
 
@@ -6687,7 +6736,7 @@ namespace wil
                     m_r(r)
                 {}
 
-                operator HCATINFO() const WI_NOEXCEPT
+                WI_NODISCARD operator HCATINFO() const WI_NOEXCEPT
                 {
                     return m_r.current();
                 }
@@ -6698,12 +6747,12 @@ namespace wil
                     return info;
                 }
 
-                bool operator==(wistd::nullptr_t) const WI_NOEXCEPT
+                WI_NODISCARD bool operator==(wistd::nullptr_t) const WI_NOEXCEPT
                 {
                     return m_r.m_hCatInfo == nullptr;
                 }
 
-                bool operator!=(wistd::nullptr_t) const WI_NOEXCEPT
+                WI_NODISCARD bool operator!=(wistd::nullptr_t) const WI_NOEXCEPT
                 {
                     return !(*this == nullptr);
                 }
@@ -6728,7 +6777,7 @@ namespace wil
                 iterator &operator=(const iterator &) = default;
                 iterator &operator=(iterator &&) = default;
 
-                bool operator==(const iterator &rhs) const WI_NOEXCEPT
+                WI_NODISCARD bool operator==(const iterator &rhs) const WI_NOEXCEPT
                 {
                     if (rhs.m_r == m_r)
                     {
@@ -6738,17 +6787,17 @@ namespace wil
                     return (*this == nullptr) && (rhs == nullptr);
                 }
 
-                bool operator!=(const iterator &rhs) const WI_NOEXCEPT
+                WI_NODISCARD bool operator!=(const iterator &rhs) const WI_NOEXCEPT
                 {
                     return !(rhs == *this);
                 }
 
-                bool operator==(wistd::nullptr_t) const WI_NOEXCEPT
+                WI_NODISCARD bool operator==(wistd::nullptr_t) const WI_NOEXCEPT
                 {
                     return nullptr == m_r || nullptr == m_r->current();
                 }
 
-                bool operator!=(wistd::nullptr_t) const WI_NOEXCEPT
+                WI_NODISCARD bool operator!=(wistd::nullptr_t) const WI_NOEXCEPT
                 {
                     return !(*this == nullptr);
                 }
@@ -6763,7 +6812,7 @@ namespace wil
                     return *this;
                 }
 
-                ref operator*() const WI_NOEXCEPT
+                WI_NODISCARD ref operator*() const WI_NOEXCEPT
                 {
                     return ref(*m_r);
                 }
@@ -6826,13 +6875,13 @@ namespace wil
                 // , m_initialized(false) // redundant
             {}
 
-            iterator begin() WI_NOEXCEPT
+            WI_NODISCARD iterator begin() WI_NOEXCEPT
             {
                 init();
                 return iterator(this);
             }
 
-            iterator end() const WI_NOEXCEPT
+            WI_NODISCARD iterator end() const WI_NOEXCEPT
             {
                 return iterator(nullptr);
             }
