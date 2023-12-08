@@ -52,7 +52,7 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         # -ferror-limit=999
         # -fmacro-backtrace-limit=0
 
-        # -fno-ms-compatibility turns off preprocessor compatability, which currently only works when __VA_OPT__ support
+        # -fno-ms-compatibility turns off preprocessor compatibility, which currently only works when __VA_OPT__ support
         # is available (i.e. >= C++20)
         # -Xclang -std=c++2a
         )

@@ -1089,7 +1089,7 @@ namespace wil
     // only allows a single string to be associated with the exception.
     inline HRESULT GetFailureLogString(_Out_writes_(cchDest) _Always_(_Post_z_) PWSTR pszDest, _Pre_satisfies_(cchDest > 0) _In_ size_t cchDest, _In_ FailureInfo const &failure) WI_NOEXCEPT
     {
-        // This function was lenient to empty strings at one point and some callers became dependent on this beahvior
+        // This function was lenient to empty strings at one point and some callers became dependent on this behavior
         if ((cchDest == 0) || (pszDest == nullptr))
         {
             return S_OK;
@@ -2314,7 +2314,7 @@ __WI_POP_WARNINGS
     {
 #ifndef RESULT_SUPPRESS_STATIC_INITIALIZERS
 #if !defined(BUILD_WINDOWS) || defined(WIL_SUPPRESS_PRIVATE_API_USE)
-        WI_HEADER_INITITALIZATION_FUNCTION(WilInitialize_ResultMacros_DesktopOrSystem_SuppressPrivateApiUse, []
+        WI_HEADER_INITIALIZATION_FUNCTION(WilInitialize_ResultMacros_DesktopOrSystem_SuppressPrivateApiUse, []
         {
             ::wil::WilInitialize_ResultMacros_DesktopOrSystem_SuppressPrivateApiUse();
             return 1;
@@ -2326,7 +2326,7 @@ __WI_POP_WARNINGS
 #else // !WINAPI_PARTITION_DESKTOP, !WINAPI_PARTITION_SYSTEM, explicitly assume these modules can direct link
     namespace details
     {
-        WI_HEADER_INITITALIZATION_FUNCTION(WilInitialize_ResultMacros_AppOnly, []
+        WI_HEADER_INITIALIZATION_FUNCTION(WilInitialize_ResultMacros_AppOnly, []
         {
             g_pfnRaiseFailFastException = ::RaiseFailFastException;
             return 1;
@@ -3075,7 +3075,7 @@ __WI_POP_WARNINGS
         }
 
 #if !defined(RESULT_SUPPRESS_STATIC_INITIALIZERS)
-        WI_HEADER_INITITALIZATION_FUNCTION(InitializeWinRt, []
+        WI_HEADER_INITIALIZATION_FUNCTION(InitializeWinRt, []
         {
             g_pfnResultFromCaughtException_WinRt = ResultFromCaughtException_WinRt;
             g_pfnResultFromKnownExceptions_WinRt = ResultFromKnownExceptions_WinRt;
@@ -3322,7 +3322,7 @@ __WI_POP_WARNINGS
             }
         }
 
-        WI_HEADER_INITITALIZATION_FUNCTION(InitializeResultExceptions, []
+        WI_HEADER_INITIALIZATION_FUNCTION(InitializeResultExceptions, []
         {
             g_pfnRunFunctorWithExceptionFilter = RunFunctorWithExceptionFilter;
             g_pfnRethrow = Rethrow;

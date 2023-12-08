@@ -4338,7 +4338,7 @@ namespace wistd     // ("Windows Implementation" std)
     template <class _Tp, bool _Support = false>
     struct underlying_type
     {
-        static_assert(_Support, "The underyling_type trait requires compiler "
+        static_assert(_Support, "The underlying_type trait requires compiler "
                                 "support. Either no such support exists or "
                                 "libc++ does not know how to use it.");
     };

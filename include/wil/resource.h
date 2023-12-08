@@ -629,7 +629,7 @@ namespace wil
     namespace details
     {
         // The first two attach_to_smart_pointer() overloads are ambiguous when passed a com_ptr_t.
-        // To solve that use this functions return type to elminate the reset form for com_ptr_t.
+        // To solve that use this functions return type to eliminate the reset form for com_ptr_t.
         template <typename T, typename err> wistd::false_type use_reset(wil::com_ptr_t<T, err>*) { return wistd::false_type(); }
         template <typename T> wistd::true_type use_reset(T*) { return wistd::true_type(); }
     }
@@ -921,7 +921,7 @@ namespace wil
     };
 
     /** unique_any_array_ptr is a RAII type for managing conformant arrays that need to be freed and have elements that may need to be freed.
-    The intented use for this RAII type would be to capture out params from API like IPropertyValue::GetStringArray.
+    The intended use for this RAII type would be to capture out params from API like IPropertyValue::GetStringArray.
     This class also maintains the size of the array, so it can iterate over the members and deallocate them before it deallocates the base array pointer.
 
     If the type you're wrapping is a system type, you can share the code by declaring it in this file (Resource.h). Send requests to wildisc.
@@ -2803,13 +2803,13 @@ namespace wil
             return !!ReadAcquire(&m_isSignaled);
         }
 
-        bool wait(DWORD timeoutMiliseconds) WI_NOEXCEPT
+        bool wait(DWORD timeoutMilliseconds) WI_NOEXCEPT
         {
-            if (timeoutMiliseconds == 0)
+            if (timeoutMilliseconds == 0)
             {
                 return TryAcquireEvent();
             }
-            else if (timeoutMiliseconds == INFINITE)
+            else if (timeoutMilliseconds == INFINITE)
             {
                 return wait();
             }
@@ -2821,12 +2821,12 @@ namespace wil
 
             while (!TryAcquireEvent())
             {
-                if (elapsedTimeMilliseconds >= timeoutMiliseconds)
+                if (elapsedTimeMilliseconds >= timeoutMilliseconds)
                 {
                     return false;
                 }
 
-                DWORD newTimeout = static_cast<DWORD>(timeoutMiliseconds - elapsedTimeMilliseconds);
+                DWORD newTimeout = static_cast<DWORD>(timeoutMilliseconds - elapsedTimeMilliseconds);
 
                 if (!WaitForSignal(newTimeout))
                 {
@@ -2869,10 +2869,10 @@ namespace wil
             }
         }
 
-        bool WaitForSignal(DWORD timeoutMiliseconds) WI_NOEXCEPT
+        bool WaitForSignal(DWORD timeoutMilliseconds) WI_NOEXCEPT
         {
             LONG falseValue = FALSE;
-            BOOL waitResult = WaitOnAddress(&m_isSignaled, &falseValue, sizeof(m_isSignaled), timeoutMiliseconds);
+            BOOL waitResult = WaitOnAddress(&m_isSignaled, &falseValue, sizeof(m_isSignaled), timeoutMilliseconds);
             __FAIL_FAST_ASSERT__(waitResult || ::GetLastError() == ERROR_TIMEOUT);
             return !!waitResult;
         }
@@ -4428,7 +4428,7 @@ namespace wil
         _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_)
         PCWSTR source, size_t length) WI_NOEXCEPT
     {
-        WI_ASSERT(source != nullptr); // the HSTRING version of this function does not suport this case
+        WI_ASSERT(source != nullptr); // the HSTRING version of this function does not support this case
         if (length == static_cast<size_t>(-1))
         {
             length = wcslen(source);
@@ -4830,7 +4830,7 @@ namespace wil
         explicit cert_context_t(args_t&&... args) WI_NOEXCEPT : unique_storage(wistd::forward<args_t>(args)...) {}
 
         /** A wrapper around CertEnumCertificatesInStore.
-        CertEnumCertificatesInStore takes ownership of its second paramter in an unclear fashion,
+        CertEnumCertificatesInStore takes ownership of its second parameter in an unclear fashion,
         making it error-prone to use in combination with unique_cert_context. This wrapper helps
         manage the resource correctly while ensuring the GetLastError state set by CertEnumCertificatesInStore.
         is not lost. See MSDN for more information on `CertEnumCertificatesInStore`.
@@ -6931,7 +6931,7 @@ namespace wil
     These types are implicitly convertible from various lock holding types, enabling callers to provide them as
     proof of the lock that they hold.
 
-    The following example is intentially contrived to demonstrate multiple use cases:
+    The following example is intentionally contrived to demonstrate multiple use cases:
       - Methods that require only shared/read access
       - Methods that require only exclusive write access
       - Methods that pass their proof-of-lock to a helper
@@ -7009,7 +7009,7 @@ namespace wil
     {
         // Only those lock types specialized by lock_proof_traits will allow either a write_lock_required or
         // read_lock_required to be constructed. The allows_exclusive value indicates if the type represents an exclusive,
-        // write-safe lock aquisition, or a shared, read-only lock acquisition.
+        // write-safe lock acquisition, or a shared, read-only lock acquisition.
         template<typename T>
         struct lock_proof_traits { };
 
