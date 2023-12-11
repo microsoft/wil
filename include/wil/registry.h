@@ -3109,12 +3109,117 @@ namespace wil
             }
         };
 
+        constexpr DWORD registry_notify_filter = REG_NOTIFY_CHANGE_LAST_SET | REG_NOTIFY_CHANGE_NAME | REG_NOTIFY_THREAD_AGNOSTIC;
+
         inline void delete_registry_watcher_state(_In_opt_ registry_watcher_state* watcherStorage) { watcherStorage->Release(); }
 
         typedef resource_policy<registry_watcher_state*, decltype(&details::delete_registry_watcher_state),
             details::delete_registry_watcher_state, details::pointer_access_none> registry_watcher_state_resource_policy;
     }
     /// @endcond
+
+    template <typename err_policy = ::wil::err_exception_policy>
+    class slim_registry_watcher_t
+    {
+    public:
+        // HRESULT or void error handling
+        typedef typename err_policy::result result;
+
+        slim_registry_watcher_t() WI_NOEXCEPT = default;
+
+        // Exception-based constructors
+        slim_registry_watcher_t(HKEY rootKey, _In_ PCWSTR subKey, bool isRecursive, ::wistd::function<void(::wil::RegistryChangeKind)>&& callback)
+        {
+            static_assert(::wistd::is_same<void, result>::value, "this constructor requires exceptions; use the create method");
+            create(rootKey, subKey, isRecursive, ::wistd::move(callback));
+        }
+
+        slim_registry_watcher_t(::wil::unique_hkey&& keyToWatch, bool isRecursive, ::wistd::function<void(::wil::RegistryChangeKind)>&& callback)
+        {
+            static_assert(::wistd::is_same<void, result>::value, "this constructor requires exceptions; use the create method");
+            create(::wistd::move(keyToWatch), isRecursive, ::wistd::move(callback));
+        }
+
+        // Pass a root key, sub key pair or use an empty string to use rootKey as the key to watch.
+        result create(HKEY rootKey, _In_ PCWSTR subKey, bool isRecursive, ::wistd::function<void(RegistryChangeKind)>&& callback)
+        {
+            ::wil::unique_hkey keyToWatch;
+            HRESULT hr = HRESULT_FROM_WIN32(::RegCreateKeyExW(rootKey, subKey, 0, nullptr, 0, KEY_NOTIFY, nullptr, &keyToWatch, nullptr));
+            if (FAILED(hr))
+            {
+                return err_policy::HResult(hr);
+            }
+            return err_policy::HResult(create_common(::wistd::move(keyToWatch), isRecursive, ::wistd::move(callback)));
+        }
+
+        result create(::wil::unique_hkey&& keyToWatch, bool isRecursive, ::wistd::function<void(::wil::RegistryChangeKind)>&& callback)
+        {
+            return err_policy::HResult(create_common(::wistd::move(keyToWatch), isRecursive, ::wistd::move(callback)));
+        }
+
+    private:
+        // using the default d'tor, destruction must occur in this order
+        ::wistd::function<void(::wil::RegistryChangeKind)> m_callback;
+        ::wil::unique_hkey m_keyToWatch;
+        ::wil::unique_event_nothrow m_eventHandle;
+        ::wil::unique_threadpool_wait m_threadPoolWait;
+        bool m_isRecursive;
+
+        static void __stdcall callback(PTP_CALLBACK_INSTANCE, void* context, TP_WAIT*, TP_WAIT_RESULT) WI_NOEXCEPT
+        {
+            const auto this_ptr = static_cast<slim_registry_watcher_t*>(context);
+
+            const LSTATUS error = ::RegNotifyChangeKeyValue(
+                this_ptr->m_keyToWatch.get(), this_ptr->m_isRecursive, ::wil::details::registry_notify_filter, this_ptr->m_eventHandle.get(), TRUE);
+
+            // Call the client before re-arming to ensure that multiple callbacks don't
+            // run concurrently.
+            switch (error)
+            {
+            case ERROR_SUCCESS:
+            case ERROR_ACCESS_DENIED:
+                // Normal modification: send RegistryChangeKind::Modify and re-arm.
+                this_ptr->m_callback(::wil::RegistryChangeKind::Modify);
+                ::SetThreadpoolWait(this_ptr->m_threadPoolWait.get(), this_ptr->m_eventHandle.get(), nullptr);
+                break;
+
+            case ERROR_KEY_DELETED:
+                // Key deleted: send RegistryChangeKind::Delete but do not re-arm.
+                this_ptr->m_callback(::wil::RegistryChangeKind::Delete);
+                break;
+
+            case ERROR_HANDLE_REVOKED:
+                // Handle revoked.  This can occur if the user session ends before the watcher shuts-down.
+                // Do not re-arm since there is generally no way to respond.
+                break;
+
+            default:
+                // failure here is a programming error.
+                FAIL_FAST_HR(HRESULT_FROM_WIN32(error));
+            }
+        }
+
+        // This function exists to avoid template expansion of this code based on err_policy.
+        HRESULT create_common(::wil::unique_hkey&& keyToWatch, bool isRecursive, wistd::function<void(::wil::RegistryChangeKind)>&& callback) WI_NOEXCEPT
+        {
+            RETURN_IF_FAILED(m_eventHandle.create());
+
+            m_threadPoolWait.reset(CreateThreadpoolWait(&slim_registry_watcher_t::callback, this, nullptr));
+            RETURN_LAST_ERROR_IF(!m_threadPoolWait);
+
+            // associate the notification handle with the threadpool before passing it to RegNotifyChangeKeyValue so we get immediate callbacks in the tp
+            SetThreadpoolWait(m_threadPoolWait.get(), m_eventHandle.get(), nullptr);
+
+            // 'this' object must be fully created before calling RegNotifyChangeKeyValue, as callbacks can start immediately
+            m_keyToWatch = wistd::move(keyToWatch);
+            m_isRecursive = isRecursive;
+            m_callback = wistd::move(callback);
+
+            // no failures after RegNotifyChangeKeyValue succeeds, 
+            RETURN_IF_WIN32_ERROR(RegNotifyChangeKeyValue(m_keyToWatch.get(), m_isRecursive, ::wil::details::registry_notify_filter, m_eventHandle.get(), TRUE));
+            return S_OK;
+        }
+    };
 
     template <typename storage_t, typename err_policy = err_exception_policy>
     class registry_watcher_t : public storage_t
@@ -3173,9 +3278,9 @@ namespace wil
                 // using auto reset event so don't need to manually reset.
 
                 // failure here is a programming error.
-                const LSTATUS error = RegNotifyChangeKeyValue(watcherState->m_keyToWatch.get(), watcherState->m_isRecursive,
-                    REG_NOTIFY_CHANGE_LAST_SET | REG_NOTIFY_CHANGE_NAME | REG_NOTIFY_THREAD_AGNOSTIC,
-                    watcherState->m_eventHandle.get(), TRUE);
+                const LSTATUS error = RegNotifyChangeKeyValue(
+                    watcherState->m_keyToWatch.get(), watcherState->m_isRecursive,
+                    ::wil::details::registry_notify_filter, watcherState->m_eventHandle.get(), TRUE);
 
                 // Call the client before re-arming to ensure that multiple callbacks don't
                 // run concurrently.
@@ -3213,9 +3318,9 @@ namespace wil
                 wistd::move(keyToWatch), isRecursive, wistd::move(callback)));
             RETURN_IF_NULL_ALLOC(watcherState);
             RETURN_IF_FAILED(watcherState->m_eventHandle.create());
-            RETURN_IF_WIN32_ERROR(RegNotifyChangeKeyValue(watcherState->m_keyToWatch.get(),
-                watcherState->m_isRecursive, REG_NOTIFY_CHANGE_LAST_SET | REG_NOTIFY_CHANGE_NAME | REG_NOTIFY_THREAD_AGNOSTIC,
-                watcherState->m_eventHandle.get(), TRUE));
+            RETURN_IF_WIN32_ERROR(RegNotifyChangeKeyValue(
+                watcherState->m_keyToWatch.get(), watcherState->m_isRecursive,
+                ::wil::details::registry_notify_filter, watcherState->m_eventHandle.get(), TRUE));
 
             watcherState->m_threadPoolWait.reset(CreateThreadpoolWait(&registry_watcher_t::callback, watcherState.get(), nullptr));
             RETURN_LAST_ERROR_IF(!watcherState->m_threadPoolWait);
@@ -3225,44 +3330,105 @@ namespace wil
         }
     };
 
-    typedef unique_any_t<registry_watcher_t<details::unique_storage<details::registry_watcher_state_resource_policy>, err_returncode_policy>> unique_registry_watcher_nothrow;
-    typedef unique_any_t<registry_watcher_t<details::unique_storage<details::registry_watcher_state_resource_policy>, err_failfast_policy>> unique_registry_watcher_failfast;
+    typedef ::wil::unique_any_t<registry_watcher_t<details::unique_storage<details::registry_watcher_state_resource_policy>, err_returncode_policy>> unique_registry_watcher_nothrow;
+    typedef ::wil::unique_any_t<registry_watcher_t<details::unique_storage<details::registry_watcher_state_resource_policy>, err_failfast_policy>> unique_registry_watcher_failfast;
 
-    inline unique_registry_watcher_nothrow make_registry_watcher_nothrow(HKEY rootKey, _In_ PCWSTR subKey, bool isRecursive, wistd::function<void(RegistryChangeKind)>&& callback) WI_NOEXCEPT
+    typedef ::wistd::unique_ptr<::wil::slim_registry_watcher_t<err_returncode_policy>> unique_slim_registry_watcher_nothrow;
+    typedef ::wistd::unique_ptr<::wil::slim_registry_watcher_t<err_failfast_policy>> unique_slim_registry_watcher_failfast;
+
+    inline ::wil::unique_registry_watcher_nothrow make_registry_watcher_nothrow(HKEY rootKey, _In_ PCWSTR subKey, bool isRecursive, wistd::function<void(RegistryChangeKind)>&& callback) WI_NOEXCEPT
     {
         unique_registry_watcher_nothrow watcher;
         watcher.create(rootKey, subKey, isRecursive, wistd::move(callback));
         return watcher; // caller must test for success using if (watcher)
     }
+    inline ::wil::unique_slim_registry_watcher_nothrow make_slim_registry_watcher_nothrow(HKEY rootKey, _In_ PCWSTR subKey, bool isRecursive, wistd::function<void(RegistryChangeKind)>&& callback) WI_NOEXCEPT
+    {
+        auto watcher = wil::make_unique_nothrow<::wil::slim_registry_watcher_t<wil::err_returncode_policy>>();
+        if (watcher)
+        {
+            if (FAILED(watcher->create(rootKey, subKey, isRecursive, ::wistd::move(callback))))
+            {
+                watcher.reset();
+            }
+        }
+        // caller must test for success using if (watcher)
+        return watcher;
+    }
 
-    inline unique_registry_watcher_nothrow make_registry_watcher_nothrow(unique_hkey&& keyToWatch, bool isRecursive, wistd::function<void(RegistryChangeKind)>&& callback) WI_NOEXCEPT
+    inline ::wil::unique_registry_watcher_nothrow make_registry_watcher_nothrow(unique_hkey&& keyToWatch, bool isRecursive, wistd::function<void(RegistryChangeKind)>&& callback) WI_NOEXCEPT
     {
         unique_registry_watcher_nothrow watcher;
         watcher.create(wistd::move(keyToWatch), isRecursive, wistd::move(callback));
         return watcher; // caller must test for success using if (watcher)
     }
-
-    inline unique_registry_watcher_failfast make_registry_watcher_failfast(HKEY rootKey, _In_ PCWSTR subKey, bool isRecursive, wistd::function<void(RegistryChangeKind)>&& callback)
+    inline ::wil::unique_slim_registry_watcher_nothrow make_slim_registry_watcher_nothrow(unique_hkey&& keyToWatch, bool isRecursive, wistd::function<void(RegistryChangeKind)>&& callback) WI_NOEXCEPT
     {
-        return unique_registry_watcher_failfast(rootKey, subKey, isRecursive, wistd::move(callback));
+        auto watcher = wil::make_unique_nothrow<::wil::slim_registry_watcher_t<wil::err_returncode_policy>>();
+        if (watcher)
+        {
+            watcher->create(::wistd::move(keyToWatch), isRecursive, ::wistd::move(callback));
+        }
+        // caller must test for success using if (watcher)
+        return watcher;
     }
 
-    inline unique_registry_watcher_failfast make_registry_watcher_failfast(unique_hkey&& keyToWatch, bool isRecursive, wistd::function<void(RegistryChangeKind)>&& callback)
+    inline ::wil::unique_registry_watcher_failfast make_registry_watcher_failfast(HKEY rootKey, _In_ PCWSTR subKey, bool isRecursive, wistd::function<void(RegistryChangeKind)>&& callback)
     {
-        return unique_registry_watcher_failfast(wistd::move(keyToWatch), isRecursive, wistd::move(callback));
+        return ::wil::unique_registry_watcher_failfast(rootKey, subKey, isRecursive, wistd::move(callback));
+    }
+    inline ::wil::unique_slim_registry_watcher_failfast make_slim_registry_watcher_failfast(HKEY rootKey, _In_ PCWSTR subKey, bool isRecursive, wistd::function<void(RegistryChangeKind)>&& callback)
+    {
+        auto watcher = wil::make_unique_failfast<::wil::slim_registry_watcher_t<wil::err_failfast_policy>>();
+        if (watcher)
+        {
+            watcher->create(rootKey, subKey, isRecursive, ::wistd::move(callback));
+        }
+        // caller must test for success using if (watcher)
+        return watcher;
+    }
+
+    inline ::wil::unique_registry_watcher_failfast make_registry_watcher_failfast(unique_hkey&& keyToWatch, bool isRecursive, wistd::function<void(RegistryChangeKind)>&& callback)
+    {
+        return ::wil::unique_registry_watcher_failfast(wistd::move(keyToWatch), isRecursive, wistd::move(callback));
+    }
+    inline ::wil::unique_slim_registry_watcher_failfast make_slim_registry_watcher_failfast(unique_hkey&& keyToWatch, bool isRecursive, wistd::function<void(RegistryChangeKind)>&& callback)
+    {
+        auto watcher = wil::make_unique_failfast<::wil::slim_registry_watcher_t<wil::err_failfast_policy>>();
+        if (watcher)
+        {
+            watcher->create(::wistd::move(keyToWatch), isRecursive, ::wistd::move(callback));
+        }
+        // caller must test for success using if (watcher)
+        return watcher;
     }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
-    typedef unique_any_t<registry_watcher_t<details::unique_storage<details::registry_watcher_state_resource_policy>, err_exception_policy >> unique_registry_watcher;
+    typedef ::wil::unique_any_t<registry_watcher_t<details::unique_storage<details::registry_watcher_state_resource_policy>, err_exception_policy >> unique_registry_watcher;
+    typedef ::wistd::unique_ptr<::wil::slim_registry_watcher_t<err_exception_policy>> unique_slim_registry_watcher;
 
-    inline unique_registry_watcher make_registry_watcher(HKEY rootKey, _In_ PCWSTR subKey, bool isRecursive, wistd::function<void(RegistryChangeKind)>&& callback)
+    inline ::wil::unique_registry_watcher make_registry_watcher(HKEY rootKey, _In_ PCWSTR subKey, bool isRecursive, wistd::function<void(RegistryChangeKind)>&& callback)
     {
-        return unique_registry_watcher(rootKey, subKey, isRecursive, wistd::move(callback));
+        return ::wil::unique_registry_watcher(rootKey, subKey, isRecursive, wistd::move(callback));
+    }
+    inline ::wil::unique_slim_registry_watcher make_slim_registry_watcher(HKEY rootKey, _In_ PCWSTR subKey, bool isRecursive, wistd::function<void(RegistryChangeKind)>&& callback)
+    {
+        auto watcher = wil::make_unique_nothrow<::wil::slim_registry_watcher_t<wil::err_exception_policy>>();
+        THROW_IF_NULL_ALLOC(watcher.get());
+        watcher->create(rootKey, subKey, isRecursive, ::wistd::move(callback));
+        return watcher;
     }
 
-    inline unique_registry_watcher make_registry_watcher(unique_hkey&& keyToWatch, bool isRecursive, wistd::function<void(RegistryChangeKind)>&& callback)
+    inline ::wil::unique_registry_watcher make_registry_watcher(unique_hkey&& keyToWatch, bool isRecursive, wistd::function<void(RegistryChangeKind)>&& callback)
     {
-        return unique_registry_watcher(wistd::move(keyToWatch), isRecursive, wistd::move(callback));
+        return ::wil::unique_registry_watcher(wistd::move(keyToWatch), isRecursive, wistd::move(callback));
+    }
+    inline ::wil::unique_slim_registry_watcher make_slim_registry_watcher(unique_hkey&& keyToWatch, bool isRecursive, wistd::function<void(RegistryChangeKind)>&& callback)
+    {
+        auto watcher = wil::make_unique_nothrow<::wil::slim_registry_watcher_t<wil::err_exception_policy>>();
+        THROW_IF_NULL_ALLOC(watcher.get());
+        watcher->create(::wistd::move(keyToWatch), isRecursive, ::wistd::move(callback));
+        return watcher;
     }
 #endif // WIL_ENABLE_EXCEPTIONS
 } // namespace wil
