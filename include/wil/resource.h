@@ -1299,7 +1299,7 @@ namespace wil
 
     Consider this adapter in preference to `wil::unique_any<>` when the returned type is really a pointer or an
     array of items; `wistd::unique_ptr<>` exposes `operator->()` and `operator[]` for array-typed things safely.
-    ~~~~
+    @code
     EXTERN_C VOID WINAPI MyDllFreeMemory(void* p);
     EXTERN_C HRESULT MyDllGetString(_Outptr_ PWSTR* pString);
     EXTERN_C HRESULT MyDllGetThing(_In_ PCWSTR pString, _Outptr_ PMYSTRUCT* ppThing);
@@ -1317,7 +1317,8 @@ namespace wil
     }
     return S_OK;
     }
-    ~~~~ */
+    @endcode
+    */
     template<typename Q, Q TDeleter> struct function_deleter
     {
         template<typename T> void operator()(_Frees_ptr_opt_ T* toFree) const
@@ -4919,7 +4920,7 @@ namespace wil
         }
         ~~~~
         @param certStore A handle of a certificate store.
-        @param 'true' if a certificate was enumerated by this call, false otherwise.
+        @return 'true' if a certificate was enumerated by this call, false otherwise.
         */
         bool CertEnumCertificatesInStore(HCERTSTORE certStore) WI_NOEXCEPT
         {

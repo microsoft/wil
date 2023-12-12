@@ -3353,8 +3353,6 @@ __WI_POP_WARNINGS
     //! Note that an overload exists that does not report failures to telemetry at all.  This version should be preferred
     //! to that version.  Also note that neither of these versions are preferred over using try catch blocks to accomplish
     //! the same thing as they will be more efficient.
-    //!
-    //! See @ref page_exception_guards for more information and examples on exception guards.
     //! ~~~~
     //! return wil::ResultFromException(WI_DIAGNOSTICS_INFO, [&]
     //! {
@@ -3390,8 +3388,6 @@ __WI_POP_WARNINGS
     //! This version (taking only a lambda) does not report failures to telemetry.  An overload with the same name
     //! can be utilized by passing `WI_DIAGNOSTICS_INFO` as the first parameter and the lambda as the second parameter
     //! to report failure information to telemetry.
-    //!
-    //! See @ref page_exception_guards for more information and examples on exception guards.
     //! ~~~~
     //! hr = wil::ResultFromException([&]
     //! {
@@ -3450,9 +3446,8 @@ __WI_POP_WARNINGS
     //! exception, you can use this function to quickly add an exception guard that will fail-fast any exception at the point
     //! the exception occurs (the throw) in a codepath where the origination of unknown exceptions need to be tracked down.
     //!
-    //! Also see @ref ResultFromExceptionDebugNoStdException.  It functions almost identically, but also will fail-fast and stop
-    //! on std::exception based exceptions (but not Platform::Exception^ or wil::ResultException).  Using this can help isolate
-    //! where an unexpected exception is being generated from.
+    //! This will fail-fast and stop on std::exception based exceptions (but not Platform::Exception^ or wil::ResultException).
+    //! Using this can help isolate where an unexpected exception is being generated from.
     //! @param diagnostics  Always pass WI_DIAGNOSTICS_INFO as the first parameter
     //! @param supported    What kind of exceptions you want to support
     //! @param functor      A lambda that accepts no parameters; any return value is ignored

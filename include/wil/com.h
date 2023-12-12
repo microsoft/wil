@@ -2441,6 +2441,7 @@ namespace wil
     @endcode
     @param source The stream from which to read a string
     @param value Set to point to the allocated result of reading a string from `source`
+    @param options Controls behavior when reading a zero-length string from a stream
     */
     inline HRESULT stream_read_string_nothrow(
         _In_ ISequentialStream* source,
@@ -2761,6 +2762,7 @@ namespace wil
     }
     @endcode
     @param source The stream from which to read a string
+    @param options Controls the behavior when reading a zero-length string
     @return An non-null string (but possibly zero lengh) string read from `source`
     */
     inline wil::unique_cotaskmem_string stream_read_string(_In_ ISequentialStream* source, empty_string_options options = empty_string_options::returns_empty)
@@ -2809,7 +2811,7 @@ namespace wil
     /** Saves and restores the position of a stream
     Useful for potentially reading data from a stream, or being able to read ahead, then reset
     back to where one left off, such as conditionally reading content from a stream.
-    ~~~~
+    @code
     void MaybeConsumeStream(IStream* stream)
     {
         // On error, reset the read position in the stream to where we left off
@@ -2820,7 +2822,7 @@ namespace wil
             ProcessElement(wil::stream_read<MY_ELEMENT>(stream));
         }
     }
-    ~~~~
+    @endcode
     */
     class stream_position_saver
     {
@@ -2842,14 +2844,14 @@ namespace wil
         }
 
         /** Updates the current position in the stream
-        ~~~~
+        @code
         // Read a size marker from the stream, then advance that much.
         IStream* stream1 = // ...
         auto saver = wil::stream_position_saver(stream1);
         auto size = wil::stream_read<long>(stream1);
         wil::stream_seek_from_current_position(stream, size);
         saver.update();
-        ~~~~
+        @endcode
         */
         void update()
         {
@@ -2909,7 +2911,7 @@ namespace wil
         }
 
         /** Stops saving the position of the stream
-        ~~~~
+        @code
         // The stream has either a standard or extended header, followed by interesting content.
         // Read either one, leaving the stream after the headers have been read off. On failure,
         // the stream's position is restored.
@@ -2925,7 +2927,7 @@ namespace wil
             saver.dismiss();
             return { mt, mte };
         }
-        ~~~~
+        @endcode
         */
         void dismiss()
         {

@@ -344,7 +344,7 @@ namespace wil
     you will need to hold a reference explicitly. For the WRL equivalent, see wrl_module_reference.
 
     This can be used as a base, which permits EBO:
-    ~~~~
+    @code
     struct NonWinrtObject : wil::winrt_module_reference
     {
         int value;
@@ -352,11 +352,11 @@ namespace wil
 
     // DLL will not be unloaded as long as NonWinrtObject is still alive.
     auto p = std::make_unique<NonWinrtObject>();
-    ~~~~
+    @endcode
 
     Or it can be used as a member (with [[no_unique_address]] to avoid
     occupying any memory):
-    ~~~~
+    @code
     struct NonWinrtObject
     {
         int value;
@@ -366,24 +366,24 @@ namespace wil
 
     // DLL will not be unloaded as long as NonWinrtObject is still alive.
     auto p = std::make_unique<NonWinrtObject>();
-    ~~~~
+    @endcode
 
     If using it to prevent the host DLL from unloading while a thread
     or threadpool work item is still running, create the object before
     starting the thread, and pass it to the thread. This avoids a race
     condition where the host DLL could get unloaded before the thread starts.
-    ~~~~
+    @code
     std::thread([module_ref = wil::winrt_module_reference()]() { do_background_work(); });
 
     // Don't do this (race condition)
     std::thread([]() { wil::winrt_module_reference module_ref; do_background_work(); }); // WRONG
-    ~~~~
+    @endcode
 
     Also useful in coroutines that neither capture DLL-hosted COM objects, nor are themselves
     DLL-hosted COM objects. (If the coroutine returns IAsyncAction or captures a get_strong()
     of its containing WinRT class, then the IAsyncAction or strong reference will itself keep
     a strong reference to the host module.)
-    ~~~~
+    @code
     winrt::fire_and_forget ContinueBackgroundWork()
     {
         // prevent DLL from unloading while we are running on a background thread.
@@ -393,7 +393,7 @@ namespace wil
         co_await winrt::resume_background();
         do_background_work();
     };
-    ~~~~
+    @endcode
     */
     struct [[nodiscard]] winrt_module_reference
     {
@@ -411,7 +411,7 @@ namespace wil
     };
 
     /** Implements a C++/WinRT class where some interfaces are conditionally supported.
-    ~~~~
+    @code
     // Assume the existence of a class "Version2" which says whether
     // the IMyThing2 interface should be supported.
     struct Version2 { static bool IsEnabled(); };
@@ -423,7 +423,7 @@ namespace wil
         // implementation goes here
     };
 
-    ~~~~
+    @endcode
 
     If `Version2::IsEnabled()` returns `false`, then the `QueryInterface`
     for `IMyThing2` will fail.
@@ -434,7 +434,7 @@ namespace wil
     Interfaces may be conditionalized on at most one Version class. If you need a
     complex conditional, create a new helper class.
 
-    ~~~~
+    @code
     // Helper class for testing two Versions.
     struct Version2_or_greater {
         static bool IsEnabled() { return Version2::IsEnabled() || Version3::IsEnabled(); }
@@ -447,7 +447,7 @@ namespace wil
     {
         // implementation goes here
     };
-    ~~~~
+    @endcode
     */
     template<typename Implements, typename... Rest>
     struct winrt_conditionally_implements : Implements

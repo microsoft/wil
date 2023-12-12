@@ -251,7 +251,7 @@ namespace wil
     }
 
     /** TwoPhaseHStringConstructor help using the 2 phase constructor pattern for HSTRINGs.
-    ~~~
+    @code
     auto stringConstructor = wil::TwoPhaseHStringConstructor::Preallocate(size);
     RETURN_IF_NULL_ALLOC(stringConstructor.Get());
 
@@ -261,7 +261,7 @@ namespace wil
     RETURN_IF_FAILED(stringConstructor.Validate(bytesRead));
 
     wil::unique_hstring string { stringConstructor.Promote() };
-    ~~~
+    @endcode
 
     See also wil::unique_hstring_buffer.
     */
@@ -543,7 +543,7 @@ namespace wil
 
     /** Range base for and STL algorithms support for WinRT ABI collection types, IVector<T>, IVectorView<T>, IIterable<T>
     similar to support provided by <collection.h> for C++ CX. Three error handling policies are supported.
-    ~~~
+    @code
     ComPtr<CollectionType> collection = GetCollection(); // can be IVector<HSTRING>, IVectorView<HSTRING> or IIterable<HSTRING>
 
     for (auto const& element : wil::get_range(collection.Get()))                // exceptions
@@ -552,16 +552,16 @@ namespace wil
     {
        // use element
     }
-    ~~~
+    @endcode
     Standard algorithm example:
-    ~~~
+    @code
     ComPtr<IVectorView<StorageFile*>> files = GetFiles();
     auto fileRange = wil::get_range_nothrow(files.Get());
     auto itFound = std::find_if(fileRange.begin(), fileRange.end(), [](ComPtr<IStorageFile> file) -> bool
     {
          return true; // first element in range
     });
-    ~~~
+    @endcode
     */
 #pragma region exception and fail fast based IVector<>/IVectorView<>
 

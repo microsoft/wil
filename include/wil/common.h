@@ -471,7 +471,7 @@ WI_HEADER_INITITALIZATION_FUNCTION(InitializeDesktopFamilyApis, []
 #endif
 ~~~~
 The above example is used within WIL to decide whether or not the library containing WIL is allowed to use
-desktop APIs.  Building this functionality as #IFDEFs within functions would create ODR violations, whereas
+desktop APIs.  Building this functionality as `#IFDEF`s within functions would create ODR violations, whereas
 doing it with global function pointers and header initialization allows a runtime determination. */
 #define WI_HEADER_INITITALIZATION_FUNCTION(name, fn)
 #elif defined(_M_IX86)
@@ -653,7 +653,7 @@ namespace wil
     Other types will generate an intentional compilation error.  Note that this will accept any `long` value as that is the
     underlying typedef behind HRESULT.
 
-    Note that occasionally you might run into an HRESULT which is directly defined with a #define, such as:
+    Note that occasionally you might run into an HRESULT which is directly defined with a `#define`, such as:
     ~~~~
     #define UIA_E_NOTSUPPORTED   0x80040204
     ~~~~
@@ -683,21 +683,21 @@ namespace wil
     Other types will generate an intentional compilation error.  Note that this will accept any `long` value as that is the
     underlying typedef behind NTSTATUS.
     //!
-    Note that occasionally you might run into an NTSTATUS which is directly defined with a #define, such as:
-    ~~~~
+    Note that occasionally you might run into an NTSTATUS which is directly defined with a `#define`, such as:
+    @code
     #define STATUS_NOT_SUPPORTED             0x1
-    ~~~~
+    @endcode
     Though this looks like an `NTSTATUS`, this is actually an `unsigned long` (the hex specification forces this).  When
     these are encountered and they are NOT in the public SDK (have not yet shipped to the public), then you should change
     their definition to match the manner in which `NTSTATUS` constants are defined in ntstatus.h:
-    ~~~~
+    @code
     #define STATUS_NOT_SUPPORTED             ((NTSTATUS)0xC00000BBL)
-    ~~~~
+    @endcode
     When these are encountered in the public SDK, their type should not be changed and you should use a static_cast
     to use this value in a macro that utilizes `verify_ntstatus`, for example:
-    ~~~~
+    @code
     NT_RETURN_IF_FALSE(static_cast<NTSTATUS>(STATUS_NOT_SUPPORTED), (dispatch->Version == HKE_V1_0));
-    ~~~~
+    @endcode
     @param status The NTSTATUS returning expression
     @return An NTSTATUS representing the evaluation of `val`. */
     template <typename T>

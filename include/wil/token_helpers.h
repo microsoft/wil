@@ -168,7 +168,7 @@ namespace wil
     }
     @endcode
     @param tokenInfo Receives a pointer to a structure containing the results of GetTokenInformation for the requested
-            type. The type of <T> selects which TOKEN_INFORMATION_CLASS will be used.
+            type. The type of `<T>` selects which TOKEN_INFORMATION_CLASS will be used.
     @param tokenHandle Specifies which token will be queried. When nullptr, the thread's effective current token is used.
     @return S_OK on success, a FAILED hresult containing the win32 error from querying the token otherwise.
     */
@@ -281,7 +281,7 @@ namespace wil
     }
     @endcode
     @return A pointer to a structure containing the results of GetTokenInformation for the requested  type. The type of
-                <T> selects which TOKEN_INFORMATION_CLASS will be used.
+                `<T>` selects which TOKEN_INFORMATION_CLASS will be used.
     @param token Specifies which token will be queried. When nullptr or not set, the thread's effective current token is used.
     */
     template <typename T>
@@ -353,6 +353,7 @@ namespace wil
     }
     ~~~~
     @param token A token to impersonate, or 'nullptr' to run as the process identity.
+    @param reverter An RAII object that, on success, will revert the impersonation when it goes out of scope.
     */
     inline HRESULT impersonate_token_nothrow(HANDLE token, unique_token_reverter& reverter)
     {
@@ -560,6 +561,7 @@ namespace wil
     }
     ~~~~
     @param token A token to get info about, or 'nullptr' to run as the current thread.
+    @param value The result of the operation; `true` if the token represents an app container, `false` otherwise.
     */
     inline HRESULT get_token_is_app_container_nothrow(_In_opt_ HANDLE token, bool& value)
     {

@@ -647,14 +647,14 @@ namespace wil
 
 #if defined(_VECTOR_) || defined(WIL_DOXYGEN)
         /**
-         * @brief Writes a registry value of the specified type from a std::vector<uint8_t>/std::vector<BYTE>
+         * @brief Writes a registry value of the specified type from a `std::vector<uint8_t>`/`std::vector<BYTE>`
          * @param key An open or well-known registry key
          * @param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
          * @param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to write to the unnamed default registry value.
          * @param type The registry type for the specified registry value - see RegSetKeyValueW
-         * @param data A std::vector<uint8_t>/std::vector<BYTE> to write to the specified registry value.
+         * @param data A `std::vector<uint8_t>`/`std::vector<BYTE>` to write to the specified registry value.
          *        The vector contents will be directly marshaled to the specified value.
          * @exception std::exception (including wil::ResultException) will be thrown on all failures
          */
@@ -665,12 +665,12 @@ namespace wil
         }
 
         /**
-         * @brief Writes a registry value of the specified type from a std::vector<uint8_t>/std::vector<BYTE>
+         * @brief Writes a registry value of the specified type from a `std::vector<uint8_t>`/`std::vector<BYTE>`
          * @param key An open or well-known registry key
          * @param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to write to the unnamed default registry value.
          * @param type The registry type for the specified registry value - see RegSetKeyValueW
-         * @param data A std::vector<uint8_t>/std::vector<BYTE> to write to the specified registry value.
+         * @param data A `std::vector<uint8_t>`/`std::vector<BYTE>` to write to the specified registry value.
          *        The vector contents will be directly marshaled to the specified value.
          * @exception std::exception (including wil::ResultException) will be thrown on all failures
          */
