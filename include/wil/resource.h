@@ -3853,13 +3853,13 @@ namespace wil
     Allocations are initialized with placement new and will call constructors (if present), but this does not guarantee initialization.
 
     Note that `wil::make_unique_hlocal_nothrow()` is not marked WI_NOEXCEPT as it may be used to create an exception-based class that may throw in its constructor.
-    ~~~
+    @code
     auto foo = wil::make_unique_hlocal_nothrow<Foo>();
     if (foo)
     {
     // initialize allocated Foo object as appropriate
     }
-    ~~~
+    @endcode
     */
     template <typename T, typename... Args>
     inline typename wistd::enable_if<!wistd::is_array<T>::value, unique_hlocal_ptr<T>>::type make_unique_hlocal_nothrow(Args&&... args)
@@ -3876,7 +3876,7 @@ namespace wil
 
     /** Provides `std::make_unique()` semantics for array resources allocated with `LocalAlloc()` in a context that may not throw upon allocation failure.
     See the overload of `wil::make_unique_hlocal_nothrow()` for non-array types for more details.
-    ~~~
+    @code
     const size_t size = 42;
     auto foos = wil::make_unique_hlocal_nothrow<Foo[]>(size);
     if (foos)
@@ -3886,7 +3886,7 @@ namespace wil
     // initialize allocated Foo objects as appropriate
     }
     }
-    ~~~
+    @endcode
     */
     template <typename T>
     inline typename wistd::enable_if<wistd::is_array<T>::value && wistd::extent<T>::value == 0, unique_hlocal_ptr<T>>::type make_unique_hlocal_nothrow(size_t size)
@@ -3911,10 +3911,10 @@ namespace wil
 
     /** Provides `std::make_unique()` semantics for resources allocated with `LocalAlloc()` in a context that must fail fast upon allocation failure.
     See the overload of `wil::make_unique_hlocal_nothrow()` for non-array types for more details.
-    ~~~
+    @code
     auto foo = wil::make_unique_hlocal_failfast<Foo>();
     // initialize allocated Foo object as appropriate
-    ~~~
+    @endcode
     */
     template <typename T, typename... Args>
     inline typename wistd::enable_if<!wistd::is_array<T>::value, unique_hlocal_ptr<T>>::type make_unique_hlocal_failfast(Args&&... args)
@@ -3926,14 +3926,14 @@ namespace wil
 
     /** Provides `std::make_unique()` semantics for array resources allocated with `LocalAlloc()` in a context that must fail fast upon allocation failure.
     See the overload of `wil::make_unique_hlocal_nothrow()` for non-array types for more details.
-    ~~~
+    @code
     const size_t size = 42;
     auto foos = wil::make_unique_hlocal_failfast<Foo[]>(size);
     for (auto& elem : wil::make_range(foos.get(), size))
     {
     // initialize allocated Foo objects as appropriate
     }
-    ~~~
+    @endcode
     */
     template <typename T>
     inline typename wistd::enable_if<wistd::is_array<T>::value && wistd::extent<T>::value == 0, unique_hlocal_ptr<T>>::type make_unique_hlocal_failfast(size_t size)
@@ -3946,10 +3946,10 @@ namespace wil
 #ifdef WIL_ENABLE_EXCEPTIONS
     /** Provides `std::make_unique()` semantics for resources allocated with `LocalAlloc()`.
     See the overload of `wil::make_unique_hlocal_nothrow()` for non-array types for more details.
-    ~~~
+    @code
     auto foo = wil::make_unique_hlocal<Foo>();
     // initialize allocated Foo object as appropriate
-    ~~~
+    @endcode
     */
     template <typename T, typename... Args>
     inline typename wistd::enable_if<!wistd::is_array<T>::value, unique_hlocal_ptr<T>>::type make_unique_hlocal(Args&&... args)
@@ -3961,14 +3961,14 @@ namespace wil
 
     /** Provides `std::make_unique()` semantics for array resources allocated with `LocalAlloc()`.
     See the overload of `wil::make_unique_hlocal_nothrow()` for non-array types for more details.
-    ~~~
+    @code
     const size_t size = 42;
     auto foos = wil::make_unique_hlocal<Foo[]>(size);
     for (auto& elem : wil::make_range(foos.get(), size))
     {
     // initialize allocated Foo objects as appropriate
     }
-    ~~~
+    @endcode
     */
     template <typename T>
     inline typename wistd::enable_if<wistd::is_array<T>::value && wistd::extent<T>::value == 0, unique_hlocal_ptr<T>>::type make_unique_hlocal(size_t size)
@@ -4076,13 +4076,13 @@ namespace wil
 
     /** Provides `std::make_unique()` semantics for secure resources allocated with `LocalAlloc()` in a context that may not throw upon allocation failure.
     See the overload of `wil::make_unique_hlocal_nothrow()` for non-array types for more details.
-    ~~~
+    @code
     auto foo = wil::make_unique_hlocal_secure_nothrow<Foo>();
     if (foo)
     {
     // initialize allocated Foo object as appropriate
     }
-    ~~~
+    @endcode
     */
     template <typename T, typename... Args>
     inline typename wistd::enable_if<!wistd::is_array<T>::value, unique_hlocal_secure_ptr<T>>::type make_unique_hlocal_secure_nothrow(Args&&... args)
@@ -4092,7 +4092,7 @@ namespace wil
 
     /** Provides `std::make_unique()` semantics for secure array resources allocated with `LocalAlloc()` in a context that may not throw upon allocation failure.
     See the overload of `wil::make_unique_hlocal_nothrow()` for non-array types for more details.
-    ~~~
+    @code
     const size_t size = 42;
     auto foos = wil::make_unique_hlocal_secure_nothrow<Foo[]>(size);
     if (foos)
@@ -4102,7 +4102,7 @@ namespace wil
     // initialize allocated Foo objects as appropriate
     }
     }
-    ~~~
+    @endcode
     */
     template <typename T>
     inline typename wistd::enable_if<wistd::is_array<T>::value && wistd::extent<T>::value == 0, unique_hlocal_secure_ptr<T>>::type make_unique_hlocal_secure_nothrow(size_t size)
@@ -4112,10 +4112,10 @@ namespace wil
 
     /** Provides `std::make_unique()` semantics for secure resources allocated with `LocalAlloc()` in a context that must fail fast upon allocation failure.
     See the overload of `wil::make_unique_hlocal_nothrow()` for non-array types for more details.
-    ~~~
+    @code
     auto foo = wil::make_unique_hlocal_secure_failfast<Foo>();
     // initialize allocated Foo object as appropriate
-    ~~~
+    @endcode
     */
     template <typename T, typename... Args>
     inline typename wistd::enable_if<!wistd::is_array<T>::value, unique_hlocal_secure_ptr<T>>::type make_unique_hlocal_secure_failfast(Args&&... args)
@@ -4127,14 +4127,14 @@ namespace wil
 
     /** Provides `std::make_unique()` semantics for secure array resources allocated with `LocalAlloc()` in a context that must fail fast upon allocation failure.
     See the overload of `wil::make_unique_hlocal_nothrow()` for non-array types for more details.
-    ~~~
+    @code
     const size_t size = 42;
     auto foos = wil::make_unique_hlocal_secure_failfast<Foo[]>(size);
     for (auto& elem : wil::make_range(foos.get(), size))
     {
     // initialize allocated Foo objects as appropriate
     }
-    ~~~
+    @endcode
     */
     template <typename T>
     inline typename wistd::enable_if<wistd::is_array<T>::value && wistd::extent<T>::value == 0, unique_hlocal_secure_ptr<T>>::type make_unique_hlocal_secure_failfast(size_t size)
@@ -4147,10 +4147,10 @@ namespace wil
 #ifdef WIL_ENABLE_EXCEPTIONS
     /** Provides `std::make_unique()` semantics for secure resources allocated with `LocalAlloc()`.
     See the overload of `wil::make_unique_hlocal_nothrow()` for non-array types for more details.
-    ~~~
+    @code
     auto foo = wil::make_unique_hlocal_secure<Foo>();
     // initialize allocated Foo object as appropriate
-    ~~~
+    @endcode
     */
     template <typename T, typename... Args>
     inline typename wistd::enable_if<!wistd::is_array<T>::value, unique_hlocal_secure_ptr<T>>::type make_unique_hlocal_secure(Args&&... args)
@@ -4162,14 +4162,14 @@ namespace wil
 
     /** Provides `std::make_unique()` semantics for secure array resources allocated with `LocalAlloc()`.
     See the overload of `wil::make_unique_hlocal_nothrow()` for non-array types for more details.
-    ~~~
+    @code
     const size_t size = 42;
     auto foos = wil::make_unique_hlocal_secure<Foo[]>(size);
     for (auto& elem : wil::make_range(foos.get(), size))
     {
     // initialize allocated Foo objects as appropriate
     }
-    ~~~
+    @endcode
     */
     template <typename T>
     inline typename wistd::enable_if<wistd::is_array<T>::value && wistd::extent<T>::value == 0, unique_hlocal_secure_ptr<T>>::type make_unique_hlocal_secure(size_t size)
@@ -5085,13 +5085,13 @@ namespace wil
     Allocations are initialized with placement new and will call constructors (if present), but this does not guarantee initialization.
 
     Note that `wil::make_unique_cotaskmem_nothrow()` is not marked WI_NOEXCEPT as it may be used to create an exception-based class that may throw in its constructor.
-    ~~~
+    @code
     auto foo = wil::make_unique_cotaskmem_nothrow<Foo>();
     if (foo)
     {
     // initialize allocated Foo object as appropriate
     }
-    ~~~
+    @endcode
     */
     template <typename T, typename... Args>
     inline typename wistd::enable_if<!wistd::is_array<T>::value, unique_cotaskmem_ptr<T>>::type make_unique_cotaskmem_nothrow(Args&&... args)
@@ -5108,7 +5108,7 @@ namespace wil
 
     /** Provides `std::make_unique()` semantics for array resources allocated with `CoTaskMemAlloc()` in a context that may not throw upon allocation failure.
     See the overload of `wil::make_unique_cotaskmem_nothrow()` for non-array types for more details.
-    ~~~
+    @code
     const size_t size = 42;
     auto foos = wil::make_unique_cotaskmem_nothrow<Foo[]>(size);
     if (foos)
@@ -5118,7 +5118,7 @@ namespace wil
     // initialize allocated Foo objects as appropriate
     }
     }
-    ~~~
+    @endcode
     */
     template <typename T>
     inline typename wistd::enable_if<wistd::is_array<T>::value && wistd::extent<T>::value == 0, unique_cotaskmem_ptr<T>>::type make_unique_cotaskmem_nothrow(size_t size)
@@ -5143,10 +5143,10 @@ namespace wil
 
     /** Provides `std::make_unique()` semantics for resources allocated with `CoTaskMemAlloc()` in a context that must fail fast upon allocation failure.
     See the overload of `wil::make_unique_cotaskmem_nothrow()` for non-array types for more details.
-    ~~~
+    @code
     auto foo = wil::make_unique_cotaskmem_failfast<Foo>();
     // initialize allocated Foo object as appropriate
-    ~~~
+    @endcode
     */
     template <typename T, typename... Args>
     inline typename wistd::enable_if<!wistd::is_array<T>::value, unique_cotaskmem_ptr<T>>::type make_unique_cotaskmem_failfast(Args&&... args)
@@ -5158,14 +5158,14 @@ namespace wil
 
     /** Provides `std::make_unique()` semantics for array resources allocated with `CoTaskMemAlloc()` in a context that must fail fast upon allocation failure.
     See the overload of `wil::make_unique_cotaskmem_nothrow()` for non-array types for more details.
-    ~~~
+    @code
     const size_t size = 42;
     auto foos = wil::make_unique_cotaskmem_failfast<Foo[]>(size);
     for (auto& elem : wil::make_range(foos.get(), size))
     {
     // initialize allocated Foo objects as appropriate
     }
-    ~~~
+    @endcode
     */
     template <typename T>
     inline typename wistd::enable_if<wistd::is_array<T>::value && wistd::extent<T>::value == 0, unique_cotaskmem_ptr<T>>::type make_unique_cotaskmem_failfast(size_t size)
@@ -5178,10 +5178,10 @@ namespace wil
 #ifdef WIL_ENABLE_EXCEPTIONS
     /** Provides `std::make_unique()` semantics for resources allocated with `CoTaskMemAlloc()`.
     See the overload of `wil::make_unique_cotaskmem_nothrow()` for non-array types for more details.
-    ~~~
+    @code
     auto foo = wil::make_unique_cotaskmem<Foo>();
     // initialize allocated Foo object as appropriate
-    ~~~
+    @endcode
     */
     template <typename T, typename... Args>
     inline typename wistd::enable_if<!wistd::is_array<T>::value, unique_cotaskmem_ptr<T>>::type make_unique_cotaskmem(Args&&... args)
@@ -5193,14 +5193,14 @@ namespace wil
 
     /** Provides `std::make_unique()` semantics for array resources allocated with `CoTaskMemAlloc()`.
     See the overload of `wil::make_unique_cotaskmem_nothrow()` for non-array types for more details.
-    ~~~
+    @code
     const size_t size = 42;
     auto foos = wil::make_unique_cotaskmem<Foo[]>(size);
     for (auto& elem : wil::make_range(foos.get(), size))
     {
     // initialize allocated Foo objects as appropriate
     }
-    ~~~
+    @endcode
     */
     template <typename T>
     inline typename wistd::enable_if<wistd::is_array<T>::value && wistd::extent<T>::value == 0, unique_cotaskmem_ptr<T>>::type make_unique_cotaskmem(size_t size)
@@ -5305,13 +5305,13 @@ namespace wil
 
     /** Provides `std::make_unique()` semantics for secure resources allocated with `CoTaskMemAlloc()` in a context that may not throw upon allocation failure.
     See the overload of `wil::make_unique_cotaskmem_nothrow()` for non-array types for more details.
-    ~~~
+    @code
     auto foo = wil::make_unique_cotaskmem_secure_nothrow<Foo>();
     if (foo)
     {
     // initialize allocated Foo object as appropriate
     }
-    ~~~
+    @endcode
     */
     template <typename T, typename... Args>
     inline typename wistd::enable_if<!wistd::is_array<T>::value, unique_cotaskmem_secure_ptr<T>>::type make_unique_cotaskmem_secure_nothrow(Args&&... args)
@@ -5321,7 +5321,7 @@ namespace wil
 
     /** Provides `std::make_unique()` semantics for secure array resources allocated with `CoTaskMemAlloc()` in a context that may not throw upon allocation failure.
     See the overload of `wil::make_unique_cotaskmem_nothrow()` for non-array types for more details.
-    ~~~
+    @code
     const size_t size = 42;
     auto foos = wil::make_unique_cotaskmem_secure_nothrow<Foo[]>(size);
     if (foos)
@@ -5331,7 +5331,7 @@ namespace wil
     // initialize allocated Foo objects as appropriate
     }
     }
-    ~~~
+    @endcode
     */
     template <typename T>
     inline typename wistd::enable_if<wistd::is_array<T>::value && wistd::extent<T>::value == 0, unique_cotaskmem_secure_ptr<T>>::type make_unique_cotaskmem_secure_nothrow(size_t size)
@@ -5341,10 +5341,10 @@ namespace wil
 
     /** Provides `std::make_unique()` semantics for secure resources allocated with `CoTaskMemAlloc()` in a context that must fail fast upon allocation failure.
     See the overload of `wil::make_unique_cotaskmem_nothrow()` for non-array types for more details.
-    ~~~
+    @code
     auto foo = wil::make_unique_cotaskmem_secure_failfast<Foo>();
     // initialize allocated Foo object as appropriate
-    ~~~
+    @endcode
     */
     template <typename T, typename... Args>
     inline typename wistd::enable_if<!wistd::is_array<T>::value, unique_cotaskmem_secure_ptr<T>>::type make_unique_cotaskmem_secure_failfast(Args&&... args)
@@ -5356,14 +5356,14 @@ namespace wil
 
     /** Provides `std::make_unique()` semantics for secure array resources allocated with `CoTaskMemAlloc()` in a context that must fail fast upon allocation failure.
     See the overload of `wil::make_unique_cotaskmem_nothrow()` for non-array types for more details.
-    ~~~
+    @code
     const size_t size = 42;
     auto foos = wil::make_unique_cotaskmem_secure_failfast<Foo[]>(size);
     for (auto& elem : wil::make_range(foos.get(), size))
     {
     // initialize allocated Foo objects as appropriate
     }
-    ~~~
+    @endcode
     */
     template <typename T>
     inline typename wistd::enable_if<wistd::is_array<T>::value && wistd::extent<T>::value == 0, unique_cotaskmem_secure_ptr<T>>::type make_unique_cotaskmem_secure_failfast(size_t size)
@@ -5376,10 +5376,10 @@ namespace wil
 #ifdef WIL_ENABLE_EXCEPTIONS
     /** Provides `std::make_unique()` semantics for secure resources allocated with `CoTaskMemAlloc()`.
     See the overload of `wil::make_unique_cotaskmem_nothrow()` for non-array types for more details.
-    ~~~
+    @code
     auto foo = wil::make_unique_cotaskmem_secure<Foo>();
     // initialize allocated Foo object as appropriate
-    ~~~
+    @endcode
     */
     template <typename T, typename... Args>
     inline typename wistd::enable_if<!wistd::is_array<T>::value, unique_cotaskmem_secure_ptr<T>>::type make_unique_cotaskmem_secure(Args&&... args)
@@ -5391,14 +5391,14 @@ namespace wil
 
     /** Provides `std::make_unique()` semantics for secure array resources allocated with `CoTaskMemAlloc()`.
     See the overload of `wil::make_unique_cotaskmem_nothrow()` for non-array types for more details.
-    ~~~
+    @code
     const size_t size = 42;
     auto foos = wil::make_unique_cotaskmem_secure<Foo[]>(size);
     for (auto& elem : wil::make_range(foos.get(), size))
     {
     // initialize allocated Foo objects as appropriate
     }
-    ~~~
+    @endcode
     */
     template <typename T>
     inline typename wistd::enable_if<wistd::is_array<T>::value && wistd::extent<T>::value == 0, unique_cotaskmem_secure_ptr<T>>::type make_unique_cotaskmem_secure(size_t size)
@@ -5807,8 +5807,8 @@ namespace wil
     /// @cond
 #define __WIL__PROCESSENV_
     /// @endcond
-    /** Manages lifecycle of an environment-strings block
-    ~~~
+    /** Manages lifecycle of an environment-strings block.
+    @code
     wil::unique_environstrings_ptr env { ::GetEnvironmentStringsW() };
     const wchar_t *nextVar = env.get();
     while (nextVar && *nextVar)
@@ -5816,7 +5816,7 @@ namespace wil
         // consume 'nextVar'
         nextVar += wcslen(nextVar) + 1;
     }
-    ~~~
+    @endcode
     */
     using unique_environstrings_ptr = wistd::unique_ptr<wchar_t, function_deleter<decltype(&::FreeEnvironmentStringsW), FreeEnvironmentStringsW>>;
 

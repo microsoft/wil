@@ -152,21 +152,21 @@ namespace wil
     fixed sized, the struct is returned directly.
     The caller must have access to read the information from the provided token. This method works with both real
     (e.g. OpenCurrentAccessToken) and pseudo (e.g. GetCurrentThreadToken) token handles.
-    ~~~~
+    @code
     // Retrieve the TOKEN_USER structure for the current process
     wil::unique_tokeninfo_ptr<TOKEN_USER> user;
     RETURN_IF_FAILED(wil::get_token_information_nothrow(user, GetCurrentProcessToken()));
     RETURN_IF_FAILED(ConsumeSid(user->User.Sid));
-    ~~~~
+    @endcode
     Not specifying the token handle is the same as specifying 'nullptr' and retrieves information about the effective token.
-    ~~~~
+    @code
     wil::unique_tokeninfo_ptr<TOKEN_PRIVILEGES> privileges;
     RETURN_IF_FAILED(wil::get_token_information_nothrow(privileges));
     for (auto const& privilege : wil::GetRange(privileges->Privileges, privileges->PrivilegeCount))
     {
         RETURN_IF_FAILED(ConsumePrivilege(privilege));
     }
-    ~~~~
+    @endcode
     @param tokenInfo Receives a pointer to a structure containing the results of GetTokenInformation for the requested
             type. The type of <T> selects which TOKEN_INFORMATION_CLASS will be used.
     @param tokenHandle Specifies which token will be queried. When nullptr, the thread's effective current token is used.
@@ -265,12 +265,12 @@ namespace wil
 #ifdef WIL_ENABLE_EXCEPTIONS
     /** Fetches information about a token.
     See get_token_information_nothrow for full details.
-    ~~~~
+    @code
     auto user = wil::get_token_information<TOKEN_USER>(GetCurrentProcessToken());
     ConsumeSid(user->User.Sid);
-    ~~~~
+    @endcode
     Pass 'nullptr' (or omit the parameter) as tokenHandle to retrieve information about the effective token.
-    ~~~~
+    @code
     auto privs = wil::get_token_information<TOKEN_PRIVILEGES>(privileges);
     for (auto& priv : wil::make_range(privs->Privileges, privs->Privilieges + privs->PrivilegeCount))
     {
@@ -279,7 +279,7 @@ namespace wil
             // ...
         }
     }
-    ~~~~
+    @endcode
     @return A pointer to a structure containing the results of GetTokenInformation for the requested  type. The type of
                 <T> selects which TOKEN_INFORMATION_CLASS will be used.
     @param token Specifies which token will be queried. When nullptr or not set, the thread's effective current token is used.
@@ -492,11 +492,11 @@ namespace wil
     Replaces AllocateAndInitializeSid by constructing a structure laid out like a PSID, but
     returned like a value. The resulting object is suitable for use with any method taking PSID,
     passed by "&the_sid" or via "the_sid.get()"
-    ~~~~
+    @code
     // Change the owner of the key to administrators
     auto systemSid = wil::make_static_sid(SECURITY_NT_AUTHORITY, SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS);
     RETURN_IF_WIN32_ERROR(SetNamedSecurityInfo(keyPath, SE_REGISTRY_KEY, OWNER_SECURITY_INFORMATION, &systemSid, nullptr, nullptr, nullptr));
-    ~~~~
+    @endcode
     */
     template<typename... Ts> constexpr auto make_static_sid(const SID_IDENTIFIER_AUTHORITY& authority, Ts&&... subAuthorities)
     {

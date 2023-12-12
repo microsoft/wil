@@ -1009,14 +1009,14 @@ namespace wil
 #if defined(__WI_HAS_STD_VECTOR) || defined(WIL_DOXYGEN)
     /** Converts WinRT vectors to std::vector by requesting the collection's data in a single
     operation. This can be more efficient in terms of IPC cost than iteratively processing it.
-    ~~~
+    @code
     ComPtr<IVector<IPropertyValue*>> values = GetValues();
     std::vector<ComPtr<IPropertyValue>> allData = wil::to_vector(values);
     for (ComPtr<IPropertyValue> const& item : allData)
     {
         // use item
     }
-    ~~~
+    @endcode
     Can be used for ABI::Windows::Foundation::Collections::IVector<T> and
     ABI::Windows::Foundation::Collections::IVectorView<T>
     */

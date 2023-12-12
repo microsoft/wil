@@ -2137,7 +2137,7 @@ namespace wil
     /** Read data from a stream into a buffer.
     Reads up to a certain number of bytes into a buffer. Returns the amount of data written, which
     may be less than the amount requested if the stream ran out.
-    ~~~~
+    @code
     IStream* source = // ...
     ULONG dataBlob = 0;
     size_t read = 0;
@@ -2150,7 +2150,7 @@ namespace wil
     {
         DoThing(dataBlob);
     }
-    ~~~~
+    @endcode
     @param stream The stream from which to read at most `size` bytes.
     @param data A buffer into which up to `size` bytes will be read
     @param size The size, in bytes, of the buffer pointed to by `data`
@@ -2430,7 +2430,7 @@ namespace wil
     Deserializes strings in streams written by both IStream_WriteStr and wil::stream_write_string[_nothrow]. The format
     is a single 16-bit quantity, followed by that many wchar_ts. The returned string is allocated with CoTaskMemAlloc.
     Returns a zero-length (but non-null) string if the stream contained a zero-length string.
-    ~~~~
+    @code
     IStream* source = // ...
     wil::unique_cotaskmem_string content;
     RETURN_IF_FAILED(wil::stream_read_string_nothrow(source, &content));
@@ -2438,7 +2438,7 @@ namespace wil
     {
         // Waffles!
     }
-    ~~~~
+    @endcode
     @param source The stream from which to read a string
     @param value Set to point to the allocated result of reading a string from `source`
     */
@@ -2473,11 +2473,11 @@ namespace wil
     Serializes a string into a stream by putting its length and then the wchar_ts in the string
     into the stream.  Zero-length strings have their length but no data written. This is the
     form expected by IStream_ReadStr and wil::string_read_stream.
-    ~~~~
+    @code
     IStream* target = // ...
     RETURN_IF_FAILED(wil::stream_write_string_nothrow(target, L"Waffles", 3));
     // Produces wchar_t[] { 0x3, L'W', L'a', L'f' };
-    ~~~~
+    @endcode
     @param target The stream to which to write a string
     @param source The string to write. Can be null if `writeLength` is zero
     @param writeLength The number of characters to write from source into `target`
@@ -2500,11 +2500,11 @@ namespace wil
     Serializes a string into a stream by putting its length and then the wchar_ts in the string
     into the stream.  Zero-length strings have their length but no data written. This is the
     form expected by IStream_ReadStr and wil::string_read_stream.
-    ~~~~
+    @code
     IStream* target = // ...
     RETURN_IF_FAILED(wil::stream_write_string_nothrow(target, L"Waffles"));
     // Produces wchar_t[] { 0x3, L'W', L'a', L'f', L'f', L'l', L'e', L's' };
-    ~~~~
+    @endcode
     @param target The stream to which to write a string
     @param source The string to write. When nullptr, a zero-length string is written.
     */
@@ -2516,7 +2516,7 @@ namespace wil
 #ifdef WIL_ENABLE_EXCEPTIONS
 
     /** Read data from a stream into a buffer.
-    ~~~~
+    @code
     IStream* source = // ...
     ULONG dataBlob = 0;
     auto read = wil::stream_read_partial(source, &dataBlob, sizeof(dataBlob));
@@ -2528,7 +2528,7 @@ namespace wil
     {
         DoThing(dataBlob);
     }
-    ~~~~
+    @endcode
     @param stream The stream from which to read at most `size` bytes.
     @param data A buffer into which up to `size` bytes will be read
     @param size The size, in bytes, of the buffer pointed to by `data`
@@ -2752,14 +2752,14 @@ namespace wil
     Deserializes strings in streams written by both IStream_WriteStr and wil::stream_write_string[_nothrow]. The format
     is a single 16-bit quantity, followed by that many wchar_ts. The returned string is allocated with CoTaskMemAlloc.
     Returns a zero-length (but non-null) string if the stream contained a zero-length string.
-    ~~~~
+    @code
     IStream* source = // ...
     wil::unique_cotaskmem_string content = wil::stream_read_string(source);
     if (wcscmp(content.get(), L"waffles") == 0)
     {
         // Waffles!
     }
-    ~~~~
+    @endcode
     @param source The stream from which to read a string
     @return An non-null string (but possibly zero lengh) string read from `source`
     */

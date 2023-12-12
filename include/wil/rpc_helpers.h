@@ -157,7 +157,7 @@ namespace wil
 
     This type routes the context-handle-specific `Close` call through the `invoke_rpc_nothrow`
     helper, ensuring correct cleanup and lifecycle management.
-    ~~~
+    @code
     // Assume the interface has two methods:
     // HRESULT OpenFoo([in] handle_t binding, [out] FOO_CONTEXT*);
     // HRESULT UseFoo([in] FOO_CONTEXT context;
@@ -167,7 +167,7 @@ namespace wil
     RETURN_IF_FAILED(wil::invoke_rpc_nothrow(OpenFoo, m_binding.get(), context.put()));
     RETURN_IF_FAILED(wil::invoke_rpc_nothrow(UseFoo, context.get()));
     context.reset();
-    ~~~
+    @endcode
     */
     template<typename TContext, typename close_fn_t, close_fn_t close_fn>
     using unique_rpc_context_handle = unique_any<TContext, decltype(&details::rpc_closer_t<TContext, close_fn_t, close_fn>::Close), details::rpc_closer_t<TContext, close_fn_t, close_fn>::Close>;
@@ -177,11 +177,11 @@ namespace wil
     See `wil::invoke_rpc_nothrow` for additional information.  Failures during the _call_
     and those returned by the _method_ are mapped to HRESULTs and thrown inside a
     wil::ResultException. Using the example RPC method provided above:
-    ~~~
+    @code
     wil::unique_midl_ptr<KittenState> state;
     wil::invoke_rpc(GetKittenState, binding.get(), L"fluffy", state.put());
     // use 'state'
-    ~~~
+    @endcode
     */
     template<typename... TCall> void invoke_rpc(TCall&& ... args)
     {
@@ -192,10 +192,10 @@ namespace wil
     See `wil::invoke_rpc_result_nothrow` for additional information. Failures during the
     _call_ are mapped to HRESULTs and thrown inside a `wil::ResultException`. Using the
     example RPC method provided above:
-    ~~~
+    @code
     GUID id = wil::invoke_rpc_result(GetKittenId, binding.get());
     // use 'id'
-    ~~~
+    @endcode
     */
     template<typename... TCall> auto invoke_rpc_result(TCall&& ... args)
     {
