@@ -8,6 +8,8 @@
 //    PARTICULAR PURPOSE AND NONINFRINGEMENT.
 //
 //*********************************************************
+//! @file
+//! WIL Error Handling Helpers: supporting file enabling the originating of errors to produce better crash dumps
 
 // Note: When origination is enabled by including this file, origination is done as part of the RETURN_* and THROW_* macros.  Before originating
 // a new error we will observe whether there is already an error payload associated with the current thread.  If there is, and the HRESULTs match,
@@ -34,6 +36,7 @@
 
 namespace wil
 {
+    /// @cond
     namespace details
     {
         // Note: The name must begin with "Raise" so that the !analyze auto-bucketing will ignore this stack frame.  Otherwise this line of code gets all the blame.
@@ -113,6 +116,7 @@ namespace wil
             }
         }
     } // namespace details
+    /// @endcond
 } // namespace wil
 
 // Automatically call RoOriginateError upon error origination by including this file

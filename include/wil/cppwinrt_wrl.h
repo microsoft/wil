@@ -8,6 +8,8 @@
 //    PARTICULAR PURPOSE AND NONINFRINGEMENT.
 //
 //*********************************************************
+//! @file
+//! Provides interoperability between C++/WinRT types and the WRL Module system.
 #ifndef __WIL_CPPWINRT_WRL_INCLUDED
 #define __WIL_CPPWINRT_WRL_INCLUDED
 

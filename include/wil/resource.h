@@ -8,6 +8,9 @@
 //    PARTICULAR PURPOSE AND NONINFRINGEMENT.
 //
 //*********************************************************
+//! @file
+//! WIL Resource Wrappers (RAII): Provides a family of smart pointer patterns and resource wrappers to enable customers to
+//! consistently use RAII in all code.
 
 #include "result_macros.h"
 #include "wistd_functional.h"
@@ -20,6 +23,7 @@
 #ifndef __WIL_RESOURCE
 #define __WIL_RESOURCE
 
+/// @cond
 // stdint.h and intsafe.h have conflicting definitions, so it's not safe to include either to pick up our dependencies,
 // so the definitions we need are copied below
 #ifdef _WIN64
@@ -27,6 +31,7 @@
 #else /* _WIN64 */
 #define __WI_SIZE_MAX   0xffffffffui32 // UINT32_MAX
 #endif /* _WIN64 */
+/// @endcond
 
 // Forward declaration
 /// @cond
@@ -252,7 +257,7 @@ namespace wil
             pointer_storage m_ptr;
         };
     } // details
-      /// @endcond
+    /// @endcond
 
 
     // This class when paired with unique_storage and an optional type-specific specialization class implements
@@ -755,11 +760,11 @@ namespace wil
             out_param_ptr_t &operator=(out_param_ptr_t const &other) = delete;
         };
     } // details
-      /// @endcond
+    /// @endcond
 
-      /** Use to retrieve raw out parameter pointers into smart pointers that do not support the '&' operator.
-      This avoids multi-step handling of a raw resource to establish the smart pointer.
-      Example: `GetFoo(out_param(foo));` */
+    /** Use to retrieve raw out parameter pointers into smart pointers that do not support the '&' operator.
+    This avoids multi-step handling of a raw resource to establish the smart pointer.
+    Example: `GetFoo(out_param(foo));` */
     template <typename T>
     details::out_param_t<T> out_param(T& p)
     {
@@ -1711,6 +1716,7 @@ namespace wil
     }
 
 #if !defined(__WIL_MIN_KERNEL) && !defined(WIL_KERNEL_MODE)
+    /// @cond
     namespace details
     {
         // Forward declaration
@@ -1752,6 +1758,7 @@ namespace wil
             return str_build_nothrow(result, localStrings, sizeof...(Strings));
         }
     }
+    /// @endcond
 
     // Concatenate any number of strings together and store it in an automatically allocated string.  If a string is present
     // in the input buffer, the remaining strings are appended to it.
@@ -1784,6 +1791,7 @@ namespace wil
     }
 
 #if !defined(__WIL_MIN_KERNEL) && !defined(WIL_KERNEL_MODE)
+    /// @cond
     namespace details
     {
         // Wraps StringCchPrintFExW and stores it in an automatically allocated string.  Takes a buffer followed by the same format arguments
@@ -1803,6 +1811,7 @@ namespace wil
             return S_OK;
         }
     }
+    /// @endcond
 
     // Wraps StringCchPrintFExW and stores it in an automatically allocated string.  Takes a buffer followed by the same format arguments
     // that StringCchPrintfExW takes.
@@ -1851,9 +1860,11 @@ namespace wil
 #endif // __WIL_RESOURCE
 
 
-  // Hash deferral function for unique_any_t
-#if (defined(_UNORDERED_SET_) || defined(_UNORDERED_MAP_)) && !defined(__WIL_RESOURCE_UNIQUE_HASH)
+// Hash deferral function for unique_any_t
+#if ((defined(_UNORDERED_SET_) || defined(_UNORDERED_MAP_)) && !defined(__WIL_RESOURCE_UNIQUE_HASH)) || defined(WIL_DOXYGEN)
+/// @cond
 #define __WIL_RESOURCE_UNIQUE_HASH
+/// @endcond
 namespace std
 {
     template <typename storage_t>
@@ -1868,8 +1879,10 @@ namespace std
 #endif
 
 // shared_any and weak_any implementation using <memory> STL header
-#if defined(_MEMORY_) && defined(WIL_ENABLE_EXCEPTIONS) && !defined(WIL_RESOURCE_STL) && !defined(RESOURCE_SUPPRESS_STL)
+#if (defined(_MEMORY_) && defined(WIL_ENABLE_EXCEPTIONS) && !defined(WIL_RESOURCE_STL) && !defined(RESOURCE_SUPPRESS_STL)) || defined(WIL_DOXYGEN)
+/// @cond
 #define WIL_RESOURCE_STL
+/// @endcond
 namespace wil {
 
     template <typename storage_t>
@@ -2246,8 +2259,10 @@ namespace wil {
 #endif
 
 
-#if defined(WIL_RESOURCE_STL) && (defined(_UNORDERED_SET_) || defined(_UNORDERED_MAP_)) && !defined(__WIL_RESOURCE_SHARED_HASH)
+#if (defined(WIL_RESOURCE_STL) && (defined(_UNORDERED_SET_) || defined(_UNORDERED_MAP_)) && !defined(__WIL_RESOURCE_SHARED_HASH)) || defined(WIL_DOXYGEN)
+/// @cond
 #define __WIL_RESOURCE_SHARED_HASH
+/// @endcond
 namespace std
 {
     template <typename storage_t>
@@ -2265,8 +2280,10 @@ namespace std
 namespace wil
 {
 
-#if defined(__NOTHROW_T_DEFINED) && !defined(__WIL__NOTHROW_T_DEFINED)
+#if (defined(__NOTHROW_T_DEFINED) && !defined(__WIL__NOTHROW_T_DEFINED)) || defined(WIL_DOXYGEN)
+/// @cond
 #define __WIL__NOTHROW_T_DEFINED
+/// @endcond
     /** Provides `std::make_unique()` semantics for resources allocated in a context that may not throw upon allocation failure.
     `wil::make_unique_nothrow()` is identical to `std::make_unique()` except for the following:
     * It returns `wistd::unique_ptr`, rather than `std::unique_ptr`
@@ -2350,9 +2367,9 @@ namespace wil
 #endif // !defined(__WIL_MIN_KERNEL) && !defined(WIL_KERNEL_MODE)
 #endif // __WIL__NOTHROW_T_DEFINED
 
-#if defined(_WINBASE_) && !defined(__WIL_WINBASE_) && !defined(WIL_KERNEL_MODE)
-#define __WIL_WINBASE_
+#if (defined(_WINBASE_) && !defined(__WIL_WINBASE_) && !defined(WIL_KERNEL_MODE)) || defined(WIL_DOXYGEN)
     /// @cond
+#define __WIL_WINBASE_
     namespace details
     {
         inline void __stdcall SetEvent(HANDLE h) WI_NOEXCEPT
@@ -2541,6 +2558,7 @@ namespace wil
     typedef unique_any<PSID, decltype(&::FreeSid), ::FreeSid> unique_sid;
     typedef unique_any_handle_null_only<decltype(&::DeleteBoundaryDescriptor), ::DeleteBoundaryDescriptor> unique_boundary_descriptor;
 
+    /// @cond
     namespace details
     {
         template<ULONG flags>
@@ -2549,6 +2567,7 @@ namespace wil
             ::ClosePrivateNamespace(h, flags);
         }
     }
+    /// @endcond
 
     template <ULONG flags = 0>
     using unique_private_namespace = unique_any_handle_null_only<void(__stdcall*)(HANDLE) WI_PFN_NOEXCEPT, &details::ClosePrivateNamespaceHelper<flags>>;
@@ -3540,8 +3559,11 @@ namespace wil
 
 #endif // __WIL_WINBASE_
 
-#if defined(__WIL_WINBASE_) && defined(__NOTHROW_T_DEFINED) && !defined(__WIL_WINBASE_NOTHROW_T_DEFINED)
+#if (defined(__WIL_WINBASE_) && defined(__NOTHROW_T_DEFINED) && !defined(__WIL_WINBASE_NOTHROW_T_DEFINED)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_WINBASE_NOTHROW_T_DEFINED
+    /// @endcond
+
     // unique_event_watcher, unique_event_watcher_nothrow, unique_event_watcher_failfast
     //
     // Clients must include <new> or <new.h> to enable use of this class as it uses new(std::nothrow).
@@ -3759,8 +3781,10 @@ namespace wil
 
 #endif // __WIL_WINBASE_NOTHROW_T_DEFINED
 
-#if defined(__WIL_WINBASE_) && !defined(__WIL_WINBASE_STL) && defined(WIL_RESOURCE_STL)
+#if (defined(__WIL_WINBASE_) && !defined(__WIL_WINBASE_STL) && defined(WIL_RESOURCE_STL)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_WINBASE_STL
+    /// @endcond
     typedef shared_any_t<event_t<details::shared_storage<unique_event>>> shared_event;
     typedef shared_any_t<mutex_t<details::shared_storage<unique_mutex>>> shared_mutex;
     typedef shared_any_t<semaphore_t<details::shared_storage<unique_semaphore>>> shared_semaphore;
@@ -3797,15 +3821,17 @@ namespace wil
 
 #endif // __WIL_WINBASE_STL
 
-#if defined(__WIL_WINBASE_) && defined(__NOTHROW_T_DEFINED) && !defined(__WIL_WINBASE_NOTHROW_T_DEFINED_STL) && defined(WIL_RESOURCE_STL) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+#if (defined(__WIL_WINBASE_) && defined(__NOTHROW_T_DEFINED) && !defined(__WIL_WINBASE_NOTHROW_T_DEFINED_STL) && defined(WIL_RESOURCE_STL) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_WINBASE_NOTHROW_T_DEFINED_STL
+    /// @endcond
     typedef shared_any_t<event_watcher_t<details::shared_storage<unique_event_watcher>>> shared_event_watcher;
     typedef weak_any<shared_event_watcher> weak_event_watcher;
 #endif // __WIL_WINBASE_NOTHROW_T_DEFINED_STL
 
-#if defined(__WIL_WINBASE_) && !defined(__WIL_WINBASE_DESKTOP) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
-#define __WIL_WINBASE_DESKTOP
+#if (defined(__WIL_WINBASE_) && !defined(__WIL_WINBASE_DESKTOP) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)) || defined(WIL_DOXYGEN)
     /// @cond
+#define __WIL_WINBASE_DESKTOP
     namespace details
     {
         inline void __stdcall DestroyPrivateObjectSecurity(_Pre_opt_valid_ _Frees_ptr_opt_ PSECURITY_DESCRIPTOR pObjectDescriptor) WI_NOEXCEPT
@@ -4254,8 +4280,10 @@ namespace wil
     typedef unique_any<PSECURITY_DESCRIPTOR, decltype(&::LocalFree), ::LocalFree> unique_hlocal_security_descriptor;
     typedef unique_any<PSECURITY_DESCRIPTOR, decltype(&details::DestroyPrivateObjectSecurity), details::DestroyPrivateObjectSecurity> unique_private_security_descriptor;
 
-#if defined(_WINUSER_) && !defined(__WIL__WINUSER_)
+#if (defined(_WINUSER_) && !defined(__WIL__WINUSER_)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL__WINUSER_
+    /// @endcond
     typedef unique_any<HACCEL, decltype(&::DestroyAcceleratorTable), ::DestroyAcceleratorTable> unique_haccel;
     typedef unique_any<HCURSOR, decltype(&::DestroyCursor), ::DestroyCursor> unique_hcursor;
     typedef unique_any<HWND, decltype(&::DestroyWindow), ::DestroyWindow> unique_hwnd;
@@ -4281,8 +4309,10 @@ namespace wil
 #endif // !defined(NOGDI) && !defined(NODESKTOP)
 
 #endif
-#if defined(__WIL_WINBASE_DESKTOP) && !defined(__WIL_WINBASE_DESKTOP_STL) && defined(WIL_RESOURCE_STL)
+#if (defined(__WIL_WINBASE_DESKTOP) && !defined(__WIL_WINBASE_DESKTOP_STL) && defined(WIL_RESOURCE_STL)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_WINBASE_DESKTOP_STL
+    /// @endcond
     typedef shared_any<unique_hheap> shared_hheap;
     typedef shared_any<unique_hlocal> shared_hlocal;
     typedef shared_any<unique_tls> shared_tls;
@@ -4322,8 +4352,10 @@ namespace wil
 #endif
 #endif // __WIL_WINBASE_DESKTOP_STL
 
-#if defined(_COMBASEAPI_H_) && !defined(__WIL__COMBASEAPI_H_) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM) && !defined(WIL_KERNEL_MODE)
+#if (defined(_COMBASEAPI_H_) && !defined(__WIL__COMBASEAPI_H_) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM) && !defined(WIL_KERNEL_MODE)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL__COMBASEAPI_H_
+    /// @endcond
 #if (NTDDI_VERSION >= NTDDI_WIN8)
     typedef unique_any<CO_MTA_USAGE_COOKIE, decltype(&::CoDecrementMTAUsage), ::CoDecrementMTAUsage> unique_mta_usage_cookie;
 #endif
@@ -4354,24 +4386,28 @@ namespace wil
         return unique_coreverttoself_call();
     }
 
-    typedef unique_struct<MULTI_QI, decltype(&details::MultiQiCleanup), details::MultiQiCleanup> unique_multi_qi;
-#endif // __WIL__COMBASEAPI_H_
-#if defined(__WIL__COMBASEAPI_H_) && defined(WIL_ENABLE_EXCEPTIONS) && !defined(__WIL__COMBASEAPI_H_EXCEPTIONAL)
-#define __WIL__COMBASEAPI_H_EXCEPTIONAL
+#ifdef WIL_ENABLE_EXCEPTIONS
     WI_NODISCARD inline unique_coreverttoself_call CoImpersonateClient()
     {
         THROW_IF_FAILED(::CoImpersonateClient());
         return unique_coreverttoself_call();
     }
 #endif
-#if defined(__WIL__COMBASEAPI_H_) && !defined(__WIL__COMBASEAPI_H__STL) && defined(WIL_RESOURCE_STL) && (NTDDI_VERSION >= NTDDI_WIN8)
+
+    typedef unique_struct<MULTI_QI, decltype(&details::MultiQiCleanup), details::MultiQiCleanup> unique_multi_qi;
+#endif // __WIL__COMBASEAPI_H_
+#if (defined(__WIL__COMBASEAPI_H_) && !defined(__WIL__COMBASEAPI_H__STL) && defined(WIL_RESOURCE_STL) && (NTDDI_VERSION >= NTDDI_WIN8)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL__COMBASEAPI_H__STL
+    /// @endcond
     typedef shared_any<unique_mta_usage_cookie> shared_mta_usage_cookie;
     typedef weak_any<shared_mta_usage_cookie> weak_mta_usage_cookie;
 #endif // __WIL__COMBASEAPI_H__STL
 
-#if defined(_COMBASEAPI_H_) && !defined(__WIL__COMBASEAPI_H_APP) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_SYSTEM) && !defined(WIL_KERNEL_MODE)
+#if (defined(_COMBASEAPI_H_) && !defined(__WIL__COMBASEAPI_H_APP) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_SYSTEM) && !defined(WIL_KERNEL_MODE)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL__COMBASEAPI_H_APP
+    /// @endcond
     //! A type that calls CoUninitialize on destruction (or reset()).
     using unique_couninitialize_call = unique_call<decltype(&::CoUninitialize), ::CoUninitialize>;
 
@@ -4381,18 +4417,20 @@ namespace wil
         FAIL_FAST_IF_FAILED(::CoInitializeEx(nullptr, coinitFlags));
         return {};
     }
-#endif // __WIL__COMBASEAPI_H_APP
-#if defined(__WIL__COMBASEAPI_H_APP) && defined(WIL_ENABLE_EXCEPTIONS) && !defined(__WIL__COMBASEAPI_H_APPEXCEPTIONAL)
-#define __WIL__COMBASEAPI_H_APPEXCEPTIONAL
+
+#ifdef WIL_ENABLE_EXCEPTIONS
     WI_NODISCARD inline unique_couninitialize_call CoInitializeEx(DWORD coinitFlags = 0 /*COINIT_MULTITHREADED*/)
     {
         THROW_IF_FAILED(::CoInitializeEx(nullptr, coinitFlags));
         return {};
     }
 #endif
+#endif // __WIL__COMBASEAPI_H_APP
 
-#if defined(__ROAPI_H_) && !defined(__WIL__ROAPI_H_APP) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_SYSTEM) && (NTDDI_VERSION >= NTDDI_WIN8)
+#if (defined(__ROAPI_H_) && !defined(__WIL__ROAPI_H_APP) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_SYSTEM) && (NTDDI_VERSION >= NTDDI_WIN8)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL__ROAPI_H_APP
+    /// @endcond
 
     typedef unique_any<RO_REGISTRATION_COOKIE, decltype(&::RoRevokeActivationFactories), ::RoRevokeActivationFactories> unique_ro_registration_cookie;
 
@@ -4407,9 +4445,8 @@ namespace wil
         FAIL_FAST_IF_FAILED(::RoInitialize(initType));
         return unique_rouninitialize_call();
     }
-#endif // __WIL__ROAPI_H_APP
-#if defined(__WIL__ROAPI_H_APP) && defined(WIL_ENABLE_EXCEPTIONS) && !defined(__WIL__ROAPI_H_APPEXCEPTIONAL)
-#define __WIL__ROAPI_H_APPEXCEPTIONAL
+
+#ifdef WIL_ENABLE_EXCEPTIONS
     //! Calls RoInitialize and throws an exception if it fails; returns an RAII object that reverts
     //! Use as a replacement for Windows::Foundation::Initialize
     WI_NODISCARD inline unique_rouninitialize_call RoInitialize(RO_INIT_TYPE initType = RO_INIT_MULTITHREADED)
@@ -4418,9 +4455,12 @@ namespace wil
         return unique_rouninitialize_call();
     }
 #endif
+#endif // __WIL__ROAPI_H_APP
 
-#if defined(__WINSTRING_H_) && !defined(__WIL__WINSTRING_H_) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_SYSTEM)
+#if (defined(__WINSTRING_H_) && !defined(__WIL__WINSTRING_H_) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_SYSTEM)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL__WINSTRING_H_
+    /// @endcond
     typedef unique_any<HSTRING, decltype(&::WindowsDeleteString), ::WindowsDeleteString> unique_hstring;
 
     template<> inline unique_hstring make_unique_string_nothrow<unique_hstring>(
@@ -4572,8 +4612,10 @@ namespace wil
     }
 
 #endif // __WIL__WINSTRING_H_
-#if defined(__WIL__WINSTRING_H_) && !defined(__WIL__WINSTRING_H_STL) && defined(WIL_RESOURCE_STL)
+#if (defined(__WIL__WINSTRING_H_) && !defined(__WIL__WINSTRING_H_STL) && defined(WIL_RESOURCE_STL)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL__WINSTRING_H_STL
+    /// @endcond
     typedef shared_any<unique_hstring> shared_hstring;
     typedef shared_any<unique_hstring_buffer> shared_hstring_buffer;
     typedef weak_any<shared_hstring> weak_hstring;
@@ -4581,26 +4623,34 @@ namespace wil
 #endif // __WIL__WINSTRING_H_STL
 
 
-#if defined(_WINREG_) && !defined(__WIL_WINREG_) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && !defined(WIL_KERNEL_MODE)
+#if (defined(_WINREG_) && !defined(__WIL_WINREG_) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && !defined(WIL_KERNEL_MODE)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_WINREG_
+    /// @endcond
     typedef unique_any<HKEY, decltype(&::RegCloseKey), ::RegCloseKey> unique_hkey;
 #endif // __WIL_WINREG_
-#if defined(__WIL_WINREG_) && !defined(__WIL_WINREG_STL) && defined(WIL_RESOURCE_STL)
+#if (defined(__WIL_WINREG_) && !defined(__WIL_WINREG_STL) && defined(WIL_RESOURCE_STL)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_WINREG_STL
+    /// @endcond
     typedef shared_any<unique_hkey> shared_hkey;
     typedef weak_any<shared_hkey> weak_hkey;
 #endif // __WIL_WINREG_STL
 
-#if defined(__propidl_h__) && !defined(_WIL__propidl_h__) && !defined(WIL_KERNEL_MODE)
+#if (defined(__propidl_h__) && !defined(_WIL__propidl_h__) && !defined(WIL_KERNEL_MODE)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define _WIL__propidl_h__
+    /// @endcond
     // if language extensions (/Za) disabled, PropVariantInit will not exist, PROPVARIANT has forward declaration only
 #if defined(_MSC_EXTENSIONS)
     using unique_prop_variant = wil::unique_struct<PROPVARIANT, decltype(&::PropVariantClear), ::PropVariantClear, decltype(&::PropVariantInit), ::PropVariantInit>;
 #endif
 #endif // _WIL__propidl_h__
 
-#if defined(_OLEAUTO_H_) && !defined(__WIL_OLEAUTO_H_) && !defined(WIL_KERNEL_MODE) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_SYSTEM)
+#if (defined(_OLEAUTO_H_) && !defined(__WIL_OLEAUTO_H_) && !defined(WIL_KERNEL_MODE) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_SYSTEM)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_OLEAUTO_H_
+    /// @endcond
     using unique_variant = wil::unique_struct<VARIANT, decltype(&::VariantClear), ::VariantClear, decltype(&::VariantInit), ::VariantInit>;
     typedef unique_any<BSTR, decltype(&::SysFreeString), ::SysFreeString> unique_bstr;
 
@@ -4651,48 +4701,64 @@ namespace wil
 #endif // WIL_ENABLE_EXCEPTIONS
 
 #endif // __WIL_OLEAUTO_H_
-#if defined(__WIL_OLEAUTO_H_) && !defined(__WIL_OLEAUTO_H_STL) && defined(WIL_RESOURCE_STL)
+#if (defined(__WIL_OLEAUTO_H_) && !defined(__WIL_OLEAUTO_H_STL) && defined(WIL_RESOURCE_STL)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_OLEAUTO_H_STL
+    /// @endcond
     typedef shared_any<unique_bstr> shared_bstr;
     typedef weak_any<shared_bstr> weak_bstr;
 #endif // __WIL_OLEAUTO_H_STL
 
 
-#if (defined(_WININET_) || defined(_DUBINET_)) && !defined(__WIL_WININET_)
+#if ((defined(_WININET_) || defined(_DUBINET_)) && !defined(__WIL_WININET_)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_WININET_
+    /// @endcond
     typedef unique_any<HINTERNET, decltype(&::InternetCloseHandle), ::InternetCloseHandle> unique_hinternet;
 #endif // __WIL_WININET_
-#if defined(__WIL_WININET_) && !defined(__WIL_WININET_STL) && defined(WIL_RESOURCE_STL)
+#if (defined(__WIL_WININET_) && !defined(__WIL_WININET_STL) && defined(WIL_RESOURCE_STL)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_WININET_STL
+    /// @endcond
     typedef shared_any<unique_hinternet> shared_hinternet;
     typedef weak_any<shared_hinternet> weak_hinternet;
 #endif // __WIL_WININET_STL
 
 
-#if defined(_WINHTTPX_) && !defined(__WIL_WINHTTP_)
+#if (defined(_WINHTTPX_) && !defined(__WIL_WINHTTP_)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_WINHTTP_
+    /// @endcond
     typedef unique_any<HINTERNET, decltype(&::WinHttpCloseHandle), ::WinHttpCloseHandle> unique_winhttp_hinternet;
 #endif // __WIL_WINHTTP_
-#if defined(__WIL_WINHTTP_) && !defined(__WIL_WINHTTP_STL) && defined(WIL_RESOURCE_STL)
+#if (defined(__WIL_WINHTTP_) && !defined(__WIL_WINHTTP_STL) && defined(WIL_RESOURCE_STL)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_WINHTTP_STL
+    /// @endcond
     typedef shared_any<unique_winhttp_hinternet> shared_winhttp_hinternet;
     typedef weak_any<shared_winhttp_hinternet> weak_winhttp_hinternet;
 #endif // __WIL_WINHTTP_STL
 
 
-#if defined(_WINSOCKAPI_) && !defined(__WIL_WINSOCKAPI_) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+#if (defined(_WINSOCKAPI_) && !defined(__WIL_WINSOCKAPI_) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_WINSOCKAPI_
+    /// @endcond
     typedef unique_any<SOCKET, int (WINAPI*)(SOCKET), ::closesocket, details::pointer_access_all, SOCKET, SOCKET, INVALID_SOCKET, SOCKET> unique_socket;
 #endif // __WIL_WINSOCKAPI_
-#if defined(__WIL_WINSOCKAPI_) && !defined(__WIL_WINSOCKAPI_STL) && defined(WIL_RESOURCE_STL)
+#if (defined(__WIL_WINSOCKAPI_) && !defined(__WIL_WINSOCKAPI_STL) && defined(WIL_RESOURCE_STL)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_WINSOCKAPI_STL
+    /// @endcond
     typedef shared_any<unique_socket> shared_socket;
     typedef weak_any<shared_socket> weak_socket;
 #endif // __WIL_WINSOCKAPI_STL
 
 
-#if defined(_WINGDI_) && !defined(__WIL_WINGDI_) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && !defined(NOGDI) && !defined(WIL_KERNEL_MODE)
+#if (defined(_WINGDI_) && !defined(__WIL_WINGDI_) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && !defined(NOGDI) && !defined(WIL_KERNEL_MODE)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_WINGDI_
+    /// @endcond
     struct window_dc
     {
         HDC dc;
@@ -4760,8 +4826,10 @@ namespace wil
     typedef unique_any<HMENU, decltype(&::DestroyMenu), ::DestroyMenu> unique_hmenu;
 #endif // !defined(NOMENUS)
 #endif // __WIL_WINGDI_
-#if defined(__WIL_WINGDI_) && !defined(__WIL_WINGDI_STL) && defined(WIL_RESOURCE_STL)
+#if (defined(__WIL_WINGDI_) && !defined(__WIL_WINGDI_STL) && defined(WIL_RESOURCE_STL)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_WINGDI_STL
+    /// @endcond
     typedef shared_any<unique_hgdiobj> shared_hgdiobj;
     typedef shared_any<unique_hpen> shared_hpen;
     typedef shared_any<unique_hbrush> shared_hbrush;
@@ -4789,26 +4857,32 @@ namespace wil
 #endif // !defined(NOMENUS)
 #endif // __WIL_WINGDI_STL
 
-#if defined(_INC_WTSAPI) && !defined(__WIL_WTSAPI)
+#if (defined(_INC_WTSAPI) && !defined(__WIL_WTSAPI)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_WTSAPI
+    /// @endcond
     template<typename T>
     using unique_wtsmem_ptr = wistd::unique_ptr<T, function_deleter<decltype(&WTSFreeMemory), WTSFreeMemory>>;
 #endif // __WIL_WTSAPI
 
-#if defined(_WINSCARD_H_) && !defined(__WIL_WINSCARD_H_) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+#if (defined(_WINSCARD_H_) && !defined(__WIL_WINSCARD_H_) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_WINSCARD_H_
+    /// @endcond
     typedef unique_any<SCARDCONTEXT, decltype(&::SCardReleaseContext), ::SCardReleaseContext> unique_scardctx;
 #endif // __WIL_WINSCARD_H_
-#if defined(__WIL_WINSCARD_H_) && !defined(__WIL_WINSCARD_H_STL) && defined(WIL_RESOURCE_STL)
+#if (defined(__WIL_WINSCARD_H_) && !defined(__WIL_WINSCARD_H_STL) && defined(WIL_RESOURCE_STL)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_WINSCARD_H_STL
+    /// @endcond
     typedef shared_any<unique_scardctx> shared_scardctx;
     typedef weak_any<shared_scardctx> weak_scardctx;
 #endif // __WIL_WINSCARD_H_STL
 
 
-#if defined(__WINCRYPT_H__) && !defined(__WIL__WINCRYPT_H__) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
-#define __WIL__WINCRYPT_H__
+#if (defined(__WINCRYPT_H__) && !defined(__WIL__WINCRYPT_H__) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)) || defined(WIL_DOXYGEN)
     /// @cond
+#define __WIL__WINCRYPT_H__
     namespace details
     {
         inline void __stdcall CertCloseStoreNoParam(_Pre_opt_valid_ _Frees_ptr_opt_ HCERTSTORE hCertStore) WI_NOEXCEPT
@@ -4865,8 +4939,10 @@ namespace wil
     typedef unique_any<HCRYPTHASH, decltype(&::CryptDestroyHash), ::CryptDestroyHash> unique_hcrypthash;
     typedef unique_any<HCRYPTMSG, decltype(&::CryptMsgClose), ::CryptMsgClose> unique_hcryptmsg;
 #endif // __WIL__WINCRYPT_H__
-#if defined(__WIL__WINCRYPT_H__) && !defined(__WIL__WINCRYPT_H__STL) && defined(WIL_RESOURCE_STL)
+#if (defined(__WIL__WINCRYPT_H__) && !defined(__WIL__WINCRYPT_H__STL) && defined(WIL_RESOURCE_STL)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL__WINCRYPT_H__STL
+    /// @endcond
     typedef shared_any<unique_cert_context> shared_cert_context;
     typedef shared_any<unique_cert_chain_context> shared_cert_chain_context;
     typedef shared_any<unique_hcertstore> shared_hcertstore;
@@ -4885,8 +4961,10 @@ namespace wil
 #endif // __WIL__WINCRYPT_H__STL
 
 
-#if defined(__NCRYPT_H__) && !defined(__WIL_NCRYPT_H__) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+#if (defined(__NCRYPT_H__) && !defined(__WIL_NCRYPT_H__) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_NCRYPT_H__
+    /// @endcond
     using ncrypt_deleter = function_deleter<decltype(&::NCryptFreeBuffer), NCryptFreeBuffer>;
 
     template <typename T>
@@ -4896,8 +4974,10 @@ namespace wil
     typedef unique_any<NCRYPT_KEY_HANDLE, decltype(&::NCryptFreeObject), ::NCryptFreeObject> unique_ncrypt_key;
     typedef unique_any<NCRYPT_SECRET_HANDLE, decltype(&::NCryptFreeObject), ::NCryptFreeObject> unique_ncrypt_secret;
 #endif // __WIL_NCRYPT_H__
-#if defined(__WIL_NCRYPT_H__) && !defined(__WIL_NCRYPT_H_STL) && defined(WIL_RESOURCE_STL)
+#if (defined(__WIL_NCRYPT_H__) && !defined(__WIL_NCRYPT_H_STL) && defined(WIL_RESOURCE_STL)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_NCRYPT_H_STL
+    /// @endcond
     typedef shared_any<unique_ncrypt_prov> shared_ncrypt_prov;
     typedef shared_any<unique_ncrypt_key> shared_ncrypt_key;
     typedef shared_any<unique_ncrypt_secret> shared_ncrypt_secret;
@@ -4907,9 +4987,9 @@ namespace wil
     typedef weak_any<shared_ncrypt_secret> weak_ncrypt_secret;
 #endif // __WIL_NCRYPT_H_STL
 
-#if defined(__BCRYPT_H__) && !defined(__WIL_BCRYPT_H__) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
-#define __WIL_BCRYPT_H__
+#if (defined(__BCRYPT_H__) && !defined(__WIL_BCRYPT_H__) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)) || defined(WIL_DOXYGEN)
     /// @cond
+#define __WIL_BCRYPT_H__
     namespace details
     {
         inline void __stdcall BCryptCloseAlgorithmProviderNoFlags(_Pre_opt_valid_ _Frees_ptr_opt_ BCRYPT_ALG_HANDLE hAlgorithm) WI_NOEXCEPT
@@ -4932,8 +5012,10 @@ namespace wil
     typedef unique_any<BCRYPT_KEY_HANDLE, decltype(&::BCryptDestroyKey), ::BCryptDestroyKey> unique_bcrypt_key;
     typedef unique_any<BCRYPT_SECRET_HANDLE, decltype(&::BCryptDestroySecret), ::BCryptDestroySecret> unique_bcrypt_secret;
 #endif // __WIL_BCRYPT_H__
-#if defined(__WIL_BCRYPT_H__) && !defined(__WIL_BCRYPT_H_STL) && defined(WIL_RESOURCE_STL)
+#if (defined(__WIL_BCRYPT_H__) && !defined(__WIL_BCRYPT_H_STL) && defined(WIL_RESOURCE_STL)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_BCRYPT_H_STL
+    /// @endcond
     typedef shared_any<unique_bcrypt_algorithm> shared_bcrypt_algorithm;
     typedef shared_any<unique_bcrypt_hash> shared_bcrypt_hash;
     typedef shared_any<unique_bcrypt_key> shared_bcrypt_key;
@@ -4946,8 +5028,10 @@ namespace wil
 #endif // __WIL_BCRYPT_H_STL
 
 
-#if defined(__RPCNDR_H__) && !defined(__WIL__RPCNDR_H__) && !defined(WIL_KERNEL_MODE)
+#if (defined(__RPCNDR_H__) && !defined(__WIL__RPCNDR_H__) && !defined(WIL_KERNEL_MODE)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL__RPCNDR_H__
+    /// @endcond
 
     //! Function deleter for use with pointers allocated by MIDL_user_allocate
     using midl_deleter = function_deleter<decltype(&::MIDL_user_free), MIDL_user_free>;
@@ -4961,6 +5045,7 @@ namespace wil
     using unique_midl_ansistring = unique_midl_ptr<char>;
 #endif
 
+    /// @cond
     namespace details
     {
         struct midl_allocator
@@ -4978,10 +5063,13 @@ namespace wil
         template<> struct string_allocator<unique_midl_ansistring> : midl_allocator {};
 #endif
     }
+    /// @endcond
 #endif // __WIL__RPCNDR_H__
 
-#if defined(_OBJBASE_H_) && !defined(__WIL_OBJBASE_H_) && !defined(WIL_KERNEL_MODE)
+#if (defined(_OBJBASE_H_) && !defined(__WIL_OBJBASE_H_) && !defined(WIL_KERNEL_MODE)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_OBJBASE_H_
+    /// @endcond
     using cotaskmem_deleter = function_deleter<decltype(&::CoTaskMemFree), ::CoTaskMemFree>;
 
     template <typename T = void>
@@ -5175,16 +5263,20 @@ namespace wil
 
 #endif // WIL_ENABLE_EXCEPTIONS
 #endif // __WIL_OBJBASE_H_
-#if defined(__WIL_OBJBASE_H_) && !defined(__WIL_OBJBASE_H_STL) && defined(WIL_RESOURCE_STL)
+#if (defined(__WIL_OBJBASE_H_) && !defined(__WIL_OBJBASE_H_STL) && defined(WIL_RESOURCE_STL)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_OBJBASE_H_STL
+    /// @endcond
     typedef shared_any<unique_cotaskmem> shared_cotaskmem;
     typedef weak_any<shared_cotaskmem> weak_cotaskmem;
     typedef shared_any<unique_cotaskmem_string> shared_cotaskmem_string;
     typedef weak_any<shared_cotaskmem_string> weak_cotaskmem_string;
 #endif // __WIL_OBJBASE_H_STL
 
-#if defined(__WIL_OBJBASE_H_) && defined(__WIL_WINBASE_) && !defined(__WIL_OBJBASE_AND_WINBASE_H_) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+#if (defined(__WIL_OBJBASE_H_) && defined(__WIL_WINBASE_) && !defined(__WIL_OBJBASE_AND_WINBASE_H_) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_OBJBASE_AND_WINBASE_H_
+    /// @endcond
 
     struct cotaskmem_secure_deleter
     {
@@ -5365,8 +5457,10 @@ namespace wil
 #endif
 #endif // __WIL_OBJBASE_AND_WINBASE_H_
 
-#if defined(_OLE2_H_) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && !defined(__WIL_OLE2_H_) && !defined(WIL_KERNEL_MODE)
+#if (defined(_OLE2_H_) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && !defined(__WIL_OLE2_H_) && !defined(WIL_KERNEL_MODE)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_OLE2_H_
+    /// @endcond
     typedef unique_struct<STGMEDIUM, decltype(&::ReleaseStgMedium), ::ReleaseStgMedium> unique_stg_medium;
     struct unique_hglobal_locked : public unique_any<void*, decltype(&::GlobalUnlock), ::GlobalUnlock>
     {
@@ -5406,10 +5500,8 @@ namespace wil
         FAIL_FAST_IF_FAILED(::OleInitialize(nullptr));
         return unique_oleuninitialize_call();
     }
-#endif // __WIL_OLE2_H_
 
-#if defined(__WIL_OLE2_H_) && defined(WIL_ENABLE_EXCEPTIONS) && !defined(__WIL_OLE2_H_EXCEPTIONAL)
-#define __WIL_OLE2_H_EXCEPTIONAL
+#ifdef WIL_ENABLE_EXCEPTIONS
     //! Calls RoInitialize and throws an exception if it fails; returns an RAII object that reverts
     //! Use as a replacement for Windows::Foundation::Initialize
     _Check_return_ inline unique_oleuninitialize_call OleInitialize()
@@ -5418,70 +5510,95 @@ namespace wil
         return unique_oleuninitialize_call();
     }
 #endif
+#endif // __WIL_OLE2_H_
 
-#if defined(_INC_COMMCTRL) && !defined(__WIL_INC_COMMCTRL) && !defined(WIL_KERNEL_MODE)
+#if (defined(_INC_COMMCTRL) && !defined(__WIL_INC_COMMCTRL) && !defined(WIL_KERNEL_MODE)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_INC_COMMCTRL
+    /// @endcond
     typedef unique_any<HIMAGELIST, decltype(&::ImageList_Destroy), ::ImageList_Destroy> unique_himagelist;
 #endif // __WIL_INC_COMMCTRL
-#if defined(__WIL_INC_COMMCTRL) && !defined(__WIL_INC_COMMCTRL_STL) && defined(WIL_RESOURCE_STL)
+#if (defined(__WIL_INC_COMMCTRL) && !defined(__WIL_INC_COMMCTRL_STL) && defined(WIL_RESOURCE_STL)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_INC_COMMCTRL_STL
+    /// @endcond
     typedef shared_any<unique_himagelist> shared_himagelist;
     typedef weak_any<shared_himagelist> weak_himagelist;
 #endif // __WIL_INC_COMMCTRL_STL
 
-#if defined(_UXTHEME_H_) && !defined(__WIL_INC_UXTHEME) && !defined(WIL_KERNEL_MODE)
+#if (defined(_UXTHEME_H_) && !defined(__WIL_INC_UXTHEME) && !defined(WIL_KERNEL_MODE)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_INC_UXTHEME
+    /// @endcond
     typedef unique_any<HTHEME, decltype(&::CloseThemeData), ::CloseThemeData> unique_htheme;
 #endif // __WIL_INC_UXTHEME
 
 #pragma warning(push)
 #pragma warning(disable:4995)
-#if defined(_INC_USERENV) && !defined(__WIL_INC_USERENV) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM) && !defined(WIL_KERNEL_MODE)
+#if (defined(_INC_USERENV) && !defined(__WIL_INC_USERENV) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM) && !defined(WIL_KERNEL_MODE)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_INC_USERENV
+    /// @endcond
     typedef unique_any<void*, decltype(&::DestroyEnvironmentBlock), ::DestroyEnvironmentBlock> unique_environment_block;
 #endif // __WIL_INC_USERENV
 #pragma warning(pop)
 
-#if defined(__WINEVT_H__) && !defined(__WIL_INC_EVT_HANDLE) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_PKG_EVENTLOGSERVICE) && !defined(WIL_KERNEL_MODE)
+#if (defined(__WINEVT_H__) && !defined(__WIL_INC_EVT_HANDLE) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_PKG_EVENTLOGSERVICE) && !defined(WIL_KERNEL_MODE)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_INC_EVT_HANDLE
+    /// @endcond
     typedef unique_any<EVT_HANDLE, decltype(&::EvtClose), ::EvtClose> unique_evt_handle;
 #endif // __WIL_INC_EVT_HANDLE
 
-#if defined(_WINSVC_) && !defined(__WIL_HANDLE_H_WINSVC) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && !defined(WIL_KERNEL_MODE)
+#if (defined(_WINSVC_) && !defined(__WIL_HANDLE_H_WINSVC) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && !defined(WIL_KERNEL_MODE)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_HANDLE_H_WINSVC
+    /// @endcond
     typedef unique_any<SC_HANDLE, decltype(&::CloseServiceHandle), ::CloseServiceHandle> unique_schandle;
 #endif // __WIL_HANDLE_H_WINSVC
-#if defined(__WIL_HANDLE_H_WINSVC) && !defined(__WIL_HANDLE_H_WINSVC_STL) && defined(WIL_RESOURCE_STL)
+#if (defined(__WIL_HANDLE_H_WINSVC) && !defined(__WIL_HANDLE_H_WINSVC_STL) && defined(WIL_RESOURCE_STL)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_HANDLE_H_WINSVC_STL
+    /// @endcond
     typedef shared_any<unique_schandle> shared_schandle;
     typedef weak_any<shared_schandle> weak_schandle;
 #endif // __WIL_HANDLE_H_WINSVC_STL
 
-#if defined(_INC_STDIO) && !defined(__WIL_INC_STDIO) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && !defined(WIL_KERNEL_MODE)
+#if (defined(_INC_STDIO) && !defined(__WIL_INC_STDIO) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && !defined(WIL_KERNEL_MODE)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_INC_STDIO
+    /// @endcond
     typedef unique_any<FILE*, decltype(&::_pclose), ::_pclose> unique_pipe;
     typedef unique_any<FILE*, decltype(&::fclose), ::fclose> unique_file;
 #endif // __WIL_INC_STDIO
-#if defined(__WIL_INC_STDIO) && !defined(__WIL__INC_STDIO_STL) && defined(WIL_RESOURCE_STL)
+#if (defined(__WIL_INC_STDIO) && !defined(__WIL__INC_STDIO_STL) && defined(WIL_RESOURCE_STL)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL__INC_STDIO_STL
+    /// @endcond
     typedef shared_any<unique_pipe> shared_pipe;
     typedef weak_any<shared_pipe> weak_pipe;
     typedef shared_any<unique_file> shared_file;
     typedef weak_any<unique_file> weak_file;
 #endif // __WIL__INC_STDIO_STL
 
-#if defined(_INC_LOCALE) && !defined(__WIL_INC_LOCALE) && !defined(WIL_KERNEL_MODE)
+#if (defined(_INC_LOCALE) && !defined(__WIL_INC_LOCALE) && !defined(WIL_KERNEL_MODE)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_INC_LOCALE
+    /// @endcond
     typedef unique_any<_locale_t, decltype(&::_free_locale), ::_free_locale> unique_locale;
 #endif // __WIL_INC_LOCALE
-#if defined(__WIL_INC_LOCALE) && !defined(__WIL__INC_LOCALE_STL) && defined(WIL_RESOURCE_STL)
+#if (defined(__WIL_INC_LOCALE) && !defined(__WIL__INC_LOCALE_STL) && defined(WIL_RESOURCE_STL)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL__INC_LOCALE_STL
+    /// @endcond
     typedef shared_any<unique_locale> shared_locale;
     typedef weak_any<unique_locale> weak_locale;
 #endif // __WIL__INC_LOCALE_STL
 
-#if defined(_NTLSA_) && !defined(__WIL_NTLSA_) && !defined(WIL_KERNEL_MODE)
+#if (defined(_NTLSA_) && !defined(__WIL_NTLSA_) && !defined(WIL_KERNEL_MODE)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_NTLSA_
+    /// @endcond
     typedef unique_any<LSA_HANDLE, decltype(&::LsaClose), ::LsaClose> unique_hlsa;
 
     using lsa_freemem_deleter = function_deleter<decltype(&::LsaFreeMemory), LsaFreeMemory>;
@@ -5489,14 +5606,18 @@ namespace wil
     template <typename T>
     using unique_lsamem_ptr = wistd::unique_ptr<T, lsa_freemem_deleter>;
 #endif // _NTLSA_
-#if defined(_NTLSA_) && !defined(__WIL_NTLSA_STL) && defined(WIL_RESOURCE_STL)
+#if (defined(_NTLSA_) && !defined(__WIL_NTLSA_STL) && defined(WIL_RESOURCE_STL)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_NTLSA_STL
+    /// @endcond
     typedef shared_any<unique_hlsa> shared_hlsa;
     typedef weak_any<shared_hlsa> weak_hlsa;
 #endif // _NTLSA_
 
-#if defined(_LSALOOKUP_) && !defined(__WIL_LSALOOKUP_)
+#if (defined(_LSALOOKUP_) && !defined(__WIL_LSALOOKUP_)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_LSALOOKUP_
+    /// @endcond
     typedef unique_any<LSA_HANDLE, decltype(&::LsaLookupClose), ::LsaLookupClose> unique_hlsalookup;
 
     using lsalookup_freemem_deleter = function_deleter<decltype(&::LsaLookupFreeMemory), LsaLookupFreeMemory>;
@@ -5504,38 +5625,48 @@ namespace wil
     template <typename T>
     using unique_lsalookupmem_ptr = wistd::unique_ptr<T, lsalookup_freemem_deleter>;
 #endif // _LSALOOKUP_
-#if defined(_LSALOOKUP_) && !defined(__WIL_LSALOOKUP_STL) && defined(WIL_RESOURCE_STL)
+#if (defined(_LSALOOKUP_) && !defined(__WIL_LSALOOKUP_STL) && defined(WIL_RESOURCE_STL)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_LSALOOKUP_STL
+    /// @endcond
     typedef shared_any<unique_hlsalookup> shared_hlsalookup;
     typedef weak_any<shared_hlsalookup> weak_hlsalookup;
 #endif // _LSALOOKUP_
 
-#if defined(_NTLSA_IFS_) && !defined(__WIL_HANDLE_H_NTLSA_IFS_) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+#if (defined(_NTLSA_IFS_) && !defined(__WIL_HANDLE_H_NTLSA_IFS_) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_HANDLE_H_NTLSA_IFS_
+    /// @endcond
     using lsa_deleter = function_deleter<decltype(&::LsaFreeReturnBuffer), LsaFreeReturnBuffer>;
 
     template <typename T>
     using unique_lsa_ptr = wistd::unique_ptr<T, lsa_deleter>;
 #endif // __WIL_HANDLE_H_NTLSA_IFS_
 
-#if defined(__WERAPI_H__) && !defined(__WIL_WERAPI_H__) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+#if (defined(__WERAPI_H__) && !defined(__WIL_WERAPI_H__) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_WERAPI_H__
+    /// @endcond
     typedef unique_any<HREPORT, decltype(&WerReportCloseHandle), WerReportCloseHandle> unique_wer_report;
 #endif
 
-#if defined(__MIDLES_H__) && !defined(__WIL_MIDLES_H__) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+#if (defined(__MIDLES_H__) && !defined(__WIL_MIDLES_H__) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_MIDLES_H__
+    /// @endcond
     typedef unique_any<handle_t, decltype(&::MesHandleFree), ::MesHandleFree> unique_rpc_pickle;
 #endif
-#if defined(__WIL_MIDLES_H__) && !defined(__WIL_MIDLES_H_STL) && defined(WIL_RESOURCE_STL)
+#if (defined(__WIL_MIDLES_H__) && !defined(__WIL_MIDLES_H_STL) && defined(WIL_RESOURCE_STL)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_MIDLES_H_STL
+    /// @endcond
     typedef shared_any<unique_rpc_pickle> shared_rpc_pickle;
     typedef weak_any<shared_rpc_pickle> weak_rpc_pickle;
 #endif
 
-#if defined(__RPCDCE_H__) && !defined(__WIL_RPCDCE_H__) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
-#define __WIL_RPCDCE_H__
+#if (defined(__RPCDCE_H__) && !defined(__WIL_RPCDCE_H__) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)) || defined(WIL_DOXYGEN)
     /// @cond
+#define __WIL_RPCDCE_H__
     namespace details
     {
         inline void __stdcall WpRpcBindingFree(_Pre_opt_valid_ _Frees_ptr_opt_ RPC_BINDING_HANDLE binding)
@@ -5559,8 +5690,10 @@ namespace wil
     typedef unique_any<RPC_BINDING_VECTOR*, decltype(&details::WpRpcBindingVectorFree), details::WpRpcBindingVectorFree> unique_rpc_binding_vector;
     typedef unique_any<RPC_WSTR, decltype(&details::WpRpcStringFree), details::WpRpcStringFree> unique_rpc_wstr;
 #endif
-#if defined(__WIL_RPCDCE_H__) && !defined(__WIL_RPCDCE_H_STL) && defined(WIL_RESOURCE_STL)
+#if (defined(__WIL_RPCDCE_H__) && !defined(__WIL_RPCDCE_H_STL) && defined(WIL_RESOURCE_STL)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_RPCDCE_H_STL
+    /// @endcond
     typedef shared_any<unique_rpc_binding> shared_rpc_binding;
     typedef weak_any<shared_rpc_binding> weak_rpc_binding;
     typedef shared_any<unique_rpc_binding_vector> shared_rpc_binding_vector;
@@ -5569,26 +5702,34 @@ namespace wil
     typedef weak_any<unique_rpc_wstr> weak_rpc_wstr;
 #endif
 
-#if defined(_WCMAPI_H) && !defined(__WIL_WCMAPI_H_) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+#if (defined(_WCMAPI_H) && !defined(__WIL_WCMAPI_H_) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_WCMAPI_H_
+    /// @endcond
     using wcm_deleter = function_deleter<decltype(&::WcmFreeMemory), WcmFreeMemory>;
 
     template<typename T>
     using unique_wcm_ptr = wistd::unique_ptr<T, wcm_deleter>;
 #endif
 
-#if defined(_NETIOAPI_H_) && defined(_WS2IPDEF_) && defined(MIB_INVALID_TEREDO_PORT_NUMBER) && !defined(__WIL_NETIOAPI_H_) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+#if (defined(_NETIOAPI_H_) && defined(_WS2IPDEF_) && defined(MIB_INVALID_TEREDO_PORT_NUMBER) && !defined(__WIL_NETIOAPI_H_) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_NETIOAPI_H_
+    /// @endcond
     typedef unique_any<PMIB_IF_TABLE2, decltype(&::FreeMibTable), ::FreeMibTable> unique_mib_iftable;
 #endif
-#if defined(__WIL_NETIOAPI_H_) && !defined(__WIL_NETIOAPI_H_STL) && defined(WIL_RESOURCE_STL)
+#if (defined(__WIL_NETIOAPI_H_) && !defined(__WIL_NETIOAPI_H_STL) && defined(WIL_RESOURCE_STL)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_NETIOAPI_H_STL
+    /// @endcond
     typedef shared_any<unique_mib_iftable> shared_mib_iftable;
     typedef weak_any<shared_mib_iftable> weak_mib_iftable;
 #endif
 
-#if defined(_WLAN_WLANAPI_H) && !defined(__WIL_WLAN_WLANAPI_H) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+#if (defined(_WLAN_WLANAPI_H) && !defined(__WIL_WLAN_WLANAPI_H) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_WLAN_WLANAPI_H
+    /// @endcond
     using wlan_deleter = function_deleter<decltype(&::WlanFreeMemory), ::WlanFreeMemory>;
 
     template<typename T>
@@ -5606,28 +5747,34 @@ namespace wil
 
     typedef unique_any<HANDLE, decltype(&details::CloseWlanHandle), details::CloseWlanHandle, details::pointer_access_all, HANDLE, INT_PTR, -1> unique_wlan_handle;
 #endif
-#if defined(__WIL_WLAN_WLANAPI_H) && !defined(__WIL_WLAN_WLANAPI_H_STL) && defined(WIL_RESOURCE_STL)
+#if (defined(__WIL_WLAN_WLANAPI_H) && !defined(__WIL_WLAN_WLANAPI_H_STL) && defined(WIL_RESOURCE_STL)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_WLAN_WLANAPI_H_STL
+    /// @endcond
     typedef shared_any<unique_wlan_handle> shared_wlan_handle;
     typedef weak_any<shared_wlan_handle> weak_wlan_handle;
 #endif
 
-#if defined(_HPOWERNOTIFY_DEF_) && !defined(__WIL_HPOWERNOTIFY_DEF_H_) && !defined(WIL_KERNEL_MODE)
+#if (defined(_HPOWERNOTIFY_DEF_) && !defined(__WIL_HPOWERNOTIFY_DEF_H_) && !defined(WIL_KERNEL_MODE)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_HPOWERNOTIFY_DEF_H_
+    /// @endcond
     typedef unique_any<HPOWERNOTIFY, decltype(&::UnregisterPowerSettingNotification), ::UnregisterPowerSettingNotification> unique_hpowernotify;
 #endif
 
-#if defined(__WIL_WINBASE_DESKTOP) && defined(SID_DEFINED) && !defined(__WIL_PSID_DEF_H_)
+#if (defined(__WIL_WINBASE_DESKTOP) && defined(SID_DEFINED) && !defined(__WIL_PSID_DEF_H_)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_PSID_DEF_H_
+    /// @endcond
     typedef unique_any<PSID, decltype(&::LocalFree), ::LocalFree> unique_any_psid;
-#if defined(_OBJBASE_H_)
+#if defined(_OBJBASE_H_) || defined(WIL_DOXYGEN)
     typedef unique_any<PSID, decltype(&::CoTaskMemFree), ::CoTaskMemFree> unique_cotaskmem_psid;
 #endif
 #endif
 
-#if defined(_PROCESSTHREADSAPI_H_) && !defined(__WIL_PROCESSTHREADSAPI_H_DESK_SYS) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM) && !defined(WIL_KERNEL_MODE)
-#define __WIL_PROCESSTHREADSAPI_H_DESK_SYS
+#if (defined(_PROCESSTHREADSAPI_H_) && !defined(__WIL_PROCESSTHREADSAPI_H_DESK_SYS) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM) && !defined(WIL_KERNEL_MODE)) || defined(WIL_DOXYGEN)
     /// @cond
+#define __WIL_PROCESSTHREADSAPI_H_DESK_SYS
     namespace details
     {
         inline void __stdcall CloseProcessInformation(_In_ PROCESS_INFORMATION* p)
@@ -5656,8 +5803,10 @@ namespace wil
     using unique_process_information = unique_struct<PROCESS_INFORMATION, decltype(&details::CloseProcessInformation), details::CloseProcessInformation>;
 #endif
 
-#if defined(_PROCESSENV_) && !defined(__WIL__PROCESSENV_) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_SYSTEM)
+#if (defined(_PROCESSENV_) && !defined(__WIL__PROCESSENV_) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_SYSTEM)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL__PROCESSENV_
+    /// @endcond
     /** Manages lifecycle of an environment-strings block
     ~~~
     wil::unique_environstrings_ptr env { ::GetEnvironmentStringsW() };
@@ -5677,24 +5826,29 @@ namespace wil
 #endif
 #endif
 
-#if defined(_APPMODEL_H_) && !defined(__WIL_APPMODEL_H_) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+#if (defined(_APPMODEL_H_) && !defined(__WIL_APPMODEL_H_) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_APPMODEL_H_
+    /// @endcond
     typedef unique_any<PACKAGE_INFO_REFERENCE, decltype(&::ClosePackageInfo), ::ClosePackageInfo> unique_package_info_reference;
 #endif // __WIL_APPMODEL_H_
-#if defined(__WIL_APPMODEL_H_) && !defined(__WIL_APPMODEL_H_STL) && defined(WIL_RESOURCE_STL)
+#if (defined(__WIL_APPMODEL_H_) && !defined(__WIL_APPMODEL_H_STL) && defined(WIL_RESOURCE_STL)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_APPMODEL_H_STL
+    /// @endcond
     typedef shared_any<unique_package_info_reference> shared_package_info_reference;
     typedef weak_any<shared_package_info_reference> weak_package_info_reference;
 #endif // __WIL_APPMODEL_H_STL
 
-#if defined(WDFAPI) && !defined(__WIL_WDFAPI)
+#if (defined(WDFAPI) && !defined(__WIL_WDFAPI)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_WDFAPI
-
     namespace details
     {
         template<typename TWDFOBJECT>
         using wdf_object_resource_policy = resource_policy<TWDFOBJECT, decltype(&::WdfObjectDelete), &::WdfObjectDelete>;
     }
+    /// @endcond
 
     template<typename TWDFOBJECT>
     using unique_wdf_any = unique_any_t<details::unique_storage<details::wdf_object_resource_policy<TWDFOBJECT>>>;
@@ -5778,6 +5932,7 @@ namespace wil
         return wdf_spin_lock_release_scope_exit(lock);
     }
 
+    /// @cond
     namespace details
     {
         template<typename TWDFLOCK>
@@ -5839,6 +5994,7 @@ namespace wil
             }
         };
     }
+    /// @endcond
 
     using unique_wdf_wait_lock = unique_any_t<details::unique_wdf_wait_lock_storage>;
     using unique_wdf_spin_lock = unique_any_t<details::unique_wdf_spin_lock_storage>;
@@ -6221,25 +6377,32 @@ namespace wil
     };
 #endif
 
-#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM) && \
+#if (WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM) && \
     defined(_CFGMGR32_H_) && \
     (WINVER >= _WIN32_WINNT_WIN8) && \
-    !defined(__WIL_CFGMGR32_H_)
+    !defined(__WIL_CFGMGR32_H_)) || \
+    defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_CFGMGR32_H_
+    /// @endcond
     typedef unique_any<HCMNOTIFICATION, decltype(&::CM_Unregister_Notification), ::CM_Unregister_Notification> unique_hcmnotification;
 #endif
 
-#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM) && \
+#if (WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM) && \
     defined(_SWDEVICE_H_) && \
     (WINVER >= _WIN32_WINNT_WIN8) && \
-    !defined(__WIL_SWDEVICE_H_)
+    !defined(__WIL_SWDEVICE_H_)) || \
+    defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_SWDEVICE_H_
+    /// @endcond
         typedef unique_any<HSWDEVICE, decltype(&::SwDeviceClose), ::SwDeviceClose> unique_hswdevice;
 #endif
 
 #if defined(WIL_KERNEL_MODE) && (defined(_WDMDDK_) || defined(_NTDDK_)) && !defined(__WIL_RESOURCE_WDM)
 #define __WIL_RESOURCE_WDM
 
+    /// @cond
     namespace details
     {
         struct kspin_lock_saved_irql
@@ -6280,6 +6443,7 @@ namespace wil
             KeReleaseSpinLockFromDpcLevel(spinLock);
         }
     }
+    /// @endcond
 
     using kspin_lock_guard = unique_any<PKSPIN_LOCK, decltype(details::kspin_lock_saved_irql::Release), &details::kspin_lock_saved_irql::Release,
         details::pointer_access_none, details::kspin_lock_saved_irql>;
@@ -6347,6 +6511,7 @@ namespace wil
         KSPIN_LOCK m_kSpinLock;
     };
 
+    /// @cond
     namespace details
     {
         template <EVENT_TYPE eventType>
@@ -6422,6 +6587,7 @@ namespace wil
             KEVENT m_kernelEvent;
         };
     }
+    /// @endcond
 
     using kernel_event_auto_reset = details::kernel_event_t<SynchronizationEvent>;
     using kernel_event_manual_reset = details::kernel_event_t<NotificationEvent>;
@@ -6495,6 +6661,7 @@ namespace wil
         FAST_MUTEX m_fastMutex;
     };
 
+    /// @cond
     namespace details
     {
         _IRQL_requires_max_(APC_LEVEL)
@@ -6504,6 +6671,7 @@ namespace wil
             ::KeLeaveCriticalRegion();
         }
     }
+    /// @endcond
 
     using fast_mutex_with_critical_region_guard =
         unique_any<FAST_MUTEX*, decltype(details::release_fast_mutex_with_critical_region), &details::release_fast_mutex_with_critical_region, details::pointer_access_none>;
@@ -6570,6 +6738,7 @@ namespace wil
 
 //! WDM version of EX_PUSH_LOCK is available starting with Windows 10 1809
 #if (NTDDI_VERSION >= NTDDI_WIN10_RS5)
+    /// @cond
     namespace details
     {
         _IRQL_requires_max_(APC_LEVEL)
@@ -6586,6 +6755,7 @@ namespace wil
             ::KeLeaveCriticalRegion();
         }
     }
+    /// @endcond
 
     using push_lock_exclusive_guard =
         unique_any<EX_PUSH_LOCK*, decltype(&details::release_push_lock_exclusive), &details::release_push_lock_exclusive, details::pointer_access_noaddress>;
@@ -6648,6 +6818,7 @@ namespace wil
     };
 #endif
 
+    /// @cond
     namespace details
     {
         // Define a templated type for pool functions in order to satisfy overload resolution below
@@ -6665,6 +6836,7 @@ namespace wil
             }
         };
     }
+    /// @endcond
 
     template <typename pointer, ULONG tag = 0>
     using unique_tagged_pool_ptr = unique_any<pointer, decltype(details::pool_helpers<pointer, tag>::FreePoolWithTag), &details::pool_helpers<pointer, tag>::FreePoolWithTag>;
@@ -6682,7 +6854,8 @@ namespace wil
 
 #endif // __WIL_RESOURCE_ZWAPI
 
-#if defined(WINTRUST_H) && defined(SOFTPUB_H) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && !defined(__WIL_WINTRUST)
+#if (defined(WINTRUST_H) && defined(SOFTPUB_H) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && !defined(__WIL_WINTRUST)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_WINTRUST
     namespace details
     {
@@ -6693,10 +6866,12 @@ namespace wil
             WinVerifyTrust(static_cast<HWND>(INVALID_HANDLE_VALUE), &guidV2, wtData);
         }
     }
+    /// @endcond
     typedef wil::unique_struct<WINTRUST_DATA, decltype(&details::CloseWintrustData), details::CloseWintrustData> unique_wintrust_data;
 #endif // __WIL_WINTRUST
 
-#if defined(MSCAT_H) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && !defined(__WIL_MSCAT)
+#if (defined(MSCAT_H) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && !defined(__WIL_MSCAT)) || defined(WIL_DOXYGEN)
+    /// @cond
 #define __WIL_MSCAT
     namespace details
     {
@@ -6705,6 +6880,7 @@ namespace wil
             CryptCATAdminReleaseContext(handle, 0);
         }
     }
+    /// @endcond
     typedef wil::unique_any<HCATADMIN, decltype(&details::CryptCATAdminReleaseContextNoFlags), details::CryptCATAdminReleaseContextNoFlags> unique_hcatadmin;
 
 #if defined(WIL_RESOURCE_STL)
@@ -6721,6 +6897,7 @@ namespace wil
     // This stores HCATINFO, i.e. HANDLE (void *)
     typedef wistd::unique_ptr<void, hcatinfo_deleter> unique_hcatinfo;
 
+    /// @cond
     namespace details
     {
         class crypt_catalog_enumerator
@@ -6763,7 +6940,7 @@ namespace wil
 
             struct iterator
             {
-#ifdef _XUTILITY_
+#if defined(_XUTILITY_) || defined(WIL_DOXYGEN)
                 // muse be input_iterator_tag as use of one instance invalidates the other.
                 typedef ::std::input_iterator_tag iterator_category;
 #endif
@@ -6893,6 +7070,7 @@ namespace wil
             crypt_catalog_enumerator &operator=(const crypt_catalog_enumerator &) = delete;
         };
     }
+    /// @endcond
 
     /** Use to enumerate catalogs containing a hash with a range-based for.
     This avoids handling a raw resource to call CryptCATAdminEnumCatalogFromHash correctly.
@@ -6919,7 +7097,32 @@ namespace wil
 
 
 #if !defined(__WIL_RESOURCE_LOCK_ENFORCEMENT)
+    /// @cond
 #define __WIL_RESOURCE_LOCK_ENFORCEMENT
+    /// @endcond
+
+    /// @cond
+    namespace details
+    {
+        // Only those lock types specialized by lock_proof_traits will allow either a write_lock_required or
+        // read_lock_required to be constructed. The allows_exclusive value indicates if the type represents an exclusive,
+        // write-safe lock aquisition, or a shared, read-only lock acquisition.
+        template<typename T>
+        struct lock_proof_traits { };
+
+        // Base for specializing lock_proof_traits where the lock type is shared
+        struct shared_lock_proof
+        {
+            static constexpr bool allows_shared = true;
+        };
+
+        // Base for specializing lock_proof_traits where the lock type is exclusive (super-set of shared_lock_proof)
+        struct exclusive_lock_proof : shared_lock_proof
+        {
+            static constexpr bool allows_exclusive = true;
+        };
+    }
+    /// @endcond
 
     /**
     Functions that need an exclusive lock use can use write_lock_required as a parameter to enforce lock
@@ -6997,34 +7200,6 @@ namespace wil
     code that catches the common issues of forgetting to hold a lock or forgetting whether a lock is required to
     call another method safely.
     */
-    struct write_lock_required;
-
-    /**
-    Stands as proof that a shared lock has been acquired. See write_lock_required for more information.
-    */
-    struct read_lock_required;
-
-    namespace details
-    {
-        // Only those lock types specialized by lock_proof_traits will allow either a write_lock_required or
-        // read_lock_required to be constructed. The allows_exclusive value indicates if the type represents an exclusive,
-        // write-safe lock aquisition, or a shared, read-only lock acquisition.
-        template<typename T>
-        struct lock_proof_traits { };
-
-        // Base for specializing lock_proof_traits where the lock type is shared
-        struct shared_lock_proof
-        {
-            static constexpr bool allows_shared = true;
-        };
-
-        // Base for specializing lock_proof_traits where the lock type is exclusive (super-set of shared_lock_proof)
-        struct exclusive_lock_proof : shared_lock_proof
-        {
-            static constexpr bool allows_exclusive = true;
-        };
-    }
-
     struct write_lock_required
     {
         /**
@@ -7036,6 +7211,9 @@ namespace wil
         write_lock_required() = delete; // No default construction
     };
 
+    /**
+    Stands as proof that a shared lock has been acquired. See write_lock_required for more information.
+    */
     struct read_lock_required
     {
         /**
@@ -7057,6 +7235,7 @@ namespace wil
 #if defined(__WIL_WINBASE_) && !defined(__WIL__RESOURCE_LOCKPROOF_WINBASE) && defined(__WIL_RESOURCE_LOCK_ENFORCEMENT)
 #define __WIL__RESOURCE_LOCKPROOF_WINBASE
 
+    /// @cond
     namespace details
     {
         // Specializations for srwlock
@@ -7070,12 +7249,14 @@ namespace wil
         template<>
         struct lock_proof_traits<cs_leave_scope_exit> : exclusive_lock_proof {};
     }
+    /// @endcond
 
 #endif //__WIL__RESOURCE_LOCKPROOF_WINBASE
 
 #if defined(_MUTEX_) && !defined(__WIL__RESOURCE_LOCKPROOF_MUTEX) && defined(__WIL_RESOURCE_LOCK_ENFORCEMENT)
 #define __WIL__RESOURCE_LOCKPROOF_MUTEX
 
+    /// @cond
     namespace details
     {
         template<typename TMutex>
@@ -7084,17 +7265,20 @@ namespace wil
         template<typename TMutex>
         struct lock_proof_traits<std::lock_guard<TMutex>> : exclusive_lock_proof {};
     }
+    /// @endcond
 
 #endif //__WIL__RESOURCE_LOCKPROOF_MUTEX
 
 #if defined(_SHARED_MUTEX_) && !defined(__WIL__RESOURCE_LOCKPROOF_SHAREDMUTEX) && defined(__WIL_RESOURCE_LOCK_ENFORCEMENT)
 #define __WIL__RESOURCE_LOCKPROOF_SHAREDMUTEX
 
+    /// @cond
     namespace details
     {
         template<typename TMutex>
         struct lock_proof_traits<std::shared_lock<TMutex>> : shared_lock_proof {};
     }
+    /// @endcond
 
 #endif //__WIL__RESOURCE_LOCKPROOF_SHAREDMUTEX
 

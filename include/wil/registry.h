@@ -8,6 +8,8 @@
 //    PARTICULAR PURPOSE AND NONINFRINGEMENT.
 //
 //*********************************************************
+//! @file
+//! Helpers for reading and writing values to/from the registry.
 #ifndef __WIL_REGISTRY_INCLUDED
 #define __WIL_REGISTRY_INCLUDED
 
@@ -26,6 +28,7 @@
 
 namespace wil
 {
+    //! Functions and classes that support reading and writing values to/from the registry.
     namespace reg
     {
 #if defined(WIL_ENABLE_EXCEPTIONS)
@@ -63,7 +66,7 @@ namespace wil
             return return_value;
         }
 
-#if defined(__WIL_WINREG_STL)
+#if defined(__WIL_WINREG_STL) || defined(WIL_DOXYGEN)
         /**
          * @brief Opens a new HKEY to the specified path - see RegOpenKeyExW
          * @param key An open or well-known registry key
@@ -130,7 +133,7 @@ namespace wil
             return regview.create_key(subKey, hkey.put(), access);
         }
 
-#if defined(__WIL_WINREG_STL)
+#if defined(__WIL_WINREG_STL) || defined(WIL_DOXYGEN)
         /**
          * @brief Opens a new HKEY to the specified path - see RegOpenKeyExW
          * @param key An open or well-known registry key
@@ -161,6 +164,7 @@ namespace wil
             return regview.create_key(subKey, hkey.put(), access);
         }
 #endif // #define __WIL_WINREG_STL
+
         //
         //  wil::key_iterator and wil::value_iterator objects enable enumerating registry keys and values.
         //
@@ -215,25 +219,27 @@ namespace wil
         //
 #if defined(WIL_ENABLE_EXCEPTIONS)
 
-#if defined(_STRING_)
+#if defined(_STRING_) || defined(WIL_DOXYGEN)
         using key_iterator = ::wil::reg::iterator_t<::wil::reg::key_iterator_data<::std::wstring>>;
         using value_iterator = ::wil::reg::iterator_t<::wil::reg::value_iterator_data<::std::wstring>>;
 #endif
 
-#if defined(__WIL_OLEAUTO_H_)
+#if defined(__WIL_OLEAUTO_H_) || defined(WIL_DOXYGEN)
         using key_bstr_iterator = ::wil::reg::iterator_t<::wil::reg::key_iterator_data<::wil::unique_bstr>>;
         using value_bstr_iterator = ::wil::reg::iterator_t<::wil::reg::value_iterator_data<::wil::unique_bstr>>;
 #endif // #if defined(__WIL_OLEAUTO_H_)
 
         using key_heap_string_iterator = ::wil::reg::iterator_t<::wil::reg::key_iterator_data<::wil::unique_process_heap_string>>;
         using value_heap_string_iterator = ::wil::reg::iterator_t<::wil::reg::value_iterator_data<::wil::unique_process_heap_string>>;
+
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS)
 
         // no-throw versions of applicable registry iterators
-#if defined(__WIL_OLEAUTO_H_)
+#if defined(__WIL_OLEAUTO_H_) || defined(WIL_DOXYGEN)
         using key_bstr_nothrow_iterator = ::wil::reg::iterator_nothrow_t<::wil::reg::key_iterator_data<::wil::unique_bstr>>;
         using value_bstr_nothrow_iterator = ::wil::reg::iterator_nothrow_t<::wil::reg::value_iterator_data<::wil::unique_bstr>>;
 #endif // #if defined(__WIL_OLEAUTO_H_)
+
         using key_heap_string_nothrow_iterator = ::wil::reg::iterator_nothrow_t<::wil::reg::key_iterator_data<::wil::unique_process_heap_string>>;
         using value_heap_string_nothrow_iterator = ::wil::reg::iterator_nothrow_t<::wil::reg::value_iterator_data<::wil::unique_process_heap_string>>;
 
@@ -575,7 +581,7 @@ namespace wil
             ::wil::reg::set_value_expanded_string(key, nullptr, value_name, data);
         }
 
-#if defined(_VECTOR_) && defined(_STRING_)
+#if (defined(_VECTOR_) && defined(_STRING_)) || defined(WIL_DOXYGEN)
         /**
          * @brief The generic set_value template function to write a REG_MULTI_SZ value from a std::vector<std::wstring>
          * @param key An open or well-known registry key
@@ -639,7 +645,7 @@ namespace wil
         }
 #endif // #if defined(_VECTOR_) && defined(_STRING_)
 
-#if defined(_VECTOR_)
+#if defined(_VECTOR_) || defined(WIL_DOXYGEN)
         /**
          * @brief Writes a registry value of the specified type from a std::vector<uint8_t>/std::vector<BYTE>
          * @param key An open or well-known registry key
@@ -876,7 +882,7 @@ namespace wil
             return ::wil::reg::set_value_expanded_string_nothrow(key, nullptr, value_name, data);
         }
 
-#if defined(__WIL_OBJBASE_H_)
+#if defined(__WIL_OBJBASE_H_) || defined(WIL_DOXYGEN)
         /**
          * @brief Writes raw bytes into a registry value under a specified key of the specified type
          * @param key An open or well-known registry key
@@ -1077,7 +1083,7 @@ namespace wil
             return ::wil::reg::get_value<uint64_t>(key, nullptr, value_name);
         }
 
-#if defined(_STRING_)
+#if defined(_STRING_) || defined(WIL_DOXYGEN)
         /**
          * @brief Reads a REG_SZ value, returning a std::wstring
          * @param key An open or well-known registry key
@@ -1202,7 +1208,7 @@ namespace wil
         }
 #endif // #if defined(_STRING_)
 
-#if defined(__WIL_OLEAUTO_H_)
+#if defined(__WIL_OLEAUTO_H_) || defined(WIL_DOXYGEN)
         /**
          * @brief Reads a REG_SZ value, returning a wil::unique_bstr
          * @param key An open or well-known registry key
@@ -1267,7 +1273,8 @@ namespace wil
         {
             return ::wil::reg::get_value_expanded_string<::wil::unique_bstr>(key, nullptr, value_name);
         }
-#if defined(__WIL_OLEAUTO_H_STL)
+
+#if defined(__WIL_OLEAUTO_H_STL) || defined(WIL_DOXYGEN)
         /**
          * @brief Reads a REG_SZ value, returning a wil::shared_bstr
          * @param key An open or well-known registry key
@@ -1335,7 +1342,7 @@ namespace wil
 #endif // #if defined(__WIL_OLEAUTO_H_STL)
 #endif // #if defined(__WIL_OLEAUTO_H_)
 
-#if defined(__WIL_OBJBASE_H_)
+#if defined(__WIL_OBJBASE_H_) || defined(WIL_DOXYGEN)
         /**
          * @brief Reads a REG_SZ value, returning a wil::unique_cotaskmem_string
          * @param key An open or well-known registry key
@@ -1400,7 +1407,8 @@ namespace wil
         {
             return wil::reg::get_value_expanded_string<::wil::unique_cotaskmem_string>(key, nullptr, value_name);
         }
-#if defined(__WIL_OBJBASE_H_STL)
+
+#if defined(__WIL_OBJBASE_H_STL) || defined(WIL_DOXYGEN)
         /**
          * @brief Reads a REG_SZ value, returning a wil::shared_cotaskmem_string
          * @param key An open or well-known registry key
@@ -1468,7 +1476,7 @@ namespace wil
 #endif // #if defined(__WIL_OBJBASE_H_STL)
 #endif // defined(__WIL_OBJBASE_H_)
 
-#if defined(_VECTOR_)
+#if defined(_VECTOR_) || defined(WIL_DOXYGEN)
         /**
          * @brief Reads a registry value of the specified type, returning a std::vector<BYTE>
          * @param key An open or well-known registry key
@@ -1503,7 +1511,7 @@ namespace wil
         }
 #endif // #if defined(_VECTOR_)
 
-#if defined(_VECTOR_) && defined(_STRING_)
+#if (defined(_VECTOR_) && defined(_STRING_)) || defined(WIL_DOXYGEN)
         /**
          * @brief Reads a REG_MULTI_SZ value, returning a std::vector<std::wstring>
          * @param key An open or well-known registry key
@@ -1588,7 +1596,7 @@ namespace wil
         }
 #endif // #if defined(_VECTOR_) && defined(_STRING_)
 
-#if defined (_OPTIONAL_) && defined(__cpp_lib_optional)
+#if (defined (_OPTIONAL_) && defined(__cpp_lib_optional)) || defined(WIL_DOXYGEN)
         //
         // template <typename T>
         // void try_get_value(...)
@@ -1803,7 +1811,7 @@ namespace wil
             return ::wil::reg::try_get_value<uint64_t>(key, nullptr, value_name);
         }
 
-#if defined(_VECTOR_)
+#if defined(_VECTOR_) || defined(WIL_DOXYGEN)
         /**
          * @brief Attempts to read a value under a specified key requiring the specified type, returning the raw bytes in a std::optional
          * @param key An open or well-known registry key
@@ -1838,7 +1846,7 @@ namespace wil
         }
 #endif // #if defined(_VECTOR_)
 
-#if defined(_STRING_)
+#if defined(_STRING_) || defined(WIL_DOXYGEN)
         /**
          * @brief Attempts to read a REG_SZ value under a specified key, returning the value in a std::optional
          * @param key An open or well-known registry key
@@ -1970,7 +1978,7 @@ namespace wil
         }
 #endif // #if defined(_STRING_)
 
-#if defined(__WIL_OLEAUTO_H_STL)
+#if defined(__WIL_OLEAUTO_H_STL) || defined(WIL_DOXYGEN)
         /**
          * @brief Attempts to read a REG_SZ value under a specified key, returning the value in a std::optional
          * @param key An open or well-known registry key
@@ -2040,7 +2048,7 @@ namespace wil
         }
 #endif // #if defined(__WIL_OLEAUTO_H_STL)
 
-#if defined(__WIL_OBJBASE_H_STL)
+#if defined(__WIL_OBJBASE_H_STL) || defined(WIL_DOXYGEN)
         /**
          * @brief Attempts to read a REG_SZ value under a specified key, returning the value in a std::optional
          * @param key An open or well-known registry key
@@ -2110,7 +2118,7 @@ namespace wil
         }
 #endif // defined(__WIL_OBJBASE_H_STL)
 
-#if defined (_VECTOR_) && defined (_STRING_)
+#if (defined(_VECTOR_) && defined(_STRING_)) || defined(WIL_DOXYGEN)
         /**
          * @brief Attempts to read a REG_MULTI_SZ value under a specified key, returning the value in a std::optional
          * @param key An open or well-known registry key
@@ -2465,7 +2473,7 @@ namespace wil
             return ::wil::reg::get_value_nothrow(key, nullptr, value_name, return_value);
         }
 
-#if defined(__WIL_OLEAUTO_H_)
+#if defined(__WIL_OLEAUTO_H_) || defined(WIL_DOXYGEN)
         /**
          * @brief Reads a REG_SZ value under a specified key
          * @param key An open or well-known registry key
@@ -2523,7 +2531,7 @@ namespace wil
             return ::wil::reg::get_value_string_nothrow(key, nullptr, value_name, return_value);
         }
 
-#if defined(__WIL_OLEAUTO_H_STL)
+#if defined(__WIL_OLEAUTO_H_STL) || defined(WIL_DOXYGEN)
         /**
          * @brief Reads a REG_SZ value under a specified key
          * @param key An open or well-known registry key
@@ -2583,7 +2591,7 @@ namespace wil
 #endif // #if defined(__WIL_OLEAUTO_H_STL)
 #endif // #if defined(__WIL_OLEAUTO_H_)
 
-#if defined(__WIL_OBJBASE_H_)
+#if defined(__WIL_OBJBASE_H_) || defined(WIL_DOXYGEN)
         /**
          * @brief Reads a REG_SZ value under a specified key
          * @param key An open or well-known registry key
@@ -2642,7 +2650,7 @@ namespace wil
             return ::wil::reg::get_value_nothrow(key, nullptr, value_name, return_value);
         }
 
-#if defined(__WIL_OBJBASE_H_STL)
+#if defined(__WIL_OBJBASE_H_STL) || defined(WIL_DOXYGEN)
         /**
          * @brief Reads a REG_SZ value under a specified key
          * @param key An open or well-known registry key
@@ -2703,7 +2711,7 @@ namespace wil
 #endif // #if defined(__WIL_OBJBASE_H_STL)
 #endif // defined(__WIL_OBJBASE_H_)
 
-#if defined(__WIL_OBJBASE_H_)
+#if defined(__WIL_OBJBASE_H_) || defined(WIL_DOXYGEN)
         /**
          * @brief Reads the raw bytes from a registry value under a specified key of the specified type
          * @param key An open or well-known registry key
@@ -2822,7 +2830,7 @@ namespace wil
         }
 
 
-#if defined(__WIL_OLEAUTO_H_)
+#if defined(__WIL_OLEAUTO_H_) || defined(WIL_DOXYGEN)
         /**
          * @brief Reads a REG_EXPAND_SZ value under a specified key
          * @param key An open or well-known registry key
@@ -2854,7 +2862,7 @@ namespace wil
             return ::wil::reg::get_value_expanded_string_nothrow(key, nullptr, value_name, return_value);
         }
 
-#if defined(__WIL_OLEAUTO_H_STL)
+#if defined(__WIL_OLEAUTO_H_STL) || defined(WIL_DOXYGEN)
         /**
          * @brief Reads a REG_EXPAND_SZ value under a specified key
          * @param key An open or well-known registry key
@@ -2888,7 +2896,7 @@ namespace wil
 #endif // #if defined(__WIL_OLEAUTO_H_STL)
 #endif // #if defined(__WIL_OLEAUTO_H_)
 
-#if defined(__WIL_OBJBASE_H_)
+#if defined(__WIL_OBJBASE_H_) || defined(WIL_DOXYGEN)
         /**
          * @brief Reads a REG_EXPAND_SZ value under a specified key
          * @param key An open or well-known registry key
@@ -2920,7 +2928,7 @@ namespace wil
             return ::wil::reg::get_value_expanded_string_nothrow(key, nullptr, value_name, return_value);
         }
 
-#if defined(__WIL_OBJBASE_H_STL)
+#if defined(__WIL_OBJBASE_H_STL) || defined(WIL_DOXYGEN)
         /**
          * @brief Reads a REG_EXPAND_SZ value under a specified key
          * @param key An open or well-known registry key
@@ -2954,7 +2962,7 @@ namespace wil
 #endif // #if defined(__WIL_OBJBASE_H_STL)
 #endif // defined(__WIL_OBJBASE_H_)
 
-#if defined(__WIL_OBJBASE_H_)
+#if defined(__WIL_OBJBASE_H_) || defined(WIL_DOXYGEN)
         /**
          * @brief Reads a REG_MULTI_SZ value under a specified key
          * @param key An open or well-known registry key

@@ -9,9 +9,13 @@
 //    PARTICULAR PURPOSE AND NONINFRINGEMENT.
 //
 //*********************************************************
+//! @file
+//! Various definitions for use in conjunction with TraceLogging APIs
 
 #ifndef __WIL_TRACELOGGING_CONFIG_H
+/// @cond
 #define __WIL_TRACELOGGING_CONFIG_H
+/// @endcond
 
 // Configuration macro for use in TRACELOGGING_DEFINE_PROVIDER. The definition
 // in this file configures the provider as a normal (non-telemetry) provider.

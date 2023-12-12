@@ -8,6 +8,8 @@
 //    PARTICULAR PURPOSE AND NONINFRINGEMENT.
 //
 //*********************************************************
+//! @file
+//! WIL Common Helpers: Provides broadly applicable, dependency-free pure C++ helpers, macros and type traits.
 #ifndef __WIL_COMMON_INCLUDED
 #define __WIL_COMMON_INCLUDED
 
@@ -23,6 +25,7 @@
 // Defining WIL_HIDE_DEPRECATED will hide everything deprecated.
 // Each wave of deprecation will add a new WIL_HIDE_DEPRECATED_YYMM number that can be used to lock deprecation at
 // a particular point, allowing components to avoid backslide and catch up to the current independently.
+/// @cond
 #ifdef WIL_HIDE_DEPRECATED
 #define WIL_HIDE_DEPRECATED_1809
 #endif
@@ -32,10 +35,12 @@
 #ifdef WIL_HIDE_DEPRECATED_1612
 #define WIL_HIDE_DEPRECATED_1611
 #endif
+/// @endcond
 
 // Implementation side note: ideally the deprecation would be done with the function-level declspec
 // as it allows you to utter the error text when used.  The declspec works, but doing it selectively with
 // a macro makes intellisense deprecation comments not work.  So we just use the #pragma deprecation.
+/// @cond
 #ifdef WIL_WARN_DEPRECATED
 #define WIL_WARN_DEPRECATED_1809
 #endif
@@ -60,7 +65,9 @@
 #else
 #define WIL_WARN_DEPRECATED_1612_PRAGMA(...)
 #endif
+/// @endcond
 
+/// @cond
 #if defined(_MSVC_LANG)
 #define __WI_SUPPRESS_4127_S __pragma(warning(push)) __pragma(warning(disable:4127)) __pragma(warning(disable:26498)) __pragma(warning(disable:4245))
 #define __WI_SUPPRESS_4127_E __pragma(warning(pop))
@@ -74,6 +81,7 @@
 #define __WI_SUPPRESS_NONINIT_ANALYSIS
 #define __WI_SUPPRESS_NOEXCEPT_ANALYSIS
 #endif
+/// @endcond
 
 #include <sal.h>
 
@@ -321,6 +329,7 @@ Three exception modes are available:
 #define WIL_EXCEPTION_MODE
 #endif
 
+/// @cond
 #if (__cplusplus >= 201703) || (_MSVC_LANG >= 201703)
 #define WIL_HAS_CXX_17 1
 #else
@@ -329,9 +338,12 @@ Three exception modes are available:
 
 // Until we'll have C++17 enabled in our code base, we're falling back to SAL
 #define WI_NODISCARD __WI_LIBCPP_NODISCARD_ATTRIBUTE
+/// @endcond
 
+/// @cond
 #define __R_ENABLE_IF_IS_CLASS(ptrType)                     wistd::enable_if_t<wistd::is_class<ptrType>::value, void*> = nullptr
 #define __R_ENABLE_IF_IS_NOT_CLASS(ptrType)                 wistd::enable_if_t<!wistd::is_class<ptrType>::value, void*> = nullptr
+/// @endcond
 
 //! @defgroup bitwise Bitwise Inspection and Manipulation
 //! Bitwise helpers to improve readability and reduce the error rate of bitwise operations.

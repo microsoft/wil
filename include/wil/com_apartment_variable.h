@@ -8,6 +8,8 @@
 //    PARTICULAR PURPOSE AND NONINFRINGEMENT.
 //
 //*********************************************************
+//! @file
+//! Smart pointers and other thin usability pattern wrappers over COM patterns.
 #ifndef __WIL_COM_APARTMENT_VARIABLE_INCLUDED
 #define __WIL_COM_APARTMENT_VARIABLE_INCLUDED
 

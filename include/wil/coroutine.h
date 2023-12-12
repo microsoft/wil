@@ -1,3 +1,15 @@
+//*********************************************************
+//
+//    Copyright (c) Microsoft. All rights reserved.
+//    This code is licensed under the MIT License.
+//    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+//    ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+//    TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+//    PARTICULAR PURPOSE AND NONINFRINGEMENT.
+//
+//*********************************************************
+//! @file
+//! Types and helpers for using C++ coroutines.
 #ifndef __WIL_COROUTINE_INCLUDED
 #define __WIL_COROUTINE_INCLUDED
 
@@ -135,6 +147,7 @@
     */
 
 // Detect which version of the coroutine standard we have.
+/// @cond
 #if defined(_RESUMABLE_FUNCTIONS_SUPPORTED)
 #include <experimental/coroutine>
 #define __WI_COROUTINE_NAMESPACE ::std::experimental
@@ -144,6 +157,8 @@
 #else
 #error You must compile with C++20 coroutine support to use coroutine.h.
 #endif
+/// @endcond
+
 #include <atomic>
 #include <exception>
 #include <wil/wistd_memory.h>

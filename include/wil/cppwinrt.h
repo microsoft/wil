@@ -8,6 +8,8 @@
 //    PARTICULAR PURPOSE AND NONINFRINGEMENT.
 //
 //*********************************************************
+//! @file
+//! WIL Error Handling Helpers: support for interoperability between WIL and C++/WinRT exception-to-HRESULT logic.
 #ifndef __WIL_CPPWINRT_INCLUDED
 #define __WIL_CPPWINRT_INCLUDED
 
@@ -77,6 +79,7 @@ static_assert(::wil::details::major_version_from_string(CPPWINRT_VERSION) >= 2,
 #endif
 
 // NOTE: Will eventually be removed once C++/WinRT 2.0 use can be assumed
+/// @cond
 #ifdef WINRT_EXTERNAL_CATCH_CLAUSE
 #define __WI_CONFLICTING_WINRT_EXTERNAL_CATCH_CLAUSE 1
 #else
@@ -86,6 +89,7 @@ static_assert(::wil::details::major_version_from_string(CPPWINRT_VERSION) >= 2,
         return winrt::hresult_error(e.GetErrorCode(), winrt::to_hstring(e.what())).to_abi();  \
     }
 #endif
+/// @endcond
 
 #include "result_macros.h"
 #include <winrt/base.h>
@@ -95,6 +99,7 @@ static_assert(::wil::details::major_version_from_string(CPPWINRT_VERSION) >= 2,
     "C++/WinRT external catch clause already defined outside of WIL");
 #endif
 
+/// @cond
 // In C++/WinRT 2.0 and beyond, this function pointer exists. In earlier versions it does not. It's much easier to avoid
 // linker errors than it is to SFINAE on variable existence, so we declare the variable here, but are careful not to
 // use it unless the version of C++/WinRT is high enough
@@ -102,6 +107,7 @@ extern std::int32_t(__stdcall* winrt_to_hresult_handler)(void*) noexcept;
 
 // The same is true with this function pointer as well, except that the version must be 2.X or higher.
 extern void(__stdcall* winrt_throw_hresult_handler)(uint32_t, char const*, char const*, void*, winrt::hresult const) noexcept;
+/// @endcond
 
 /// @cond
 namespace wil::details

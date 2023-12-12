@@ -769,7 +769,8 @@ WARN_LOGFILE           =
 # spaces. See also FILE_PATTERNS and EXTENSION_MAPPING
 # Note: If this tag is empty the current directory is searched.
 
-INPUT                  = ../include
+INPUT                  = ../include \
+                         ./
 
 # This tag can be used to specify the character encoding of the source files
 # that doxygen parses. Internally doxygen uses the UTF-8 encoding. Doxygen uses
@@ -1284,7 +1285,7 @@ GENERATE_HTMLHELP      = NO
 # written to the html output directory.
 # This tag requires that the tag GENERATE_HTMLHELP is set to YES.
 
-CHM_FILE               = "..\Windows Internal Library Reference Documentation.chm"
+CHM_FILE               =
 
 # The HHC_LOCATION tag can be used to specify the location (absolute path
 # including file name) of the HTML help compiler (hhc.exe). If non-empty,
@@ -2005,26 +2006,35 @@ INCLUDE_FILE_PATTERNS  = *.h
 # This tag requires that the tag ENABLE_PREPROCESSING is set to YES.
 
 PREDEFINED             = WIL_DOXYGEN \
-                         WIL_ENABLE_C_FEATURES \
-                         WIL_ENABLE_RTL_STAGING_API \
-                         WIL_ENABLE_SYSTEM_LEVEL_STAGING_API \
-                         WIL_ENABLE_SYSTEM_LEVEL_BUFFER_STAGING_API \
                          WI_NOEXCEPT=noexcept \
                          WI_PFN_NOEXCEPT=noexcept \
-                         __WI_COROUTINE_NAMESPACE=std \
+                         WI_NODISCARD=[[nodiscard]] \
+                         WIL_RESOURCE_STL \
+                         WIL_ENABLE_EXCEPTIONS \
                          _CPPUNWIND \
-                         _NTURTL_ \
-                         __NOTHROW_T_DEFINED \
-                         __WIL_CONSTANT= \
+                         __EXCEPTIONS \
+                         _CPPRTTI \
+                         _MSC_EXTENSIONS \
                          __cplusplus=202302L \
+                         _MSVC_LANG=202302L \
+                         __WI_CPLUSPLUS=202302L \
+                         __WI_LIBCPP_STD_VER=23 \
+                         WIL_HAS_CXX_17=1 \
+                         _HAS_CXX17 \
+                         _HAS_CXX20 \
                          __declspec(x)= \
                          __forceinline=inline \
                          __inline=inline \
                          __stdcall= \
                          __cdecl= \
-                         "DECLARE_HANDLE(name)=typedef struct name##__ * name" \
+                         MIDL_NS_PREFIX \
                          DEFINE_ENUM_FLAG_OPERATORS(enum)= \
-                         "STDAPI_(type)=type STDAPICALLTYPE" \
+                         WINAPI_FAMILY_PARTITION(partition)=1 \
+                         __WI_COROUTINE_NAMESPACE=std \
+                         __cpp_lib_optional=202110L \
+                         __cpp_lib_coroutine=201902L \
+                         __has_include(header)=1 \
+                         __cpp_lib_apply=201603L \
 
 @INCLUDE = nosal2.doxyfile
 

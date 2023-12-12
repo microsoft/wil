@@ -8,10 +8,12 @@
 //    PARTICULAR PURPOSE AND NONINFRINGEMENT.
 //
 //*********************************************************
+//! @file
+//! Helpers for iterating over keys and values in the registry.
 #ifndef __WIL_REGISTRY_HELPERS_INCLUDED
 #define __WIL_REGISTRY_HELPERS_INCLUDED
 
-#if defined(_STRING_) || defined (_VECTOR_) || (defined (__cpp_lib_optional) && defined (_OPTIONAL_))
+#if defined(_STRING_) || defined (_VECTOR_) || (defined (__cpp_lib_optional) && defined (_OPTIONAL_)) || defined(WIL_DOXYGEN)
 #include <functional>
 #include <iterator>
 #endif
@@ -1635,7 +1637,7 @@ namespace wil
             // Notice this is a forward_iterator
             // - does not support random-access (e.g. vector::iterator)
             // - does not support bi-directional access (e.g. list::iterator)
-#if defined(_ITERATOR_)
+#if defined(_ITERATOR_) || defined(WIL_DOXYGEN)
             using iterator_category = ::std::forward_iterator_tag;
 #endif
             using value_type = T;

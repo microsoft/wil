@@ -8,6 +8,8 @@
 //    PARTICULAR PURPOSE AND NONINFRINGEMENT.
 //
 //*********************************************************
+//! @file
+//! Helpers for interfacing with the Windows filesystem APIs.
 #ifndef __WIL_FILESYSTEM_INCLUDED
 #define __WIL_FILESYSTEM_INCLUDED
 

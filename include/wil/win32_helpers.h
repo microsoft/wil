@@ -8,6 +8,8 @@
 //    PARTICULAR PURPOSE AND NONINFRINGEMENT.
 //
 //*********************************************************
+//! @file
+//! Various types and helpers for interfacing with various Win32 APIs
 #ifndef __WIL_WIN32_HELPERS_INCLUDED
 #define __WIL_WIN32_HELPERS_INCLUDED
 
@@ -25,32 +27,37 @@
 #  endif
 #endif
 
+/// @cond
 #if __cpp_lib_bit_cast >= 201806L
 #  define __WI_CONSTEXPR_BIT_CAST constexpr
 #else
 #  define __WI_CONSTEXPR_BIT_CAST inline
 #endif
+/// @endcond
 
 #include "result.h"
 #include "resource.h"
 #include "wistd_functional.h"
 #include "wistd_type_traits.h"
 
+/// @cond
 #if _HAS_CXX20 && defined(_STRING_VIEW_) && defined(_COMPARE_)
 // If we're using c++20, then <compare> must be included to use the string ordinal functions
 #  define __WI_DEFINE_STRING_ORDINAL_FUNCTIONS
 #elif !_HAS_CXX20 && defined(_STRING_VIEW_)
 #  define __WI_DEFINE_STRING_ORDINAL_FUNCTIONS
 #endif
+/// @endcond
 
+/// @cond
 namespace wistd
 {
 #if defined(__WI_DEFINE_STRING_ORDINAL_FUNCTIONS)
 
 #if _HAS_CXX20
-    
+
     using weak_ordering = std::weak_ordering;
-    
+
 #else // _HAS_CXX20
 
     struct weak_ordering
@@ -129,8 +136,8 @@ namespace wistd
 #endif // !_HAS_CXX20
 
 #endif // defined(__WI_DEFINE_STRING_ORDINAL_FUNCTIONS)
-
 }
+/// @endcond
 
 namespace wil
 {
@@ -157,9 +164,10 @@ namespace wil
     //
     // Indentifiers require a locale-less (ordinal), and often case-insensitive, comparison (filenames, registry keys, XML node names, etc).
     // DO NOT use locale-sensitive (lexical) comparisons for resource identifiers (e.g.wcs*() functions in the CRT).
-    
-#if defined(__WI_DEFINE_STRING_ORDINAL_FUNCTIONS)
 
+#if defined(__WI_DEFINE_STRING_ORDINAL_FUNCTIONS) || defined(WIL_DOXYGEN)
+
+    /// @cond
     namespace details
     {
         [[nodiscard]] inline int CompareStringOrdinal(std::wstring_view left, std::wstring_view right, bool caseInsensitive) WI_NOEXCEPT
@@ -169,6 +177,7 @@ namespace wil
             return ::CompareStringOrdinal(left.data(), static_cast<int>(left.size()), right.data(), static_cast<int>(right.size()), caseInsensitive);
         }
     }
+    /// @endcond
 
     [[nodiscard]] inline wistd::weak_ordering compare_string_ordinal(std::wstring_view left, std::wstring_view right, bool caseInsensitive) WI_NOEXCEPT
     {
@@ -251,7 +260,7 @@ namespace wil
             return timeMsec * filetime_duration::one_millisecond;
         }
 
-#if defined(_APISETREALTIME_) && (_WIN32_WINNT >= _WIN32_WINNT_WIN7)
+#if (defined(_APISETREALTIME_) && (_WIN32_WINNT >= _WIN32_WINNT_WIN7)) || defined(WIL_DOXYGEN)
         /// Returns the current unbiased interrupt-time count, in units of 100 nanoseconds. The unbiased interrupt-time count does not include time the system spends in sleep or hibernation.
         ///
         /// This API avoids prematurely shortcircuiting timing loops due to system sleep/hibernation.

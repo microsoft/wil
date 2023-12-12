@@ -6,7 +6,7 @@ find_program(DOXYGEN doxygen)
 if (DOXYGEN)
     # Add a custom target to generate the documentation
     add_custom_target(docs
-        COMMAND ${CMAKE_COMMAND} -E env "DOXYGEN_OUTPUT_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR}" "WIL_BUILD_VERSION=${WIL_BUILD_VERSION}" ${DOXYGEN} ${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile
+        COMMAND ${CMAKE_COMMAND} -E env "DOXYGEN_OUTPUT_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR}" "WIL_BUILD_VERSION=${WIL_BUILD_VERSION}" ${DOXYGEN} Doxyfile
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         COMMENT "Generating API documentation with Doxygen"
         VERBATIM

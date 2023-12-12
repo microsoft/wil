@@ -8,12 +8,16 @@
 //    PARTICULAR PURPOSE AND NONINFRINGEMENT.
 //
 //*********************************************************
+//! @file
+//! WIL Error Handling Helpers: supporting file defining a family of macros and functions designed to uniformly handle errors
+//! across return codes, fail fast, exceptions and logging for Win32 error codes.
 #ifndef __WIL_WIN32_RESULTMACROS_INCLUDED
 #define __WIL_WIN32_RESULTMACROS_INCLUDED
 
 #include "result_macros.h"
 
 // Helpers for return macros
+/// @cond
 #define __WIN32_RETURN_WIN32(error, str)                    __WI_SUPPRESS_4127_S do { const auto __error = (error); if (FAILED_WIN32(__error)) { __R_FN(Return_Win32)(__R_INFO(str) __error); } return __error; } __WI_SUPPRESS_4127_E while ((void)0, 0)
 #define __WIN32_RETURN_GLE_FAIL(str)                        return __R_FN(Win32_Return_GetLastError)(__R_INFO_ONLY(str))
 
@@ -25,6 +29,7 @@ FORCEINLINE long __WIN32_FROM_HRESULT(HRESULT hr)
     }
     return HRESULT_FACILITY(hr) == FACILITY_WIN32 ? HRESULT_CODE(hr) : hr;
 }
+/// @endcond
 
 //*****************************************************************************
 // Macros for returning failures as WIN32 error codes
@@ -83,6 +88,7 @@ namespace wil
         return __WIN32_FROM_HRESULT(ResultFromCaughtException());
     }
 
+    /// @cond
     namespace details::__R_NS_NAME
     {
 #ifdef WIL_ENABLE_EXCEPTIONS
@@ -99,6 +105,7 @@ namespace wil
             return __WIN32_FROM_HRESULT(wil::details::ReportFailure_GetLastErrorHr<FailureType::Return>(__R_DIRECT_FN_CALL_ONLY));
         }
     }
+    /// @endcond
 }
 
 #endif // __WIL_WIN32_RESULTMACROS_INCLUDED

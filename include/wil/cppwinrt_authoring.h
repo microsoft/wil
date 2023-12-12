@@ -8,12 +8,14 @@
 //    PARTICULAR PURPOSE AND NONINFRINGEMENT.
 //
 //*********************************************************
+//! @file
+//! Helpers that make authoring C++/WinRT components easier.
 
 namespace wil
 {
 #ifndef __WIL_CPPWINRT_AUTHORING_PROPERTIES_INCLUDED
-#define __WIL_CPPWINRT_AUTHORING_PROPERTIES_INCLUDED
     /// @cond
+#define __WIL_CPPWINRT_AUTHORING_PROPERTIES_INCLUDED
     namespace details
     {
         template<typename T>
@@ -89,7 +91,8 @@ namespace wil
 
 #endif // __WIL_CPPWINRT_AUTHORING_PROPERTIES_INCLUDED
 
-#if !defined(__WIL_CPPWINRT_AUTHORING_INCLUDED_FOUNDATION) && defined(WINRT_Windows_Foundation_H) // WinRT / XAML helpers
+#if (!defined(__WIL_CPPWINRT_AUTHORING_INCLUDED_FOUNDATION) && defined(WINRT_Windows_Foundation_H)) || defined(WIL_DOXYGEN) // WinRT / XAML helpers
+    /// @cond
 #define __WIL_CPPWINRT_AUTHORING_INCLUDED_FOUNDATION
     namespace details
     {
@@ -114,6 +117,7 @@ namespace wil
             winrt::event<T> m_handler;
         };
     }
+    /// @endcond
 
     /**
      * @brief A default event handler that maps to [Windows.Foundation.EventHandler](https://docs.microsoft.com/uwp/api/windows.foundation.eventhandler-1).
@@ -137,7 +141,8 @@ namespace wil
 
 #endif // !defined(__WIL_CPPWINRT_AUTHORING_INCLUDED_FOUNDATION) && defined(WINRT_Windows_Foundation_H)
 
-#if !defined(__WIL_CPPWINRT_AUTHORING_INCLUDED_XAML_DATA) && (defined(WINRT_Microsoft_UI_Xaml_Data_H) || defined(WINRT_Windows_UI_Xaml_Data_H)) // INotifyPropertyChanged helpers
+#if (!defined(__WIL_CPPWINRT_AUTHORING_INCLUDED_XAML_DATA) && (defined(WINRT_Microsoft_UI_Xaml_Data_H) || defined(WINRT_Windows_UI_Xaml_Data_H))) || defined(WIL_DOXYGEN) // INotifyPropertyChanged helpers
+    /// @cond
 #define __WIL_CPPWINRT_AUTHORING_INCLUDED_XAML_DATA
     namespace details
     {
@@ -149,6 +154,7 @@ namespace wil
         using Xaml_Data_PropertyChangedEventArgs = winrt::Windows::UI::Xaml::Data::PropertyChangedEventArgs;
 #endif
     }
+    /// @endcond
 
     /**
      * @brief Helper base class to inherit from to have a simple implementation of [INotifyPropertyChanged](https://docs.microsoft.com/uwp/api/windows.ui.xaml.data.inotifypropertychanged).

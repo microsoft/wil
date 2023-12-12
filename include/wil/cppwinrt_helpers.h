@@ -8,6 +8,8 @@
 //    PARTICULAR PURPOSE AND NONINFRINGEMENT.
 //
 //*********************************************************
+//! @file
+//! Helpers for common patterns and tasks when using C++/WinRT.
 
 #ifndef __WIL_CPPWINRT_HELPERS_DEFINED
 #define __WIL_CPPWINRT_HELPERS_DEFINED
@@ -212,8 +214,10 @@ namespace wil::details
 #endif // __WIL_CPPWINRT_MICROSOFT_UI_DISPATCHING_HELPERS
 /// @endcond
 
-#if defined(WINRT_Windows_Foundation_Collections_H) && !defined(__WIL_CPPWINRT_WINDOWS_FOUNDATION_COLLECTION_HELPERS)
+#if (defined(WINRT_Windows_Foundation_Collections_H) && !defined(__WIL_CPPWINRT_WINDOWS_FOUNDATION_COLLECTION_HELPERS)) || defined(WIL_DOXYGEN)
+/// @cond
 #define __WIL_CPPWINRT_WINDOWS_FOUNDATION_COLLECTION_HELPERS
+/// @endcond
 namespace wil
 {
     /// @cond
@@ -314,8 +318,10 @@ namespace wil
 }
 #endif
 
-#if defined(WINRT_Windows_UI_H) && defined(_WINDOWS_UI_INTEROP_H_) && !defined(__WIL_CPPWINRT_WINDOWS_UI_INTEROP_HELPERS)
+#if (defined(WINRT_Windows_UI_H) && defined(_WINDOWS_UI_INTEROP_H_) && !defined(__WIL_CPPWINRT_WINDOWS_UI_INTEROP_HELPERS)) || defined(WIL_DOXYGEN)
+/// @cond
 #define __WIL_CPPWINRT_WINDOWS_UI_INTEROP_HELPERS
+/// @endcond
 #if !defined(____x_ABI_CWindows_CFoundation_CIClosable_FWD_DEFINED__) && !defined(MIDL_NS_PREFIX)
 #pragma push_macro("ABI")
 #undef ABI

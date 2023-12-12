@@ -8,6 +8,9 @@
 //    PARTICULAR PURPOSE AND NONINFRINGEMENT.
 //
 //*********************************************************
+//! @file
+//! WIL Error Handling Helpers: supporting file defining a family of macros and functions designed to uniformly handle errors
+//! across return codes, fail fast, exceptions and logging.
 #ifndef __WIL_RESULTMACROS_INCLUDED
 #define __WIL_RESULTMACROS_INCLUDED
 
@@ -182,6 +185,7 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 
 // Set the default diagnostic mode
 // Note that RESULT_DEBUG_INFO and RESULT_SUPPRESS_DEBUG_INFO are older deprecated models of controlling mode
+/// @cond
 #ifndef RESULT_DIAGNOSTICS_LEVEL
 #if (defined(RESULT_DEBUG) || defined(RESULT_DEBUG_INFO)) && !defined(RESULT_SUPPRESS_DEBUG_INFO)
 #define RESULT_DIAGNOSTICS_LEVEL 5
@@ -204,7 +208,7 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 #ifndef RESULT_INLINE_ERROR_TESTS_FAIL_FAST
 #define RESULT_INLINE_ERROR_TESTS_FAIL_FAST RESULT_INLINE_ERROR_TESTS
 #endif
-
+/// @endcond
 
 //*****************************************************************************
 // Win32 specific error macros
@@ -225,7 +229,7 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 //*****************************************************************************
 // Testing helpers - redefine to run unit tests against fail fast
 //*****************************************************************************
-
+/// @cond
 #ifndef RESULT_NORETURN
 #define RESULT_NORETURN                                     __declspec(noreturn)
 #endif
@@ -235,6 +239,7 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 #ifndef RESULT_NORETURN_RESULT
 #define RESULT_NORETURN_RESULT(expr)                        (void)(expr);
 #endif
+/// @endcond
 
 //*****************************************************************************
 // Helpers to setup the macros and functions used below... do not directly use.
@@ -657,7 +662,9 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 #define RETURN_LAST_ERROR_IF_NULL_EXPECTED(ptr)                 __WI_SUPPRESS_4127_S do { if ((ptr) == nullptr) { return wil::details::GetLastErrorFailHr(); }} __WI_SUPPRESS_4127_E while((void)0, 0)
 #define RETURN_IF_NTSTATUS_FAILED_EXPECTED(status)              __WI_SUPPRESS_4127_S do { const NTSTATUS __statusRet = (status); if (FAILED_NTSTATUS(__statusRet)) { return wil::details::NtStatusToHr(__statusRet); }} __WI_SUPPRESS_4127_E while((void)0, 0)
 
+/// @cond
 #define __WI_OR_IS_EXPECTED_HRESULT(e) || (__hrRet == wil::verify_hresult(e))
+/// @endcond
 #define RETURN_IF_FAILED_WITH_EXPECTED(hr, hrExpected, ...) \
     do \
     { \
@@ -722,7 +729,9 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 #define LOG_LAST_ERROR_IF_NULL_MSG(ptr, fmt, ...)               __R_FN(Log_GetLastErrorIfNullMsg)(__R_INFO(#ptr) ptr, __WI_CHECK_MSG_FMT(fmt, ##__VA_ARGS__))
 #define LOG_IF_NTSTATUS_FAILED_MSG(status, fmt, ...)            __R_FN(Log_IfNtStatusFailedMsg)(__R_INFO(#status) status, __WI_CHECK_MSG_FMT(fmt, ##__VA_ARGS__))
 
+/// @cond
 #define __WI_COMMA_EXPECTED_HRESULT(e) , wil::verify_hresult(e)
+/// @endcond
 #define LOG_IF_FAILED_WITH_EXPECTED(hr, hrExpected, ...)        __R_FN(Log_IfFailedWithExpected)(__R_INFO(#hr) wil::verify_hresult(hr), WI_ARGS_COUNT(__VA_ARGS__) + 1, wil::verify_hresult(hrExpected) WI_FOREACH(__WI_COMMA_EXPECTED_HRESULT, ##__VA_ARGS__))
 
 //*****************************************************************************
@@ -902,6 +911,7 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 //*****************************************************************************
 // Internal Error Macros - DO NOT USE - these are for internal WIL use only to reduce sizes of binaries that use WIL
 //*****************************************************************************
+/// @cond
 #ifdef RESULT_DEBUG
 #define __WIL_PRIVATE_RETURN_IF_FAILED(hr)                   RETURN_IF_FAILED(hr)
 #define __WIL_PRIVATE_RETURN_HR_IF(hr, cond)                 RETURN_HR_IF(hr, cond)
@@ -925,6 +935,7 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 #define __WIL_PRIVATE_FAIL_FAST_HR(hr)                       __RFF_FN(FailFast_Hr)(__RFF_INFO_NOFILE(#hr) wil::verify_hresult(hr))
 #define __WIL_PRIVATE_LOG_HR(hr)                             __R_FN(Log_Hr)(__R_INFO_NOFILE(#hr) wil::verify_hresult(hr))
 #endif
+/// @endcond
 
 namespace wil
 {
@@ -2754,7 +2765,7 @@ __WI_POP_WARNINGS
         }
     }
 
-    //! @cond
+    /// @cond
     namespace details
     {
 #ifdef WIL_ENABLE_EXCEPTIONS
@@ -3332,6 +3343,7 @@ __WI_POP_WARNINGS
         });
 
     }
+    /// @endcond
 
     //! A lambda-based exception guard that can vary the supported exception types.
     //! This function accepts a lambda and diagnostics information as its parameters and executes that lambda
@@ -3477,6 +3489,7 @@ __WI_POP_WARNINGS
         wil::details::ResultFromExceptionDebug(diagnostics, SupportedExceptions::None, functorObject);
     }
 
+    /// @cond
     namespace details {
 
 #endif  // WIL_ENABLE_EXCEPTIONS

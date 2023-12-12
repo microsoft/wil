@@ -8,6 +8,8 @@
 //    PARTICULAR PURPOSE AND NONINFRINGEMENT.
 //
 //*********************************************************
+//! @file
+//! Smart pointers and other thin usability pattern wrappers over COM patterns.
 #ifndef __WIL_COM_INCLUDED
 #define __WIL_COM_INCLUDED
 
@@ -1887,6 +1889,8 @@ namespace wil
         return S_OK;
     }
 
+    //! @}
+
 #pragma region COM Object Helpers
 
     template <typename T>
@@ -1992,6 +1996,7 @@ namespace wil
     }
 
 #if __cpp_lib_apply && __has_include(<type_traits>)
+    /// @cond
     namespace details
     {
         template <typename error_policy, typename... Results>
@@ -2047,6 +2052,7 @@ namespace wil
             return std::tuple<HRESULT, decltype(resultTuple)>{hr, std::move(resultTuple)};
         }
     }
+    /// @endcond
 
 #ifdef WIL_ENABLE_EXCEPTIONS
     // CoCreateInstanceEx can be used to improve performance by requesting multiple interfaces
@@ -2418,7 +2424,7 @@ namespace wil
         returns_empty,
     };
 
-#ifdef __WIL_OBJBASE_H_
+#if defined(__WIL_OBJBASE_H_) || defined(WIL_DOXYGEN)
 
     /** Read a string from a stream and returns an allocated copy
     Deserializes strings in streams written by both IStream_WriteStr and wil::stream_write_string[_nothrow]. The format
@@ -2740,7 +2746,7 @@ namespace wil
         THROW_HR_IF(HRESULT_FROM_WIN32(ERROR_INVALID_DATA), stream_copy_bytes(source, target, amount) != amount);
     }
 
-#ifdef __WIL_OBJBASE_H_
+#if defined(__WIL_OBJBASE_H_) || defined(WIL_DOXYGEN)
 
     /** Read a string from a stream and returns an allocated copy
     Deserializes strings in streams written by both IStream_WriteStr and wil::stream_write_string[_nothrow]. The format
@@ -2939,7 +2945,7 @@ namespace wil
 #endif // WIL_ENABLE_EXCEPTIONS
 #pragma endregion // stream helpers
 
-#if defined(__IObjectWithSite_INTERFACE_DEFINED__)
+#if defined(__IObjectWithSite_INTERFACE_DEFINED__) || defined(WIL_DOXYGEN)
     /// @cond
     namespace details
     {
@@ -2982,6 +2988,7 @@ namespace wil
             OutputDebugStringW(msg);
         });
     }
+    ~~~
     */
 
     template<typename TLambda>
@@ -3006,6 +3013,7 @@ namespace wil
 // if C++17 or greater
 #if WIL_HAS_CXX_17
 #ifdef WIL_ENABLE_EXCEPTIONS
+/// @cond
 namespace details
 {
     template<typename>
@@ -3049,6 +3057,7 @@ namespace details
             wil::com_ptr<wistd::remove_pointer_t<Result>>, Result>;
     };
 }
+/// @endcond
 
 template <typename IEnumType, typename TStoredType = typename details::com_enumerator_traits<IEnumType>::smart_result>
 struct com_iterator

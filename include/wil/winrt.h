@@ -8,6 +8,8 @@
 //    PARTICULAR PURPOSE AND NONINFRINGEMENT.
 //
 //*********************************************************
+//! @file
+//! Various types and functions for working with the Windows Runtime
 #ifndef __WIL_WINRT_INCLUDED
 #define __WIL_WINRT_INCLUDED
 
@@ -57,12 +59,14 @@ namespace std
 // This enables this code to be used in code that uses the ABI prefix or not.
 // Code using the public SDK and C++ CX code has the ABI prefix, windows internal
 // is built in a way that does not.
+/// @cond
 #if !defined(MIDL_NS_PREFIX) && !defined(____x_ABI_CWindows_CFoundation_CIClosable_FWD_DEFINED__)
 // Internal .idl files use the namespace without the ABI prefix. Macro out ABI for that case
 #pragma push_macro("ABI")
 #undef ABI
 #define ABI
 #endif
+/// @endcond
 
 namespace wil
 {
@@ -577,7 +581,7 @@ namespace wil
         class vector_iterator
         {
         public:
-#ifdef _XUTILITY_
+#if defined(_XUTILITY_) || defined(WIL_DOXYGEN)
             // could be random_access_iterator_tag but missing some features
             typedef ::std::bidirectional_iterator_tag iterator_category;
 #endif
@@ -762,7 +766,7 @@ namespace wil
         class vector_iterator_nothrow
         {
         public:
-#ifdef _XUTILITY_
+#if defined(_XUTILITY_) || defined(WIL_DOXYGEN)
             // must be input_iterator_tag as use (via ++, --, etc.) of one invalidates the other.
             typedef ::std::input_iterator_tag iterator_category;
 #endif
@@ -898,7 +902,7 @@ namespace wil
         class iterable_iterator
         {
         public:
-#ifdef _XUTILITY_
+#if defined(_XUTILITY_) || defined(WIL_DOXYGEN)
             typedef ::std::forward_iterator_tag iterator_category;
 #endif
             typedef TSmart value_type;
@@ -1002,7 +1006,7 @@ namespace wil
     };
 #pragma endregion
 
-#if defined(__WI_HAS_STD_VECTOR)
+#if defined(__WI_HAS_STD_VECTOR) || defined(WIL_DOXYGEN)
     /** Converts WinRT vectors to std::vector by requesting the collection's data in a single
     operation. This can be more efficient in terms of IPC cost than iteratively processing it.
     ~~~
@@ -1012,6 +1016,7 @@ namespace wil
     {
         // use item
     }
+    ~~~
     Can be used for ABI::Windows::Foundation::Collections::IVector<T> and
     ABI::Windows::Foundation::Collections::IVectorView<T>
     */
@@ -1088,7 +1093,7 @@ namespace wil
         class iterable_iterator_nothrow
         {
         public:
-#ifdef _XUTILITY_
+#if defined(_XUTILITY_) || defined(WIL_DOXYGEN)
             // muse be input_iterator_tag as use of one instance invalidates the other.
             typedef ::std::input_iterator_tag iterator_category;
 #endif
@@ -1227,9 +1232,8 @@ namespace wil
     {
         return iterable_range_nothrow<T>(v, result);
     }
-}
-
 #pragma endregion
+}
 
 #ifdef WIL_ENABLE_EXCEPTIONS
 
@@ -1279,10 +1283,9 @@ namespace ABI {
 #if defined(MIDL_NS_PREFIX) || defined(____x_ABI_CWindows_CFoundation_CIClosable_FWD_DEFINED__)
 } // namespace ABI
 #endif
+#pragma endregion
 
 #endif // WIL_ENABLE_EXCEPTIONS
-
-#pragma endregion
 
 namespace wil
 {
@@ -1819,8 +1822,8 @@ namespace details
         void OnCancel() override { }
     };
 }
-
 /// @endcond
+
 //! Creates a WinRT async operation object that implements IAsyncOperation<TResult>. Use mostly for testing and for mocking APIs.
 template <typename TResult>
 HRESULT make_synchronous_async_operation_nothrow(ABI::Windows::Foundation::IAsyncOperation<TResult>** result, const TResult& value)
@@ -2085,6 +2088,7 @@ private:
     removal_func m_removalFunction = nullptr;
 };
 
+/// @cond
 namespace details
 {
 #ifdef __cplusplus_winrt
@@ -2131,6 +2135,7 @@ namespace details
     }
 
 } // namespace details
+/// @endcond
 
 // Helper macros to abstract function names for event addition and removal.
 #ifdef __cplusplus_winrt

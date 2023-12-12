@@ -8,6 +8,8 @@
 //    PARTICULAR PURPOSE AND NONINFRINGEMENT.
 //
 //*********************************************************
+//! @file
+//! Windows Runtime Library Helpers: helpers for constructing RuntimeClass based objects and agile WRL Callback objects
 #ifndef __WIL_WRL_INCLUDED
 #define __WIL_WRL_INCLUDED
 

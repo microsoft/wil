@@ -8,6 +8,8 @@
 //    PARTICULAR PURPOSE AND NONINFRINGEMENT.
 //
 //*********************************************************
+//! @file
+//! Helpers for invoking RPC functions and translating structured exceptions to HRESULTs or C++ exceptions
 #ifndef __WIL_RPC_HELPERS_INCLUDED
 #define __WIL_RPC_HELPERS_INCLUDED
 

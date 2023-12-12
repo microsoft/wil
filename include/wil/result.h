@@ -8,6 +8,9 @@
 //    PARTICULAR PURPOSE AND NONINFRINGEMENT.
 //
 //*********************************************************
+//! @file
+//! WIL Error Handling Helpers: a family of macros and functions designed to uniformly handle and report errors across return
+//! codes, fail fast, exceptions and logging.
 #ifndef __WIL_RESULT_INCLUDED
 #define __WIL_RESULT_INCLUDED
 

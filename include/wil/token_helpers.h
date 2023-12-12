@@ -8,6 +8,8 @@
 //    PARTICULAR PURPOSE AND NONINFRINGEMENT.
 //
 //*********************************************************
+//! @file
+//! Helpers for using tokens and impersonation
 #ifndef __WIL_TOKEN_HELPERS_INCLUDED
 #define __WIL_TOKEN_HELPERS_INCLUDED
 
@@ -21,9 +23,11 @@
 #include <processthreadsapi.h>
 
 // for GetUserNameEx()
+/// @cond
 #ifndef SECURITY_WIN32
 #define SECURITY_WIN32
 #endif
+/// @endcond
 #include <Security.h>
 
 namespace wil
@@ -202,6 +206,7 @@ namespace wil
         return S_OK;
     }
 
+    /// @cond
     namespace details
     {
         template<typename T, typename policy, wistd::enable_if_t<!details::MapTokenStructToInfoClass<T>::FixedSize>* = nullptr>
@@ -220,6 +225,7 @@ namespace wil
             return temp;
         }
     }
+    /// @endcond
 
     //! A variant of get_token_information<T> that fails-fast on errors retrieving the token
     template <typename T>
