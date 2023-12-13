@@ -241,6 +241,9 @@ namespace wil::details::coro
 
         // The restricted error information is lit up when COM headers are
         // included.  If COM is not available then this will remain null.
+        // This error information is thread-local so we must save it on suspend
+        // and restore it on resume so that it propagates to the correct
+        // thread.  It will then be available if the exception proves fatal.
         void* restricted_error{ nullptr };
 
         // emplace_value will be called with
@@ -870,7 +873,8 @@ namespace wil::details::coro
     }
 }
 
-// Automatically call RoOriginateError upon error origination by including this file
+// This section is lit up when COM headers are available.  Initialize the global function
+// pointers such that error information can be saved and restored across thread boundaries.
 WI_HEADER_INITITALIZATION_FUNCTION(CoroutineRestrictedErrorInitialize, []
 {
     ::wil::details::coro::g_pfnCaptureRestrictedErrorInformation = ::wil::details::coro::CaptureRestrictedErrorInformation;
