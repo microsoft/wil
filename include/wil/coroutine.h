@@ -174,6 +174,12 @@ namespace wil
 
 namespace wil::details::coro
 {
+    // task and com_task are convertable to each other.  However, not
+    // all consumers of this header have COM enabled.  Support for saving
+    // COM thread-local error information and restoring it on the resuming
+    // thread is enabled using these function pointers.  If COM is not
+    // available then they are null and do not get called.  If COM is
+    // enabled then they are filled in with valid pointers and get used.
     __declspec(selectany) void*(__stdcall* g_pfnCaptureRestrictedErrorInformation)() WI_PFN_NOEXCEPT = nullptr;
     __declspec(selectany) void(__stdcall* g_pfnRestoreRestrictedErrorInformation)(void* restricted_error) WI_PFN_NOEXCEPT = nullptr;
     __declspec(selectany) void(__stdcall* g_pfnDestroyRestrictedErrorInformation)(void* restricted_error) WI_PFN_NOEXCEPT = nullptr;
@@ -251,6 +257,7 @@ namespace wil::details::coro
         {
             if (g_pfnCaptureRestrictedErrorInformation)
             {
+                WI_ASSERT(restricted_error == nullptr);
                 restricted_error = g_pfnCaptureRestrictedErrorInformation();
             }
 
@@ -263,6 +270,7 @@ namespace wil::details::coro
         {
             if (g_pfnCaptureRestrictedErrorInformation)
             {
+                WI_ASSERT(restricted_error == nullptr);
                 restricted_error = g_pfnCaptureRestrictedErrorInformation();
             }
 
@@ -273,6 +281,12 @@ namespace wil::details::coro
 
         T get_value()
         {
+            if (g_pfnRestoreRestrictedErrorInformation && restricted_error)
+            {
+                g_pfnRestoreRestrictedErrorInformation(restricted_error);
+                restricted_error = nullptr; // restoring the error took ownership
+            }
+
             if (status == result_status::value)
             {
                 return result.wrap.get_value();
@@ -465,11 +479,6 @@ namespace wil::details::coro
 
         T client_await_resume()
         {
-            if (g_pfnRestoreRestrictedErrorInformation && m_holder.restricted_error)
-            {
-                g_pfnRestoreRestrictedErrorInformation(m_holder.restricted_error);
-                m_holder.restricted_error = nullptr; // restoring the error took ownership
-            }
             return m_holder.get_value();
         }
     };
@@ -684,21 +693,21 @@ namespace wil::details::coro
         wil::com_ptr<IRestrictedErrorInfo> restrictedError;
         if (SUCCEEDED(GetRestrictedErrorInfo(&restrictedError)))
         {
-            return restrictedError.detach();
+            return restrictedError.query<IUnknown>().detach();
         }
         return nullptr;
     }
 
-    inline void __stdcall RestoreRestrictedErrorInformation(void* restricted_error) noexcept
+    inline void __stdcall RestoreRestrictedErrorInformation(_In_ void* restricted_error) noexcept
     {
         auto restrictedErrorCasted = wil::com_ptr<IRestrictedErrorInfo>(static_cast<IRestrictedErrorInfo*>(restricted_error));
         SetRestrictedErrorInfo(restrictedErrorCasted.get());
+        // Releases the restricted error on exit
     }
 
-    inline void __stdcall DestroyRestrictedErrorInformation(void* restricted_error) noexcept
+    inline void __stdcall DestroyRestrictedErrorInformation(_In_ void* restricted_error) noexcept
     {
-        // Releases on destruction
-        auto restrictedErrorCasted = wil::com_ptr<IRestrictedErrorInfo>(static_cast<IRestrictedErrorInfo*>(restricted_error));
+        static_cast<IUnknown*>(restricted_error)->Release();
     }
 
     struct apartment_info
