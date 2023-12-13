@@ -694,7 +694,7 @@ namespace wil::details::coro
     inline void* __stdcall CaptureRestrictedErrorInformation() noexcept
     {
         wil::com_ptr<IRestrictedErrorInfo> restrictedError;
-        if (SUCCEEDED(GetRestrictedErrorInfo(&restrictedError)))
+        if (SUCCEEDED(GetRestrictedErrorInfo(&restrictedError)) && restrictedError)
         {
             return restrictedError.query<IUnknown>().detach();
         }
