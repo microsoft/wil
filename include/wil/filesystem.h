@@ -627,10 +627,15 @@ namespace wil
 
                     if (m_folderHandle)
                     {
-                        CancelIoEx(m_folderHandle.get(), &m_overlapped);
+                        BOOL cancelRes = CancelIoEx(m_folderHandle.get(), &m_overlapped);
 
-                        DWORD bytesTransferredIgnored = 0;
-                        GetOverlappedResult(m_folderHandle.get(), &m_overlapped, &bytesTransferredIgnored, TRUE);
+                        // no pending operation to cancel. Maybe StartIo returned 
+                        // an error?
+                        if (!(cancelRes == FALSE && ::GetLastError() == ERROR_NOT_FOUND)) 
+                        {
+                            DWORD bytesTransferredIgnored = 0;
+                            GetOverlappedResult(m_folderHandle.get(), &m_overlapped, &bytesTransferredIgnored, TRUE);
+                        }
                     }
 
                     // Wait for callbacks to complete.

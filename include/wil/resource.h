@@ -5879,6 +5879,7 @@ namespace wil
     using unique_wdf_any = unique_any_t<details::unique_storage<details::wdf_object_resource_policy<TWDFOBJECT>>>;
 
     using unique_wdf_object          = unique_wdf_any<WDFOBJECT>;
+    using unique_wdf_queue           = unique_wdf_any<WDFQUEUE>;
 
     using unique_wdf_timer           = unique_wdf_any<WDFTIMER>;
     using unique_wdf_work_item       = unique_wdf_any<WDFWORKITEM>;
