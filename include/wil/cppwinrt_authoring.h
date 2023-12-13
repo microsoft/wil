@@ -120,14 +120,16 @@ namespace wil
     /// @endcond
 
     /**
-     * @brief A default event handler that maps to [Windows.Foundation.EventHandler](https://docs.microsoft.com/uwp/api/windows.foundation.eventhandler-1).
+     * @brief A default event handler that maps to
+     * [Windows.Foundation.EventHandler](https://docs.microsoft.com/uwp/api/windows.foundation.eventhandler-1).
      * @tparam T The event data type.
     */
     template<typename T>
     struct untyped_event : wil::details::event_base<winrt::Windows::Foundation::EventHandler<T>> {};
 
     /**
-     * @brief A default event handler that maps to [Windows.Foundation.TypedEventHandler](https://docs.microsoft.com/uwp/api/windows.foundation.typedeventhandler-2).
+     * @brief A default event handler that maps to
+     * [Windows.Foundation.TypedEventHandler](https://docs.microsoft.com/uwp/api/windows.foundation.typedeventhandler-2).
      * @tparam T The event data type.
      * @details Usage example:
      * @code
@@ -157,7 +159,8 @@ namespace wil
     /// @endcond
 
     /**
-     * @brief Helper base class to inherit from to have a simple implementation of [INotifyPropertyChanged](https://docs.microsoft.com/uwp/api/windows.ui.xaml.data.inotifypropertychanged).
+     * @brief Helper base class to inherit from to have a simple implementation of
+     * [INotifyPropertyChanged](https://docs.microsoft.com/uwp/api/windows.ui.xaml.data.inotifypropertychanged).
      * @tparam T CRTP type
      * @details When you declare your class, make this class a base class and pass your class as a template parameter:
      * @code
@@ -272,7 +275,8 @@ namespace wil
 
     /**
     * @def WIL_NOTIFYING_PROPERTY
-    * @brief use this to stamp out a property that calls RaisePropertyChanged upon changing its value. This is a zero-storage alternative to wil::single_threaded_notifying_property<T>
+    * @brief use this to stamp out a property that calls RaisePropertyChanged upon changing its value. This is a zero-storage
+    *        alternative to wil::single_threaded_notifying_property<T>.
     * @details You can pass an initializer list for the initial property value in the variadic arguments to this macro.
     */
 #define WIL_NOTIFYING_PROPERTY(type, name, ...)             \

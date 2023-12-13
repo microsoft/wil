@@ -283,7 +283,8 @@ namespace wil
             return TwoPhaseHStringConstructor{ characterLength };
         }
 
-        //! Returns the HSTRING after it has been populated like Detatch() or release(); be sure to put this in a RAII type to manage its lifetime.
+        //! Returns the HSTRING after it has been populated like Detatch() or release(); be sure to put this in a RAII type to manage
+        //! its lifetime.
         HSTRING Promote()
         {
             m_characterLength = 0;
@@ -1563,7 +1564,8 @@ hr = run_when_complete_nothrow<StorageFile*>(getFileOp.Get(), [](HRESULT hr, ISt
 ~~~
 */
 
-//! Run a fuction when an async operation completes. Use Microsoft::WRL::FtmBase for TAgility to make the completion handler agile and run on the async thread.
+//! Run a fuction when an async operation completes. Use Microsoft::WRL::FtmBase for TAgility to make the completion handler agile
+//! and run on the async thread.
 template<typename TAgility = IUnknown, typename TFunc>
 HRESULT run_when_complete_nothrow(_In_ ABI::Windows::Foundation::IAsyncAction* operation, TFunc&& func) WI_NOEXCEPT
 {
@@ -1589,7 +1591,8 @@ HRESULT run_when_complete_nothrow(_In_ ABI::Windows::Foundation::IAsyncActionWit
 }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
-//! Run a fuction when an async operation completes. Use Microsoft::WRL::FtmBase for TAgility to make the completion handler agile and run on the async thread.
+//! Run a fuction when an async operation completes. Use Microsoft::WRL::FtmBase for TAgility to make the completion handler agile
+//! and run on the async thread.
 template<typename TAgility = IUnknown, typename TFunc>
 void run_when_complete(_In_ ABI::Windows::Foundation::IAsyncAction* operation, TFunc&& func)
 {

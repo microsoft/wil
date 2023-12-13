@@ -496,7 +496,8 @@ namespace wil
     @code
     // Change the owner of the key to administrators
     auto systemSid = wil::make_static_sid(SECURITY_NT_AUTHORITY, SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS);
-    RETURN_IF_WIN32_ERROR(SetNamedSecurityInfo(keyPath, SE_REGISTRY_KEY, OWNER_SECURITY_INFORMATION, &systemSid, nullptr, nullptr, nullptr));
+    RETURN_IF_WIN32_ERROR(
+        SetNamedSecurityInfo(keyPath, SE_REGISTRY_KEY, OWNER_SECURITY_INFORMATION, &systemSid, nullptr, nullptr, nullptr));
     @endcode
     */
     template<typename... Ts> constexpr auto make_static_sid(const SID_IDENTIFIER_AUTHORITY& authority, Ts&&... subAuthorities)
@@ -527,10 +528,13 @@ namespace wil
         return wil::test_token_membership(nullptr, SECURITY_NT_AUTHORITY, SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_GUESTS));
     }
     ~~~~
-    @param result This will be set to true if and only if a security identifier described by the given set of subauthorities is enabled in the given access token.
-    @param token A handle to an access token. The handle must have TOKEN_QUERY access to the token, and must be an impersonation token. If token is nullptr, test_token_membership
-           uses the impersonation token of the calling thread. If the thread is not impersonating, the function duplicates the thread's primary token to create an impersonation token.
-    @param sidAuthority A reference to a SID_IDENTIFIER_AUTHORITY structure. This structure provides the top-level identifier authority value to set in the SID.
+    @param result This will be set to true if and only if a security identifier described by the given set of subauthorities is
+           enabled in the given access token.
+    @param token A handle to an access token. The handle must have TOKEN_QUERY access to the token, and must be an impersonation
+           token. If token is nullptr, test_token_membership uses the impersonation token of the calling thread. If the thread is not
+           impersonating, the function duplicates the thread's primary token to create an impersonation token.
+    @param sidAuthority A reference to a SID_IDENTIFIER_AUTHORITY structure. This structure provides the top-level identifier
+           authority value to set in the SID.
     @param subAuthorities Up to 15 subauthority values to place in the SID (this is a systemwide limit)
     @return S_OK on success, a FAILED hresult containing the win32 error from creating the SID or querying the token otherwise.
     */

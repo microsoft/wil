@@ -1699,7 +1699,8 @@ namespace wil
         }
 
         /**
-         * @brief Attempts to read a value under a specified key and subkey, returning in a std::optional, deducing registry type from the type parameter T.
+         * @brief Attempts to read a value under a specified key and subkey, returning in a std::optional, deducing registry type from
+         *        the type parameter T.
          * @tparam T The type to read, which will be placed into a std::optional (the registry value type is deduced from T)
          * @param key An open or well-known registry key
          * @param subkey The name of the subkey to append to `key`.
@@ -1727,7 +1728,8 @@ namespace wil
         }
 
         /**
-         * @brief Attempts to read a value under a specified key, returning the value in a std::optional, deducing registry type from the type parameter T.
+         * @brief Attempts to read a value under a specified key, returning the value in a std::optional, deducing registry type from
+         *        the type parameter T.
          * @tparam T The type to read, which will be placed into a std::optional (the registry value type is deduced from T)
          * @param key An open or well-known registry key
          * @param value_name The name of the registry value whose data is to be updated.
@@ -1813,7 +1815,8 @@ namespace wil
 
 #if defined(_VECTOR_) || defined(WIL_DOXYGEN)
         /**
-         * @brief Attempts to read a value under a specified key requiring the specified type, returning the raw bytes in a std::optional
+         * @brief Attempts to read a value under a specified key requiring the specified type, returning the raw bytes in a
+         *        std::optional
          * @param key An open or well-known registry key
          * @param subkey The name of the subkey to append to `key`.
          *        If `nullptr`, then `key` is used without modification.
@@ -1831,7 +1834,8 @@ namespace wil
         }
 
         /**
-         * @brief Attempts to read a value under a specified key requiring the specified type, returning the raw bytes in a std::optional
+         * @brief Attempts to read a value under a specified key requiring the specified type, returning the raw bytes in a
+         *        std::optional
          * @param key An open or well-known registry key
          * @param value_name The name of the registry value whose data is to be updated.
          *        Can be nullptr to read from the unnamed default registry value.
@@ -2310,7 +2314,8 @@ namespace wil
          *        Can be nullptr to read from the unnamed default registry value.
          * @param[out] return_value A WCHAR array receiving the value read from the registry.
          *             Will write to the WCHAR array the string value read from the registry, guaranteeing null-termination
-         * @param[out] requiredBytes An optional pointer to a unsigned 32-bit value to receive the required bytes of the string in the registry
+         * @param[out] requiredBytes An optional pointer to a unsigned 32-bit value to receive the required bytes of the string in the
+         *             registry
          * @return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
         template <size_t Length, typename DwordType,
@@ -2329,7 +2334,8 @@ namespace wil
          *        Can be nullptr to read from the unnamed default registry value.
          * @param[out] return_value A WCHAR array receiving the value read from the registry.
          *             Will write to the WCHAR array the string value read from the registry, guaranteeing null-termination
-         * @param[out] requiredBytes An optional pointer to an unsigned 32-bit value to receive the required bytes of the string to be read
+         * @param[out] requiredBytes An optional pointer to an unsigned 32-bit value to receive the required bytes of the string to be
+         *             read
          * @return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
         template <size_t Length, typename DwordType,
@@ -2970,7 +2976,8 @@ namespace wil
          *        If `nullptr`, then `key` is used without modification.
          * @param value_name The name of the registry value whose data is to be read.
          *        Can be nullptr to read from the unnamed default registry value.
-         * @param[out] return_value A ::wil::unique_cotaskmem_array_ptr<::wil::unique_cotaskmem_string> receiving the value read from the registry
+         * @param[out] return_value A ::wil::unique_cotaskmem_array_ptr<::wil::unique_cotaskmem_string> receiving the value read from
+         *             the registry
          * @return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
         inline HRESULT get_value_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, ::wil::unique_cotaskmem_array_ptr<::wil::unique_cotaskmem_string>& return_value) WI_NOEXCEPT
@@ -2991,7 +2998,8 @@ namespace wil
          * @param key An open or well-known registry key
          * @param value_name The name of the registry value whose data is to be read.
          *        Can be nullptr to read from the unnamed default registry value.
-         * @param[out] return_value A ::wil::unique_cotaskmem_array_ptr<::wil::unique_cotaskmem_string> receiving the value read from the registry
+         * @param[out] return_value A ::wil::unique_cotaskmem_array_ptr<::wil::unique_cotaskmem_string> receiving the value read from
+         *             the registry
          * @return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
         inline HRESULT get_value_nothrow(HKEY key, _In_opt_ PCWSTR value_name, ::wil::unique_cotaskmem_array_ptr<::wil::unique_cotaskmem_string>& return_value) WI_NOEXCEPT
@@ -3006,7 +3014,8 @@ namespace wil
          *        If `nullptr`, then `key` is used without modification.
          * @param value_name The name of the registry value whose data is to be read.
          *        Can be nullptr to read from the unnamed default registry value.
-         * @param[out] return_value A ::wil::unique_cotaskmem_array_ptr<::wil::unique_cotaskmem_string> receiving the value read from the registry
+         * @param[out] return_value A ::wil::unique_cotaskmem_array_ptr<::wil::unique_cotaskmem_string> receiving the value read from
+         *             the registry
          * @return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
         inline HRESULT get_value_multistring_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, ::wil::unique_cotaskmem_array_ptr<::wil::unique_cotaskmem_string>& return_value) WI_NOEXCEPT
@@ -3019,7 +3028,8 @@ namespace wil
          * @param key An open or well-known registry key
          * @param value_name The name of the registry value whose data is to be read.
          *        Can be nullptr to read from the unnamed default registry value.
-         * @param[out] return_value A ::wil::unique_cotaskmem_array_ptr<::wil::unique_cotaskmem_string> receiving the value read from the registry
+         * @param[out] return_value A ::wil::unique_cotaskmem_array_ptr<::wil::unique_cotaskmem_string> receiving the value read from
+         *             the registry
          * @return HRESULT error code indicating success or failure (does not throw C++ exceptions)
          */
         inline HRESULT get_value_multistring_nothrow(HKEY key, _In_opt_ PCWSTR value_name, ::wil::unique_cotaskmem_array_ptr<::wil::unique_cotaskmem_string>& return_value) WI_NOEXCEPT

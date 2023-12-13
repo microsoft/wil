@@ -1004,10 +1004,10 @@ namespace wil
     };
 
     //! Created automatically from using WI_DIAGNOSTICS_INFO to provide diagnostics to functions.
-    //! Note that typically wil hides diagnostics from users under the covers by passing them automatically to functions as
-    //! parameters hidden behind a macro.  In some cases, the user needs to directly supply these, so this class provides
-    //! the mechanism for that.  We only use this for user-passed content as it can't be directly controlled by RESULT_DIAGNOSTICS_LEVEL
-    //! to ensure there are no ODR violations (though that variable still controls what parameters within this structure would be available).
+    //! Note that typically wil hides diagnostics from users under the covers by passing them automatically to functions as parameters
+    //! hidden behind a macro.  In some cases, the user needs to directly supply these, so this class provides the mechanism for that.
+    //! We only use this for user-passed content as it can't be directly controlled by RESULT_DIAGNOSTICS_LEVEL to ensure there are no
+    //! ODR violations (though that variable still controls what parameters within this structure would be available).
     struct DiagnosticsInfo
     {
         void* returnAddress = nullptr;
@@ -2059,8 +2059,8 @@ __WI_POP_WARNINGS
                 //  2) Your macro check against the error is not immediately after the API call.  Pushing it later can result
                 //      in another API call between the previous one and the check resetting the last error.
                 //  3) The API you're calling has a bug in it and does not accurately set the last error (there are a few
-                //      examples here, such as SendMessageTimeout() that don't accurately set the last error).  For these,
-                //      please send mail to 'wildisc' when found and work-around with win32errorhelpers.
+                //      examples here, such as SendMessageTimeout() that don't accurately set the last error).
+                //      [MSFT internal] For these, please send mail to 'wildisc' when found and work-around with win32errorhelpers.
 
                 WI_USAGE_ERROR_FORWARD("CALLER BUG: Macro usage error detected.  GetLastError() does not have an error.");
                 return ERROR_ASSERTION_FAILURE;
@@ -2613,7 +2613,8 @@ __WI_POP_WARNINGS
     //! This class stores all of the FailureInfo context that is available when the exception is thrown.  It's also caught by
     //! exception guards for automatic conversion to HRESULT.
     //!
-    //! In c++/cx, Platform::Exception^ is used instead of this class (unless @ref wil::g_fResultThrowPlatformException has been changed).
+    //! In c++/cx, Platform::Exception^ is used instead of this class (unless @ref wil::g_fResultThrowPlatformException has been
+    //! changed).
     class ResultException : public std::exception
     {
     public:
@@ -2742,7 +2743,8 @@ __WI_POP_WARNINGS
         return __HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION);
     }
 
-    //! Identical to 'throw;', but can be called from error-code neutral code to rethrow in code that *may* be running under an exception context
+    //! Identical to 'throw;', but can be called from error-code neutral code to rethrow in code that *may* be running under an
+    //! exception context
     inline void RethrowCaughtException()
     {
         // We always want to rethrow the exception under normal circumstances.  Ordinarily, we could actually guarantee

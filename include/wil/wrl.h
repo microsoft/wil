@@ -67,9 +67,9 @@ namespace wil
 
 #endif // WIL_ENABLE_EXCEPTIONS
 
-    /** By default WRL Callback objects are not agile, use this to make an agile one. Replace use of Callback<> with MakeAgileCallback<>.
-    Will return null on failure, translate that into E_OUTOFMEMORY using XXX_IF_NULL_ALLOC()
-    from wil/result.h to test the result. */
+    /** By default WRL Callback objects are not agile, use this to make an agile one. Replace use of Callback<> with
+    MakeAgileCallback<>. Will return null on failure, translate that into E_OUTOFMEMORY using XXX_IF_NULL_ALLOC() from wil/result.h
+    to test the result. */
     template<typename TDelegateInterface, typename ...Args>
     ::Microsoft::WRL::ComPtr<TDelegateInterface> MakeAgileCallbackNoThrow(Args&&... args) WI_NOEXCEPT
     {

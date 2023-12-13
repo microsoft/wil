@@ -314,17 +314,18 @@ classes and methods from WIL, define this macro ahead of including the first WIL
 #define WIL_SUPPRESS_EXCEPTIONS
 
 /** This define can be explicitly set to lock the process exception mode to WIL_ENABLE_EXCEPTIONS.
-Locking the exception mode provides optimizations to exception barriers, staging hooks and DLL load costs as it eliminates the need to
-do copy-on-write initialization of various function pointers and the necessary indirection that's done within WIL to avoid ODR violations
-when linking libraries together with different exception handling semantics. */
+Locking the exception mode provides optimizations to exception barriers, staging hooks and DLL load costs as it eliminates the
+need to do copy-on-write initialization of various function pointers and the necessary indirection that's done within WIL to avoid
+ODR violations when linking libraries together with different exception handling semantics. */
 #define WIL_LOCK_EXCEPTION_MODE
 
 /** This define explicit sets the exception mode for the process to control optimizations.
 Three exception modes are available:
-0)  This is the default.  This enables a binary to link both exception-based and non-exception based libraries together that
-    use WIL.  This adds overhead to exception barriers, DLL copy on write pages and indirection through function pointers to avoid ODR
+0)  This is the default.  This enables a binary to link both exception-based and non-exception based libraries together that use
+    WIL.  This adds overhead to exception barriers, DLL copy on write pages and indirection through function pointers to avoid ODR
     violations when linking libraries together with different exception handling semantics.
-1)  Prefer this setting when it can be used.  This locks the binary to only supporting libraries which were built with exceptions enabled.
+1)  Prefer this setting when it can be used.  This locks the binary to only supporting libraries which were built with exceptions
+    enabled.
 2)  This locks the binary to libraries built without exceptions. */
 #define WIL_EXCEPTION_MODE
 #endif
@@ -376,8 +377,10 @@ Three exception modes are available:
 //! WI_ClearFlagIf(m_flags, MyFlags::Bar, isBarClosed);             // Conditionally clear a single flag based upon a bool
 //! WI_ClearAllFlags(m_flags, MyFlags::Foo | MyFlags::Bar);         // Clear one or more flags from the given variable
 //! WI_ToggleFlag(m_flags, MyFlags::Foo);                           // Toggle (change to the opposite value) a single flag
-//! WI_UpdateFlag(m_flags, MyFlags::Bar, isBarClosed);              // Sets or Clears a single flag from the given variable based upon a bool value
-//! WI_UpdateFlagsInMask(m_flags, flagsMask, newFlagValues);        // Sets or Clears the flags in flagsMask to the masked values from newFlagValues
+//! WI_UpdateFlag(m_flags, MyFlags::Bar, isBarClosed);              // Sets or Clears a single flag from the given variable based
+//!                                                                 // upon a bool value
+//! WI_UpdateFlagsInMask(m_flags, flagsMask, newFlagValues);        // Sets or Clears the flags in flagsMask to the masked values
+//!                                                                 // from newFlagValues
 //! ~~~~
 //! Common example usage (inspection of flag variables):
 //! ~~~~
@@ -410,7 +413,8 @@ Three exception modes are available:
 //! Conditionally clear a single compile-time constant `flag` in the variable `var` only if `condition` is true.
 #define WI_ClearFlagIf(var, flag, condition)                do { if (wil::verify_bool(condition)) { WI_ClearFlag(var, flag); } } while ((void)0, 0)
 
-//! Changes a single compile-time constant `flag` in the variable `var` to be set if `isFlagSet` is true or cleared if `isFlagSet` is false.
+//! Changes a single compile-time constant `flag` in the variable `var` to be set if `isFlagSet` is true or cleared if `isFlagSet`
+//! is false.
 #define WI_UpdateFlag(var, flag, isFlagSet)                 (wil::verify_bool(isFlagSet) ? WI_SetFlag(var, flag) : WI_ClearFlag(var, flag))
 //! Changes only the flags specified by `flagsMask` in the variable `var` to match the corresponding flags in `newFlags`.
 #define WI_UpdateFlagsInMask(var, flagsMask, newFlags)      wil::details::UpdateFlagsInMaskHelper(var, flagsMask, newFlags)
@@ -444,7 +448,8 @@ Three exception modes are available:
 #define WI_IsSingleFlagSetInMask(val, mask)                 wil::details::IsSingleFlagSetHelper((val) & (mask))
 //! Evaluates as true if exactly one bit (any bit) is set within `val` or if there are no bits set within `val`.
 #define WI_IsClearOrSingleFlagSet(val)                      wil::details::IsClearOrSingleFlagSetHelper(val)
-//! Evaluates as true if exactly one bit from within the specified `mask` is set within `val` or if there are no bits from `mask` set within `val`.
+//! Evaluates as true if exactly one bit from within the specified `mask` is set within `val` or if there are no bits from `mask`
+//! set within `val`.
 #define WI_IsClearOrSingleFlagSetInMask(val, mask)          wil::details::IsClearOrSingleFlagSetHelper((val) & (mask))
 //! @}      // bitwise inspection macros
 
@@ -589,10 +594,10 @@ namespace wil
 
     //! @defgroup typesafety Type Validation
     //! Helpers to validate variable types to prevent accidental, but allowed type conversions.
-    //! These helpers are most useful when building macros that accept a particular type.  Putting these functions around the types accepted
-    //! prior to pushing that type through to a function (or using it within the macro) allows the macro to add an additional layer of type
-    //! safety that would ordinarily be stripped away by C++ implicit conversions.  This system is extensively used in the error handling helper
-    //! macros to validate the types given to various macro parameters.
+    //! These helpers are most useful when building macros that accept a particular type.  Putting these functions around the types
+    //! accepted prior to pushing that type through to a function (or using it within the macro) allows the macro to add an additional
+    //! layer of type safety that would ordinarily be stripped away by C++ implicit conversions.  This system is extensively used in
+    //! the error handling helper macros to validate the types given to various macro parameters.
     //! @{
 
     /** Verify that `val` can be evaluated as a logical bool.

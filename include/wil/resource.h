@@ -781,17 +781,21 @@ namespace wil
     }
 
     /** Use unique_struct to define an RAII type for a trivial struct that references resources that must be cleaned up.
-    Unique_struct wraps a trivial struct using a custom clean up function and, optionally, custom initializer function. If no custom initialier function is defined in the template
-    then ZeroMemory is used.
-    Unique_struct is modeled off of std::unique_ptr. However, unique_struct inherits from the defined type instead of managing the struct through a private member variable.
+    Unique_struct wraps a trivial struct using a custom clean up function and, optionally, custom initializer function. If no custom
+    initialier function is defined in the template then ZeroMemory is used.
+    Unique_struct is modeled off of std::unique_ptr. However, unique_struct inherits from the defined type instead of managing the
+    struct through a private member variable.
 
-    If the type you're wrapping is a system type, you can share the code by declaring it in this file (Resource.h). Send requests to wildisc.
-    Otherwise, if the type is local to your project, declare it locally.
+    If the type you're wrapping is a system type, you can share the code by declaring it in this file (Resource.h). Submit pull
+    requests to [GitHub](https://github.com/microsoft/wil/). Otherwise, if the type is local to your project, declare it locally.
     @tparam struct_t The struct you want to manage
-    @tparam close_fn_t The type of the function to clean up the struct. Takes one parameter: a pointer of struct_t. Return values are ignored.
+    @tparam close_fn_t The type of the function to clean up the struct. Takes one parameter: a pointer of struct_t. Return values are
+            ignored.
     @tparam close_fn The function of type close_fn_t. This is called in the destructor and reset functions.
-    @tparam init_fn_t Optional:The type of the function to initialize the struct.  Takes one parameter: a pointer of struct_t. Return values are ignored.
-    @tparam init_fn Optional:The function of type init_fn_t. This is called in the constructor, reset, and release functions. The default is ZeroMemory to initialize the struct.
+    @tparam init_fn_t Optional:The type of the function to initialize the struct.  Takes one parameter: a pointer of struct_t. Return
+            values are ignored.
+    @tparam init_fn Optional:The function of type init_fn_t. This is called in the constructor, reset, and release functions. The
+            default is ZeroMemory to initialize the struct.
 
     Defined using the default zero memory initializer
     ~~~
@@ -803,7 +807,8 @@ namespace wil
 
     Defined using a custom initializer
     ~~~
-    typedef wil::unique_struct<PROPVARIANT, decltype(&::PropVariantClear), ::PropVariantClear, decltype(&::PropVariantInit), ::PropVariantInit> unique_prop_variant;
+    typedef wil::unique_struct<PROPVARIANT, decltype(&::PropVariantClear), ::PropVariantClear, decltype(&::PropVariantInit),
+        ::PropVariantInit> unique_prop_variant;
 
     unique_prop_variant propvariant;
     SomeFunction(&propvariant);
@@ -858,7 +863,8 @@ namespace wil
         }
 
         //! Resets this managed struct by calling the custom close function
-        //! Then initializes this managed struct using the user-provided initialization function, or ZeroMemory if no function is specified
+        //! Then initializes this managed struct using the user-provided initialization function, or ZeroMemory if no function is
+        //! specified
         void reset() WI_NOEXCEPT
         {
             closer::close(this);
@@ -876,7 +882,8 @@ namespace wil
         }
 
         //! Returns the managed struct
-        //! Then initializes this managed struct using the user-provided initialization function, or ZeroMemory if no function is specified
+        //! Then initializes this managed struct using the user-provided initialization function, or ZeroMemory if no function is
+        //! specified
         struct_t release() WI_NOEXCEPT
         {
             struct_t value(*this);
@@ -891,7 +898,8 @@ namespace wil
         }
 
         //! Resets this managed struct by calling the custom close function
-        //! Then initializes this managed struct using the user-provided initialization function, or ZeroMemory if no function is specified
+        //! Then initializes this managed struct using the user-provided initialization function, or ZeroMemory if no function is
+        //! specified.
         //! Returns address of the managed struct
         struct_t * reset_and_addressof() WI_NOEXCEPT
         {
@@ -925,16 +933,19 @@ namespace wil
         }
     };
 
-    /** unique_any_array_ptr is a RAII type for managing conformant arrays that need to be freed and have elements that may need to be freed.
-    The intented use for this RAII type would be to capture out params from API like IPropertyValue::GetStringArray.
-    This class also maintains the size of the array, so it can iterate over the members and deallocate them before it deallocates the base array pointer.
+    /** unique_any_array_ptr is a RAII type for managing conformant arrays that need to be freed and have elements that may need to be
+    freed. The intented use for this RAII type would be to capture out params from API like IPropertyValue::GetStringArray. This class
+    also maintains the size of the array, so it can iterate over the members and deallocate them before it deallocates the base array
+    pointer.
 
-    If the type you're wrapping is a system type, you can share the code by declaring it in this file (Resource.h). Send requests to wildisc.
-    Otherwise, if the type is local to your project, declare it locally.
+    If the type you're wrapping is a system type, you can share the code by declaring it in this file (Resource.h). Send pull requests
+    to [GitHub](https://github.com/microsoft/wil/). Otherwise, if the type is local to your project, declare it locally.
 
     @tparam ValueType: The type of array you want to manage.
-    @tparam ArrayDeleter: The type of the function to clean up the array. Takes one parameter of type T[] or T*. Return values are ignored. This is called in the destructor and reset functions.
-    @tparam ElementDeleter: The type of the function to clean up the array elements. Takes one parameter of type T. Return values are ignored. This is called in the destructor and reset functions.
+    @tparam ArrayDeleter: The type of the function to clean up the array. Takes one parameter of type T[] or T*. Return values are
+            ignored. This is called in the destructor and reset functions.
+    @tparam ElementDeleter: The type of the function to clean up the array elements. Takes one parameter of type T. Return values are
+            ignored. This is called in the destructor and reset functions.
 
     ~~~
     void GetSomeArray(_Out_ size_t*, _Out_ NOTMYTYPE**);
@@ -1335,7 +1346,8 @@ namespace wil
     @tparam interface_t A COM interface pointer that will manage this resource type.
     @tparam token_t The token type that relates to the COM interface management functions.
     @tparam close_fn_t The type of the function that is called when the resource is destroyed.
-    @tparam close_fn The function used to destroy the associated resource. This function should have the signature void(interface_t* source, token_t token).
+    @tparam close_fn The function used to destroy the associated resource. This function should have the signature
+            void(interface_t* source, token_t token).
     @tparam invalid_token Optional:An invalid token value. Defaults to default-constructed token_t().
 
     Example
@@ -1344,7 +1356,8 @@ namespace wil
     {
     source->MyCloseFunction(token);
     }
-    using unique_my_interface_token = wil::unique_com_token<IMyInterface, DWORD, decltype(MyInterfaceCloseFunction), MyInterfaceCloseFunction, 0xFFFFFFFF>;
+    using unique_my_interface_token =
+        wil::unique_com_token<IMyInterface, DWORD, decltype(MyInterfaceCloseFunction), MyInterfaceCloseFunction, 0xFFFFFFFF>;
     ~~~ */
     template <typename interface_t, typename token_t, typename close_fn_t, close_fn_t close_fn, token_t invalid_token = token_t()>
     class unique_com_token
@@ -1498,7 +1511,8 @@ namespace wil
 
     @tparam interface_t A COM interface pointer that provides context to make the call.
     @tparam close_fn_t The type of the function that is called to invoke the method.
-    @tparam close_fn The function used to invoke the interface method.  This function should have the signature void(interface_t* source).
+    @tparam close_fn The function used to invoke the interface method.  This function should have the signature
+            void(interface_t* source).
 
     Example
     ~~~
@@ -2114,7 +2128,7 @@ namespace wil {
 
         // void reset(pointer_storage ptr = policy::invalid_value()) WI_NOEXCEPT
         // void reset(wistd::nullptr_t) WI_NOEXCEPT
-        // pointer_storage *addressof() WI_NOEXCEPT                                     // (note: not exposed for opaque resource types)
+        // pointer_storage *addressof() WI_NOEXCEPT                                // (note: not exposed for opaque resource types)
     };
 
     template <typename unique_t>
@@ -2287,10 +2301,11 @@ namespace wil
 /// @endcond
     /** Provides `std::make_unique()` semantics for resources allocated in a context that may not throw upon allocation failure.
     `wil::make_unique_nothrow()` is identical to `std::make_unique()` except for the following:
-    * It returns `wistd::unique_ptr`, rather than `std::unique_ptr`
-    * It returns an empty (null) `wistd::unique_ptr` upon allocation failure, rather than throwing an exception
+    - It returns `wistd::unique_ptr`, rather than `std::unique_ptr`
+    - It returns an empty (null) `wistd::unique_ptr` upon allocation failure, rather than throwing an exception
 
-    Note that `wil::make_unique_nothrow()` is not marked WI_NOEXCEPT as it may be used to create an exception-based class that may throw in its constructor.
+    Note that `wil::make_unique_nothrow()` is not marked WI_NOEXCEPT as it may be used to create an exception-based class that may
+    throw in its constructor.
     ~~~
     auto foo = wil::make_unique_nothrow<Foo>(fooConstructorParam1, fooConstructorParam2);
     if (foo)
@@ -2344,8 +2359,8 @@ namespace wil
         return (wistd::unique_ptr<_Ty>(FAIL_FAST_IF_NULL_ALLOC(new(std::nothrow) _Ty(wistd::forward<_Types>(_Args)...))));
     }
 
-    /** Provides `std::make_unique()` semantics for array resources allocated in a context that must fail fast upon allocation failure.
-    See the overload of `wil::make_unique_nothrow()` for non-array types for more details.
+    /** Provides `std::make_unique()` semantics for array resources allocated in a context that must fail fast upon allocation
+    failure. See the overload of `wil::make_unique_nothrow()` for non-array types for more details.
     ~~~
     const size_t size = 42;
     auto foos = wil::make_unique_nothrow<Foo[]>(size); // the default constructor will be called on each Foo object
@@ -3291,7 +3306,8 @@ namespace wil
 
     /** Copies a string (up to the given length) into memory allocated with a specified allocator returning null on failure.
     Use `wil::make_unique_string_nothrow()` for string resources returned from APIs that must satisfy a memory allocation contract
-    that requires use of a specific allocator and free function (CoTaskMemAlloc/CoTaskMemFree, LocalAlloc/LocalFree, GlobalAlloc/GlobalFree, etc.).
+    that requires use of a specific allocator and free function (CoTaskMemAlloc/CoTaskMemFree, LocalAlloc/LocalFree,
+    GlobalAlloc/GlobalFree, etc.).
     ~~~
     auto str = wil::make_unique_string_nothrow<wil::unique_cotaskmem_string>(L"a string of words", 8);
     RETURN_IF_NULL_ALLOC(str);
@@ -3847,13 +3863,16 @@ namespace wil
     template <typename T = void>
     using unique_hlocal_ptr = wistd::unique_ptr<T, hlocal_deleter>;
 
-    /** Provides `std::make_unique()` semantics for resources allocated with `LocalAlloc()` in a context that may not throw upon allocation failure.
-    Use `wil::make_unique_hlocal_nothrow()` for resources returned from APIs that must satisfy a memory allocation contract that requires the use of `LocalAlloc()` / `LocalFree()`.
-    Use `wil::make_unique_nothrow()` when `LocalAlloc()` is not required.
+    /** Provides `std::make_unique()` semantics for resources allocated with `LocalAlloc()` in a context that may not throw upon
+    allocation failure. Use `wil::make_unique_hlocal_nothrow()` for resources returned from APIs that must satisfy a memory allocation
+    contract that requires the use of `LocalAlloc()` / `LocalFree()`. Use `wil::make_unique_nothrow()` when `LocalAlloc()` is not
+    required.
 
-    Allocations are initialized with placement new and will call constructors (if present), but this does not guarantee initialization.
+    Allocations are initialized with placement new and will call constructors (if present), but this does not guarantee
+    initialization.
 
-    Note that `wil::make_unique_hlocal_nothrow()` is not marked WI_NOEXCEPT as it may be used to create an exception-based class that may throw in its constructor.
+    Note that `wil::make_unique_hlocal_nothrow()` is not marked WI_NOEXCEPT as it may be used to create an exception-based class that
+    may throw in its constructor.
     @code
     auto foo = wil::make_unique_hlocal_nothrow<Foo>();
     if (foo)
@@ -3875,8 +3894,8 @@ namespace wil
         return sp;
     }
 
-    /** Provides `std::make_unique()` semantics for array resources allocated with `LocalAlloc()` in a context that may not throw upon allocation failure.
-    See the overload of `wil::make_unique_hlocal_nothrow()` for non-array types for more details.
+    /** Provides `std::make_unique()` semantics for array resources allocated with `LocalAlloc()` in a context that may not throw upon
+    allocation failure. See the overload of `wil::make_unique_hlocal_nothrow()` for non-array types for more details.
     @code
     const size_t size = 42;
     auto foos = wil::make_unique_hlocal_nothrow<Foo[]>(size);
@@ -3910,8 +3929,8 @@ namespace wil
         return sp;
     }
 
-    /** Provides `std::make_unique()` semantics for resources allocated with `LocalAlloc()` in a context that must fail fast upon allocation failure.
-    See the overload of `wil::make_unique_hlocal_nothrow()` for non-array types for more details.
+    /** Provides `std::make_unique()` semantics for resources allocated with `LocalAlloc()` in a context that must fail fast upon
+    allocation failure. See the overload of `wil::make_unique_hlocal_nothrow()` for non-array types for more details.
     @code
     auto foo = wil::make_unique_hlocal_failfast<Foo>();
     // initialize allocated Foo object as appropriate
@@ -3925,7 +3944,8 @@ namespace wil
         return result;
     }
 
-    /** Provides `std::make_unique()` semantics for array resources allocated with `LocalAlloc()` in a context that must fail fast upon allocation failure.
+    /** Provides `std::make_unique()` semantics for array resources allocated with `LocalAlloc()` in a context that must fail fast
+    upon allocation failure.
     See the overload of `wil::make_unique_hlocal_nothrow()` for non-array types for more details.
     @code
     const size_t size = 42;
@@ -4075,8 +4095,8 @@ namespace wil
     template <typename T = void>
     using unique_hlocal_secure_ptr = wistd::unique_ptr<T, hlocal_secure_deleter>;
 
-    /** Provides `std::make_unique()` semantics for secure resources allocated with `LocalAlloc()` in a context that may not throw upon allocation failure.
-    See the overload of `wil::make_unique_hlocal_nothrow()` for non-array types for more details.
+    /** Provides `std::make_unique()` semantics for secure resources allocated with `LocalAlloc()` in a context that may not throw
+    upon allocation failure. See the overload of `wil::make_unique_hlocal_nothrow()` for non-array types for more details.
     @code
     auto foo = wil::make_unique_hlocal_secure_nothrow<Foo>();
     if (foo)
@@ -4091,8 +4111,8 @@ namespace wil
         return unique_hlocal_secure_ptr<T>(make_unique_hlocal_nothrow<T>(wistd::forward<Args>(args)...).release());
     }
 
-    /** Provides `std::make_unique()` semantics for secure array resources allocated with `LocalAlloc()` in a context that may not throw upon allocation failure.
-    See the overload of `wil::make_unique_hlocal_nothrow()` for non-array types for more details.
+    /** Provides `std::make_unique()` semantics for secure array resources allocated with `LocalAlloc()` in a context that may not
+    throw upon allocation failure. See the overload of `wil::make_unique_hlocal_nothrow()` for non-array types for more details.
     @code
     const size_t size = 42;
     auto foos = wil::make_unique_hlocal_secure_nothrow<Foo[]>(size);
@@ -4111,8 +4131,8 @@ namespace wil
         return unique_hlocal_secure_ptr<T>(make_unique_hlocal_nothrow<T>(size).release());
     }
 
-    /** Provides `std::make_unique()` semantics for secure resources allocated with `LocalAlloc()` in a context that must fail fast upon allocation failure.
-    See the overload of `wil::make_unique_hlocal_nothrow()` for non-array types for more details.
+    /** Provides `std::make_unique()` semantics for secure resources allocated with `LocalAlloc()` in a context that must fail fast
+    upon allocation failure. See the overload of `wil::make_unique_hlocal_nothrow()` for non-array types for more details.
     @code
     auto foo = wil::make_unique_hlocal_secure_failfast<Foo>();
     // initialize allocated Foo object as appropriate
@@ -4126,8 +4146,8 @@ namespace wil
         return result;
     }
 
-    /** Provides `std::make_unique()` semantics for secure array resources allocated with `LocalAlloc()` in a context that must fail fast upon allocation failure.
-    See the overload of `wil::make_unique_hlocal_nothrow()` for non-array types for more details.
+    /** Provides `std::make_unique()` semantics for secure array resources allocated with `LocalAlloc()` in a context that must fail
+    fast upon allocation failure. See the overload of `wil::make_unique_hlocal_nothrow()` for non-array types for more details.
     @code
     const size_t size = 42;
     auto foos = wil::make_unique_hlocal_secure_failfast<Foo[]>(size);
@@ -4183,8 +4203,8 @@ namespace wil
 
     typedef unique_hlocal_secure_ptr<wchar_t[]> unique_hlocal_string_secure;
 
-    /** Copies a given string into secure memory allocated with `LocalAlloc()` in a context that may not throw upon allocation failure.
-    See the overload of `wil::make_hlocal_string_nothrow()` with supplied length for more details.
+    /** Copies a given string into secure memory allocated with `LocalAlloc()` in a context that may not throw upon allocation
+    failure. See the overload of `wil::make_hlocal_string_nothrow()` with supplied length for more details.
     ~~~
     auto str = wil::make_hlocal_string_secure_nothrow(L"a string");
     RETURN_IF_NULL_ALLOC(str);
@@ -4196,8 +4216,8 @@ namespace wil
         return unique_hlocal_string_secure(make_hlocal_string_nothrow(source).release());
     }
 
-    /** Copies a given string into secure memory allocated with `LocalAlloc()` in a context that must fail fast upon allocation failure.
-    See the overload of `wil::make_hlocal_string_nothrow()` with supplied length for more details.
+    /** Copies a given string into secure memory allocated with `LocalAlloc()` in a context that must fail fast upon allocation
+    failure. See the overload of `wil::make_hlocal_string_nothrow()` with supplied length for more details.
     ~~~
     auto str = wil::make_hlocal_string_secure_failfast(L"a string");
     std::wcout << L"This is " << str.get() << std::endl; // prints "This is a string"
@@ -5079,13 +5099,16 @@ namespace wil
     template <typename T>
     using unique_cotaskmem_array_ptr = unique_array_ptr<T, cotaskmem_deleter>;
 
-    /** Provides `std::make_unique()` semantics for resources allocated with `CoTaskMemAlloc()` in a context that may not throw upon allocation failure.
-    Use `wil::make_unique_cotaskmem_nothrow()` for resources returned from APIs that must satisfy a memory allocation contract that requires the use of `CoTaskMemAlloc()` / `CoTaskMemFree()`.
-    Use `wil::make_unique_nothrow()` when `CoTaskMemAlloc()` is not required.
+    /** Provides `std::make_unique()` semantics for resources allocated with `CoTaskMemAlloc()` in a context that may not throw upon
+    allocation failure. Use `wil::make_unique_cotaskmem_nothrow()` for resources returned from APIs that must satisfy a memory
+    allocation contract that requires the use of `CoTaskMemAlloc()` / `CoTaskMemFree()`. Use `wil::make_unique_nothrow()` when
+    `CoTaskMemAlloc()` is not required.
 
-    Allocations are initialized with placement new and will call constructors (if present), but this does not guarantee initialization.
+    Allocations are initialized with placement new and will call constructors (if present), but this does not guarantee
+    initialization.
 
-    Note that `wil::make_unique_cotaskmem_nothrow()` is not marked WI_NOEXCEPT as it may be used to create an exception-based class that may throw in its constructor.
+    Note that `wil::make_unique_cotaskmem_nothrow()` is not marked WI_NOEXCEPT as it may be used to create an exception-based class
+    that may throw in its constructor.
     @code
     auto foo = wil::make_unique_cotaskmem_nothrow<Foo>();
     if (foo)
@@ -5107,8 +5130,8 @@ namespace wil
         return sp;
     }
 
-    /** Provides `std::make_unique()` semantics for array resources allocated with `CoTaskMemAlloc()` in a context that may not throw upon allocation failure.
-    See the overload of `wil::make_unique_cotaskmem_nothrow()` for non-array types for more details.
+    /** Provides `std::make_unique()` semantics for array resources allocated with `CoTaskMemAlloc()` in a context that may not throw
+    upon allocation failure. See the overload of `wil::make_unique_cotaskmem_nothrow()` for non-array types for more details.
     @code
     const size_t size = 42;
     auto foos = wil::make_unique_cotaskmem_nothrow<Foo[]>(size);
@@ -5142,8 +5165,8 @@ namespace wil
         return sp;
     }
 
-    /** Provides `std::make_unique()` semantics for resources allocated with `CoTaskMemAlloc()` in a context that must fail fast upon allocation failure.
-    See the overload of `wil::make_unique_cotaskmem_nothrow()` for non-array types for more details.
+    /** Provides `std::make_unique()` semantics for resources allocated with `CoTaskMemAlloc()` in a context that must fail fast upon
+    allocation failure. See the overload of `wil::make_unique_cotaskmem_nothrow()` for non-array types for more details.
     @code
     auto foo = wil::make_unique_cotaskmem_failfast<Foo>();
     // initialize allocated Foo object as appropriate
@@ -5157,8 +5180,8 @@ namespace wil
         return result;
     }
 
-    /** Provides `std::make_unique()` semantics for array resources allocated with `CoTaskMemAlloc()` in a context that must fail fast upon allocation failure.
-    See the overload of `wil::make_unique_cotaskmem_nothrow()` for non-array types for more details.
+    /** Provides `std::make_unique()` semantics for array resources allocated with `CoTaskMemAlloc()` in a context that must fail fast
+    upon allocation failure. See the overload of `wil::make_unique_cotaskmem_nothrow()` for non-array types for more details.
     @code
     const size_t size = 42;
     auto foos = wil::make_unique_cotaskmem_failfast<Foo[]>(size);
@@ -5304,8 +5327,8 @@ namespace wil
     template <typename T = void>
     using unique_cotaskmem_secure_ptr = wistd::unique_ptr<T, cotaskmem_secure_deleter>;
 
-    /** Provides `std::make_unique()` semantics for secure resources allocated with `CoTaskMemAlloc()` in a context that may not throw upon allocation failure.
-    See the overload of `wil::make_unique_cotaskmem_nothrow()` for non-array types for more details.
+    /** Provides `std::make_unique()` semantics for secure resources allocated with `CoTaskMemAlloc()` in a context that may not throw
+    upon allocation failure. See the overload of `wil::make_unique_cotaskmem_nothrow()` for non-array types for more details.
     @code
     auto foo = wil::make_unique_cotaskmem_secure_nothrow<Foo>();
     if (foo)
@@ -5320,8 +5343,8 @@ namespace wil
         return unique_cotaskmem_secure_ptr<T>(make_unique_cotaskmem_nothrow<T>(wistd::forward<Args>(args)...).release());
     }
 
-    /** Provides `std::make_unique()` semantics for secure array resources allocated with `CoTaskMemAlloc()` in a context that may not throw upon allocation failure.
-    See the overload of `wil::make_unique_cotaskmem_nothrow()` for non-array types for more details.
+    /** Provides `std::make_unique()` semantics for secure array resources allocated with `CoTaskMemAlloc()` in a context that may not
+    throw upon allocation failure. See the overload of `wil::make_unique_cotaskmem_nothrow()` for non-array types for more details.
     @code
     const size_t size = 42;
     auto foos = wil::make_unique_cotaskmem_secure_nothrow<Foo[]>(size);
@@ -5340,8 +5363,8 @@ namespace wil
         return unique_cotaskmem_secure_ptr<T>(make_unique_cotaskmem_nothrow<T>(size).release());
     }
 
-    /** Provides `std::make_unique()` semantics for secure resources allocated with `CoTaskMemAlloc()` in a context that must fail fast upon allocation failure.
-    See the overload of `wil::make_unique_cotaskmem_nothrow()` for non-array types for more details.
+    /** Provides `std::make_unique()` semantics for secure resources allocated with `CoTaskMemAlloc()` in a context that must fail
+    fast upon allocation failure. See the overload of `wil::make_unique_cotaskmem_nothrow()` for non-array types for more details.
     @code
     auto foo = wil::make_unique_cotaskmem_secure_failfast<Foo>();
     // initialize allocated Foo object as appropriate
@@ -5355,8 +5378,9 @@ namespace wil
         return result;
     }
 
-    /** Provides `std::make_unique()` semantics for secure array resources allocated with `CoTaskMemAlloc()` in a context that must fail fast upon allocation failure.
-    See the overload of `wil::make_unique_cotaskmem_nothrow()` for non-array types for more details.
+    /** Provides `std::make_unique()` semantics for secure array resources allocated with `CoTaskMemAlloc()` in a context that must
+    fail fast upon allocation failure. See the overload of `wil::make_unique_cotaskmem_nothrow()` for non-array types for more
+    details.
     @code
     const size_t size = 42;
     auto foos = wil::make_unique_cotaskmem_secure_failfast<Foo[]>(size);
@@ -5412,8 +5436,8 @@ namespace wil
 
     typedef unique_cotaskmem_secure_ptr<wchar_t[]> unique_cotaskmem_string_secure;
 
-    /** Copies a given string into secure memory allocated with `CoTaskMemAlloc()` in a context that may not throw upon allocation failure.
-    See the overload of `wil::make_cotaskmem_string_nothrow()` with supplied length for more details.
+    /** Copies a given string into secure memory allocated with `CoTaskMemAlloc()` in a context that may not throw upon allocation
+    failure. See the overload of `wil::make_cotaskmem_string_nothrow()` with supplied length for more details.
     ~~~
     auto str = wil::make_cotaskmem_string_secure_nothrow(L"a string");
     if (str)
@@ -5427,8 +5451,8 @@ namespace wil
         return unique_cotaskmem_string_secure(make_cotaskmem_string_nothrow(source).release());
     }
 
-    /** Copies a given string into secure memory allocated with `CoTaskMemAlloc()` in a context that must fail fast upon allocation failure.
-    See the overload of `wil::make_cotaskmem_string_nothrow()` with supplied length for more details.
+    /** Copies a given string into secure memory allocated with `CoTaskMemAlloc()` in a context that must fail fast upon allocation
+    failure. See the overload of `wil::make_cotaskmem_string_nothrow()` with supplied length for more details.
     ~~~
     auto str = wil::make_cotaskmem_string_secure_failfast(L"a string");
     std::wcout << L"This is " << str.get() << std::endl; // prints "This is a string"

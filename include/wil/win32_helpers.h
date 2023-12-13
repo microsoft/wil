@@ -261,11 +261,13 @@ namespace wil
         }
 
 #if (defined(_APISETREALTIME_) && (_WIN32_WINNT >= _WIN32_WINNT_WIN7)) || defined(WIL_DOXYGEN)
-        /// Returns the current unbiased interrupt-time count, in units of 100 nanoseconds. The unbiased interrupt-time count does not include time the system spends in sleep or hibernation.
+        /// Returns the current unbiased interrupt-time count, in units of 100 nanoseconds. The unbiased interrupt-time count does not
+        /// include time the system spends in sleep or hibernation.
         ///
         /// This API avoids prematurely shortcircuiting timing loops due to system sleep/hibernation.
         ///
-        /// This is equivalent to GetTickCount64() except it returns units of 100 nanoseconds instead of milliseconds, and it doesn't include time the system spends in sleep or hibernation.
+        /// This is equivalent to GetTickCount64() except it returns units of 100 nanoseconds instead of milliseconds, and it doesn't
+        /// include time the system spends in sleep or hibernation.
         /// For example
         ///
         ///     start = GetTickCount64();
@@ -276,7 +278,8 @@ namespace wil
         ///
         /// Do the same using unbiased interrupt-time and elapsed is 0 (or nearly so).
         ///
-        /// @note This is identical to QueryUnbiasedInterruptTime() but returns the value as a return value (rather than an out parameter).
+        /// @note This is identical to QueryUnbiasedInterruptTime() but returns the value as a return value (rather than an out
+        ///       parameter).
         /// @see https://msdn.microsoft.com/en-us/library/windows/desktop/ee662307(v=vs.85).aspx
         inline unsigned long long QueryUnbiasedInterruptTimeAs100ns() WI_NOEXCEPT
         {
@@ -285,7 +288,8 @@ namespace wil
             return now;
         }
 
-        /// Returns the current unbiased interrupt-time count, in units of milliseconds. The unbiased interrupt-time count does not include time the system spends in sleep or hibernation.
+        /// Returns the current unbiased interrupt-time count, in units of milliseconds. The unbiased interrupt-time count does not
+        /// include time the system spends in sleep or hibernation.
         /// @see QueryUnbiasedInterruptTimeAs100ns
         inline unsigned long long QueryUnbiasedInterruptTimeAsMSec() WI_NOEXCEPT
         {

@@ -732,10 +732,10 @@ namespace wil
     /// @endcond
 
 
-    /** Returns a sequence token that can be used with wil::GetLastError to limit errors to those that occur after this token was retrieved.
-    General usage pattern:  use wil::GetCurrentErrorSequenceId to cache a token, execute your code, on failure use wil::GetLastError with the token
-    to provide information on the error that occurred while executing your code.  Prefer to use wil::ThreadErrorContext over this approach when
-    possible.  */
+    /** Returns a sequence token that can be used with wil::GetLastError to limit errors to those that occur after this token was
+    retrieved. General usage pattern:  use wil::GetCurrentErrorSequenceId to cache a token, execute your code, on failure use
+    wil::GetLastError with the token to provide information on the error that occurred while executing your code.  Prefer to use
+    wil::ThreadErrorContext over this approach when possible.  */
     inline long GetCurrentErrorSequenceId()
     {
         auto data = details_abi::GetThreadLocalData();
@@ -750,8 +750,8 @@ namespace wil
     }
 
     /** Caches failure information for later retrieval from GetLastError.
-    Most people will never need to do this explicitly as failure information is automatically made available per-thread across a process when
-    errors are encountered naturally through the WIL macros. */
+    Most people will never need to do this explicitly as failure information is automatically made available per-thread across a
+    process when errors are encountered naturally through the WIL macros. */
     inline void SetLastError(const wil::FailureInfo& info)
     {
         static volatile unsigned int lastThread = 0;
