@@ -700,8 +700,9 @@ namespace wil::details::coro
 
     inline void __stdcall RestoreRestrictedErrorInformation(_In_ void* restricted_error) noexcept
     {
-        auto restrictedErrorCasted = wil::com_ptr<IRestrictedErrorInfo>(static_cast<IRestrictedErrorInfo*>(restricted_error));
-        SetRestrictedErrorInfo(restrictedErrorCasted.get());
+        auto restrictedErrorUnk = wil::com_ptr<IUnknown>(static_cast<IUnknown*>(restricted_error));
+        auto restrictedError = restrictedErrorUnk.query<IRestrictedErrorInfo>();
+        SetRestrictedErrorInfo(restrictedError.get());
         // Releases the restricted error on exit
     }
 
