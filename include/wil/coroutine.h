@@ -244,6 +244,9 @@ namespace wil::details::coro
         // This error information is thread-local so we must save it on suspend
         // and restore it on resume so that it propagates to the correct
         // thread.  It will then be available if the exception proves fatal.
+        //
+        // This object is non-copyable so we do not need to worry about
+        // supporting AddRef on the restricted error information.
         void* restricted_error{ nullptr };
 
         // emplace_value will be called with
