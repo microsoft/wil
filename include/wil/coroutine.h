@@ -174,6 +174,10 @@ namespace wil
 
 namespace wil::details::coro
 {
+    __declspec(selectany) void*(__stdcall* g_pfnCaptureRestrictedErrorInformation)() WI_PFN_NOEXCEPT = nullptr;
+    __declspec(selectany) void(__stdcall* g_pfnRestoreRestrictedErrorInformation)(void* restricted_error) WI_PFN_NOEXCEPT = nullptr;
+    __declspec(selectany) void(__stdcall* g_pfnDestroyRestrictedErrorInformation)(void* restricted_error) WI_PFN_NOEXCEPT = nullptr;
+
     template<typename T>
     struct task_promise;
 
@@ -229,6 +233,10 @@ namespace wil::details::coro
             std::exception_ptr error;
         } result;
 
+        // The restricted error information is lit up when COM headers are
+        // included.  If COM is not available then this will remain null.
+        void* restricted_error{ nullptr };
+
         // emplace_value will be called with
         //
         // * no parameters (void category)
@@ -241,6 +249,11 @@ namespace wil::details::coro
         template<typename...Args>
         void emplace_value(Args&&... args)
         {
+            if (g_pfnCaptureRestrictedErrorInformation)
+            {
+                restricted_error = g_pfnCaptureRestrictedErrorInformation();
+            }
+
             WI_ASSERT(status == result_status::empty);
             new (wistd::addressof(result.wrap)) result_wrapper<T>{ wistd::forward<Args>(args)... };
             status = result_status::value;
@@ -248,6 +261,11 @@ namespace wil::details::coro
 
         void unhandled_exception() noexcept
         {
+            if (g_pfnCaptureRestrictedErrorInformation)
+            {
+                restricted_error = g_pfnCaptureRestrictedErrorInformation();
+            }
+
             WI_ASSERT(status == result_status::empty);
             new (wistd::addressof(result.error)) std::exception_ptr(std::current_exception());
             status = result_status::error;
@@ -269,6 +287,12 @@ namespace wil::details::coro
 
         ~result_holder() noexcept(false)
         {
+            if (restricted_error && g_pfnDestroyRestrictedErrorInformation)
+            {
+                g_pfnDestroyRestrictedErrorInformation(restricted_error);
+                restricted_error = nullptr;
+            }
+
             switch (status)
             {
             case result_status::value:
@@ -441,6 +465,11 @@ namespace wil::details::coro
 
         T client_await_resume()
         {
+            if (g_pfnRestoreRestrictedErrorInformation && m_holder.restricted_error)
+            {
+                g_pfnRestoreRestrictedErrorInformation(m_holder.restricted_error);
+                m_holder.restricted_error = nullptr; // restoring the error took ownership
+            }
             return m_holder.get_value();
         }
     };
@@ -646,9 +675,32 @@ namespace wil::details::coro
 #define __WIL_COROUTINE_NON_AGILE_INCLUDED
 #include <ctxtcall.h>
 #include <wil/com.h>
+#include <roerrorapi.h>
 
 namespace wil::details::coro
 {
+    inline void* __stdcall CaptureRestrictedErrorInformation() noexcept
+    {
+        wil::com_ptr<IRestrictedErrorInfo> restrictedError;
+        if (SUCCEEDED(GetRestrictedErrorInfo(&restrictedError)))
+        {
+            return restrictedError.detach();
+        }
+        return nullptr;
+    }
+
+    inline void __stdcall RestoreRestrictedErrorInformation(void* restricted_error) noexcept
+    {
+        auto restrictedErrorCasted = wil::com_ptr<IRestrictedErrorInfo>(static_cast<IRestrictedErrorInfo*>(restricted_error));
+        SetRestrictedErrorInfo(restrictedErrorCasted.get());
+    }
+
+    inline void __stdcall DestroyRestrictedErrorInformation(void* restricted_error) noexcept
+    {
+        // Releases on destruction
+        auto restrictedErrorCasted = wil::com_ptr<IRestrictedErrorInfo>(static_cast<IRestrictedErrorInfo*>(restricted_error));
+    }
+
     struct apartment_info
     {
         APTTYPE aptType;
@@ -807,4 +859,14 @@ namespace wil::details::coro
         return com_awaiter<T>{ wistd::move(promise) };
     }
 }
+
+// Automatically call RoOriginateError upon error origination by including this file
+WI_HEADER_INITITALIZATION_FUNCTION(CoroutineRestrictedErrorInitialize, []
+{
+    ::wil::details::coro::g_pfnCaptureRestrictedErrorInformation = ::wil::details::coro::CaptureRestrictedErrorInformation;
+    ::wil::details::coro::g_pfnRestoreRestrictedErrorInformation = ::wil::details::coro::RestoreRestrictedErrorInformation;
+    ::wil::details::coro::g_pfnDestroyRestrictedErrorInformation = ::wil::details::coro::DestroyRestrictedErrorInformation;
+    return 1;
+})
+
 #endif // __WIL_COROUTINE_NON_AGILE_INCLUDED
