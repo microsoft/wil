@@ -8,6 +8,8 @@
 //    PARTICULAR PURPOSE AND NONINFRINGEMENT.
 //
 //*********************************************************
+//! @file
+//! Windows STL helpers: custom allocators for STL containers
 #ifndef __WIL_STL_INCLUDED
 #define __WIL_STL_INCLUDED
 
@@ -21,9 +23,11 @@
 #include <string_view>
 #endif
 
+/// @cond
 #ifndef WI_STL_FAIL_FAST_IF
 #define WI_STL_FAIL_FAST_IF FAIL_FAST_IF
 #endif
+/// @endcond
 
 #if defined(WIL_ENABLE_EXCEPTIONS)
 
@@ -198,7 +202,7 @@ namespace wil
             return zwstring_view(str, len);
         }
     }
-    
+
 #endif // _HAS_CXX17
 
 } // namespace wil

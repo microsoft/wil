@@ -8,6 +8,8 @@
 //    PARTICULAR PURPOSE AND NONINFRINGEMENT.
 //
 //*********************************************************
+//! @file
+//! Helpers for common patterns and tasks when using C++/WinRT.
 
 #ifndef __WIL_CPPWINRT_HELPERS_DEFINED
 #define __WIL_CPPWINRT_HELPERS_DEFINED
@@ -97,9 +99,9 @@ namespace wil
     //! Windows.System.DispatcherQueue, Microsoft.System.DispatcherQueue,
     //! Microsoft.UI.Dispatching.DispatcherQueue, and Windows.UI.Core.CoreDispatcher,
     //! but you must include the corresponding <winrt/Namespace.h> header before including
-    //! wil\cppwinrt_helpers.h. It is okay to include wil\cppwinrt_helpers.h multiple times:
+    //! wil/cppwinrt_helpers.h. It is okay to include wil/cppwinrt_helpers.h multiple times:
     //! support will be enabled for any winrt/Namespace.h headers that were included since
-    //! the previous inclusion of wil\cppwinrt_headers.h.
+    //! the previous inclusion of wil/cppwinrt_headers.h.
     template<typename Dispatcher>
     [[nodiscard]] auto resume_foreground(Dispatcher const& dispatcher,
         typename details::dispatcher_traits<Dispatcher>::Priority priority = details::dispatcher_traits<Dispatcher>::Priority::Normal)
@@ -212,8 +214,10 @@ namespace wil::details
 #endif // __WIL_CPPWINRT_MICROSOFT_UI_DISPATCHING_HELPERS
 /// @endcond
 
-#if defined(WINRT_Windows_Foundation_Collections_H) && !defined(__WIL_CPPWINRT_WINDOWS_FOUNDATION_COLLECTION_HELPERS)
+#if (defined(WINRT_Windows_Foundation_Collections_H) && !defined(__WIL_CPPWINRT_WINDOWS_FOUNDATION_COLLECTION_HELPERS)) || defined(WIL_DOXYGEN)
+/// @cond
 #define __WIL_CPPWINRT_WINDOWS_FOUNDATION_COLLECTION_HELPERS
+/// @endcond
 namespace wil
 {
     /// @cond
@@ -257,14 +261,14 @@ namespace wil
     /** Converts C++ / WinRT vectors, iterators, and iterables to std::vector by requesting the
     collection's data in bulk. This can be more efficient in terms of IPC cost than iteratively
     processing the collection.
-    ~~~
+    @code
     winrt::IVector<winrt::hstring> collection = GetCollection();
     std::vector<winrt::hstring> allData = wil::to_vector(collection); // read all data from collection
     for (winrt::hstring const& item : allData)
     {
         // use item
     }
-    ~~~
+    @endcode
     Can be used for IVector<T>, IVectorView<T>, IIterable<T>, IIterator<T>, and any type or
     interface that C++/WinRT projects those interfaces for (PropertySet, IMap<T,K>, etc.)
     Iterable-only types fetch content in units of 64. When used with an iterator, the returned
@@ -314,8 +318,10 @@ namespace wil
 }
 #endif
 
-#if defined(WINRT_Windows_UI_H) && defined(_WINDOWS_UI_INTEROP_H_) && !defined(__WIL_CPPWINRT_WINDOWS_UI_INTEROP_HELPERS)
+#if (defined(WINRT_Windows_UI_H) && defined(_WINDOWS_UI_INTEROP_H_) && !defined(__WIL_CPPWINRT_WINDOWS_UI_INTEROP_HELPERS)) || defined(WIL_DOXYGEN)
+/// @cond
 #define __WIL_CPPWINRT_WINDOWS_UI_INTEROP_HELPERS
+/// @endcond
 #if !defined(____x_ABI_CWindows_CFoundation_CIClosable_FWD_DEFINED__) && !defined(MIDL_NS_PREFIX)
 #pragma push_macro("ABI")
 #undef ABI
@@ -327,9 +333,9 @@ namespace wil
 #if defined(NTDDI_VERSION) && (NTDDI_VERSION >= NTDDI_WIN10_CU)
     //! The following methods require that you include both <winrt/Windows.UI.h>
     //! <Windows.UI.Interop.h> before including wil/cppwinrt_helpers.h, and that NTDDI_VERSION
-    //! is at least NTDDI_WIN10_CU. It is okay to include wil\cppwinrt_helpers.h multiple times:
+    //! is at least NTDDI_WIN10_CU. It is okay to include wil/cppwinrt_helpers.h multiple times:
     //! support will be enabled for any headers that were included since the previous inclusion
-    //! of wil\cppwinrt_headers.h.
+    //! of wil/cppwinrt_headers.h.
     inline winrt::Windows::UI::WindowId GetWindowIdFromWindow(HWND hwnd)
     {
         ABI::Windows::UI::WindowId abiWindowId;

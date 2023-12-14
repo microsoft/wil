@@ -8,6 +8,8 @@
 //    PARTICULAR PURPOSE AND NONINFRINGEMENT.
 //
 //*********************************************************
+//! @file
+//! Smart pointers and other thin usability pattern wrappers over COM patterns.
 #ifndef __WIL_COM_APARTMENT_VARIABLE_INCLUDED
 #define __WIL_COM_APARTMENT_VARIABLE_INCLUDED
 
@@ -91,6 +93,7 @@ namespace wil
         });
     }
 
+    /// @cond
     namespace details
     {
         // For the address of data, you can detect global variables by the ability to resolve the module from the address.
@@ -404,6 +407,7 @@ namespace wil
             }
         };
     }
+    /// @endcond
 
     // Apartment variables enable storing COM objects safely in globals
     // (objects with static storage duration) by creating a unique copy

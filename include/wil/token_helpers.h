@@ -8,6 +8,8 @@
 //    PARTICULAR PURPOSE AND NONINFRINGEMENT.
 //
 //*********************************************************
+//! @file
+//! Helpers for using tokens and impersonation
 #ifndef __WIL_TOKEN_HELPERS_INCLUDED
 #define __WIL_TOKEN_HELPERS_INCLUDED
 
@@ -21,9 +23,11 @@
 #include <processthreadsapi.h>
 
 // for GetUserNameEx()
+/// @cond
 #ifndef SECURITY_WIN32
 #define SECURITY_WIN32
 #endif
+/// @endcond
 #include <Security.h>
 
 namespace wil
@@ -55,7 +59,7 @@ namespace wil
         template<> struct MapTokenStructToInfoClass<TOKEN_TYPE> { static constexpr TOKEN_INFORMATION_CLASS infoClass = TokenType; static constexpr bool FixedSize = true; };
         template<> struct MapTokenStructToInfoClass<SECURITY_IMPERSONATION_LEVEL> { static constexpr TOKEN_INFORMATION_CLASS infoClass = TokenImpersonationLevel;  static constexpr bool FixedSize = true; };
         template<> struct MapTokenStructToInfoClass<TOKEN_ELEVATION> { static constexpr TOKEN_INFORMATION_CLASS infoClass = TokenElevation; static constexpr bool FixedSize = true; };
-    
+
         struct token_info_deleter
         {
             template<typename T> void operator()(T* p) const
@@ -148,23 +152,23 @@ namespace wil
     fixed sized, the struct is returned directly.
     The caller must have access to read the information from the provided token. This method works with both real
     (e.g. OpenCurrentAccessToken) and pseudo (e.g. GetCurrentThreadToken) token handles.
-    ~~~~
+    @code
     // Retrieve the TOKEN_USER structure for the current process
     wil::unique_tokeninfo_ptr<TOKEN_USER> user;
     RETURN_IF_FAILED(wil::get_token_information_nothrow(user, GetCurrentProcessToken()));
     RETURN_IF_FAILED(ConsumeSid(user->User.Sid));
-    ~~~~
+    @endcode
     Not specifying the token handle is the same as specifying 'nullptr' and retrieves information about the effective token.
-    ~~~~
+    @code
     wil::unique_tokeninfo_ptr<TOKEN_PRIVILEGES> privileges;
     RETURN_IF_FAILED(wil::get_token_information_nothrow(privileges));
     for (auto const& privilege : wil::GetRange(privileges->Privileges, privileges->PrivilegeCount))
     {
         RETURN_IF_FAILED(ConsumePrivilege(privilege));
     }
-    ~~~~
+    @endcode
     @param tokenInfo Receives a pointer to a structure containing the results of GetTokenInformation for the requested
-            type. The type of <T> selects which TOKEN_INFORMATION_CLASS will be used.
+            type. The type of `<T>` selects which TOKEN_INFORMATION_CLASS will be used.
     @param tokenHandle Specifies which token will be queried. When nullptr, the thread's effective current token is used.
     @return S_OK on success, a FAILED hresult containing the win32 error from querying the token otherwise.
     */
@@ -202,6 +206,7 @@ namespace wil
         return S_OK;
     }
 
+    /// @cond
     namespace details
     {
         template<typename T, typename policy, wistd::enable_if_t<!details::MapTokenStructToInfoClass<T>::FixedSize>* = nullptr>
@@ -220,6 +225,7 @@ namespace wil
             return temp;
         }
     }
+    /// @endcond
 
     //! A variant of get_token_information<T> that fails-fast on errors retrieving the token
     template <typename T>
@@ -259,12 +265,12 @@ namespace wil
 #ifdef WIL_ENABLE_EXCEPTIONS
     /** Fetches information about a token.
     See get_token_information_nothrow for full details.
-    ~~~~
+    @code
     auto user = wil::get_token_information<TOKEN_USER>(GetCurrentProcessToken());
     ConsumeSid(user->User.Sid);
-    ~~~~
+    @endcode
     Pass 'nullptr' (or omit the parameter) as tokenHandle to retrieve information about the effective token.
-    ~~~~
+    @code
     auto privs = wil::get_token_information<TOKEN_PRIVILEGES>(privileges);
     for (auto& priv : wil::make_range(privs->Privileges, privs->Privilieges + privs->PrivilegeCount))
     {
@@ -273,9 +279,9 @@ namespace wil
             // ...
         }
     }
-    ~~~~
+    @endcode
     @return A pointer to a structure containing the results of GetTokenInformation for the requested  type. The type of
-                <T> selects which TOKEN_INFORMATION_CLASS will be used.
+                `<T>` selects which TOKEN_INFORMATION_CLASS will be used.
     @param token Specifies which token will be queried. When nullptr or not set, the thread's effective current token is used.
     */
     template <typename T>
@@ -347,6 +353,7 @@ namespace wil
     }
     ~~~~
     @param token A token to impersonate, or 'nullptr' to run as the process identity.
+    @param reverter An RAII object that, on success, will revert the impersonation when it goes out of scope.
     */
     inline HRESULT impersonate_token_nothrow(HANDLE token, unique_token_reverter& reverter)
     {
@@ -452,6 +459,7 @@ namespace wil
     }
 #endif // WIL_ENABLE_EXCEPTIONS
 
+    /// @cond
     namespace details
     {
         template<size_t AuthorityCount> struct static_sid_t
@@ -479,16 +487,18 @@ namespace wil
             }
         };
     }
+    /// @endcond
 
     /** Returns a structure containing a Revision 1 SID initialized with the authorities provided
     Replaces AllocateAndInitializeSid by constructing a structure laid out like a PSID, but
     returned like a value. The resulting object is suitable for use with any method taking PSID,
     passed by "&the_sid" or via "the_sid.get()"
-    ~~~~
+    @code
     // Change the owner of the key to administrators
     auto systemSid = wil::make_static_sid(SECURITY_NT_AUTHORITY, SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS);
-    RETURN_IF_WIN32_ERROR(SetNamedSecurityInfo(keyPath, SE_REGISTRY_KEY, OWNER_SECURITY_INFORMATION, &systemSid, nullptr, nullptr, nullptr));
-    ~~~~
+    RETURN_IF_WIN32_ERROR(
+        SetNamedSecurityInfo(keyPath, SE_REGISTRY_KEY, OWNER_SECURITY_INFORMATION, &systemSid, nullptr, nullptr, nullptr));
+    @endcode
     */
     template<typename... Ts> constexpr auto make_static_sid(const SID_IDENTIFIER_AUTHORITY& authority, Ts&&... subAuthorities)
     {
@@ -518,10 +528,13 @@ namespace wil
         return wil::test_token_membership(nullptr, SECURITY_NT_AUTHORITY, SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_GUESTS));
     }
     ~~~~
-    @param result This will be set to true if and only if a security identifier described by the given set of subauthorities is enabled in the given access token.
-    @param token A handle to an access token. The handle must have TOKEN_QUERY access to the token, and must be an impersonation token. If token is nullptr, test_token_membership
-           uses the impersonation token of the calling thread. If the thread is not impersonating, the function duplicates the thread's primary token to create an impersonation token.
-    @param sidAuthority A reference to a SID_IDENTIFIER_AUTHORITY structure. This structure provides the top-level identifier authority value to set in the SID.
+    @param result This will be set to true if and only if a security identifier described by the given set of subauthorities is
+           enabled in the given access token.
+    @param token A handle to an access token. The handle must have TOKEN_QUERY access to the token, and must be an impersonation
+           token. If token is nullptr, test_token_membership uses the impersonation token of the calling thread. If the thread is not
+           impersonating, the function duplicates the thread's primary token to create an impersonation token.
+    @param sidAuthority A reference to a SID_IDENTIFIER_AUTHORITY structure. This structure provides the top-level identifier
+           authority value to set in the SID.
     @param subAuthorities Up to 15 subauthority values to place in the SID (this is a systemwide limit)
     @return S_OK on success, a FAILED hresult containing the win32 error from creating the SID or querying the token otherwise.
     */
@@ -552,6 +565,7 @@ namespace wil
     }
     ~~~~
     @param token A token to get info about, or 'nullptr' to run as the current thread.
+    @param value The result of the operation; `true` if the token represents an app container, `false` otherwise.
     */
     inline HRESULT get_token_is_app_container_nothrow(_In_opt_ HANDLE token, bool& value)
     {

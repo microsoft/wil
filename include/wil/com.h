@@ -8,6 +8,8 @@
 //    PARTICULAR PURPOSE AND NONINFRINGEMENT.
 //
 //*********************************************************
+//! @file
+//! Smart pointers and other thin usability pattern wrappers over COM patterns.
 #ifndef __WIL_COM_INCLUDED
 #define __WIL_COM_INCLUDED
 
@@ -190,8 +192,8 @@ namespace wil
     //! Represents the base template type that implements com_ptr, com_weak_ref, and com_agile_ref.
     //! See @ref page_comptr for more background.  See @ref page_query for more information on querying with WIL.
     //! @tparam T               Represents the type being held by the com_ptr_t.
-    //!                         For com_ptr, this will always be the interface being represented.  For com_weak_ref, this will always be
-    //!                         IWeakReference.  For com_agile_ref, this will always be IAgileReference.
+    //!                         For com_ptr, this will always be the interface being represented.  For com_weak_ref, this will always
+    //!                         be IWeakReference.  For com_agile_ref, this will always be IAgileReference.
     //! @tparam err_policy      Represents the error policy for the class (error codes, exceptions, or fail fast; see @ref page_errors)
     template <typename T, typename err_policy = err_exception_policy>
     class com_ptr_t
@@ -314,7 +316,8 @@ namespace wil
             return *this;
         }
 
-        //! Move assignment from a compatible `com_ptr_t` (releases current pointer, avoids AddRef/Release by moving from the parameter).
+        //! Move assignment from a compatible `com_ptr_t` (releases current pointer, avoids AddRef/Release by moving from the
+        //! parameter).
         template <class U, typename err, class = wistd::enable_if_t<__is_convertible_to(U*, pointer)>>
         com_ptr_t& operator=(com_ptr_t<U, err>&& other) WI_NOEXCEPT
         {
@@ -371,7 +374,8 @@ namespace wil
             }
         }
 
-        //! Relinquishes ownership and returns the internal interface pointer (DOES NOT release the detached pointer, sets class pointer to null).
+        //! Relinquishes ownership and returns the internal interface pointer (DOES NOT release the detached pointer, sets class
+        //! pointer to null).
         WI_NODISCARD pointer detach() WI_NOEXCEPT
         {
             auto temp = m_ptr;
@@ -394,7 +398,8 @@ namespace wil
             return &m_ptr;
         }
 
-        //! Returns the address of the internal pointer casted to void** (releases ownership of the pointer BEFORE returning the address).
+        //! Returns the address of the internal pointer casted to void** (releases ownership of the pointer BEFORE returning the
+        //! address).
         //! @see put
         void** put_void() WI_NOEXCEPT
         {
@@ -410,9 +415,9 @@ namespace wil
 
         //! Returns the address of the internal pointer (releases ownership of the pointer BEFORE returning the address).
         //! The pointer is explicitly released to prevent accidental leaks of the pointer.  Coding standards generally indicate that
-        //! there is little valid `_Inout_` use of `IInterface**`, making this safe to do under typical use.  Since this behavior is not always immediately
-        //! apparent, prefer to scope variables as close to use as possible (generally avoiding use of the same com_ptr variable in successive calls to
-        //! receive an output interface).
+        //! there is little valid `_Inout_` use of `IInterface**`, making this safe to do under typical use.  Since this behavior is
+        //! not always immediately apparent, prefer to scope variables as close to use as possible (generally avoiding use of the same
+        //! com_ptr variable in successive calls to receive an output interface).
         //! @see addressof
         pointer* operator&() WI_NOEXCEPT
         {
@@ -497,8 +502,9 @@ namespace wil
         //! Query for the interface of the given out parameter `U`:  `ptr.query_to(&foo);`.
         //! See @ref page_query for more information.
         //!
-        //! For fail-fast and exception-based behavior this routine should primarily be used to write to out parameters and @ref query should
-        //! be used to perform most queries.  For error-code based code, this routine is the primary method that should be used to query a com_ptr.
+        //! For fail-fast and exception-based behavior this routine should primarily be used to write to out parameters and @ref query
+        //! should be used to perform most queries.  For error-code based code, this routine is the primary method that should be used
+        //! to query a com_ptr.
         //!
         //! Error-code based samples:
         //! ~~~~
@@ -527,12 +533,14 @@ namespace wil
         //!     m_ptr.query_to(fooPtr);
         //! }
         //! ~~~~
-        //! @tparam U           Represents the interface being queried (type of the output parameter).  This interface does not need to
-        //!                     be specified directly.  Rely upon template type deduction to pick up the type from the output parameter.
-        //! @param ptrResult    The output pointer that will receive the newly queried interface.  This pointer will be assigned null on failure.
-        //! @return             For the nothrow (error code-based) classes (@ref com_ptr_nothrow, @ref com_weak_ref_nothrow, @ref com_agile_ref_nothrow) this
-        //!                     method returns an `HRESULT` indicating whether the query was successful.  Exception-based and fail-fast based classes
-        //!                     do not return a value (void).
+        //! @tparam U           Represents the interface being queried (type of the output parameter).  This interface does not need
+        //!                     to be specified directly.  Rely upon template type deduction to pick up the type from the output
+        //!                     parameter.
+        //! @param ptrResult    The output pointer that will receive the newly queried interface.  This pointer will be assigned null
+        //!                     on failure.
+        //! @return             For the nothrow (error code-based) classes (@ref com_ptr_nothrow, @ref com_weak_ref_nothrow,
+        //!                     @ref com_agile_ref_nothrow) this method returns an `HRESULT` indicating whether the query was
+        //!                     successful.  Exception-based and fail-fast based classes do not return a value (void).
         template <class U>
         result query_to(_COM_Outptr_ U** ptrResult) const
         {
@@ -550,9 +558,10 @@ namespace wil
         //! Query for the requested interface using the iid, ppv pattern:  `ptr.query_to(riid, ptr);`.
         //! See @ref page_query for more information.
         //!
-        //! This method is built to implement an API boundary that exposes a returned pointer to a caller through the REFIID and void** pointer
-        //! pattern (like QueryInterface).  This pattern should not be used outside of that pattern (through IID_PPV_ARGS) as it is less efficient
-        //! than the typed version of @ref query_to which can elide the QueryInterface in favor of AddRef when the types are convertible.
+        //! This method is built to implement an API boundary that exposes a returned pointer to a caller through the REFIID and
+        //! void** pointer pattern (like QueryInterface).  This pattern should not be used outside of that pattern (through
+        //! IID_PPV_ARGS) as it is less efficient than the typed version of @ref query_to which can elide the QueryInterface in favor
+        //! of AddRef when the types are convertible.
         //! ~~~~
         //! // class member being queried:
         //! wil::com_ptr_nothrow<IUnknown> m_ptr;
@@ -565,10 +574,11 @@ namespace wil
         //! }
         //! ~~~~
         //! @param riid         The interface to query for.
-        //! @param ptrResult    The output pointer that will receive the newly queried interface.  This pointer will be assigned null on failure.
-        //! @return             For the nothrow (error code-based) classes (@ref com_ptr_nothrow, @ref com_weak_ref_nothrow, @ref com_agile_ref_nothrow) this
-        //!                     method returns an `HRESULT` indicating whether the query was successful.  Exception-based and fail-fast based classes
-        //!                     do not return a value (void).
+        //! @param ptrResult    The output pointer that will receive the newly queried interface.  This pointer will be assigned null
+        //!                     on failure.
+        //! @return             For the nothrow (error code-based) classes (@ref com_ptr_nothrow, @ref com_weak_ref_nothrow,
+        //!                     @ref com_agile_ref_nothrow) this method returns an `HRESULT` indicating whether the query was
+        //!                     successful.  Exception-based and fail-fast based classes do not return a value (void).
         result query_to(REFIID riid, _COM_Outptr_ void** ptrResult) const
         {
             // Prefast cannot see through the error policy + query_policy mapping and as a result and as a result fires 6388 and 28196 for this function.
@@ -592,7 +602,8 @@ namespace wil
         //! See @ref page_query for more information.
         //! @{
 
-        //! Attempt a query and return a smart pointer matching the interface specified by 'U':  `auto foo = m_ptr.try_query<IFoo>();` (null result when interface is unsupported).
+        //! Attempt a query and return a smart pointer matching the interface specified by 'U':  `auto foo = m_ptr.try_query<IFoo>();`
+        //! (null result when interface is unsupported).
         //! See @ref page_query for more information.
         //!
         //! This method can be used to query a com_ptr for an interface when it's known that support for that interface is
@@ -608,19 +619,21 @@ namespace wil
         //! ~~~~
         //! @tparam U   Represents the interface being queried
         //! @return     A `com_ptr_t` pointer to the given interface `U`.  The returned pointer will be null if the interface is
-        //!             not supported.  The returned `com_ptr_t` will have the same error handling policy (exceptions, failfast or error codes) as
-        //!             the pointer being queried.
+        //!             not supported.  The returned `com_ptr_t` will have the same error handling policy (exceptions, failfast or
+        //!             error codes) as the pointer being queried.
         template <class U>
         WI_NODISCARD inline com_ptr_t<U, err_policy> try_query() const
         {
             return com_ptr_t<U, err_policy>(m_ptr, details::tag_try_com_query());
         }
 
-        //! Attempts to query for the interface matching the given output parameter; returns a bool indicating if the query was successful (non-null).
+        //! Attempts to query for the interface matching the given output parameter; returns a bool indicating if the query was
+        //! successful (non-null).
         //! See @ref page_query for more information.
         //!
         //! This method can be used to perform a query against a non-null interface when it's known that support for that interface is
-        //! optional (failing the query should not produce an error).  The caller must examine the returned bool before using the returned pointer.
+        //! optional (failing the query should not produce an error).  The caller must examine the returned bool before using the
+        //! returned pointer.
         //! ~~~~
         //! wil::com_ptr_nothrow<IFoo> foo;
         //! if (ptr.try_query_to(&foo))
@@ -629,8 +642,8 @@ namespace wil
         //!     foo->Method2();
         //! }
         //! ~~~~
-        //! @param ptrResult    The pointer to query for.  The interface to query is deduced from the type of this out parameter; do not specify
-        //!                     the type directly to the template.
+        //! @param ptrResult    The pointer to query for.  The interface to query is deduced from the type of this out parameter; do
+        //!                     not specify the type directly to the template.
         //! @return             A `bool` indicating `true` of the query was successful (the returned parameter is non-null).
         template <class U>
         _Success_return_ bool try_query_to(_COM_Outptr_ U** ptrResult) const
@@ -641,11 +654,12 @@ namespace wil
         //! Attempts a query for the requested interface using the iid, ppv pattern:  `ptr.try_query_to(riid, ptr);`.
         //! See @ref page_query for more information.
         //!
-        //! This method is built to implement an API boundary that exposes a returned pointer to a caller through the REFIID and void** pointer
-        //! pattern (like QueryInterface).  The key distinction is that this routine does not produce an error if the request isn't fulfilled, so
-        //! it's appropriate for `_COM_Outptr_result_maybenull_` cases.  This pattern should not be used outside of that pattern (through IID_PPV_ARGS) as
-        //! it is less efficient than the typed version of @ref try_query_to which can elide the QueryInterface in favor of AddRef when the types are convertible.
-        //! The caller must examine the returned bool before using the returned pointer.
+        //! This method is built to implement an API boundary that exposes a returned pointer to a caller through the REFIID and
+        //! void** pointer pattern (like QueryInterface).  The key distinction is that this routine does not produce an error if the
+        //! request isn't fulfilled, so it's appropriate for `_COM_Outptr_result_maybenull_` cases.  This pattern should not be used
+        //! outside of that pattern (through IID_PPV_ARGS) as it is less efficient than the typed version of @ref try_query_to which
+        //! can elide the QueryInterface in favor of AddRef when the types are convertible.  The caller must examine the returned bool
+        //! before using the returned pointer.
         //! ~~~~
         //! // class member being queried:
         //! wil::com_ptr_nothrow<IUnknown> m_ptr;
@@ -658,7 +672,8 @@ namespace wil
         //! }
         //! ~~~~
         //! @param riid         The interface to query for.
-        //! @param ptrResult    The output pointer that will receive the newly queried interface.  This pointer will be assigned null on failure.
+        //! @param ptrResult    The output pointer that will receive the newly queried interface.  This pointer will be assigned null
+        //!                     on failure.
         //! @return             A `bool` indicating `true` of the query was successful (the returned parameter is non-null).
         _Success_return_ bool try_query_to(REFIID riid, _COM_Outptr_ void** ptrResult) const
         {
@@ -674,16 +689,17 @@ namespace wil
         //! See @ref page_query for more information.
         //! @{
 
-        //! Query and return a smart pointer matching the interface specified by 'U':  `auto foo = m_ptr.copy<IFoo>();` (succeeds and returns a null ptr if the queried pointer is null).
+        //! Query and return a smart pointer matching the interface specified by 'U':  `auto foo = m_ptr.copy<IFoo>();` (succeeds and
+        //! returns a null ptr if the queried pointer is null).
         //! See @ref page_query for more information.
         //!
         //! This method is identical to @ref query with the exception that it can be used when the pointer is null.  When used
         //! against a null pointer, the returned pointer will always be null and an error will not be produced.  Like query it will
         //! produce an error for a non-null pointer that does not support the requested interface.
         //! @tparam U Represents the interface being queried
-        //! @return A `com_ptr_t` pointer to the given interface `U`.  The pointer will be null ONLY if the pointer being queried is null.  The returned
-        //!         `com_ptr_t` type will be @ref com_ptr or @ref com_ptr_failfast (matching the error handling form of the
-        //!         pointer being queried (exception based or fail-fast).
+        //! @return A `com_ptr_t` pointer to the given interface `U`.  The pointer will be null ONLY if the pointer being queried is
+        //!         null.  The returned `com_ptr_t` type will be @ref com_ptr or @ref com_ptr_failfast (matching the error handling
+        //!         form of the pointer being queried (exception based or fail-fast).
         template <class U>
         WI_NODISCARD inline com_ptr_t<U, err_policy> copy() const
         {
@@ -691,19 +707,22 @@ namespace wil
             return com_ptr_t<U, err_policy>(m_ptr, details::tag_com_copy());
         }
 
-        //! Query for the interface of the given out parameter `U`:  `ptr.copy_to(&foo);` (succeeds and returns null ptr if the queried pointer is null).
+        //! Query for the interface of the given out parameter `U`:  `ptr.copy_to(&foo);` (succeeds and returns null ptr if the
+        //! queried pointer is null).
         //! See @ref page_query for more information.
         //!
         //! This method is identical to @ref query_to with the exception that it can be used when the pointer is null.  When used
         //! against a null pointer, the returned pointer will always be null and an error will not be produced.  Like query_to it will
         //! produce an error for a non-null pointer that does not support the requested interface.
-        //! @tparam U           Represents the interface being queried (type of the output parameter).  This interface does not need to
-        //!                     be specified directly.  Rely upon template type deduction to pick up the type from the output parameter.
-        //! @param ptrResult    The output pointer that will receive the newly queried interface.  This pointer will be assigned null on failure OR assigned null
-        //!                     when the source pointer is null.
-        //! @return             For the nothrow (error code-based) classes (@ref com_ptr_nothrow, @ref com_weak_ref_nothrow, @ref com_agile_ref_nothrow) this
-        //!                     method returns an `HRESULT` indicating whether the query was successful.  Copying a null value is considered success. Exception-based
-        //!                     and fail-fast based classes do not return a value (void).
+        //! @tparam U           Represents the interface being queried (type of the output parameter).  This interface does not need
+        //!                     to be specified directly.  Rely upon template type deduction to pick up the type from the output
+        //!                     parameter.
+        //! @param ptrResult    The output pointer that will receive the newly queried interface.  This pointer will be assigned null
+        //!                     on failure OR assigned null when the source pointer is null.
+        //! @return             For the nothrow (error code-based) classes (@ref com_ptr_nothrow, @ref com_weak_ref_nothrow,
+        //!                     @ref com_agile_ref_nothrow) this method returns an `HRESULT` indicating whether the query was
+        //!                     successful.  Copying a null value is considered success. Exception-based and fail-fast based classes
+        //!                     do not return a value (void).
         template <class U>
         result copy_to(_COM_Outptr_result_maybenull_ U** ptrResult) const
         {
@@ -723,18 +742,20 @@ namespace wil
             return err_policy::OK();
         }
 
-        //! Query for the requested interface using the iid, ppv pattern:  `ptr.copy_to(riid, ptr);`. (succeeds and returns null ptr if the queried pointer is null).
+        //! Query for the requested interface using the iid, ppv pattern:  `ptr.copy_to(riid, ptr);`. (succeeds and returns null ptr
+        //! if the queried pointer is null).
         //! See @ref page_query for more information.
         //!
-        //! Identical to the corresponding @ref query_to method with the exception that it can be used when the pointer is null.  When used
-        //! against a null pointer, the returned pointer will always be null and an error will not be produced.  Like query_to it will
-        //! produce an error for a non-null pointer that does not support the requested interface.
+        //! Identical to the corresponding @ref query_to method with the exception that it can be used when the pointer is null.  When
+        //! used against a null pointer, the returned pointer will always be null and an error will not be produced.  Like query_to it
+        //! will produce an error for a non-null pointer that does not support the requested interface.
         //! @param riid         The interface to query for.
-        //! @param ptrResult    The output pointer that will receive the newly queried interface.  This pointer will be assigned null on failure OR assigned null
-        //!                     when the source pointer is null.
-        //! @return             For the nothrow (error code-based) classes (@ref com_ptr_nothrow, @ref com_weak_ref_nothrow, @ref com_agile_ref_nothrow) this
-        //!                     method returns an `HRESULT` indicating whether the query was successful.  Copying a null value is considered success.  Exception-based
-        //!                     and fail-fast based classes do not return a value (void).
+        //! @param ptrResult    The output pointer that will receive the newly queried interface.  This pointer will be assigned null
+        //!                     on failure OR assigned null when the source pointer is null.
+        //! @return             For the nothrow (error code-based) classes (@ref com_ptr_nothrow, @ref com_weak_ref_nothrow,
+        //!                     @ref com_agile_ref_nothrow) this method returns an `HRESULT` indicating whether the query was
+        //!                     successful.  Copying a null value is considered success.  Exception-based and fail-fast based classes
+        //!                     do not return a value (void).
         result copy_to(REFIID riid, _COM_Outptr_result_maybenull_ void** ptrResult) const
         {
             if (m_ptr)
@@ -763,28 +784,30 @@ namespace wil
         //! See @ref page_query for more information.
         //! @{
 
-        //! Attempt a query and return a smart pointer matching the interface specified by 'U':  `auto foo = m_ptr.try_query<IFoo>();` (null result when interface is unsupported or queried pointer is null).
+        //! Attempt a query and return a smart pointer matching the interface specified by 'U':  `auto foo = m_ptr.try_query<IFoo>();`
+        //! (null result when interface is unsupported or queried pointer is null).
         //! See @ref page_query for more information.
         //!
-        //! Identical to the corresponding @ref try_query method with the exception that it can be used when the pointer is null.  When used
-        //! against a null pointer, the returned pointer will always be null and an error will not be produced.
+        //! Identical to the corresponding @ref try_query method with the exception that it can be used when the pointer is null.
+        //! When used against a null pointer, the returned pointer will always be null and an error will not be produced.
         //! @tparam U   Represents the interface being queried
         //! @return     A `com_ptr_t` pointer to the given interface `U`.  The returned pointer will be null if the interface was
-        //!             not supported or the pointer being queried is null.  The returned `com_ptr_t` will have the same error handling
-        //!             policy (exceptions, failfast or error codes) as the pointer being queried.
+        //!             not supported or the pointer being queried is null.  The returned `com_ptr_t` will have the same error
+        //!             handling policy (exceptions, failfast or error codes) as the pointer being queried.
         template <class U>
         WI_NODISCARD inline com_ptr_t<U, err_policy> try_copy() const
         {
             return com_ptr_t<U, err_policy>(m_ptr, details::tag_try_com_copy());
         }
 
-        //! Attempts to query for the interface matching the given output parameter; returns a bool indicating if the query was successful (returns `false` if the pointer is null).
+        //! Attempts to query for the interface matching the given output parameter; returns a bool indicating if the query was
+        //! successful (returns `false` if the pointer is null).
         //! See @ref page_query for more information.
         //!
-        //! Identical to the corresponding @ref try_query_to method with the exception that it can be used when the pointer is null.  When used
-        //! against a null pointer, the returned pointer will be null and the return value will be `false`.
-        //! @param ptrResult    The pointer to query for.  The interface to query is deduced from the type of this out parameter; do not specify
-        //!                     the type directly to the template.
+        //! Identical to the corresponding @ref try_query_to method with the exception that it can be used when the pointer is null.
+        //! When used against a null pointer, the returned pointer will be null and the return value will be `false`.
+        //! @param ptrResult    The pointer to query for.  The interface to query is deduced from the type of this out parameter; do
+        //!                     not specify the type directly to the template.
         //! @return             A `bool` indicating `true` of the query was successful (the returned parameter is non-null).
         template <class U>
         _Success_return_ bool try_copy_to(_COM_Outptr_result_maybenull_ U** ptrResult) const
@@ -797,16 +820,17 @@ namespace wil
             return false;
         }
 
-        //! Attempts a query for the requested interface using the iid, ppv pattern:  `ptr.try_query_to(riid, ptr);` (returns `false` if the pointer is null)
+        //! Attempts a query for the requested interface using the iid, ppv pattern:  `ptr.try_query_to(riid, ptr);` (returns `false`
+        //! if the pointer is null)
         //! See @ref page_query for more information.
         //!
-        //! Identical to the corresponding @ref try_query_to method with the exception that it can be used when the pointer is null.  When used
-        //! against a null pointer, the returned pointer will be null and the return value will be `false`.
+        //! Identical to the corresponding @ref try_query_to method with the exception that it can be used when the pointer is null.
+        //! When used against a null pointer, the returned pointer will be null and the return value will be `false`.
         //! @param riid         The interface to query for.
-        //! @param ptrResult    The output pointer that will receive the newly queried interface.  This pointer will be assigned null on failure or
-        //!                     if the source pointer being queried is null.
-        //! @return             A `bool` indicating `true` of the query was successful (the returned parameter is non-null).  Querying a null
-        //!                     pointer will return `false` with a null result.
+        //! @param ptrResult    The output pointer that will receive the newly queried interface.  This pointer will be assigned null
+        //!                     on failure or if the source pointer being queried is null.
+        //! @return             A `bool` indicating `true` of the query was successful (the returned parameter is non-null).  Querying
+        //!                     a null pointer will return `false` with a null result.
         _Success_return_ bool try_copy_to(REFIID riid, _COM_Outptr_result_maybenull_ void** ptrResult) const
         {
             if (m_ptr)
@@ -1140,9 +1164,9 @@ namespace wil
     /// @endcond
 
 
-    //! An overloaded function that retrieves the raw com pointer from a raw pointer, wil::com_ptr_t<T>, WRL ComPtr<T>, or Platform::Object^.
-    //! This function is primarily useful by library or helper code.  It allows code to be written to accept a forwarding reference
-    //! template that can be used as an input com pointer.  That input com pointer is allowed to be any of:
+    //! An overloaded function that retrieves the raw com pointer from a raw pointer, wil::com_ptr_t<T>, WRL ComPtr<T>, or
+    //! Platform::Object^.  This function is primarily useful by library or helper code.  It allows code to be written to accept a
+    //! forwarding reference template that can be used as an input com pointer.  That input com pointer is allowed to be any of:
     //! * Raw Pointer:  `T* com_raw_ptr(T* ptr)`
     //! * Wil com_ptr:  `T* com_raw_ptr(const wil::com_ptr_t<T, err>& ptr)`
     //! * WRL ComPtr:   `T* com_raw_ptr(const Microsoft::WRL::ComPtr<T>& ptr)`
@@ -1247,7 +1271,8 @@ namespace wil
     }
 #endif
 
-    //! Queries for the specified interface and returns a fail-fast-based wil::com_ptr_failfast to that interface (fail-fast if unsupported).
+    //! Queries for the specified interface and returns a fail-fast-based wil::com_ptr_failfast to that interface (fail-fast if
+    //! unsupported).
     //! See @ref page_query for more information.
     //! @param ptrSource    The pointer to query (may be a raw interface pointer, wil com_ptr, or WRL ComPtr), should not be null
     //! @tparam U           Represents the interface being queried
@@ -1353,11 +1378,13 @@ namespace wil
     //! @{
 
 #ifdef WIL_ENABLE_EXCEPTIONS
-    //! Attempts a query for the specified interface and returns an exception-based wil::com_ptr to that interface (returns null if unsupported).
+    //! Attempts a query for the specified interface and returns an exception-based wil::com_ptr to that interface (returns null if
+    //! unsupported).
     //! See @ref page_query for more information.
     //! @param ptrSource    The pointer to query (may be a raw interface pointer, wil com_ptr, or WRL ComPtr), should not be null
     //! @tparam U           Represents the interface being queried
-    //! @return             A `wil::com_ptr<U>` pointer to the given interface `U`.  The returned pointer is null if the requested interface was not supported.
+    //! @return             A `wil::com_ptr<U>` pointer to the given interface `U`.  The returned pointer is null if the requested
+    //! interface was not supported.
     template <class U, typename T>
     inline com_ptr<U> try_com_query(T&& ptrSource)
     {
@@ -1366,11 +1393,13 @@ namespace wil
     }
 #endif
 
-    //! Attempts a query for the specified interface and returns an fail-fast wil::com_ptr_failfast to that interface (returns null if unsupported).
+    //! Attempts a query for the specified interface and returns an fail-fast wil::com_ptr_failfast to that interface (returns null if
+    //! unsupported).
     //! See @ref page_query for more information.
     //! @param ptrSource    The pointer to query (may be a raw interface pointer, wil com_ptr, or WRL ComPtr), should not be null
     //! @tparam U           Represents the interface being queried
-    //! @return             A `wil::com_ptr_failfast<U>` pointer to the given interface `U`.  The returned pointer is null if the requested interface was not supported.
+    //! @return             A `wil::com_ptr_failfast<U>` pointer to the given interface `U`.  The returned pointer is null if the
+    //!                     requested interface was not supported.
     template <class U, typename T>
     inline com_ptr_failfast<U> try_com_query_failfast(T&& ptrSource)
     {
@@ -1378,11 +1407,13 @@ namespace wil
         return com_ptr_failfast<U>(raw, details::tag_try_com_query());
     }
 
-    //! Attempts a query for the specified interface and returns an error-code-based wil::com_ptr_nothrow to that interface (returns null if unsupported).
+    //! Attempts a query for the specified interface and returns an error-code-based wil::com_ptr_nothrow to that interface (returns
+    //! null if unsupported).
     //! See @ref page_query for more information.
     //! @param ptrSource    The pointer to query (may be a raw interface pointer, wil com_ptr, or WRL ComPtr), should not be null
     //! @tparam U           Represents the interface being queried
-    //! @return             A `wil::com_ptr_nothrow<U>` pointer to the given interface `U`.  The returned pointer is null if the requested interface was not supported.
+    //! @return             A `wil::com_ptr_nothrow<U>` pointer to the given interface `U`.  The returned pointer is null if the
+    //!                     requested interface was not supported.
     template <class U, typename T>
     inline com_ptr_nothrow<U> try_com_query_nothrow(T&& ptrSource)
     {
@@ -1393,7 +1424,8 @@ namespace wil
     //! Attempts a query for the interface specified by the type of the output parameter (returns `false` if unsupported).
     //! See @ref page_query for more information.
     //! @param ptrSource    The pointer to query (may be a raw interface pointer, wil com_ptr, or WRL ComPtr), should not be null.
-    //! @param ptrResult    Represents the output pointer to populate.  If the interface is unsupported, the returned pointer will be null.
+    //! @param ptrResult    Represents the output pointer to populate.  If the interface is unsupported, the returned pointer will be
+    //!                     null.
     //! @return             A bool value representing whether the query was successful (non-null return result).
     template <typename U, typename T>
     _Success_return_ bool try_com_query_to(T&& ptrSource, _COM_Outptr_ U** ptrResult)
@@ -1406,7 +1438,8 @@ namespace wil
     //! See @ref page_query for more information.
     //! @param ptrSource    The pointer to query (may be a raw interface pointer, wil com_ptr, or WRL ComPtr), should not be null.
     //! @param riid         The interface to query for
-    //! @param ptrResult    Represents the output pointer to populate.  If the interface is unsupported, the returned pointer will be null.
+    //! @param ptrResult    Represents the output pointer to populate.  If the interface is unsupported, the returned pointer will be
+    //!                     null.
     //! @return             A bool value representing whether the query was successful (non-null return result).
     template <typename T>
     _Success_return_ bool try_com_query_to(T&& ptrSource, REFIID riid, _COM_Outptr_ void** ptrResult)
@@ -1427,11 +1460,13 @@ namespace wil
     //! @{
 
 #ifdef WIL_ENABLE_EXCEPTIONS
-    //! Queries for the specified interface and returns an exception-based wil::com_ptr to that interface (exception if unsupported, preserves null).
+    //! Queries for the specified interface and returns an exception-based wil::com_ptr to that interface (exception if unsupported,
+    //! preserves null).
     //! See @ref page_query for more information.
     //! @param ptrSource    The pointer to query (may be a raw interface pointer, wil com_ptr, or WRL ComPtr), may be null
     //! @tparam U           Represents the interface being queried
-    //! @return             A `wil::com_ptr<U>` pointer to the given interface `U`.  The returned pointer will be null only if the source is null.
+    //! @return             A `wil::com_ptr<U>` pointer to the given interface `U`.  The returned pointer will be null only if the
+    //!                     source is null.
     template <class U, typename T>
     inline com_ptr<U> com_copy(T&& ptrSource)
     {
@@ -1440,11 +1475,13 @@ namespace wil
     }
 #endif
 
-    //! Queries for the specified interface and returns a fail-fast-based wil::com_ptr_failfast to that interface (fail-fast if unsupported, preserves null).
+    //! Queries for the specified interface and returns a fail-fast-based wil::com_ptr_failfast to that interface (fail-fast if
+    //! unsupported, preserves null).
     //! See @ref page_query for more information.
     //! @param ptrSource    The pointer to query (may be a raw interface pointer, wil com_ptr, or WRL ComPtr), may be null
     //! @tparam U           Represents the interface being queried
-    //! @return             A `wil::com_ptr<U>` pointer to the given interface `U`.  The returned pointer will be null only if the source is null.
+    //! @return             A `wil::com_ptr<U>` pointer to the given interface `U`.  The returned pointer will be null only if the
+    //!                     source is null.
     template <class U, typename T>
     inline com_ptr_failfast<U> com_copy_failfast(T&& ptrSource)
     {
@@ -1489,7 +1526,8 @@ namespace wil
     //! Queries for the interface specified by the type of the output parameter (returns an error if unsupported, preserves null).
     //! See @ref page_query for more information.
     //! @param ptrSource    The pointer to query (may be a raw interface pointer, wil com_ptr, or WRL ComPtr), may be null
-    //! @param ptrResult    Represents the output pointer to populate.  The returned pointer will be null upon failure or if the source is null.
+    //! @param ptrResult    Represents the output pointer to populate.  The returned pointer will be null upon failure or if the
+    //!                     source is null.
     //! @return             Returns an HRESULT representing whether the query succeeded (returns S_OK if the source is null).
     template <typename U, typename T>
     HRESULT com_copy_to_nothrow(T&& ptrSource, _COM_Outptr_result_maybenull_ U** ptrResult)
@@ -1543,7 +1581,8 @@ namespace wil
     //! See @ref page_query for more information.
     //! @param ptrSource    The pointer to query (may be a raw interface pointer, wil com_ptr, or WRL ComPtr), may be null
     //! @param riid         The interface to query for
-    //! @param ptrResult    Represents the output pointer to populate.  The returned pointer will be null upon failure or if the source is null.
+    //! @param ptrResult    Represents the output pointer to populate.  The returned pointer will be null upon failure or if the
+    //!                     source is null.
     //! @return             Returns an HRESULT representing whether the query succeeded (returns S_OK if the source is null).
     template <typename T>
     HRESULT com_copy_to_nothrow(T&& ptrSource, REFIID riid, _COM_Outptr_result_maybenull_ void** ptrResult)
@@ -1570,11 +1609,13 @@ namespace wil
     //! @{
 
 #ifdef WIL_ENABLE_EXCEPTIONS
-    //! Attempts a query for the specified interface and returns an exception-based wil::com_ptr to that interface (returns null if unsupported, preserves null).
+    //! Attempts a query for the specified interface and returns an exception-based wil::com_ptr to that interface (returns null if
+    //! unsupported, preserves null).
     //! See @ref page_query for more information.
     //! @param ptrSource    The pointer to query (may be a raw interface pointer, wil com_ptr, or WRL ComPtr), may be null
     //! @tparam U           Represents the interface being queried
-    //! @return             A `wil::com_ptr<U>` pointer to the given interface `U`.  The returned pointer is null if the requested interface was not supported.
+    //! @return             A `wil::com_ptr<U>` pointer to the given interface `U`.  The returned pointer is null if the requested
+    //!                     interface was not supported.
     template <class U, typename T>
     inline com_ptr<U> try_com_copy(T&& ptrSource)
     {
@@ -1583,11 +1624,13 @@ namespace wil
     }
 #endif
 
-    //! Attempts a query for the specified interface and returns an fail-fast wil::com_ptr_failfast to that interface (returns null if unsupported, preserves null).
+    //! Attempts a query for the specified interface and returns an fail-fast wil::com_ptr_failfast to that interface (returns null if
+    //! unsupported, preserves null).
     //! See @ref page_query for more information.
     //! @param ptrSource    The pointer to query (may be a raw interface pointer, wil com_ptr, or WRL ComPtr), may be null
     //! @tparam U           Represents the interface being queried
-    //! @return             A `wil::com_ptr_failfast<U>` pointer to the given interface `U`.  The returned pointer is null if the requested interface was not supported.
+    //! @return             A `wil::com_ptr_failfast<U>` pointer to the given interface `U`.  The returned pointer is null if the
+    //!                     requested interface was not supported.
     template <class U, typename T>
     inline com_ptr_failfast<U> try_com_copy_failfast(T&& ptrSource)
     {
@@ -1595,11 +1638,13 @@ namespace wil
         return com_ptr_failfast<U>(raw, details::tag_try_com_copy());
     }
 
-    //! Attempts a query for the specified interface and returns an error-code-based wil::com_ptr_nothrow to that interface (returns null if unsupported, preserves null).
+    //! Attempts a query for the specified interface and returns an error-code-based wil::com_ptr_nothrow to that interface (returns
+    //! null if unsupported, preserves null).
     //! See @ref page_query for more information.
     //! @param ptrSource    The pointer to query (may be a raw interface pointer, wil com_ptr, or WRL ComPtr), may be null
     //! @tparam U           Represents the interface being queried
-    //! @return             A `wil::com_ptr_nothrow<U>` pointer to the given interface `U`.  The returned pointer is null if the requested interface was not supported.
+    //! @return             A `wil::com_ptr_nothrow<U>` pointer to the given interface `U`.  The returned pointer is null if the
+    //!                     requested interface was not supported.
     template <class U, typename T>
     inline com_ptr_nothrow<U> try_com_copy_nothrow(T&& ptrSource)
     {
@@ -1607,10 +1652,12 @@ namespace wil
         return com_ptr_nothrow<U>(raw, details::tag_try_com_copy());
     }
 
-    //! Attempts a query for the interface specified by the type of the output parameter (returns `false` if unsupported, preserves null).
+    //! Attempts a query for the interface specified by the type of the output parameter (returns `false` if unsupported, preserves
+    //! null).
     //! See @ref page_query for more information.
     //! @param ptrSource    The pointer to query (may be a raw interface pointer, wil com_ptr, or WRL ComPtr), may be null.
-    //! @param ptrResult    Represents the output pointer to populate.  If the interface is unsupported, the returned pointer will be null.
+    //! @param ptrResult    Represents the output pointer to populate.  If the interface is unsupported, the returned pointer will be
+    //!                     null.
     //! @return             A bool value representing whether the query was successful (non-null return result).
     template <typename U, typename T>
     _Success_return_ bool try_com_copy_to(T&& ptrSource, _COM_Outptr_result_maybenull_ U** ptrResult)
@@ -1624,11 +1671,13 @@ namespace wil
         return false;
     }
 
-    //! Attempts a query for the interface specified by the type of the output parameter (returns `false` if unsupported, preserves null).
+    //! Attempts a query for the interface specified by the type of the output parameter (returns `false` if unsupported, preserves
+    //! null).
     //! See @ref page_query for more information.
     //! @param ptrSource    The pointer to query (may be a raw interface pointer, wil com_ptr, or WRL ComPtr), may be null.
     //! @param riid         The interface to query for
-    //! @param ptrResult    Represents the output pointer to populate.  If the interface is unsupported, the returned pointer will be null.
+    //! @param ptrResult    Represents the output pointer to populate.  If the interface is unsupported, the returned pointer will be
+    //!                     null.
     //! @return             A bool value representing whether the query was successful (non-null return result).
     template <typename T>
     _Success_return_ bool try_com_copy_to(T&& ptrSource, REFIID riid, _COM_Outptr_result_maybenull_ void** ptrResult)
@@ -1684,13 +1733,15 @@ namespace wil
     //! Agile reference to a COM interface, errors throw exceptions (see @ref com_ptr_t and @ref com_agile_query for details)
     using com_agile_ref = com_ptr<IAgileReference>;
 #endif
-    //! Agile reference to a COM interface, errors return error codes (see @ref com_ptr_t and @ref com_agile_query_nothrow for details)
+    //! Agile reference to a COM interface, errors return error codes (see @ref com_ptr_t and @ref com_agile_query_nothrow for
+    //! details)
     using com_agile_ref_nothrow = com_ptr_nothrow<IAgileReference>;
     //! Agile reference to a COM interface, errors fail fast (see @ref com_ptr_t and @ref com_agile_query_failfast for details)
     using com_agile_ref_failfast = com_ptr_failfast<IAgileReference>;
 
     //! @name Create agile reference helpers
-    //! * Attempts to retrieve an agile reference to the requested interface (see [RoGetAgileReference](https://msdn.microsoft.com/en-us/library/dn269839.aspx))
+    //! * Attempts to retrieve an agile reference to the requested interface (see
+    //!   [RoGetAgileReference](https://msdn.microsoft.com/en-us/library/dn269839.aspx))
     //! * Source pointer can be raw interface pointer, any wil com_ptr, or WRL ComPtr
     //! * `query` methods AV if the source pointer is null
     //! * `copy` methods succeed with null if the source pointer is null
@@ -1759,7 +1810,8 @@ namespace wil
         return agileRef;
     }
 
-    //! return an agile ref (com_agile_ref_XXX or other representation) representing the given source pointer (return error on failure, source maybe null)
+    //! return an agile ref (com_agile_ref_XXX or other representation) representing the given source pointer (return error on
+    //! failure, source maybe null)
     template <typename T>
     HRESULT com_agile_copy_nothrow(T&& ptrSource, _COM_Outptr_result_maybenull_ IAgileReference** ptrResult, AgileReferenceOptions options = AGILEREFERENCE_DEFAULT)
     {
@@ -1806,7 +1858,8 @@ namespace wil
     using com_weak_ref_failfast = com_ptr_failfast<IWeakReference>;
 
     //! @name Create weak reference helpers
-    //! * Attempts to retrieve a weak reference to the requested interface (see WRL's similar [WeakRef](https://msdn.microsoft.com/en-us/library/br244853.aspx))
+    //! * Attempts to retrieve a weak reference to the requested interface (see WRL's similar
+    //!   [WeakRef](https://msdn.microsoft.com/en-us/library/br244853.aspx))
     //! * Source pointer can be raw interface pointer, any wil com_ptr, or WRL ComPtr
     //! * `query` methods AV if the source pointer is null
     //! * `copy` methods succeed with null if the source pointer is null
@@ -1887,6 +1940,8 @@ namespace wil
         return S_OK;
     }
 
+    //! @}
+
 #pragma region COM Object Helpers
 
     template <typename T>
@@ -1905,7 +1960,8 @@ namespace wil
         return result;
     }
 
-    /** constructs a COM object using the class as the identifier (that has an associated CLSID) on a specific interface or IUnknown. */
+    /** constructs a COM object using the class as the identifier (that has an associated CLSID) on a specific interface or
+    IUnknown. */
     template<typename Class, typename Interface = IUnknown, typename error_policy = err_exception_policy>
     wil::com_ptr_t<Interface, error_policy> CoCreateInstance(DWORD dwClsContext = CLSCTX_INPROC_SERVER)
     {
@@ -1919,7 +1975,8 @@ namespace wil
         return CoCreateInstance<Interface, err_failfast_policy>(rclsid, dwClsContext);
     }
 
-    /** constructs a COM object using the class as the identifier (that has an associated CLSID) on a specific interface or IUnknown. */
+    /** constructs a COM object using the class as the identifier (that has an associated CLSID) on a specific interface or
+    IUnknown. */
     template<typename Class, typename Interface = IUnknown>
     wil::com_ptr_failfast<Interface> CoCreateInstanceFailFast(DWORD dwClsContext = CLSCTX_INPROC_SERVER) WI_NOEXCEPT
     {
@@ -1934,8 +1991,8 @@ namespace wil
         return CoCreateInstance<Interface, err_returncode_policy>(rclsid, dwClsContext);
     }
 
-    /** constructs a COM object using the class as the identifier (that has an associated CLSID) on a specific interface or IUnknown.
-    Note, failures are reported as a null result, the HRESULT is lost. */
+    /** constructs a COM object using the class as the identifier (that has an associated CLSID) on a specific interface or
+    IUnknown.  Note, failures are reported as a null result, the HRESULT is lost. */
     template<typename Class, typename Interface = IUnknown>
     wil::com_ptr_nothrow<Interface> CoCreateInstanceNoThrow(DWORD dwClsContext = CLSCTX_INPROC_SERVER) WI_NOEXCEPT
     {
@@ -1992,6 +2049,7 @@ namespace wil
     }
 
 #if __cpp_lib_apply && __has_include(<type_traits>)
+    /// @cond
     namespace details
     {
         template <typename error_policy, typename... Results>
@@ -2047,6 +2105,7 @@ namespace wil
             return std::tuple<HRESULT, decltype(resultTuple)>{hr, std::move(resultTuple)};
         }
     }
+    /// @endcond
 
 #ifdef WIL_ENABLE_EXCEPTIONS
     // CoCreateInstanceEx can be used to improve performance by requesting multiple interfaces
@@ -2131,7 +2190,7 @@ namespace wil
     /** Read data from a stream into a buffer.
     Reads up to a certain number of bytes into a buffer. Returns the amount of data written, which
     may be less than the amount requested if the stream ran out.
-    ~~~~
+    @code
     IStream* source = // ...
     ULONG dataBlob = 0;
     size_t read = 0;
@@ -2144,7 +2203,7 @@ namespace wil
     {
         DoThing(dataBlob);
     }
-    ~~~~
+    @endcode
     @param stream The stream from which to read at most `size` bytes.
     @param data A buffer into which up to `size` bytes will be read
     @param size The size, in bytes, of the buffer pointed to by `data`
@@ -2418,13 +2477,13 @@ namespace wil
         returns_empty,
     };
 
-#ifdef __WIL_OBJBASE_H_
+#if defined(__WIL_OBJBASE_H_) || defined(WIL_DOXYGEN)
 
     /** Read a string from a stream and returns an allocated copy
     Deserializes strings in streams written by both IStream_WriteStr and wil::stream_write_string[_nothrow]. The format
     is a single 16-bit quantity, followed by that many wchar_ts. The returned string is allocated with CoTaskMemAlloc.
     Returns a zero-length (but non-null) string if the stream contained a zero-length string.
-    ~~~~
+    @code
     IStream* source = // ...
     wil::unique_cotaskmem_string content;
     RETURN_IF_FAILED(wil::stream_read_string_nothrow(source, &content));
@@ -2432,9 +2491,10 @@ namespace wil
     {
         // Waffles!
     }
-    ~~~~
+    @endcode
     @param source The stream from which to read a string
     @param value Set to point to the allocated result of reading a string from `source`
+    @param options Controls behavior when reading a zero-length string from a stream
     */
     inline HRESULT stream_read_string_nothrow(
         _In_ ISequentialStream* source,
@@ -2467,11 +2527,11 @@ namespace wil
     Serializes a string into a stream by putting its length and then the wchar_ts in the string
     into the stream.  Zero-length strings have their length but no data written. This is the
     form expected by IStream_ReadStr and wil::string_read_stream.
-    ~~~~
+    @code
     IStream* target = // ...
     RETURN_IF_FAILED(wil::stream_write_string_nothrow(target, L"Waffles", 3));
     // Produces wchar_t[] { 0x3, L'W', L'a', L'f' };
-    ~~~~
+    @endcode
     @param target The stream to which to write a string
     @param source The string to write. Can be null if `writeLength` is zero
     @param writeLength The number of characters to write from source into `target`
@@ -2494,11 +2554,11 @@ namespace wil
     Serializes a string into a stream by putting its length and then the wchar_ts in the string
     into the stream.  Zero-length strings have their length but no data written. This is the
     form expected by IStream_ReadStr and wil::string_read_stream.
-    ~~~~
+    @code
     IStream* target = // ...
     RETURN_IF_FAILED(wil::stream_write_string_nothrow(target, L"Waffles"));
     // Produces wchar_t[] { 0x3, L'W', L'a', L'f', L'f', L'l', L'e', L's' };
-    ~~~~
+    @endcode
     @param target The stream to which to write a string
     @param source The string to write. When nullptr, a zero-length string is written.
     */
@@ -2510,7 +2570,7 @@ namespace wil
 #ifdef WIL_ENABLE_EXCEPTIONS
 
     /** Read data from a stream into a buffer.
-    ~~~~
+    @code
     IStream* source = // ...
     ULONG dataBlob = 0;
     auto read = wil::stream_read_partial(source, &dataBlob, sizeof(dataBlob));
@@ -2522,7 +2582,7 @@ namespace wil
     {
         DoThing(dataBlob);
     }
-    ~~~~
+    @endcode
     @param stream The stream from which to read at most `size` bytes.
     @param data A buffer into which up to `size` bytes will be read
     @param size The size, in bytes, of the buffer pointed to by `data`
@@ -2740,21 +2800,22 @@ namespace wil
         THROW_HR_IF(HRESULT_FROM_WIN32(ERROR_INVALID_DATA), stream_copy_bytes(source, target, amount) != amount);
     }
 
-#ifdef __WIL_OBJBASE_H_
+#if defined(__WIL_OBJBASE_H_) || defined(WIL_DOXYGEN)
 
     /** Read a string from a stream and returns an allocated copy
     Deserializes strings in streams written by both IStream_WriteStr and wil::stream_write_string[_nothrow]. The format
     is a single 16-bit quantity, followed by that many wchar_ts. The returned string is allocated with CoTaskMemAlloc.
     Returns a zero-length (but non-null) string if the stream contained a zero-length string.
-    ~~~~
+    @code
     IStream* source = // ...
     wil::unique_cotaskmem_string content = wil::stream_read_string(source);
     if (wcscmp(content.get(), L"waffles") == 0)
     {
         // Waffles!
     }
-    ~~~~
+    @endcode
     @param source The stream from which to read a string
+    @param options Controls the behavior when reading a zero-length string
     @return An non-null string (but possibly zero lengh) string read from `source`
     */
     inline wil::unique_cotaskmem_string stream_read_string(_In_ ISequentialStream* source, empty_string_options options = empty_string_options::returns_empty)
@@ -2803,7 +2864,7 @@ namespace wil
     /** Saves and restores the position of a stream
     Useful for potentially reading data from a stream, or being able to read ahead, then reset
     back to where one left off, such as conditionally reading content from a stream.
-    ~~~~
+    @code
     void MaybeConsumeStream(IStream* stream)
     {
         // On error, reset the read position in the stream to where we left off
@@ -2814,7 +2875,7 @@ namespace wil
             ProcessElement(wil::stream_read<MY_ELEMENT>(stream));
         }
     }
-    ~~~~
+    @endcode
     */
     class stream_position_saver
     {
@@ -2836,14 +2897,14 @@ namespace wil
         }
 
         /** Updates the current position in the stream
-        ~~~~
+        @code
         // Read a size marker from the stream, then advance that much.
         IStream* stream1 = // ...
         auto saver = wil::stream_position_saver(stream1);
         auto size = wil::stream_read<long>(stream1);
         wil::stream_seek_from_current_position(stream, size);
         saver.update();
-        ~~~~
+        @endcode
         */
         void update()
         {
@@ -2903,7 +2964,7 @@ namespace wil
         }
 
         /** Stops saving the position of the stream
-        ~~~~
+        @code
         // The stream has either a standard or extended header, followed by interesting content.
         // Read either one, leaving the stream after the headers have been read off. On failure,
         // the stream's position is restored.
@@ -2919,7 +2980,7 @@ namespace wil
             saver.dismiss();
             return { mt, mte };
         }
-        ~~~~
+        @endcode
         */
         void dismiss()
         {
@@ -2939,7 +3000,7 @@ namespace wil
 #endif // WIL_ENABLE_EXCEPTIONS
 #pragma endregion // stream helpers
 
-#if defined(__IObjectWithSite_INTERFACE_DEFINED__)
+#if defined(__IObjectWithSite_INTERFACE_DEFINED__) || defined(WIL_DOXYGEN)
     /// @cond
     namespace details
     {
@@ -2958,7 +3019,7 @@ namespace wil
     ~~~
     auto cleanup = wil::com_set_site(execCommand.get(), serviceProvider->GetAsSite());
     ~~~
-    Include ocidl.h before wil\com.h to use this.
+    Include ocidl.h before wil/com.h to use this.
     */
     WI_NODISCARD inline unique_set_site_null_call com_set_site(_In_opt_ IUnknown* obj, _In_opt_ IUnknown* site)
     {
@@ -2982,6 +3043,7 @@ namespace wil
             OutputDebugStringW(msg);
         });
     }
+    ~~~
     */
 
     template<typename TLambda>
@@ -3006,6 +3068,7 @@ namespace wil
 // if C++17 or greater
 #if WIL_HAS_CXX_17
 #ifdef WIL_ENABLE_EXCEPTIONS
+/// @cond
 namespace details
 {
     template<typename>
@@ -3049,6 +3112,7 @@ namespace details
             wil::com_ptr<wistd::remove_pointer_t<Result>>, Result>;
     };
 }
+/// @endcond
 
 template <typename IEnumType, typename TStoredType = typename details::com_enumerator_traits<IEnumType>::smart_result>
 struct com_iterator
@@ -3114,7 +3178,7 @@ private:
             {
                 m_enum = nullptr;
             }
-            else 
+            else
             {
                 THROW_IF_FAILED_MSG(hr, "Failed to get next");
             }

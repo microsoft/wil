@@ -8,6 +8,8 @@
 //    PARTICULAR PURPOSE AND NONINFRINGEMENT.
 //
 //*********************************************************
+//! @file
+//! Helpers for interfacing with the Windows filesystem APIs.
 #ifndef __WIL_FILESYSTEM_INCLUDED
 #define __WIL_FILESYSTEM_INCLUDED
 
@@ -62,7 +64,8 @@ namespace wil
                ((fileName[1] == L'\0') || ((fileName[1] == L'.') && (fileName[2] == L'\0'))));
     }
 
-    //! Returns the drive number, if it has one. Returns true if there is a drive number, false otherwise. Supports regular and extended length paths.
+    //! Returns the drive number, if it has one. Returns true if there is a drive number, false otherwise. Supports regular and
+    //! extended length paths.
     inline bool try_get_drive_letter_number(_In_ PCWSTR path, _Out_ int* driveNumber)
     {
         if (path[0] == L'\\' && path[1] == L'\\' && path[2] == L'?' && path[3] == L'\\')
@@ -596,7 +599,7 @@ namespace wil
     //     }));
     //
 
-    // @cond
+    /// @cond
     namespace details
     {
         struct folder_change_reader_state

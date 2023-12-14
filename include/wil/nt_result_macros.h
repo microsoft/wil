@@ -8,14 +8,19 @@
 //    PARTICULAR PURPOSE AND NONINFRINGEMENT.
 //
 //*********************************************************
+//! @file
+//! WIL Error Handling Helpers: supporting file defining a family of macros and functions designed to uniformly handle errors
+//! across return codes, fail fast, exceptions and logging for NTSTATUS values.
 #ifndef __WIL_NT_RESULTMACROS_INCLUDED
 #define __WIL_NT_RESULTMACROS_INCLUDED
 
 #include "result_macros.h"
 
 // Helpers for return macros
+/// @cond
 #define __NT_RETURN_NTSTATUS(status, str)                    __WI_SUPPRESS_4127_S do { NTSTATUS __status = (status); if (FAILED_NTSTATUS(__status)) { __R_FN(Return_NtStatus)(__R_INFO(str) __status); } return __status; } __WI_SUPPRESS_4127_E while ((void)0, 0)
 #define __NT_RETURN_NTSTATUS_MSG(status, str, fmt, ...)      __WI_SUPPRESS_4127_S do { NTSTATUS __status = (status); if (FAILED_NTSTATUS(__status)) { __R_FN(Return_NtStatusMsg)(__R_INFO(str) __status, __WI_CHECK_MSG_FMT(fmt, ##__VA_ARGS__)); } return __status; } __WI_SUPPRESS_4127_E while ((void)0, 0)
+/// @endcond
 
 //*****************************************************************************
 // Macros for returning failures as NTSTATUS
@@ -83,6 +88,7 @@ namespace wil
         return wil::details::HrToNtStatus(__HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION));
     }
 
+    /// @cond
     namespace details
     {
         template<FailureType>
@@ -163,6 +169,7 @@ namespace wil
             RESULT_NORETURN_RESULT(ReportFailure_CaughtExceptionCommon<FailureType::Exception>(__R_FN_CALL_FULL, message, ARRAYSIZE(message), SupportedExceptions::Default).status);
         }
     }
+    /// @endcond
 }
 
 #endif // __WIL_NT_RESULTMACROS_INCLUDED

@@ -115,7 +115,9 @@ void TestErrorCallbacks()
 
         wil::ThreadFailureCache cacheNested;
 
+        // clang-format off
         LOG_HR(E_FAIL); unsigned long errorLine = __LINE__;
+        // clang-format on
         LOG_HR(E_FAIL);
         LOG_HR(E_FAIL);
         REQUIRE(cache.GetFailure()->hr == E_FAIL);
@@ -355,6 +357,7 @@ HRESULT TranslateException(TLambda&& lambda)
 
 TEST_CASE("WindowsInternalTests::ResultMacros", "[result_macros]")
 {
+    // clang-format off
     auto restoreLoggingCallback = witest::AssignTemporaryValue(&wil::g_pfnResultLoggingCallback, ResultMacrosLoggingCallback);
 #ifdef WIL_ENABLE_EXCEPTIONS
     auto restoreExceptionCallback = witest::AssignTemporaryValue(&wil::g_pfnResultFromCaughtException, TestResultCaughtFromException);
@@ -814,6 +817,7 @@ TEST_CASE("WindowsInternalTests::ResultMacros", "[result_macros]")
     REQUIRE_RETURNS(S_OK, [] { Platform::String^ str(L"a"); RETURN_IF_NULL_ALLOC(MDEC(str)); return S_OK; });
     REQUIRE_LOG(S_OK, [] { Platform::String^ str(L"a"); LOG_HR_IF_NULL(MDEC(E_OUTOFMEMORY), MDEC(str)); });
 #endif
+    // clang-format on
 }
 
 #define WRAP_LAMBDA(code)           [&] {code;};
@@ -3548,6 +3552,7 @@ TEST_CASE("WindowsInternalTests::ReturnWithExpectedTests", "[result_macros]")
 
 TEST_CASE("WindowsInternalTests::LogWithExpectedTests", "[result_macros]")
 {
+    // clang-format off
     wil::g_pfnResultLoggingCallback = ResultMacrosLoggingCallback;
 
     // Succeeded
@@ -3560,6 +3565,7 @@ TEST_CASE("WindowsInternalTests::LogWithExpectedTests", "[result_macros]")
     // Unexpected
     REQUIRE_LOG(E_FAIL, [] { REQUIRE(E_FAIL == LOG_IF_FAILED_WITH_EXPECTED(E_FAIL, E_UNEXPECTED)); });
     REQUIRE_LOG(E_FAIL, [] { REQUIRE(E_FAIL == LOG_IF_FAILED_WITH_EXPECTED(E_FAIL, E_UNEXPECTED, E_POINTER, E_INVALIDARG)); });
+    // clang-format on
 }
 
 // Verifies that the shutdown-aware objects respect the alignment
