@@ -261,12 +261,6 @@ namespace wil::details::coro
         template<typename...Args>
         void emplace_value(Args&&... args)
         {
-            if (g_pfnCaptureRestrictedErrorInformation)
-            {
-                WI_ASSERT(restricted_error == nullptr);
-                restricted_error = g_pfnCaptureRestrictedErrorInformation();
-            }
-
             WI_ASSERT(status == result_status::empty);
             new (wistd::addressof(result.wrap)) result_wrapper<T>{ wistd::forward<Args>(args)... };
             status = result_status::value;
@@ -287,17 +281,16 @@ namespace wil::details::coro
 
         T get_value()
         {
-            if (g_pfnRestoreRestrictedErrorInformation && restricted_error)
-            {
-                g_pfnRestoreRestrictedErrorInformation(restricted_error);
-                restricted_error = nullptr; // restoring the error took ownership
-            }
-
             if (status == result_status::value)
             {
                 return result.wrap.get_value();
             }
+
             WI_ASSERT(status == result_status::error);
+            if (restricted_error && g_pfnRestoreRestrictedErrorInformation)
+            {
+                g_pfnRestoreRestrictedErrorInformation(restricted_error);
+            }
             std::rethrow_exception(wistd::exchange(result.error, {}));
         }
 
@@ -696,20 +689,14 @@ namespace wil::details::coro
 {
     inline void* __stdcall CaptureRestrictedErrorInformation() noexcept
     {
-        wil::com_ptr<IRestrictedErrorInfo> restrictedError;
-        if (SUCCEEDED(GetRestrictedErrorInfo(&restrictedError)) && restrictedError)
-        {
-            return restrictedError.query<IUnknown>().detach();
-        }
-        return nullptr;
+        IRestrictedErrorInfo* restrictedError = nullptr;
+        (void)GetRestrictedErrorInfo(&restrictedError);
+        return restrictedError; // the returned object includes a strong reference
     }
 
     inline void __stdcall RestoreRestrictedErrorInformation(_In_ void* restricted_error) noexcept
     {
-        auto restrictedErrorUnk = wil::com_ptr<IUnknown>(static_cast<IUnknown*>(restricted_error));
-        auto restrictedError = restrictedErrorUnk.query<IRestrictedErrorInfo>();
-        SetRestrictedErrorInfo(restrictedError.get());
-        // Releases the restricted error on exit
+        (void)SetRestrictedErrorInfo(static_cast<IRestrictedErrorInfo*>(restricted_error));
     }
 
     inline void __stdcall DestroyRestrictedErrorInformation(_In_ void* restricted_error) noexcept
