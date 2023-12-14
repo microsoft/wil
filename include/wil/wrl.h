@@ -8,6 +8,8 @@
 //    PARTICULAR PURPOSE AND NONINFRINGEMENT.
 //
 //*********************************************************
+//! @file
+//! Windows Runtime Library Helpers: helpers for constructing RuntimeClass based objects and agile WRL Callback objects
 #ifndef __WIL_WRL_INCLUDED
 #define __WIL_WRL_INCLUDED
 
@@ -29,11 +31,11 @@ namespace wil
     /** Used to construct a RuntimeClass based object that uses 2 phase construction.
     Construct a RuntimeClass based object that uses 2 phase construction (by implementing
     RuntimeClassInitialize() and returning error codes for failures.
-    ~~~~
+    @code
         // SomeClass uses 2 phase initialization by implementing RuntimeClassInitialize()
         auto someClass = MakeAndInitializeOrThrow<SomeClass>(L"input", true);
-    ~~~~ */
-
+    @endcode
+    */
     template <typename T, typename... TArgs>
     Microsoft::WRL::ComPtr<T> MakeAndInitializeOrThrow(TArgs&&... args)
     {
@@ -44,11 +46,11 @@ namespace wil
 
     /** Used to construct an RuntimeClass based object that uses exceptions in its constructor (and does
     not require 2 phase construction).
-    ~~~~
+    @code
         // SomeClass uses exceptions for error handling in its constructor.
         auto someClass = MakeOrThrow<SomeClass>(L"input", true);
-    ~~~~ */
-
+    @endcode
+    */
     template <typename T, typename... TArgs>
     Microsoft::WRL::ComPtr<T> MakeOrThrow(TArgs&&... args)
     {
@@ -65,9 +67,9 @@ namespace wil
 
 #endif // WIL_ENABLE_EXCEPTIONS
 
-    /** By default WRL Callback objects are not agile, use this to make an agile one. Replace use of Callback<> with MakeAgileCallback<>.
-    Will return null on failure, translate that into E_OUTOFMEMORY using XXX_IF_NULL_ALLOC()
-    from wil\result.h to test the result. */
+    /** By default WRL Callback objects are not agile, use this to make an agile one. Replace use of Callback<> with
+    MakeAgileCallback<>. Will return null on failure, translate that into E_OUTOFMEMORY using XXX_IF_NULL_ALLOC() from wil/result.h
+    to test the result. */
     template<typename TDelegateInterface, typename ...Args>
     ::Microsoft::WRL::ComPtr<TDelegateInterface> MakeAgileCallbackNoThrow(Args&&... args) WI_NOEXCEPT
     {

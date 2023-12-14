@@ -8,6 +8,8 @@
 //    PARTICULAR PURPOSE AND NONINFRINGEMENT.
 //
 //*********************************************************
+//! @file
+//! Type independent wrappers around the various intsafe.h functions
 #ifndef __WIL_SAFECAST_INCLUDED
 #define __WIL_SAFECAST_INCLUDED
 
@@ -18,6 +20,7 @@
 
 namespace wil
 {
+    /// @cond
     namespace details
     {
         // Default error case for undefined conversions in intsafe.h
@@ -192,6 +195,7 @@ namespace wil
         template<> __WI_LIBCPP_INLINE_VAR constexpr auto intsafe_conversion<unsigned short, signed char> = UShortToInt8;
         template<> __WI_LIBCPP_INLINE_VAR constexpr auto intsafe_conversion<unsigned short, unsigned char> = UShortToUChar;
     }
+    /// @endcond
 
     // Unsafe conversion where failure results in fail fast.
     template <

@@ -30,6 +30,7 @@ if (${WIL_BUILD_PACKAGING})
 endif()
 
 if (${WIL_BUILD_TESTS})
+    add_subdirectory(docs)
     add_subdirectory(tests)
 endif()
 

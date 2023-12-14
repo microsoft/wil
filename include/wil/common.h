@@ -8,6 +8,8 @@
 //    PARTICULAR PURPOSE AND NONINFRINGEMENT.
 //
 //*********************************************************
+//! @file
+//! WIL Common Helpers: Provides broadly applicable, dependency-free pure C++ helpers, macros and type traits.
 #ifndef __WIL_COMMON_INCLUDED
 #define __WIL_COMMON_INCLUDED
 
@@ -23,6 +25,7 @@
 // Defining WIL_HIDE_DEPRECATED will hide everything deprecated.
 // Each wave of deprecation will add a new WIL_HIDE_DEPRECATED_YYMM number that can be used to lock deprecation at
 // a particular point, allowing components to avoid backslide and catch up to the current independently.
+/// @cond
 #ifdef WIL_HIDE_DEPRECATED
 #define WIL_HIDE_DEPRECATED_1809
 #endif
@@ -32,10 +35,12 @@
 #ifdef WIL_HIDE_DEPRECATED_1612
 #define WIL_HIDE_DEPRECATED_1611
 #endif
+/// @endcond
 
 // Implementation side note: ideally the deprecation would be done with the function-level declspec
 // as it allows you to utter the error text when used.  The declspec works, but doing it selectively with
 // a macro makes intellisense deprecation comments not work.  So we just use the #pragma deprecation.
+/// @cond
 #ifdef WIL_WARN_DEPRECATED
 #define WIL_WARN_DEPRECATED_1809
 #endif
@@ -60,7 +65,9 @@
 #else
 #define WIL_WARN_DEPRECATED_1612_PRAGMA(...)
 #endif
+/// @endcond
 
+/// @cond
 #if defined(_MSVC_LANG)
 #define __WI_SUPPRESS_4127_S __pragma(warning(push)) __pragma(warning(disable:4127)) __pragma(warning(disable:26498)) __pragma(warning(disable:4245))
 #define __WI_SUPPRESS_4127_E __pragma(warning(pop))
@@ -74,6 +81,7 @@
 #define __WI_SUPPRESS_NONINIT_ANALYSIS
 #define __WI_SUPPRESS_NOEXCEPT_ANALYSIS
 #endif
+/// @endcond
 
 #include <sal.h>
 
@@ -110,6 +118,7 @@
 #define WI_HAS_VA_OPT __WI_HAS_VA_OPT_(unused)
 
 /// @cond
+// clang-format off
 #define __WI_ARGS_COUNT1(A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21, A22, A23, A24, A25, A26, A27, A28, A29, \
                          A30, A31, A32, A33, A34, A35, A36, A37, A38, A39, A40, A41, A42, A43, A44, A45, A46, A47, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, \
                          A60, A61, A62, A63, A64, A65, A66, A67, A68, A69, A70, A71, A72, A73, A74, A75, A76, A77, A78, A79, A80, A81, A82, A83, A84, A85, A86, A87, A88, A89, \
@@ -118,6 +127,7 @@
                          79, 78, 77, 76, 75, 74, 73, 72, 71, 70, 69, 68, 67, 66, 65, 64, 63, 62, 61, 60, 59, 58, 57, 56, 55, 54, 53, 52, 51, 50,  49, 48, 47, 46, 45, 44, 43, 42, 41, 40, \
                          39, 38, 37, 36, 35, 34, 33, 32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0))
 #define __WI_ARGS_COUNT_PREFIX(...) 0, __VA_ARGS__
+// clang-format on
 /// @endcond
 
 //! This variadic macro returns the number of arguments passed to it (up to 99).
@@ -275,7 +285,6 @@ This enables exception-free code to directly include WIL headers without worryin
 routines suddenly becoming available. */
 #define WIL_ENABLE_EXCEPTIONS
 #endif
-/// @endcond
 
 /// @cond
 #if defined(WIL_EXCEPTION_MODE)
@@ -290,6 +299,7 @@ static_assert(WIL_EXCEPTION_MODE <= 2, "Invalid exception mode");
 #define WIL_EXCEPTION_MODE 2            // old code optimization:  ONLY support linking libraries that are NOT using exceptions
 #pragma detect_mismatch("ODR_violation_WIL_EXCEPTION_MODE_mismatch", "2")
 #endif
+/// @endcond
 
 #if WIL_EXCEPTION_MODE == 1 && !defined(WIL_ENABLE_EXCEPTIONS)
 #error Must enable exceptions when WIL_EXCEPTION_MODE == 1
@@ -304,21 +314,23 @@ classes and methods from WIL, define this macro ahead of including the first WIL
 #define WIL_SUPPRESS_EXCEPTIONS
 
 /** This define can be explicitly set to lock the process exception mode to WIL_ENABLE_EXCEPTIONS.
-Locking the exception mode provides optimizations to exception barriers, staging hooks and DLL load costs as it eliminates the need to
-do copy-on-write initialization of various function pointers and the necessary indirection that's done within WIL to avoid ODR violations
-when linking libraries together with different exception handling semantics. */
+Locking the exception mode provides optimizations to exception barriers, staging hooks and DLL load costs as it eliminates the
+need to do copy-on-write initialization of various function pointers and the necessary indirection that's done within WIL to avoid
+ODR violations when linking libraries together with different exception handling semantics. */
 #define WIL_LOCK_EXCEPTION_MODE
 
 /** This define explicit sets the exception mode for the process to control optimizations.
 Three exception modes are available:
-0)  This is the default.  This enables a binary to link both exception-based and non-exception based libraries together that
-    use WIL.  This adds overhead to exception barriers, DLL copy on write pages and indirection through function pointers to avoid ODR
+0)  This is the default.  This enables a binary to link both exception-based and non-exception based libraries together that use
+    WIL.  This adds overhead to exception barriers, DLL copy on write pages and indirection through function pointers to avoid ODR
     violations when linking libraries together with different exception handling semantics.
-1)  Prefer this setting when it can be used.  This locks the binary to only supporting libraries which were built with exceptions enabled.
+1)  Prefer this setting when it can be used.  This locks the binary to only supporting libraries which were built with exceptions
+    enabled.
 2)  This locks the binary to libraries built without exceptions. */
 #define WIL_EXCEPTION_MODE
 #endif
 
+/// @cond
 #if (__cplusplus >= 201703) || (_MSVC_LANG >= 201703)
 #define WIL_HAS_CXX_17 1
 #else
@@ -327,9 +339,12 @@ Three exception modes are available:
 
 // Until we'll have C++17 enabled in our code base, we're falling back to SAL
 #define WI_NODISCARD __WI_LIBCPP_NODISCARD_ATTRIBUTE
+/// @endcond
 
+/// @cond
 #define __R_ENABLE_IF_IS_CLASS(ptrType)                     wistd::enable_if_t<wistd::is_class<ptrType>::value, void*> = nullptr
 #define __R_ENABLE_IF_IS_NOT_CLASS(ptrType)                 wistd::enable_if_t<!wistd::is_class<ptrType>::value, void*> = nullptr
+/// @endcond
 
 //! @defgroup bitwise Bitwise Inspection and Manipulation
 //! Bitwise helpers to improve readability and reduce the error rate of bitwise operations.
@@ -362,8 +377,10 @@ Three exception modes are available:
 //! WI_ClearFlagIf(m_flags, MyFlags::Bar, isBarClosed);             // Conditionally clear a single flag based upon a bool
 //! WI_ClearAllFlags(m_flags, MyFlags::Foo | MyFlags::Bar);         // Clear one or more flags from the given variable
 //! WI_ToggleFlag(m_flags, MyFlags::Foo);                           // Toggle (change to the opposite value) a single flag
-//! WI_UpdateFlag(m_flags, MyFlags::Bar, isBarClosed);              // Sets or Clears a single flag from the given variable based upon a bool value
-//! WI_UpdateFlagsInMask(m_flags, flagsMask, newFlagValues);        // Sets or Clears the flags in flagsMask to the masked values from newFlagValues
+//! WI_UpdateFlag(m_flags, MyFlags::Bar, isBarClosed);              // Sets or Clears a single flag from the given variable based
+//!                                                                 // upon a bool value
+//! WI_UpdateFlagsInMask(m_flags, flagsMask, newFlagValues);        // Sets or Clears the flags in flagsMask to the masked values
+//!                                                                 // from newFlagValues
 //! ~~~~
 //! Common example usage (inspection of flag variables):
 //! ~~~~
@@ -396,7 +413,8 @@ Three exception modes are available:
 //! Conditionally clear a single compile-time constant `flag` in the variable `var` only if `condition` is true.
 #define WI_ClearFlagIf(var, flag, condition)                do { if (wil::verify_bool(condition)) { WI_ClearFlag(var, flag); } } while ((void)0, 0)
 
-//! Changes a single compile-time constant `flag` in the variable `var` to be set if `isFlagSet` is true or cleared if `isFlagSet` is false.
+//! Changes a single compile-time constant `flag` in the variable `var` to be set if `isFlagSet` is true or cleared if `isFlagSet`
+//! is false.
 #define WI_UpdateFlag(var, flag, isFlagSet)                 (wil::verify_bool(isFlagSet) ? WI_SetFlag(var, flag) : WI_ClearFlag(var, flag))
 //! Changes only the flags specified by `flagsMask` in the variable `var` to match the corresponding flags in `newFlags`.
 #define WI_UpdateFlagsInMask(var, flagsMask, newFlags)      wil::details::UpdateFlagsInMaskHelper(var, flagsMask, newFlags)
@@ -430,9 +448,12 @@ Three exception modes are available:
 #define WI_IsSingleFlagSetInMask(val, mask)                 wil::details::IsSingleFlagSetHelper((val) & (mask))
 //! Evaluates as true if exactly one bit (any bit) is set within `val` or if there are no bits set within `val`.
 #define WI_IsClearOrSingleFlagSet(val)                      wil::details::IsClearOrSingleFlagSetHelper(val)
-//! Evaluates as true if exactly one bit from within the specified `mask` is set within `val` or if there are no bits from `mask` set within `val`.
+//! Evaluates as true if exactly one bit from within the specified `mask` is set within `val` or if there are no bits from `mask`
+//! set within `val`.
 #define WI_IsClearOrSingleFlagSetInMask(val, mask)          wil::details::IsClearOrSingleFlagSetHelper((val) & (mask))
-//! @}
+//! @}      // bitwise inspection macros
+
+//! @}      // group bitwise
 
 #if defined(WIL_DOXYGEN)
 /** This macro provides a C++ header with a guaranteed initialization function.
@@ -455,7 +476,7 @@ WI_HEADER_INITITALIZATION_FUNCTION(InitializeDesktopFamilyApis, []
 #endif
 ~~~~
 The above example is used within WIL to decide whether or not the library containing WIL is allowed to use
-desktop APIs.  Building this functionality as #IFDEFs within functions would create ODR violations, whereas
+desktop APIs.  Building this functionality as `#IFDEF`s within functions would create ODR violations, whereas
 doing it with global function pointers and header initialization allows a runtime determination. */
 #define WI_HEADER_INITITALIZATION_FUNCTION(name, fn)
 #elif defined(_M_IX86)
@@ -573,10 +594,10 @@ namespace wil
 
     //! @defgroup typesafety Type Validation
     //! Helpers to validate variable types to prevent accidental, but allowed type conversions.
-    //! These helpers are most useful when building macros that accept a particular type.  Putting these functions around the types accepted
-    //! prior to pushing that type through to a function (or using it within the macro) allows the macro to add an additional layer of type
-    //! safety that would ordinarily be stripped away by C++ implicit conversions.  This system is extensively used in the error handling helper
-    //! macros to validate the types given to various macro parameters.
+    //! These helpers are most useful when building macros that accept a particular type.  Putting these functions around the types
+    //! accepted prior to pushing that type through to a function (or using it within the macro) allows the macro to add an additional
+    //! layer of type safety that would ordinarily be stripped away by C++ implicit conversions.  This system is extensively used in
+    //! the error handling helper macros to validate the types given to various macro parameters.
     //! @{
 
     /** Verify that `val` can be evaluated as a logical bool.
@@ -636,8 +657,8 @@ namespace wil
     /** Verify that `hr` is an HRESULT value.
     Other types will generate an intentional compilation error.  Note that this will accept any `long` value as that is the
     underlying typedef behind HRESULT.
-    //!
-    Note that occasionally you might run into an HRESULT which is directly defined with a #define, such as:
+
+    Note that occasionally you might run into an HRESULT which is directly defined with a `#define`, such as:
     ~~~~
     #define UIA_E_NOTSUPPORTED   0x80040204
     ~~~~
@@ -667,21 +688,21 @@ namespace wil
     Other types will generate an intentional compilation error.  Note that this will accept any `long` value as that is the
     underlying typedef behind NTSTATUS.
     //!
-    Note that occasionally you might run into an NTSTATUS which is directly defined with a #define, such as:
-    ~~~~
+    Note that occasionally you might run into an NTSTATUS which is directly defined with a `#define`, such as:
+    @code
     #define STATUS_NOT_SUPPORTED             0x1
-    ~~~~
+    @endcode
     Though this looks like an `NTSTATUS`, this is actually an `unsigned long` (the hex specification forces this).  When
     these are encountered and they are NOT in the public SDK (have not yet shipped to the public), then you should change
     their definition to match the manner in which `NTSTATUS` constants are defined in ntstatus.h:
-    ~~~~
+    @code
     #define STATUS_NOT_SUPPORTED             ((NTSTATUS)0xC00000BBL)
-    ~~~~
+    @endcode
     When these are encountered in the public SDK, their type should not be changed and you should use a static_cast
     to use this value in a macro that utilizes `verify_ntstatus`, for example:
-    ~~~~
+    @code
     NT_RETURN_IF_FALSE(static_cast<NTSTATUS>(STATUS_NOT_SUPPORTED), (dispatch->Version == HKE_V1_0));
-    ~~~~
+    @endcode
     @param status The NTSTATUS returning expression
     @return An NTSTATUS representing the evaluation of `val`. */
     template <typename T>

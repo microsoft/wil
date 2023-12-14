@@ -1,3 +1,15 @@
+//*********************************************************
+//
+//    Copyright (c) Microsoft. All rights reserved.
+//    This code is licensed under the MIT License.
+//    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+//    ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+//    TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+//    PARTICULAR PURPOSE AND NONINFRINGEMENT.
+//
+//*********************************************************
+//! @file
+//! Types and helpers for using C++ coroutines.
 #ifndef __WIL_COROUTINE_INCLUDED
 #define __WIL_COROUTINE_INCLUDED
 
@@ -49,7 +61,7 @@
     * | Coroutine starts automatically                      | Yes       | Yes       | Yes           |
     * | Coroutine starts synchronously                      | No        | Yes       | Yes           |
     * | Integrates with C++/WinRT coroutine callouts        | No        | Yes       | No            |
-    * 
+    *
     * [1] Resumption in the same COM apartment requires that you include COM headers.
     * [2] Synchronous waiting requires that you include <synchapi.h> (usually via <windows.h>).
     *
@@ -129,12 +141,13 @@
     * about synchronous waits on STA threads apply.
     *
     * auto value = GetValueFromWidgetAsync().get();
-    * 
+    *
     * auto task = GetValueFromWidgetAsync();
     * auto value = std::move(task).get(); // **** need std::move
     */
 
 // Detect which version of the coroutine standard we have.
+/// @cond
 #if defined(_RESUMABLE_FUNCTIONS_SUPPORTED)
 #include <experimental/coroutine>
 #define __WI_COROUTINE_NAMESPACE ::std::experimental
@@ -144,6 +157,8 @@
 #else
 #error You must compile with C++20 coroutine support to use coroutine.h.
 #endif
+/// @endcond
+
 #include <atomic>
 #include <exception>
 #include <wil/wistd_memory.h>
@@ -172,6 +187,7 @@ namespace wil
     struct com_task;
 }
 
+/// @cond
 namespace wil::details::coro
 {
     // task and com_task are convertable to each other.  However, not
@@ -339,7 +355,7 @@ namespace wil::details::coro
         // references are destroyed. To force the promise_base to be
         // destroyed after co_await, we make the promise_base a
         // move-only object and require co_await to be given an rvalue reference.
-        
+
         // Special values for m_waiting.
         static void* running_ptr() { return nullptr; }
         static void* completed_ptr() { return reinterpret_cast<void*>(1); }
@@ -552,7 +568,7 @@ namespace wil::details::coro
             return agile_awaiter<T>{ wistd::move(promise) };
         }
 
-        // You must #include <ole2.h> before <wil\coroutine.h> to enable apartment-aware awaiting.
+        // You must #include <ole2.h> before <wil/coroutine.h> to enable apartment-aware awaiting.
         auto resume_same_apartment() && noexcept;
 
         // Compiler error message metaprogramming: Tell people that they
@@ -579,6 +595,7 @@ namespace wil::details::coro
         static void __stdcall wake_by_address(void* completed);
     };
 }
+/// @endcond
 
 namespace wil
 {
@@ -620,7 +637,7 @@ namespace wil
 
         auto operator co_await() && noexcept
         {
-            // You must #include <ole2.h> before <wil\coroutine.h> to enable non-agile awaiting.
+            // You must #include <ole2.h> before <wil/coroutine.h> to enable non-agile awaiting.
             return wistd::move(*this).resume_same_apartment();
         }
     };
