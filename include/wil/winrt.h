@@ -8,14 +8,16 @@
 //    PARTICULAR PURPOSE AND NONINFRINGEMENT.
 //
 //*********************************************************
+//! @file
+//! Various types and functions for working with the Windows Runtime
 #ifndef __WIL_WINRT_INCLUDED
 #define __WIL_WINRT_INCLUDED
 
 #include <hstring.h>
-#include <wrl\client.h>
-#include <wrl\implements.h>
-#include <wrl\async.h>
-#include <wrl\wrappers\corewrappers.h>
+#include <wrl/client.h>
+#include <wrl/implements.h>
+#include <wrl/async.h>
+#include <wrl/wrappers/corewrappers.h>
 #include "result.h"
 #include "com.h"
 #include "resource.h"
@@ -57,12 +59,14 @@ namespace std
 // This enables this code to be used in code that uses the ABI prefix or not.
 // Code using the public SDK and C++ CX code has the ABI prefix, windows internal
 // is built in a way that does not.
+/// @cond
 #if !defined(MIDL_NS_PREFIX) && !defined(____x_ABI_CWindows_CFoundation_CIClosable_FWD_DEFINED__)
 // Internal .idl files use the namespace without the ABI prefix. Macro out ABI for that case
 #pragma push_macro("ABI")
 #undef ABI
 #define ABI
 #endif
+/// @endcond
 
 namespace wil
 {
@@ -247,7 +251,7 @@ namespace wil
     }
 
     /** TwoPhaseHStringConstructor help using the 2 phase constructor pattern for HSTRINGs.
-    ~~~
+    @code
     auto stringConstructor = wil::TwoPhaseHStringConstructor::Preallocate(size);
     RETURN_IF_NULL_ALLOC(stringConstructor.Get());
 
@@ -257,7 +261,7 @@ namespace wil
     RETURN_IF_FAILED(stringConstructor.Validate(bytesRead));
 
     wil::unique_hstring string { stringConstructor.Promote() };
-    ~~~
+    @endcode
 
     See also wil::unique_hstring_buffer.
     */
@@ -279,7 +283,8 @@ namespace wil
             return TwoPhaseHStringConstructor{ characterLength };
         }
 
-        //! Returns the HSTRING after it has been populated like Detatch() or release(); be sure to put this in a RAII type to manage its lifetime.
+        //! Returns the HSTRING after it has been populated like Detatch() or release(); be sure to put this in a RAII type to manage
+        //! its lifetime.
         HSTRING Promote()
         {
             m_characterLength = 0;
@@ -539,7 +544,7 @@ namespace wil
 
     /** Range base for and STL algorithms support for WinRT ABI collection types, IVector<T>, IVectorView<T>, IIterable<T>
     similar to support provided by <collection.h> for C++ CX. Three error handling policies are supported.
-    ~~~
+    @code
     ComPtr<CollectionType> collection = GetCollection(); // can be IVector<HSTRING>, IVectorView<HSTRING> or IIterable<HSTRING>
 
     for (auto const& element : wil::get_range(collection.Get()))                // exceptions
@@ -548,16 +553,16 @@ namespace wil
     {
        // use element
     }
-    ~~~
+    @endcode
     Standard algorithm example:
-    ~~~
+    @code
     ComPtr<IVectorView<StorageFile*>> files = GetFiles();
     auto fileRange = wil::get_range_nothrow(files.Get());
     auto itFound = std::find_if(fileRange.begin(), fileRange.end(), [](ComPtr<IStorageFile> file) -> bool
     {
          return true; // first element in range
     });
-    ~~~
+    @endcode
     */
 #pragma region exception and fail fast based IVector<>/IVectorView<>
 
@@ -577,7 +582,7 @@ namespace wil
         class vector_iterator
         {
         public:
-#ifdef _XUTILITY_
+#if defined(_XUTILITY_) || defined(WIL_DOXYGEN)
             // could be random_access_iterator_tag but missing some features
             typedef ::std::bidirectional_iterator_tag iterator_category;
 #endif
@@ -762,7 +767,7 @@ namespace wil
         class vector_iterator_nothrow
         {
         public:
-#ifdef _XUTILITY_
+#if defined(_XUTILITY_) || defined(WIL_DOXYGEN)
             // must be input_iterator_tag as use (via ++, --, etc.) of one invalidates the other.
             typedef ::std::input_iterator_tag iterator_category;
 #endif
@@ -898,7 +903,7 @@ namespace wil
         class iterable_iterator
         {
         public:
-#ifdef _XUTILITY_
+#if defined(_XUTILITY_) || defined(WIL_DOXYGEN)
             typedef ::std::forward_iterator_tag iterator_category;
 #endif
             typedef TSmart value_type;
@@ -1002,16 +1007,17 @@ namespace wil
     };
 #pragma endregion
 
-#if defined(__WI_HAS_STD_VECTOR)
+#if defined(__WI_HAS_STD_VECTOR) || defined(WIL_DOXYGEN)
     /** Converts WinRT vectors to std::vector by requesting the collection's data in a single
     operation. This can be more efficient in terms of IPC cost than iteratively processing it.
-    ~~~
+    @code
     ComPtr<IVector<IPropertyValue*>> values = GetValues();
     std::vector<ComPtr<IPropertyValue>> allData = wil::to_vector(values);
     for (ComPtr<IPropertyValue> const& item : allData)
     {
         // use item
     }
+    @endcode
     Can be used for ABI::Windows::Foundation::Collections::IVector<T> and
     ABI::Windows::Foundation::Collections::IVectorView<T>
     */
@@ -1088,7 +1094,7 @@ namespace wil
         class iterable_iterator_nothrow
         {
         public:
-#ifdef _XUTILITY_
+#if defined(_XUTILITY_) || defined(WIL_DOXYGEN)
             // muse be input_iterator_tag as use of one instance invalidates the other.
             typedef ::std::input_iterator_tag iterator_category;
 #endif
@@ -1227,9 +1233,8 @@ namespace wil
     {
         return iterable_range_nothrow<T>(v, result);
     }
-}
-
 #pragma endregion
+}
 
 #ifdef WIL_ENABLE_EXCEPTIONS
 
@@ -1279,10 +1284,9 @@ namespace ABI {
 #if defined(MIDL_NS_PREFIX) || defined(____x_ABI_CWindows_CFoundation_CIClosable_FWD_DEFINED__)
 } // namespace ABI
 #endif
+#pragma endregion
 
 #endif // WIL_ENABLE_EXCEPTIONS
-
-#pragma endregion
 
 namespace wil
 {
@@ -1560,7 +1564,8 @@ hr = run_when_complete_nothrow<StorageFile*>(getFileOp.Get(), [](HRESULT hr, ISt
 ~~~
 */
 
-//! Run a fuction when an async operation completes. Use Microsoft::WRL::FtmBase for TAgility to make the completion handler agile and run on the async thread.
+//! Run a fuction when an async operation completes. Use Microsoft::WRL::FtmBase for TAgility to make the completion handler agile
+//! and run on the async thread.
 template<typename TAgility = IUnknown, typename TFunc>
 HRESULT run_when_complete_nothrow(_In_ ABI::Windows::Foundation::IAsyncAction* operation, TFunc&& func) WI_NOEXCEPT
 {
@@ -1586,7 +1591,8 @@ HRESULT run_when_complete_nothrow(_In_ ABI::Windows::Foundation::IAsyncActionWit
 }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
-//! Run a fuction when an async operation completes. Use Microsoft::WRL::FtmBase for TAgility to make the completion handler agile and run on the async thread.
+//! Run a fuction when an async operation completes. Use Microsoft::WRL::FtmBase for TAgility to make the completion handler agile
+//! and run on the async thread.
 template<typename TAgility = IUnknown, typename TFunc>
 void run_when_complete(_In_ ABI::Windows::Foundation::IAsyncAction* operation, TFunc&& func)
 {
@@ -1819,8 +1825,8 @@ namespace details
         void OnCancel() override { }
     };
 }
-
 /// @endcond
+
 //! Creates a WinRT async operation object that implements IAsyncOperation<TResult>. Use mostly for testing and for mocking APIs.
 template <typename TResult>
 HRESULT make_synchronous_async_operation_nothrow(ABI::Windows::Foundation::IAsyncOperation<TResult>** result, const TResult& value)
@@ -2085,6 +2091,7 @@ private:
     removal_func m_removalFunction = nullptr;
 };
 
+/// @cond
 namespace details
 {
 #ifdef __cplusplus_winrt
@@ -2131,6 +2138,7 @@ namespace details
     }
 
 } // namespace details
+/// @endcond
 
 // Helper macros to abstract function names for event addition and removal.
 #ifdef __cplusplus_winrt
@@ -2181,7 +2189,7 @@ namespace details
 } // namespace wil
 
 #if (NTDDI_VERSION >= NTDDI_WINBLUE)
-
+/// @cond
 template <>
 struct ABI::Windows::Foundation::IAsyncOperation<ABI::Windows::Foundation::IAsyncAction*> :
     ABI::Windows::Foundation::IAsyncOperation_impl<ABI::Windows::Foundation::IAsyncAction*>
@@ -2301,6 +2309,7 @@ struct ABI::Windows::Foundation::IAsyncOperationWithProgressCompletedHandler<ABI
         return L"IAsyncOperationWithProgressCompletedHandler<IAsyncOperationWithProgress<T,P>*,Z>";
     }
 };
+/// @endcond
 #endif // NTDDI_VERSION >= NTDDI_WINBLUE
 
 #if !defined(MIDL_NS_PREFIX) && !defined(____x_ABI_CWindows_CFoundation_CIClosable_FWD_DEFINED__)

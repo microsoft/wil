@@ -8,6 +8,9 @@
 //    PARTICULAR PURPOSE AND NONINFRINGEMENT.
 //
 //*********************************************************
+//! @file
+//! WIL Error Handling Helpers: supporting file defining a family of macros and functions designed to uniformly handle errors
+//! across return codes, fail fast, exceptions and logging.
 #ifndef __WIL_RESULTMACROS_INCLUDED
 #define __WIL_RESULTMACROS_INCLUDED
 
@@ -182,6 +185,7 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 
 // Set the default diagnostic mode
 // Note that RESULT_DEBUG_INFO and RESULT_SUPPRESS_DEBUG_INFO are older deprecated models of controlling mode
+/// @cond
 #ifndef RESULT_DIAGNOSTICS_LEVEL
 #if (defined(RESULT_DEBUG) || defined(RESULT_DEBUG_INFO)) && !defined(RESULT_SUPPRESS_DEBUG_INFO)
 #define RESULT_DIAGNOSTICS_LEVEL 5
@@ -204,7 +208,7 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 #ifndef RESULT_INLINE_ERROR_TESTS_FAIL_FAST
 #define RESULT_INLINE_ERROR_TESTS_FAIL_FAST RESULT_INLINE_ERROR_TESTS
 #endif
-
+/// @endcond
 
 //*****************************************************************************
 // Win32 specific error macros
@@ -225,7 +229,7 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 //*****************************************************************************
 // Testing helpers - redefine to run unit tests against fail fast
 //*****************************************************************************
-
+/// @cond
 #ifndef RESULT_NORETURN
 #define RESULT_NORETURN                                     __declspec(noreturn)
 #endif
@@ -235,6 +239,7 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 #ifndef RESULT_NORETURN_RESULT
 #define RESULT_NORETURN_RESULT(expr)                        (void)(expr);
 #endif
+/// @endcond
 
 //*****************************************************************************
 // Helpers to setup the macros and functions used below... do not directly use.
@@ -657,7 +662,9 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 #define RETURN_LAST_ERROR_IF_NULL_EXPECTED(ptr)                 __WI_SUPPRESS_4127_S do { if ((ptr) == nullptr) { return wil::details::GetLastErrorFailHr(); }} __WI_SUPPRESS_4127_E while((void)0, 0)
 #define RETURN_IF_NTSTATUS_FAILED_EXPECTED(status)              __WI_SUPPRESS_4127_S do { const NTSTATUS __statusRet = (status); if (FAILED_NTSTATUS(__statusRet)) { return wil::details::NtStatusToHr(__statusRet); }} __WI_SUPPRESS_4127_E while((void)0, 0)
 
+/// @cond
 #define __WI_OR_IS_EXPECTED_HRESULT(e) || (__hrRet == wil::verify_hresult(e))
+/// @endcond
 #define RETURN_IF_FAILED_WITH_EXPECTED(hr, hrExpected, ...) \
     do \
     { \
@@ -722,7 +729,9 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 #define LOG_LAST_ERROR_IF_NULL_MSG(ptr, fmt, ...)               __R_FN(Log_GetLastErrorIfNullMsg)(__R_INFO(#ptr) ptr, __WI_CHECK_MSG_FMT(fmt, ##__VA_ARGS__))
 #define LOG_IF_NTSTATUS_FAILED_MSG(status, fmt, ...)            __R_FN(Log_IfNtStatusFailedMsg)(__R_INFO(#status) status, __WI_CHECK_MSG_FMT(fmt, ##__VA_ARGS__))
 
+/// @cond
 #define __WI_COMMA_EXPECTED_HRESULT(e) , wil::verify_hresult(e)
+/// @endcond
 #define LOG_IF_FAILED_WITH_EXPECTED(hr, hrExpected, ...)        __R_FN(Log_IfFailedWithExpected)(__R_INFO(#hr) wil::verify_hresult(hr), WI_ARGS_COUNT(__VA_ARGS__) + 1, wil::verify_hresult(hrExpected) WI_FOREACH(__WI_COMMA_EXPECTED_HRESULT, ##__VA_ARGS__))
 
 //*****************************************************************************
@@ -902,6 +911,7 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 //*****************************************************************************
 // Internal Error Macros - DO NOT USE - these are for internal WIL use only to reduce sizes of binaries that use WIL
 //*****************************************************************************
+/// @cond
 #ifdef RESULT_DEBUG
 #define __WIL_PRIVATE_RETURN_IF_FAILED(hr)                   RETURN_IF_FAILED(hr)
 #define __WIL_PRIVATE_RETURN_HR_IF(hr, cond)                 RETURN_HR_IF(hr, cond)
@@ -925,6 +935,7 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 #define __WIL_PRIVATE_FAIL_FAST_HR(hr)                       __RFF_FN(FailFast_Hr)(__RFF_INFO_NOFILE(#hr) wil::verify_hresult(hr))
 #define __WIL_PRIVATE_LOG_HR(hr)                             __R_FN(Log_Hr)(__R_INFO_NOFILE(#hr) wil::verify_hresult(hr))
 #endif
+/// @endcond
 
 namespace wil
 {
@@ -993,10 +1004,10 @@ namespace wil
     };
 
     //! Created automatically from using WI_DIAGNOSTICS_INFO to provide diagnostics to functions.
-    //! Note that typically wil hides diagnostics from users under the covers by passing them automatically to functions as
-    //! parameters hidden behind a macro.  In some cases, the user needs to directly supply these, so this class provides
-    //! the mechanism for that.  We only use this for user-passed content as it can't be directly controlled by RESULT_DIAGNOSTICS_LEVEL
-    //! to ensure there are no ODR violations (though that variable still controls what parameters within this structure would be available).
+    //! Note that typically wil hides diagnostics from users under the covers by passing them automatically to functions as parameters
+    //! hidden behind a macro.  In some cases, the user needs to directly supply these, so this class provides the mechanism for that.
+    //! We only use this for user-passed content as it can't be directly controlled by RESULT_DIAGNOSTICS_LEVEL to ensure there are no
+    //! ODR violations (though that variable still controls what parameters within this structure would be available).
     struct DiagnosticsInfo
     {
         void* returnAddress = nullptr;
@@ -2048,8 +2059,8 @@ __WI_POP_WARNINGS
                 //  2) Your macro check against the error is not immediately after the API call.  Pushing it later can result
                 //      in another API call between the previous one and the check resetting the last error.
                 //  3) The API you're calling has a bug in it and does not accurately set the last error (there are a few
-                //      examples here, such as SendMessageTimeout() that don't accurately set the last error).  For these,
-                //      please send mail to 'wildisc' when found and work-around with win32errorhelpers.
+                //      examples here, such as SendMessageTimeout() that don't accurately set the last error).
+                //      [MSFT internal] For these, please send mail to 'wildisc' when found and work-around with win32errorhelpers.
 
                 WI_USAGE_ERROR_FORWARD("CALLER BUG: Macro usage error detected.  GetLastError() does not have an error.");
                 return ERROR_ASSERTION_FAILURE;
@@ -2295,7 +2306,7 @@ __WI_POP_WARNINGS
     //
     // Calling WilInitialize_ResultMacros_DesktopOrSystem_SuppressPrivateApiUse provides:
     // - The name of the current module in wil::FailureInfo::pszModule
-    // - The name of the returning-to module during wil\staging.h failures
+    // - The name of the returning-to module during wil/staging.h failures
     //*****************************************************************************
 
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
@@ -2602,7 +2613,8 @@ __WI_POP_WARNINGS
     //! This class stores all of the FailureInfo context that is available when the exception is thrown.  It's also caught by
     //! exception guards for automatic conversion to HRESULT.
     //!
-    //! In c++/cx, Platform::Exception^ is used instead of this class (unless @ref wil::g_fResultThrowPlatformException has been changed).
+    //! In c++/cx, Platform::Exception^ is used instead of this class (unless @ref wil::g_fResultThrowPlatformException has been
+    //! changed).
     class ResultException : public std::exception
     {
     public:
@@ -2731,7 +2743,8 @@ __WI_POP_WARNINGS
         return __HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION);
     }
 
-    //! Identical to 'throw;', but can be called from error-code neutral code to rethrow in code that *may* be running under an exception context
+    //! Identical to 'throw;', but can be called from error-code neutral code to rethrow in code that *may* be running under an
+    //! exception context
     inline void RethrowCaughtException()
     {
         // We always want to rethrow the exception under normal circumstances.  Ordinarily, we could actually guarantee
@@ -2754,7 +2767,7 @@ __WI_POP_WARNINGS
         }
     }
 
-    //! @cond
+    /// @cond
     namespace details
     {
 #ifdef WIL_ENABLE_EXCEPTIONS
@@ -3332,6 +3345,7 @@ __WI_POP_WARNINGS
         });
 
     }
+    /// @endcond
 
     //! A lambda-based exception guard that can vary the supported exception types.
     //! This function accepts a lambda and diagnostics information as its parameters and executes that lambda
@@ -3341,8 +3355,6 @@ __WI_POP_WARNINGS
     //! Note that an overload exists that does not report failures to telemetry at all.  This version should be preferred
     //! to that version.  Also note that neither of these versions are preferred over using try catch blocks to accomplish
     //! the same thing as they will be more efficient.
-    //!
-    //! See @ref page_exception_guards for more information and examples on exception guards.
     //! ~~~~
     //! return wil::ResultFromException(WI_DIAGNOSTICS_INFO, [&]
     //! {
@@ -3378,8 +3390,6 @@ __WI_POP_WARNINGS
     //! This version (taking only a lambda) does not report failures to telemetry.  An overload with the same name
     //! can be utilized by passing `WI_DIAGNOSTICS_INFO` as the first parameter and the lambda as the second parameter
     //! to report failure information to telemetry.
-    //!
-    //! See @ref page_exception_guards for more information and examples on exception guards.
     //! ~~~~
     //! hr = wil::ResultFromException([&]
     //! {
@@ -3438,9 +3448,8 @@ __WI_POP_WARNINGS
     //! exception, you can use this function to quickly add an exception guard that will fail-fast any exception at the point
     //! the exception occurs (the throw) in a codepath where the origination of unknown exceptions need to be tracked down.
     //!
-    //! Also see @ref ResultFromExceptionDebugNoStdException.  It functions almost identically, but also will fail-fast and stop
-    //! on std::exception based exceptions (but not Platform::Exception^ or wil::ResultException).  Using this can help isolate
-    //! where an unexpected exception is being generated from.
+    //! This will fail-fast and stop on std::exception based exceptions (but not Platform::Exception^ or wil::ResultException).
+    //! Using this can help isolate where an unexpected exception is being generated from.
     //! @param diagnostics  Always pass WI_DIAGNOSTICS_INFO as the first parameter
     //! @param supported    What kind of exceptions you want to support
     //! @param functor      A lambda that accepts no parameters; any return value is ignored
@@ -3477,6 +3486,7 @@ __WI_POP_WARNINGS
         wil::details::ResultFromExceptionDebug(diagnostics, SupportedExceptions::None, functorObject);
     }
 
+    /// @cond
     namespace details {
 
 #endif  // WIL_ENABLE_EXCEPTIONS

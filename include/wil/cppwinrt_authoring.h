@@ -8,10 +8,13 @@
 //    PARTICULAR PURPOSE AND NONINFRINGEMENT.
 //
 //*********************************************************
+//! @file
+//! Helpers that make authoring C++/WinRT components easier.
 
 namespace wil
 {
 #ifndef __WIL_CPPWINRT_AUTHORING_PROPERTIES_INCLUDED
+    /// @cond
 #define __WIL_CPPWINRT_AUTHORING_PROPERTIES_INCLUDED
     namespace details
     {
@@ -30,6 +33,7 @@ namespace wil
             }
         };
     }
+    /// @endcond
 
     template <typename T>
     struct single_threaded_property : std::conditional_t<std::is_scalar_v<T> || std::is_final_v<T>, wil::details::single_threaded_property_storage<T>, T>
@@ -87,7 +91,8 @@ namespace wil
 
 #endif // __WIL_CPPWINRT_AUTHORING_PROPERTIES_INCLUDED
 
-#if !defined(__WIL_CPPWINRT_AUTHORING_INCLUDED_FOUNDATION) && defined(WINRT_Windows_Foundation_H) // WinRT / XAML helpers
+#if (!defined(__WIL_CPPWINRT_AUTHORING_INCLUDED_FOUNDATION) && defined(WINRT_Windows_Foundation_H)) || defined(WIL_DOXYGEN) // WinRT / XAML helpers
+    /// @cond
 #define __WIL_CPPWINRT_AUTHORING_INCLUDED_FOUNDATION
     namespace details
     {
@@ -112,16 +117,19 @@ namespace wil
             winrt::event<T> m_handler;
         };
     }
+    /// @endcond
 
     /**
-     * @brief A default event handler that maps to [Windows.Foundation.EventHandler](https://docs.microsoft.com/uwp/api/windows.foundation.eventhandler-1).
+     * @brief A default event handler that maps to
+     * [Windows.Foundation.EventHandler](https://docs.microsoft.com/uwp/api/windows.foundation.eventhandler-1).
      * @tparam T The event data type.
     */
     template<typename T>
     struct untyped_event : wil::details::event_base<winrt::Windows::Foundation::EventHandler<T>> {};
 
     /**
-     * @brief A default event handler that maps to [Windows.Foundation.TypedEventHandler](https://docs.microsoft.com/uwp/api/windows.foundation.typedeventhandler-2).
+     * @brief A default event handler that maps to
+     * [Windows.Foundation.TypedEventHandler](https://docs.microsoft.com/uwp/api/windows.foundation.typedeventhandler-2).
      * @tparam T The event data type.
      * @details Usage example:
      * @code
@@ -135,7 +143,8 @@ namespace wil
 
 #endif // !defined(__WIL_CPPWINRT_AUTHORING_INCLUDED_FOUNDATION) && defined(WINRT_Windows_Foundation_H)
 
-#if !defined(__WIL_CPPWINRT_AUTHORING_INCLUDED_XAML_DATA) && (defined(WINRT_Microsoft_UI_Xaml_Data_H) || defined(WINRT_Windows_UI_Xaml_Data_H)) // INotifyPropertyChanged helpers
+#if (!defined(__WIL_CPPWINRT_AUTHORING_INCLUDED_XAML_DATA) && (defined(WINRT_Microsoft_UI_Xaml_Data_H) || defined(WINRT_Windows_UI_Xaml_Data_H))) || defined(WIL_DOXYGEN) // INotifyPropertyChanged helpers
+    /// @cond
 #define __WIL_CPPWINRT_AUTHORING_INCLUDED_XAML_DATA
     namespace details
     {
@@ -147,16 +156,18 @@ namespace wil
         using Xaml_Data_PropertyChangedEventArgs = winrt::Windows::UI::Xaml::Data::PropertyChangedEventArgs;
 #endif
     }
+    /// @endcond
 
     /**
-     * @brief Helper base class to inherit from to have a simple implementation of [INotifyPropertyChanged](https://docs.microsoft.com/uwp/api/windows.ui.xaml.data.inotifypropertychanged).
+     * @brief Helper base class to inherit from to have a simple implementation of
+     * [INotifyPropertyChanged](https://docs.microsoft.com/uwp/api/windows.ui.xaml.data.inotifypropertychanged).
      * @tparam T CRTP type
      * @details When you declare your class, make this class a base class and pass your class as a template parameter:
      * @code
      * struct MyPage : MyPageT<MyPage>, wil::notify_property_changed_base<MyPage>
      * {
-     *     wil::single_threaded_notifying_property<int> MyInt; 
-     *     MyPage() : INIT_NOTIFYING_PROPERTY(MyInt, 42) { } 
+     *     wil::single_threaded_notifying_property<int> MyInt;
+     *     MyPage() : INIT_NOTIFYING_PROPERTY(MyInt, 42) { }
      *     // or
      *     WIL_NOTIFYING_PROPERTY(int, MyInt, 42);
      * };
@@ -172,12 +183,12 @@ namespace wil
         {
             return m_propertyChanged.add(value);
         }
-        
+
         void PropertyChanged(winrt::event_token const& token)
         {
             m_propertyChanged.remove(token);
         }
-        
+
         Type& self()
         {
             return *static_cast<Type*>(this);
@@ -211,8 +222,9 @@ namespace wil
     /**
      * @brief Implements a property type with notifications
      * @tparam T the property type
-     * @details Use the #INIT_NOTIFY_PROPERTY macro to initialize this property in your class constructor. This will set up the right property name, and bind it to the `notify_property_changed_base` implementation.
-    */
+     * @details Use the INIT_NOTIFY_PROPERTY macro to initialize this property in your class constructor. This will set up the
+     *          right property name, and bind it to the `notify_property_changed_base` implementation.
+     */
     template<typename T,
         typename Xaml_Data_PropertyChangedEventHandler = wil::details::Xaml_Data_PropertyChangedEventHandler,
         typename Xaml_Data_PropertyChangedEventArgs = wil::details::Xaml_Data_PropertyChangedEventArgs>
@@ -263,7 +275,8 @@ namespace wil
 
     /**
     * @def WIL_NOTIFYING_PROPERTY
-    * @brief use this to stamp out a property that calls RaisePropertyChanged upon changing its value. This is a zero-storage alternative to wil::single_threaded_notifying_property<T>
+    * @brief use this to stamp out a property that calls RaisePropertyChanged upon changing its value. This is a zero-storage
+    *        alternative to wil::single_threaded_notifying_property<T>.
     * @details You can pass an initializer list for the initial property value in the variadic arguments to this macro.
     */
 #define WIL_NOTIFYING_PROPERTY(type, name, ...)             \

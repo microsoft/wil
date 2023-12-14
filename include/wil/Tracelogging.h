@@ -9,9 +9,13 @@
 //    PARTICULAR PURPOSE AND NONINFRINGEMENT.
 //
 //*********************************************************
+//! @file
+//! Defines a series of macros and types that simplify authoring and consumption of tracelogging, telemetry, and activities.
 
 #ifndef __WIL_TRACELOGGING_H_INCLUDED
+/// @cond
 #define __WIL_TRACELOGGING_H_INCLUDED
+/// @endcond
 
 #ifdef _KERNEL_MODE
 #error This header is not supported in kernel-mode.
@@ -19,7 +23,9 @@
 
 // Note that we avoid pulling in STL's memory header from TraceLogging.h through Resource.h as we have
 // TraceLogging customers who are still on older versions of STL (without std::shared_ptr<>).
+/// @cond
 #define RESOURCE_SUPPRESS_STL
+/// @endcond
 #ifndef __WIL_RESULT_INCLUDED
 #include <wil/result.h>
 #endif
@@ -42,6 +48,7 @@
 #pragma clang diagnostic ignored "-Wmicrosoft-template-shadow"
 #endif
 
+/// @cond
 #ifndef __TRACELOGGING_TEST_HOOK_ERROR
 #define __TRACELOGGING_TEST_HOOK_ERROR(failure)
 #define __TRACELOGGING_TEST_HOOK_ACTIVITY_ERROR(failure)
@@ -53,7 +60,7 @@
 #define __TRACELOGGING_TEST_HOOK_API_TELEMETRY_EVENT_DELAY_MS 5000
 #endif
 
-// For use only within wil\TraceLogging.h:
+// For use only within wil/TraceLogging.h:
 #define _wiltlg_STRINGIZE(x)       _wiltlg_STRINGIZE_imp(x)
 #define _wiltlg_STRINGIZE_imp(x)   #x
 #define _wiltlg_LSTRINGIZE(x)      _wiltlg_LSTRINGIZE_imp1(x)
@@ -148,6 +155,7 @@ TlgReflector static analysis tool.
     TelemetryPrivacyDataTag(PDT_ProductAndServicePerformance), \
     TraceLoggingStruct(17, "wilResult"), \
     __RESULT_TRACELOGGING_COMMON_FAILURE_PARAMS(failure)
+/// @endcond
 
 namespace wil
 {
@@ -707,6 +715,7 @@ namespace wil
         }
     };
 
+/// @cond
 #define __WI_TraceLoggingWriteTagged(activity, name, ...) \
     __pragma(warning(push)) __pragma(warning(disable:4127)) \
     do { \
@@ -719,7 +728,7 @@ namespace wil
             __VA_ARGS__); \
     } while(0) \
     __pragma(warning(pop)) \
-
+/// @endcond
 
     // This is the ultimate base class implementation for all activities.  Activity classes are defined with
     // DEFINE_TRACELOGGING_ACTIVITY, DEFINE_CALLCONTEXT_ACTIVITY, DEFINE_TELEMETRY_ACTIVITY and others
@@ -1238,7 +1247,7 @@ namespace wil
 
 // Internal MACRO implementation of Activities.
 // Do NOT use these macros directly.
-
+/// @cond
 #define __WI_TraceLoggingWriteStart(activity, name, ...) \
     __pragma(warning(push)) __pragma(warning(disable:4127)) \
     do { \
@@ -1406,6 +1415,7 @@ namespace wil
 
 #define __END_TRACELOGGING_ACTIVITY_CLASS() \
     };
+/// @endcond
 
 #ifdef _GENERIC_PARTB_FIELDS_ENABLED
     #define DEFINE_TAGGED_TRACELOGGING_EVENT(EventId, ...) \
@@ -1889,7 +1899,7 @@ namespace wil
 
 // Internal MACRO implementation of TraceLogging classes.
 // Do NOT use these macros directly.
-
+/// @cond
 #define __IMPLEMENT_TRACELOGGING_CLASS_BASE(TraceLoggingClassName, TraceLoggingProviderOwnerClassName) \
     public: \
         typedef TraceLoggingProviderOwnerClassName TraceLoggingType; \
@@ -1990,6 +2000,7 @@ namespace wil
         void Create() WI_NOEXCEPT \
             { Register(m_staticHandle.handle); } \
     public:
+/// @endcond
 
 #ifdef _GENERIC_PARTB_FIELDS_ENABLED
     #define DEFINE_TRACELOGGING_EVENT(EventId, ...) \
@@ -3455,6 +3466,7 @@ WIL_WARN_DEPRECATED_1612_PRAGMA("IMPLEMENT_TRACELOGGING_CLASS")
 #define TRACELOGGING_WRITE_TAGGED_EVENT             TraceLoggingClassWriteTagged
 #define TELEMETRY_WRITE_TAGGED_EVENT                TraceLoggingClassWriteTaggedTelemetry
 
+/// @cond
 // [deprecated]
 // DO NOT USE these concepts
 // These should be removed post RI/FI cycle...
@@ -3484,6 +3496,7 @@ WIL_WARN_DEPRECATED_1612_PRAGMA("IMPLEMENT_TRACELOGGING_CLASS")
 #define __DEFINE_TAGGED_EVENT_UINT32                DEFINE_TAGGED_TRACELOGGING_EVENT_UINT32
 #define __DEFINE_TAGGED_EVENT_BOOL                  DEFINE_TAGGED_TRACELOGGING_EVENT_BOOL
 #define __DEFINE_TAGGED_EVENT_STRING                DEFINE_TAGGED_TRACELOGGING_EVENT_STRING
+/// @endcond
 
 template <typename T>
 class ActivityErrorTracer
@@ -3894,6 +3907,7 @@ namespace wil
 // exception being thrown if process is getting terminated and dll in which ApiTelemetryLogger is not getting dynamically
 // unloaded. For more details about lpReserved parameter, please refer to MSDN.
 
+/// @cond
 #define __WI_LOG_CLASS_API_USE3(className, apiName, specialization) \
     do \
     { \
@@ -3910,6 +3924,7 @@ namespace wil
     __WI_LOG_CLASS_API_USE3(InternalGetRuntimeClassName(), apiName, specialization)
 #define __WI_LOG_API_USE1(apiName) \
     __WI_LOG_CLASS_API_USE3(InternalGetRuntimeClassName(), apiName, nullptr)
+/// @endcond
 
 #define WI_LOG_CLASS_API_USE(...) \
     WI_MACRO_DISPATCH(__WI_LOG_CLASS_API_USE, __VA_ARGS__)
