@@ -12,6 +12,10 @@ struct dummy
     char value;
 };
 
+#if _HAS_CXX17
+    using namespace wil::literals;
+#endif // _HAS_CXX17
+
 // Specialize std::allocator<> so that we don't actually allocate/deallocate memory
 dummy g_memoryBuffer[256];
 namespace std
@@ -118,6 +122,26 @@ TEST_CASE("StlTests::TestZStringView", "[stl][zstring_view]")
     CustomNoncopyableString customString;
     wil::zstring_view fromCustomString(customString);
     REQUIRE(fromCustomString == (PCSTR)customString);
+}
+
+TEST_CASE("StlTests::TestZWStringView literal", "[stl][zwstring_view]") {
+
+    SECTION("Literal creates correct zwstring_view") {
+        auto str = L"Hello, world!"_zv;
+        REQUIRE(str.length() == 13);
+        REQUIRE(str[0] == L'H');
+        REQUIRE(str[12] == L'!');
+    }
+}
+
+TEST_CASE("StlTests::TestZStringView literal", "[stl][zstring_view]") {
+
+    SECTION("Literal creates correct zstring_view") {
+        auto str = "Hello, world!"_zv;
+        REQUIRE(str.length() == 13);
+        REQUIRE(str[0] == 'H');
+        REQUIRE(str[12] == '!');
+    }
 }
 
 TEST_CASE("StlTests::TestZWStringView", "[stl][zstring_view]")

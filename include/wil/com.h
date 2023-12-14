@@ -3002,6 +3002,155 @@ namespace wil
 
 #endif // __IObjectWithSite_INTERFACE_DEFINED__
 
+
+// if C++17 or greater
+#if WIL_HAS_CXX_17
+#ifdef WIL_ENABLE_EXCEPTIONS
+namespace details
+{
+    template<typename>
+    struct com_enumerator_next_traits;
+
+    template<typename Itf, typename T, typename Ret>
+    struct com_enumerator_next_traits<Ret(__stdcall Itf::*)(ULONG, T*, ULONG*)>
+    {
+        using Interface = Itf;
+        using Result = T;
+    };
+
+    template<typename Itf, typename T, typename Ret>
+    struct com_enumerator_next_traits<Ret(__stdcall Itf::*)(ULONG, T*, ULONG*) noexcept>
+    {
+        using Interface = Itf;
+        using Result = T;
+    };
+
+    template<typename T>
+    struct has_next
+    {
+        template <typename U = T>
+        static auto test(int) -> decltype(wistd::declval<U>()->Next(0, nullptr, nullptr), wistd::true_type{});
+
+        template <typename>
+        static auto test(...) -> wistd::false_type;
+
+        static constexpr bool value = decltype(test<T>(0))::value;
+    };
+
+    template<typename T>
+    constexpr bool has_next_v = has_next<T>::value;
+
+    template<typename Interface>
+    struct com_enumerator_traits
+    {
+        using Result = typename com_enumerator_next_traits<decltype(&Interface::Next)>::Result;
+        // If the result is a COM pointer type (IFoo*), then we use wil::com_ptr<IFoo>. Otherwise, we use the raw pointer type IFoo*.
+        using smart_result = wistd::conditional_t<wistd::is_pointer_v<Result> && wistd::is_base_of_v<::IUnknown, wistd::remove_pointer_t<Result>>,
+            wil::com_ptr<wistd::remove_pointer_t<Result>>, Result>;
+    };
+}
+
+template <typename IEnumType, typename TStoredType = typename details::com_enumerator_traits<IEnumType>::smart_result>
+struct com_iterator
+{
+    wil::com_ptr<IEnumType> m_enum{};
+    TStoredType m_currentValue{};
+
+    com_iterator(com_iterator&&) = default;
+    com_iterator(com_iterator const&) = default;
+    com_iterator& operator=(com_iterator&&) = default;
+    com_iterator& operator=(com_iterator const&) = default;
+
+    com_iterator(IEnumType* enumPtr) : m_enum(enumPtr)
+    {
+        FetchNext();
+    }
+
+    auto operator->()
+    {
+        return wistd::addressof(m_currentValue);
+    }
+
+    auto& operator*()
+    {
+        return m_currentValue;
+    }
+
+    const auto& operator*() const
+    {
+        return m_currentValue;
+    }
+
+    com_iterator& operator++()
+    {
+        // If we're already at the end, don't try to advance. Otherwise, use Next to advance.
+        if (m_enum)
+        {
+            FetchNext();
+        }
+
+        return *this;
+    }
+
+    bool operator!=(com_iterator const& other) const
+    {
+        return !(*this == other);
+    }
+
+    bool operator==(com_iterator const& other) const
+    {
+        return (m_enum.get() == other.m_enum.get());
+    }
+
+private:
+    void FetchNext()
+    {
+        if (m_enum)
+        {
+            // we cannot say m_currentValue = {} because com_ptr has 2 operator= overloads: one for T* and one for nullptr_t
+            m_currentValue = TStoredType{};
+            auto hr = m_enum->Next(1, &m_currentValue, nullptr);
+            if (hr == S_FALSE)
+            {
+                m_enum = nullptr;
+            }
+            else 
+            {
+                THROW_IF_FAILED_MSG(hr, "Failed to get next");
+            }
+        }
+    }
+};
+
+
+template<typename IEnumXxx, wistd::enable_if_t<wil::details::has_next_v<IEnumXxx*>, int> = 0>
+WI_NODISCARD auto make_range(IEnumXxx* enumPtr)
+{
+    struct iterator_range
+    {
+        using TStoredType = typename wil::details::com_enumerator_traits<IEnumXxx>::smart_result;
+        com_iterator<IEnumXxx, TStoredType> m_begin;
+
+        iterator_range(IEnumXxx* enumPtr) : m_begin(enumPtr)
+        {
+        }
+
+        WI_NODISCARD auto begin()
+        {
+            return m_begin;
+        }
+
+        WI_NODISCARD constexpr auto end() const noexcept
+        {
+            return com_iterator<IEnumXxx, TStoredType>(nullptr);
+        }
+    };
+
+    return iterator_range(enumPtr);
+}
+#endif // WIL_HAS_CXX_17
+#endif // WIL_ENABLE_EXCEPTIONS
+
 } // wil
 
 #endif

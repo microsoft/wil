@@ -1233,7 +1233,7 @@ namespace wil
 
         struct ResultStatus
         {
-            enum Kind : unsigned int { HResult, NtStatus };
+            enum class Kind : unsigned int { HResult, NtStatus };
 
             static ResultStatus FromResult(const HRESULT _hr)
             {
