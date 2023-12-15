@@ -323,14 +323,14 @@ namespace wil
 
                 const DWORD size = static_cast<DWORD>(sizeof(ProcessLocalStorageData<T>));
 
-                unique_process_heap_ptr<ProcessLocalStorageData<T>> dataAlloc(static_cast<ProcessLocalStorageData<T>*>(details::ProcessHeapAlloc(HEAP_ZERO_MEMORY, size)));
+                unique_process_heap_ptr<void> dataAlloc(details::ProcessHeapAlloc(HEAP_ZERO_MEMORY, size));
                 __WIL_PRIVATE_RETURN_IF_NULL_ALLOC(dataAlloc);
 
                 SemaphoreValue semaphoreValue;
                 __WIL_PRIVATE_RETURN_IF_FAILED(semaphoreValue.CreateFromPointer(name, dataAlloc.get()));
 
                 new(dataAlloc.get()) ProcessLocalStorageData<T>(wistd::move(mutex), wistd::move(semaphoreValue));
-                *data = dataAlloc.release();
+                *data = static_cast<ProcessLocalStorageData<T>*>(dataAlloc.release());
 
                 return S_OK;
             }

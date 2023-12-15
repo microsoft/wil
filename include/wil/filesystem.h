@@ -629,9 +629,9 @@ namespace wil
                     {
                         BOOL cancelRes = CancelIoEx(m_folderHandle.get(), &m_overlapped);
 
-                        // no pending operation to cancel. Maybe StartIo returned 
+                        // no pending operation to cancel. Maybe StartIo returned
                         // an error?
-                        if (!(cancelRes == FALSE && ::GetLastError() == ERROR_NOT_FOUND)) 
+                        if (!(cancelRes == FALSE && ::GetLastError() == ERROR_NOT_FOUND))
                         {
                             DWORD bytesTransferredIgnored = 0;
                             GetOverlappedResult(m_folderHandle.get(), &m_overlapped, &bytesTransferredIgnored, TRUE);
@@ -1032,7 +1032,7 @@ namespace wil
         return S_OK;
     }
 
-#ifdef _CPPUNWIND
+#ifdef WIL_ENABLE_EXCEPTIONS
     /** Get file information for a fixed sized structure, throws on failure.
     ~~~
     auto fileBasicInfo = GetFileInfo<FileBasicInfo>(fileHandle);
@@ -1077,7 +1077,7 @@ namespace wil
     auto handle = wil::try_open_file(filePath.c_str());
     ~~~
     */
-    inline file_and_error_result try_open_file(PCWSTR path, DWORD dwDesiredAccess = FILE_READ_ACCESS,
+    inline file_and_error_result try_open_file(PCWSTR path, DWORD dwDesiredAccess = GENERIC_READ,
         DWORD dwShareMode = FILE_SHARE_READ, DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL,
         bool inheritHandle = false) noexcept
     {
@@ -1092,13 +1092,13 @@ namespace wil
     auto handle = wil::open_file(filePath.c_str());
     ~~~
     */
-    inline wil::unique_hfile open_file(PCWSTR path, DWORD dwDesiredAccess = FILE_READ_ACCESS,
+    inline wil::unique_hfile open_file(PCWSTR path, DWORD dwDesiredAccess = GENERIC_READ,
         DWORD dwShareMode = FILE_SHARE_READ, DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL,
         bool inheritHandle = false) noexcept
     {
-        auto result = try_open_file(path, dwDesiredAccess, dwShareMode, inheritHandle, dwFlagsAndAttributes);
+        auto result = try_open_file(path, dwDesiredAccess, dwShareMode, dwFlagsAndAttributes, inheritHandle);
         THROW_WIN32_IF(result.last_error, !result.file.is_valid());
-        return std::move(result.file);
+        return wistd::move(result.file);
     }
 
     /// @cond
@@ -1125,7 +1125,7 @@ namespace wil
     ~~~
     */
     inline file_and_error_result try_create_new_file(PCWSTR path,
-        DWORD dwDesiredAccess = FILE_READ_ACCESS | FILE_WRITE_ACCESS,
+        DWORD dwDesiredAccess = GENERIC_READ | GENERIC_WRITE,
         DWORD dwShareMode = FILE_SHARE_READ,
         LPSECURITY_ATTRIBUTES lpSecurityAttributes = nullptr,
         DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL,
@@ -1141,7 +1141,7 @@ namespace wil
     ~~~
     */
     inline file_and_error_result try_open_or_create_file(PCWSTR path,
-        DWORD dwDesiredAccess = FILE_READ_ACCESS | FILE_WRITE_ACCESS,
+        DWORD dwDesiredAccess = GENERIC_READ | GENERIC_WRITE,
         DWORD dwShareMode = FILE_SHARE_READ,
         LPSECURITY_ATTRIBUTES lpSecurityAttributes = nullptr,
         DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL,
@@ -1157,7 +1157,7 @@ namespace wil
     ~~~
     */
     inline file_and_error_result try_open_or_truncate_existing_file(PCWSTR path,
-        DWORD dwDesiredAccess = FILE_READ_ACCESS | FILE_WRITE_ACCESS,
+        DWORD dwDesiredAccess = GENERIC_READ | GENERIC_WRITE,
         DWORD dwShareMode = FILE_SHARE_READ,
         LPSECURITY_ATTRIBUTES lpSecurityAttributes = nullptr,
         DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL,
@@ -1173,7 +1173,7 @@ namespace wil
     ~~~
     */
     inline file_and_error_result try_truncate_existing_file(PCWSTR path,
-        DWORD dwDesiredAccess = FILE_READ_ACCESS | FILE_WRITE_ACCESS | GENERIC_WRITE,
+        DWORD dwDesiredAccess = GENERIC_READ | GENERIC_WRITE | GENERIC_WRITE,
         DWORD dwShareMode = FILE_SHARE_READ,
         LPSECURITY_ATTRIBUTES lpSecurityAttributes = nullptr,
         DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL,
@@ -1189,7 +1189,7 @@ namespace wil
     ~~~
     */
     inline wil::unique_hfile create_new_file(PCWSTR path,
-        DWORD dwDesiredAccess = FILE_READ_ACCESS | FILE_WRITE_ACCESS,
+        DWORD dwDesiredAccess = GENERIC_READ | GENERIC_WRITE,
         DWORD dwShareMode = FILE_SHARE_READ,
         LPSECURITY_ATTRIBUTES lpSecurityAttributes = nullptr,
         DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL,
@@ -1198,7 +1198,7 @@ namespace wil
         auto result = try_create_new_file(
             path, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwFlagsAndAttributes, hTemplateFile);
         THROW_WIN32_IF(result.last_error, !result.file.is_valid());
-        return std::move(result.file);
+        return wistd::move(result.file);
     }
 
     /** create using OPEN_ALWAYS, returns the file handle, throws on error.
@@ -1207,7 +1207,7 @@ namespace wil
     ~~~
     */
     inline wil::unique_hfile open_or_create_file(PCWSTR path,
-        DWORD dwDesiredAccess = FILE_READ_ACCESS | FILE_WRITE_ACCESS,
+        DWORD dwDesiredAccess = GENERIC_READ | GENERIC_WRITE,
         DWORD dwShareMode = FILE_SHARE_READ,
         LPSECURITY_ATTRIBUTES lpSecurityAttributes = nullptr,
         DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL,
@@ -1216,7 +1216,7 @@ namespace wil
         auto result = try_open_or_create_file(
             path, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwFlagsAndAttributes, hTemplateFile);
         THROW_WIN32_IF(result.last_error, !result.file.is_valid());
-        return std::move(result.file);
+        return wistd::move(result.file);
     }
 
     /** create using CREATE_ALWAYS, returns the file handle, throws on error.
@@ -1225,7 +1225,7 @@ namespace wil
     ~~~
     */
     inline wil::unique_hfile open_or_truncate_existing_file(PCWSTR path,
-        DWORD dwDesiredAccess = FILE_READ_ACCESS | FILE_WRITE_ACCESS,
+        DWORD dwDesiredAccess = GENERIC_READ | GENERIC_WRITE,
         DWORD dwShareMode = FILE_SHARE_READ,
         LPSECURITY_ATTRIBUTES lpSecurityAttributes = nullptr,
         DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL,
@@ -1234,7 +1234,7 @@ namespace wil
         auto result = try_open_or_truncate_existing_file(
             path, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwFlagsAndAttributes, hTemplateFile);
         THROW_WIN32_IF(result.last_error, !result.file.is_valid());
-        return std::move(result.file);
+        return wistd::move(result.file);
     }
 
     /** create using TRUNCATE_EXISTING, returns the file handle, throws on error.
@@ -1243,7 +1243,7 @@ namespace wil
     ~~~
     */
     inline wil::unique_hfile truncate_existing_file(PCWSTR path,
-        DWORD dwDesiredAccess = FILE_READ_ACCESS | FILE_WRITE_ACCESS,
+        DWORD dwDesiredAccess = GENERIC_READ | GENERIC_WRITE,
         DWORD dwShareMode = FILE_SHARE_READ,
         LPSECURITY_ATTRIBUTES lpSecurityAttributes = nullptr,
         DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL,
@@ -1252,10 +1252,10 @@ namespace wil
         auto result = try_truncate_existing_file(
             path, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwFlagsAndAttributes, hTemplateFile);
         THROW_WIN32_IF(result.last_error, !result.file.is_valid());
-        return std::move(result.file);
+        return wistd::move(result.file);
     }
 
-#endif // _CPPUNWIND
+#endif // WIL_ENABLE_EXCEPTIONS
 #endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && (_WIN32_WINNT >= _WIN32_WINNT_WIN7)
 }
 

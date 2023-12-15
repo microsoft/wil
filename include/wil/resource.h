@@ -256,6 +256,48 @@ namespace wil
         private:
             pointer_storage m_ptr;
         };
+
+        // Determines if it is safe to deallocate a resource without destructing the object
+        template <typename T>
+        struct needs_destruction
+        {
+            template <typename U>
+            static auto invoke(int) -> wistd::bool_constant<sizeof(U) >= 0>; // Always true, but SFINAE's if incomplete type
+            template <typename U>
+            static auto invoke(float) -> wistd::false_type;
+
+            // A type needs destruction if:
+            //      1.  It is a complete type,
+            //      2.  It can be destructed, and
+            //      3.  It's not trivially destructible
+            // Note that we need the "complete type" check because some places use an undefined struct as a type-safe
+            // resource type (e.g. 'typedef struct tagSERIALIZEDPROPSTORAGE SERIALIZEDPROPSTORAGE')
+            static constexpr const bool value = wistd::conjunction_v<
+                decltype(invoke<wistd::remove_extent_t<T>>(0)),
+                wistd::is_destructible<wistd::remove_extent_t<T>>,
+                wistd::negation<wistd::is_trivially_destructible<wistd::remove_extent_t<T>>>
+                >;
+        };
+
+        template <typename T>
+        constexpr bool needs_destruction_v = needs_destruction<T>::value;
+
+        // A pass-through type that statically asserts that the specified type does not need destruction. Useful when
+        // specifying template arguments for various unique_* types where the destructor won't run
+        template <typename T>
+        struct ensure_trivially_destructible
+        {
+            // NOTE: Temporary opt-out for existing code that uses these types incorrectly
+#ifndef WIL_DISABLE_UNIQUE_PTR_DESTRUCTOR_CHECKS
+            // If this static_assert fires, it means you've used a type that is not trivially destructible as a template
+            // argument to a wil::unique* type that will not invoke that object's destructor
+            static_assert(!needs_destruction_v<T>, "Resource type has a non-trivial destructor, but is used in a context where its destructor will not be run");
+#endif
+            using type = T;
+        };
+
+        template <typename T>
+        using ensure_trivially_destructible_t = typename ensure_trivially_destructible<T>::type;
     } // details
     /// @endcond
 
@@ -263,6 +305,7 @@ namespace wil
     // This class when paired with unique_storage and an optional type-specific specialization class implements
     // the same interface as STL's unique_ptr<> for resource handle types.  It is a non-copyable, yet movable class
     // supporting attach (reset), detach (release), retrieval (get()).
+
     template <typename storage_t>
     class unique_any_t : public storage_t
     {
@@ -930,6 +973,8 @@ namespace wil
         template <typename T>
         void operator()(_Pre_opt_valid_ _Frees_ptr_opt_ T) const
         {
+            static_assert(!details::needs_destruction_v<T>,
+                "Resource type has a non-trivial destructor, but is used in a context where its destructor will not be run");
         }
     };
 
@@ -3528,7 +3573,7 @@ namespace wil
 
     struct virtualalloc_deleter
     {
-        template<typename T>
+        template <typename T>
         void operator()(_Pre_valid_ _Frees_ptr_ T* p) const
         {
             ::VirtualFree(p, 0, MEM_RELEASE);
@@ -3537,7 +3582,7 @@ namespace wil
 
     struct mapview_deleter
     {
-        template<typename T>
+        template <typename T>
         void operator()(_Pre_valid_ _Frees_ptr_ T* p) const
         {
             ::UnmapViewOfFile(p);
@@ -3545,7 +3590,7 @@ namespace wil
     };
 
     template <typename T = void>
-    using unique_process_heap_ptr = wistd::unique_ptr<T, process_heap_deleter>;
+    using unique_process_heap_ptr = wistd::unique_ptr<details::ensure_trivially_destructible_t<T>, process_heap_deleter>;
 
     typedef unique_any<PWSTR, decltype(&details::FreeProcessHeap), details::FreeProcessHeap> unique_process_heap_string;
 
@@ -3566,13 +3611,13 @@ namespace wil
     A specialization of wistd::unique_ptr<> that frees via VirtualFree(p, 0, MEM_RELEASE).
     */
     template<typename T = void>
-    using unique_virtualalloc_ptr = wistd::unique_ptr<T, virtualalloc_deleter>;
+    using unique_virtualalloc_ptr = wistd::unique_ptr<details::ensure_trivially_destructible_t<T>, virtualalloc_deleter>;
 
     /** Manages a typed pointer allocated with MapViewOfFile
     A specialization of wistd::unique_ptr<> that frees via UnmapViewOfFile(p).
     */
     template<typename T = void>
-    using unique_mapview_ptr = wistd::unique_ptr<T, mapview_deleter>;
+    using unique_mapview_ptr = wistd::unique_ptr<details::ensure_trivially_destructible_t<T>, mapview_deleter>;
 
 #endif // __WIL_WINBASE_
 
@@ -3861,7 +3906,7 @@ namespace wil
     using hlocal_deleter = function_deleter<decltype(&::LocalFree), LocalFree>;
 
     template <typename T = void>
-    using unique_hlocal_ptr = wistd::unique_ptr<T, hlocal_deleter>;
+    using unique_hlocal_ptr = wistd::unique_ptr<details::ensure_trivially_destructible_t<T>, hlocal_deleter>;
 
     /** Provides `std::make_unique()` semantics for resources allocated with `LocalAlloc()` in a context that may not throw upon
     allocation failure. Use `wil::make_unique_hlocal_nothrow()` for resources returned from APIs that must satisfy a memory allocation
@@ -3884,7 +3929,6 @@ namespace wil
     template <typename T, typename... Args>
     inline typename wistd::enable_if<!wistd::is_array<T>::value, unique_hlocal_ptr<T>>::type make_unique_hlocal_nothrow(Args&&... args)
     {
-        static_assert(wistd::is_trivially_destructible<T>::value, "T has a destructor that won't be run when used with this function; use make_unique instead");
         unique_hlocal_ptr<T> sp(static_cast<T*>(::LocalAlloc(LMEM_FIXED, sizeof(T))));
         if (sp)
         {
@@ -3912,7 +3956,6 @@ namespace wil
     inline typename wistd::enable_if<wistd::is_array<T>::value && wistd::extent<T>::value == 0, unique_hlocal_ptr<T>>::type make_unique_hlocal_nothrow(size_t size)
     {
         typedef typename wistd::remove_extent<T>::type E;
-        static_assert(wistd::is_trivially_destructible<E>::value, "E has a destructor that won't be run when used with this function; use make_unique instead");
         FAIL_FAST_IF((__WI_SIZE_MAX / sizeof(E)) < size);
         size_t allocSize = sizeof(E) * size;
         unique_hlocal_ptr<T> sp(static_cast<E*>(::LocalAlloc(LMEM_FIXED, allocSize)));
@@ -4093,7 +4136,7 @@ namespace wil
     };
 
     template <typename T = void>
-    using unique_hlocal_secure_ptr = wistd::unique_ptr<T, hlocal_secure_deleter>;
+    using unique_hlocal_secure_ptr = wistd::unique_ptr<details::ensure_trivially_destructible_t<T>, hlocal_secure_deleter>;
 
     /** Provides `std::make_unique()` semantics for secure resources allocated with `LocalAlloc()` in a context that may not throw
     upon allocation failure. See the overload of `wil::make_unique_hlocal_nothrow()` for non-array types for more details.
@@ -4249,7 +4292,7 @@ namespace wil
     using hglobal_deleter = function_deleter<decltype(&::GlobalFree), ::GlobalFree>;
 
     template <typename T = void>
-    using unique_hglobal_ptr = wistd::unique_ptr<T, hglobal_deleter>;
+    using unique_hglobal_ptr = wistd::unique_ptr<details::ensure_trivially_destructible_t<T>, hglobal_deleter>;
 
     typedef unique_any<HGLOBAL, decltype(&::GlobalFree), ::GlobalFree> unique_hglobal;
     typedef unique_any<PWSTR, decltype(&::GlobalFree), ::GlobalFree> unique_hglobal_string;
@@ -4883,7 +4926,7 @@ namespace wil
 #define __WIL_WTSAPI
     /// @endcond
     template<typename T>
-    using unique_wtsmem_ptr = wistd::unique_ptr<T, function_deleter<decltype(&WTSFreeMemory), WTSFreeMemory>>;
+    using unique_wtsmem_ptr = wistd::unique_ptr<details::ensure_trivially_destructible_t<T>, function_deleter<decltype(&WTSFreeMemory), WTSFreeMemory>>;
 #endif // __WIL_WTSAPI
 
 #if (defined(_WINSCARD_H_) && !defined(__WIL_WINSCARD_H_) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)) || defined(WIL_DOXYGEN)
@@ -4989,7 +5032,7 @@ namespace wil
     using ncrypt_deleter = function_deleter<decltype(&::NCryptFreeBuffer), NCryptFreeBuffer>;
 
     template <typename T>
-    using unique_ncrypt_ptr = wistd::unique_ptr<T, ncrypt_deleter>;
+    using unique_ncrypt_ptr = wistd::unique_ptr<details::ensure_trivially_destructible_t<T>, ncrypt_deleter>;
 
     typedef unique_any<NCRYPT_PROV_HANDLE, decltype(&::NCryptFreeObject), ::NCryptFreeObject> unique_ncrypt_prov;
     typedef unique_any<NCRYPT_KEY_HANDLE, decltype(&::NCryptFreeObject), ::NCryptFreeObject> unique_ncrypt_key;
@@ -5026,7 +5069,7 @@ namespace wil
     using bcrypt_deleter = function_deleter<decltype(&::BCryptFreeBuffer), BCryptFreeBuffer>;
 
     template <typename T>
-    using unique_bcrypt_ptr = wistd::unique_ptr<T, bcrypt_deleter>;
+    using unique_bcrypt_ptr = wistd::unique_ptr<details::ensure_trivially_destructible_t<T>, bcrypt_deleter>;
 
     typedef unique_any<BCRYPT_ALG_HANDLE, decltype(&details::BCryptCloseAlgorithmProviderNoFlags), details::BCryptCloseAlgorithmProviderNoFlags> unique_bcrypt_algorithm;
     typedef unique_any<BCRYPT_HASH_HANDLE, decltype(&::BCryptDestroyHash), ::BCryptDestroyHash> unique_bcrypt_hash;
@@ -5058,7 +5101,8 @@ namespace wil
     using midl_deleter = function_deleter<decltype(&::MIDL_user_free), MIDL_user_free>;
 
     //! Unique-ptr holding a type allocated by MIDL_user_alloc or returned from an RPC invocation
-    template<typename T = void> using unique_midl_ptr = wistd::unique_ptr<T, midl_deleter>;
+    template<typename T = void>
+    using unique_midl_ptr = wistd::unique_ptr<details::ensure_trivially_destructible_t<T>, midl_deleter>;
 
     //! Unique-ptr for strings allocated by MIDL_user_alloc
     using unique_midl_string = unique_midl_ptr<wchar_t>;
@@ -5094,7 +5138,7 @@ namespace wil
     using cotaskmem_deleter = function_deleter<decltype(&::CoTaskMemFree), ::CoTaskMemFree>;
 
     template <typename T = void>
-    using unique_cotaskmem_ptr = wistd::unique_ptr<T, cotaskmem_deleter>;
+    using unique_cotaskmem_ptr = wistd::unique_ptr<details::ensure_trivially_destructible_t<T>, cotaskmem_deleter>;
 
     template <typename T>
     using unique_cotaskmem_array_ptr = unique_array_ptr<T, cotaskmem_deleter>;
@@ -5120,7 +5164,6 @@ namespace wil
     template <typename T, typename... Args>
     inline typename wistd::enable_if<!wistd::is_array<T>::value, unique_cotaskmem_ptr<T>>::type make_unique_cotaskmem_nothrow(Args&&... args)
     {
-        static_assert(wistd::is_trivially_destructible<T>::value, "T has a destructor that won't be run when used with this function; use make_unique instead");
         unique_cotaskmem_ptr<T> sp(static_cast<T*>(::CoTaskMemAlloc(sizeof(T))));
         if (sp)
         {
@@ -5148,7 +5191,6 @@ namespace wil
     inline typename wistd::enable_if<wistd::is_array<T>::value && wistd::extent<T>::value == 0, unique_cotaskmem_ptr<T>>::type make_unique_cotaskmem_nothrow(size_t size)
     {
         typedef typename wistd::remove_extent<T>::type E;
-        static_assert(wistd::is_trivially_destructible<E>::value, "E has a destructor that won't be run when used with this function; use make_unique instead");
         FAIL_FAST_IF((__WI_SIZE_MAX / sizeof(E)) < size);
         size_t allocSize = sizeof(E) * size;
         unique_cotaskmem_ptr<T> sp(static_cast<E*>(::CoTaskMemAlloc(allocSize)));
@@ -5325,7 +5367,7 @@ namespace wil
     };
 
     template <typename T = void>
-    using unique_cotaskmem_secure_ptr = wistd::unique_ptr<T, cotaskmem_secure_deleter>;
+    using unique_cotaskmem_secure_ptr = wistd::unique_ptr<details::ensure_trivially_destructible_t<T>, cotaskmem_secure_deleter>;
 
     /** Provides `std::make_unique()` semantics for secure resources allocated with `CoTaskMemAlloc()` in a context that may not throw
     upon allocation failure. See the overload of `wil::make_unique_cotaskmem_nothrow()` for non-array types for more details.
@@ -5629,7 +5671,7 @@ namespace wil
     using lsa_freemem_deleter = function_deleter<decltype(&::LsaFreeMemory), LsaFreeMemory>;
 
     template <typename T>
-    using unique_lsamem_ptr = wistd::unique_ptr<T, lsa_freemem_deleter>;
+    using unique_lsamem_ptr = wistd::unique_ptr<details::ensure_trivially_destructible_t<T>, lsa_freemem_deleter>;
 #endif // _NTLSA_
 #if (defined(_NTLSA_) && !defined(__WIL_NTLSA_STL) && defined(WIL_RESOURCE_STL)) || defined(WIL_DOXYGEN)
     /// @cond
@@ -5648,7 +5690,7 @@ namespace wil
     using lsalookup_freemem_deleter = function_deleter<decltype(&::LsaLookupFreeMemory), LsaLookupFreeMemory>;
 
     template <typename T>
-    using unique_lsalookupmem_ptr = wistd::unique_ptr<T, lsalookup_freemem_deleter>;
+    using unique_lsalookupmem_ptr = wistd::unique_ptr<details::ensure_trivially_destructible_t<T>, lsalookup_freemem_deleter>;
 #endif // _LSALOOKUP_
 #if (defined(_LSALOOKUP_) && !defined(__WIL_LSALOOKUP_STL) && defined(WIL_RESOURCE_STL)) || defined(WIL_DOXYGEN)
     /// @cond
@@ -5665,7 +5707,7 @@ namespace wil
     using lsa_deleter = function_deleter<decltype(&::LsaFreeReturnBuffer), LsaFreeReturnBuffer>;
 
     template <typename T>
-    using unique_lsa_ptr = wistd::unique_ptr<T, lsa_deleter>;
+    using unique_lsa_ptr = wistd::unique_ptr<details::ensure_trivially_destructible_t<T>, lsa_deleter>;
 #endif // __WIL_HANDLE_H_NTLSA_IFS_
 
 #if (defined(__WERAPI_H__) && !defined(__WIL_WERAPI_H__) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)) || defined(WIL_DOXYGEN)
@@ -5734,7 +5776,7 @@ namespace wil
     using wcm_deleter = function_deleter<decltype(&::WcmFreeMemory), WcmFreeMemory>;
 
     template<typename T>
-    using unique_wcm_ptr = wistd::unique_ptr<T, wcm_deleter>;
+    using unique_wcm_ptr = wistd::unique_ptr<details::ensure_trivially_destructible_t<T>, wcm_deleter>;
 #endif
 
 #if (defined(_NETIOAPI_H_) && defined(_WS2IPDEF_) && defined(MIB_INVALID_TEREDO_PORT_NUMBER) && !defined(__WIL_NETIOAPI_H_) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)) || defined(WIL_DOXYGEN)
@@ -5758,7 +5800,7 @@ namespace wil
     using wlan_deleter = function_deleter<decltype(&::WlanFreeMemory), ::WlanFreeMemory>;
 
     template<typename T>
-    using unique_wlan_ptr = wistd::unique_ptr < T, wlan_deleter >;
+    using unique_wlan_ptr = wistd::unique_ptr<details::ensure_trivially_destructible_t<T>, wlan_deleter>;
 
     /// @cond
     namespace details
