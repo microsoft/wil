@@ -4,7 +4,7 @@ setlocal EnableDelayedExpansion
 
 set ROOT_DIR=%~dp0\..
 
-set DIRS=include tests
+set DIRS=include/wil tests
 set EXTS=.cpp .h
 
 :: Clang format's behavior has changed over time, meaning that different machines with different versions of LLVM
