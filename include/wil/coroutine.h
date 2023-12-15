@@ -151,7 +151,7 @@
 #if defined(_RESUMABLE_FUNCTIONS_SUPPORTED)
 #include <experimental/coroutine>
 #define __WI_COROUTINE_NAMESPACE ::std::experimental
-#elif defined(__cpp_lib_coroutine)
+#elif defined(__cpp_impl_coroutine)
 #include <coroutine>
 #define __WI_COROUTINE_NAMESPACE ::std
 #else
@@ -161,6 +161,7 @@
 
 #include <atomic>
 #include <exception>
+#include <utility>
 #include <wil/wistd_memory.h>
 #include <wil/wistd_type_traits.h>
 #include <wil/result_macros.h>

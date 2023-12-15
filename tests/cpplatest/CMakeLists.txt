@@ -18,6 +18,7 @@ target_sources(witest.cpplatest PRIVATE
     ${COMMON_SOURCES}
     ${COROUTINE_SOURCES}
     ${CMAKE_CURRENT_SOURCE_DIR}/../RegistryTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../CoroutineTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../CppWinRTTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../CppWinRT20Tests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../CppWinRTAuthoringTests.cpp

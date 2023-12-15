@@ -1,7 +1,7 @@
 
 #include <wil/cppwinrt.h>
 #include <winrt/Windows.Foundation.h>
-#if defined(_RESUMABLE_FUNCTIONS_SUPPORTED) || defined(__cpp_lib_coroutine)
+#if defined(_RESUMABLE_FUNCTIONS_SUPPORTED) || defined(__cpp_impl_coroutine)
 #include <wil/coroutine.h>
 #include <thread>
 #endif
@@ -361,7 +361,7 @@ TEST_CASE("CppWinRTTests::ConditionallyImplements", "[cppwinrt]")
     REQUIRE(test.try_as<IClosable>() == nullptr);
 }
 
-#if (!defined(__clang__) && defined(__cpp_lib_coroutine) && (__cpp_lib_coroutine >= 201902L)) || defined(_RESUMABLE_FUNCTIONS_SUPPORTED)
+#if (!defined(__clang__) && defined(__cpp_impl_coroutine) && defined(__cpp_lib_coroutine) && (__cpp_lib_coroutine >= 201902L)) || defined(_RESUMABLE_FUNCTIONS_SUPPORTED)
 
 // Note that we use C++/WinRT's coroutines in the test framework,
 // so that we aren't using com_task to validate itself.
