@@ -170,6 +170,11 @@ StatementMacros: [
   CoCreatableClass,
   CoCreatableClassWithFactory,
   CoCreatableClassWithFactoryEx,
+
+  # Additional definitions for the WIL repo
+  _Translates_NTSTATUS_to_HRESULT_,
+  _Translates_Win32_to_HRESULT_,
+  _Translates_last_error_to_HRESULT_,
 ]
 
 TypenameMacros: [
@@ -178,6 +183,7 @@ TypenameMacros: [
   STDAPI_,
 ]
 
+# Additional definitions for the WIL repo
 WhitespaceSensitiveMacros: [
   __WI_CLANG_DISABLE_WARNING,
 ]
@@ -185,6 +191,8 @@ WhitespaceSensitiveMacros: [
 # TODO: Only supported by clang-format version 17+
 # Macros:
 # - WI_NOEXCEPT=noexcept
+# - __R_FN_PARAMS_FULL=int x
+# - RESULT_NORETURN=[[noreturn]]
 ---
 Language: CSharp
 AlignAfterOpenBracket: AlwaysBreak

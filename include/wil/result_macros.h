@@ -2766,12 +2766,14 @@ namespace details
         return GetLastErrorFail(__R_FN_CALL_FULL);
     }
 
-    _Translates_last_error_to_HRESULT_ inline HRESULT GetLastErrorFailHr(__R_FN_PARAMS_FULL) WI_NOEXCEPT
+    _Translates_last_error_to_HRESULT_
+    inline HRESULT GetLastErrorFailHr(__R_FN_PARAMS_FULL) WI_NOEXCEPT
     {
         return HRESULT_FROM_WIN32(GetLastErrorFail(__R_FN_CALL_FULL));
     }
 
-    _Translates_last_error_to_HRESULT_ inline __declspec(noinline) HRESULT GetLastErrorFailHr() WI_NOEXCEPT
+    _Translates_last_error_to_HRESULT_
+    inline __declspec(noinline) HRESULT GetLastErrorFailHr() WI_NOEXCEPT
     {
         __R_FN_LOCALS_FULL_RA;
         return GetLastErrorFailHr(__R_FN_CALL_FULL);
@@ -4780,7 +4782,8 @@ namespace details
 
     template <FailureType T>
     _Success_(true)
-    _Translates_Win32_to_HRESULT_(err) __declspec(noinline) inline HRESULT ReportFailure_Win32(__R_FN_PARAMS_FULL, DWORD err)
+    _Translates_Win32_to_HRESULT_(err)
+    __declspec(noinline) inline HRESULT ReportFailure_Win32(__R_FN_PARAMS_FULL, DWORD err)
     {
         const auto hr = __HRESULT_FROM_WIN32(err);
         ReportFailure_Base<T>(__R_FN_CALL_FULL, ResultStatus::FromResult(hr));
@@ -4789,8 +4792,8 @@ namespace details
 
     template <>
     _Success_(true)
-    _Translates_Win32_to_HRESULT_(err) __declspec(noinline) inline RESULT_NORETURN HRESULT
-        ReportFailure_Win32<FailureType::FailFast>(__R_FN_PARAMS_FULL, DWORD err)
+    _Translates_Win32_to_HRESULT_(err)
+    __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_Win32<FailureType::FailFast>(__R_FN_PARAMS_FULL, DWORD err)
     {
         const auto hr = __HRESULT_FROM_WIN32(err);
         ReportFailure_Base<FailureType::FailFast>(__R_FN_CALL_FULL, ResultStatus::FromResult(hr));
@@ -4799,8 +4802,8 @@ namespace details
 
     template <>
     _Success_(true)
-    _Translates_Win32_to_HRESULT_(err) __declspec(noinline) inline RESULT_NORETURN HRESULT
-        ReportFailure_Win32<FailureType::Exception>(__R_FN_PARAMS_FULL, DWORD err)
+    _Translates_Win32_to_HRESULT_(err)
+    __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_Win32<FailureType::Exception>(__R_FN_PARAMS_FULL, DWORD err)
     {
         const auto hr = __HRESULT_FROM_WIN32(err);
         ReportFailure_Base<FailureType::Exception>(__R_FN_CALL_FULL, ResultStatus::FromResult(hr));
@@ -4837,7 +4840,8 @@ namespace details
 
     template <FailureType T>
     _Success_(true)
-    _Translates_last_error_to_HRESULT_ __declspec(noinline) inline HRESULT ReportFailure_GetLastErrorHr(__R_FN_PARAMS_FULL)
+    _Translates_last_error_to_HRESULT_
+    __declspec(noinline) inline HRESULT ReportFailure_GetLastErrorHr(__R_FN_PARAMS_FULL)
     {
         const auto hr = GetLastErrorFailHr(__R_FN_CALL_FULL);
         ReportFailure_Base<T>(__R_FN_CALL_FULL, ResultStatus::FromResult(hr));
@@ -4846,8 +4850,8 @@ namespace details
 
     template <>
     _Success_(true)
-    _Translates_last_error_to_HRESULT_ __declspec(noinline) inline RESULT_NORETURN HRESULT
-        ReportFailure_GetLastErrorHr<FailureType::FailFast>(__R_FN_PARAMS_FULL)
+    _Translates_last_error_to_HRESULT_
+    __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_GetLastErrorHr<FailureType::FailFast>(__R_FN_PARAMS_FULL)
     {
         const auto hr = GetLastErrorFailHr(__R_FN_CALL_FULL);
         ReportFailure_Base<FailureType::FailFast>(__R_FN_CALL_FULL, ResultStatus::FromResult(hr));
@@ -4856,8 +4860,8 @@ namespace details
 
     template <>
     _Success_(true)
-    _Translates_last_error_to_HRESULT_ __declspec(noinline) inline RESULT_NORETURN HRESULT
-        ReportFailure_GetLastErrorHr<FailureType::Exception>(__R_FN_PARAMS_FULL)
+    _Translates_last_error_to_HRESULT_
+    __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_GetLastErrorHr<FailureType::Exception>(__R_FN_PARAMS_FULL)
     {
         const auto hr = GetLastErrorFailHr(__R_FN_CALL_FULL);
         ReportFailure_Base<FailureType::Exception>(__R_FN_CALL_FULL, ResultStatus::FromResult(hr));
@@ -4866,8 +4870,8 @@ namespace details
 
     template <FailureType T>
     _Success_(true)
-    _Translates_NTSTATUS_to_HRESULT_(status) __declspec(noinline) inline HRESULT
-        ReportFailure_NtStatus(__R_FN_PARAMS_FULL, NTSTATUS status)
+    _Translates_NTSTATUS_to_HRESULT_(status)
+    __declspec(noinline) inline HRESULT ReportFailure_NtStatus(__R_FN_PARAMS_FULL, NTSTATUS status)
     {
         const auto resultPair = ResultStatus::FromStatus(status);
         ReportFailure_Base<T>(__R_FN_CALL_FULL, resultPair);
@@ -4876,8 +4880,8 @@ namespace details
 
     template <>
     _Success_(true)
-    _Translates_NTSTATUS_to_HRESULT_(status) __declspec(noinline) inline RESULT_NORETURN HRESULT
-        ReportFailure_NtStatus<FailureType::FailFast>(__R_FN_PARAMS_FULL, NTSTATUS status)
+    _Translates_NTSTATUS_to_HRESULT_(status)
+    __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_NtStatus<FailureType::FailFast>(__R_FN_PARAMS_FULL, NTSTATUS status)
     {
         const auto resultPair = ResultStatus::FromStatus(status);
         ReportFailure_Base<FailureType::FailFast>(__R_FN_CALL_FULL, resultPair);
@@ -4886,8 +4890,8 @@ namespace details
 
     template <>
     _Success_(true)
-    _Translates_NTSTATUS_to_HRESULT_(status) __declspec(noinline) inline RESULT_NORETURN HRESULT
-        ReportFailure_NtStatus<FailureType::Exception>(__R_FN_PARAMS_FULL, NTSTATUS status)
+    _Translates_NTSTATUS_to_HRESULT_(status)
+    __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_NtStatus<FailureType::Exception>(__R_FN_PARAMS_FULL, NTSTATUS status)
     {
         const auto resultPair = ResultStatus::FromStatus(status);
         ReportFailure_Base<FailureType::Exception>(__R_FN_CALL_FULL, resultPair);
@@ -4941,7 +4945,8 @@ namespace details
 
     template <FailureType T>
     _Success_(true)
-    _Translates_Win32_to_HRESULT_(err) __declspec(noinline) inline HRESULT
+    _Translates_Win32_to_HRESULT_(err)
+    __declspec(noinline) inline HRESULT
         ReportFailure_Win32Msg(__R_FN_PARAMS_FULL, DWORD err, _Printf_format_string_ PCSTR formatString, va_list argList)
     {
         auto hr = __HRESULT_FROM_WIN32(err);
@@ -4951,7 +4956,8 @@ namespace details
 
     template <>
     _Success_(true)
-    _Translates_Win32_to_HRESULT_(err) __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_Win32Msg<FailureType::FailFast>(
+    _Translates_Win32_to_HRESULT_(err)
+    __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_Win32Msg<FailureType::FailFast>(
         __R_FN_PARAMS_FULL, DWORD err, _Printf_format_string_ PCSTR formatString, va_list argList)
     {
         auto hr = __HRESULT_FROM_WIN32(err);
@@ -4961,7 +4967,8 @@ namespace details
 
     template <>
     _Success_(true)
-    _Translates_Win32_to_HRESULT_(err) __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_Win32Msg<FailureType::Exception>(
+    _Translates_Win32_to_HRESULT_(err)
+    __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_Win32Msg<FailureType::Exception>(
         __R_FN_PARAMS_FULL, DWORD err, _Printf_format_string_ PCSTR formatString, va_list argList)
     {
         auto hr = __HRESULT_FROM_WIN32(err);
@@ -5002,7 +5009,8 @@ namespace details
 
     template <FailureType T>
     _Success_(true)
-    _Translates_last_error_to_HRESULT_ __declspec(noinline) inline HRESULT
+    _Translates_last_error_to_HRESULT_
+    __declspec(noinline) inline HRESULT
         ReportFailure_GetLastErrorHrMsg(__R_FN_PARAMS_FULL, _Printf_format_string_ PCSTR formatString, va_list argList)
     {
         auto hr = GetLastErrorFailHr(__R_FN_CALL_FULL);
@@ -5012,8 +5020,9 @@ namespace details
 
     template <>
     _Success_(true)
-    _Translates_last_error_to_HRESULT_ __declspec(noinline) inline RESULT_NORETURN HRESULT
-        ReportFailure_GetLastErrorHrMsg<FailureType::FailFast>(__R_FN_PARAMS_FULL, _Printf_format_string_ PCSTR formatString, va_list argList)
+    _Translates_last_error_to_HRESULT_
+    __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_GetLastErrorHrMsg<FailureType::FailFast>(
+        __R_FN_PARAMS_FULL, _Printf_format_string_ PCSTR formatString, va_list argList)
     {
         auto hr = GetLastErrorFailHr(__R_FN_CALL_FULL);
         ReportFailure_Msg<FailureType::FailFast>(__R_FN_CALL_FULL, ResultStatus::FromResult(hr), formatString, argList);
@@ -5022,8 +5031,9 @@ namespace details
 
     template <>
     _Success_(true)
-    _Translates_last_error_to_HRESULT_ __declspec(noinline) inline RESULT_NORETURN HRESULT
-        ReportFailure_GetLastErrorHrMsg<FailureType::Exception>(__R_FN_PARAMS_FULL, _Printf_format_string_ PCSTR formatString, va_list argList)
+    _Translates_last_error_to_HRESULT_
+    __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_GetLastErrorHrMsg<FailureType::Exception>(
+        __R_FN_PARAMS_FULL, _Printf_format_string_ PCSTR formatString, va_list argList)
     {
         auto hr = GetLastErrorFailHr(__R_FN_CALL_FULL);
         ReportFailure_Msg<FailureType::Exception>(__R_FN_CALL_FULL, ResultStatus::FromResult(hr), formatString, argList);
@@ -5032,7 +5042,8 @@ namespace details
 
     template <FailureType T>
     _Success_(true)
-    _Translates_NTSTATUS_to_HRESULT_(status) __declspec(noinline) inline HRESULT
+    _Translates_NTSTATUS_to_HRESULT_(status)
+    __declspec(noinline) inline HRESULT
         ReportFailure_NtStatusMsg(__R_FN_PARAMS_FULL, NTSTATUS status, _Printf_format_string_ PCSTR formatString, va_list argList)
     {
         const auto resultPair = ResultStatus::FromStatus(status);
@@ -5042,7 +5053,8 @@ namespace details
 
     template <>
     _Success_(true)
-    _Translates_NTSTATUS_to_HRESULT_(status) __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_NtStatusMsg<FailureType::FailFast>(
+    _Translates_NTSTATUS_to_HRESULT_(status)
+    __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_NtStatusMsg<FailureType::FailFast>(
         __R_FN_PARAMS_FULL, NTSTATUS status, _Printf_format_string_ PCSTR formatString, va_list argList)
     {
         const auto resultPair = ResultStatus::FromStatus(status);
@@ -5052,7 +5064,8 @@ namespace details
 
     template <>
     _Success_(true)
-    _Translates_NTSTATUS_to_HRESULT_(status) __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_NtStatusMsg<FailureType::Exception>(
+    _Translates_NTSTATUS_to_HRESULT_(status)
+    __declspec(noinline) inline RESULT_NORETURN HRESULT ReportFailure_NtStatusMsg<FailureType::Exception>(
         __R_FN_PARAMS_FULL, NTSTATUS status, _Printf_format_string_ PCSTR formatString, va_list argList)
     {
         const auto resultPair = ResultStatus::FromStatus(status);
@@ -5196,21 +5209,24 @@ namespace details
         }
 
         _Success_(true)
-        _Translates_Win32_to_HRESULT_(err) __R_DIRECT_METHOD(HRESULT, Return_Win32)(__R_DIRECT_FN_PARAMS DWORD err) WI_NOEXCEPT
+        _Translates_Win32_to_HRESULT_(err)
+        __R_DIRECT_METHOD(HRESULT, Return_Win32)(__R_DIRECT_FN_PARAMS DWORD err) WI_NOEXCEPT
         {
             __R_FN_LOCALS;
             return wil::details::ReportFailure_Win32<FailureType::Return>(__R_DIRECT_FN_CALL err);
         }
 
         _Success_(true)
-        _Translates_last_error_to_HRESULT_ __R_DIRECT_METHOD(HRESULT, Return_GetLastError)(__R_DIRECT_FN_PARAMS_ONLY) WI_NOEXCEPT
+        _Translates_last_error_to_HRESULT_
+        __R_DIRECT_METHOD(HRESULT, Return_GetLastError)(__R_DIRECT_FN_PARAMS_ONLY) WI_NOEXCEPT
         {
             __R_FN_LOCALS;
             return wil::details::ReportFailure_GetLastErrorHr<FailureType::Return>(__R_DIRECT_FN_CALL_ONLY);
         }
 
         _Success_(true)
-        _Translates_NTSTATUS_to_HRESULT_(status) __R_DIRECT_METHOD(HRESULT, Return_NtStatus)(__R_DIRECT_FN_PARAMS NTSTATUS status) WI_NOEXCEPT
+        _Translates_NTSTATUS_to_HRESULT_(status)
+        __R_DIRECT_METHOD(HRESULT, Return_NtStatus)(__R_DIRECT_FN_PARAMS NTSTATUS status) WI_NOEXCEPT
         {
             __R_FN_LOCALS;
             return wil::details::ReportFailure_NtStatus<FailureType::Return>(__R_DIRECT_FN_CALL status);
@@ -5235,7 +5251,8 @@ namespace details
 
         _Success_(true)
         _Translates_Win32_to_HRESULT_(err)
-            __R_DIRECT_METHOD(HRESULT, Return_Win32Msg)(__R_DIRECT_FN_PARAMS DWORD err, _Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT
+        __R_DIRECT_METHOD(HRESULT, Return_Win32Msg)
+        (__R_DIRECT_FN_PARAMS DWORD err, _Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT
         {
             va_list argList;
             va_start(argList, formatString);
@@ -5244,8 +5261,9 @@ namespace details
         }
 
         _Success_(true)
-        _Translates_last_error_to_HRESULT_ __R_DIRECT_METHOD(HRESULT, Return_GetLastErrorMsg)(
-            __R_DIRECT_FN_PARAMS _Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT
+        _Translates_last_error_to_HRESULT_
+        __R_DIRECT_METHOD(HRESULT, Return_GetLastErrorMsg)
+        (__R_DIRECT_FN_PARAMS _Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT
         {
             va_list argList;
             va_start(argList, formatString);
@@ -5254,8 +5272,9 @@ namespace details
         }
 
         _Success_(true)
-        _Translates_NTSTATUS_to_HRESULT_(status) __R_DIRECT_METHOD(HRESULT, Return_NtStatusMsg)(
-            __R_DIRECT_FN_PARAMS NTSTATUS status, _Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT
+        _Translates_NTSTATUS_to_HRESULT_(status)
+        __R_DIRECT_METHOD(HRESULT, Return_NtStatusMsg)
+        (__R_DIRECT_FN_PARAMS NTSTATUS status, _Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT
         {
             va_list argList;
             va_start(argList, formatString);
