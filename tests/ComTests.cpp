@@ -69,6 +69,7 @@ public:
         ReleaseCounter = 0;
         return res;
     }
+    virtual ~IUnknownFake() = default;
 protected:
     static int AddRefCounter;
     static int ReleaseCounter;
@@ -552,6 +553,7 @@ public:
     {
         return 0;
     }
+    virtual ~ExtensionHelper() = default;
 };
 
 TEST_CASE("ComTests::Test_ConstPointer", "[com][com_ptr]")
@@ -597,6 +599,7 @@ TEST_CASE("ComTests::Test_ComPtrWithForwardDeclaration", "[com][com_ptr]")
         {
             return 0;
         }
+        virtual ~MyClass() = default;
     };
 }
 
@@ -614,6 +617,7 @@ interface __declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20a01"))
 IDerivedTest : public ITest
 {
    STDMETHOD_(void, TestDerived)() = 0;
+   virtual ~ITest() = default;
 };
 
 interface __declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20a02"))
@@ -626,18 +630,21 @@ interface __declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20a03"))
 IDerivedTestInspectable : public ITestInspectable
 {
    STDMETHOD_(void, TestInspctableDerived)() = 0;
+   virtual ~ITestInspectable() = default;
 };
 
 interface __declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20a04"))
 INever : public IUnknown
 {
    STDMETHOD_(void, Never)() = 0;
+   virtual ~INever() = default;
 };
 
 interface __declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20a05"))
 IAlways : public IUnknown
 {
    STDMETHOD_(void, Always)() = 0;
+   virtual ~IAlways() = default;
 };
 
 class __declspec(empty_bases) __declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20b00")) // non-implemented to allow QI for the class to be attempted (and fail)
@@ -2574,6 +2581,7 @@ public:
     {
         return SetPosition(position, position);
     }
+    virtual ~FakeStream() = default;
 };
 
 TEST_CASE("StreamTests::ReadPartial", "[com][IStream]")
