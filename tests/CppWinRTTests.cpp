@@ -445,44 +445,6 @@ wil::com_task<void> exception_com_task(HANDLE h)
     throw 42; // throw some random exception
 }
 
-wil::com_task<void> void_com_task(std::shared_ptr<int> value, HANDLE h)
-{
-    if (h)
-        co_await winrt::resume_on_signal(h);
-    ++*value;
-    co_return;
-}
-
-// Return a reference to the wrapped integer.
-wil::com_task<int&> intref_com_task(std::shared_ptr<int> value, HANDLE h)
-{
-    co_await void_com_task(value, h);
-    co_return *value;
-}
-
-// Return a move-only type.
-wil::com_task<wil::unique_cotaskmem_string> string_com_task(HANDLE h)
-{
-    if (h)
-        co_await winrt::resume_on_signal(h);
-    co_return wil::make_cotaskmem_string(L"Hello");
-}
-
-// Return a move-only type with agile resumption.
-wil::task<wil::unique_cotaskmem_string> string_task(HANDLE h)
-{
-    if (h)
-        co_await winrt::resume_on_signal(h);
-    co_return wil::make_cotaskmem_string(L"Hello");
-}
-
-wil::com_task<void> exception_com_task(HANDLE h)
-{
-    if (h)
-        co_await winrt::resume_on_signal(h);
-    throw 42; // throw some random exception
-}
-
 wil::com_task<void> throwing_background_thread_task()
 {
     co_await winrt::resume_background();
