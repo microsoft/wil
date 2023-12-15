@@ -151,7 +151,7 @@
 #if defined(_RESUMABLE_FUNCTIONS_SUPPORTED)
 #include <experimental/coroutine>
 #define __WI_COROUTINE_NAMESPACE ::std::experimental
-#elif defined(__cpp_lib_coroutine)
+#elif defined(__cpp_impl_coroutine)
 #include <coroutine>
 #define __WI_COROUTINE_NAMESPACE ::std
 #else
@@ -161,6 +161,7 @@
 
 #include <atomic>
 #include <exception>
+#include <utility>
 #include <wil/wistd_memory.h>
 #include <wil/wistd_type_traits.h>
 #include <wil/result_macros.h>
@@ -190,6 +191,16 @@ struct com_task;
 /// @cond
 namespace wil::details::coro
 {
+// task and com_task are convertable to each other.  However, not
+// all consumers of this header have COM enabled.  Support for saving
+// COM thread-local error information and restoring it on the resuming
+// thread is enabled using these function pointers.  If COM is not
+// available then they are null and do not get called.  If COM is
+// enabled then they are filled in with valid pointers and get used.
+__declspec(selectany) void*(__stdcall* g_pfnCaptureRestrictedErrorInformation)() WI_PFN_NOEXCEPT = nullptr;
+__declspec(selectany) void(__stdcall* g_pfnRestoreRestrictedErrorInformation)(void* restricted_error) WI_PFN_NOEXCEPT = nullptr;
+__declspec(selectany) void(__stdcall* g_pfnDestroyRestrictedErrorInformation)(void* restricted_error) WI_PFN_NOEXCEPT = nullptr;
+
 template <typename T>
 struct task_promise;
 
@@ -258,6 +269,16 @@ struct result_holder
         std::exception_ptr error;
     } result;
 
+    // The restricted error information is lit up when COM headers are
+    // included.  If COM is not available then this will remain null.
+    // This error information is thread-local so we must save it on suspend
+    // and restore it on resume so that it propagates to the correct
+    // thread.  It will then be available if the exception proves fatal.
+    //
+    // This object is non-copyable so we do not need to worry about
+    // supporting AddRef on the restricted error information.
+    void* restricted_error{nullptr};
+
     // emplace_value will be called with
     //
     // * no parameters (void category)
@@ -277,6 +298,12 @@ struct result_holder
 
     void unhandled_exception() noexcept
     {
+        if (g_pfnCaptureRestrictedErrorInformation)
+        {
+            WI_ASSERT(restricted_error == nullptr);
+            restricted_error = g_pfnCaptureRestrictedErrorInformation();
+        }
+
         WI_ASSERT(status == result_status::empty);
         new (wistd::addressof(result.error)) std::exception_ptr(std::current_exception());
         status = result_status::error;
@@ -288,7 +315,12 @@ struct result_holder
         {
             return result.wrap.get_value();
         }
+
         WI_ASSERT(status == result_status::error);
+        if (restricted_error && g_pfnRestoreRestrictedErrorInformation)
+        {
+            g_pfnRestoreRestrictedErrorInformation(restricted_error);
+        }
         std::rethrow_exception(wistd::exchange(result.error, {}));
     }
 
@@ -298,6 +330,12 @@ struct result_holder
 
     ~result_holder() noexcept(false)
     {
+        if (restricted_error && g_pfnDestroyRestrictedErrorInformation)
+        {
+            g_pfnDestroyRestrictedErrorInformation(restricted_error);
+            restricted_error = nullptr;
+        }
+
         switch (status)
         {
         case result_status::value:
@@ -703,9 +741,27 @@ void __stdcall task_base<T>::wake_by_address(void* completed)
 #define __WIL_COROUTINE_NON_AGILE_INCLUDED
 #include <ctxtcall.h>
 #include <wil/com.h>
+#include <roerrorapi.h>
 
 namespace wil::details::coro
 {
+inline void* __stdcall CaptureRestrictedErrorInformation() noexcept
+{
+    IRestrictedErrorInfo* restrictedError = nullptr;
+    (void)GetRestrictedErrorInfo(&restrictedError);
+    return restrictedError; // the returned object includes a strong reference
+}
+
+inline void __stdcall RestoreRestrictedErrorInformation(_In_ void* restricted_error) noexcept
+{
+    (void)SetRestrictedErrorInfo(static_cast<IRestrictedErrorInfo*>(restricted_error));
+}
+
+inline void __stdcall DestroyRestrictedErrorInformation(_In_ void* restricted_error) noexcept
+{
+    static_cast<IUnknown*>(restricted_error)->Release();
+}
+
 struct apartment_info
 {
     APTTYPE aptType;
@@ -866,4 +922,14 @@ auto task_base<T>::resume_same_apartment() && noexcept
     return com_awaiter<T>{wistd::move(promise)};
 }
 } // namespace wil::details::coro
+
+// This section is lit up when COM headers are available.  Initialize the global function
+// pointers such that error information can be saved and restored across thread boundaries.
+WI_HEADER_INITITALIZATION_FUNCTION(CoroutineRestrictedErrorInitialize, [] {
+    ::wil::details::coro::g_pfnCaptureRestrictedErrorInformation = ::wil::details::coro::CaptureRestrictedErrorInformation;
+    ::wil::details::coro::g_pfnRestoreRestrictedErrorInformation = ::wil::details::coro::RestoreRestrictedErrorInformation;
+    ::wil::details::coro::g_pfnDestroyRestrictedErrorInformation = ::wil::details::coro::DestroyRestrictedErrorInformation;
+    return 1;
+})
+
 #endif // __WIL_COROUTINE_NON_AGILE_INCLUDED

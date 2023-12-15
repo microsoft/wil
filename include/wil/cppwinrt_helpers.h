@@ -46,17 +46,20 @@ namespace wil::details
 template <typename T = void>
 using coroutine_handle = std::experimental::coroutine_handle<T>;
 }
-#elif defined(__cpp_lib_coroutine) && (__cpp_lib_coroutine >= 201902L)
+#elif defined(__cpp_impl_coroutine)
 #include <coroutine>
+#if (__cpp_lib_coroutine >= 201902L)
 namespace wil::details
 {
 template <typename T = void>
 using coroutine_handle = std::coroutine_handle<T>;
 }
-#endif
+#endif // __cpp_lib_coroutine
+#endif // __cpp_impl_coroutine
 /// @endcond
 
-#if defined(_RESUMABLE_FUNCTIONS_SUPPORTED) || (defined(__cpp_lib_coroutine) && (__cpp_lib_coroutine >= 201902L))
+#if defined(_RESUMABLE_FUNCTIONS_SUPPORTED) || \
+    (defined(__cpp_impl_coroutine) && defined(__cpp_lib_coroutine) && (__cpp_lib_coroutine >= 201902L))
 /// @cond
 namespace wil::details
 {
