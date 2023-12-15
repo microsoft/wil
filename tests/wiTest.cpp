@@ -352,12 +352,14 @@ HRESULT TranslateException(TLambda&& lambda)
     {
         return re.GetErrorCode();
     }
+    // clang-format off
 #ifdef __cplusplus_winrt
-    catch (Platform::Exception ^ pe)
+    catch (Platform::Exception^ pe)
     {
         return wil::details::GetErrorCode(pe);
     }
 #endif
+    // clang-format on
     catch (...)
     {
         FAIL();

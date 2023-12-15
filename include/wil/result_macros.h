@@ -3620,39 +3620,40 @@ namespace details
         return hr;
     }
 
+    // clang-format off
 #ifdef __cplusplus_winrt
-    inline Platform::String ^
-        GetPlatformExceptionMessage(Platform::Exception ^ exception) {
-            struct RawExceptionData_Partial
-            {
-                PCWSTR description;
-                PCWSTR restrictedErrorString;
-            };
+    inline Platform::String^ GetPlatformExceptionMessage(Platform::Exception^ exception)
+    {
+        struct RawExceptionData_Partial
+        {
+            PCWSTR description;
+            PCWSTR restrictedErrorString;
+        };
 
-            auto exceptionPtr = reinterpret_cast<void*>(static_cast<::Platform::Object ^>(exception));
-            auto exceptionInfoPtr = reinterpret_cast<ULONG_PTR*>(exceptionPtr) - 1;
-            auto partial = reinterpret_cast<RawExceptionData_Partial*>(*exceptionInfoPtr);
+        auto exceptionPtr = reinterpret_cast<void*>(static_cast<::Platform::Object^>(exception));
+        auto exceptionInfoPtr = reinterpret_cast<ULONG_PTR*>(exceptionPtr) - 1;
+        auto partial = reinterpret_cast<RawExceptionData_Partial*>(*exceptionInfoPtr);
 
-            Platform::String ^ message = exception->Message;
+        Platform::String^ message = exception->Message;
 
-            PCWSTR errorString = partial->restrictedErrorString;
-            PCWSTR messageString = reinterpret_cast<PCWSTR>(message ? message->Data() : nullptr);
+        PCWSTR errorString = partial->restrictedErrorString;
+        PCWSTR messageString = reinterpret_cast<PCWSTR>(message ? message->Data() : nullptr);
 
-            // An old Platform::Exception^ bug that did not actually expose the error string out of the exception
-            // message.  We do it by hand here if the message associated with the strong does not contain the
-            // message that was originally attached to the string (in the fixed version it will).
+        // An old Platform::Exception^ bug that did not actually expose the error string out of the exception
+        // message.  We do it by hand here if the message associated with the strong does not contain the
+        // message that was originally attached to the string (in the fixed version it will).
 
-            if ((errorString && *errorString && messageString) && (wcsstr(messageString, errorString) == nullptr))
-            {
-                return ref new Platform::String(reinterpret_cast<_Null_terminated_ const __wchar_t*>(errorString));
-            }
-            return message;
+        if ((errorString && *errorString && messageString) && (wcsstr(messageString, errorString) == nullptr))
+        {
+            return ref new Platform::String(reinterpret_cast<_Null_terminated_ const __wchar_t*>(errorString));
         }
+        return message;
+    }
 
-        inline void MaybeGetExceptionString(
-            _In_ Platform::Exception ^ exception,
-            _Out_writes_opt_(debugStringChars) PWSTR debugString,
-            _When_(debugString != nullptr, _Pre_satisfies_(debugStringChars > 0)) size_t debugStringChars)
+    inline void MaybeGetExceptionString(
+        _In_ Platform::Exception^ exception,
+        _Out_writes_opt_(debugStringChars) PWSTR debugString,
+        _When_(debugString != nullptr, _Pre_satisfies_(debugStringChars > 0)) size_t debugStringChars)
     {
         if (debugString)
         {
@@ -3662,7 +3663,8 @@ namespace details
         }
     }
 
-    inline HRESULT ResultFromKnownException(Platform::Exception ^ exception, const DiagnosticsInfo& diagnostics, void* returnAddress)
+    inline HRESULT ResultFromKnownException(
+        Platform::Exception^ exception, const DiagnosticsInfo& diagnostics, void* returnAddress)
     {
         wchar_t message[2048];
         message[0] = L'\0';
@@ -3689,7 +3691,7 @@ namespace details
                 MaybeGetExceptionString(exception, debugString, debugStringChars);
                 return exception.GetErrorCode();
             }
-            catch (Platform::Exception ^ exception)
+            catch (Platform::Exception^ exception)
             {
                 *isNormalized = true;
                 // We need to call __abi_translateCurrentException so that the CX runtime will pull the originated error
@@ -3723,7 +3725,7 @@ namespace details
                 MaybeGetExceptionString(exception, debugString, debugStringChars);
                 return exception.GetErrorCode();
             }
-            catch (Platform::Exception ^ exception)
+            catch (Platform::Exception^ exception)
             {
                 *isNormalized = true;
                 // We need to call __abi_translateCurrentException so that the CX runtime will pull the originated error
@@ -3769,7 +3771,7 @@ namespace details
             {
                 return ResultFromKnownException(exception, diagnostics, returnAddress);
             }
-            catch (Platform::Exception ^ exception)
+            catch (Platform::Exception^ exception)
             {
                 return ResultFromKnownException(exception, diagnostics, returnAddress);
             }
@@ -3803,7 +3805,7 @@ namespace details
             {
                 return ResultFromKnownException(exception, diagnostics, returnAddress);
             }
-            catch (Platform::Exception ^ exception)
+            catch (Platform::Exception^ exception)
             {
                 return ResultFromKnownException(exception, diagnostics, returnAddress);
             }
@@ -3822,7 +3824,7 @@ namespace details
             {
                 return ResultFromKnownException(exception, diagnostics, returnAddress);
             }
-            catch (Platform::Exception ^ exception)
+            catch (Platform::Exception^ exception)
             {
                 return ResultFromKnownException(exception, diagnostics, returnAddress);
             }
@@ -3848,6 +3850,7 @@ namespace details
     });
 #endif
 #endif
+    // clang-format on
 
     inline void __stdcall Rethrow()
     {
@@ -5104,18 +5107,20 @@ namespace details
         return exception.SetFailureInfo(failure);
     }
 
+    // clang-format off
 #ifdef __cplusplus_winrt
-    inline HRESULT GetErrorCode(_In_ Platform::Exception ^ exception) WI_NOEXCEPT
+    inline HRESULT GetErrorCode(_In_ Platform::Exception^ exception) WI_NOEXCEPT
     {
         return exception->HResult;
     }
 
-    inline void SetFailureInfo(_In_ FailureInfo const&, _Inout_ Platform::Exception ^ exception) WI_NOEXCEPT
+    inline void SetFailureInfo(_In_ FailureInfo const&, _Inout_ Platform::Exception^ exception) WI_NOEXCEPT
     {
         // no-op -- once a PlatformException^ is created, we can't modify the message, but this function must
         // exist to distinguish this from ResultException
     }
 #endif
+    // clang-format on
 
     template <typename T>
     RESULT_NORETURN inline void ReportFailure_CustomExceptionHelper(_Inout_ T& exception, __R_FN_PARAMS_FULL, _In_opt_ PCWSTR message = nullptr)

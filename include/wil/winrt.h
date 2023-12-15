@@ -1974,6 +1974,7 @@ inline void make_synchronous_async_action(ABI::Windows::Foundation::IAsyncAction
 //
 // See "onecore\shell\tests\wil\UniqueWinRTEventTokenTests.cpp" for more examples of usage in ABI and C++/CX.
 
+// clang-format off
 #ifdef __cplusplus_winrt
 namespace details
 {
@@ -1983,7 +1984,7 @@ namespace details
         typedef T type;
     };
     template <typename T>
-    struct remove_reference<T ^>
+    struct remove_reference<T^>
     {
         typedef T type;
     };
@@ -1998,7 +1999,7 @@ class unique_winrt_event_token_cx
 public:
     unique_winrt_event_token_cx() = default;
 
-    unique_winrt_event_token_cx(Windows::Foundation::EventRegistrationToken token, T ^ sender, removal_func removalFunction) WI_NOEXCEPT
+    unique_winrt_event_token_cx(Windows::Foundation::EventRegistrationToken token, T^ sender, removal_func removalFunction) WI_NOEXCEPT
         : m_token(token),
           m_weakSender(sender),
           m_removalFunction(removalFunction)
@@ -2075,7 +2076,7 @@ public:
                     {
                         // Ignore RPC or other failures that are unavoidable in some cases
                         // matching wil::unique_winrt_event_token and winrt::event_revoker
-                        return static_cast<T ^>(nullptr);
+                        return static_cast<T^>(nullptr);
                     }
                 }();
                 if (resolvedSender)
@@ -2106,6 +2107,7 @@ private:
 };
 
 #endif
+// clang-format on
 
 template <typename T>
 class unique_winrt_event_token
@@ -2195,13 +2197,14 @@ private:
 /// @cond
 namespace details
 {
+    // clang-format off
 #ifdef __cplusplus_winrt
 
     // Handles registration of the event handler to the subscribing object and then wraps the EventRegistrationToken in unique_winrt_event_token.
     // Not intended to be directly called. Use the WI_MakeUniqueWinRtEventTokenCx macro to abstract away specifying the functions that handle addition and removal.
     template <typename T, typename addition_func, typename removal_func, typename handler>
     inline wil::unique_winrt_event_token_cx<T> make_unique_winrt_event_token_cx(
-        T ^ sender, addition_func additionFunc, removal_func removalFunc, handler ^ h)
+        T^ sender, addition_func additionFunc, removal_func removalFunc, handler^ h)
     {
         auto rawToken = (sender->*additionFunc)(h);
         wil::unique_winrt_event_token_cx<T> temp(rawToken, sender, removalFunc);
@@ -2210,7 +2213,7 @@ namespace details
 
     template <typename T, typename addition_func, typename removal_func, typename handler>
     inline wil::unique_winrt_event_token_cx<T> make_unique_winrt_static_event_token_cx(
-        addition_func additionFunc, removal_func removalFunc, handler ^ h)
+        addition_func additionFunc, removal_func removalFunc, handler^ h)
     {
         auto rawToken = (*additionFunc)(h);
         wil::unique_winrt_event_token_cx<T> temp(rawToken, removalFunc);
@@ -2218,6 +2221,7 @@ namespace details
     }
 
 #endif // __cplusplus_winrt
+    // clang-format on
 
     // Handles registration of the event handler to the subscribing object and then wraps the EventRegistrationToken in unique_winrt_event_token.
     // Not intended to be directly called. Use the WI_MakeUniqueWinRtEventToken macro to abstract away specifying the functions that handle addition and removal.

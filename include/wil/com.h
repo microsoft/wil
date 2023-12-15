@@ -1253,15 +1253,17 @@ T* com_raw_ptr(const Microsoft::WRL::ComPtr<T>& ptr)
     return ptr.Get();
 }
 
+// clang-format off
 #ifdef __cplusplus_winrt
 
 template <typename T>
-inline IInspectable* com_raw_ptr(T ^ ptr)
+inline IInspectable* com_raw_ptr(T^ ptr)
 {
-    return reinterpret_cast<IInspectable*>(static_cast<::Platform::Object ^>(ptr));
+    return reinterpret_cast<IInspectable*>(static_cast<::Platform::Object^>(ptr));
 }
 
 #endif
+// clang-format on
 /// @endcond
 
 #ifdef WIL_ENABLE_EXCEPTIONS
@@ -1753,6 +1755,7 @@ _Success_return_ bool try_com_copy_to(T&& ptrSource, REFIID riid, _COM_Outptr_re
 }
 //! @}
 
+// clang-format off
 #ifdef __cplusplus_winrt
 //! @name Stand-alone helpers to query for CX ref ("hat") types from ABI COM types.
 //! * Source pointer can be raw interface pointer, any wil com_ptr, or WRL ComPtr
@@ -1764,23 +1767,26 @@ _Success_return_ bool try_com_copy_to(T&& ptrSource, REFIID riid, _COM_Outptr_re
 //! @{
 
 template <typename T>
-    ::Platform::Object ^ cx_object_from_abi(T&& ptr) WI_NOEXCEPT
+::Platform::Object^ cx_object_from_abi(T&& ptr) WI_NOEXCEPT
 {
     IInspectable* const inspectable = com_raw_ptr(wistd::forward<T>(ptr));
-    return reinterpret_cast<::Platform::Object ^>(inspectable);
+    return reinterpret_cast<::Platform::Object^>(inspectable);
 }
 
 template <typename U, typename T>
-    inline U ^
-    cx_safe_cast(T&& ptrSource) { return safe_cast<U ^>(cx_object_from_abi(wistd::forward<T>(ptrSource))); }
-
-    template <typename U, typename T>
-    inline U ^ cx_dynamic_cast(T&& ptrSource) WI_NOEXCEPT
+inline U^ cx_safe_cast(T&& ptrSource)
 {
-    return dynamic_cast<U ^>(cx_object_from_abi(wistd::forward<T>(ptrSource)));
+    return safe_cast<U^>(cx_object_from_abi(wistd::forward<T>(ptrSource)));
+}
+
+template <typename U, typename T>
+inline U^ cx_dynamic_cast(T&& ptrSource) WI_NOEXCEPT
+{
+    return dynamic_cast<U^>(cx_object_from_abi(wistd::forward<T>(ptrSource)));
 }
 //! @}
 #endif
+// clang-format on
 
 //*****************************************************************************
 // Agile References
