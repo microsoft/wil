@@ -73,22 +73,31 @@ TEST_CASE("ResourceTests::TestLastErrorContext", "[resource][last_error_context]
 TEST_CASE("ResourceTests::TestScopeExit", "[resource][scope_exit]")
 {
     int count = 0;
-    auto validate = [&](int expected) { REQUIRE(count == expected); count = 0; };
+    auto validate = [&](int expected) {
+        REQUIRE(count == expected);
+        count = 0;
+    };
 
     {
-        auto foo = wil::scope_exit([&] { count++; });
+        auto foo = wil::scope_exit([&] {
+            count++;
+        });
     }
     validate(1);
 
     {
-        auto foo = wil::scope_exit([&] { count++; });
+        auto foo = wil::scope_exit([&] {
+            count++;
+        });
         foo.release();
         foo.reset();
     }
     validate(0);
 
     {
-        auto foo = wil::scope_exit([&] { count++; });
+        auto foo = wil::scope_exit([&] {
+            count++;
+        });
         foo.reset();
         foo.reset();
         validate(1);
@@ -97,19 +106,28 @@ TEST_CASE("ResourceTests::TestScopeExit", "[resource][scope_exit]")
 
 #ifdef WIL_ENABLE_EXCEPTIONS
     {
-        auto foo = wil::scope_exit_log(WI_DIAGNOSTICS_INFO, [&] { count++; THROW_HR(E_FAIL); });
+        auto foo = wil::scope_exit_log(WI_DIAGNOSTICS_INFO, [&] {
+            count++;
+            THROW_HR(E_FAIL);
+        });
     }
     validate(1);
 
     {
-        auto foo = wil::scope_exit_log(WI_DIAGNOSTICS_INFO, [&] { count++; THROW_HR(E_FAIL); });
+        auto foo = wil::scope_exit_log(WI_DIAGNOSTICS_INFO, [&] {
+            count++;
+            THROW_HR(E_FAIL);
+        });
         foo.release();
         foo.reset();
     }
     validate(0);
 
     {
-        auto foo = wil::scope_exit_log(WI_DIAGNOSTICS_INFO, [&] { count++; THROW_HR(E_FAIL); });
+        auto foo = wil::scope_exit_log(WI_DIAGNOSTICS_INFO, [&] {
+            count++;
+            THROW_HR(E_FAIL);
+        });
         foo.reset();
         foo.reset();
         validate(1);
@@ -118,17 +136,17 @@ TEST_CASE("ResourceTests::TestScopeExit", "[resource][scope_exit]")
 #endif // WIL_ENABLE_EXCEPTIONS
 }
 
-interface __declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20b00"))
-ITest : public IUnknown
+interface __declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20b00")) ITest : public IUnknown
 {
-   STDMETHOD_(void, Test)() = 0;
+    STDMETHOD_(void, Test)() = 0;
 };
 
-class __declspec(empty_bases) PointerTestObject : witest::AllocatedObject,
-    public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::RuntimeClassType::ClassicCom>, ITest>
+class __declspec(empty_bases) PointerTestObject
+    : witest::AllocatedObject,
+      public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::RuntimeClassType::ClassicCom>, ITest>
 {
 public:
-    STDMETHOD_(void, Test)() {};
+    STDMETHOD_(void, Test)(){};
 };
 
 TEST_CASE("ResourceTests::TestOperationsOnGenericSmartPointerClasses", "[resource]")
@@ -182,10 +200,18 @@ TEST_CASE("ResourceTests::TestOperationsOnGenericSmartPointerClasses", "[resourc
         REQUIRE((!ptr2 && !ptr3));
         REQUIRE((p2 && p3));
 
-        [&](decltype(p2)* ptr) { *ptr = p2; } (wil::out_param(ptr2));
-        [&](decltype(p3)* ptr) { *ptr = p3; } (wil::out_param(ptr3));
-        [&](decltype(p4)* ptr) { *ptr = p4; } (wil::out_param(ptr4));
-        [&](decltype(p5)* ptr) { *ptr = p5; } (wil::out_param(ptr5));
+        [&](decltype(p2)* ptr) {
+            *ptr = p2;
+        }(wil::out_param(ptr2));
+        [&](decltype(p3)* ptr) {
+            *ptr = p3;
+        }(wil::out_param(ptr3));
+        [&](decltype(p4)* ptr) {
+            *ptr = p4;
+        }(wil::out_param(ptr4));
+        [&](decltype(p5)* ptr) {
+            *ptr = p5;
+        }(wil::out_param(ptr5));
 
         REQUIRE((ptr2 && ptr3));
 
@@ -225,13 +251,19 @@ TEST_CASE("ResourceTests::TestOperationsOnGenericSmartPointerClasses", "[resourc
     REQUIRE((!ptr1 && !ptr4));
     REQUIRE((p1 && p4));
 
-    [&](decltype(p1)* ptr) { *ptr = p1; } (wil::out_param(ptr1));
-    [&](decltype(p4)* ptr) { *ptr = p4; } (wil::out_param(ptr4));
+    [&](decltype(p1)* ptr) {
+        *ptr = p1;
+    }(wil::out_param(ptr1));
+    [&](decltype(p4)* ptr) {
+        *ptr = p4;
+    }(wil::out_param(ptr4));
 
     REQUIRE((ptr1 && ptr4));
 
     p1 = wil::detach_from_smart_pointer(ptr1);
-    [&](int** ptr) { *ptr = p1; } (wil::out_param_ptr<int **>(ptr1));
+    [&](int** ptr) {
+        *ptr = p1;
+    }(wil::out_param_ptr<int**>(ptr1));
     REQUIRE(ptr1);
 }
 
@@ -242,9 +274,9 @@ void StlAdlTest()
     // just looking for clean compilation.
 
     std::vector<wistd::unique_ptr<int>> v;
-    v.emplace_back(new int{ 1 });
-    v.emplace_back(new int{ 2 });
-    v.emplace_back(new int{ 3 });
+    v.emplace_back(new int{1});
+    v.emplace_back(new int{2});
+    v.emplace_back(new int{3});
     std::rotate(begin(v), begin(v) + 1, end(v));
 
     REQUIRE(*v[0] == 1);
@@ -285,14 +317,18 @@ void NoexceptConstructibleTest()
     struct ThrowingConstructor : BaseStorage
     {
         ThrowingConstructor() = default;
-        explicit ThrowingConstructor(HANDLE) __WI_NOEXCEPT_(false) {}
+        explicit ThrowingConstructor(HANDLE) __WI_NOEXCEPT_(false)
+        {
+        }
     };
 
     struct ProtectedConstructor : BaseStorage
     {
     protected:
         ProtectedConstructor() = default;
-        explicit ProtectedConstructor(HANDLE) WI_NOEXCEPT {}
+        explicit ProtectedConstructor(HANDLE) WI_NOEXCEPT
+        {
+        }
     };
 
     // wil::unique_handle is one of the many types which are expected to be noexcept
@@ -301,12 +337,16 @@ void NoexceptConstructibleTest()
     static_assert(wistd::is_nothrow_constructible_v<wil::unique_handle, HANDLE>, "wil::unique_any_t should be noexcept if the storage is");
 
     // The inverse: A throwing storage constructor.
-    static_assert(wistd::is_nothrow_default_constructible_v<wil::unique_any_t<ThrowingConstructor>>, "wil::unique_any_t should always be nothrow default constructible");
-    static_assert(!wistd::is_nothrow_constructible_v<wil::unique_any_t<ThrowingConstructor>, HANDLE>, "wil::unique_any_t shouldn't be noexcept if the storage isn't");
+    static_assert(
+        wistd::is_nothrow_default_constructible_v<wil::unique_any_t<ThrowingConstructor>>,
+        "wil::unique_any_t should always be nothrow default constructible");
+    static_assert(
+        !wistd::is_nothrow_constructible_v<wil::unique_any_t<ThrowingConstructor>, HANDLE>,
+        "wil::unique_any_t shouldn't be noexcept if the storage isn't");
 
     // With a protected constructor wil::unique_any_t will be unable to correctly
     // "forward" the noexcept attribute, but the code should still compile.
-    wil::unique_any_t<ProtectedConstructor> p{ INVALID_HANDLE_VALUE };
+    wil::unique_any_t<ProtectedConstructor> p{INVALID_HANDLE_VALUE};
 }
 #endif
 
@@ -520,18 +560,16 @@ void UniqueCallCompilationTest()
 #endif
 }
 
-template<typename StringType, typename VerifyContents>
+template <typename StringType, typename VerifyContents>
 static void TestStringMaker(VerifyContents&& verifyContents)
 {
-    PCWSTR values[] =
-    {
+    PCWSTR values[] = {
         L"",
         L"value",
         // 300 chars
         L"0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789"
         L"0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789"
-        L"0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789"
-    };
+        L"0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789"};
 
     for (const auto& value : values)
     {
@@ -547,8 +585,8 @@ static void TestStringMaker(VerifyContents&& verifyContents)
         THROW_IF_FAILED(maker.make(nullptr, valueLength));
         REQUIRE(maker.buffer() != nullptr);
         // In the case of the wil::unique_hstring and the empty string the buffer is in a read only
-        // section and can't be written to, so StringCchCopy(maker.buffer(), valueLength + 1, value) will fault adding the nul terminator.
-        // Use memcpy_s specifying exact size that will be zero in this case instead.
+        // section and can't be written to, so StringCchCopy(maker.buffer(), valueLength + 1, value) will fault adding the nul
+        // terminator. Use memcpy_s specifying exact size that will be zero in this case instead.
         memcpy_s(maker.buffer(), valueLength * sizeof(*value), value, valueLength * sizeof(*value));
         result = maker.release();
         verifyContents(value, valueLength, result);
@@ -576,19 +614,17 @@ static void VerifyMakeUniqueString(bool nullValueSupported = true)
         PCWSTR testValue;
         // this is an optional parameter
         size_t testLength = static_cast<size_t>(-1);
-    }
-    const testCaseEntries[] =
-    {
-        { L"value", L"value", 5 },
-        { L"value", L"value" },
-        { L"va", L"va\0ue", 5 },
-        { L"v", L"value", 1 },
-        { L"\0", L"", 5 },
-        { L"\0", nullptr, 5 },
+    } const testCaseEntries[] = {
+        {L"value", L"value", 5},
+        {L"value", L"value"},
+        {L"va", L"va\0ue", 5},
+        {L"v", L"value", 1},
+        {L"\0", L"", 5},
+        {L"\0", nullptr, 5},
     };
 
     using maker = wil::details::string_maker<StringType>;
-    for (auto const &entry : testCaseEntries)
+    for (auto const& entry : testCaseEntries)
     {
         bool shouldSkipNullString = ((wcscmp(entry.expectedValue, L"\0") == 0) && !nullValueSupported);
         if (!shouldSkipNullString)
@@ -607,9 +643,7 @@ static void VerifyMakeUniqueString(bool nullValueSupported = true)
 TEST_CASE("UniqueStringAndStringMakerTests::VerifyStringMakerCoTaskMem", "[resource][string_maker]")
 {
     VerifyMakeUniqueString<wil::unique_cotaskmem_string>();
-    TestStringMaker<wil::unique_cotaskmem_string>(
-        [](PCWSTR value, size_t /*valueLength*/, const wil::unique_cotaskmem_string& result)
-    {
+    TestStringMaker<wil::unique_cotaskmem_string>([](PCWSTR value, size_t /*valueLength*/, const wil::unique_cotaskmem_string& result) {
         REQUIRE(wcscmp(value, result.get()) == 0);
     });
 }
@@ -618,9 +652,7 @@ TEST_CASE("UniqueStringAndStringMakerTests::VerifyStringMakerCoTaskMem", "[resou
 TEST_CASE("UniqueStringAndStringMakerTests::VerifyStringMakerLocalAlloc", "[resource][string_maker]")
 {
     VerifyMakeUniqueString<wil::unique_hlocal_string>();
-    TestStringMaker<wil::unique_hlocal_string>(
-        [](PCWSTR value, size_t /*valueLength*/, const wil::unique_hlocal_string& result)
-    {
+    TestStringMaker<wil::unique_hlocal_string>([](PCWSTR value, size_t /*valueLength*/, const wil::unique_hlocal_string& result) {
         REQUIRE(wcscmp(value, result.get()) == 0);
     });
 }
@@ -628,9 +660,7 @@ TEST_CASE("UniqueStringAndStringMakerTests::VerifyStringMakerLocalAlloc", "[reso
 TEST_CASE("UniqueStringAndStringMakerTests::VerifyStringMakerGlobalAlloc", "[resource][string_maker]")
 {
     VerifyMakeUniqueString<wil::unique_hglobal_string>();
-    TestStringMaker<wil::unique_hglobal_string>(
-        [](PCWSTR value, size_t /*valueLength*/, const wil::unique_hglobal_string& result)
-    {
+    TestStringMaker<wil::unique_hglobal_string>([](PCWSTR value, size_t /*valueLength*/, const wil::unique_hglobal_string& result) {
         REQUIRE(wcscmp(value, result.get()) == 0);
     });
 }
@@ -638,9 +668,7 @@ TEST_CASE("UniqueStringAndStringMakerTests::VerifyStringMakerGlobalAlloc", "[res
 TEST_CASE("UniqueStringAndStringMakerTests::VerifyStringMakerProcessHeap", "[resource][string_maker]")
 {
     VerifyMakeUniqueString<wil::unique_process_heap_string>();
-    TestStringMaker<wil::unique_process_heap_string>(
-        [](PCWSTR value, size_t /*valueLength*/, const wil::unique_process_heap_string& result)
-    {
+    TestStringMaker<wil::unique_process_heap_string>([](PCWSTR value, size_t /*valueLength*/, const wil::unique_process_heap_string& result) {
         REQUIRE(wcscmp(value, result.get()) == 0);
     });
 }
@@ -649,11 +677,9 @@ TEST_CASE("UniqueStringAndStringMakerTests::VerifyStringMakerProcessHeap", "[res
 TEST_CASE("UniqueStringAndStringMakerTests::VerifyStringMakerMidl", "[resource][string_maker]")
 {
     VerifyMakeUniqueString<wil::unique_midl_string>();
-    TestStringMaker<wil::unique_midl_string>(
-        [](PCWSTR value, size_t /*valueLength*/, const wil::unique_midl_string& result)
-        {
-            REQUIRE(wcscmp(value, result.get()) == 0);
-        });
+    TestStringMaker<wil::unique_midl_string>([](PCWSTR value, size_t /*valueLength*/, const wil::unique_midl_string& result) {
+        REQUIRE(wcscmp(value, result.get()) == 0);
+    });
 }
 
 TEST_CASE("UniqueStringAndStringMakerTests::VerifyStringMakerHString", "[resource][string_maker]")
@@ -663,9 +689,7 @@ TEST_CASE("UniqueStringAndStringMakerTests::VerifyStringMakerHString", "[resourc
 
     VerifyMakeUniqueString<wil::unique_hstring>(false);
 
-    TestStringMaker<wil::unique_hstring>(
-        [](PCWSTR value, size_t valueLength, const wil::unique_hstring& result)
-    {
+    TestStringMaker<wil::unique_hstring>([](PCWSTR value, size_t valueLength, const wil::unique_hstring& result) {
         UINT32 length;
         REQUIRE(wcscmp(value, WindowsGetStringRawBuffer(result.get(), &length)) == 0);
         REQUIRE(valueLength == length);
@@ -678,9 +702,7 @@ TEST_CASE("UniqueStringAndStringMakerTests::VerifyStringMakerStdWString", "[reso
     std::string s;
     wil::details::string_maker<std::wstring> maker;
 
-    TestStringMaker<std::wstring>(
-        [](PCWSTR value, size_t valueLength, const std::wstring& result)
-    {
+    TestStringMaker<std::wstring>([](PCWSTR value, size_t valueLength, const std::wstring& result) {
         REQUIRE(wcscmp(value, result.c_str()) == 0);
         REQUIRE(result == value);
         REQUIRE(result.size() == valueLength);
@@ -705,35 +727,37 @@ TEST_CASE("UniqueStringAndStringMakerTests::VerifyLegacySTringMakers", "[resourc
 }
 #endif
 
-_Use_decl_annotations_ void* __RPC_USER MIDL_user_allocate(size_t size)
+_Use_decl_annotations_
+void* __RPC_USER MIDL_user_allocate(size_t size)
 {
     return ::HeapAlloc(GetProcessHeap(), 0, size);
 }
 
-_Use_decl_annotations_ void __RPC_USER MIDL_user_free(void* p)
+_Use_decl_annotations_
+void __RPC_USER MIDL_user_free(void* p)
 {
     ::HeapFree(GetProcessHeap(), 0, p);
 }
 
 TEST_CASE("UniqueMidlStringTests", "[resource][rpc]")
 {
-    wil::unique_midl_ptr<int[]> intArray{ reinterpret_cast<int*>(::MIDL_user_allocate(sizeof(int) * 10)) };
+    wil::unique_midl_ptr<int[]> intArray{reinterpret_cast<int*>(::MIDL_user_allocate(sizeof(int) * 10))};
     intArray[2] = 1;
 
-    wil::unique_midl_ptr<int> intSingle{ reinterpret_cast<int*>(::MIDL_user_allocate(sizeof(int) * 1)) };
+    wil::unique_midl_ptr<int> intSingle{reinterpret_cast<int*>(::MIDL_user_allocate(sizeof(int) * 1))};
 }
 
 TEST_CASE("UniqueEnvironmentStrings", "[resource][win32]")
 {
-    wil::unique_environstrings_ptr env{ ::GetEnvironmentStringsW() };
+    wil::unique_environstrings_ptr env{::GetEnvironmentStringsW()};
     const wchar_t* nextVar = env.get();
-    while (nextVar &&* nextVar)
+    while (nextVar && *nextVar)
     {
         // consume 'nextVar'
         nextVar += wcslen(nextVar) + 1;
     }
 
-    wil::unique_environansistrings_ptr envAnsi{ ::GetEnvironmentStringsA() };
+    wil::unique_environansistrings_ptr envAnsi{::GetEnvironmentStringsA()};
     const char* nextVarAnsi = envAnsi.get();
     while (nextVarAnsi && *nextVarAnsi)
     {
@@ -784,7 +808,10 @@ TEST_CASE("UniqueInvokeCleanupMembers", "[resource]")
     struct ThingWithDestroy
     {
         bool destroyed = false;
-        void destroy() { destroyed = true; };
+        void destroy()
+        {
+            destroyed = true;
+        };
     };
     ThingWithDestroy toDestroy;
     wil::unique_any<ThingWithDestroy*, decltype(&ThingWithDestroy::destroy), &ThingWithDestroy::destroy> p(&toDestroy);
@@ -796,7 +823,10 @@ TEST_CASE("UniqueInvokeCleanupMembers", "[resource]")
     struct ThingToDestroy2
     {
         bool* destroyed;
-        void destroy() { *destroyed = true; };
+        void destroy()
+        {
+            *destroyed = true;
+        };
     };
     bool structDestroyed = false;
     {
@@ -814,10 +844,20 @@ struct ITokenTester : IUnknown
 
 struct TokenTester : ITokenTester
 {
-    IFACEMETHOD_(ULONG, AddRef)() override { return 2; }
-    IFACEMETHOD_(ULONG, Release)() override { return 1; }
-    IFACEMETHOD(QueryInterface)(REFIID, void**) { return E_NOINTERFACE; }
-    void DirectClose(DWORD_PTR token) override {
+    IFACEMETHOD_(ULONG, AddRef)() override
+    {
+        return 2;
+    }
+    IFACEMETHOD_(ULONG, Release)() override
+    {
+        return 1;
+    }
+    IFACEMETHOD(QueryInterface)(REFIID, void**)
+    {
+        return E_NOINTERFACE;
+    }
+    void DirectClose(DWORD_PTR token) override
+    {
         m_closed = (token == m_closeToken);
     }
     bool m_closed = false;
@@ -836,19 +876,20 @@ TEST_CASE("ComTokenCloser", "[resource]")
     TokenTester tt;
     tt.m_closeToken = 4;
     {
-        token_tester_t tmp{ &tt, 4 };
+        token_tester_t tmp{&tt, 4};
     }
     REQUIRE(tt.m_closed);
 }
 
 TEST_CASE("ComTokenDirectCloser", "[resource]")
 {
-    using token_tester_t = wil::unique_com_token<ITokenTester, DWORD_PTR, decltype(&ITokenTester::DirectClose), &ITokenTester::DirectClose>;
+    using token_tester_t =
+        wil::unique_com_token<ITokenTester, DWORD_PTR, decltype(&ITokenTester::DirectClose), &ITokenTester::DirectClose>;
 
     TokenTester tt;
     tt.m_closeToken = 4;
     {
-        token_tester_t tmp{ &tt, 4 };
+        token_tester_t tmp{&tt, 4};
     }
     REQUIRE(tt.m_closed);
 }

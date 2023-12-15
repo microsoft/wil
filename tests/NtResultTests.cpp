@@ -4,47 +4,41 @@
 
 #include "common.h"
 
-#define STATUS_OBJECT_PATH_NOT_FOUND     ((NTSTATUS)0xC000003AL)
-#define STATUS_INTERNAL_ERROR            ((NTSTATUS)0xC00000E5L)
-#define STATUS_INVALID_CONNECTION        ((NTSTATUS)0xC0000140L)
-#define E_LOAD_NAMESERVICE_FAILED        ((HRESULT)0x80000140L)
+#define STATUS_OBJECT_PATH_NOT_FOUND ((NTSTATUS)0xC000003AL)
+#define STATUS_INTERNAL_ERROR ((NTSTATUS)0xC00000E5L)
+#define STATUS_INVALID_CONNECTION ((NTSTATUS)0xC0000140L)
+#define E_LOAD_NAMESERVICE_FAILED ((HRESULT)0x80000140L)
 
 TEST_CASE("NtResultTests::NtReturn", "[result]")
 {
-    auto status = []()
-    {
+    auto status = []() {
         NT_RETURN_NTSTATUS(STATUS_INVALID_CONNECTION);
     }();
     REQUIRE(status == STATUS_INVALID_CONNECTION);
 
-    status = []()
-    {
+    status = []() {
         NT_RETURN_NTSTATUS_MSG(STATUS_INVALID_CONNECTION, "Test NT_RETURN_NTSTATUS_MSG");
     }();
     REQUIRE(status == STATUS_INVALID_CONNECTION);
 
-    status = []()
-    {
+    status = []() {
         NT_RETURN_NTSTATUS_MSG(STATUS_INVALID_CONNECTION, "Test NT_RETURN_NTSTATUS_MSG %s", L"with parameter");
     }();
     REQUIRE(status == STATUS_INVALID_CONNECTION);
 
-    status = []()
-    {
+    status = []() {
         NT_RETURN_IF_NTSTATUS_FAILED(STATUS_INVALID_CONNECTION);
         return STATUS_SUCCESS;
     }();
     REQUIRE(status == STATUS_INVALID_CONNECTION);
 
-    status = []()
-    {
+    status = []() {
         NT_RETURN_IF_NTSTATUS_FAILED_MSG(STATUS_INVALID_CONNECTION, "Test NT_RETURN_NTSTATUS_MSG %s", L"with parameter");
         return STATUS_SUCCESS;
     }();
     REQUIRE(status == STATUS_INVALID_CONNECTION);
 
-    status = []()
-    {
+    status = []() {
         NT_RETURN_IF_NTSTATUS_FAILED(STATUS_SUCCESS);
         return STATUS_INVALID_CONNECTION;
     }();
@@ -55,8 +49,7 @@ TEST_CASE("NtResultTests::NtReturn", "[result]")
 TEST_CASE("NtResultTests::NtThrowCatch", "[result]")
 {
     // Throw NTSTATUS with immediate conversion to HRESULT. HRESULT would appear in the logs.
-    auto hr = []()
-    {
+    auto hr = []() {
         try
         {
             THROW_NTSTATUS(STATUS_INVALID_CONNECTION);
@@ -67,8 +60,7 @@ TEST_CASE("NtResultTests::NtThrowCatch", "[result]")
     REQUIRE(hr == wil::details::NtStatusToHr(STATUS_INVALID_CONNECTION));
 
     // Verify that conversion NTSTATUS -> HRESULT -> NTSTATUS is not 1:1.
-    auto status = []()
-    {
+    auto status = []() {
         try
         {
             THROW_HR(wil::details::NtStatusToHr(STATUS_INVALID_CONNECTION));
@@ -85,8 +77,7 @@ TEST_CASE("NtResultTests::NtThrowCatch", "[result]")
     }
 
     // Throw HRESULT with conversion to NTSTATUS on a best effort. NTSTATUS would appear in the logs.
-    status = []()
-    {
+    status = []() {
         try
         {
             THROW_HR(__HRESULT_FROM_WIN32(ERROR_PATH_NOT_FOUND));
@@ -96,8 +87,7 @@ TEST_CASE("NtResultTests::NtThrowCatch", "[result]")
     REQUIRE(status == STATUS_OBJECT_PATH_NOT_FOUND);
 
     // Throw HRESULT with conversion to NTSTATUS on a best effort that maps to generic error. NTSTATUS would appear in the logs.
-    status = []()
-    {
+    status = []() {
         try
         {
             THROW_HR(E_LOAD_NAMESERVICE_FAILED);
@@ -107,8 +97,7 @@ TEST_CASE("NtResultTests::NtThrowCatch", "[result]")
     REQUIRE(status == STATUS_INTERNAL_ERROR);
 
     // Throw NTSTATUS without conversion. NTSTATUS would appear in the logs.
-    status = []()
-    {
+    status = []() {
         try
         {
             THROW_NTSTATUS(STATUS_INVALID_CONNECTION);
@@ -117,8 +106,7 @@ TEST_CASE("NtResultTests::NtThrowCatch", "[result]")
     }();
     REQUIRE(status == STATUS_INVALID_CONNECTION);
 
-    status = []()
-    {
+    status = []() {
         try
         {
             THROW_NTSTATUS_MSG(STATUS_INVALID_CONNECTION, "Throw STATUS_INVALID_CONNECTION as NTSTATUS");
@@ -127,8 +115,7 @@ TEST_CASE("NtResultTests::NtThrowCatch", "[result]")
     }();
     REQUIRE(status == STATUS_INVALID_CONNECTION);
 
-    status = []()
-    {
+    status = []() {
         try
         {
             THROW_NTSTATUS_MSG(STATUS_INVALID_CONNECTION, "Throw STATUS_INVALID_CONNECTION as NTSTATUS with custom catch");
@@ -142,8 +129,7 @@ TEST_CASE("NtResultTests::NtThrowCatch", "[result]")
     }();
     REQUIRE(status == STATUS_INVALID_CONNECTION);
 
-    hr = []()
-    {
+    hr = []() {
         try
         {
             THROW_NTSTATUS_MSG(STATUS_INVALID_CONNECTION, "Throw STATUS_INVALID_CONNECTION as NTSTATUS");
@@ -152,8 +138,7 @@ TEST_CASE("NtResultTests::NtThrowCatch", "[result]")
     }();
     REQUIRE(hr == wil::details::NtStatusToHr(STATUS_INVALID_CONNECTION));
 
-    status = []()
-    {
+    status = []() {
         try
         {
             THROW_NTSTATUS_MSG(STATUS_INVALID_CONNECTION, "Throw STATUS_INVALID_CONNECTION as NTSTATUS");

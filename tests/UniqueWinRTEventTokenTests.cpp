@@ -9,44 +9,38 @@ using namespace Microsoft::WRL;
 
 namespace wiltest
 {
-    class AbiTestEventSender WrlFinal : public RuntimeClass<
-        RuntimeClassFlags<RuntimeClassType::WinRtClassicComMix>,
-        IClosable,
-        IMemoryBufferReference,
-        FtmBase>
+class AbiTestEventSender WrlFinal
+    : public RuntimeClass<RuntimeClassFlags<RuntimeClassType::WinRtClassicComMix>, IClosable, IMemoryBufferReference, FtmBase>
+{
+public:
+    // IMemoryBufferReference
+    IFACEMETHODIMP get_Capacity(_Out_ UINT32* value)
     {
-    public:
+        *value = 0;
+        return S_OK;
+    }
 
-        // IMemoryBufferReference
-        IFACEMETHODIMP get_Capacity(_Out_ UINT32* value)
-        {
-            *value = 0;
-            return S_OK;
-        }
+    IFACEMETHODIMP add_Closed(_In_ ITypedEventHandler<IMemoryBufferReference*, IInspectable*>* handler, _Out_ ::EventRegistrationToken* token)
+    {
+        return m_closedEvent.Add(handler, token);
+    }
 
-        IFACEMETHODIMP add_Closed(
-            _In_ ITypedEventHandler<IMemoryBufferReference*, IInspectable*>* handler,
-            _Out_ ::EventRegistrationToken* token)
-        {
-            return m_closedEvent.Add(handler, token);
-        }
+    IFACEMETHODIMP remove_Closed(::EventRegistrationToken token)
+    {
+        return m_closedEvent.Remove(token);
+    }
 
-        IFACEMETHODIMP remove_Closed(::EventRegistrationToken token)
-        {
-            return m_closedEvent.Remove(token);
-        }
+    // IClosable
+    IFACEMETHODIMP Close()
+    {
+        RETURN_IF_FAILED(m_closedEvent.InvokeAll(this, nullptr));
+        return S_OK;
+    }
 
-        // IClosable
-        IFACEMETHODIMP Close()
-        {
-            RETURN_IF_FAILED(m_closedEvent.InvokeAll(this, nullptr));
-            return S_OK;
-        }
-
-    private:
-        Microsoft::WRL::EventSource<ITypedEventHandler<IMemoryBufferReference*, IInspectable*>> m_closedEvent;
-    };
-}
+private:
+    Microsoft::WRL::EventSource<ITypedEventHandler<IMemoryBufferReference*, IInspectable*>> m_closedEvent;
+};
+} // namespace wiltest
 
 TEST_CASE("UniqueWinRTEventTokenTests::AbiUniqueWinrtEventTokenEventSubscribe", "[winrt][unique_winrt_event_token]")
 {
@@ -56,13 +50,12 @@ TEST_CASE("UniqueWinRTEventTokenTests::AbiUniqueWinrtEventTokenEventSubscribe", 
     testEventSender.As(&closable);
 
     int timesInvoked = 0;
-    auto handler = Callback<Implements<RuntimeClassFlags<ClassicCom>,
-        ITypedEventHandler<IMemoryBufferReference*, IInspectable*>, FtmBase>>
-        ([&timesInvoked](IInspectable*, IInspectable*)
-    {
-        timesInvoked++;
-        return S_OK;
-    });
+    auto handler =
+        Callback<Implements<RuntimeClassFlags<ClassicCom>, ITypedEventHandler<IMemoryBufferReference*, IInspectable*>, FtmBase>>(
+            [&timesInvoked](IInspectable*, IInspectable*) {
+                timesInvoked++;
+                return S_OK;
+            });
     REQUIRE(timesInvoked == 0);
 
     {
@@ -85,13 +78,12 @@ TEST_CASE("UniqueWinRTEventTokenTests::AbiUniqueWinrtEventTokenEarlyReset", "[wi
     testEventSender.As(&closable);
 
     int timesInvoked = 0;
-    auto handler = Callback<Implements<RuntimeClassFlags<ClassicCom>,
-        ITypedEventHandler<IMemoryBufferReference*, IInspectable*>, FtmBase>>
-        ([&timesInvoked](IInspectable*, IInspectable*)
-    {
-        timesInvoked++;
-        return S_OK;
-    });
+    auto handler =
+        Callback<Implements<RuntimeClassFlags<ClassicCom>, ITypedEventHandler<IMemoryBufferReference*, IInspectable*>, FtmBase>>(
+            [&timesInvoked](IInspectable*, IInspectable*) {
+                timesInvoked++;
+                return S_OK;
+            });
     REQUIRE(timesInvoked == 0);
 
     wil::unique_winrt_event_token<IMemoryBufferReference> token;
@@ -114,13 +106,12 @@ TEST_CASE("UniqueWinRTEventTokenTests::AbiUniqueWinrtEventTokenMoveTokenToDiffer
     testEventSender.As(&closable);
 
     int timesInvoked = 0;
-    auto handler = Callback<Implements<RuntimeClassFlags<ClassicCom>,
-        ITypedEventHandler<IMemoryBufferReference*, IInspectable*>, FtmBase>>
-        ([&timesInvoked](IInspectable*, IInspectable*)
-    {
-        timesInvoked++;
-        return S_OK;
-    });
+    auto handler =
+        Callback<Implements<RuntimeClassFlags<ClassicCom>, ITypedEventHandler<IMemoryBufferReference*, IInspectable*>, FtmBase>>(
+            [&timesInvoked](IInspectable*, IInspectable*) {
+                timesInvoked++;
+                return S_OK;
+            });
     REQUIRE(timesInvoked == 0);
 
     wil::unique_winrt_event_token<IMemoryBufferReference> outerToken;
@@ -149,13 +140,12 @@ TEST_CASE("UniqueWinRTEventTokenTests::AbiUniqueWinrtEventTokenMoveConstructor",
     testEventSender.As(&closable);
 
     int timesInvoked = 0;
-    auto handler = Callback<Implements<RuntimeClassFlags<ClassicCom>,
-        ITypedEventHandler<IMemoryBufferReference*, IInspectable*>, FtmBase>>
-        ([&timesInvoked](IInspectable*, IInspectable*)
-    {
-        timesInvoked++;
-        return S_OK;
-    });
+    auto handler =
+        Callback<Implements<RuntimeClassFlags<ClassicCom>, ITypedEventHandler<IMemoryBufferReference*, IInspectable*>, FtmBase>>(
+            [&timesInvoked](IInspectable*, IInspectable*) {
+                timesInvoked++;
+                return S_OK;
+            });
     REQUIRE(timesInvoked == 0);
 
     wil::unique_winrt_event_token<IMemoryBufferReference> firstToken;
@@ -188,13 +178,12 @@ TEST_CASE("UniqueWinRTEventTokenTests::AbiUniqueWinrtEventTokenReleaseAndReattac
     testEventSender.As(&closable);
 
     int timesInvoked = 0;
-    auto handler = Callback<Implements<RuntimeClassFlags<ClassicCom>,
-        ITypedEventHandler<IMemoryBufferReference*, IInspectable*>, FtmBase>>
-        ([&timesInvoked](IInspectable*, IInspectable*)
-    {
-        timesInvoked++;
-        return S_OK;
-    });
+    auto handler =
+        Callback<Implements<RuntimeClassFlags<ClassicCom>, ITypedEventHandler<IMemoryBufferReference*, IInspectable*>, FtmBase>>(
+            [&timesInvoked](IInspectable*, IInspectable*) {
+                timesInvoked++;
+                return S_OK;
+            });
     REQUIRE(timesInvoked == 0);
 
     wil::unique_winrt_event_token<IMemoryBufferReference> firstToken;
@@ -210,8 +199,7 @@ TEST_CASE("UniqueWinRTEventTokenTests::AbiUniqueWinrtEventTokenReleaseAndReattac
     REQUIRE_SUCCEEDED(closable->Close());
     REQUIRE(timesInvoked == 2);
 
-    wil::unique_winrt_event_token<IMemoryBufferReference> secondToken(
-        rawToken, testEventSender.Get(), &IMemoryBufferReference::remove_Closed);
+    wil::unique_winrt_event_token<IMemoryBufferReference> secondToken(rawToken, testEventSender.Get(), &IMemoryBufferReference::remove_Closed);
 
     REQUIRE_SUCCEEDED(closable->Close());
     REQUIRE(timesInvoked == 3);
@@ -229,13 +217,12 @@ TEST_CASE("UniqueWinRTEventTokenTests::AbiUniqueWinrtEventTokenPolicyVariants", 
     testEventSender.As(&closable);
 
     int timesInvoked = 0;
-    auto handler = Callback<Implements<RuntimeClassFlags<ClassicCom>,
-        ITypedEventHandler<IMemoryBufferReference*, IInspectable*>, FtmBase>>
-        ([&timesInvoked](IInspectable*, IInspectable*)
-    {
-        timesInvoked++;
-        return S_OK;
-    });
+    auto handler =
+        Callback<Implements<RuntimeClassFlags<ClassicCom>, ITypedEventHandler<IMemoryBufferReference*, IInspectable*>, FtmBase>>(
+            [&timesInvoked](IInspectable*, IInspectable*) {
+                timesInvoked++;
+                return S_OK;
+            });
     REQUIRE(timesInvoked == 0);
 
     {

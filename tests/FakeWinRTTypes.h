@@ -105,9 +105,8 @@ struct WinRTStorage<T*>
 
 // Very minimal IAsyncOperation implementation that gives calling tests control over when it completes
 template <typename Logical, typename Abi = Logical>
-struct FakeAsyncOperation : Microsoft::WRL::RuntimeClass<
-    ABI::Windows::Foundation::IAsyncInfo,
-    ABI::Windows::Foundation::IAsyncOperation<Logical>>
+struct FakeAsyncOperation
+    : Microsoft::WRL::RuntimeClass<ABI::Windows::Foundation::IAsyncInfo, ABI::Windows::Foundation::IAsyncOperation<Logical>>
 {
     using Handler = ABI::Windows::Foundation::IAsyncOperationCompletedHandler<Logical>;
 
@@ -199,7 +198,6 @@ struct FakeAsyncOperation : Microsoft::WRL::RuntimeClass<
     }
 
 private:
-
     wil::srwlock m_lock;
     Microsoft::WRL::ComPtr<Handler> m_handler;
     ABI::Windows::Foundation::AsyncStatus m_status = ABI::Windows::Foundation::AsyncStatus::Started;
@@ -208,9 +206,8 @@ private:
 };
 
 template <typename Logical, typename Abi = Logical, size_t MaxSize = 250>
-struct FakeVector : Microsoft::WRL::RuntimeClass<
-    ABI::Windows::Foundation::Collections::IVector<Logical>,
-    ABI::Windows::Foundation::Collections::IVectorView<Logical>>
+struct FakeVector
+    : Microsoft::WRL::RuntimeClass<ABI::Windows::Foundation::Collections::IVector<Logical>, ABI::Windows::Foundation::Collections::IVectorView<Logical>>
 {
     // IVector
     IFACEMETHODIMP GetAt(unsigned index, Abi* item) override
@@ -394,7 +391,6 @@ struct FakeVector : Microsoft::WRL::RuntimeClass<
     }
 
 private:
-
     size_t m_size = 0;
     WinRTStorage<Abi> m_data[MaxSize];
 };

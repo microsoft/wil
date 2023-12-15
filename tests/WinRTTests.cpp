@@ -39,11 +39,14 @@ TEST_CASE("WinRTTests::VerifyTraitsTypes", "[winrt]")
     static_assert(wistd::is_same_v<int, typename wil::details::LastType<int>::type>, "");
 
     static_assert(wistd::is_same_v<IAsyncAction*, decltype(wil::details::GetReturnParamPointerType(&IFileIOStatics::WriteTextAsync))>, "");
-    static_assert(wistd::is_same_v<IAsyncOperation<bool>*, decltype(wil::details::GetReturnParamPointerType(&ILauncherStatics::LaunchUriAsync))>, "");
+    static_assert(
+        wistd::is_same_v<IAsyncOperation<bool>*, decltype(wil::details::GetReturnParamPointerType(&ILauncherStatics::LaunchUriAsync))>, "");
 
     static_assert(wistd::is_same_v<void, decltype(wil::details::GetAsyncResultType(static_cast<IAsyncAction*>(nullptr)))>, "");
     static_assert(wistd::is_same_v<boolean, decltype(wil::details::GetAsyncResultType(static_cast<IAsyncOperation<bool>*>(nullptr)))>, "");
-    static_assert(wistd::is_same_v<IStorageFile*, decltype(wil::details::GetAsyncResultType(static_cast<IAsyncOperation<StorageFile*>*>(nullptr)))>, "");
+    static_assert(
+        wistd::is_same_v<IStorageFile*, decltype(wil::details::GetAsyncResultType(static_cast<IAsyncOperation<StorageFile*>*>(nullptr)))>,
+        "");
 }
 
 template <bool InhibitArrayReferences, bool IgnoreCase, typename LhsT, typename RhsT>
@@ -74,17 +77,15 @@ void DoHStringComparisonTest(LhsT&& lhs, RhsT&& rhs, int relation)
 
     // We wish to test with both const and non-const values. We can do this for free here so long as the type is
     // not an array since changing the const-ness of an array may change the expected results
-#pragma warning(suppress: 4127)
-    if (!wistd::is_array<wistd::remove_reference_t<LhsT>>::value &&
-        !wistd::is_const<wistd::remove_reference_t<LhsT>>::value)
+#pragma warning(suppress : 4127)
+    if (!wistd::is_array<wistd::remove_reference_t<LhsT>>::value && !wistd::is_const<wistd::remove_reference_t<LhsT>>::value)
     {
         const wistd::remove_reference_t<LhsT>& constLhs = lhs;
         DoHStringComparisonTest<InhibitArrayReferences, IgnoreCase>(constLhs, rhs, relation);
     }
 
-#pragma warning(suppress: 4127)
-    if (!wistd::is_array<wistd::remove_reference_t<RhsT>>::value &&
-        !wistd::is_const<wistd::remove_reference_t<RhsT>>::value)
+#pragma warning(suppress : 4127)
+    if (!wistd::is_array<wistd::remove_reference_t<RhsT>>::value && !wistd::is_const<wistd::remove_reference_t<RhsT>>::value)
     {
         const wistd::remove_reference_t<RhsT>& constRhs = rhs;
         DoHStringComparisonTest<InhibitArrayReferences, IgnoreCase>(lhs, constRhs, relation);
@@ -428,8 +429,7 @@ TEST_CASE("WinRTTests::HStringMapTest", "[winrt][hstring_compare]")
     std::wstring_view wstrview(wstr);
 #endif
 
-    auto verifyFunc = [&](int expectedValue, auto&& keyValue)
-    {
+    auto verifyFunc = [&](int expectedValue, auto&& keyValue) {
         auto itr = hstringMap.find(std::forward<decltype(keyValue)>(keyValue));
         REQUIRE(itr != hstringMap.end());
         REQUIRE(expectedValue == itr->second);
@@ -486,8 +486,7 @@ TEST_CASE("WinRTTests::HStringCaseInsensitiveMapTest", "[winrt][hstring_compare]
 {
     std::map<HString, int, wil::hstring_insensitive_less> hstringMap;
 
-    auto emplaceFunc = [&](auto&& key, int value)
-    {
+    auto emplaceFunc = [&](auto&& key, int value) {
         HString str;
         THROW_IF_FAILED(str.Set(std::forward<decltype(key)>(key)));
         hstringMap.emplace(std::move(str), value);
@@ -523,8 +522,7 @@ TEST_CASE("WinRTTests::HStringCaseInsensitiveMapTest", "[winrt][hstring_compare]
     std::wstring_view wstrview(wstr);
 #endif
 
-    auto verifyFunc = [&](int expectedValue, auto&& key)
-    {
+    auto verifyFunc = [&](int expectedValue, auto&& key) {
         auto itr = hstringMap.find(std::forward<decltype(key)>(key));
         REQUIRE(itr != std::end(hstringMap));
         REQUIRE(expectedValue == itr->second);
@@ -575,8 +573,7 @@ TEST_CASE("WinRTTests::RunWhenCompleteMoveOnlyTest", "[winrt][run_when_complete]
     REQUIRE(op);
 
     bool gotEvent = false;
-    auto hr = wil::run_when_complete_nothrow(op.Get(), [&gotEvent, enforce = cannot_copy{}](HRESULT hr, int result)
-    {
+    auto hr = wil::run_when_complete_nothrow(op.Get(), [&gotEvent, enforce = cannot_copy{}](HRESULT hr, int result) {
         (void)enforce;
         REQUIRE_SUCCEEDED(hr);
         REQUIRE(result == 42);
@@ -605,7 +602,7 @@ TEST_CASE("WinRTTests::WaitForCompletionTimeout", "[winrt][wait_for_completion]"
 
 // This is not a test method, nor should it be called. This is a compilation-only test.
 #pragma warning(push)
-#pragma warning(disable: 4702) // Unreachable code
+#pragma warning(disable : 4702) // Unreachable code
 void WaitForCompletionCompilationTest()
 {
     // Ensure the wait_for_completion variants compile
@@ -670,9 +667,10 @@ void WaitForCompletionCompilationTest()
     wil::wait_for_completion(operation);
     wil::wait_for_completion(operation, COWAIT_DEFAULT);
 
-    // template <typename TResult, typename TProgress, typename TReturn = typename wil::details::MapToSmartType<typename wil::details::MapAsyncOpResultType<TResult>::type>::type>
-    // TReturn
-    //     wait_for_completion(_In_ ABI::Windows::Foundation::IAsyncOperationWithProgress<TResult, TProgress>* operation, COWAIT_FLAGS flags = COWAIT_DISPATCH_CALLS, DWORD timeout = INFINITE);
+    // template <typename TResult, typename TProgress, typename TReturn = typename wil::details::MapToSmartType<typename
+    // wil::details::MapAsyncOpResultType<TResult>::type>::type> TReturn
+    //     wait_for_completion(_In_ ABI::Windows::Foundation::IAsyncOperationWithProgress<TResult, TProgress>* operation,
+    //     COWAIT_FLAGS flags = COWAIT_DISPATCH_CALLS, DWORD timeout = INFINITE);
     result = wil::wait_for_completion(operationWithResult.Get());
     result = wil::wait_for_completion(operationWithResult.Get(), COWAIT_DEFAULT);
 #endif
@@ -683,7 +681,7 @@ void WaitForCompletionCompilationTest()
 TEST_CASE("WinRTTests::TimeTTests", "[winrt][time_t]")
 {
     // Verifying that converting DateTime variable set as the date that means 0 as time_t works
-    DateTime time1 = { wil::SecondsToStartOf1970 * wil::HundredNanoSecondsInSecond };
+    DateTime time1 = {wil::SecondsToStartOf1970 * wil::HundredNanoSecondsInSecond};
     __time64_t time_t1 = wil::DateTime_to_time_t(time1);
     REQUIRE(time_t1 == 0);
 
@@ -724,7 +722,7 @@ ComPtr<IVector<HSTRING>> MakeSampleStringVector()
     auto result = Make<FakeVector<HSTRING>>();
     REQUIRE(result);
 
-    const HStringReference items[] = { HStringReference(L"one"), HStringReference(L"two"), HStringReference(L"three") };
+    const HStringReference items[] = {HStringReference(L"one"), HStringReference(L"two"), HStringReference(L"three")};
     for (const auto& i : items)
     {
         REQUIRE_SUCCEEDED(result->Append(i.Get()));
@@ -741,13 +739,14 @@ ComPtr<IVector<Point>> MakeSamplePointVector(int count = 5)
     for (int i = 0; i < count; ++i)
     {
         auto value = static_cast<float>(i);
-        REQUIRE_SUCCEEDED(result->Append(Point{ value, value }));
+        REQUIRE_SUCCEEDED(result->Append(Point{value, value}));
     }
 
     return result;
 }
 
-template<typename T> auto cast_to(ComPtr<IInspectable> const& src)
+template <typename T>
+auto cast_to(ComPtr<IInspectable> const& src)
 {
     ComPtr<IReference<T>> theRef;
     T value{};
@@ -921,7 +920,11 @@ TEST_CASE("WinRTTests::VectorRangeTest", "[winrt][vector_range]")
 #endif
 }
 
-unsigned long GetComObjectRefCount(IUnknown* unk) { unk->AddRef(); return unk->Release(); }
+unsigned long GetComObjectRefCount(IUnknown* unk)
+{
+    unk->AddRef();
+    return unk->Release();
+}
 
 TEST_CASE("WinRTTests::VectorRangeLeakTest", "[winrt][vector_range]")
 {
@@ -976,6 +979,6 @@ TEST_CASE("WinRTTests::TwoPhaseConstructor", "[winrt][hstring]")
     REQUIRE_SUCCEEDED(StringCbCatW(maker.Get(), maker.ByteSize(), right));
     REQUIRE_SUCCEEDED(maker.Validate(needed * sizeof(wchar_t)));
 
-    wil::unique_hstring promoted{ maker.Promote() };
+    wil::unique_hstring promoted{maker.Promote()};
     REQUIRE(wcscmp(L"leftright", str_raw_ptr(promoted)) == 0);
 }

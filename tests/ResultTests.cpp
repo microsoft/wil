@@ -7,7 +7,6 @@
 #include <wil/result_macros.h>
 #endif
 
-
 #include <roerrorapi.h>
 
 #include "common.h"
@@ -34,8 +33,7 @@ struct SharedObject
 
 TEST_CASE("ResultTests::SemaphoreValue", "[result]")
 {
-    auto TestValue = [&](auto start, auto end)
-    {
+    auto TestValue = [&](auto start, auto end) {
         wil::details_abi::SemaphoreValue semaphore;
         for (auto index = start; index <= end; index++)
         {
@@ -101,7 +99,7 @@ TEST_CASE("ResultTests::ProcessLocalStorage", "[result]")
 
 #ifdef WIL_ENABLE_EXCEPTIONS
 #pragma warning(push)
-#pragma warning(disable: 4702) // Unreachable code
+#pragma warning(disable : 4702) // Unreachable code
 TEST_CASE("ResultTests::ExceptionHandling", "[result]")
 {
     witest::TestFailureCache failures;
@@ -128,8 +126,7 @@ TEST_CASE("ResultTests::ExceptionHandling", "[result]")
     SECTION("Test messaging from an unhandled std exception")
     {
         // #pragma warning(suppress: 28931)  // unused assignment -- it IS being used... seems like a tool issue.
-        auto hr = []()
-        {
+        auto hr = []() {
             try
             {
                 throw std::runtime_error("runtime");
@@ -141,15 +138,14 @@ TEST_CASE("ResultTests::ExceptionHandling", "[result]")
         }();
         REQUIRE(failures.size() == 1);
         REQUIRE(failures[0].hr == HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION));
-        REQUIRE(wcsstr(failures[0].pszMessage, L"runtime") != nullptr);     // should get the exception what() string...
+        REQUIRE(wcsstr(failures[0].pszMessage, L"runtime") != nullptr); // should get the exception what() string...
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION));
     }
     failures.clear();
 
     SECTION("Test messaging from bad_alloc")
     {
-        auto hr = []() -> HRESULT
-        {
+        auto hr = []() -> HRESULT {
             try
             {
                 throw std::bad_alloc();
@@ -161,15 +157,14 @@ TEST_CASE("ResultTests::ExceptionHandling", "[result]")
         }();
         REQUIRE(failures.size() == 1);
         REQUIRE(failures[0].hr == E_OUTOFMEMORY);
-        REQUIRE(wcsstr(failures[0].pszMessage, L"alloc") != nullptr);     // should get the exception what() string...
+        REQUIRE(wcsstr(failures[0].pszMessage, L"alloc") != nullptr); // should get the exception what() string...
         REQUIRE(hr == E_OUTOFMEMORY);
     }
     failures.clear();
 
     SECTION("Test messaging from a WIL exception")
     {
-        auto hr = []() -> HRESULT
-        {
+        auto hr = []() -> HRESULT {
             try
             {
                 THROW_HR(E_INVALIDARG);
@@ -184,18 +179,17 @@ TEST_CASE("ResultTests::ExceptionHandling", "[result]")
         REQUIRE(failures[0].hr == E_INVALIDARG);
         REQUIRE(failures[0].pszMessage == nullptr);
         REQUIRE(failures[1].hr == E_INVALIDARG);
-        REQUIRE(wcsstr(failures[1].pszMessage, L"Exception") != nullptr);     // should get the exception debug string...
+        REQUIRE(wcsstr(failures[1].pszMessage, L"Exception") != nullptr); // should get the exception debug string...
         REQUIRE(hr == E_INVALIDARG);
     }
     failures.clear();
 
     SECTION("Fail fast an unknown exception")
     {
-        REQUIRE(witest::DoesCodeCrash([]()
-        {
+        REQUIRE(witest::DoesCodeCrash([]() {
             try
             {
-                throw E_INVALIDARG;     // bad throw... (long)
+                throw E_INVALIDARG; // bad throw... (long)
             }
             catch (...)
             {
@@ -220,15 +214,14 @@ TEST_CASE("ResultTests::ExceptionHandling", "[result]")
         }
         REQUIRE(failures.size() == 1);
         REQUIRE(failures[0].hr == E_OUTOFMEMORY);
-        REQUIRE(wcsstr(failures[0].pszMessage, L"alloc") != nullptr);     // should get the exception what() string...
+        REQUIRE(wcsstr(failures[0].pszMessage, L"alloc") != nullptr); // should get the exception what() string...
         REQUIRE(hr == E_OUTOFMEMORY);
     }
     failures.clear();
 
     SECTION("Fail-fast test")
     {
-        REQUIRE_CRASH([]()
-        {
+        REQUIRE_CRASH([]() {
             try
             {
                 throw std::bad_alloc();
@@ -260,7 +253,7 @@ TEST_CASE("ResultTests::ExceptionHandling", "[result]")
         }
         catch (const wil::ResultException& exception)
         {
-            REQUIRE(exception.GetFailureInfo().uLineNumber == line);      // should have thrown new, so we should have the rethrow line number
+            REQUIRE(exception.GetFailureInfo().uLineNumber == line); // should have thrown new, so we should have the rethrow line number
             REQUIRE(exception.GetErrorCode() == E_OUTOFMEMORY);
         }
         catch (...)
@@ -269,7 +262,7 @@ TEST_CASE("ResultTests::ExceptionHandling", "[result]")
         }
         REQUIRE(failures.size() == 1);
         REQUIRE(failures[0].hr == E_OUTOFMEMORY);
-        REQUIRE(wcsstr(failures[0].pszMessage, L"alloc") != nullptr);     // should get the exception what() string...
+        REQUIRE(wcsstr(failures[0].pszMessage, L"alloc") != nullptr); // should get the exception what() string...
     }
     failures.clear();
 
@@ -292,7 +285,7 @@ TEST_CASE("ResultTests::ExceptionHandling", "[result]")
         }
         catch (const wil::ResultException& exception)
         {
-            REQUIRE(exception.GetFailureInfo().uLineNumber == line);      // should have re-thrown the original exception (with the original line number)
+            REQUIRE(exception.GetFailureInfo().uLineNumber == line); // should have re-thrown the original exception (with the original line number)
         }
         catch (...)
         {
@@ -313,16 +306,15 @@ TEST_CASE("ResultTests::ExceptionHandling", "[result]")
         }
         REQUIRE(failures.size() == 1);
         REQUIRE(failures[0].hr == E_OUTOFMEMORY);
-        REQUIRE(wcsstr(failures[0].pszMessage, L"alloc") != nullptr);     // should get the exception what() string...
-        REQUIRE(wcsstr(failures[0].pszMessage, L"train") != nullptr);     // should *also* get the message...
+        REQUIRE(wcsstr(failures[0].pszMessage, L"alloc") != nullptr); // should get the exception what() string...
+        REQUIRE(wcsstr(failures[0].pszMessage, L"train") != nullptr); // should *also* get the message...
         REQUIRE(wcsstr(failures[0].pszMessage, L"42") != nullptr);
     }
     failures.clear();
 
     SECTION("Test messaging from a WIL exception")
     {
-        auto hr = []() -> HRESULT
-        {
+        auto hr = []() -> HRESULT {
             try
             {
                 throw std::bad_alloc();
@@ -339,13 +331,10 @@ TEST_CASE("ResultTests::ExceptionHandling", "[result]")
 
     SECTION("Test ResultFromException...")
     {
-        auto hrOk = wil::ResultFromException([&]
-        {
-        });
+        auto hrOk = wil::ResultFromException([&] {});
         REQUIRE(hrOk == S_OK);
 
-        auto hr = wil::ResultFromException([&]
-        {
+        auto hr = wil::ResultFromException([&] {
             throw std::bad_alloc();
         });
         REQUIRE(failures.empty());
@@ -355,8 +344,7 @@ TEST_CASE("ResultTests::ExceptionHandling", "[result]")
 
     SECTION("Explicit failfast for unrecognized")
     {
-        REQUIRE_CRASH(wil::ResultFromException([&]
-        {
+        REQUIRE_CRASH(wil::ResultFromException([&] {
             throw E_FAIL;
         }));
     }
@@ -364,22 +352,19 @@ TEST_CASE("ResultTests::ExceptionHandling", "[result]")
 
     SECTION("Manual debug-only validation of the SEH failfast")
     {
-        auto hr1 = wil::ResultFromExceptionDebug(WI_DIAGNOSTICS_INFO, [&]()
-        {
+        auto hr1 = wil::ResultFromExceptionDebug(WI_DIAGNOSTICS_INFO, [&]() {
             // Uncomment to test SEH fail-fast
             // throw E_FAIL;
         });
         REQUIRE(hr1 == S_OK);
 
-        auto hr2 = wil::ResultFromExceptionDebug(WI_DIAGNOSTICS_INFO, wil::SupportedExceptions::Thrown, [&]
-        {
+        auto hr2 = wil::ResultFromExceptionDebug(WI_DIAGNOSTICS_INFO, wil::SupportedExceptions::Thrown, [&] {
             // Uncomment to test SEH fail-fast
             // throw std::range_error("range");
         });
         REQUIRE(hr2 == S_OK);
 
-        wil::FailFastException(WI_DIAGNOSTICS_INFO, [&]
-        {
+        wil::FailFastException(WI_DIAGNOSTICS_INFO, [&] {
             // Uncomment to test SEH fail-fast
             // THROW_HR(E_FAIL);
         });
@@ -401,8 +386,7 @@ TEST_CASE("ResultTests::ExceptionHandling", "[result]")
 
     SECTION("bad_alloc")
     {
-        auto hr = wil::ResultFromExceptionDebug(WI_DIAGNOSTICS_INFO, [&]
-        {
+        auto hr = wil::ResultFromExceptionDebug(WI_DIAGNOSTICS_INFO, [&] {
             throw std::bad_alloc();
         });
         REQUIRE(failures.size() == 1);
@@ -412,8 +396,7 @@ TEST_CASE("ResultTests::ExceptionHandling", "[result]")
 
     SECTION("std::exception")
     {
-        auto hr = wil::ResultFromExceptionDebug(WI_DIAGNOSTICS_INFO, [&]
-        {
+        auto hr = wil::ResultFromExceptionDebug(WI_DIAGNOSTICS_INFO, [&] {
             throw std::range_error("range");
         });
         REQUIRE(failures.size() == 1);
@@ -424,44 +407,172 @@ TEST_CASE("ResultTests::ExceptionHandling", "[result]")
 
 void ExceptionHandlingCompilationTest()
 {
-    []{ try { throw std::bad_alloc(); } CATCH_RETURN(); }();
-    []{ try { throw std::bad_alloc(); } CATCH_RETURN_MSG("train: %d", 42); }();
-    []{ try { throw std::bad_alloc(); } CATCH_RETURN_EXPECTED(); }();
-    []{ try { throw std::bad_alloc(); } catch (...) { RETURN_CAUGHT_EXCEPTION(); } }();
-    []{ try { throw std::bad_alloc(); } catch (...) { RETURN_CAUGHT_EXCEPTION_MSG("train: %d", 42); } }();
-    []{ try { throw std::bad_alloc(); } catch (...) { RETURN_CAUGHT_EXCEPTION_EXPECTED(); } }();
+    [] {
+        try
+        {
+            throw std::bad_alloc();
+        }
+        CATCH_RETURN();
+    }();
+    [] {
+        try
+        {
+            throw std::bad_alloc();
+        }
+        CATCH_RETURN_MSG("train: %d", 42);
+    }();
+    [] {
+        try
+        {
+            throw std::bad_alloc();
+        }
+        CATCH_RETURN_EXPECTED();
+    }();
+    [] {
+        try
+        {
+            throw std::bad_alloc();
+        }
+        catch (...)
+        {
+            RETURN_CAUGHT_EXCEPTION();
+        }
+    }();
+    [] {
+        try
+        {
+            throw std::bad_alloc();
+        }
+        catch (...)
+        {
+            RETURN_CAUGHT_EXCEPTION_MSG("train: %d", 42);
+        }
+    }();
+    [] {
+        try
+        {
+            throw std::bad_alloc();
+        }
+        catch (...)
+        {
+            RETURN_CAUGHT_EXCEPTION_EXPECTED();
+        }
+    }();
 
-    try { throw std::bad_alloc(); } CATCH_LOG();
-    try { throw std::bad_alloc(); } CATCH_LOG_MSG("train: %d", 42);
-    try { throw std::bad_alloc(); } catch (...) { LOG_CAUGHT_EXCEPTION(); }
-    try { throw std::bad_alloc(); } catch (...) { LOG_CAUGHT_EXCEPTION_MSG("train: %d", 42); }
-
-    try { throw std::bad_alloc(); } CATCH_FAIL_FAST();
-    try { throw std::bad_alloc(); } CATCH_FAIL_FAST_MSG("train: %d", 42);
-    try { throw std::bad_alloc(); } catch (...) { FAIL_FAST_CAUGHT_EXCEPTION(); }
-    try { throw std::bad_alloc(); } catch (...) { FAIL_FAST_CAUGHT_EXCEPTION_MSG("train: %d", 42); }
-
-    try { try { throw std::bad_alloc(); } CATCH_THROW_NORMALIZED(); } catch (...) {}
-    try { try { throw std::bad_alloc(); } CATCH_THROW_NORMALIZED_MSG("train: %d", 42); } catch (...) {}
-    try { try { throw std::bad_alloc(); } catch (...) { THROW_NORMALIZED_CAUGHT_EXCEPTION(); } } catch (...) {}
-    try { try { throw std::bad_alloc(); } catch (...) { THROW_NORMALIZED_CAUGHT_EXCEPTION_MSG("train: %d", 42); } } catch (...) {}
-
-    wil::ResultFromExceptionDebug(WI_DIAGNOSTICS_INFO, wil::SupportedExceptions::All, [&]
+    try
     {
+        throw std::bad_alloc();
+    }
+    CATCH_LOG();
+    try
+    {
+        throw std::bad_alloc();
+    }
+    CATCH_LOG_MSG("train: %d", 42);
+    try
+    {
+        throw std::bad_alloc();
+    }
+    catch (...)
+    {
+        LOG_CAUGHT_EXCEPTION();
+    }
+    try
+    {
+        throw std::bad_alloc();
+    }
+    catch (...)
+    {
+        LOG_CAUGHT_EXCEPTION_MSG("train: %d", 42);
+    }
+
+    try
+    {
+        throw std::bad_alloc();
+    }
+    CATCH_FAIL_FAST();
+    try
+    {
+        throw std::bad_alloc();
+    }
+    CATCH_FAIL_FAST_MSG("train: %d", 42);
+    try
+    {
+        throw std::bad_alloc();
+    }
+    catch (...)
+    {
+        FAIL_FAST_CAUGHT_EXCEPTION();
+    }
+    try
+    {
+        throw std::bad_alloc();
+    }
+    catch (...)
+    {
+        FAIL_FAST_CAUGHT_EXCEPTION_MSG("train: %d", 42);
+    }
+
+    try
+    {
+        try
+        {
+            throw std::bad_alloc();
+        }
+        CATCH_THROW_NORMALIZED();
+    }
+    catch (...)
+    {
+    }
+    try
+    {
+        try
+        {
+            throw std::bad_alloc();
+        }
+        CATCH_THROW_NORMALIZED_MSG("train: %d", 42);
+    }
+    catch (...)
+    {
+    }
+    try
+    {
+        try
+        {
+            throw std::bad_alloc();
+        }
+        catch (...)
+        {
+            THROW_NORMALIZED_CAUGHT_EXCEPTION();
+        }
+    }
+    catch (...)
+    {
+    }
+    try
+    {
+        try
+        {
+            throw std::bad_alloc();
+        }
+        catch (...)
+        {
+            THROW_NORMALIZED_CAUGHT_EXCEPTION_MSG("train: %d", 42);
+        }
+    }
+    catch (...)
+    {
+    }
+
+    wil::ResultFromExceptionDebug(WI_DIAGNOSTICS_INFO, wil::SupportedExceptions::All, [&] {
         THROW_HR(E_FAIL);
     });
 
-    wil::ResultFromException(WI_DIAGNOSTICS_INFO, wil::SupportedExceptions::None, [&]
-    {
-    });
+    wil::ResultFromException(WI_DIAGNOSTICS_INFO, wil::SupportedExceptions::None, [&] {});
 
-    wil::ResultFromException([&]
-    {
-    });
+    wil::ResultFromException([&] {});
 
-    wil::FailFastException(WI_DIAGNOSTICS_INFO, [&]
-    {
-    });
+    wil::FailFastException(WI_DIAGNOSTICS_INFO, [&] {});
 }
 #pragma warning(pop)
 #endif
@@ -482,7 +593,7 @@ TEST_CASE("ResultTests::ErrorMacros", "[result]")
     REQUIRE_NOERROR(FAIL_FAST_IF_MSG(false, "%d", 42));
     REQUIRE_NOERROR(FAIL_FAST_IF_NULL_MSG(_ReturnAddress(), "%d", 42));
 
-    //wil::g_pfnResultLoggingCallback = ResultMacrosLoggingCallback;
+    // wil::g_pfnResultLoggingCallback = ResultMacrosLoggingCallback;
     SetLastError(ERROR_PRINTER_ALREADY_EXISTS);
     REQUIRE_ERROR(__FAIL_FAST_ASSERT_WIN32_BOOL_FALSE__(FALSE));
     REQUIRE_NOERROR(__FAIL_FAST_ASSERT_WIN32_BOOL_FALSE__(TRUE));
@@ -498,8 +609,7 @@ TEST_CASE("ResultTests::NoOriginationByDefault", "[result]")
     // We can't guarantee test order, so clear the error payload prior to starting
     SetRestrictedErrorInfo(nullptr);
 
-    []() -> HRESULT
-    {
+    []() -> HRESULT {
         RETURN_HR(S_OK);
     }();
     REQUIRE(S_FALSE == GetRestrictedErrorInfo(&restrictedErrorInformation));
@@ -509,18 +619,18 @@ TEST_CASE("ResultTests::NoOriginationByDefault", "[result]")
     {
         THROW_HR(E_FAIL);
     }
-    catch (...) {}
+    catch (...)
+    {
+    }
     REQUIRE(S_FALSE == GetRestrictedErrorInfo(&restrictedErrorInformation));
 #endif // WIL_ENABLE_EXCEPTIONS
 
-    []() -> HRESULT
-    {
+    []() -> HRESULT {
         RETURN_HR(E_FAIL);
     }();
     REQUIRE(S_FALSE == GetRestrictedErrorInfo(&restrictedErrorInformation));
 
-    []() -> HRESULT
-    {
+    []() -> HRESULT {
         RETURN_IF_FAILED_EXPECTED(E_ACCESSDENIED);
         return S_OK;
     }();
@@ -536,19 +646,18 @@ TEST_CASE("ResultTests::AutomaticOriginationOnFailure", "[result]")
     SetRestrictedErrorInfo(nullptr);
 
     // Success codes shouldn't originate.
-    []()
-    {
+    []() {
         RETURN_HR(S_OK);
     }();
     REQUIRE(S_FALSE == GetRestrictedErrorInfo(&restrictedErrorInformation));
 
-    auto validateOriginatedError = [&](HRESULT hrExpected)
-    {
+    auto validateOriginatedError = [&](HRESULT hrExpected) {
         wil::unique_bstr descriptionUnused;
         HRESULT existingHr = S_OK;
         wil::unique_bstr restrictedDescriptionUnused;
         wil::unique_bstr capabilitySidUnused;
-        REQUIRE_SUCCEEDED(restrictedErrorInformation->GetErrorDetails(&descriptionUnused, &existingHr, &restrictedDescriptionUnused, &capabilitySidUnused));
+        REQUIRE_SUCCEEDED(restrictedErrorInformation->GetErrorDetails(
+            &descriptionUnused, &existingHr, &restrictedDescriptionUnused, &capabilitySidUnused));
         REQUIRE(hrExpected == existingHr);
     };
 
@@ -559,15 +668,16 @@ TEST_CASE("ResultTests::AutomaticOriginationOnFailure", "[result]")
     {
         THROW_HR(thrownErrorCode);
     }
-    catch (...) {}
+    catch (...)
+    {
+    }
     REQUIRE(S_OK == GetRestrictedErrorInfo(&restrictedErrorInformation));
     validateOriginatedError(thrownErrorCode);
 #endif // WIL_ENABLE_EXCEPTIONS
 
     // Returning an error code should originate.
     static constexpr HRESULT returnedErrorCode = REGDB_E_CLASSNOTREG;
-    []()
-    {
+    []() {
         RETURN_HR(returnedErrorCode);
     }();
     REQUIRE(S_OK == GetRestrictedErrorInfo(&restrictedErrorInformation));
@@ -575,8 +685,7 @@ TEST_CASE("ResultTests::AutomaticOriginationOnFailure", "[result]")
 
     // _EXPECTED errors should NOT originate.
     static constexpr HRESULT expectedErrorCode = E_ACCESSDENIED;
-    []()
-    {
+    []() {
         RETURN_IF_FAILED_EXPECTED(expectedErrorCode);
         return S_OK;
     }();
@@ -592,11 +701,12 @@ TEST_CASE("ResultTests::OriginatedWithMessagePreserved", "[result]")
     {
         THROW_HR_MSG(E_FAIL, "Puppies not allowed");
     }
-    catch (...) {}
+    catch (...)
+    {
+    }
     witest::RequireRestrictedErrorInfo(E_FAIL, L"Puppies not allowed");
 
-    []()
-    {
+    []() {
         try
         {
             throw std::exception("Puppies not allowed");
@@ -607,8 +717,7 @@ TEST_CASE("ResultTests::OriginatedWithMessagePreserved", "[result]")
 
 #endif
 
-    []()
-    {
+    []() {
         RETURN_HR_MSG(E_FAIL, "Puppies not allowed");
     }();
     witest::RequireRestrictedErrorInfo(E_FAIL, L"Puppies not allowed");
@@ -616,11 +725,9 @@ TEST_CASE("ResultTests::OriginatedWithMessagePreserved", "[result]")
 
 #endif
 
-
 TEST_CASE("ResultTests::ReportDoesNotChangeLastError", "[result]")
 {
-    decltype(wil::details::g_pfnLoggingCallback) oopsie = [](wil::FailureInfo const&) noexcept
-    {
+    decltype(wil::details::g_pfnLoggingCallback) oopsie = [](wil::FailureInfo const&) noexcept {
         ::SetLastError(ERROR_ABANDON_HIBERFILE);
     };
     auto swap = witest::AssignTemporaryValue(&wil::details::g_pfnLoggingCallback, oopsie);
@@ -629,4 +736,3 @@ TEST_CASE("ResultTests::ReportDoesNotChangeLastError", "[result]")
     LOG_IF_WIN32_BOOL_FALSE(FALSE);
     REQUIRE(::GetLastError() == ERROR_ABIOS_ERROR);
 }
-
