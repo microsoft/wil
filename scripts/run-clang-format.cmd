@@ -18,16 +18,14 @@ if not exist "%CLANG_FORMAT%" (
     exit /B 1
 )
 
-for %%d in (%DIRS%) do call :recursive_format %ROOT_DIR%\%%d
+for %%d in (%DIRS%) do call :format_files %ROOT_DIR%\%%d
 goto :eof
 
-:recursive_format
-    :: First do files
+:format_files
+    :: Format all desired files
     for %%e in (%EXTS%) do (
         for %%f in (%1\*%%e) do call :run_clang_format %%f
     )
-    :: Now do subdirectories
-    for /d %%d in (%1\*) do call :recursive_format %%d
     goto :eof
 
 :run_clang_format

@@ -318,8 +318,8 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 // Assemble the varying amounts of data into a single macro
 #define __R_INFO_ONLY(CODE) \
     __R_IF_CALLERADDRESS(_ReturnAddress() __R_IF_COMMA) \
-    __R_IF_LINE(__R_LINE_VALUE) __R_IF_FILE(__R_COMMA __R_FILE_VALUE) __R_IF_FUNCTION(__R_COMMA __FUNCTION__) \
-        __R_IF_CODE(__R_COMMA CODE)
+    __R_IF_LINE(__R_LINE_VALUE) \
+    __R_IF_FILE(__R_COMMA __R_FILE_VALUE) __R_IF_FUNCTION(__R_COMMA __FUNCTION__) __R_IF_CODE(__R_COMMA CODE)
 #define __R_INFO(CODE) __R_INFO_ONLY(CODE) __R_IF_TRAIL_COMMA
 #define __R_INFO_NOFILE_ONLY(CODE) \
     __R_IF_CALLERADDRESS(_ReturnAddress() __R_IF_COMMA) \
@@ -327,8 +327,9 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 #define __R_INFO_NOFILE(CODE) __R_INFO_NOFILE_ONLY(CODE) __R_IF_TRAIL_COMMA
 #define __R_FN_PARAMS_ONLY \
     __R_IF_CALLERADDRESS(void* callerReturnAddress __R_IF_COMMA) \
-    __R_IF_LINE(unsigned int lineNumber) __R_IF_FILE(__R_COMMA _In_opt_ PCSTR fileName) \
-        __R_IF_FUNCTION(__R_COMMA _In_opt_ PCSTR functionName) __R_IF_CODE(__R_COMMA _In_opt_ PCSTR code)
+    __R_IF_LINE(unsigned int lineNumber) \
+    __R_IF_FILE(__R_COMMA _In_opt_ PCSTR fileName) __R_IF_FUNCTION(__R_COMMA _In_opt_ PCSTR functionName) \
+        __R_IF_CODE(__R_COMMA _In_opt_ PCSTR code)
 #define __R_FN_PARAMS __R_FN_PARAMS_ONLY __R_IF_TRAIL_COMMA
 #define __R_FN_CALL_ONLY \
     __R_IF_CALLERADDRESS(callerReturnAddress __R_IF_COMMA) \
@@ -336,13 +337,14 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 #define __R_FN_CALL __R_FN_CALL_ONLY __R_IF_TRAIL_COMMA
 #define __R_FN_LOCALS \
     __R_IF_NOT_CALLERADDRESS(void* callerReturnAddress = nullptr;) \
-    __R_IF_NOT_LINE(unsigned int lineNumber = 0;) __R_IF_NOT_FILE(PCSTR fileName = nullptr;) \
-        __R_IF_NOT_FUNCTION(PCSTR functionName = nullptr;) __R_IF_NOT_CODE(PCSTR code = nullptr;)
+    __R_IF_NOT_LINE(unsigned int lineNumber = 0;) \
+    __R_IF_NOT_FILE(PCSTR fileName = nullptr;) __R_IF_NOT_FUNCTION(PCSTR functionName = nullptr;) \
+        __R_IF_NOT_CODE(PCSTR code = nullptr;)
 #define __R_FN_LOCALS_RA \
     __R_IF_NOT_CALLERADDRESS(void* callerReturnAddress = nullptr;) \
-    __R_IF_NOT_LINE(unsigned int lineNumber = 0;) __R_IF_NOT_FILE(PCSTR fileName = nullptr;) \
-        __R_IF_NOT_FUNCTION(PCSTR functionName = nullptr;) __R_IF_NOT_CODE(PCSTR code = nullptr;) void* returnAddress = \
-            _ReturnAddress();
+    __R_IF_NOT_LINE(unsigned int lineNumber = 0;) \
+    __R_IF_NOT_FILE(PCSTR fileName = nullptr;) __R_IF_NOT_FUNCTION(PCSTR functionName = nullptr;) \
+        __R_IF_NOT_CODE(PCSTR code = nullptr;) void* returnAddress = _ReturnAddress();
 #define __R_FN_UNREFERENCED \
     __R_IF_CALLERADDRESS((void)callerReturnAddress;) \
     __R_IF_LINE((void)lineNumber;) __R_IF_FILE((void)fileName;) __R_IF_FUNCTION((void)functionName;) __R_IF_CODE((void)code;)
@@ -513,28 +515,30 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 // Assemble the varying amounts of data into a single macro
 #define __RFF_INFO_ONLY(CODE) \
     __RFF_IF_CALLERADDRESS(_ReturnAddress() __RFF_IF_COMMA) \
-    __RFF_IF_LINE(__R_LINE_VALUE) __RFF_IF_FILE(__RFF_COMMA __R_FILE_VALUE) __RFF_IF_FUNCTION(__RFF_COMMA __FUNCTION__) \
-        __RFF_IF_CODE(__RFF_COMMA CODE)
+    __RFF_IF_LINE(__R_LINE_VALUE) \
+    __RFF_IF_FILE(__RFF_COMMA __R_FILE_VALUE) __RFF_IF_FUNCTION(__RFF_COMMA __FUNCTION__) __RFF_IF_CODE(__RFF_COMMA CODE)
 #define __RFF_INFO(CODE) __RFF_INFO_ONLY(CODE) __RFF_IF_TRAIL_COMMA
 #define __RFF_INFO_NOFILE_ONLY(CODE) \
     __RFF_IF_CALLERADDRESS(_ReturnAddress() __RFF_IF_COMMA) \
-    __RFF_IF_LINE(__R_LINE_VALUE) __RFF_IF_FILE(__RFF_COMMA "wil") __RFF_IF_FUNCTION(__RFF_COMMA __FUNCTION__) \
-        __RFF_IF_CODE(__RFF_COMMA CODE)
+    __RFF_IF_LINE(__R_LINE_VALUE) \
+    __RFF_IF_FILE(__RFF_COMMA "wil") __RFF_IF_FUNCTION(__RFF_COMMA __FUNCTION__) __RFF_IF_CODE(__RFF_COMMA CODE)
 #define __RFF_INFO_NOFILE(CODE) __RFF_INFO_NOFILE_ONLY(CODE) __RFF_IF_TRAIL_COMMA
 #define __RFF_FN_PARAMS_ONLY \
     __RFF_IF_CALLERADDRESS(void* callerReturnAddress __RFF_IF_COMMA) \
-    __RFF_IF_LINE(unsigned int lineNumber) __RFF_IF_FILE(__RFF_COMMA _In_opt_ PCSTR fileName) \
-        __RFF_IF_FUNCTION(__RFF_COMMA _In_opt_ PCSTR functionName) __RFF_IF_CODE(__RFF_COMMA _In_opt_ PCSTR code)
+    __RFF_IF_LINE(unsigned int lineNumber) \
+    __RFF_IF_FILE(__RFF_COMMA _In_opt_ PCSTR fileName) __RFF_IF_FUNCTION(__RFF_COMMA _In_opt_ PCSTR functionName) \
+        __RFF_IF_CODE(__RFF_COMMA _In_opt_ PCSTR code)
 #define __RFF_FN_PARAMS __RFF_FN_PARAMS_ONLY __RFF_IF_TRAIL_COMMA
 #define __RFF_FN_CALL_ONLY \
     __RFF_IF_CALLERADDRESS(callerReturnAddress __RFF_IF_COMMA) \
-    __RFF_IF_LINE(lineNumber) __RFF_IF_FILE(__RFF_COMMA fileName) __RFF_IF_FUNCTION(__RFF_COMMA functionName) \
-        __RFF_IF_CODE(__RFF_COMMA code)
+    __RFF_IF_LINE(lineNumber) \
+    __RFF_IF_FILE(__RFF_COMMA fileName) __RFF_IF_FUNCTION(__RFF_COMMA functionName) __RFF_IF_CODE(__RFF_COMMA code)
 #define __RFF_FN_CALL __RFF_FN_CALL_ONLY __RFF_IF_TRAIL_COMMA
 #define __RFF_FN_LOCALS \
     __RFF_IF_NOT_CALLERADDRESS(void* callerReturnAddress = nullptr;) \
-    __RFF_IF_NOT_LINE(unsigned int lineNumber = 0;) __RFF_IF_NOT_FILE(PCSTR fileName = nullptr;) \
-        __RFF_IF_NOT_FUNCTION(PCSTR functionName = nullptr;) __RFF_IF_NOT_CODE(PCSTR code = nullptr;)
+    __RFF_IF_NOT_LINE(unsigned int lineNumber = 0;) \
+    __RFF_IF_NOT_FILE(PCSTR fileName = nullptr;) __RFF_IF_NOT_FUNCTION(PCSTR functionName = nullptr;) \
+        __RFF_IF_NOT_CODE(PCSTR code = nullptr;)
 #define __RFF_FN_UNREFERENCED \
     __RFF_IF_CALLERADDRESS(callerReturnAddress;) \
     __RFF_IF_LINE(lineNumber;) __RFF_IF_FILE(fileName;) __RFF_IF_FUNCTION(functionName;) __RFF_IF_CODE(code;)
