@@ -265,7 +265,8 @@ TEST_CASE("TokenHelpersTests::StaticSid", "[token_helpers]")
 {
     SID_IDENTIFIER_AUTHORITY ntAuthority = SECURITY_NT_AUTHORITY;
     auto staticSid = wil::make_static_sid(SECURITY_NT_AUTHORITY, SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_GUESTS);
-    auto largerSid = wil::make_static_sid(SECURITY_NT_AUTHORITY, SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_GUESTS, DOMAIN_ALIAS_RID_BACKUP_OPS);
+    auto largerSid =
+        wil::make_static_sid(SECURITY_NT_AUTHORITY, SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_GUESTS, DOMAIN_ALIAS_RID_BACKUP_OPS);
 
     largerSid = staticSid;
     largerSid = largerSid;
@@ -283,10 +284,7 @@ TEST_CASE("TokenHelpersTests::TestMembership", "[token_helpers]")
 {
     bool member;
     REQUIRE_SUCCEEDED(wil::test_token_membership_nothrow(
-        &member,
-        GetCurrentThreadEffectiveToken(),
-        SECURITY_NT_AUTHORITY,
-        SECURITY_AUTHENTICATED_USER_RID));
+        &member, GetCurrentThreadEffectiveToken(), SECURITY_NT_AUTHORITY, SECURITY_AUTHENTICATED_USER_RID));
 }
 
 #ifdef WIL_ENABLE_EXCEPTIONS

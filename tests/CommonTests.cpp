@@ -8,8 +8,8 @@
 TEST_CASE("CommonTests::OutParamHelpers", "[common]")
 {
     int i = 2;
-    int *pOutTest = &i;
-    int *pNullTest = nullptr;
+    int* pOutTest = &i;
+    int* pNullTest = nullptr;
 
     SECTION("Value type")
     {
@@ -20,8 +20,8 @@ TEST_CASE("CommonTests::OutParamHelpers", "[common]")
 
     SECTION("Pointer to value type")
     {
-        int **ppOutTest = &pOutTest;
-        int **ppNullTest = nullptr;
+        int** ppOutTest = &pOutTest;
+        int** ppNullTest = nullptr;
         wil::assign_null_to_opt_param(ppNullTest);
         wil::assign_null_to_opt_param(ppOutTest);
         REQUIRE(*ppOutTest == nullptr);
@@ -30,9 +30,9 @@ TEST_CASE("CommonTests::OutParamHelpers", "[common]")
     SECTION("COM out pointer")
     {
         Microsoft::WRL::ComPtr<IUnknown> spUnk;
-        IUnknown **ppunkNull = nullptr;
-        IUnknown *pUnk = reinterpret_cast<IUnknown *>(1);
-        IUnknown **ppUnkValid = &pUnk;
+        IUnknown** ppunkNull = nullptr;
+        IUnknown* pUnk = reinterpret_cast<IUnknown*>(1);
+        IUnknown** ppUnkValid = &pUnk;
 
         wil::detach_to_opt_param(ppunkNull, spUnk);
         wil::detach_to_opt_param(ppUnkValid, spUnk);
@@ -58,31 +58,31 @@ TEST_CASE("CommonTests::TypeValidation", "[common]")
         REQUIRE(wil::verify_bool(bigBool));
         REQUIRE_FALSE(wil::verify_bool(boolCastClass));
         REQUIRE_FALSE(wil::verify_bool(comPtr));
-        //wil::verify_bool(noBoolCastClass);
-        //wil::verify_bool(dword);
-        //wil::verify_bool(hr);
+        // wil::verify_bool(noBoolCastClass);
+        // wil::verify_bool(dword);
+        // wil::verify_bool(hr);
     }
 
     SECTION("verify_hresult")
     {
-        //wil::verify_hresult(smallBool);
-        //wil::verify_hresult(bigBool);
-        //wil::verify_hresult(boolCastClass);
-        //wil::verify_hresult(noBoolCastClass);
-        //wil::verify_hresult(dword);
-        //wil::verify_hresult(comPtr);
+        // wil::verify_hresult(smallBool);
+        // wil::verify_hresult(bigBool);
+        // wil::verify_hresult(boolCastClass);
+        // wil::verify_hresult(noBoolCastClass);
+        // wil::verify_hresult(dword);
+        // wil::verify_hresult(comPtr);
         REQUIRE(wil::verify_hresult(hr) == S_OK);
     }
 
     SECTION("verify_BOOL")
     {
-        //wil::verify_BOOL(smallBool);
+        // wil::verify_BOOL(smallBool);
         REQUIRE(wil::verify_BOOL(bigBool));
-        //wil::verify_BOOL(boolCastClass);
-        //wil::verify_BOOL(noBoolCastClass);
-        //wil::verify_BOOL(dword);
-        //wil::verify_BOOL(comPtr);
-        //wil::verify_BOOL(hr);
+        // wil::verify_BOOL(boolCastClass);
+        // wil::verify_BOOL(noBoolCastClass);
+        // wil::verify_BOOL(dword);
+        // wil::verify_BOOL(comPtr);
+        // wil::verify_BOOL(hr);
     }
 }
 
@@ -173,7 +173,8 @@ TEST_CASE("CommonTests::FlagsMacros", "[common]")
 {
     SECTION("Integral types")
     {
-        FlagsMacrosNonStatic<char>(static_cast<char>(0), static_cast<char>(0x1), static_cast<char>(0x2), static_cast<char>(0x4), static_cast<char>(0x40));
+        FlagsMacrosNonStatic<char>(
+            static_cast<char>(0), static_cast<char>(0x1), static_cast<char>(0x2), static_cast<char>(0x4), static_cast<char>(0x40));
         FlagsMacrosNonStatic<unsigned char>(0, 0x1, 0x2, 0x4, 0x80u);
         FlagsMacrosNonStatic<short>(0, 0x1, 0x2, 0x4, 0x4000);
         FlagsMacrosNonStatic<unsigned short>(0, 0x1, 0x2, 0x4, 0x8000u);

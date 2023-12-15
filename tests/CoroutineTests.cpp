@@ -19,26 +19,25 @@
 #error "COM headers are included in a file that is testing non-COM support."
 #endif
 
-#if (!defined(__clang__) && defined(__cpp_impl_coroutine) && defined(__cpp_lib_coroutine) && (__cpp_lib_coroutine >= 201902L)) || defined(_RESUMABLE_FUNCTIONS_SUPPORTED)
+#if (!defined(__clang__) && defined(__cpp_impl_coroutine) && defined(__cpp_lib_coroutine) && (__cpp_lib_coroutine >= 201902L)) || \
+    defined(_RESUMABLE_FUNCTIONS_SUPPORTED)
 
 namespace
 {
-    wil::task<void> void_task(std::shared_ptr<int> value)
-    {
-        ++*value;
-        co_return;
-    }
+wil::task<void> void_task(std::shared_ptr<int> value)
+{
+    ++*value;
+    co_return;
 }
+} // namespace
 
 TEST_CASE("CppWinRTTests::SimpleNoCOMTaskTest", "[cppwinrt]")
 {
-    std::thread([]
-        {
-            auto value = std::make_shared<int>(0);
-            void_task(value).get();
-            REQUIRE(*value == 1);
-        }
-    ).join();
+    std::thread([] {
+        auto value = std::make_shared<int>(0);
+        void_task(value).get();
+        REQUIRE(*value == 1);
+    }).join();
 }
 
 #endif // coroutines

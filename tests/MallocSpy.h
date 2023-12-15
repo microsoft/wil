@@ -123,8 +123,7 @@ Microsoft::WRL::ComPtr<MallocSpy> MakeSecureDeleterMallocSpy()
     auto result = Make<MallocSpy>();
     REQUIRE(result);
 
-    result->PreFreeCallback = [](void* ptr)
-    {
+    result->PreFreeCallback = [](void* ptr) {
         ComPtr<IMalloc> malloc;
         if (SUCCEEDED(::CoGetMalloc(1, &malloc)))
         {

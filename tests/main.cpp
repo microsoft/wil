@@ -8,8 +8,7 @@
 #include "catch.hpp"
 
 #if WITEST_ADDRESS_SANITIZER
-extern "C" __declspec(dllexport)
-const char* __asan_default_options()
+extern "C" __declspec(dllexport) const char* __asan_default_options()
 {
     return
         // Tests validate OOM, so this is expected

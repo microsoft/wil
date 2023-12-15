@@ -14,7 +14,8 @@ inline void LogOutput(_Printf_format_string_ PCWSTR format, args_t&&... args)
 
 inline bool IsComInitialized()
 {
-    APTTYPE type{}; APTTYPEQUALIFIER qualifier{};
+    APTTYPE type{};
+    APTTYPEQUALIFIER qualifier{};
     return CoGetApartmentType(&type, &qualifier) == S_OK;
 }
 
@@ -28,12 +29,12 @@ inline void WaitForAllComApartmentsToRundown()
 
 void co_wait(const wil::unique_event& e)
 {
-    HANDLE raw[] = { e.get() };
+    HANDLE raw[] = {e.get()};
     ULONG index{};
     REQUIRE_SUCCEEDED(CoWaitForMultipleHandles(COWAIT_DISPATCH_CALLS, INFINITE, static_cast<ULONG>(std::size(raw)), raw, &index));
 }
 
-void RunApartmentVariableTest(void(*test)())
+void RunApartmentVariableTest(void (*test)())
 {
     test();
     // Apartment variable rundown is async, wait for the last COM apartment
@@ -45,7 +46,8 @@ struct mock_platform
 {
     static unsigned long long GetApartmentId()
     {
-        APTTYPE type; APTTYPEQUALIFIER qualifer;
+        APTTYPE type;
+        APTTYPEQUALIFIER qualifer;
         REQUIRE_SUCCEEDED(CoGetApartmentType(&type, &qualifer)); // ensure COM is inited
 
         // Approximate apartment Id
@@ -67,13 +69,13 @@ struct mock_platform
         auto apt_observers = m_observers.find(id);
         if (apt_observers == m_observers.end())
         {
-            m_observers.insert({ id, { observer} });
+            m_observers.insert({id, {observer}});
         }
         else
         {
             apt_observers->second.emplace_back(observer);
         }
-        return shutdown_type{ reinterpret_cast<APARTMENT_SHUTDOWN_REGISTRATION_COOKIE>(id) };
+        return shutdown_type{reinterpret_cast<APARTMENT_SHUTDOWN_REGISTRATION_COOKIE>(id)};
     }
 
     static void UnRegisterForApartmentShutdown(APARTMENT_SHUTDOWN_REGISTRATION_COOKIE cookie)
@@ -82,13 +84,13 @@ struct mock_platform
         m_observers.erase(id);
     }
 
-    using shutdown_type = wil::unique_any<APARTMENT_SHUTDOWN_REGISTRATION_COOKIE, decltype(&UnRegisterForApartmentShutdown), UnRegisterForApartmentShutdown>;
+    using shutdown_type =
+        wil::unique_any<APARTMENT_SHUTDOWN_REGISTRATION_COOKIE, decltype(&UnRegisterForApartmentShutdown), UnRegisterForApartmentShutdown>;
 
     // This is needed to simulate the platform for unit testing.
     static auto CoInitializeEx(DWORD coinitFlags = 0 /*COINIT_MULTITHREADED*/)
     {
-        return wil::scope_exit([aptId = GetCurrentThreadId(), init = wil::CoInitializeEx(coinitFlags)]()
-        {
+        return wil::scope_exit([aptId = GetCurrentThreadId(), init = wil::CoInitializeEx(coinitFlags)]() {
             const auto id = GetApartmentId();
             auto apt_observers = m_observers.find(id);
             if (apt_observers != m_observers.end())
@@ -108,8 +110,14 @@ struct mock_platform
     inline static std::unordered_map<unsigned long long, std::vector<wil::com_ptr<IApartmentShutdown>>> m_observers;
 };
 
-auto fn() { return 42; };
-auto fn2() { return 43; };
+auto fn()
+{
+    return 42;
+};
+auto fn2()
+{
+    return 43;
+};
 
 wil::apartment_variable<int, wil::apartment_variable_leak_action::ignore, mock_platform> g_v1;
 wil::apartment_variable<int, wil::apartment_variable_leak_action::ignore> g_v2;
@@ -141,8 +149,7 @@ void TestApartmentVariableGetOrCreateForms()
     wil::apartment_variable<int, wil::apartment_variable_leak_action::fail_fast, platform> v1;
     REQUIRE(v1.get_or_create(fn) == 42);
     v1.clear();
-    REQUIRE(v1.get_or_create([&]
-    {
+    REQUIRE(v1.get_or_create([&] {
         return 1;
     }) == 1);
     v1.clear();
@@ -182,13 +189,14 @@ void TestApartmentVariableLifetimes()
         REQUIRE(av1.current_apartment_variable_count() == 1);
 
         std::thread([&]() // join below makes this ok
-        {
-            SetThreadDescription(GetCurrentThread(), L"STA");
-            auto coUninit = platform::CoInitializeEx(COINIT_APARTMENTTHREADED);
-            std::ignore = av1.get_or_create(fn);
-            REQUIRE(av1.storage().size() == 2);
-            REQUIRE(av1.current_apartment_variable_count() == 1);
-        }).join();
+                    {
+                        SetThreadDescription(GetCurrentThread(), L"STA");
+                        auto coUninit = platform::CoInitializeEx(COINIT_APARTMENTTHREADED);
+                        std::ignore = av1.get_or_create(fn);
+                        REQUIRE(av1.storage().size() == 2);
+                        REQUIRE(av1.current_apartment_variable_count() == 1);
+                    })
+            .join();
         REQUIRE(av1.storage().size() == 1);
 
         av1.get_or_create(fn)++;
@@ -219,28 +227,28 @@ void TestMultipleApartments()
 {
     wil::apartment_variable<int, wil::apartment_variable_leak_action::fail_fast, platform> av1, av2;
 
-    wil::unique_event t1Created{ wil::EventOptions::None }, t2Created{ wil::EventOptions::None };
-    wil::unique_event t1Shutdown{ wil::EventOptions::None }, t2Shutdown{ wil::EventOptions::None };
+    wil::unique_event t1Created{wil::EventOptions::None}, t2Created{wil::EventOptions::None};
+    wil::unique_event t1Shutdown{wil::EventOptions::None}, t2Shutdown{wil::EventOptions::None};
 
     auto apt1_thread = std::thread([&]() // join below makes this ok
-    {
-        SetThreadDescription(GetCurrentThread(), L"STA 1");
-        auto coUninit = platform::CoInitializeEx(COINIT_APARTMENTTHREADED);
-        std::ignore = av1.get_or_create(fn);
-        std::ignore = av2.get_or_create(fn);
-        t1Created.SetEvent();
-        co_wait(t1Shutdown);
-    });
+                                   {
+                                       SetThreadDescription(GetCurrentThread(), L"STA 1");
+                                       auto coUninit = platform::CoInitializeEx(COINIT_APARTMENTTHREADED);
+                                       std::ignore = av1.get_or_create(fn);
+                                       std::ignore = av2.get_or_create(fn);
+                                       t1Created.SetEvent();
+                                       co_wait(t1Shutdown);
+                                   });
 
     auto apt2_thread = std::thread([&]() // join below makes this ok
-    {
-        SetThreadDescription(GetCurrentThread(), L"STA 2");
-        auto coUninit = platform::CoInitializeEx(COINIT_APARTMENTTHREADED);
-        std::ignore = av1.get_or_create(fn);
-        std::ignore = av2.get_or_create(fn);
-        t2Created.SetEvent();
-        co_wait(t2Shutdown);
-    });
+                                   {
+                                       SetThreadDescription(GetCurrentThread(), L"STA 2");
+                                       auto coUninit = platform::CoInitializeEx(COINIT_APARTMENTTHREADED);
+                                       std::ignore = av1.get_or_create(fn);
+                                       std::ignore = av2.get_or_create(fn);
+                                       t2Created.SetEvent();
+                                       co_wait(t2Shutdown);
+                                   });
 
     t1Created.wait();
     t2Created.wait();
@@ -266,18 +274,18 @@ void TestWinningApartmentAlreadyRundownRace()
     std::ignore = av.get_or_create(fn);
     const auto& storage = av.storage(); // for viewing the storage in the debugger
 
-    wil::unique_event otherAptVarCreated{ wil::EventOptions::None };
-    wil::unique_event startApartmentRundown{ wil::EventOptions::None };
-    wil::unique_event comRundownComplete{ wil::EventOptions::None };
+    wil::unique_event otherAptVarCreated{wil::EventOptions::None};
+    wil::unique_event startApartmentRundown{wil::EventOptions::None};
+    wil::unique_event comRundownComplete{wil::EventOptions::None};
 
     auto apt_thread = std::thread([&]() // join below makes this ok
-    {
-        SetThreadDescription(GetCurrentThread(), L"STA");
-        auto coUninit = platform::CoInitializeEx(COINIT_APARTMENTTHREADED);
-        std::ignore = av.get_or_create(fn);
-        otherAptVarCreated.SetEvent();
-        co_wait(startApartmentRundown);
-    });
+                                  {
+                                      SetThreadDescription(GetCurrentThread(), L"STA");
+                                      auto coUninit = platform::CoInitializeEx(COINIT_APARTMENTTHREADED);
+                                      std::ignore = av.get_or_create(fn);
+                                      otherAptVarCreated.SetEvent();
+                                      co_wait(startApartmentRundown);
+                                  });
 
     otherAptVarCreated.wait();
     // we now have av in this apartment and in the STA
@@ -300,20 +308,20 @@ void TestLosingApartmentAlreadyRundownRace()
     std::ignore = av.get_or_create(fn);
     const auto& storage = av.storage(); // for viewing the storage in the debugger
 
-    wil::unique_event otherAptVarCreated{ wil::EventOptions::None };
-    wil::unique_event startApartmentRundown{ wil::EventOptions::None };
-    wil::unique_event comRundownComplete{ wil::EventOptions::None };
+    wil::unique_event otherAptVarCreated{wil::EventOptions::None};
+    wil::unique_event startApartmentRundown{wil::EventOptions::None};
+    wil::unique_event comRundownComplete{wil::EventOptions::None};
 
     auto apt_thread = std::thread([&]() // join below makes this ok
-    {
-        SetThreadDescription(GetCurrentThread(), L"STA");
-        auto coUninit = platform::CoInitializeEx(COINIT_APARTMENTTHREADED);
-        std::ignore = av.get_or_create(fn);
-        otherAptVarCreated.SetEvent();
-        co_wait(startApartmentRundown);
-        coUninit.reset();
-        comRundownComplete.SetEvent();
-    });
+                                  {
+                                      SetThreadDescription(GetCurrentThread(), L"STA");
+                                      auto coUninit = platform::CoInitializeEx(COINIT_APARTMENTTHREADED);
+                                      std::ignore = av.get_or_create(fn);
+                                      otherAptVarCreated.SetEvent();
+                                      co_wait(startApartmentRundown);
+                                      coUninit.reset();
+                                      comRundownComplete.SetEvent();
+                                  });
 
     otherAptVarCreated.wait();
     // we now have av in this apartment and in the STA

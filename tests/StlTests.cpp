@@ -13,40 +13,40 @@ struct dummy
 };
 
 #if _HAS_CXX17
-    using namespace wil::literals;
+using namespace wil::literals;
 #endif // _HAS_CXX17
 
 // Specialize std::allocator<> so that we don't actually allocate/deallocate memory
 dummy g_memoryBuffer[256];
 namespace std
 {
-    template <>
-    struct allocator<dummy>
+template <>
+struct allocator<dummy>
+{
+    using value_type = dummy;
+    using size_type = std::size_t;
+    using difference_type = std::ptrdiff_t;
+
+    dummy* allocate(std::size_t count)
     {
-        using value_type = dummy;
-        using size_type = std::size_t;
-        using difference_type = std::ptrdiff_t;
+        REQUIRE(count <= std::size(g_memoryBuffer));
+        return g_memoryBuffer;
+    }
 
-        dummy* allocate(std::size_t count)
+    void deallocate(dummy* ptr, std::size_t count)
+    {
+        for (std::size_t i = 0; i < count; ++i)
         {
-            REQUIRE(count <= std::size(g_memoryBuffer));
-            return g_memoryBuffer;
+            REQUIRE(ptr[i].value == 0);
         }
-
-        void deallocate(dummy* ptr, std::size_t count)
-        {
-            for (std::size_t i = 0; i < count; ++i)
-            {
-                REQUIRE(ptr[i].value == 0);
-            }
-        }
-    };
-}
+    }
+};
+} // namespace std
 
 TEST_CASE("StlTests::TestSecureAllocator", "[stl][secure_allocator]")
 {
     {
-        wil::secure_vector<dummy> sensitiveBytes(32, dummy{ 'a' });
+        wil::secure_vector<dummy> sensitiveBytes(32, dummy{'a'});
     }
 }
 
@@ -58,8 +58,14 @@ struct CustomNoncopyableString
     CustomNoncopyableString(const CustomNoncopyableString&) = delete;
     void operator=(const CustomNoncopyableString&) = delete;
 
-    constexpr operator PCSTR() const { return "hello"; }
-    constexpr operator PCWSTR() const { return L"w-hello"; }
+    constexpr operator PCSTR() const
+    {
+        return "hello";
+    }
+    constexpr operator PCWSTR() const
+    {
+        return L"w-hello";
+    }
 };
 
 TEST_CASE("StlTests::TestZStringView", "[stl][zstring_view]")
@@ -107,16 +113,16 @@ TEST_CASE("StlTests::TestZStringView", "[stl][zstring_view]")
     REQUIRE(fromLiteral[3] == '\0');
 
     // Test constructing with no NULL in range
-    static constexpr char badCharArray[2][3] = {{'a', 'b', 'c' }, {'a', 'b', 'c' }};
-    REQUIRE_CRASH((wil::zstring_view{ &badCharArray[0][0], _countof(badCharArray[0]) }));
-    REQUIRE_CRASH((wil::zstring_view{ badCharArray[0] }));
+    static constexpr char badCharArray[2][3] = {{'a', 'b', 'c'}, {'a', 'b', 'c'}};
+    REQUIRE_CRASH((wil::zstring_view{&badCharArray[0][0], _countof(badCharArray[0])}));
+    REQUIRE_CRASH((wil::zstring_view{badCharArray[0]}));
 
     // Test constructing with a NULL one character past the valid range, guarding against off-by-one errors
     // Overloads taking an explicit length trust the user that they ensure valid memory follows the buffer
-    static constexpr char badCharArrayOffByOne[2][3] = {{'a', 'b', 'c' }, {}};
+    static constexpr char badCharArrayOffByOne[2][3] = {{'a', 'b', 'c'}, {}};
     const wil::zstring_view fromTerminatedCharArray(&badCharArrayOffByOne[0][0], _countof(badCharArrayOffByOne[0]));
     REQUIRE(fromLiteral == fromTerminatedCharArray);
-    REQUIRE_CRASH((wil::zstring_view{ badCharArrayOffByOne[0] }));
+    REQUIRE_CRASH((wil::zstring_view{badCharArrayOffByOne[0]}));
 
     // Test constructing from custom string type
     CustomNoncopyableString customString;
@@ -124,9 +130,11 @@ TEST_CASE("StlTests::TestZStringView", "[stl][zstring_view]")
     REQUIRE(fromCustomString == (PCSTR)customString);
 }
 
-TEST_CASE("StlTests::TestZWStringView literal", "[stl][zwstring_view]") {
+TEST_CASE("StlTests::TestZWStringView literal", "[stl][zwstring_view]")
+{
 
-    SECTION("Literal creates correct zwstring_view") {
+    SECTION("Literal creates correct zwstring_view")
+    {
         auto str = L"Hello, world!"_zv;
         REQUIRE(str.length() == 13);
         REQUIRE(str[0] == L'H');
@@ -134,9 +142,11 @@ TEST_CASE("StlTests::TestZWStringView literal", "[stl][zwstring_view]") {
     }
 }
 
-TEST_CASE("StlTests::TestZStringView literal", "[stl][zstring_view]") {
+TEST_CASE("StlTests::TestZStringView literal", "[stl][zstring_view]")
+{
 
-    SECTION("Literal creates correct zstring_view") {
+    SECTION("Literal creates correct zstring_view")
+    {
         auto str = "Hello, world!"_zv;
         REQUIRE(str.length() == 13);
         REQUIRE(str[0] == 'H');
@@ -189,16 +199,16 @@ TEST_CASE("StlTests::TestZWStringView", "[stl][zstring_view]")
     REQUIRE(fromLiteral[3] == L'\0');
 
     // Test constructing with no NULL in range
-    static constexpr wchar_t badCharArray[2][3] = {{ L'a', L'b', L'c' }, { L'a', L'b', L'c' } };
-    REQUIRE_CRASH((wil::zwstring_view{ &badCharArray[0][0], _countof(badCharArray[0]) }));
-    REQUIRE_CRASH((wil::zwstring_view{ badCharArray[0] }));
+    static constexpr wchar_t badCharArray[2][3] = {{L'a', L'b', L'c'}, {L'a', L'b', L'c'}};
+    REQUIRE_CRASH((wil::zwstring_view{&badCharArray[0][0], _countof(badCharArray[0])}));
+    REQUIRE_CRASH((wil::zwstring_view{badCharArray[0]}));
 
     // Test constructing with a NULL one character past the valid range, guarding against off-by-one errors
     // Overloads taking an explicit length trust the user that they ensure valid memory follows the buffer
-    static constexpr wchar_t badCharArrayOffByOne[2][3] = {{ L'a', L'b', L'c' }, {}};
+    static constexpr wchar_t badCharArrayOffByOne[2][3] = {{L'a', L'b', L'c'}, {}};
     const wil::zwstring_view fromTerminatedCharArray(&badCharArrayOffByOne[0][0], _countof(badCharArrayOffByOne[0]));
     REQUIRE(fromLiteral == fromTerminatedCharArray);
-    REQUIRE_CRASH((wil::zwstring_view{ badCharArrayOffByOne[0] }));
+    REQUIRE_CRASH((wil::zwstring_view{badCharArrayOffByOne[0]}));
 
     // Test constructing from custom string type
     CustomNoncopyableString customString;

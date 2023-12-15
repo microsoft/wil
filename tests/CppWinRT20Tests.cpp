@@ -12,8 +12,7 @@
 
 TEST_CASE("CppWinRTTests::CppWinRT20Test", "[cppwinrt]")
 {
-    auto test = [](HRESULT hr)
-    {
+    auto test = [](HRESULT hr) {
         try
         {
             THROW_HR(hr);

@@ -10,7 +10,9 @@ void RpcMethodReturnsVoid(ULONG toRaise)
     }
 }
 
-struct FOO_CONTEXT_T {};
+struct FOO_CONTEXT_T
+{
+};
 using FOO_CONTEXT = FOO_CONTEXT_T*;
 using PFOO_CONTEXT = FOO_CONTEXT*;
 
@@ -80,7 +82,7 @@ TEST_CASE("Rpc::NonThrowing", "[rpc]")
     SECTION("Context Handles Close Raised")
     {
         using foo_context_t = wil::unique_rpc_context_handle<FOO_CONTEXT, decltype(&CloseContextHandleRaise), CloseContextHandleRaise>;
-        foo_context_t ctx{ reinterpret_cast<FOO_CONTEXT>(42) };
+        foo_context_t ctx{reinterpret_cast<FOO_CONTEXT>(42)};
         ctx.reset();
     }
 }
@@ -92,14 +94,19 @@ TEST_CASE("Rpc::NonThrowing", "[rpc]")
 class WilExceptionMatcher : public Catch::MatcherBase<wil::ResultException>
 {
     HRESULT m_expected;
-public:
-    WilExceptionMatcher(HRESULT ex) : m_expected(ex) { }
 
-    bool match(wil::ResultException const& ex) const override {
+public:
+    WilExceptionMatcher(HRESULT ex) : m_expected(ex)
+    {
+    }
+
+    bool match(wil::ResultException const& ex) const override
+    {
         return ex.GetErrorCode() == m_expected;
     }
 
-    std::string describe() const override {
+    std::string describe() const override
+    {
         std::ostringstream ss;
         ss << "wil::ResultException expects code 0x%08lx" << std::hex << m_expected;
         return ss.str();
@@ -127,7 +134,8 @@ TEST_CASE("Rpc::Throwing", "[rpc]")
     SECTION("Failures in the fabric")
     {
         REQUIRE_THROWS_WIL_HR(HRESULT_FROM_WIN32(RPC_S_CALL_FAILED), wil::invoke_rpc(RpcMethodReturnsVoid, RPC_S_CALL_FAILED));
-        REQUIRE_THROWS_WIL_HR(HRESULT_FROM_WIN32(RPC_S_CALL_FAILED), wil::invoke_rpc(RpcMethodReturnsHResult, E_CHANGED_STATE, RPC_S_CALL_FAILED));
+        REQUIRE_THROWS_WIL_HR(
+            HRESULT_FROM_WIN32(RPC_S_CALL_FAILED), wil::invoke_rpc(RpcMethodReturnsHResult, E_CHANGED_STATE, RPC_S_CALL_FAILED));
 
         GUID tmp{};
         REQUIRE_THROWS_WIL_HR(HRESULT_FROM_WIN32(RPC_S_CALL_FAILED), tmp = wil::invoke_rpc_result(RpcMethodReturnsGuid, RPC_S_CALL_FAILED));

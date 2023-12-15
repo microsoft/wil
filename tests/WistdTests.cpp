@@ -53,9 +53,8 @@ TEST_CASE("WistdFunctionTests::StdFunctionConstructionTest", "[wistd]")
     wistd::function<int()> fn;
 
     {
-        value_holder holder{ 42 };
-        std::function<int()> stdFn = [holder]()
-        {
+        value_holder holder{42};
+        std::function<int()> stdFn = [holder]() {
             return holder.value;
         };
 
@@ -70,8 +69,7 @@ TEST_CASE("WistdFunctionTests::CopyConstructionTest", "[wistd]")
 {
     object_counter_state state;
     {
-        wistd::function<int()> copyFrom = [counter = object_counter{ state }]()
-        {
+        wistd::function<int()> copyFrom = [counter = object_counter{state}]() {
             return counter.state->copy_count;
         };
         REQUIRE(0 == copyFrom());
@@ -89,8 +87,7 @@ TEST_CASE("WistdFunctionTests::CopyAssignmentTest", "[wistd]")
     {
         wistd::function<int()> copyTo;
         {
-            wistd::function<int()> copyFrom = [counter = object_counter{ state }]()
-            {
+            wistd::function<int()> copyFrom = [counter = object_counter{state}]() {
                 return counter.state->copy_count;
             };
             REQUIRE(0 == copyFrom());
@@ -108,8 +105,7 @@ TEST_CASE("WistdFunctionTests::MoveConstructionTest", "[wistd]")
 {
     object_counter_state state;
     {
-        wistd::function<int()> moveFrom = [counter = object_counter{ state }]()
-        {
+        wistd::function<int()> moveFrom = [counter = object_counter{state}]() {
             return counter.state->copy_count;
         };
         REQUIRE(0 == moveFrom());
@@ -130,8 +126,7 @@ TEST_CASE("WistdFunctionTests::MoveAssignmentTest", "[wistd]")
     {
         wistd::function<int()> moveTo;
         {
-            wistd::function<int()> moveFrom = [counter = object_counter{ state }]()
-            {
+            wistd::function<int()> moveFrom = [counter = object_counter{state}]() {
                 return counter.state->copy_count;
             };
             REQUIRE(0 == moveFrom());
@@ -156,8 +151,7 @@ TEST_CASE("WistdFunctionTests::SwapTest", "[wistd]")
         REQUIRE_FALSE(first != nullptr);
         REQUIRE_FALSE(second != nullptr);
 
-        first = [counter = object_counter{ state }]()
-        {
+        first = [counter = object_counter{state}]() {
             return counter.state->copy_count;
         };
 
@@ -171,8 +165,7 @@ TEST_CASE("WistdFunctionTests::SwapTest", "[wistd]")
         REQUIRE_FALSE(second != nullptr);
         REQUIRE(0 == first());
 
-        second = [counter = object_counter{ state }]()
-        {
+        second = [counter = object_counter{state}]() {
             return counter.state->copy_count;
         };
 
@@ -202,8 +195,5 @@ void CallForwardingTest(Args&&... args)
 
 TEST_CASE("WistdFunctionTests::OptimizationRegressionTest", "[wistd]")
 {
-    CallForwardingTest(
-        wistd::function<int()>(GetValue),
-        wistd::function<int(int)>(Negate),
-        wistd::function<int(int, int)>(Add));
+    CallForwardingTest(wistd::function<int()>(GetValue), wistd::function<int(int)>(Negate), wistd::function<int(int, int)>(Add));
 }
