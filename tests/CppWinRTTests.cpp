@@ -1,7 +1,7 @@
 
 #include <wil/cppwinrt.h>
 #include <winrt/Windows.Foundation.h>
-#if defined(_RESUMABLE_FUNCTIONS_SUPPORTED) || defined(__cpp_lib_coroutine)
+#if defined(_RESUMABLE_FUNCTIONS_SUPPORTED) || defined(__cpp_impl_coroutine)
 #include <wil/coroutine.h>
 #include <thread>
 #endif
@@ -361,7 +361,7 @@ TEST_CASE("CppWinRTTests::ConditionallyImplements", "[cppwinrt]")
     REQUIRE(test.try_as<IClosable>() == nullptr);
 }
 
-#if (!defined(__clang__) && defined(__cpp_lib_coroutine) && (__cpp_lib_coroutine >= 201902L)) || defined(_RESUMABLE_FUNCTIONS_SUPPORTED)
+#if (!defined(__clang__) && defined(__cpp_impl_coroutine) && defined(__cpp_lib_coroutine) && (__cpp_lib_coroutine >= 201902L)) || defined(_RESUMABLE_FUNCTIONS_SUPPORTED)
 
 // Note that we use C++/WinRT's coroutines in the test framework,
 // so that we aren't using com_task to validate itself.
@@ -416,6 +416,37 @@ namespace
     {
         if (h) co_await winrt::resume_on_signal(h);
         throw 42; // throw some random exception
+    }
+
+    wil::com_task<void> throwing_background_thread_task()
+    {
+        co_await winrt::resume_background();
+        THROW_HR(E_APPLICATION_TEMPORARY_LICENSE_ERROR); // random uncommon HRESULT
+    }
+
+    wil::com_task<void> test_sta_task_error_propagation(HANDLE e)
+    {
+        // Signal the incoming event handle when the coroutine has completed.
+        auto complete = wil::SetEvent_scope_exit(e);
+
+        try
+        {
+            co_await throwing_background_thread_task();
+        }
+        catch (wil::ResultException& ex)
+        {
+            REQUIRE(ex.GetErrorCode() == E_APPLICATION_TEMPORARY_LICENSE_ERROR);
+        }
+
+        wil::com_ptr<IRestrictedErrorInfo> errorInfo;
+        REQUIRE(SUCCEEDED(GetRestrictedErrorInfo(&errorInfo)));
+        REQUIRE(errorInfo);
+        wil::unique_bstr description;
+        HRESULT hr;
+        wil::unique_bstr restrictedDescription;
+        wil::unique_bstr capabilitySid;
+        REQUIRE(SUCCEEDED(errorInfo->GetErrorDetails(&description, &hr, &restrictedDescription, &capabilitySid)));
+        REQUIRE(hr == E_APPLICATION_TEMPORARY_LICENSE_ERROR);
     }
 
     wil::com_task<void> test_sta_task(HANDLE e)
@@ -516,6 +547,38 @@ TEST_CASE("CppWinRTTests::SimpleTaskTest", "[cppwinrt]")
             auto done = wil::shared_event(wil::unique_event(wil::EventOptions::ManualReset));
             auto handle = done.get();
             auto task = test_sta_task(handle);
+            DWORD waitResult;
+            while ((waitResult = MsgWaitForMultipleObjects(1, &handle, false, INFINITE, QS_ALLEVENTS)) == WAIT_OBJECT_0 + 1)
+            {
+                MSG msg;
+                while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+                {
+                    TranslateMessage(&msg);
+                    DispatchMessage(&msg);
+                }
+            }
+        }
+    ).join();
+}
+
+TEST_CASE("CppWinRTTests::TasksPropagateErrorState", "[cppwinrt]")
+{
+    std::thread([]
+        {
+            // MTA tests
+            wil::unique_mta_usage_cookie cookie;
+            REQUIRE(CoIncrementMTAUsage(cookie.put()) == S_OK);
+            auto value = std::make_shared<int>(0);
+            void_com_task(value, nullptr).get();
+            REQUIRE(*value == 1);
+            // Keep MTA active while we run the STA tests.
+
+            // STA tests
+            auto init = wil::CoInitializeEx(COINIT_APARTMENTTHREADED);
+
+            auto done = wil::shared_event(wil::unique_event(wil::EventOptions::ManualReset));
+            auto handle = done.get();
+            auto task = test_sta_task_error_propagation(handle);
             DWORD waitResult;
             while ((waitResult = MsgWaitForMultipleObjects(1, &handle, false, INFINITE, QS_ALLEVENTS)) == WAIT_OBJECT_0 + 1)
             {
