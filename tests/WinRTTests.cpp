@@ -822,23 +822,29 @@ TEST_CASE("WinRTTests::VectorRangeTest", "[winrt][vector_range]")
     REQUIRE_SUCCEEDED(success);
 
     // operator-> should not clear out the pointer
-    auto inspRange = wil::get_range_nothrow(inspectables.Get());
-    for (auto itr = inspRange.begin(); itr != inspRange.end(); ++itr)
     {
-        REQUIRE(itr->Get());
+        auto inspRange = wil::get_range_nothrow(inspectables.Get());
+        for (auto itr = inspRange.begin(); itr != inspRange.end(); ++itr)
+        {
+            REQUIRE(itr->Get());
+        }
     }
 
-    auto strRange = wil::get_range_nothrow(strings.Get());
-    for (auto itr = strRange.begin(); itr != strRange.end(); ++itr)
     {
-        REQUIRE(itr->Get());
+        auto strRange = wil::get_range_nothrow(strings.Get());
+        for (auto itr = strRange.begin(); itr != strRange.end(); ++itr)
+        {
+            REQUIRE(itr->Get());
+        }
     }
 
-    index = 0;
-    auto pointRange = wil::get_range_nothrow(points.Get());
-    for (auto itr = pointRange.begin(); itr != pointRange.end(); ++itr)
     {
-        REQUIRE(index++ == itr->Get().X);
+        index = 0;
+        auto pointRange = wil::get_range_nothrow(points.Get());
+        for (auto itr = pointRange.begin(); itr != pointRange.end(); ++itr)
+        {
+            REQUIRE(index++ == itr->Get().X);
+        }
     }
 
 #if (defined WIL_ENABLE_EXCEPTIONS)
@@ -877,27 +883,36 @@ TEST_CASE("WinRTTests::VectorRangeTest", "[winrt][vector_range]")
     }
 
     // operator-> should not clear out the pointer
-    for (auto itr = inspRange.begin(); itr != inspRange.end(); ++itr)
     {
-        REQUIRE(itr->Get());
+        auto inspRange = wil::get_range_nothrow(inspectables.Get()); // Reset the range
+        for (auto itr = inspRange.begin(); itr != inspRange.end(); ++itr)
+        {
+            REQUIRE(itr->Get());
+        }
     }
 
-    for (auto itr = strRange.begin(); itr != strRange.end(); ++itr)
     {
-        REQUIRE(itr->Get());
+        auto strRange = wil::get_range_nothrow(strings.Get());
+        for (auto itr = strRange.begin(); itr != strRange.end(); ++itr)
+        {
+            REQUIRE(itr->Get());
+        }
     }
 
-    index = 0;
-    for (auto itr = pointRange.begin(); itr != pointRange.end(); ++itr)
     {
-        REQUIRE(index++ == itr->Get().X);
+        index = 0;
+        auto pointRange = wil::get_range_nothrow(points.Get());
+        for (auto itr = pointRange.begin(); itr != pointRange.end(); ++itr)
+        {
+            REQUIRE(index++ == itr->Get().X);
+        }
     }
 
     // Iterator self-assignment is a nop.
     {
-        auto inspRange2 = wil::get_range(inspectables.Get());
-        auto itr = inspRange2.begin();
-        REQUIRE(itr != inspRange2.end()); // should have something in it
+        auto inspRange = wil::get_range(inspectables.Get());
+        auto itr = inspRange.begin();
+        REQUIRE(itr != inspRange.end()); // should have something in it
         auto& ref = *itr;
         auto val = ref;
         itr = itr;
@@ -907,9 +922,9 @@ TEST_CASE("WinRTTests::VectorRangeTest", "[winrt][vector_range]")
     }
 
     {
-        auto strRange2 = wil::get_range(strings.Get());
-        auto itr = strRange2.begin();
-        REQUIRE(itr != strRange2.end()); // should have something in it
+        auto strRange = wil::get_range(strings.Get());
+        auto itr = strRange.begin();
+        REQUIRE(itr != strRange.end()); // should have something in it
         auto& ref = *itr;
         auto val = ref.Get();
         itr = itr;

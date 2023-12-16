@@ -306,6 +306,33 @@ static_assert(WIL_EXCEPTION_MODE <= 2, "Invalid exception mode");
 #error Must enable exceptions when WIL_EXCEPTION_MODE == 1
 #endif
 
+/// @cond
+#ifndef WIL_ITERATOR_DEBUG_LEVEL
+// NOTE: See the definition of 'RESULT_DEBUG' for commentary on the use of 'WIL_KERNEL_MODE' below
+#if (DBG || defined(DEBUG) || defined(_DEBUG)) && (defined(WIL_KERNEL_MODE) || !defined(NDEBUG))
+#define WIL_ITERATOR_DEBUG_LEVEL 2
+#else
+#define WIL_ITERATOR_DEBUG_LEVEL 0
+#endif
+#endif
+
+#if (WIL_ITERATOR_DEBUG_LEVEL < 0) || (WIL_ITERATOR_DEBUG_LEVEL > 2)
+#error Invalid value for 'WIL_ITERATOR_DEBUG_LEVEL'; valid values are 0-2
+#endif
+
+// To allow code with mis-matching iterator debug levels to link together without fear of ODR issues, we place iterators whose
+// definitions differ based on the definition of WIL_ITERATOR_DEBUG_LEVEL in different namespaces
+#if WIL_ITERATOR_DEBUG_LEVEL > 0
+#define __WI_ITR_NAMESPACE WI_PASTE(itr, WIL_ITERATOR_DEBUG_LEVEL)
+#define __WI_ITR_NAMESPACE_BEGIN inline namespace __WI_ITR_NAMESPACE {
+#define __WI_ITR_NAMESPACE_END }
+#else
+#define __WI_ITR_NAMESPACE
+#define __WI_ITR_NAMESPACE_BEGIN
+#define __WI_ITR_NAMESPACE_END
+#endif
+/// @endcond
+
 // block for documentation only
 #if defined(WIL_DOXYGEN)
 /** This define can be explicitly set to disable exception usage within wil.
@@ -329,6 +356,18 @@ Three exception modes are available:
     enabled.
 2)  This locks the binary to libraries built without exceptions. */
 #define WIL_EXCEPTION_MODE
+
+/**This define controls the degree of runtime checking for various iterator types defined by WIL.
+This option roughly follows the behavior of the MSVC STL's `_ITERATOR_DEBUG_LEVEL` define, with similar available values. The
+primary difference (besides being two disjoint values) is that `WIL_ITERATOR_DEBUG_LEVEL` will raise a failfast exception when a
+check fails as opposed to the invalid parameter handler that the STL invokes. There are three definitions allowed:
+0)  This will disable all additional runtime checks for the various iterator types. This is the default when building as 'Release'
+1)  This enables checks only for unsafe iterator use. This includes things like attempting to increment an iterator past the end,
+    dereference an end iterator, dereference invalidated iterators, etc.
+2)  This enables all checks enabled by level 1 plus some additional checks to try and catch invalid iterator use. The specific
+    checks enabled by this level will vary between iterator types. This is the default when building as 'Debug'
+*/
+#define WIL_ITERATOR_DEBUG_LEVEL 0
 #endif
 
 /// @cond

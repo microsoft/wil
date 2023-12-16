@@ -769,6 +769,8 @@ private:
 
 #pragma region error code based IVector<>/IVectorView<>
 
+__WI_ITR_NAMESPACE_BEGIN
+
 template <typename VectorType>
 class vector_range_nothrow
 {
@@ -807,32 +809,39 @@ public:
         typedef const TSmart& reference;
 
         vector_iterator_nothrow() = delete;
-        vector_iterator_nothrow(vector_range_nothrow<VectorType>* range, unsigned int pos) : m_range(range), m_i(pos)
+        vector_iterator_nothrow(vector_range_nothrow<VectorType>* range, unsigned int pos) :
+            m_range(range),
+            m_i(pos)
+#if WIL_ITERATOR_DEBUG_LEVEL > 0
+            ,
+            m_version(range->m_version)
+#endif
         {
         }
 
         WI_NODISCARD reference operator*() const
         {
-            return m_range->m_currentElement;
+            return *this->operator->();
         }
 
         WI_NODISCARD pointer operator->() const
         {
+#if WIL_ITERATOR_DEBUG_LEVEL > 0
+            FAIL_FAST_IF_MSG(m_version != m_range->m_version, "Dereferencing an out-of-date vector_iterator_nothrow");
+            FAIL_FAST_IF_MSG(m_i >= m_range->m_size, "Dereferencing an 'end' iterator");
+            FAIL_FAST_IF_MSG(FAILED(*m_range->m_result), "Dereferencing a vector_iterator_nothrow in a failed state");
+#endif
             return wistd::addressof(m_range->m_currentElement);
         }
 
         vector_iterator_nothrow& operator++()
         {
-            ++m_i;
-            m_range->get_at_current(m_i);
-            return *this;
+            return *this += 1;
         }
 
         vector_iterator_nothrow& operator--()
         {
-            --m_i;
-            m_range->get_at_current(m_i);
-            return *this;
+            return *this += -1;
         }
 
         vector_iterator_nothrow operator++(int)
@@ -851,16 +860,27 @@ public:
 
         vector_iterator_nothrow& operator+=(int n)
         {
+#if WIL_ITERATOR_DEBUG_LEVEL == 2
+            // This is _technically_ safe because we are not reading the out-of-date cached value, however having two active
+            // copies of iterators is generally a sign of problematic code with a bug waiting to happen
+            FAIL_FAST_IF_MSG(
+                m_version != m_range->m_version, "Incrementing/decrementing an out-of-date copy of a vector_iterator_nothrow");
+#endif
             m_i += n;
+#if WIL_ITERATOR_DEBUG_LEVEL > 0
+            FAIL_FAST_IF_MSG(m_i < 0, "Decrementing a vector_iterator_nothrow past the 0th index");
+            FAIL_FAST_IF_MSG(m_i > m_range->m_size, "Incrementing a vector_iterator_nothrow past the end");
+#endif
             m_range->get_at_current(m_i);
+#if WIL_ITERATOR_DEBUG_LEVEL > 0
+            m_version = m_range->m_version;
+#endif
             return *this;
         }
 
         vector_iterator_nothrow& operator-=(int n)
         {
-            m_i -= n;
-            m_range->get_at_current(m_i);
-            return *this;
+            return *this += -n;
         }
 
         WI_NODISCARD bool operator==(vector_iterator_nothrow const& other) const
@@ -876,10 +896,19 @@ public:
     private:
         vector_range_nothrow<VectorType>* m_range;
         unsigned int m_i = 0;
+
+#if WIL_ITERATOR_DEBUG_LEVEL > 0
+        // For checked iterator support; must match the version in 'm_range'
+        int m_version = 0;
+#endif
     };
 
     vector_iterator_nothrow begin()
     {
+#if WIL_ITERATOR_DEBUG_LEVEL == 2
+        // Almost certainly signals something wrong; there should be one iterator pair per object
+        FAIL_FAST_IF_MSG(m_version != 0, "Calling begin() more than once on a vector_range_nothrow");
+#endif
         get_at_current(0);
         return vector_iterator_nothrow(this, 0);
     }
@@ -899,6 +928,10 @@ public:
         if (SUCCEEDED(*m_result) && (i < m_size))
         {
             *m_result = m_v->GetAt(i, m_currentElement.ReleaseAndGetAddressOf());
+
+#if WIL_ITERATOR_DEBUG_LEVEL > 0
+            ++m_version;
+#endif
         }
     }
 
@@ -911,7 +944,14 @@ private:
     HRESULT* m_result;
     HRESULT m_resultStorage = S_OK; // for the case where the caller does not provide the location to store the result
     TSmart m_currentElement;
+
+#if WIL_ITERATOR_DEBUG_LEVEL > 0
+    // For checked iterator support
+    int m_version = 0;
+#endif
 };
+
+__WI_ITR_NAMESPACE_END
 
 #pragma endregion
 
