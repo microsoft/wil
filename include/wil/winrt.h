@@ -827,9 +827,9 @@ public:
         WI_NODISCARD pointer operator->() const
         {
 #if WIL_ITERATOR_DEBUG_LEVEL > 0
-            FAIL_FAST_IF_MSG(m_version != m_range->m_version, "Dereferencing an out-of-date vector_iterator_nothrow");
-            FAIL_FAST_IF_MSG(m_i >= m_range->m_size, "Dereferencing an 'end' iterator");
-            FAIL_FAST_IF_MSG(FAILED(*m_range->m_result), "Dereferencing a vector_iterator_nothrow in a failed state");
+            FAIL_FAST_ASSERT_MSG(m_version == m_range->m_version, "Dereferencing an out-of-date vector_iterator_nothrow");
+            FAIL_FAST_ASSERT_MSG(m_i < m_range->m_size, "Dereferencing an 'end' iterator");
+            FAIL_FAST_ASSERT_MSG(SUCCEEDED(*m_range->m_result), "Dereferencing a vector_iterator_nothrow in a failed state");
 #endif
             return wistd::addressof(m_range->m_currentElement);
         }
@@ -863,13 +863,13 @@ public:
 #if WIL_ITERATOR_DEBUG_LEVEL == 2
             // This is _technically_ safe because we are not reading the out-of-date cached value, however having two active
             // copies of iterators is generally a sign of problematic code with a bug waiting to happen
-            FAIL_FAST_IF_MSG(
-                m_version != m_range->m_version, "Incrementing/decrementing an out-of-date copy of a vector_iterator_nothrow");
+            FAIL_FAST_ASSERT_MSG(
+                m_version == m_range->m_version, "Incrementing/decrementing an out-of-date copy of a vector_iterator_nothrow");
 #endif
             m_i += n;
 #if WIL_ITERATOR_DEBUG_LEVEL > 0
-            FAIL_FAST_IF_MSG(m_i < 0, "Decrementing a vector_iterator_nothrow past the 0th index");
-            FAIL_FAST_IF_MSG(m_i > m_range->m_size, "Incrementing a vector_iterator_nothrow past the end");
+            FAIL_FAST_ASSERT_MSG(m_i >= 0, "Decrementing a vector_iterator_nothrow past the 0th index");
+            FAIL_FAST_ASSERT_MSG(m_i <= m_range->m_size, "Incrementing a vector_iterator_nothrow past the end");
 #endif
             m_range->get_at_current(m_i);
 #if WIL_ITERATOR_DEBUG_LEVEL > 0
@@ -907,7 +907,7 @@ public:
     {
 #if WIL_ITERATOR_DEBUG_LEVEL == 2
         // Almost certainly signals something wrong; there should be one iterator pair per object
-        FAIL_FAST_IF_MSG(m_version != 0, "Calling begin() more than once on a vector_range_nothrow");
+        FAIL_FAST_ASSERT_MSG(m_version == 0, "Calling begin() more than once on a vector_range_nothrow");
 #endif
         get_at_current(0);
         return vector_iterator_nothrow(this, 0);
