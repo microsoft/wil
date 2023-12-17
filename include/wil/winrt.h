@@ -1114,6 +1114,9 @@ auto to_vector(VectorType* src)
 #endif
 
 #pragma region error code base IIterable<>
+
+__WI_ITR_NAMESPACE_BEGIN
+
 template <typename T>
 class iterable_range_nothrow
 {
@@ -1279,6 +1282,8 @@ private:
     int m_index = 0;
 #endif
 };
+
+__WI_ITR_NAMESPACE_END
 
 #pragma endregion
 
