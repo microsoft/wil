@@ -828,8 +828,8 @@ public:
         {
 #if WIL_ITERATOR_DEBUG_LEVEL > 0
             FAIL_FAST_ASSERT_MSG(m_version == m_range->m_version, "Dereferencing an out-of-date vector_iterator_nothrow");
-            FAIL_FAST_ASSERT_MSG(m_i < m_range->m_size, "Dereferencing an 'end' iterator");
             FAIL_FAST_ASSERT_MSG(SUCCEEDED(*m_range->m_result), "Dereferencing a vector_iterator_nothrow in a failed state");
+            FAIL_FAST_ASSERT_MSG(m_i < m_range->m_size, "Dereferencing an 'end' iterator");
 #endif
             return wistd::addressof(m_range->m_currentElement);
         }
@@ -906,7 +906,7 @@ public:
     vector_iterator_nothrow begin()
     {
 #if WIL_ITERATOR_DEBUG_LEVEL == 2
-        // Almost certainly signals something wrong; there should be one iterator pair per object
+        // All iterators share the same state, so creating multiple begin/end iterators is fairly indicitave of a bug
         FAIL_FAST_ASSERT_MSG(m_version == 0, "Calling begin() more than once on a vector_range_nothrow");
 #endif
         get_at_current(0);
@@ -1129,6 +1129,10 @@ public:
     iterable_range_nothrow(iterable_range_nothrow&& other) WI_NOEXCEPT : m_iterator(wistd::move(other.m_iterator)),
                                                                          m_element(wistd::move(other.m_element)),
                                                                          m_resultStorage(other.m_resultStorage)
+#if WIL_ITERATOR_DEBUG_LEVEL > 0
+        ,
+                                                                         m_index(other.m_index)
+#endif
     {
         if (other.m_result == &other.m_resultStorage)
         {
@@ -1191,16 +1195,26 @@ public:
 
         WI_NODISCARD reference operator*() const WI_NOEXCEPT
         {
-            return m_range->m_element;
+            return *this->operator->();
         }
 
         WI_NODISCARD pointer operator->() const WI_NOEXCEPT
         {
+#if WIL_ITERATOR_DEBUG_LEVEL > 0
+            FAIL_FAST_ASSERT_MSG(SUCCEEDED(*m_range->m_result), "Dereferencing an iterable_iterator_nothrow in a failed state");
+            FAIL_FAST_ASSERT_MSG(m_i >= 0, "Dereferencing an 'end' iterator");
+            FAIL_FAST_ASSERT_MSG(m_i == m_range->m_index, "Dereferencing an out-of-date iterable_iterator_nothrow");
+#endif
             return wistd::addressof(m_range->m_element);
         }
 
         iterable_iterator_nothrow& operator++()
         {
+#if WIL_ITERATOR_DEBUG_LEVEL > 0
+            // Failing this check is always bad because the iterator object we hold always advances forward
+            FAIL_FAST_ASSERT_MSG(m_i >= 0, "Incrementing an end iterator");
+            FAIL_FAST_ASSERT_MSG(m_i == m_range->m_index, "Incrementing an out-of-date copy of an iterable_iterator_nothrow");
+#endif
             boolean hasCurrent;
             *m_range->m_result = m_range->m_iterator->MoveNext(&hasCurrent);
             if (SUCCEEDED(*m_range->m_result) && hasCurrent)
@@ -1219,6 +1233,9 @@ public:
             {
                 m_i = -1;
             }
+#if WIL_ITERATOR_DEBUG_LEVEL > 0
+            m_range->m_index = m_i;
+#endif
             return *this;
         }
 
@@ -1236,6 +1253,10 @@ public:
 
     iterable_iterator_nothrow begin()
     {
+#if WIL_ITERATOR_DEBUG_LEVEL == 2
+        // All iterators share the same state, so creating multiple begin/end iterators is fairly indicitave of a bug
+        FAIL_FAST_ASSERT_MSG(m_index == 0, "Calling begin() on an already advanced vector_range_nothrow");
+#endif
         return iterable_iterator_nothrow(this, this->m_iterator ? 0 : -1);
     }
 
@@ -1252,6 +1273,11 @@ private:
     TSmart m_element;
     HRESULT* m_result;
     HRESULT m_resultStorage = S_OK;
+
+#if WIL_ITERATOR_DEBUG_LEVEL > 0
+    // For checked iterator support
+    int m_index = 0;
+#endif
 };
 
 #pragma endregion
