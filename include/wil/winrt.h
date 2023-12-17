@@ -905,10 +905,8 @@ public:
 
     vector_iterator_nothrow begin()
     {
-#if WIL_ITERATOR_DEBUG_LEVEL == 2
-        // All iterators share the same state, so creating multiple begin/end iterators is fairly indicitave of a bug
-        FAIL_FAST_ASSERT_MSG(m_version == 0, "Calling begin() more than once on a vector_range_nothrow");
-#endif
+        // NOTE: Calling 'begin()' more than once is explicitly allowed as a way to reset the range, however because state is
+        // shared between all iterators, this invalidates previously created iterators
         get_at_current(0);
         return vector_iterator_nothrow(this, 0);
     }
@@ -1257,7 +1255,8 @@ public:
     iterable_iterator_nothrow begin()
     {
 #if WIL_ITERATOR_DEBUG_LEVEL == 2
-        // All iterators share the same state, so creating multiple begin/end iterators is fairly indicitave of a bug
+        // The IIterator we hold only advances forward; we can't reset it back to the beginning. Calling this method more than
+        // once will very likely lead to unexpected behavior.
         FAIL_FAST_ASSERT_MSG(m_index == 0, "Calling begin() on an already advanced vector_range_nothrow");
 #endif
         return iterable_iterator_nothrow(this, this->m_iterator ? 0 : -1);

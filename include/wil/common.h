@@ -324,7 +324,9 @@ static_assert(WIL_EXCEPTION_MODE <= 2, "Invalid exception mode");
 // definitions differ based on the definition of WIL_ITERATOR_DEBUG_LEVEL in different namespaces
 #if WIL_ITERATOR_DEBUG_LEVEL > 0
 #define __WI_ITR_NAMESPACE WI_PASTE(itr, WIL_ITERATOR_DEBUG_LEVEL)
-#define __WI_ITR_NAMESPACE_BEGIN inline namespace __WI_ITR_NAMESPACE {
+#define __WI_ITR_NAMESPACE_BEGIN \
+    inline namespace __WI_ITR_NAMESPACE \
+    {
 #define __WI_ITR_NAMESPACE_END }
 #else
 #define __WI_ITR_NAMESPACE
