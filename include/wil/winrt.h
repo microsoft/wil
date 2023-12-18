@@ -868,8 +868,8 @@ public:
 #endif
             m_i += n;
 #if WIL_ITERATOR_DEBUG_LEVEL > 0
-            FAIL_FAST_ASSERT_MSG(m_i >= 0, "Decrementing a vector_iterator_nothrow past the 0th index");
-            FAIL_FAST_ASSERT_MSG(m_i <= m_range->m_size, "Incrementing a vector_iterator_nothrow past the end");
+            // NOTE: 'm_i' is unsigned, hence the single check for increment/decrement
+            FAIL_FAST_ASSERT_MSG(m_i <= m_range->m_size, "Incrementing/decrementing a vector_iterator_nothrow out of range");
 #endif
             m_range->get_at_current(m_i);
 #if WIL_ITERATOR_DEBUG_LEVEL > 0
@@ -1004,9 +1004,12 @@ public:
 
         iterable_iterator& operator=(const iterable_iterator& other)
         {
-            m_iterator = other.m_iterator;
-            m_i = other.m_i;
-            err_policy::HResult(other.m_element.CopyTo(m_element.ReleaseAndGetAddressOf()));
+            if (this != wistd::addressof(other))
+            {
+                m_iterator = other.m_iterator;
+                m_i = other.m_i;
+                err_policy::HResult(other.m_element.CopyTo(m_element.ReleaseAndGetAddressOf()));
+            }
             return *this;
         }
 
@@ -1240,9 +1243,9 @@ public:
             return *this;
         }
 
-        iterable_range_nothrow operator++(int)
+        iterable_iterator_nothrow operator++(int)
         {
-            iterable_range_nothrow old(*this);
+            iterable_iterator_nothrow old(*this);
             ++*this;
             return old;
         }
