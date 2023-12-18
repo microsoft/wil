@@ -7,6 +7,41 @@ jobs:
 - job: BuildAndTest
   timeoutInMinutes: 360
 
+  strategy:
+    matrix:
+      clang-x86-debug:
+        compiler: clang
+        arch: x86
+        build-type: debug
+      msvc-x86-debug:
+        compiler: msvc
+        arch: x86
+        build-type: debug
+      clang-x86-relwithdebinfo:
+        compiler: clang
+        arch: x86
+        build-type: relwithdebinfo
+      msvc-x86-relwithdebinfo:
+        compiler: msvc
+        arch: x86
+        build-type: relwithdebinfo
+      clang-x64-debug:
+        compiler: clang
+        arch: x64
+        build-type: debug
+      msvc-x64-debug:
+        compiler: msvc
+        arch: x64
+        build-type: debug
+      clang-x64-relwithdebinfo:
+        compiler: clang
+        arch: x64
+        build-type: relwithdebinfo
+      msvc-x64-relwithdebinfo:
+        compiler: msvc
+        arch: x64
+        build-type: relwithdebinfo
+
   pool:
     vmImage: 'windows-2022'
 
@@ -18,39 +53,16 @@ jobs:
     displayName: 'Install Clang'
 
   - script: |
-      call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsamd64_x86.bat"
+      call scripts\call-vcvars.cmd $(arch)
       if %ERRORLEVEL% NEQ 0 goto :eof
       
-      call scripts\init_all.cmd --fast
-      if %ERRORLEVEL% NEQ 0 goto :eof
-      
-      call scripts\build_all.cmd
-    displayName: 'Build x86'
-
-  # NOTE: We run the tests in the 32-bit cross-tools window out of convenience as this adds all necessary directories to
-  # the PATH that are necessary for finding the ASan/UBSan DLLs
-  - script: |
-      call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsamd64_x86.bat"
-      call scripts\runtests.cmd ~[LocalOnly]
-    displayName: 'Run x86 Tests'
-
-  - script: |
-      rmdir /s /q build
-    displayName: 'Clean x86 Output'
-
-  - script: |
-      call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-      if %ERRORLEVEL% NEQ 0 goto :eof
-      
-      call scripts\init_all.cmd --fast
+      call scripts\init.cmd -c $(compiler) -b $(build-type) --fast
       if %ERRORLEVEL% NEQ 0 goto :eof
       
       call scripts\build_all.cmd
-    displayName: 'Build x64'
+    displayName: 'Build $(compiler) $(arch)$(build-type)'
 
-  # NOTE: We run the tests in the 32-bit cross-tools window out of convenience as this adds all necessary directories to
-  # the PATH that are necessary for finding the ASan/UBSan DLLs
   - script: |
-      call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+      call scripts\call-vcvars.cmd $(arch)
       call scripts\runtests.cmd ~[LocalOnly]
-    displayName: 'Run x64 Tests'
+    displayName: 'Run $(compiler) $(arch)$(build-type) Tests'
