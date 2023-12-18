@@ -849,7 +849,7 @@ TEST_CASE("WinRTTests::VectorRangeTest", "[winrt][vector_range]")
     auto pointsRange = wil::get_range_nothrow(points.Get());
     [[maybe_unused]] auto pointsBegin = pointsRange.begin();
     [[maybe_unused]] auto pointsEnd = pointsRange.end();
-#if 1 // Dereferencing a post-incremented iterator
+#if 1   // Dereferencing a post-incremented iterator
     // This will fail because post-increment returns a copy to the iterator in its original state. This returned iterator is out
     // of date (and therefore dereferencing it will fail the assertion)
     (void)*pointsBegin++; // Fails
@@ -1087,7 +1087,7 @@ TEST_CASE("WinRTTests::IterableRangeTest", "[winrt][iterable_range]")
     auto pointsRange = wil::get_range_nothrow(points.Get());
     [[maybe_unused]] auto pointsBegin = pointsRange.begin();
     [[maybe_unused]] auto pointsEnd = pointsRange.end();
-#if 1 // Dereferencing a post-incremented iterator
+#if 1   // Dereferencing a post-incremented iterator
     // This will fail because post-increment returns a copy to the iterator in its original state. This returned iterator is out
     // of date (and therefore dereferencing it will fail the assertion)
     (void)*pointsBegin++; // Fails
