@@ -869,7 +869,7 @@ TEST_CASE("WinRTTests::VectorRangeTest", "[winrt][vector_range]")
     FAIL("Unreachable; the above operation should cause process termination");
 #elif 1 // Dereferencing in a failed state
     points->Clear();
-    (void)(*++pointsBegin);
+    (void)(*++pointsBegin); // Fails
     FAIL("Unreachable; the above operation should cause process termination");
 #elif WIL_ITERATOR_DEBUG_LEVEL == 2
 #if 1 // Incrementing an out of date iterator
