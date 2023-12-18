@@ -47,7 +47,7 @@ jobs:
 
   steps:
   - script: |
-      choco install llvm
+      choco upgrade llvm -y --version=17
       if %ERRORLEVEL% NEQ 0 goto :eof
       echo ##vso[task.setvariable variable=PATH]%PATH%;C:\Program Files\LLVM\bin
     displayName: 'Install Clang'
