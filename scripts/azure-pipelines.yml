@@ -17,7 +17,7 @@ jobs:
       ${{each compiler in variables.compileres}}
         ${{each arch in variables.architectures}}
           ${{each build-type in variables.buildTypes}}
-            ${{compiler}}-${{arch}}-${{build-type}}
+            ${{compiler}}-${{arch}}-${{build-type}}:
               compiler: ${{compiler}}
               arch: ${{arch}}
               build-type: ${{build-type}}
