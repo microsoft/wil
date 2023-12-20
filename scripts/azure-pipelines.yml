@@ -16,11 +16,11 @@ jobs:
     matrix:
       ${{each compiler in variables.compileres}}:
         ${{each arch in variables.architectures}}:
-          ${{each build-type in variables.buildTypes}}:
-            ${{compiler}}-${{arch}}-${{build-type}}:
+          ${{each buildType in variables.buildTypes}}:
+            ${{compiler}}-${{arch}}-${{buildType}}:
               compiler: ${{compiler}}
               arch: ${{arch}}
-              build-type: ${{build-type}}
+              build-type: ${{buildType}}
 
   pool:
     vmImage: 'windows-2022'
