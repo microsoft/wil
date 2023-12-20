@@ -8,15 +8,15 @@ jobs:
   timeoutInMinutes: 360
 
   variables:
-    compilers: [ clang, msvc ]
-    architectures: [ x86, x64 ]
-    buildTypes: [ debug, relwithdebinfo ]
+    compilers: 'clang,msvc'
+    architectures: 'x86,x64'
+    buildTypes: 'debug,relwithdebinfo'
 
   strategy:
     matrix:
-      ${{each compiler in variables.compileres}}:
-        ${{each arch in variables.architectures}}:
-          ${{each buildType in variables.buildTypes}}:
+      ${{each compiler in split(variables.compileres, ',')}}:
+        ${{each arch in split(variables.architectures, ',')}}:
+          ${{each buildType in split(variables.buildTypes, ',')}}:
             ${{compiler}}-${{arch}}-${{buildType}}:
               compiler: ${{compiler}}
               arch: ${{arch}}
