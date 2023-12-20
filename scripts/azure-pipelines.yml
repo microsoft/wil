@@ -7,40 +7,20 @@ jobs:
 - job: BuildAndTest
   timeoutInMinutes: 360
 
+  variables:
+    compilers: clang,msvc
+    architectures: x86,x64
+    buildTypes: debug,relwithdebinfo
+
   strategy:
     matrix:
-      clang-x86-debug:
-        compiler: clang
-        arch: x86
-        build-type: debug
-      msvc-x86-debug:
-        compiler: msvc
-        arch: x86
-        build-type: debug
-      clang-x86-relwithdebinfo:
-        compiler: clang
-        arch: x86
-        build-type: relwithdebinfo
-      msvc-x86-relwithdebinfo:
-        compiler: msvc
-        arch: x86
-        build-type: relwithdebinfo
-      clang-x64-debug:
-        compiler: clang
-        arch: x64
-        build-type: debug
-      msvc-x64-debug:
-        compiler: msvc
-        arch: x64
-        build-type: debug
-      clang-x64-relwithdebinfo:
-        compiler: clang
-        arch: x64
-        build-type: relwithdebinfo
-      msvc-x64-relwithdebinfo:
-        compiler: msvc
-        arch: x64
-        build-type: relwithdebinfo
+      - ${{each compiler in split(variables.compileres, ',')}}
+        - ${{each arch in split(variables.architectures, ',')}}
+          - ${{each build-type in split(variables.buildTypes, ',')}}
+            ${{compiler}}-${{arch}}-${{build-type}}
+              compiler: ${{compiler}}
+              arch: ${{arch}}
+              build-type: ${{build-type}}
 
   pool:
     vmImage: 'windows-2022'
