@@ -14,9 +14,9 @@ jobs:
 
   strategy:
     matrix:
-      - ${{each compiler in split(variables.compileres, ',')}}
-        - ${{each arch in split(variables.architectures, ',')}}
-          - ${{each build-type in split(variables.buildTypes, ',')}}
+      ${{each compiler in split(variables.compileres, ',')}}
+        ${{each arch in split(variables.architectures, ',')}}
+          ${{each build-type in split(variables.buildTypes, ',')}}
             ${{compiler}}-${{arch}}-${{build-type}}
               compiler: ${{compiler}}
               arch: ${{arch}}
