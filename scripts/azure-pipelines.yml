@@ -24,11 +24,11 @@ jobs:
         echo          simpler to run, however there's a chance it may touch additional files you never changed due to you having
         echo          a mis-matched version of 'clang-format'. This may require you to manually revert changes made by
         echo          'clang-format' to the locations where you made no code changes.
-        echo        * Build the 'format' target (e.g. `ninja format`). This is equivalent to running the second option above.
+        echo        * Build the 'format' target ^(e.g. `ninja format`^). This is equivalent to running the second option above.
         echo.
         echo NOTE:  As an additional note, given that different versions of 'clang-format' may have different behaviors, this
-        echo        may be a false positive. If you believe that to be the case (e.g. none of the above resulted in modifications
-        echo        to the code you have changed), please note this in your PR.
+        echo        may be a false positive. If you believe that to be the case ^(e.g. none of the above resulted in modifications
+        echo        to the code you have changed^), please note this in your PR.
         exit /b 1
       )
     displayName: 'Check Formatting of Changes'
