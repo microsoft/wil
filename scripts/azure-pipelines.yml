@@ -17,14 +17,14 @@ jobs:
       if %ERRORLEVEL% neq 0 (
         echo ##vso[task.logissue type=error]ERROR: This branch contains changes that have not been formatted with 'clang-format'
         echo NOTE:  To resolve this issue, you can run 'clang-format' in the following ways:
-        echo        * Run 'scripts/format-changes.cmd <branch>' where '<branch>' is either 'origin/master' or 'upstream/master'
+        echo        * Run `scripts/format-changes.cmd ^<branch^>` where '^<branch^>' is either 'origin/master' or 'upstream/master'
         echo          depending on whether or not this is a fork. This will only format the changes you made relative to the
         echo          master branch in the 'microsoft/wil' repo.
-        echo        * Run 'scripts/run-clang-format.cmd' which will run 'clang-format' on _all_ source files. This script is
+        echo        * Run `scripts/run-clang-format.cmd` which will run 'clang-format' on _all_ source files. This script is
         echo          simpler to run, however there's a chance it may touch additional files you never changed due to you having
         echo          a mis-matched version of 'clang-format'. This may require you to manually revert changes made by
         echo          'clang-format' to the locations where you made no code changes.
-        echo        * Build the 'format' target (e.g. 'ninja format'). This is equivalent to running the second option above.
+        echo        * Build the 'format' target (e.g. `ninja format`). This is equivalent to running the second option above.
         echo.
         echo NOTE:  As an additional note, given that different versions of 'clang-format' may have different behaviors, this
         echo        may be a false positive. If you believe that to be the case (e.g. none of the above resulted in modifications
