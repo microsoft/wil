@@ -26,6 +26,8 @@ jobs:
         echo          'clang-format' to the locations where you made no code changes.
         echo        * Build the 'format' target ^(e.g. `ninja format`^). This is equivalent to running the second option above.
         echo.
+        echo        For more information, please see https://github.com/microsoft/wil?tab=readme-ov-file#formatting
+        echo.
         echo NOTE:  As an additional note, given that different versions of 'clang-format' may have different behaviors, this
         echo        may be a false positive. If you believe that to be the case ^(e.g. none of the above resulted in modifications
         echo        to the code you have changed^), please note this in your PR.
