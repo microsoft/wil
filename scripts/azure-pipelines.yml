@@ -4,7 +4,17 @@ trigger:
 - master
 
 jobs:
-- job: BuildAndTest
+- job: Check Formatting
+
+  pool:
+    vmImage: 'windows-2022'
+
+  steps:
+  - script: |
+      
+    displayName: 'Check Formatting of Changes'
+
+- job: Build And Test
   timeoutInMinutes: 360
 
   variables:

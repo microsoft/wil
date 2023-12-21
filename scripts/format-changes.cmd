@@ -14,6 +14,9 @@ if "%BRANCH%"=="" (
     exit /b 1
 )
 
+call "%~dp0/find-clang-format.cmd"
+if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
+
 pushd %PROJECT_ROOT% > NUL
-git clang-format %BRANCH% -- include/wil/*.h tests/*.h tests/*.cpp
+git clang-format %BRANCH% --binary "%CLANG_FORMAT%" --style file -- include/wil/*.h tests/*.h tests/*.cpp
 popd > NUL
