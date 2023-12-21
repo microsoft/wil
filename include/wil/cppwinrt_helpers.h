@@ -20,8 +20,7 @@ namespace wil::details
 struct dispatcher_RunAsync
 {
     template <typename Dispatcher, typename... Args>
-    static void Schedule(Dispatcher const& dispatcher, Args&&... args)
-    {
+    static void Schedule(Dispatcher const& dispatcher, Args&&... args) {
         dispatcher.RunAsync(std::forward<Args>(args)...);
     }
 };
