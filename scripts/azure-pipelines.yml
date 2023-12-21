@@ -4,7 +4,7 @@ trigger:
 - master
 
 jobs:
-- job: Check Formatting
+- job: CheckFormatting
 
   pool:
     vmImage: 'windows-2022'
@@ -33,7 +33,7 @@ jobs:
       )
     displayName: 'Check Formatting of Changes'
 
-- job: Build And Test
+- job: BuildAndTest
   timeoutInMinutes: 360
 
   variables:
