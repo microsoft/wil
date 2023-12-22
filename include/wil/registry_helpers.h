@@ -337,15 +337,15 @@ namespace reg
                 return S_OK;
             }
 
-            // supports_resize_buffer is used to determine if the input buffer to read a registry value can be resized
+            // supports_resize_buffer_bytes is used to determine if the input buffer to read a registry value can be resized
             // for those cases if the error from the registry read API indicates it needs a larger buffer
             template <typename T>
-            constexpr bool supports_resize_buffer() WI_NOEXCEPT
+            constexpr bool supports_resize_buffer_bytes() WI_NOEXCEPT
             {
                 return false;
             }
             template <typename T>
-            constexpr HRESULT resize_buffer(T&, DWORD) WI_NOEXCEPT
+            constexpr HRESULT resize_buffer_bytes(T&, DWORD) WI_NOEXCEPT
             {
                 return E_NOTIMPL;
             }
@@ -477,11 +477,11 @@ namespace reg
             CATCH_RETURN();
 
             template <>
-            constexpr bool supports_resize_buffer<::std::vector<uint8_t>>() WI_NOEXCEPT
+            constexpr bool supports_resize_buffer_bytes<::std::vector<uint8_t>>() WI_NOEXCEPT
             {
                 return true;
             }
-            inline HRESULT resize_buffer(::std::vector<uint8_t>& buffer, DWORD byteSize) WI_NOEXCEPT
+            inline HRESULT resize_buffer_bytes(::std::vector<uint8_t>& buffer, DWORD byteSize) WI_NOEXCEPT
             try
             {
                 buffer.resize(byteSize);
@@ -489,7 +489,7 @@ namespace reg
             }
             CATCH_RETURN();
 
-            // std::vector<wchar_t> does not implement resize_buffer
+            // std::vector<wchar_t> does not implement resize_buffer_bytes
             // because these support functions are only needed for set_value
             // from the return of get_multistring_from_wstrings
             inline void* get_buffer(const ::std::vector<wchar_t>& value) WI_NOEXCEPT
@@ -547,11 +547,11 @@ namespace reg
             }
 
             template <>
-            constexpr bool supports_resize_buffer<::std::wstring>() WI_NOEXCEPT
+            constexpr bool supports_resize_buffer_bytes<::std::wstring>() WI_NOEXCEPT
             {
                 return true;
             }
-            inline HRESULT resize_buffer(::std::wstring& string, DWORD byteSize) WI_NOEXCEPT
+            inline HRESULT resize_buffer_bytes(::std::wstring& string, DWORD byteSize) WI_NOEXCEPT
             try
             {
                 string.resize(byteSize / sizeof(wchar_t));
@@ -592,7 +592,7 @@ namespace reg
                     // as the registry API we call guarantees null termination
                     length += 1;
                 }
-                return length * sizeof(wchar_t);
+                return length * sizeof(WCHAR);
             }
 
             template <>
@@ -614,20 +614,41 @@ namespace reg
             }
 
             template <>
-            constexpr bool supports_resize_buffer<BSTR>() WI_NOEXCEPT
+            constexpr bool supports_resize_buffer_bytes<BSTR>() WI_NOEXCEPT
             {
                 return true;
             }
             // transferringOwnership is only set to false if this is a 'shallow' copy of the BSTR
             // and the caller maintained ownership of the original BSTR.
-            inline HRESULT resize_buffer(BSTR& string, DWORD byteSize, bool transferringOwnership = true) WI_NOEXCEPT
+            inline HRESULT resize_buffer_bytes(BSTR& string, DWORD byteSize, bool transferringOwnership = true) WI_NOEXCEPT
             {
+                // copy the original BSTR to copy from later if needed
+                const BSTR original_string = string;
+                const DWORD original_string_length = string == nullptr ? 0 : ::SysStringLen(string);
+
+                // SysStringLen doesn't count the null-terminator, but our buffer size does
+                const bool original_string_length_too_small = (original_string_length + 1) < byteSize / sizeof(WCHAR);
+                if (original_string_length_too_small)
+                {
+                    // pass a null BSTR value because SysAllocStringLen will copy the contents of the original BSTR,
+                    // but in this case it's not long enough to copy the new length to be allocated
+                    string = nullptr;
+                }
+
                 // convert bytes to length (number of WCHAR's)
-                DWORD length = byteSize / sizeof(WCHAR);
+                DWORD length_to_alloc = byteSize / sizeof(WCHAR);
                 // SysAllocStringLen adds a null, so subtract a wchar_t from the input length
-                length = length > 0 ? length - 1 : length;
-                const BSTR new_bstr{::SysAllocStringLen(string, length)};
+                length_to_alloc = length_to_alloc > 0 ? length_to_alloc - 1 : length_to_alloc;
+                const BSTR new_bstr{::SysAllocStringLen(string, length_to_alloc)};
                 RETURN_IF_NULL_ALLOC(new_bstr);
+
+                // copy back the original BSTR if it was too small for SysAllocStringLen
+                // also assuming that both lengths are greater than zero
+                const DWORD sourceLengthToCopy = original_string_length < length_to_alloc ? original_string_length : length_to_alloc;
+                if (sourceLengthToCopy > 0 && original_string_length_too_small)
+                {
+                    ::memcpy_s(new_bstr, length_to_alloc * sizeof(WCHAR), original_string, sourceLengthToCopy * sizeof(WCHAR));
+                }
 
                 // if not transferring ownership, the caller will still own the original BSTR
                 if (transferringOwnership)
@@ -668,18 +689,18 @@ namespace reg
             }
 
             template <>
-            constexpr bool supports_resize_buffer<::wil::unique_bstr>() WI_NOEXCEPT
+            constexpr bool supports_resize_buffer_bytes<::wil::unique_bstr>() WI_NOEXCEPT
             {
                 return true;
             }
-            inline HRESULT resize_buffer(::wil::unique_bstr& string, DWORD byteSize) WI_NOEXCEPT
+            inline HRESULT resize_buffer_bytes(::wil::unique_bstr& string, DWORD byteSize) WI_NOEXCEPT
             {
                 BSTR temp_bstr = string.get();
 
-                // not transferring ownership of the BSTR within 'string' to resize_buffer()
-                // resize_buffer() will overwrite temp_bstr with a newly-allocated BSTR
+                // not transferring ownership of the BSTR within 'string' to resize_buffer_bytes()
+                // resize_buffer_bytes() will overwrite temp_bstr with a newly-allocated BSTR
                 constexpr bool transferringOwnership = false;
-                RETURN_IF_FAILED(resize_buffer(temp_bstr, byteSize, transferringOwnership));
+                RETURN_IF_FAILED(resize_buffer_bytes(temp_bstr, byteSize, transferringOwnership));
 
                 // if succeeded in creating a new BSTR, move ownership of the new BSTR into string
                 string.reset(temp_bstr);
@@ -717,18 +738,18 @@ namespace reg
             }
 
             template <>
-            constexpr bool supports_resize_buffer<::wil::shared_bstr>() WI_NOEXCEPT
+            constexpr bool supports_resize_buffer_bytes<::wil::shared_bstr>() WI_NOEXCEPT
             {
                 return true;
             }
-            inline HRESULT resize_buffer(::wil::shared_bstr& string, DWORD byteSize) WI_NOEXCEPT
+            inline HRESULT resize_buffer_bytes(::wil::shared_bstr& string, DWORD byteSize) WI_NOEXCEPT
             {
                 BSTR temp_bstr = string.get();
 
-                // not transferring ownership of the BSTR within 'string' to resize_buffer()
-                // resize_buffer() will overwrite temp_bstr with a newly-allocated BSTR
+                // not transferring ownership of the BSTR within 'string' to resize_buffer_bytes()
+                // resize_buffer_bytes() will overwrite temp_bstr with a newly-allocated BSTR
                 constexpr bool transferringOwnership = false;
-                RETURN_IF_FAILED(resize_buffer(temp_bstr, byteSize, transferringOwnership));
+                RETURN_IF_FAILED(resize_buffer_bytes(temp_bstr, byteSize, transferringOwnership));
 
                 // if succeeded in creating a new BSTR, move ownership of the new BSTR into string
                 string.reset(temp_bstr);
@@ -750,11 +771,11 @@ namespace reg
             }
 
             template <>
-            constexpr bool supports_resize_buffer<::wil::unique_cotaskmem_string>() WI_NOEXCEPT
+            constexpr bool supports_resize_buffer_bytes<::wil::unique_cotaskmem_string>() WI_NOEXCEPT
             {
                 return true;
             }
-            inline HRESULT resize_buffer(::wil::unique_cotaskmem_string& string, DWORD byteSize) WI_NOEXCEPT
+            inline HRESULT resize_buffer_bytes(::wil::unique_cotaskmem_string& string, DWORD byteSize) WI_NOEXCEPT
             {
                 // convert bytes to length (number of WCHAR's)
                 size_t length = byteSize / sizeof(wchar_t);
@@ -778,11 +799,11 @@ namespace reg
             }
 
             template <>
-            constexpr bool supports_resize_buffer<::wil::unique_cotaskmem_array_ptr<uint8_t>>() WI_NOEXCEPT
+            constexpr bool supports_resize_buffer_bytes<::wil::unique_cotaskmem_array_ptr<uint8_t>>() WI_NOEXCEPT
             {
                 return true;
             }
-            inline HRESULT resize_buffer(::wil::unique_cotaskmem_array_ptr<uint8_t>& arrayValue, DWORD byteSize) WI_NOEXCEPT
+            inline HRESULT resize_buffer_bytes(::wil::unique_cotaskmem_array_ptr<uint8_t>& arrayValue, DWORD byteSize) WI_NOEXCEPT
             {
                 ::wil::unique_cotaskmem_array_ptr<uint8_t> tempValue;
                 *tempValue.addressof() = static_cast<uint8_t*>(::CoTaskMemAlloc(byteSize));
@@ -811,14 +832,14 @@ namespace reg
             }
 
             template <>
-            constexpr bool supports_resize_buffer<::wil::shared_cotaskmem_string>() WI_NOEXCEPT
+            constexpr bool supports_resize_buffer_bytes<::wil::shared_cotaskmem_string>() WI_NOEXCEPT
             {
                 return true;
             }
-            inline HRESULT resize_buffer(::wil::shared_cotaskmem_string& string, DWORD byteSize) WI_NOEXCEPT
+            inline HRESULT resize_buffer_bytes(::wil::shared_cotaskmem_string& string, DWORD byteSize) WI_NOEXCEPT
             {
                 // convert bytes to length (number of WCHAR's)
-                size_t length = byteSize / sizeof(wchar_t);
+                size_t length = byteSize / sizeof(WCHAR);
                 // ::wil::make_unique_string_nothrow adds one to the length when it allocates, so subtracting 1 from the input length
                 length = length > 0 ? length - 1 : length;
                 auto new_string = ::wil::make_unique_string_nothrow<::wil::unique_cotaskmem_string>(string.get(), length);
@@ -842,11 +863,11 @@ namespace reg
             }
 
             template <>
-            constexpr bool supports_resize_buffer<::wil::unique_process_heap_string>() WI_NOEXCEPT
+            constexpr bool supports_resize_buffer_bytes<::wil::unique_process_heap_string>() WI_NOEXCEPT
             {
                 return true;
             }
-            inline HRESULT resize_buffer(::wil::unique_process_heap_string& string, DWORD byteSize) WI_NOEXCEPT
+            inline HRESULT resize_buffer_bytes(::wil::unique_process_heap_string& string, DWORD byteSize) WI_NOEXCEPT
             {
                 // convert bytes to length (number of WCHAR's)
                 size_t length = byteSize / sizeof(wchar_t);
@@ -1193,7 +1214,7 @@ namespace reg
 #if defined(__cpp_if_constexpr)
                         constexpr
 #endif
-                        (reg_value_type_info::supports_resize_buffer<R>())
+                        (reg_value_type_info::supports_resize_buffer_bytes<R>())
                     {
                         // Attempt to grow the buffer with the data_size_bytes returned from GetRegValueW
                         // GetRegValueW will indicate the caller allocate the returned number of bytes in one of two cases:
@@ -1206,7 +1227,7 @@ namespace reg
                         if (shouldReallocate)
                         {
                             // verify if resize_buffer succeeded allocation
-                            const auto resize_buffer_hr = reg_value_type_info::resize_buffer(return_value, data_size_bytes);
+                            const auto resize_buffer_hr = reg_value_type_info::resize_buffer_bytes(return_value, data_size_bytes);
                             if (FAILED(resize_buffer_hr))
                             {
                                 // if resize fails, return this error back to the caller
@@ -1219,7 +1240,7 @@ namespace reg
                         }
 
                         // if the RegGetValueW call succeeded with a non-null [out] param,
-                        // and the type supports resize_buffer
+                        // and the type supports resize_buffer_bytes
                         // and the bytes we allocated don't match data_size_bytes returned from RegGetValueW
                         // resize the buffer to match what RegGetValueW returned
                         if (SUCCEEDED(get_value_hresult))
@@ -1227,8 +1248,8 @@ namespace reg
                             const auto current_byte_size = reg_value_type_info::get_buffer_size_bytes(return_value);
                             if (current_byte_size != data_size_bytes)
                             {
-                                // verify if resize_buffer succeeded allocation
-                                const auto resize_buffer_hr = reg_value_type_info::resize_buffer(return_value, data_size_bytes);
+                                // verify if resize_buffer_bytes succeeded allocation
+                                const auto resize_buffer_hr = reg_value_type_info::resize_buffer_bytes(return_value, data_size_bytes);
                                 if (FAILED(resize_buffer_hr))
                                 {
                                     // if resize fails, return this error back to the caller
@@ -1271,7 +1292,7 @@ namespace reg
     namespace reg_iterator_details
     {
         constexpr uint32_t iterator_end_offset = 0xffffffff;
-        constexpr size_t iterator_default_buffer_length = 16;
+        constexpr size_t iterator_default_buffer_length = 32;
 
         // function overloads to allow *_enumerator objects to be constructed from all 3 types of HKEY representatives
         inline HKEY get_hkey(HKEY h) WI_NOEXCEPT
@@ -1312,7 +1333,7 @@ namespace reg
                 return {};
             }
         }
-        inline bool is_valid(const ::std::wstring& name) WI_NOEXCEPT
+        inline bool can_derive_length(const ::std::wstring& name) WI_NOEXCEPT
         {
             return !name.empty();
         }
@@ -1326,7 +1347,7 @@ namespace reg
         }
 
         template <typename T>
-        bool is_valid(const T& name) WI_NOEXCEPT
+        bool can_derive_length(const T& name) WI_NOEXCEPT
         {
             return static_cast<bool>(address_of_name(name));
         }
@@ -1334,7 +1355,7 @@ namespace reg
         template <typename T>
         bool compare_name(const T& name, PCWSTR comparand) WI_NOEXCEPT
         {
-            if (!is_valid(name) || !comparand)
+            if (!can_derive_length(name) || !comparand)
             {
                 return false;
             }
@@ -1344,7 +1365,7 @@ namespace reg
         template <typename T>
         void clear_name(const T& name, size_t length) WI_NOEXCEPT
         {
-            if (is_valid(name) && length > 0)
+            if (can_derive_length(name) && length > 0)
             {
                 memset(address_of_name(name), 0, length * sizeof(wchar_t));
             }
@@ -1352,38 +1373,18 @@ namespace reg
 
         // failure returns zero
         template <typename T>
-        size_t resize_name(T& name, size_t current_length, size_t new_length) WI_NOEXCEPT
+        size_t resize_name_cch(T& name, size_t current_length, size_t new_length) WI_NOEXCEPT
         {
             if (new_length > current_length)
             {
-                // resize_buffer takes size in bytes
-                if (FAILED(::wil::reg::reg_view_details::reg_value_type_info::resize_buffer(
+                if (FAILED(::wil::reg::reg_view_details::reg_value_type_info::resize_buffer_bytes(
                         name, static_cast<DWORD>(new_length * sizeof(wchar_t)))))
                 {
                     return 0;
                 }
-                return new_length;
-            }
-
-            // continue to use the existing buffer since the requested length is less than or equals to the current length
-            clear_name(name, current_length);
-            return current_length;
-        }
-
-        // failure returns zero
-        inline size_t resize_name(::std::wstring& name, size_t current_length, size_t new_length) WI_NOEXCEPT
-        {
-            // because std::wstring encodes the size within its object, we must resize whenever the 2 are not equal
-            // not just when the new_length is greater than the current_length -- which is correct for types that don't encode their size
-            if (new_length != current_length)
-            {
-                // resize_buffer takes size in bytes
-                if (FAILED(::wil::reg::reg_view_details::reg_value_type_info::resize_buffer(
-                        name, static_cast<DWORD>(new_length * sizeof(wchar_t)))))
-                {
-                    return 0;
-                }
-                return new_length;
+                current_length = new_length;
+                // fall through to clear the newly allocated buffer
+                // and return the new length
             }
 
             // continue to use the existing buffer since the requested length is less than or equals to the current length
@@ -1394,7 +1395,7 @@ namespace reg
         template <typename T>
         T copy_name(const T& name, size_t length) WI_NOEXCEPT
         {
-            if (!is_valid(name))
+            if (!can_derive_length(name))
             {
                 return {};
             }
@@ -1402,30 +1403,9 @@ namespace reg
         }
 
 #if defined(__WIL_OLEAUTO_H_)
-        // overloads for some of the above string functions - specific for wil::unique_bstr
-        // these should come after the template functions - as they reference some of those functions
-        inline size_t resize_name(::wil::unique_bstr& name, size_t current_length, size_t new_length) WI_NOEXCEPT
-        {
-            if (new_length > current_length)
-            {
-                // SysAllocStringLen adds a null, so subtract a wchar_t from the input length
-                new_length = new_length > 0 ? new_length - 1 : new_length;
-                const BSTR new_bstr{::SysAllocStringLen(nullptr, static_cast<UINT>(new_length))};
-                if (!new_bstr)
-                {
-                    return 0;
-                }
-                name.reset(new_bstr);
-                return new_length;
-            }
-
-            // continue to use the existing buffer since the requested length is less than or equals to the current length
-            clear_name(name, current_length);
-            return current_length;
-        }
         inline ::wil::unique_bstr copy_name(const ::wil::unique_bstr& name, size_t length) WI_NOEXCEPT
         {
-            if (!is_valid(name))
+            if (!can_derive_length(name))
             {
                 return {};
             }
@@ -1464,7 +1444,7 @@ namespace reg
             name = ::wil::reg::reg_iterator_details::copy_name(rhs.name, rhs.m_name_length);
             m_hkey = rhs.m_hkey;
             m_index = rhs.m_index;
-            m_name_length = ::wil::reg::reg_iterator_details::is_valid(name) ? rhs.m_name_length : 0;
+            m_name_length = ::wil::reg::reg_iterator_details::can_derive_length(name) ? rhs.m_name_length : 0;
         }
         key_iterator_data& operator=(const key_iterator_data& rhs) WI_NOEXCEPT
         {
@@ -1476,8 +1456,27 @@ namespace reg
             return *this;
         }
 
-        key_iterator_data(key_iterator_data&&) WI_NOEXCEPT = default;
-        key_iterator_data& operator=(key_iterator_data&& rhs) WI_NOEXCEPT = default;
+        key_iterator_data(key_iterator_data&& rhs) WI_NOEXCEPT : name{wistd::move(rhs.name)},
+                                                                 m_hkey{wistd::move(rhs.m_hkey)},
+                                                                 m_index{wistd::move(rhs.m_index)},
+                                                                 m_name_length{wistd::move(rhs.m_name_length)}
+        {
+            // once name is moved, we must reset m_name_length as name is now empty
+            rhs.m_name_length = 0;
+        }
+        key_iterator_data& operator=(key_iterator_data&& rhs) WI_NOEXCEPT
+        {
+            if (&rhs != this)
+            {
+                name = ::wistd::move(rhs.name);
+                m_hkey = ::wistd::move(rhs.m_hkey);
+                m_index = ::wistd::move(rhs.m_index);
+                m_name_length = ::wistd::move(rhs.m_name_length);
+                // once name is moved, we must reset m_name_length as name is now empty
+                rhs.m_name_length = 0;
+            }
+            return *this;
+        }
 
         // Case-sensitive comparison
         bool operator==(PCWSTR comparand) const WI_NOEXCEPT
@@ -1504,8 +1503,8 @@ namespace reg
 
         bool resize(size_t new_length) WI_NOEXCEPT
         {
-            m_name_length = ::wil::reg::reg_iterator_details::resize_name(name, m_name_length, new_length);
-            // if failed to resize_name, will return 0
+            // if resize fails, will return 0
+            m_name_length = ::wil::reg::reg_iterator_details::resize_name_cch(name, m_name_length, new_length);
             return m_name_length > 0;
         }
 
@@ -1513,11 +1512,14 @@ namespace reg
         {
             FAIL_FAST_IF(at_end());
 
-            for (auto string_length = static_cast<DWORD>(m_name_length);;)
+            auto string_length = static_cast<DWORD>(m_name_length) > 0
+                                     ? static_cast<DWORD>(m_name_length)
+                                     : static_cast<DWORD>(::wil::reg::reg_iterator_details::iterator_default_buffer_length);
+            for (;;)
             {
                 if (!resize(string_length))
                 {
-                    return E_OUTOFMEMORY;
+                    RETURN_HR(E_OUTOFMEMORY);
                 }
 
                 const auto error = ::RegEnumKeyExW(
@@ -1532,7 +1534,16 @@ namespace reg
 
                 if (error == ERROR_SUCCESS)
                 {
-                    // some types, like std::wstring, cannot have embedded nulls
+                    // string_length returned from RegEnumKeyExW does not include the null terminator
+                    ++string_length;
+                    // if the string type supports resize, we must resize it to the returned string size
+                    // to ensure continuity of the string type with the actual string size
+                    if (::wil::reg::reg_view_details::reg_value_type_info::supports_resize_buffer_bytes<T>())
+                    {
+                        RETURN_IF_FAILED(::wil::reg::reg_view_details::reg_value_type_info::resize_buffer_bytes(
+                            name, string_length * sizeof(WCHAR)));
+                        m_name_length = string_length;
+                    }
                     if (::wil::reg::reg_view_details::reg_value_type_info::supports_trim_buffer<T>())
                     {
                         m_name_length = ::wil::reg::reg_view_details::reg_value_type_info::trim_buffer(name);
@@ -1546,7 +1557,7 @@ namespace reg
                 }
                 if (error == ERROR_MORE_DATA)
                 {
-                    // resize to iterator_default_buffer_length and try again
+                    // resize by iterator_default_buffer_length and try again
                     string_length += ::wil::reg::reg_iterator_details::iterator_default_buffer_length;
                     continue;
                 }
@@ -1581,7 +1592,7 @@ namespace reg
             type = rhs.type;
             m_hkey = rhs.m_hkey;
             m_index = rhs.m_index;
-            m_name_length = ::wil::reg::reg_iterator_details::is_valid(name) ? rhs.m_name_length : 0;
+            m_name_length = ::wil::reg::reg_iterator_details::can_derive_length(name) ? rhs.m_name_length : 0;
         }
         value_iterator_data& operator=(const value_iterator_data& rhs) WI_NOEXCEPT
         {
@@ -1615,8 +1626,8 @@ namespace reg
 
         bool resize(size_t new_length)
         {
-            m_name_length = ::wil::reg::reg_iterator_details::resize_name(name, m_name_length, new_length);
-            // if failed to resize_name, will return 0
+            // if resize fails, will return 0
+            m_name_length = ::wil::reg::reg_iterator_details::resize_name_cch(name, m_name_length, new_length);
             return m_name_length > 0;
         }
 
@@ -1624,11 +1635,14 @@ namespace reg
         {
             FAIL_FAST_IF(at_end());
 
-            for (auto string_length = static_cast<DWORD>(m_name_length);;)
+            auto string_length = static_cast<DWORD>(m_name_length) > 0
+                                     ? static_cast<DWORD>(m_name_length)
+                                     : static_cast<DWORD>(::wil::reg::reg_iterator_details::iterator_default_buffer_length);
+            for (;;)
             {
                 if (!resize(string_length))
                 {
-                    return E_OUTOFMEMORY;
+                    RETURN_HR(E_OUTOFMEMORY);
                 }
 
                 const auto error = ::RegEnumValueW(
@@ -1643,8 +1657,16 @@ namespace reg
 
                 if (error == ERROR_SUCCESS)
                 {
-                    // some types, like std::wstring, cannot have embedded nulls
-                    // if we trimmed anything, we must also get the new sizej
+                    // string_length returned from RegEnumValueW does not include the null terminator
+                    ++string_length;
+                    // if the string type supports resize, we must resize it to the returned string size
+                    // to ensure continuity of the string type with the actual string size
+                    if (::wil::reg::reg_view_details::reg_value_type_info::supports_resize_buffer_bytes<T>())
+                    {
+                        RETURN_IF_FAILED(::wil::reg::reg_view_details::reg_value_type_info::resize_buffer_bytes(
+                            name, string_length * sizeof(WCHAR)));
+                        m_name_length = string_length;
+                    }
                     if (::wil::reg::reg_view_details::reg_value_type_info::supports_trim_buffer<T>())
                     {
                         m_name_length = ::wil::reg::reg_view_details::reg_value_type_info::trim_buffer(name);
@@ -1658,7 +1680,7 @@ namespace reg
                 }
                 if (error == ERROR_MORE_DATA)
                 {
-                    // resize to iterator_default_buffer_length and try again
+                    // resize by iterator_default_buffer_length and try again
                     string_length += ::wil::reg::reg_iterator_details::iterator_default_buffer_length;
                     continue;
                 }
@@ -1682,7 +1704,7 @@ namespace reg
         // defining iterator_traits allows STL <algorithm> functions to be used with this iterator class.
         // Notice this is a forward_iterator
         // - does not support random-access (e.g. vector::iterator)
-        // - does not support bi-directional access (e.g. list::iterator)
+        // - does not support bidirectional access (e.g. list::iterator)
 #if defined(_ITERATOR_) || defined(WIL_DOXYGEN)
         using iterator_category = ::std::forward_iterator_tag;
 #endif
@@ -1699,9 +1721,8 @@ namespace reg
         {
             if (hkey != nullptr)
             {
-                m_data.resize(::wil::reg::reg_iterator_details::iterator_default_buffer_length);
                 m_data.m_index = 0;
-                m_data.enumerate_current_index();
+                THROW_IF_FAILED(m_data.enumerate_current_index());
             }
         }
 
@@ -1778,7 +1799,7 @@ namespace reg
             for (size_t count = 0; count < offset; ++count)
             {
                 ++m_data.m_index;
-                m_data.enumerate_current_index();
+                THROW_IF_FAILED(m_data.enumerate_current_index());
             }
             return *this;
         }
@@ -1804,14 +1825,7 @@ namespace reg
             if (hkey != nullptr)
             {
                 m_data.m_index = 0;
-                if (!m_data.resize(::wil::reg::reg_iterator_details::iterator_default_buffer_length))
-                {
-                    m_last_error = E_OUTOFMEMORY;
-                }
-                else
-                {
-                    m_last_error = m_data.enumerate_current_index();
-                }
+                m_last_error = m_data.enumerate_current_index();
             }
         }
 

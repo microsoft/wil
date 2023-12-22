@@ -131,6 +131,14 @@ const std::vector<std::vector<std::wstring>> multiStringRawExpectedValues{
     {std::wstring{L"foo"}, std::wstring{L"bar"}},
 };
 
+const wchar_t* enumTestNames[] = {
+    L"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    L"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    L"cccccccccccccccccccccc",
+    L"dddddddddddddddddddddddddddddddd",
+    L"eeeee",
+    L""};
+
 wil::unique_cotaskmem_array_ptr<BYTE> cotaskmemArrayBytesTestArray[3];
 void PopulateCoTaskMemArrayTestCases()
 {
@@ -3416,6 +3424,47 @@ TEST_CASE("BasicRegistryTests::value_iterator", "[registry]]")
         REQUIRE(test_iterator_copy == wil::reg::value_iterator{});
     }
 
+    SECTION("value_iterator changing the iterator data string sizes to force resize and trim")
+    {
+        const auto write_hkey = wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite);
+        wil::reg::set_value_string(write_hkey.get(), enumTestNames[0], L"");
+        wil::reg::set_value_string(write_hkey.get(), enumTestNames[1], L"");
+        wil::reg::set_value_string(write_hkey.get(), enumTestNames[2], L"");
+        wil::reg::set_value_string(write_hkey.get(), enumTestNames[3], L"");
+        wil::reg::set_value_string(write_hkey.get(), enumTestNames[4], L"");
+        wil::reg::set_value_string(write_hkey.get(), enumTestNames[5], L"");
+
+        const auto begin = wil::reg::value_iterator{write_hkey.get()};
+        const auto end = wil::reg::value_iterator{};
+
+        auto count = 0;
+        std::for_each(begin, end, [&](auto nameAndType) {
+            auto stringLength = wcslen(nameAndType.name.c_str());
+            REQUIRE(stringLength == nameAndType.name.size());
+            REQUIRE(stringLength == wcslen(enumTestNames[count]));
+            ++count;
+        });
+        REQUIRE(count == std::size(enumTestNames));
+
+        count = 0;
+        std::for_each(begin, end, [&](const auto& nameAndType) {
+            auto stringLength = wcslen(nameAndType.name.c_str());
+            REQUIRE(stringLength == nameAndType.name.size());
+            REQUIRE(stringLength == wcslen(enumTestNames[count]));
+            ++count;
+        });
+        REQUIRE(count == std::size(enumTestNames));
+
+        count = 0;
+        std::for_each(begin, end, [&](auto&& nameAndType) {
+            auto stringLength = wcslen(nameAndType.name.c_str());
+            REQUIRE(stringLength == nameAndType.name.size());
+            REQUIRE(stringLength == wcslen(enumTestNames[count]));
+            ++count;
+        });
+        REQUIRE(count == std::size(enumTestNames));
+    }
+
     SECTION("value_iterator with many values - std::for_each usage")
     {
         wil::unique_hkey hkey{wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite)};
@@ -3683,6 +3732,47 @@ TEST_CASE("BasicRegistryTests::key_iterator", "[registry]]")
         REQUIRE(test_iterator_copy == wil::reg::key_iterator{});
     }
 
+    SECTION("key_iterator changing the iterator data string sizes to force resize and trim")
+    {
+        const auto write_hkey = wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite);
+        wil::reg::create_unique_key(write_hkey.get(), enumTestNames[0]);
+        wil::reg::create_unique_key(write_hkey.get(), enumTestNames[1]);
+        wil::reg::create_unique_key(write_hkey.get(), enumTestNames[2]);
+        wil::reg::create_unique_key(write_hkey.get(), enumTestNames[3]);
+        wil::reg::create_unique_key(write_hkey.get(), enumTestNames[4]);
+        wil::reg::create_unique_key(write_hkey.get(), enumTestNames[5]);
+
+        const auto begin = wil::reg::key_iterator{write_hkey.get()};
+        const auto end = wil::reg::key_iterator{};
+
+        auto count = 0;
+        std::for_each(begin, end, [&](auto keyInfo) {
+            auto stringLength = wcslen(keyInfo.name.c_str());
+            REQUIRE(stringLength == keyInfo.name.size());
+            REQUIRE(stringLength == wcslen(enumTestNames[count]));
+            ++count;
+        });
+        REQUIRE(count == std::size(enumTestNames) - 1); // cannot create the last key as its name is empty
+
+        count = 0;
+        std::for_each(begin, end, [&](const auto& keyInfo) {
+            auto stringLength = wcslen(keyInfo.name.c_str());
+            REQUIRE(stringLength == keyInfo.name.size());
+            REQUIRE(stringLength == wcslen(enumTestNames[count]));
+            ++count;
+        });
+        REQUIRE(count == std::size(enumTestNames) - 1); // cannot create the last key as its name is empty
+
+        count = 0;
+        std::for_each(begin, end, [&](auto&& keyInfo) {
+            auto stringLength = wcslen(keyInfo.name.c_str());
+            REQUIRE(stringLength == keyInfo.name.size());
+            REQUIRE(stringLength == wcslen(enumTestNames[count]));
+            ++count;
+        });
+        REQUIRE(count == std::size(enumTestNames) - 1); // cannot create the last key as its name is empty
+    }
+
     SECTION("key_iterator with many subkeys - std::for_each and std::count usage")
     {
         wil::unique_hkey enum_hkey{wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey)};
@@ -3869,6 +3959,47 @@ TEST_CASE("BasicRegistryTests::value_bstr_iterator", "[registry]]")
         REQUIRE(test_iterator == wil::reg::value_bstr_iterator{});
         test_iterator_copy = test_iterator;
         REQUIRE(test_iterator_copy == wil::reg::value_bstr_iterator{});
+    }
+
+    SECTION("value_bstr_iterator changing the iterator data string sizes to force resize and trim")
+    {
+        const auto write_hkey = wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite);
+        wil::reg::set_value_string(write_hkey.get(), enumTestNames[0], L"");
+        wil::reg::set_value_string(write_hkey.get(), enumTestNames[1], L"");
+        wil::reg::set_value_string(write_hkey.get(), enumTestNames[2], L"");
+        wil::reg::set_value_string(write_hkey.get(), enumTestNames[3], L"");
+        wil::reg::set_value_string(write_hkey.get(), enumTestNames[4], L"");
+        wil::reg::set_value_string(write_hkey.get(), enumTestNames[5], L"");
+
+        const auto begin = wil::reg::value_bstr_iterator{write_hkey.get()};
+        const auto end = wil::reg::value_bstr_iterator{};
+
+        auto count = 0;
+        std::for_each(begin, end, [&](auto nameAndType) {
+            auto stringLength = wcslen(nameAndType.name.get());
+            REQUIRE(stringLength == SysStringLen(nameAndType.name.get()));
+            REQUIRE(stringLength == wcslen(enumTestNames[count]));
+            ++count;
+        });
+        REQUIRE(count == std::size(enumTestNames));
+
+        count = 0;
+        std::for_each(begin, end, [&](const auto& nameAndType) {
+            auto stringLength = wcslen(nameAndType.name.get());
+            REQUIRE(stringLength == SysStringLen(nameAndType.name.get()));
+            REQUIRE(stringLength == wcslen(enumTestNames[count]));
+            ++count;
+        });
+        REQUIRE(count == std::size(enumTestNames));
+
+        count = 0;
+        std::for_each(begin, end, [&](auto&& nameAndType) {
+            auto stringLength = wcslen(nameAndType.name.get());
+            REQUIRE(stringLength == SysStringLen(nameAndType.name.get()));
+            REQUIRE(stringLength == wcslen(enumTestNames[count]));
+            ++count;
+        });
+        REQUIRE(count == std::size(enumTestNames));
     }
 
     SECTION("value_bstr_iterator with many values - std::for_each usage")
@@ -4118,6 +4249,47 @@ TEST_CASE("BasicRegistryTests::key_bstr_iterator", "[registry]]")
         REQUIRE(test_iterator_copy == wil::reg::key_bstr_iterator{});
     }
 
+    SECTION("key_bstr_iterator changing the iterator data string sizes to force resize and trim")
+    {
+        const auto write_hkey = wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite);
+        wil::reg::create_unique_key(write_hkey.get(), enumTestNames[0]);
+        wil::reg::create_unique_key(write_hkey.get(), enumTestNames[1]);
+        wil::reg::create_unique_key(write_hkey.get(), enumTestNames[2]);
+        wil::reg::create_unique_key(write_hkey.get(), enumTestNames[3]);
+        wil::reg::create_unique_key(write_hkey.get(), enumTestNames[4]);
+        wil::reg::create_unique_key(write_hkey.get(), enumTestNames[5]);
+
+        const auto begin = wil::reg::key_bstr_iterator{write_hkey.get()};
+        const auto end = wil::reg::key_bstr_iterator{};
+
+        auto count = 0;
+        std::for_each(begin, end, [&](auto keyInfo) {
+            auto stringLength = wcslen(keyInfo.name.get());
+            REQUIRE(stringLength == ::SysStringLen(keyInfo.name.get()));
+            REQUIRE(stringLength == wcslen(enumTestNames[count]));
+            ++count;
+        });
+        REQUIRE(count == std::size(enumTestNames) - 1); // cannot create the last key as its name is empty
+
+        count = 0;
+        std::for_each(begin, end, [&](const auto& keyInfo) {
+            auto stringLength = wcslen(keyInfo.name.get());
+            REQUIRE(stringLength == ::SysStringLen(keyInfo.name.get()));
+            REQUIRE(stringLength == wcslen(enumTestNames[count]));
+            ++count;
+        });
+        REQUIRE(count == std::size(enumTestNames) - 1); // cannot create the last key as its name is empty
+
+        count = 0;
+        std::for_each(begin, end, [&](auto&& keyInfo) {
+            auto stringLength = wcslen(keyInfo.name.get());
+            REQUIRE(stringLength == ::SysStringLen(keyInfo.name.get()));
+            REQUIRE(stringLength == wcslen(enumTestNames[count]));
+            ++count;
+        });
+        REQUIRE(count == std::size(enumTestNames) - 1); // cannot create the last key as its name is empty
+    }
+
     SECTION("key_bstr_iterator with many subkeys - std::for_each and std::count usage")
     {
         wil::unique_hkey enum_hkey{wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey)};
@@ -4335,6 +4507,44 @@ TEST_CASE("BasicRegistryTests::value_heap_string_iterator", "[registry]]")
         REQUIRE(test_iterator == wil::reg::value_heap_string_iterator{});
         test_iterator_copy = test_iterator;
         REQUIRE(test_iterator_copy == wil::reg::value_heap_string_iterator{});
+    }
+
+    SECTION("value_heap_string_iterator changing the iterator data string sizes to force resize and trim")
+    {
+        const auto write_hkey = wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite);
+        wil::reg::set_value_string(write_hkey.get(), enumTestNames[0], L"");
+        wil::reg::set_value_string(write_hkey.get(), enumTestNames[1], L"");
+        wil::reg::set_value_string(write_hkey.get(), enumTestNames[2], L"");
+        wil::reg::set_value_string(write_hkey.get(), enumTestNames[3], L"");
+        wil::reg::set_value_string(write_hkey.get(), enumTestNames[4], L"");
+        wil::reg::set_value_string(write_hkey.get(), enumTestNames[5], L"");
+
+        const auto begin = wil::reg::value_heap_string_iterator{write_hkey.get()};
+        const auto end = wil::reg::value_heap_string_iterator{};
+
+        auto count = 0;
+        std::for_each(begin, end, [&](auto nameAndType) {
+            auto stringLength = wcslen(nameAndType.name.get());
+            REQUIRE(stringLength == wcslen(enumTestNames[count]));
+            ++count;
+        });
+        REQUIRE(count == std::size(enumTestNames));
+
+        count = 0;
+        std::for_each(begin, end, [&](const auto& nameAndType) {
+            auto stringLength = wcslen(nameAndType.name.get());
+            REQUIRE(stringLength == wcslen(enumTestNames[count]));
+            ++count;
+        });
+        REQUIRE(count == std::size(enumTestNames));
+
+        count = 0;
+        std::for_each(begin, end, [&](auto&& nameAndType) {
+            auto stringLength = wcslen(nameAndType.name.get());
+            REQUIRE(stringLength == wcslen(enumTestNames[count]));
+            ++count;
+        });
+        REQUIRE(count == std::size(enumTestNames));
     }
 
     SECTION("value_heap_string_iterator with many values - std::for_each usage")
@@ -4585,6 +4795,44 @@ TEST_CASE("BasicRegistryTests::key_heap_string_iterator", "[registry]]")
         REQUIRE(test_iterator_copy == wil::reg::key_heap_string_iterator{});
     }
 
+    SECTION("key_heap_string_iterator changing the iterator data string sizes to force resize and trim")
+    {
+        const auto write_hkey = wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite);
+        wil::reg::create_unique_key(write_hkey.get(), enumTestNames[0]);
+        wil::reg::create_unique_key(write_hkey.get(), enumTestNames[1]);
+        wil::reg::create_unique_key(write_hkey.get(), enumTestNames[2]);
+        wil::reg::create_unique_key(write_hkey.get(), enumTestNames[3]);
+        wil::reg::create_unique_key(write_hkey.get(), enumTestNames[4]);
+        wil::reg::create_unique_key(write_hkey.get(), enumTestNames[5]);
+
+        const auto begin = wil::reg::key_heap_string_iterator{write_hkey.get()};
+        const auto end = wil::reg::key_heap_string_iterator{};
+
+        auto count = 0;
+        std::for_each(begin, end, [&](auto keyInfo) {
+            auto stringLength = wcslen(keyInfo.name.get());
+            REQUIRE(stringLength == wcslen(enumTestNames[count]));
+            ++count;
+        });
+        REQUIRE(count == std::size(enumTestNames) - 1); // cannot create the last key as its name is empty
+
+        count = 0;
+        std::for_each(begin, end, [&](const auto& keyInfo) {
+            auto stringLength = wcslen(keyInfo.name.get());
+            REQUIRE(stringLength == wcslen(enumTestNames[count]));
+            ++count;
+        });
+        REQUIRE(count == std::size(enumTestNames) - 1); // cannot create the last key as its name is empty
+
+        count = 0;
+        std::for_each(begin, end, [&](auto&& keyInfo) {
+            auto stringLength = wcslen(keyInfo.name.get());
+            REQUIRE(stringLength == wcslen(enumTestNames[count]));
+            ++count;
+        });
+        REQUIRE(count == std::size(enumTestNames) - 1); // cannot create the last key as its name is empty
+    }
+
     SECTION("key_heap_string_iterator with many subkeys - std::for_each and std::count usage")
     {
         wil::unique_hkey enum_hkey{wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey)};
@@ -4825,6 +5073,51 @@ TEST_CASE("BasicRegistryTests::value_bstr_nothrow_iterator", "[registry]]")
         REQUIRE(test_iterator_copy.at_end());
     }
 
+    SECTION("value_bstr_nothrow_iterator changing the iterator data string sizes to force resize and trim")
+    {
+        wil::unique_hkey write_hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, write_hkey, wil::reg::key_access::readwrite));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_string_nothrow(write_hkey.get(), enumTestNames[0], L""));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_string_nothrow(write_hkey.get(), enumTestNames[1], L""));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_string_nothrow(write_hkey.get(), enumTestNames[2], L""));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_string_nothrow(write_hkey.get(), enumTestNames[3], L""));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_string_nothrow(write_hkey.get(), enumTestNames[4], L""));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_string_nothrow(write_hkey.get(), enumTestNames[5], L""));
+
+        const auto begin = wil::reg::value_bstr_nothrow_iterator{write_hkey.get()};
+        const auto end = wil::reg::value_bstr_nothrow_iterator{};
+
+        auto count = 0;
+        std::for_each(begin, end, [&](auto nameAndType) {
+            auto stringLength = wcslen(nameAndType.name.get());
+            REQUIRE(stringLength == SysStringLen(nameAndType.name.get()));
+            REQUIRE(stringLength == wcslen(enumTestNames[count]));
+            ++count;
+        });
+        REQUIRE(begin.last_error() == S_OK);
+        REQUIRE(count == std::size(enumTestNames));
+
+        count = 0;
+        std::for_each(begin, end, [&](const auto& nameAndType) {
+            auto stringLength = wcslen(nameAndType.name.get());
+            REQUIRE(stringLength == SysStringLen(nameAndType.name.get()));
+            REQUIRE(stringLength == wcslen(enumTestNames[count]));
+            ++count;
+        });
+        REQUIRE(begin.last_error() == S_OK);
+        REQUIRE(count == std::size(enumTestNames));
+
+        count = 0;
+        std::for_each(begin, end, [&](auto&& nameAndType) {
+            auto stringLength = wcslen(nameAndType.name.get());
+            REQUIRE(stringLength == SysStringLen(nameAndType.name.get()));
+            REQUIRE(stringLength == wcslen(enumTestNames[count]));
+            ++count;
+        });
+        REQUIRE(begin.last_error() == S_OK);
+        REQUIRE(count == std::size(enumTestNames));
+    }
+
     SECTION("value_bstr_nothrow_iterator with many values - range-for iterator usage")
     {
         wil::unique_hkey hkey;
@@ -5057,6 +5350,52 @@ TEST_CASE("BasicRegistryTests::key_bstr_nothrow_iterator", "[registry]]")
         REQUIRE(key_iterator_copy == wil::reg::key_bstr_nothrow_iterator{});
     }
 
+    SECTION("key_bstr_nothrow_iterator changing the iterator data string sizes to force resize and trim")
+    {
+        wil::unique_hkey write_hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, write_hkey, wil::reg::key_access::readwrite));
+        wil::unique_hkey subkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(write_hkey.get(), enumTestNames[0], subkey));
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(write_hkey.get(), enumTestNames[1], subkey));
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(write_hkey.get(), enumTestNames[2], subkey));
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(write_hkey.get(), enumTestNames[3], subkey));
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(write_hkey.get(), enumTestNames[4], subkey));
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(write_hkey.get(), enumTestNames[5], subkey));
+
+        const auto begin = wil::reg::key_bstr_nothrow_iterator{write_hkey.get()};
+        const auto end = wil::reg::key_bstr_nothrow_iterator{};
+
+        auto count = 0;
+        std::for_each(begin, end, [&](auto keyInfo) {
+            auto stringLength = wcslen(keyInfo.name.get());
+            REQUIRE(stringLength == ::SysStringLen(keyInfo.name.get()));
+            REQUIRE(stringLength == wcslen(enumTestNames[count]));
+            ++count;
+        });
+        REQUIRE(begin.last_error() == S_OK);
+        REQUIRE(count == std::size(enumTestNames) - 1); // cannot create the last key as its name is empty
+
+        count = 0;
+        std::for_each(begin, end, [&](const auto& keyInfo) {
+            auto stringLength = wcslen(keyInfo.name.get());
+            REQUIRE(stringLength == ::SysStringLen(keyInfo.name.get()));
+            REQUIRE(stringLength == wcslen(enumTestNames[count]));
+            ++count;
+        });
+        REQUIRE(begin.last_error() == S_OK);
+        REQUIRE(count == std::size(enumTestNames) - 1); // cannot create the last key as its name is empty
+
+        count = 0;
+        std::for_each(begin, end, [&](auto&& keyInfo) {
+            auto stringLength = wcslen(keyInfo.name.get());
+            REQUIRE(stringLength == ::SysStringLen(keyInfo.name.get()));
+            REQUIRE(stringLength == wcslen(enumTestNames[count]));
+            ++count;
+        });
+        REQUIRE(begin.last_error() == S_OK);
+        REQUIRE(count == std::size(enumTestNames) - 1); // cannot create the last key as its name is empty
+    }
+
     SECTION("key_bstr_nothrow_iterator with many subkeys - range-for iterator usage")
     {
         wil::unique_hkey enum_hkey;
@@ -5268,6 +5607,48 @@ TEST_CASE("BasicRegistryTests::value_heap_string_nothrow_iterator", "[registry]]
         test_iterator_copy = test_iterator;
         REQUIRE(test_iterator_copy == wil::reg::value_heap_string_nothrow_iterator{});
         REQUIRE(test_iterator_copy.at_end());
+    }
+
+    SECTION("value_heap_string_nothrow_iterator changing the iterator data string sizes to force resize and trim")
+    {
+        wil::unique_hkey write_hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, write_hkey, wil::reg::key_access::readwrite));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_string_nothrow(write_hkey.get(), enumTestNames[0], L""));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_string_nothrow(write_hkey.get(), enumTestNames[1], L""));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_string_nothrow(write_hkey.get(), enumTestNames[2], L""));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_string_nothrow(write_hkey.get(), enumTestNames[3], L""));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_string_nothrow(write_hkey.get(), enumTestNames[4], L""));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_string_nothrow(write_hkey.get(), enumTestNames[5], L""));
+
+        const auto begin = wil::reg::value_heap_string_nothrow_iterator{write_hkey.get()};
+        const auto end = wil::reg::value_heap_string_nothrow_iterator{};
+
+        auto count = 0;
+        std::for_each(begin, end, [&](auto nameAndType) {
+            auto stringLength = wcslen(nameAndType.name.get());
+            REQUIRE(stringLength == wcslen(enumTestNames[count]));
+            ++count;
+        });
+        REQUIRE(begin.last_error() == S_OK);
+        REQUIRE(count == std::size(enumTestNames));
+
+        count = 0;
+        std::for_each(begin, end, [&](const auto& nameAndType) {
+            auto stringLength = wcslen(nameAndType.name.get());
+            REQUIRE(stringLength == wcslen(enumTestNames[count]));
+            ++count;
+        });
+        REQUIRE(begin.last_error() == S_OK);
+        REQUIRE(count == std::size(enumTestNames));
+
+        count = 0;
+        std::for_each(begin, end, [&](auto&& nameAndType) {
+            auto stringLength = wcslen(nameAndType.name.get());
+            REQUIRE(stringLength == wcslen(enumTestNames[count]));
+            ++count;
+        });
+        REQUIRE(begin.last_error() == S_OK);
+        REQUIRE(count == std::size(enumTestNames));
     }
 
     SECTION("value_heap_string_nothrow_iterator with many values - range-for iterator usage")
@@ -5500,6 +5881,49 @@ TEST_CASE("BasicRegistryTests::key_heap_string_nothrow_iterator", "[registry]]")
         REQUIRE(key_iterator == wil::reg::key_heap_string_nothrow_iterator{});
         key_iterator_copy = key_iterator;
         REQUIRE(key_iterator_copy == wil::reg::key_heap_string_nothrow_iterator{});
+    }
+
+    SECTION("key_heap_string_nothrow_iterator changing the iterator data string sizes to force resize and trim")
+    {
+        wil::unique_hkey write_hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, write_hkey, wil::reg::key_access::readwrite));
+        wil::unique_hkey subkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(write_hkey.get(), enumTestNames[0], subkey));
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(write_hkey.get(), enumTestNames[1], subkey));
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(write_hkey.get(), enumTestNames[2], subkey));
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(write_hkey.get(), enumTestNames[3], subkey));
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(write_hkey.get(), enumTestNames[4], subkey));
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(write_hkey.get(), enumTestNames[5], subkey));
+
+        const auto begin = wil::reg::key_heap_string_nothrow_iterator{write_hkey.get()};
+        const auto end = wil::reg::key_heap_string_nothrow_iterator{};
+
+        auto count = 0;
+        std::for_each(begin, end, [&](auto keyInfo) {
+            auto stringLength = wcslen(keyInfo.name.get());
+            REQUIRE(stringLength == wcslen(enumTestNames[count]));
+            ++count;
+        });
+        REQUIRE(begin.last_error() == S_OK);
+        REQUIRE(count == std::size(enumTestNames) - 1); // cannot create the last key as its name is empty
+
+        count = 0;
+        std::for_each(begin, end, [&](const auto& keyInfo) {
+            auto stringLength = wcslen(keyInfo.name.get());
+            REQUIRE(stringLength == wcslen(enumTestNames[count]));
+            ++count;
+        });
+        REQUIRE(begin.last_error() == S_OK);
+        REQUIRE(count == std::size(enumTestNames) - 1); // cannot create the last key as its name is empty
+
+        count = 0;
+        std::for_each(begin, end, [&](auto&& keyInfo) {
+            auto stringLength = wcslen(keyInfo.name.get());
+            REQUIRE(stringLength == wcslen(enumTestNames[count]));
+            ++count;
+        });
+        REQUIRE(begin.last_error() == S_OK);
+        REQUIRE(count == std::size(enumTestNames) - 1); // cannot create the last key as its name is empty
     }
 
     SECTION("key_heap_string_nothrow_iterator with many subkeys - range-for iterator usage")
