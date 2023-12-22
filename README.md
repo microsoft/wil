@@ -125,6 +125,66 @@ C:\wil> scripts\runtests.cmd
 Note that this will only test for the architecture that corresponds to the command window you opened. You will want to
 repeat this process for the other architecture (e.g. by using the `x86 Native Tools Command Prompt for VS 2022` in addition to `x64`).
 
+## Formatting
+
+This project has adopted `clang-format` as the tool for formatting our code.
+Please note that the `.clang-format` at the root of the repo is a copy from the internal Windows repo with few additions.
+In general, please do not modify it.
+If you find that a macro is causing bad formatting of code, you can add that macro to one of the corresponding arrays in the `.clang-format` file (e.g. `AttributeMacros`, etc.), format the code, and submit a PR.
+
+> _NOTE: Different versions of `clang-format` may format the same code differently.
+In an attempt to maintain consistency between changes, we've standardized on using the version of `clang-format` that ships with the latest version of Visual Studio.
+If you have LLVM installed and added to your `PATH`, the version of `clang-format` that gets picked up by default may not be the one we expect.
+If you leverage the formatting scripts we have provided in the `scripts` directory, these should automatically pick up the proper version provided you are using a Visual Studio command window._
+
+Before submitting a PR to the WIL repo we ask that you first run `clang-format` on your changes.
+There is a CI check in place that will fail the build for your PR if you have not run `clang-format`.
+There are a few different ways to format your code:
+
+### 1. Formatting with `git clang-format`
+
+The simplest way to format just your changes is to use `clang-format`'s `git` integration.
+You have the option to do this continuously as you make changes, or at the very end when you're ready to submit a PR.
+To format code continuously as you make changes, you run `git clang-format` after staging your changes.
+For example:
+```cmd
+C:\wil> git add *
+C:\wil> git clang-format --style file
+```
+At this point, the formatted changes will be unstaged.
+You can review them, stage them, and then commit.
+Please note that this will use whichever version of `clang-format` is configured to run with this command.
+You can pass `--binary <path>` to specify the path to `clang-format.exe` you would like the command to use.
+
+If you'd like to format changes at the end of developement, you can run `git clang-format` against a specific commit/label.
+The simplest is to run against `upstream/master` or `origin/master` depending on whether or not you are developing in a fork.
+Please note that you likely want to sync/merge with the master branch prior to doing this step.
+You can leverage the `format-changes.cmd` script we provide, which will use the version of `clang-format` that ships with Visual Studio:
+```cmd
+C:\wil> git fetch upstream
+C:\wil> git merge upstream/master
+C:\wil> scripts\format-changes.cmd upstream/master
+```
+
+### 2. Formatting with `clang-format`
+
+An alternative, and generally easier option, is to run `clang-format` either on all source files or on all source files you've modified.
+Note, however, that depending on how `clang-format` is invoked, the version used may not be the one that ships with Visual Studio.
+Some tools such as Visual Studio Code allow you to specify the path to the version of `clang-format` that you wish to use when formatting code, however this is not always the case.
+The `run-clang-format.cmd` script we provide will ensure that the version of `clang-format` used is the version that shipped with your Visual Studio install:
+```cmd
+C:\wil> scripts\run-clang-format.cmd
+```
+Additionally, we've added a build target that will invoke this script, named `format`:
+```cmd
+C:\wil\build\clang64debug> ninja format
+```
+Please note that this all assumes that your Visual Studio installation is up to date.
+If it's out of date, code unrelated to your changes may get formatted unexpectedly.
+If that's the case, you may need to manually revert some modifications that are unrelated to your changes.
+
+> _NOTE: Occasionally, Visual Studio will update without us knowing and the version installed for you may be newer than the version installed the last time we ran the format all script. If that's the case, please let us know so that we can re-format the code._
+
 # Contributing
 
 This project welcomes contributions and suggestions.  Most contributions require you to agree to a
