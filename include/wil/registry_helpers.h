@@ -1293,6 +1293,8 @@ namespace reg
     {
         constexpr uint32_t iterator_end_offset = 0xffffffff;
         constexpr size_t iterator_default_buffer_length = 32;
+        constexpr size_t iterator_max_keyname_length = 255;
+        constexpr size_t iterator_max_valuename_length = 16383;
 
         // function overloads to allow *_enumerator objects to be constructed from all 3 types of HKEY representatives
         inline HKEY get_hkey(HKEY h) WI_NOEXCEPT
@@ -1557,8 +1559,20 @@ namespace reg
                 }
                 if (error == ERROR_MORE_DATA)
                 {
-                    // resize by iterator_default_buffer_length and try again
-                    string_length += ::wil::reg::reg_iterator_details::iterator_default_buffer_length;
+                    // if our default wasn't big enough, resize to either half max or max length and try again
+                    if (string_length < reg_iterator_details::iterator_max_keyname_length / 2)
+                    {
+                        string_length = reg_iterator_details::iterator_max_keyname_length / 2;
+                    }
+                    else if (string_length < reg_iterator_details::iterator_max_keyname_length + 1)
+                    {
+                        string_length = reg_iterator_details::iterator_max_keyname_length + 1; // plus one for null
+                    }
+                    else
+                    {
+                        // if we're already at max length, we can't grow anymore, so we'll just return the error
+                        break;
+                    }
                     continue;
                 }
                 // any other error will fail
@@ -1680,8 +1694,18 @@ namespace reg
                 }
                 if (error == ERROR_MORE_DATA)
                 {
-                    // resize by iterator_default_buffer_length and try again
-                    string_length += ::wil::reg::reg_iterator_details::iterator_default_buffer_length;
+                    if (string_length == ::wil::reg::reg_iterator_details::iterator_max_valuename_length + 1)
+                    {
+                        // this is the max size, so we can't grow anymore, so we'll just return the error
+                        break;
+                    }
+
+                    // resize and try again - growing exponentially up to the max
+                    string_length *= 2;
+                    if (string_length > ::wil::reg::reg_iterator_details::iterator_max_valuename_length + 1)
+                    {
+                        string_length = ::wil::reg::reg_iterator_details::iterator_max_valuename_length + 1;
+                    }
                     continue;
                 }
 
