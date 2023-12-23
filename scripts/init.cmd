@@ -10,14 +10,20 @@ goto :init
 :usage
     echo USAGE:
     echo     init.cmd [--help] [-c^|--compiler ^<clang^|msvc^>] [-g^|--generator ^<ninja^|msbuild^>]
-    echo         [-b^|--build-type ^<debug^|release^|relwithdebinfo^|minsizerel^>] [-v^|--version X.Y.Z]
-    echo         [--cppwinrt ^<version^>] [--fast]
+    echo         [-b^|--build-type ^<debug^|release^|relwithdebinfo^|minsizerel^>] [-p^|--vcpkg path/to/vcpkg/root]
+    echo         [-v^|--version X.Y.Z] [--cppwinrt ^<version^>] [--fast]
     echo.
     echo ARGUMENTS
     echo     -c^|--compiler       Controls the compiler used, either 'clang' (the default) or 'msvc'
     echo     -g^|--generator      Controls the CMake generator used, either 'ninja' (the default) or 'msbuild'
     echo     -b^|--build-type     Controls the value of 'CMAKE_BUILD_TYPE', either 'debug' (the default), 'release',
     echo                         'relwithdebinfo', or 'minsizerel'
+    echo     -p^|--vcpkg          Specifies the path to the root of your local vcpkg clone. If this value is not
+    echo                         specified, then several attempts will be made to try and deduce it. The first attempt
+    echo                         will be to check for the presence of the %%VCPKG_ROOT%% environment variable. If that
+    echo                         variable does not exist, the 'where' command will be used to try and locate the
+    echo                         vcpkg.exe executable. If that check fails, the path '\vcpkg' will be used to try and
+    echo                         locate the vcpkg clone. If all those checks fail, initialization will fail.
     echo     -v^|--version        Specifies the version of the NuGet package produced. Primarily only used by the CI
     echo                         build and is typically not necessary when building locally
     echo     --cppwinrt          Manually specifies the version of C++/WinRT to use for generating headers
@@ -34,6 +40,7 @@ goto :init
     set CMAKE_ARGS=
     set BITNESS=
     set VERSION=
+    set VCPKG_ROOT_PATH=
     set CPPWINRT_VERSION=
     set FAST_BUILD=0
 
@@ -83,6 +90,20 @@ goto :init
         if /I "%~2"=="relwithdebinfo" set BUILD_TYPE=relwithdebinfo
         if /I "%~2"=="minsizerel" set BUILD_TYPE=minsizerel
         if "!BUILD_TYPE!"=="" echo ERROR: Unrecognized/missing build type %~2 & call :usage & exit /B 1
+
+        shift
+        shift
+        goto :parse
+    )
+
+    set VCPKG_ROOT_SET=0
+    if /I "%~1"=="-p" set VCPKG_ROOT_SET=1
+    if /I "%~1"=="--vcpkg" set VCPKG_ROOT_SET=1
+    if %VCPKG_ROOT_SET%==1 (
+        if "%VCPKG_ROOT_PATH%" NEQ "" echo ERROR: vcpkg root path already specified & call :usage & exit /B 1
+        if /I "%~2"=="" echo ERROR: Path to vcpkg root missing & call :usage & exit /B 1
+
+        set VCPKG_ROOT_PATH=%~2
 
         shift
         shift
@@ -139,6 +160,28 @@ goto :init
 
     if "%BUILD_TYPE%"=="" set BUILD_TYPE=debug
 
+    if "%VCPKG_ROOT_PATH%"=="" (
+        :: First check for %VCPKG_ROOT% variable
+        if defined VCPKG_ROOT (
+            set VCPKG_ROOT_PATH=%VCPKG_ROOT%
+        ) else (
+            :: Next check the PATH for vcpkg.exe
+            for %%i in (vcpkg.exe) do set VCPKG_ROOT_PATH=%%~dp$PATH:i
+
+            if "!VCPKG_ROOT_PATH!"=="" (
+                :: Finally, check the root of the drive for a clone of the name 'vcpkg'
+                if exist \vcpkg\vcpkg.exe (
+                    for %%i in (%cd%) do set VCPKG_ROOT_PATH=%%~di\vcpkg
+                )
+            )
+        )
+    )
+    if "%VCPKG_ROOT_PATH%"=="" (
+        echo ERROR: Unable to locate the root path of your local vcpkg installation.
+        :: TODO: Better messaging
+        exit /B 1
+    )
+
     :: Formulate CMake arguments
     if %GENERATOR%==ninja set CMAKE_ARGS=%CMAKE_ARGS% -G Ninja
 
@@ -167,7 +210,7 @@ goto :init
 
     if %FAST_BUILD%==1 set CMAKE_ARGS=%CMAKE_ARGS% -DFAST_BUILD=ON
 
-    set CMAKE_ARGS=%CMAKE_ARGS% -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+    set CMAKE_ARGS=%CMAKE_ARGS% -DCMAKE_TOOLCHAIN_FILE="%VCPKG_ROOT_PATH%\scripts\buildsystems\vcpkg.cmake" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
     :: Figure out the platform
     if "%Platform%"=="" echo ERROR: The init.cmd script must be run from a Visual Studio command window & exit /B 1

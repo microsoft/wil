@@ -56,6 +56,7 @@ set(COMMON_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/CommonTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ComTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/FileSystemTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/MockingTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/NTResultTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ResourceTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ResultTests.cpp
@@ -71,6 +72,12 @@ set(COMMON_SOURCES
 if (MSVC)
     add_link_options(/NATVIS:${CMAKE_SOURCE_DIR}/natvis/wil.natvis)
 endif()
+
+find_path(DETOURS_INCLUDE_DIR detours/detours.h)
+find_library(DETOURS_LIB_PATH detours)
+
+include_directories(${DETOURS_INCLUDE_DIR})
+link_libraries(${DETOURS_LIB_PATH})
 
 add_subdirectory(app)
 add_subdirectory(cpplatest)

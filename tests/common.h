@@ -10,6 +10,8 @@
 #include <roerrorapi.h>
 #include <wil/com.h>
 
+#include "mocking.h"
+
 #define REPORTS_ERROR(expr) \
     witest::ReportsError(wistd::is_same<HRESULT, decltype(expr)>{}, [&]() { \
         return expr; \
