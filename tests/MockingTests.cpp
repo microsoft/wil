@@ -56,7 +56,7 @@ TEST_CASE("MockingTests::ThreadDetourWithLambda", "[mocking]")
     REQUIRE(::GetFileAttributesW(path) == INVALID_FILE_ATTRIBUTES);
 }
 
-__declspec(noinline) int LocalAddFunction(int lhs, int rhs)
+__declspec(noinline) int __cdecl LocalAddFunction(int lhs, int rhs)
 {
     return lhs + rhs;
 }
@@ -73,6 +73,39 @@ TEST_CASE("MockingTests::ThreadDetourLocalFunciton", "[mocking]")
     }
 
     REQUIRE(LocalAddFunction(2, 3) == 5);
+}
+
+__declspec(noinline) int __cdecl LocalAddFunctionNoexcept(int lhs, int rhs) noexcept
+{
+    return lhs + rhs;
+}
+
+__declspec(noinline) int __stdcall LocalAddFunctionStdcallNoexcept(int lhs, int rhs) noexcept
+{
+    return lhs + rhs;
+}
+
+TEST_CASE("MockingTests::ThreadDetourNoexceptFunction", "[mocking]")
+{
+    {
+        witest::detoured_thread_function<&LocalAddFunctionNoexcept> detour;
+        REQUIRE_SUCCEEDED(detour.reset([](int lhs, int rhs) noexcept {
+            return lhs * rhs;
+        }));
+
+        REQUIRE(LocalAddFunctionNoexcept(2, 3) == 6);
+    }
+    REQUIRE(LocalAddFunctionNoexcept(2, 3) == 5);
+
+    {
+        witest::detoured_thread_function<&LocalAddFunctionStdcallNoexcept> detour;
+        REQUIRE_SUCCEEDED(detour.reset([](int lhs, int rhs) noexcept {
+            return lhs * rhs;
+        }));
+
+        REQUIRE(LocalAddFunctionStdcallNoexcept(2, 3) == 6);
+    }
+    REQUIRE(LocalAddFunctionStdcallNoexcept(2, 3) == 5);
 }
 
 TEST_CASE("MockingTests::RecursiveThreadDetouring", "[mocking]")

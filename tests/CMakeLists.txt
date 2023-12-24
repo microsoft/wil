@@ -30,6 +30,10 @@ if (NOT ret EQUAL 0)
     message(FATAL_ERROR "Failed to run cppwinrt.exe")
 endif()
 
+# In general, we've supported C++14 as the minimum standard, however the C++17 standard is already a couple releases old
+# and the Windows OS build has been on C++17 for some time. For the time being, we will still try and guard uses of
+# C++17+ features, however we've started to take dependencies on C++17 features in the tests and therefore no longer
+# build them with older standards
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 

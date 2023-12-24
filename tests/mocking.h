@@ -77,6 +77,39 @@ namespace details
         }
     };
 
+    template <typename DerivedT, typename ReturnT, typename... ArgsT>
+    struct detoured_thread_base<DerivedT, ReturnT(__stdcall*)(ArgsT...) noexcept>
+    {
+    protected:
+        using return_type = ReturnT;
+        using function_type = ReturnT(ArgsT...);
+
+        static __stdcall ReturnT callback(ArgsT... args) noexcept
+        {
+            for (auto ptr = DerivedT::s_threadInstance; ptr; ptr = ptr->m_next)
+            {
+                if (!ptr->m_reentry)
+                {
+                    return ptr->invoke(wistd::forward<ArgsT>(args)...);
+                }
+            }
+
+            // All registered functions have been called; forward to the implementation
+            return DerivedT::s_target(wistd::forward<ArgsT>(args)...);
+        }
+
+        ReturnT invoke(ArgsT... args) noexcept
+        {
+            auto pThis = static_cast<DerivedT*>(this);
+            WI_ASSERT(!pThis->m_reentry);
+            pThis->m_reentry = true;
+            auto resetOnExit = wil::scope_exit([&] {
+                pThis->m_reentry = false; // No guarantee that 'ReturnT' is a movable type; NRVO is not guaranteed
+            });
+            return pThis->m_detour(wistd::forward<ArgsT>(args)...);
+        }
+    };
+
 #if _M_IX86
     template <typename DerivedT, typename ReturnT, typename... ArgsT>
     struct detoured_thread_base<DerivedT, ReturnT(__cdecl*)(ArgsT...)>
@@ -100,6 +133,39 @@ namespace details
         }
 
         ReturnT invoke(ArgsT... args)
+        {
+            auto pThis = static_cast<DerivedT*>(this);
+            WI_ASSERT(!pThis->m_reentry);
+            pThis->m_reentry = true;
+            auto resetOnExit = wil::scope_exit([&] {
+                pThis->m_reentry = false; // No guarantee that 'ReturnT' is a movable type; NRVO is not guaranteed
+            });
+            return pThis->m_detour(wistd::forward<ArgsT>(args)...);
+        }
+    };
+
+    template <typename DerivedT, typename ReturnT, typename... ArgsT>
+    struct detoured_thread_base<DerivedT, ReturnT(__cdecl*)(ArgsT...) noexcept>
+    {
+    protected:
+        using return_type = ReturnT;
+        using function_type = ReturnT(ArgsT...);
+
+        static __cdecl ReturnT callback(ArgsT... args) noexcept
+        {
+            for (auto ptr = DerivedT::s_threadInstance; ptr; ptr = ptr->m_next)
+            {
+                if (!ptr->m_reentry)
+                {
+                    return ptr->invoke(wistd::forward<ArgsT>(args)...);
+                }
+            }
+
+            // All registered functions have been called; forward to the implementation
+            return DerivedT::s_target(wistd::forward<ArgsT>(args)...);
+        }
+
+        ReturnT invoke(ArgsT... args) noexcept
         {
             auto pThis = static_cast<DerivedT*>(this);
             WI_ASSERT(!pThis->m_reentry);
