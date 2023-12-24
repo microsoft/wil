@@ -2895,12 +2895,12 @@ TEST_CASE("COMEnumerator", "[com][enumerator]")
 
         using traits_t = wil::details::com_enumerator_traits<IEnumIDList>;
         static_assert(std::is_same_v<traits_t::Result, LPITEMIDLIST>);
-        static_assert(std::is_same_v<traits_t::smart_result, void>); // no smart pointer for LPITEMIDLIST specified
+        static_assert(std::is_same_v<traits_t::smart_result, wil::details::You_must_specify_Smart_Output_type_explicitly<IEnumIDList>>); // no smart pointer for LPITEMIDLIST specified
 
         static_assert(std::is_same_v<wil::details::com_enumerator_next_traits<decltype(&IEnumMuffins::Next)>::Result, int32_t>);
         static_assert(std::is_same_v<wil::details::com_enumerator_next_traits<decltype(&IEnumMuffins::Next)>::Interface, IEnumMuffins>);
         static_assert(std::is_same_v<wil::details::com_enumerator_traits<IEnumMuffins>::Result, int32_t>);
-        static_assert(std::is_same_v<wil::details::com_enumerator_traits<IEnumMuffins>::smart_result, void>); // no smart type for int32_t specified
+        static_assert(std::is_same_v<wil::details::com_enumerator_traits<IEnumMuffins>::smart_result, wil::details::You_must_specify_Smart_Output_type_explicitly<IEnumMuffins>>); // no smart type for int32_t specified
 
         static_assert(std::is_same_v<wil::details::com_enumerator_next_traits<decltype(&IEnumMuffinsCOM::Next)>::Result, IUnknown*>);
         static_assert(
@@ -2919,7 +2919,7 @@ TEST_CASE("COMEnumerator", "[com][enumerator]")
     }
     SECTION("static_assert com_iterator types")
     {
-        using iterator_t = wil::com_iterator<IEnumIDList, unique_idlist>;
+        using iterator_t = wil::com_iterator<unique_idlist, IEnumIDList>;
         static_assert(std::is_same_v<unique_idlist&, decltype(*iterator_t{nullptr})>);
     }
     SECTION("Enumerate empty, non-COM type")
@@ -2962,11 +2962,23 @@ TEST_CASE("COMEnumerator", "[com][enumerator]")
         found = false;
         for (auto muffin : wil::make_range<wil::com_ptr_nothrow<IUnknown>>(&muffinsCOM_nothrow))
         {
-						REQUIRE(muffin == nullptr);
-						found = true;
-						break;
+            REQUIRE(muffin == nullptr);
+            found = true;
+            break;
         }
         REQUIRE(found);
+    }
+    SECTION("CTAD")
+    {
+        auto muffinsCOM = IEnumMuffinsCOM(1, nullptr);
+        using muffins_ctad_type = decltype(wil::com_iterator(&muffinsCOM));
+        static_assert(std::is_same_v<muffins_ctad_type::smart_result, wil::com_ptr<IUnknown>>);
+        static_assert(std::is_same_v<decltype(*std::declval<muffins_ctad_type>()),
+            wil::com_ptr<IUnknown>&>);
+        
+        wil::com_ptr<IEnumString> enumString;
+        auto it = wil::make_range<wil::unique_cotaskmem_string>(enumString.get());
+        static_assert(std::is_same_v<decltype(*(it.begin())), wil::unique_cotaskmem_string&>);
     }
 #if (NTDDI_VERSION >= NTDDI_VISTA)
     SECTION("static_assert enumeration types for IEnumAssocHandlers")
@@ -3040,7 +3052,6 @@ TEST_CASE("COMEnumerator", "[com][enumerator]")
         }
         REQUIRE(count > 0);
     }
-
 }
 #pragma warning(pop)
 #endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && WIL_HAS_CXX_17
