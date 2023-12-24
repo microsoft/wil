@@ -27,7 +27,7 @@ TEST_CASE("MockingTests::ThreadDetourWithFunctionPointer", "[mocking]")
     REQUIRE(realAttr != 0);
 
     {
-        witest::detoured_thread_function<decltype(&::GetFileAttributesW), &::GetFileAttributesW> detour;
+        witest::detoured_thread_function<&::GetFileAttributesW> detour;
         REQUIRE_SUCCEEDED(detour.reset(InvertFileAttributes));
         auto inverseAttr = ::GetFileAttributesW(buffer);
         REQUIRE(inverseAttr == ~realAttr);
@@ -42,7 +42,7 @@ TEST_CASE("MockingTests::ThreadDetourWithLambda", "[mocking]")
 
     {
         DWORD expectedAttr = 0;
-        witest::detoured_thread_function<decltype(&::GetFileAttributesW), &::GetFileAttributesW> detour;
+        witest::detoured_thread_function<&::GetFileAttributesW> detour;
         REQUIRE_SUCCEEDED(detour.reset([&](PCWSTR) -> DWORD {
             return expectedAttr;
         }));
@@ -64,7 +64,7 @@ __declspec(noinline) int LocalAddFunction(int lhs, int rhs)
 TEST_CASE("MockingTests::ThreadDetourLocalFunciton", "[mocking]")
 {
     {
-        witest::detoured_thread_function<decltype(&LocalAddFunction), &LocalAddFunction> detour;
+        witest::detoured_thread_function<&LocalAddFunction> detour;
         REQUIRE_SUCCEEDED(detour.reset([](int lhs, int rhs) {
             return lhs * rhs;
         }));
@@ -78,13 +78,13 @@ TEST_CASE("MockingTests::ThreadDetourLocalFunciton", "[mocking]")
 TEST_CASE("MockingTests::RecursiveThreadDetouring", "[mocking]")
 {
     {
-        witest::detoured_thread_function<decltype(&LocalAddFunction), &LocalAddFunction> detour;
+        witest::detoured_thread_function<&LocalAddFunction> detour;
         REQUIRE_SUCCEEDED(detour.reset([](int lhs, int rhs) {
             return lhs + rhs + LocalAddFunction(lhs * 2, rhs * 2);
         }));
 
         {
-            witest::detoured_thread_function<decltype(&LocalAddFunction), &LocalAddFunction> detour2;
+            witest::detoured_thread_function<&LocalAddFunction> detour2;
             REQUIRE_SUCCEEDED(detour2.reset([](int lhs, int rhs) {
                 return lhs + rhs + LocalAddFunction(lhs * 3, rhs * 3);
             }));
@@ -104,7 +104,7 @@ TEST_CASE("MockingTests::RecursiveThreadDetouring", "[mocking]")
 #ifdef WIL_ENABLE_EXCEPTIONS
 TEST_CASE("MockingTests::ThreadDetourMultithreaded", "[mocking]")
 {
-    witest::detoured_thread_function<decltype(&LocalAddFunction), &LocalAddFunction> detour([](int lhs, int rhs) {
+    witest::detoured_thread_function<&LocalAddFunction> detour([](int lhs, int rhs) {
         return lhs * rhs;
     });
 

@@ -2314,6 +2314,7 @@ TEST_CASE("ComTests::VerifyCoCreateInstanceExNoThrowMissingInterface", "[com][Co
     }
 }
 
+#ifdef WIL_ENABLE_EXCEPTIONS
 TEST_CASE("ComTests::VerifyTryCoCreateInstanceMissingInterface", "[com][CoCreateInstance]")
 {
     auto init = wil::CoInitializeEx_failfast();
@@ -2339,7 +2340,6 @@ TEST_CASE("ComTests::VerifyTryCoCreateInstanceMissingInterface", "[com][CoCreate
     }
 }
 
-#ifdef WIL_ENABLE_EXCEPTIONS
 TEST_CASE("ComTests::VerifyQueryMultipleInterfaces", "[com][com_multi_query]")
 {
     auto init = wil::CoInitializeEx_failfast();

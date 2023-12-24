@@ -30,6 +30,9 @@ if (NOT ret EQUAL 0)
     message(FATAL_ERROR "Failed to run cppwinrt.exe")
 endif()
 
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 include_directories(BEFORE SYSTEM ${CMAKE_BINARY_DIR}/include)
 
 # The build pipelines have limitations that local development environments do not, so turn a few knobs
@@ -73,11 +76,11 @@ if (MSVC)
     add_link_options(/NATVIS:${CMAKE_SOURCE_DIR}/natvis/wil.natvis)
 endif()
 
-find_path(DETOURS_INCLUDE_DIR detours/detours.h)
-find_library(DETOURS_LIB_PATH detours)
+find_path(DETOURS_INCLUDE_DIRS detours/detours.h)
+find_library(DETOURS_LIBRARY detours REQUIRED)
 
-include_directories(${DETOURS_INCLUDE_DIR})
-link_libraries(${DETOURS_LIB_PATH})
+include_directories(${DETOURS_INCLUDE_DIRS})
+link_libraries(${DETOURS_LIBRARY})
 
 add_subdirectory(app)
 add_subdirectory(cpplatest)

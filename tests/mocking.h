@@ -40,20 +40,94 @@ namespace details
         abortOnFailure.release();
         return S_OK;
     }
+
+    template <typename DerivedT, typename FuncT>
+    struct detoured_thread_base;
+
+    template <typename DerivedT, typename ReturnT, typename... ArgsT>
+    struct detoured_thread_base<DerivedT, ReturnT(__stdcall*)(ArgsT...)>
+    {
+    protected:
+        using return_type = ReturnT;
+        using function_type = ReturnT(ArgsT...);
+
+        static __stdcall ReturnT callback(ArgsT... args)
+        {
+            for (auto ptr = DerivedT::s_threadInstance; ptr; ptr = ptr->m_next)
+            {
+                if (!ptr->m_reentry)
+                {
+                    return ptr->invoke(wistd::forward<ArgsT>(args)...);
+                }
+            }
+
+            // All registered functions have been called; forward to the implementation
+            return DerivedT::s_target(wistd::forward<ArgsT>(args)...);
+        }
+
+        ReturnT invoke(ArgsT... args)
+        {
+            auto pThis = static_cast<DerivedT*>(this);
+            WI_ASSERT(!pThis->m_reentry);
+            pThis->m_reentry = true;
+            auto resetOnExit = wil::scope_exit([&] {
+                pThis->m_reentry = false; // No guarantee that 'ReturnT' is a movable type; NRVO is not guaranteed
+            });
+            return pThis->m_detour(wistd::forward<ArgsT>(args)...);
+        }
+    };
+
+#if _M_IX86
+    template <typename DerivedT, typename ReturnT, typename... ArgsT>
+    struct detoured_thread_base<DerivedT, ReturnT(__cdecl*)(ArgsT...)>
+    {
+    protected:
+        using return_type = ReturnT;
+        using function_type = ReturnT(ArgsT...);
+
+        static __cdecl ReturnT callback(ArgsT... args)
+        {
+            for (auto ptr = DerivedT::s_threadInstance; ptr; ptr = ptr->m_next)
+            {
+                if (!ptr->m_reentry)
+                {
+                    return ptr->invoke(wistd::forward<ArgsT>(args)...);
+                }
+            }
+
+            // All registered functions have been called; forward to the implementation
+            return DerivedT::s_target(wistd::forward<ArgsT>(args)...);
+        }
+
+        ReturnT invoke(ArgsT... args)
+        {
+            auto pThis = static_cast<DerivedT*>(this);
+            WI_ASSERT(!pThis->m_reentry);
+            pThis->m_reentry = true;
+            auto resetOnExit = wil::scope_exit([&] {
+                pThis->m_reentry = false; // No guarantee that 'ReturnT' is a movable type; NRVO is not guaranteed
+            });
+            return pThis->m_detour(wistd::forward<ArgsT>(args)...);
+        }
+    };
+#endif
 }
 
 //! An RAII type that manages a thread-specific detouring of a specific function.
 //! This type is used to register a specific lambda (or function pointer) as the detour for a specific function that only gets
 //! invoked on the thread it was created on. This helps avoid issues such as the lambda being invoked on an unexpected thread or
 //! having it get destroyed while being invoked on a different thread.
-template <typename FuncT, FuncT TargetFn>
-struct detoured_thread_function;
-
-template <typename ReturnT, typename... ArgsT, ReturnT (*TargetFn)(ArgsT...)>
-struct detoured_thread_function<ReturnT (*)(ArgsT...), TargetFn>
+template <auto TargetFn>
+struct detoured_thread_function : details::detoured_thread_base<detoured_thread_function<TargetFn>, decltype(TargetFn)>
 {
-    using FuncT = ReturnT(ArgsT...);
+private:
+    using base = details::detoured_thread_base<detoured_thread_function, decltype(TargetFn)>;
+    using return_type = typename base::return_type;
+    using function_type = typename base::function_type;
 
+    friend base;
+
+public:
     detoured_thread_function() = default;
 
 #ifdef WIL_ENABLE_EXCEPTIONS
@@ -125,7 +199,7 @@ struct detoured_thread_function<ReturnT (*)(ArgsT...), TargetFn>
                 auto lock = details::s_detourLock.lock_exclusive();
                 if (--s_refCount == 0)
                 {
-                    RETURN_IF_FAILED(details::Unregister(&s_target, callback));
+                    RETURN_IF_FAILED(details::Unregister(&s_target, &base::callback));
                 }
             }
         }
@@ -144,7 +218,7 @@ struct detoured_thread_function<ReturnT (*)(ArgsT...), TargetFn>
             auto lock = details::s_detourLock.lock_exclusive();
             if (s_refCount == 0)
             {
-                RETURN_IF_FAILED(details::Register(&s_target, callback));
+                RETURN_IF_FAILED(details::Register(&s_target, &base::callback));
             }
             ++s_refCount;
         }
@@ -156,44 +230,13 @@ struct detoured_thread_function<ReturnT (*)(ArgsT...), TargetFn>
     }
 
 private:
-    static ReturnT callback(ArgsT... args)
-    {
-        for (auto ptr = s_threadInstance; ptr; ptr = ptr->m_next)
-        {
-            if (!ptr->m_reentry)
-            {
-                return ptr->invoke(wistd::forward<ArgsT>(args)...);
-            }
-        }
-
-        // All registered functions have been called; forward to the implementation
-        return s_target(wistd::forward<ArgsT>(args)...);
-    }
-
-    ReturnT invoke(ArgsT... args)
-    {
-        WI_ASSERT(!m_reentry);
-        m_reentry = true;
-        auto resetOnExit = wil::scope_exit([&] {
-            m_reentry = false; // No guarantee that 'ReturnT' is a movable type; NRVO is not guaranteed
-        });
-        return m_detour(wistd::forward<ArgsT>(args)...);
-    }
 
     detoured_thread_function* m_next = nullptr; // Linked list of registrations; support detouring more than once on same thread
-    wistd::function<FuncT> m_detour;
+    wistd::function<function_type> m_detour;
     bool m_reentry = false; // Used to handle forwarding to impl or the detour
 
-    static thread_local detoured_thread_function* s_threadInstance;
-    static FuncT* s_target;
-    static int s_refCount; // Guarded by details::s_detourLock
+    static inline thread_local detoured_thread_function* s_threadInstance = nullptr;
+    static inline auto s_target = TargetFn;
+    static inline int s_refCount = 0; // Guarded by details::s_detourLock
 };
-
-template <typename ReturnT, typename... ArgsT, ReturnT (*TargetFn)(ArgsT...)>
-thread_local __declspec(selectany)
-    detoured_thread_function<ReturnT (*)(ArgsT...), TargetFn>* detoured_thread_function<ReturnT (*)(ArgsT...), TargetFn>::s_threadInstance = nullptr;
-template <typename ReturnT, typename... ArgsT, ReturnT (*TargetFn)(ArgsT...)>
-__declspec(selectany) ReturnT (*detoured_thread_function<ReturnT (*)(ArgsT...), TargetFn>::s_target)(ArgsT...) = TargetFn;
-template <typename ReturnT, typename... ArgsT, ReturnT (*TargetFn)(ArgsT...)>
-__declspec(selectany) int detoured_thread_function<ReturnT (*)(ArgsT...), TargetFn>::s_refCount = 0;
 } // namespace witest
