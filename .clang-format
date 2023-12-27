@@ -175,6 +175,9 @@ StatementMacros: [
   _Translates_NTSTATUS_to_HRESULT_,
   _Translates_Win32_to_HRESULT_,
   _Translates_last_error_to_HRESULT_,
+
+  TEST_CASE,
+  SECTION,
 ]
 
 TypenameMacros: [

@@ -473,64 +473,68 @@ TEST_CASE("SafeCastTests::SafeCastNoThrowSyntaxCheck", "[safecast]")
     }
 }
 
-TEST_CASE("SafeCastTests::SafeCastNoFailures", "[safecast]"){SECTION("INT -> LONG"){INT i = INT_MAX;
-LONG l = wil::safe_cast_nothrow<LONG>(i);
-REQUIRE(l == INT_MAX);
-}
-
-SECTION("LONG -> INT")
+TEST_CASE("SafeCastTests::SafeCastNoFailures", "[safecast]")
 {
-    LONG l = LONG_MAX;
-    INT i = wil::safe_cast_nothrow<INT>(l);
-    REQUIRE(i == LONG_MAX);
-}
+    SECTION("INT -> LONG")
+    {
+        INT i = INT_MAX;
+        LONG l = wil::safe_cast_nothrow<LONG>(i);
+        REQUIRE(l == INT_MAX);
+    }
 
-SECTION("INT -> UINT")
-{
-    INT i = INT_MAX;
-    UINT ui = wil::safe_cast_failfast<UINT>(i);
-    REQUIRE(ui == INT_MAX);
-}
+    SECTION("LONG -> INT")
+    {
+        LONG l = LONG_MAX;
+        INT i = wil::safe_cast_nothrow<INT>(l);
+        REQUIRE(i == LONG_MAX);
+    }
 
-SECTION("SIZE_T -> SIZE_T")
-{
-    SIZE_T st = SIZE_T_MAX;
-    SIZE_T st2 = wil::safe_cast_failfast<SIZE_T>(st);
-    REQUIRE(st2 == SIZE_T_MAX);
-}
+    SECTION("INT -> UINT")
+    {
+        INT i = INT_MAX;
+        UINT ui = wil::safe_cast_failfast<UINT>(i);
+        REQUIRE(ui == INT_MAX);
+    }
 
-SECTION("wchar_t -> uint")
-{
-    wchar_t wc = 0;
-    UINT ui = wil::safe_cast_failfast<UINT>(wc);
-    REQUIRE(ui == 0);
-}
+    SECTION("SIZE_T -> SIZE_T")
+    {
+        SIZE_T st = SIZE_T_MAX;
+        SIZE_T st2 = wil::safe_cast_failfast<SIZE_T>(st);
+        REQUIRE(st2 == SIZE_T_MAX);
+    }
 
-SECTION("wchar_t -> unsigned char")
-{
-    wchar_t wc = 0;
-    unsigned char uc = wil::safe_cast_failfast<unsigned char>(wc);
-    REQUIRE(uc == 0);
-    auto result = wil::safe_cast_nothrow<unsigned char>(wc, &uc);
-    REQUIRE_SUCCEEDED(result);
-}
+    SECTION("wchar_t -> uint")
+    {
+        wchar_t wc = 0;
+        UINT ui = wil::safe_cast_failfast<UINT>(wc);
+        REQUIRE(ui == 0);
+    }
 
-SECTION("uint -> wchar_t")
-{
-    UINT ui = 0;
-    wchar_t wc = wil::safe_cast_failfast<wchar_t>(ui);
-    REQUIRE(wc == 0);
-    auto result = wil::safe_cast_nothrow<wchar_t>(ui, &wc);
-    REQUIRE_SUCCEEDED(result);
-}
+    SECTION("wchar_t -> unsigned char")
+    {
+        wchar_t wc = 0;
+        unsigned char uc = wil::safe_cast_failfast<unsigned char>(wc);
+        REQUIRE(uc == 0);
+        auto result = wil::safe_cast_nothrow<unsigned char>(wc, &uc);
+        REQUIRE_SUCCEEDED(result);
+    }
+
+    SECTION("uint -> wchar_t")
+    {
+        UINT ui = 0;
+        wchar_t wc = wil::safe_cast_failfast<wchar_t>(ui);
+        REQUIRE(wc == 0);
+        auto result = wil::safe_cast_nothrow<wchar_t>(ui, &wc);
+        REQUIRE_SUCCEEDED(result);
+    }
 
 #ifndef _WIN64
-SECTION("SIZE_T -> UINT")
-{
-    SIZE_T st = SIZE_T_MAX;
-    UINT ui = wil::safe_cast_nothrow<UINT>(st);
-    REQUIRE(ui == SIZE_T_MAX);
-}
+    SECTION("SIZE_T -> UINT")
+    {
+        SIZE_T st = SIZE_T_MAX;
+        UINT ui = wil::safe_cast_nothrow<UINT>(st);
+        REQUIRE(ui == SIZE_T_MAX);
+    }
 #endif
 }
 

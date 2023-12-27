@@ -823,8 +823,7 @@ TEST_CASE("FileSystemTest::FolderChangeReader destructor does not hang", "[files
 auto Mock_GetModuleFileName(DWORD pathLength)
 {
     witest::detoured_thread_function<&GetModuleFileNameW> result;
-    REQUIRE_SUCCEEDED(result.reset([pathLength](HMODULE, _Out_ PWSTR fileName, _In_ DWORD bufferSize) -> DWORD
-    {
+    REQUIRE_SUCCEEDED(result.reset([pathLength](HMODULE, _Out_ PWSTR fileName, _In_ DWORD bufferSize) -> DWORD {
         const DWORD amountToCopy = min(pathLength, bufferSize);
         for (size_t i = 0; i < amountToCopy; i++)
         {
@@ -849,8 +848,7 @@ auto Mock_GetModuleFileName(DWORD pathLength)
 auto Mock_GetModuleFileNameEx(DWORD pathLength)
 {
     witest::detoured_thread_function<&GetModuleFileNameExW> result;
-    REQUIRE_SUCCEEDED(result.reset([pathLength](HANDLE, HMODULE, _Out_ PWSTR fileName, _In_ DWORD bufferSize) -> DWORD
-    {
+    REQUIRE_SUCCEEDED(result.reset([pathLength](HANDLE, HMODULE, _Out_ PWSTR fileName, _In_ DWORD bufferSize) -> DWORD {
         const DWORD amountToCopy = min(pathLength, bufferSize);
         for (size_t i = 0; i < amountToCopy; i++)
         {
@@ -922,15 +920,13 @@ TEST_CASE("GetModuleFileNameTests::VerifyFileNameExactlyMaximumNTPathLength", "[
 TEST_CASE("GetModuleFileNameTests::VerifyRegularFailuresAreSurfaced", "[filesystem]")
 {
     witest::detoured_thread_function<&GetModuleFileNameW> mock1;
-    REQUIRE_SUCCEEDED(mock1.reset([](HMODULE, PWSTR, DWORD) -> DWORD
-    {
+    REQUIRE_SUCCEEDED(mock1.reset([](HMODULE, PWSTR, DWORD) -> DWORD {
         SetLastError(ERROR_NOT_FOUND);
         return 0;
     }));
 
     witest::detoured_thread_function<&GetModuleFileNameExW> mock2;
-    REQUIRE_SUCCEEDED(mock2.reset([](HANDLE, HMODULE, PWSTR, DWORD) -> DWORD
-    {
+    REQUIRE_SUCCEEDED(mock2.reset([](HANDLE, HMODULE, PWSTR, DWORD) -> DWORD {
         SetLastError(ERROR_NOT_FOUND);
         return 0;
     }));
@@ -954,6 +950,7 @@ TEST_CASE("GetModuleFileNameTests::VerifyWithRealResultsAndShortInitialBufferLen
 
     REQUIRE_SUCCEEDED((wil::GetModuleFileNameW<wil::unique_cotaskmem_string, c_initialBufferLimitTest>(nullptr, path)));
     REQUIRE(c_initialBufferLimitTest < wcslen(path.get()));
-    REQUIRE_SUCCEEDED((wil::GetModuleFileNameExW<wil::unique_cotaskmem_string, c_initialBufferLimitTest>(GetCurrentProcess(), nullptr, path)));
+    REQUIRE_SUCCEEDED(
+        (wil::GetModuleFileNameExW<wil::unique_cotaskmem_string, c_initialBufferLimitTest>(GetCurrentProcess(), nullptr, path)));
     REQUIRE(c_initialBufferLimitTest < wcslen(path.get()));
 }

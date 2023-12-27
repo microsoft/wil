@@ -9,7 +9,8 @@
 DWORD __stdcall InvertFileAttributes(PCWSTR path)
 {
     thread_local bool recursive = false;
-    if (recursive) return INVALID_FILE_ATTRIBUTES;
+    if (recursive)
+        return INVALID_FILE_ATTRIBUTES;
 
     recursive = true;
     auto result = ::GetFileAttributesW(path);
@@ -370,7 +371,7 @@ TEST_CASE("MockingTests::GlobalDetourDestructorRace", "[mocking]")
     witest::detoured_thread_function<&::SleepConditionVariableSRW> cvWaitDetour(
         [&](PCONDITION_VARIABLE cv, PSRWLOCK lock, DWORD dwMilliseconds, ULONG flags) {
             // This should be called during the call to 'reset' since there's an "active" call
-            detourContinueEvent.SetEvent(); // Allow the 'detour' invocation to complete
+            detourContinueEvent.SetEvent();    // Allow the 'detour' invocation to complete
             nonDetourContinueEvent.SetEvent(); // Kick off a second
             return ::SleepConditionVariableSRW(cv, lock, dwMilliseconds, flags);
         });
@@ -393,7 +394,7 @@ TEST_CASE("MockingTests::GlobalDetourDestructorRace", "[mocking]")
     });
 
     detourRunningEvent.wait(); // Wait for 'detouredThread' to kick off & invoke the detoured function
-    detour.reset(); // Kick off everything to continue
+    detour.reset();            // Kick off everything to continue
 
     detouredThread.join();
     nonDetouredThread.join();

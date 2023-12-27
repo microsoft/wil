@@ -162,7 +162,7 @@ namespace details
         }
     };
 #endif
-}
+} // namespace details
 
 //! An RAII type that manages the global detouring of a specific function.
 //! This type is used to register a specific lambda (or function pointer) as the detour for a specific function that gets invoked
@@ -299,7 +299,6 @@ public:
     }
 
 private:
-
     template <typename... ArgsT>
     static return_type invoke_callback(ArgsT&&... args) noexcept(base::is_noexcept)
     {
@@ -350,11 +349,11 @@ private:
 
     detoured_global_function* m_next = nullptr; // Linked list of registrations; guarded by s_detourLock
     wistd::function<function_type> m_detour;
-    int m_entryCount = 0; // Keep track of how many threads are invoking the detour; used to delay destruction
-    bool m_removed = false; // Marks the node as removed; not actually removed until all invocations complete
+    int m_entryCount = 0;                     // Keep track of how many threads are invoking the detour; used to delay destruction
+    bool m_removed = false;                   // Marks the node as removed; not actually removed until all invocations complete
     wil::condition_variable m_invokeComplete; // Used to delay destruction until all threads have finished invoking the detour
 
-    static inline detoured_global_function* s_globalInstance = nullptr; // Linked list head; guarded by s_detourLock
+    static inline detoured_global_function* s_globalInstance = nullptr;        // Linked list head; guarded by s_detourLock
     static inline thread_local detoured_global_function* s_invoking = nullptr; // Used for reentrancy
     static inline auto s_target = TargetFn;
     static inline int s_refCount = 0; // Guarded by details::s_detourLock
@@ -477,7 +476,6 @@ public:
     }
 
 private:
-
     template <typename... ArgsT>
     static return_type invoke_callback(ArgsT&&... args) noexcept(base::is_noexcept)
     {

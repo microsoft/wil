@@ -407,8 +407,7 @@ TEST_CASE("RegistryWatcherTests::VerifyDeleteDuringNotification", "[registry][re
 
     int volatile mockObserved = 0;
     witest::detoured_global_function<&RegNotifyChangeKeyValue> mockRegNotifyChangeKeyValue;
-    REQUIRE_SUCCEEDED(mockRegNotifyChangeKeyValue.reset([&](HKEY, BOOL, DWORD, HANDLE event, BOOL) -> LSTATUS
-    {
+    REQUIRE_SUCCEEDED(mockRegNotifyChangeKeyValue.reset([&](HKEY, BOOL, DWORD, HANDLE event, BOOL) -> LSTATUS {
         if (!mockObserved)
         {
             mockObserved++;
@@ -425,9 +424,7 @@ TEST_CASE("RegistryWatcherTests::VerifyDeleteDuringNotification", "[registry][re
         }
     }));
 
-    auto watcher = wil::make_registry_watcher(ROOT_KEY_PAIR, true, [&](wil::RegistryChangeKind)
-    {
-    });
+    auto watcher = wil::make_registry_watcher(ROOT_KEY_PAIR, true, [&](wil::RegistryChangeKind) {});
     notificationReceived.wait();
     REQUIRE(mockObserved == 2);
     deleteNotification.SetEvent();
@@ -439,7 +436,7 @@ TEST_CASE("FileSystemWatcherTests::Construction", "[resource][folder_watcher]")
     SECTION("Create unique_folder_watcher_nothrow with valid path")
     {
         auto watcher = wil::make_folder_watcher_nothrow(L"C:\\Windows\\System32", true, wil::FolderChangeEvents::All, [] {});
-    REQUIRE(watcher);
+        REQUIRE(watcher);
     }
 
     SECTION("Create unique_folder_watcher_nothrow with invalid path")
@@ -485,27 +482,32 @@ TEST_CASE("FileSystemWatcherTests::VerifyDelivery", "[resource][folder_watcher]"
     REQUIRE(observedCount == 2);
 }
 
-TEST_CASE("FolderChangeReaderTests::Construction", "[resource][folder_change_reader]"){SECTION("Create folder_change_reader_nothrow with valid path"){
-    auto reader = wil::make_folder_change_reader_nothrow(L"C:\\Windows\\System32", true, wil::FolderChangeEvents::All, [](auto, auto) {});
-REQUIRE(reader);
-}
-
-SECTION("Create folder_change_reader_nothrow with invalid path")
+TEST_CASE("FolderChangeReaderTests::Construction", "[resource][folder_change_reader]")
 {
-    auto reader = wil::make_folder_change_reader_nothrow(L"X:\\invalid path", true, wil::FolderChangeEvents::All, [](auto, auto) {});
-    REQUIRE(!reader);
-}
+    SECTION("Create folder_change_reader_nothrow with valid path")
+    {
+        auto reader =
+            wil::make_folder_change_reader_nothrow(L"C:\\Windows\\System32", true, wil::FolderChangeEvents::All, [](auto, auto) {});
+        REQUIRE(reader);
+    }
+
+    SECTION("Create folder_change_reader_nothrow with invalid path")
+    {
+        auto reader =
+            wil::make_folder_change_reader_nothrow(L"X:\\invalid path", true, wil::FolderChangeEvents::All, [](auto, auto) {});
+        REQUIRE(!reader);
+    }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
-SECTION("Create folder_change_reader with valid path")
-{
-    REQUIRE_NOTHROW(wil::make_folder_change_reader(L"C:\\Windows\\System32", true, wil::FolderChangeEvents::All, [](auto, auto) {}));
-}
+    SECTION("Create folder_change_reader with valid path")
+    {
+        REQUIRE_NOTHROW(wil::make_folder_change_reader(L"C:\\Windows\\System32", true, wil::FolderChangeEvents::All, [](auto, auto) {}));
+    }
 
-SECTION("Create folder_change_reader with invalid path")
-{
-    REQUIRE_THROWS(wil::make_folder_change_reader(L"X:\\invalid path", true, wil::FolderChangeEvents::All, [](auto, auto) {}));
-}
+    SECTION("Create folder_change_reader with invalid path")
+    {
+        REQUIRE_THROWS(wil::make_folder_change_reader(L"X:\\invalid path", true, wil::FolderChangeEvents::All, [](auto, auto) {}));
+    }
 #endif
 }
 

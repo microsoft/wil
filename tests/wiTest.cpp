@@ -32,7 +32,8 @@
 #pragma warning(push)
 #pragma warning(disable : 4702) // Unreachable code
 
-TEST_CASE("WindowsInternalTests::CommonHelpers", "[resource]"){{wil::unique_handle spHandle;
+TEST_CASE("WindowsInternalTests::CommonHelpers", "[resource]")
+{{wil::unique_handle spHandle;
 REQUIRE(spHandle == nullptr);
 REQUIRE(nullptr == spHandle);
 REQUIRE_FALSE(spHandle != nullptr);
