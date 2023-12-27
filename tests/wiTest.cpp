@@ -33,29 +33,28 @@
 #pragma warning(disable : 4702) // Unreachable code
 
 TEST_CASE("WindowsInternalTests::CommonHelpers", "[resource]")
-{{wil::unique_handle spHandle;
-REQUIRE(spHandle == nullptr);
-REQUIRE(nullptr == spHandle);
-REQUIRE_FALSE(spHandle != nullptr);
-REQUIRE_FALSE(nullptr != spHandle);
-
-// equivalence check will static_assert because spMutex does not allow pointer access
-wil::mutex_release_scope_exit spMutex;
-// REQUIRE(spMutex == nullptr);
-// REQUIRE(nullptr == spMutex);
-
-// equivalence check will static_assert because spFile does not use nullptr_t as a invalid value
-wil::unique_hfile spFile;
-// REQUIRE(spFile == nullptr);
-}
-#ifdef __WIL_WINBASE_STL
 {
+    wil::unique_handle spHandle;
+    REQUIRE(spHandle == nullptr);
+    REQUIRE(nullptr == spHandle);
+    REQUIRE_FALSE(spHandle != nullptr);
+    REQUIRE_FALSE(nullptr != spHandle);
+
+    // equivalence check will static_assert because spMutex does not allow pointer access
+    wil::mutex_release_scope_exit spMutex;
+    // REQUIRE(spMutex == nullptr);
+    // REQUIRE(nullptr == spMutex);
+
+    // equivalence check will static_assert because spFile does not use nullptr_t as a invalid value
+    wil::unique_hfile spFile;
+    // REQUIRE(spFile == nullptr);
+
+#ifdef __WIL_WINBASE_STL
     wil::shared_handle spHandle;
     REQUIRE(spHandle == nullptr);
     REQUIRE(nullptr == spHandle);
     REQUIRE_FALSE(spHandle != nullptr);
     REQUIRE_FALSE(nullptr != spHandle);
-}
 #endif
 }
 
