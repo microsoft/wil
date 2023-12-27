@@ -819,3 +819,141 @@ TEST_CASE("FileSystemTest::FolderChangeReader destructor does not hang", "[files
 #endif
 
 #endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+
+auto Mock_GetModuleFileName(DWORD pathLength)
+{
+    witest::detoured_thread_function<&GetModuleFileNameW> result;
+    REQUIRE_SUCCEEDED(result.reset([pathLength](HMODULE, _Out_ PWSTR fileName, _In_ DWORD bufferSize) -> DWORD
+    {
+        const DWORD amountToCopy = min(pathLength, bufferSize);
+        for (size_t i = 0; i < amountToCopy; i++)
+        {
+            fileName[i] = L'a';
+        }
+        fileName[amountToCopy - 1] = L'\0';
+        // GetModuleFileNameW is not documented on MSDN to SetLastError(ERROR_SUCCESS).
+        // Internally it does, but it's also possible for it to SetLastError to a
+        // failure code while at the same time returning success.  Per MSDN, the function
+        // succeeds with no truncation when it returns a non-zero value smaller than
+        // the bufferSize.  To account for the cases where it "succeeds" while setting
+        // last error to something else, we choose to SetLastError(ERROR_INVALID_HANDLE)
+        // in the success case.
+        DWORD error = (pathLength < bufferSize) ? ERROR_INVALID_HANDLE : ERROR_INSUFFICIENT_BUFFER;
+        SetLastError(error);
+        return (pathLength < bufferSize) ? amountToCopy : bufferSize;
+    }));
+
+    return result;
+}
+
+auto Mock_GetModuleFileNameEx(DWORD pathLength)
+{
+    witest::detoured_thread_function<&GetModuleFileNameExW> result;
+    REQUIRE_SUCCEEDED(result.reset([pathLength](HANDLE, HMODULE, _Out_ PWSTR fileName, _In_ DWORD bufferSize) -> DWORD
+    {
+        const DWORD amountToCopy = min(pathLength, bufferSize);
+        for (size_t i = 0; i < amountToCopy; i++)
+        {
+            fileName[i] = L'a';
+        }
+        fileName[amountToCopy - 1] = L'\0';
+        // GetModuleFileNameEx only sets ERROR_INSUFFICIENT_BUFFER when bufferSize == 0
+        // It never sets ERROR_SUCCESS, so we'll set a invalid handle since there's no
+        // guarantee that ERROR_SUCCESS was set.
+        SetLastError(ERROR_INVALID_HANDLE);
+        return (pathLength < bufferSize) ? amountToCopy : 0;
+    }));
+
+    return result;
+}
+
+TEST_CASE("GetModuleFileNameTests::VerifyFileNameLessThanMaxPath", "[filesystem]")
+{
+    const DWORD pathLength = 10;
+    auto mock1 = Mock_GetModuleFileName(pathLength);
+    auto mock2 = Mock_GetModuleFileNameEx(pathLength);
+
+    wil::unique_cotaskmem_string path;
+    REQUIRE_SUCCEEDED(wil::GetModuleFileNameW(nullptr, path));
+    REQUIRE(wcslen(path.get()) == (pathLength - 1));
+    REQUIRE_SUCCEEDED(wil::GetModuleFileNameExW(nullptr, nullptr, path));
+    REQUIRE(wcslen(path.get()) == (pathLength - 1));
+}
+
+TEST_CASE("GetModuleFileNameTests::VerifyFileNameGreaterThanInitialBufferLength", "[filesystem]")
+{
+    const DWORD pathLength = 130;
+    auto mock1 = Mock_GetModuleFileName(pathLength);
+    auto mock2 = Mock_GetModuleFileNameEx(pathLength);
+
+    wil::unique_cotaskmem_string path;
+    REQUIRE_SUCCEEDED((wil::GetModuleFileNameW<wil::unique_cotaskmem_string, 128>(nullptr, path)));
+    REQUIRE(wcslen(path.get()) == (pathLength - 1));
+    REQUIRE_SUCCEEDED((wil::GetModuleFileNameExW<wil::unique_cotaskmem_string, 128>(nullptr, nullptr, path)));
+    REQUIRE(wcslen(path.get()) == (pathLength - 1));
+}
+
+TEST_CASE("GetModuleFileNameTests::VerifyFileNameExactlyMatchingTheInitialBufferLength", "[filesystem]")
+{
+    const DWORD pathLength = 130;
+    auto mock1 = Mock_GetModuleFileName(pathLength);
+    auto mock2 = Mock_GetModuleFileNameEx(pathLength);
+
+    wil::unique_cotaskmem_string path;
+    REQUIRE_SUCCEEDED((wil::GetModuleFileNameW<wil::unique_cotaskmem_string, pathLength - 1>(nullptr, path)));
+    REQUIRE(wcslen(path.get()) == (pathLength - 1));
+    REQUIRE_SUCCEEDED((wil::GetModuleFileNameExW<wil::unique_cotaskmem_string, pathLength - 1>(nullptr, nullptr, path)));
+    REQUIRE(wcslen(path.get()) == (pathLength - 1));
+}
+
+TEST_CASE("GetModuleFileNameTests::VerifyFileNameExactlyMaximumNTPathLength", "[filesystem]")
+{
+    const DWORD pathLength = wil::max_extended_path_length;
+    auto mock1 = Mock_GetModuleFileName(pathLength);
+    auto mock2 = Mock_GetModuleFileNameEx(pathLength);
+
+    wil::unique_cotaskmem_string path;
+    REQUIRE_SUCCEEDED(wil::GetModuleFileNameW(nullptr, path));
+    REQUIRE(wcslen(path.get()) == (pathLength - 1));
+    REQUIRE_SUCCEEDED(wil::GetModuleFileNameExW(nullptr, nullptr, path));
+    REQUIRE(wcslen(path.get()) == (pathLength - 1));
+}
+
+TEST_CASE("GetModuleFileNameTests::VerifyRegularFailuresAreSurfaced", "[filesystem]")
+{
+    witest::detoured_thread_function<&GetModuleFileNameW> mock1;
+    REQUIRE_SUCCEEDED(mock1.reset([](HMODULE, PWSTR, DWORD) -> DWORD
+    {
+        SetLastError(ERROR_NOT_FOUND);
+        return 0;
+    }));
+
+    witest::detoured_thread_function<&GetModuleFileNameExW> mock2;
+    REQUIRE_SUCCEEDED(mock2.reset([](HANDLE, HMODULE, PWSTR, DWORD) -> DWORD
+    {
+        SetLastError(ERROR_NOT_FOUND);
+        return 0;
+    }));
+
+    wil::unique_cotaskmem_string path;
+    REQUIRE(wil::GetModuleFileNameW(nullptr, path) == HRESULT_FROM_WIN32(ERROR_NOT_FOUND));
+    REQUIRE(wil::GetModuleFileNameExW(nullptr, nullptr, path) == HRESULT_FROM_WIN32(ERROR_NOT_FOUND));
+}
+
+TEST_CASE("GetModuleFileNameTests::VerifyWithRealResults", "[filesystem]")
+{
+    wil::unique_cotaskmem_string path;
+    REQUIRE_SUCCEEDED(wil::GetModuleFileNameW(nullptr, path));
+    REQUIRE_SUCCEEDED(wil::GetModuleFileNameExW(GetCurrentProcess(), nullptr, path));
+}
+
+TEST_CASE("GetModuleFileNameTests::VerifyWithRealResultsAndShortInitialBufferLength", "[filesystem]")
+{
+    wil::unique_cotaskmem_string path;
+    constexpr size_t c_initialBufferLimitTest = 5;
+
+    REQUIRE_SUCCEEDED((wil::GetModuleFileNameW<wil::unique_cotaskmem_string, c_initialBufferLimitTest>(nullptr, path)));
+    REQUIRE(c_initialBufferLimitTest < wcslen(path.get()));
+    REQUIRE_SUCCEEDED((wil::GetModuleFileNameExW<wil::unique_cotaskmem_string, c_initialBufferLimitTest>(GetCurrentProcess(), nullptr, path)));
+    REQUIRE(c_initialBufferLimitTest < wcslen(path.get()));
+}

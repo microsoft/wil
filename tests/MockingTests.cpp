@@ -36,6 +36,24 @@ TEST_CASE("MockingTests::ThreadDetourWithFunctionPointer", "[mocking]")
     REQUIRE(::GetFileAttributesW(buffer) == realAttr);
 }
 
+TEST_CASE("MockingTests::GlobalDetourWithFunctionPointer", "[mocking]")
+{
+    wchar_t buffer[MAX_PATH];
+    REQUIRE(::GetSystemDirectoryW(buffer, ARRAYSIZE(buffer)) != 0);
+    auto realAttr = ::GetFileAttributesW(buffer);
+    REQUIRE(realAttr != INVALID_FILE_ATTRIBUTES);
+    REQUIRE(realAttr != 0);
+
+    {
+        witest::detoured_global_function<&::GetFileAttributesW> detour;
+        REQUIRE_SUCCEEDED(detour.reset(InvertFileAttributes));
+        auto inverseAttr = ::GetFileAttributesW(buffer);
+        REQUIRE(inverseAttr == ~realAttr);
+    }
+
+    REQUIRE(::GetFileAttributesW(buffer) == realAttr);
+}
+
 TEST_CASE("MockingTests::ThreadDetourWithLambda", "[mocking]")
 {
     PCWSTR path = L"$*&><"; // Purposefully nonesense/invalid to test the mocking functionality
@@ -43,6 +61,26 @@ TEST_CASE("MockingTests::ThreadDetourWithLambda", "[mocking]")
     {
         DWORD expectedAttr = 0;
         witest::detoured_thread_function<&::GetFileAttributesW> detour;
+        REQUIRE_SUCCEEDED(detour.reset([&](PCWSTR) -> DWORD {
+            return expectedAttr;
+        }));
+
+        REQUIRE(::GetFileAttributesW(path) == expectedAttr);
+
+        expectedAttr = 0xc0ffee;
+        REQUIRE(::GetFileAttributesW(path) == expectedAttr);
+    }
+
+    REQUIRE(::GetFileAttributesW(path) == INVALID_FILE_ATTRIBUTES);
+}
+
+TEST_CASE("MockingTests::GlobalDetourWithLambda", "[mocking]")
+{
+    PCWSTR path = L"$*&><"; // Purposefully nonesense/invalid to test the mocking functionality
+
+    {
+        DWORD expectedAttr = 0;
+        witest::detoured_global_function<&::GetFileAttributesW> detour;
         REQUIRE_SUCCEEDED(detour.reset([&](PCWSTR) -> DWORD {
             return expectedAttr;
         }));
@@ -65,6 +103,20 @@ TEST_CASE("MockingTests::ThreadDetourLocalFunciton", "[mocking]")
 {
     {
         witest::detoured_thread_function<&LocalAddFunction> detour;
+        REQUIRE_SUCCEEDED(detour.reset([](int lhs, int rhs) {
+            return lhs * rhs;
+        }));
+
+        REQUIRE(LocalAddFunction(2, 3) == 6);
+    }
+
+    REQUIRE(LocalAddFunction(2, 3) == 5);
+}
+
+TEST_CASE("MockingTests::GlobalDetourLocalFunciton", "[mocking]")
+{
+    {
+        witest::detoured_global_function<&LocalAddFunction> detour;
         REQUIRE_SUCCEEDED(detour.reset([](int lhs, int rhs) {
             return lhs * rhs;
         }));
@@ -108,6 +160,29 @@ TEST_CASE("MockingTests::ThreadDetourNoexceptFunction", "[mocking]")
     REQUIRE(LocalAddFunctionStdcallNoexcept(2, 3) == 5);
 }
 
+TEST_CASE("MockingTests::GlobalDetourNoexceptFunction", "[mocking]")
+{
+    {
+        witest::detoured_global_function<&LocalAddFunctionNoexcept> detour;
+        REQUIRE_SUCCEEDED(detour.reset([](int lhs, int rhs) noexcept {
+            return lhs * rhs;
+        }));
+
+        REQUIRE(LocalAddFunctionNoexcept(2, 3) == 6);
+    }
+    REQUIRE(LocalAddFunctionNoexcept(2, 3) == 5);
+
+    {
+        witest::detoured_global_function<&LocalAddFunctionStdcallNoexcept> detour;
+        REQUIRE_SUCCEEDED(detour.reset([](int lhs, int rhs) noexcept {
+            return lhs * rhs;
+        }));
+
+        REQUIRE(LocalAddFunctionStdcallNoexcept(2, 3) == 6);
+    }
+    REQUIRE(LocalAddFunctionStdcallNoexcept(2, 3) == 5);
+}
+
 TEST_CASE("MockingTests::RecursiveThreadDetouring", "[mocking]")
 {
     {
@@ -134,6 +209,130 @@ TEST_CASE("MockingTests::RecursiveThreadDetouring", "[mocking]")
     REQUIRE(LocalAddFunction(2, 3) == 5);
 }
 
+TEST_CASE("MockingTests::RecursiveGlobalDetouring", "[mocking]")
+{
+    {
+        witest::detoured_global_function<&LocalAddFunction> detour;
+        REQUIRE_SUCCEEDED(detour.reset([](int lhs, int rhs) {
+            return lhs + rhs + LocalAddFunction(lhs * 2, rhs * 2);
+        }));
+
+        {
+            witest::detoured_global_function<&LocalAddFunction> detour2;
+            REQUIRE_SUCCEEDED(detour2.reset([](int lhs, int rhs) {
+                return lhs + rhs + LocalAddFunction(lhs * 3, rhs * 3);
+            }));
+
+            // Last registration should be the first to execute
+            // 5 + 3 * (5 + 2 * 5)
+            REQUIRE(LocalAddFunction(2, 3) == 50);
+        }
+
+        // (2 + 3) + (4 + 6)
+        REQUIRE(LocalAddFunction(2, 3) == 15);
+    }
+
+    REQUIRE(LocalAddFunction(2, 3) == 5);
+}
+
+TEST_CASE("MockingTests::ThreadDetourMoving", "[mocking]")
+{
+    witest::detoured_thread_function<&LocalAddFunction> outer;
+    {
+        witest::detoured_thread_function<&LocalAddFunction> middle;
+        {
+            witest::detoured_thread_function<&LocalAddFunction> inner;
+            REQUIRE_SUCCEEDED(inner.reset([](int lhs, int rhs) {
+                return lhs * rhs;
+            }));
+            REQUIRE(LocalAddFunction(2, 3) == 6);
+            middle = std::move(inner);
+        }
+        REQUIRE(LocalAddFunction(2, 3) == 6);
+        outer = std::move(middle);
+    }
+    REQUIRE(LocalAddFunction(2, 3) == 6);
+
+    {
+        witest::detoured_thread_function other(std::move(outer));
+        REQUIRE(LocalAddFunction(2, 3) == 6);
+    }
+
+    REQUIRE(LocalAddFunction(2, 3) == 5); // Reverted back by now
+}
+
+TEST_CASE("MockingTests::GlobalDetourMoving", "[mocking]")
+{
+    witest::detoured_global_function<&LocalAddFunction> outer;
+    {
+        witest::detoured_global_function<&LocalAddFunction> middle;
+        {
+            witest::detoured_global_function<&LocalAddFunction> inner;
+            REQUIRE_SUCCEEDED(inner.reset([](int lhs, int rhs) {
+                return lhs * rhs;
+            }));
+            REQUIRE(LocalAddFunction(2, 3) == 6);
+            middle = std::move(inner);
+        }
+        REQUIRE(LocalAddFunction(2, 3) == 6);
+        outer = std::move(middle);
+    }
+    REQUIRE(LocalAddFunction(2, 3) == 6);
+
+    {
+        witest::detoured_global_function other(std::move(outer));
+        REQUIRE(LocalAddFunction(2, 3) == 6);
+    }
+
+    REQUIRE(LocalAddFunction(2, 3) == 5); // Reverted back by now
+}
+
+TEST_CASE("MockingTests::ThreadDetourDestructOutOfOrder", "[mocking]")
+{
+    {
+        witest::detoured_thread_function<&LocalAddFunction> delayed;
+        {
+            // Under "normal" circumstances, registration behaves like a stack and we'll always remove from the head of the list.
+            // Here we force the first registration to fall out of scope to test handling removal of the non-head element.
+            witest::detoured_thread_function<&LocalAddFunction> first;
+            REQUIRE_SUCCEEDED(first.reset([](int lhs, int rhs) {
+                return lhs * rhs;
+            }));
+            REQUIRE_SUCCEEDED(delayed.reset([](int lhs, int rhs) {
+                return 2 * (lhs + rhs);
+            }));
+            REQUIRE(LocalAddFunction(2, 3) == 10); // Should execute 'delayed'
+        }
+
+        REQUIRE(LocalAddFunction(2, 3) == 10); // Should still execute 'delayed'
+    }
+
+    REQUIRE(LocalAddFunction(2, 3) == 5); // Reverted back by now
+}
+
+TEST_CASE("MockingTests::GlobalDetourDestructOutOfOrder", "[mocking]")
+{
+    {
+        witest::detoured_global_function<&LocalAddFunction> delayed;
+        {
+            // Under "normal" circumstances, registration behaves like a stack and we'll always remove from the head of the list.
+            // Here we force the first registration to fall out of scope to test handling removal of the non-head element.
+            witest::detoured_global_function<&LocalAddFunction> first;
+            REQUIRE_SUCCEEDED(first.reset([](int lhs, int rhs) {
+                return lhs * rhs;
+            }));
+            REQUIRE_SUCCEEDED(delayed.reset([](int lhs, int rhs) {
+                return 2 * (lhs + rhs);
+            }));
+            REQUIRE(LocalAddFunction(2, 3) == 10); // Should execute 'delayed'
+        }
+
+        REQUIRE(LocalAddFunction(2, 3) == 10); // Should still execute 'delayed'
+    }
+
+    REQUIRE(LocalAddFunction(2, 3) == 5); // Reverted back by now
+}
+
 #ifdef WIL_ENABLE_EXCEPTIONS
 TEST_CASE("MockingTests::ThreadDetourMultithreaded", "[mocking]")
 {
@@ -147,5 +346,59 @@ TEST_CASE("MockingTests::ThreadDetourMultithreaded", "[mocking]")
     });
     thread.join();
     REQUIRE(otherThreadResult == 5);
+}
+
+TEST_CASE("MockingTests::GlobalDetourMultithreaded", "[mocking]")
+{
+    witest::detoured_global_function<&LocalAddFunction> detour([](int lhs, int rhs) {
+        return lhs * rhs;
+    });
+
+    int otherThreadResult = 0;
+    std::thread thread([&] {
+        otherThreadResult = LocalAddFunction(2, 3);
+    });
+    thread.join();
+    REQUIRE(otherThreadResult == 6);
+}
+
+TEST_CASE("MockingTests::GlobalDetourDestructorRace", "[mocking]")
+{
+    wil::unique_event detourRunningEvent(wil::EventOptions::None);
+    wil::unique_event detourContinueEvent(wil::EventOptions::None);
+    wil::unique_event nonDetourContinueEvent(wil::EventOptions::None);
+    witest::detoured_thread_function<&::SleepConditionVariableSRW> cvWaitDetour(
+        [&](PCONDITION_VARIABLE cv, PSRWLOCK lock, DWORD dwMilliseconds, ULONG flags) {
+            // This should be called during the call to 'reset' since there's an "active" call
+            detourContinueEvent.SetEvent(); // Allow the 'detour' invocation to complete
+            nonDetourContinueEvent.SetEvent(); // Kick off a second
+            return ::SleepConditionVariableSRW(cv, lock, dwMilliseconds, flags);
+        });
+
+    witest::detoured_global_function<&LocalAddFunction> detour([&](int lhs, int rhs) {
+        detourRunningEvent.SetEvent();
+        detourContinueEvent.wait(); // Wait until 'reset' is called
+        return lhs * rhs;
+    });
+
+    int detouredResult = 0;
+    std::thread detouredThread([&] {
+        detouredResult = LocalAddFunction(2, 3);
+    });
+
+    int nonDetouredResult = 0;
+    std::thread nonDetouredThread([&] {
+        nonDetourContinueEvent.wait(); // Wait until 'reset is called'
+        nonDetouredResult = LocalAddFunction(2, 3);
+    });
+
+    detourRunningEvent.wait(); // Wait for 'detouredThread' to kick off & invoke the detoured function
+    detour.reset(); // Kick off everything to continue
+
+    detouredThread.join();
+    nonDetouredThread.join();
+
+    REQUIRE(detouredResult == 6);
+    REQUIRE(nonDetouredResult == 5);
 }
 #endif

@@ -82,8 +82,7 @@ TEST_CASE("TokenHelpersTests::VerifyGetTokenInformation", "[token_helpers]")
 #endif
 
 // This fails with 'ERROR_NO_SUCH_LOGON_SESSION' on the CI machines, so disable
-#ifndef WIL_FAST_BUILD
-TEST_CASE("TokenHelpersTests::VerifyLinkedToken", "[token_helpers]")
+TEST_CASE("TokenHelpersTests::VerifyLinkedToken", "[token_helpers][LocalOnly]")
 {
     wil::unique_token_linked_token theToken;
     REQUIRE_SUCCEEDED(wil::get_token_information_nothrow(theToken, nullptr));
@@ -92,7 +91,6 @@ TEST_CASE("TokenHelpersTests::VerifyLinkedToken", "[token_helpers]")
     REQUIRE_NOTHROW(wil::get_linked_token_information());
 #endif
 }
-#endif
 #endif
 
 bool IsImpersonating()
