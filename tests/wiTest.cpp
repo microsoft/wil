@@ -27,7 +27,6 @@
 #include <wil/resource.h>
 
 #include "common.h"
-#include "MallocSpy.h"
 #include "test_objects.h"
 
 #pragma warning(push)
@@ -1689,11 +1688,24 @@ TEST_CASE("WindowsInternalTests::HandleWrappers", "[resource][unique_any]")
 
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
     {
-        auto verify = MakeSecureDeleterMallocSpy();
-        REQUIRE_SUCCEEDED(::CoRegisterMallocSpy(verify.Get()));
-        auto removeSpy = wil::scope_exit([&] {
-            ::CoRevokeMallocSpy();
-        });
+        witest::detoured_thread_function<&::CoTaskMemFree> detour;
+        REQUIRE_SUCCEEDED(detour.reset([](void* p) {
+            if (p != nullptr)
+            {
+                IMalloc* pMalloc = nullptr;
+                if (SUCCEEDED(::CoGetMalloc(1, &pMalloc)))
+                {
+                    size_t const size = pMalloc->GetSize(p);
+                    auto buffer = static_cast<byte*>(p);
+                    for (size_t i = 0; i < size; i++)
+                    {
+                        REQUIRE(buffer[i] == 0);
+                    }
+                    pMalloc->Release();
+                }
+                ::CoTaskMemFree(p);
+            }
+        }));
 
         auto unique_cotaskmem_string_secure_failfast1 = wil::make_cotaskmem_string_secure_failfast(L"Foo");
         REQUIRE(wcscmp(L"Foo", unique_cotaskmem_string_secure_failfast1.get()) == 0);
@@ -1768,11 +1780,21 @@ TEST_CASE("WindowsInternalTests::HandleWrappers", "[resource][unique_any]")
 #endif
 
     {
-        auto verify = MakeSecureDeleterMallocSpy();
-        REQUIRE_SUCCEEDED(::CoRegisterMallocSpy(verify.Get()));
-        auto removeSpy = wil::scope_exit([&] {
-            ::CoRevokeMallocSpy();
-        });
+        witest::detoured_thread_function<&::LocalFree> detour;
+        REQUIRE_SUCCEEDED(detour.reset([](HLOCAL p) -> HLOCAL {
+            HLOCAL h = nullptr;
+            if (p != nullptr)
+            {
+                size_t const size = ::LocalSize(p);
+                auto buffer = static_cast<byte*>(p);
+                for (size_t i = 0; i < size; i++)
+                {
+                    REQUIRE(buffer[i] == 0);
+                }
+                h = ::LocalFree(p);
+            }
+            return h;
+        }));
 
         auto unique_hlocal_string_secure_failfast1 = wil::make_hlocal_string_secure_failfast(L"Foo");
         REQUIRE(wcscmp(L"Foo", unique_hlocal_string_secure_failfast1.get()) == 0);
