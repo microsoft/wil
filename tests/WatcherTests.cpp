@@ -400,12 +400,13 @@ TEST_CASE("RegistryWatcherTests::VerifyCallbackFinishesBeforeFreed", "[registry]
     REQUIRE(deleteObserved == 1);
 }
 
+#ifdef WIL_ENABLE_EXCEPTIONS
 TEST_CASE("RegistryWatcherTests::VerifyDeleteDuringNotification", "[registry][registry_watcher]")
 {
     wil::unique_event notificationReceived(wil::EventOptions::None);
     wil::unique_event deleteNotification(wil::EventOptions::None);
 
-    int volatile mockObserved = 0;
+    int mockObserved = 0;
     witest::detoured_global_function<&RegNotifyChangeKeyValue> mockRegNotifyChangeKeyValue;
     REQUIRE_SUCCEEDED(mockRegNotifyChangeKeyValue.reset([&](HKEY, BOOL, DWORD, HANDLE event, BOOL) -> LSTATUS {
         if (!mockObserved)
@@ -430,6 +431,7 @@ TEST_CASE("RegistryWatcherTests::VerifyDeleteDuringNotification", "[registry][re
     deleteNotification.SetEvent();
     watcher.reset();
 }
+#endif
 
 TEST_CASE("FileSystemWatcherTests::Construction", "[resource][folder_watcher]")
 {

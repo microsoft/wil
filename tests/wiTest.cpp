@@ -23,6 +23,8 @@
 #include <windows.foundation.h>
 #endif
 
+#include <wrl/implements.h>
+
 // Include Resource.h a second time after including other headers
 #include <wil/resource.h>
 
@@ -50,11 +52,11 @@ TEST_CASE("WindowsInternalTests::CommonHelpers", "[resource]")
     // REQUIRE(spFile == nullptr);
 
 #ifdef __WIL_WINBASE_STL
-    wil::shared_handle spHandle;
-    REQUIRE(spHandle == nullptr);
-    REQUIRE(nullptr == spHandle);
-    REQUIRE_FALSE(spHandle != nullptr);
-    REQUIRE_FALSE(nullptr != spHandle);
+    wil::shared_handle spSharedHandle;
+    REQUIRE(spSharedHandle == nullptr);
+    REQUIRE(nullptr == spSharedHandle);
+    REQUIRE_FALSE(spSharedHandle != nullptr);
+    REQUIRE_FALSE(nullptr != spSharedHandle);
 #endif
 }
 
