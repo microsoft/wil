@@ -1,6 +1,8 @@
 
 add_executable(witest.asan)
 
+target_precompile_headers(witest.asan PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../pch.h)
+
 target_compile_options(witest.asan PRIVATE -fsanitize=address)
 
 target_compile_definitions(witest.asan PRIVATE

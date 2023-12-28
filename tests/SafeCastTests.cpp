@@ -1,3 +1,4 @@
+#include "pch.h"
 
 #include <wil/safecast.h>
 
@@ -557,7 +558,7 @@ TEST_CASE("SafeCastTests::SafeCastExpectFailFast", "[safecast]")
     failures.clear();
     {
         size_t st = SIZE_T_MAX;
-        REQUIRE_CRASH(wil::safe_cast_failfast<short>(st));
+        REQUIRE_ERROR(wil::safe_cast_failfast<short>(st));
         REQUIRE(failures.size() == 1);
     }
 

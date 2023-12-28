@@ -5176,14 +5176,14 @@ namespace details
     }
 
     template <typename T>
-    __declspec(noreturn, noinline) inline void ReportFailure_CustomException(__R_FN_PARAMS _In_ T exception)
+    __declspec(noinline) RESULT_NORETURN inline void ReportFailure_CustomException(__R_FN_PARAMS _In_ T exception)
     {
         __R_FN_LOCALS_RA;
         ReportFailure_CustomExceptionHelper(exception, __R_FN_CALL_FULL);
     }
 
     template <typename T>
-    __declspec(noreturn, noinline) inline void ReportFailure_CustomExceptionMsg(
+    __declspec(noinline) RESULT_NORETURN inline void ReportFailure_CustomExceptionMsg(
         __R_FN_PARAMS _In_ T exception, _In_ _Printf_format_string_ PCSTR formatString, ...)
     {
         va_list argList;

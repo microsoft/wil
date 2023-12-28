@@ -95,6 +95,7 @@ namespace reg
                 return KEY_ALL_ACCESS;
             }
             FAIL_FAST();
+            RESULT_NORETURN_RESULT(0);
         }
 
         /**

@@ -1,3 +1,4 @@
+#include "pch.h"
 
 #include <wil/com.h>
 #include <wil/result.h>
@@ -186,14 +187,14 @@ TEST_CASE("ResultTests::ExceptionHandling", "[result]")
 
     SECTION("Fail fast an unknown exception")
     {
-        REQUIRE(witest::DoesCodeCrash([]() {
+        REQUIRE(witest::DoesCodeFailFast([] {
             try
             {
                 throw E_INVALIDARG; // bad throw... (long)
             }
             catch (...)
             {
-                RETURN_CAUGHT_EXCEPTION();
+                LOG_CAUGHT_EXCEPTION();
             }
         }));
     }
@@ -221,7 +222,7 @@ TEST_CASE("ResultTests::ExceptionHandling", "[result]")
 
     SECTION("Fail-fast test")
     {
-        REQUIRE_CRASH([]() {
+        REQUIRE(witest::DoesCodeFailFast([] {
             try
             {
                 throw std::bad_alloc();
@@ -230,7 +231,10 @@ TEST_CASE("ResultTests::ExceptionHandling", "[result]")
             {
                 FAIL_FAST_CAUGHT_EXCEPTION();
             }
-        }());
+        }));
+        REQUIRE(failures.size() == 1);
+        REQUIRE(failures[0].hr == E_OUTOFMEMORY);
+        REQUIRE(wcsstr(failures[0].pszMessage, L"alloc") != nullptr); // should get the exception what() string...
     }
     failures.clear();
 
@@ -344,9 +348,13 @@ TEST_CASE("ResultTests::ExceptionHandling", "[result]")
 
     SECTION("Explicit failfast for unrecognized")
     {
-        REQUIRE_CRASH(wil::ResultFromException([&] {
-            throw E_FAIL;
+        REQUIRE(witest::DoesCodeFailFast([] {
+            wil::ResultFromException([&] {
+                throw E_FAIL;
+            });
         }));
+        REQUIRE(failures.size() == 1);
+        REQUIRE(failures[0].hr == HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION));
     }
     failures.clear();
 

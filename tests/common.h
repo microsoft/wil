@@ -239,52 +239,60 @@ inline LONG WINAPI TranslateExceptionCodeHandler(PEXCEPTION_POINTERS info)
     return EXCEPTION_CONTINUE_SEARCH;
 }
 
-namespace details
+template <typename TLambda>
+bool DoesCodeCrash(TLambda&& lambda)
 {
-    inline bool DoesCodeCrash(wistd::function<void()>& callOp)
+    bool crashed = false;
+    __try
     {
-        bool result = false;
-        __try
-        {
-            callOp();
-        }
-        // Let C++ exceptions pass through
-        __except ((::GetExceptionCode() != msvc_exception_code) ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
-        {
-            result = true;
-        }
-        return result;
+        // for the purposes of this test, throwing an exception is not = a crash
+        DoesCodeThrow(wistd::forward<TLambda>(lambda));
     }
-} // namespace details
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    {
+        crashed = true;
+    }
+    return crashed;
+}
 
-inline bool DoesCodeCrash(wistd::function<void()> callOp)
+template <typename TLambda>
+bool DoesCodeFailFast(TLambda&& callOp)
 {
-    // See above; we don't want to actually fail fast, so make sure we raise a different exception instead
-    auto restoreHandler = AssignTemporaryValue(&wil::details::g_pfnRaiseFailFastException, TranslateFailFastException);
-    auto restoreHandler2 = AssignTemporaryValue(&wil::details::g_pfnFailfastWithContextCallback, FakeFailfastWithContext);
+    bool failFast = false;
+    witest::detoured_thread_function<&wil::details::ReportFailure_Base<wil::FailureType::FailFast, false>> detour;
+    REQUIRE_SUCCEEDED(detour.reset(
+        [&](__R_FN_PARAMS_FULL, const wil::details::ResultStatus& resultPair, PCWSTR message, wil::details::ReportFailureOptions options) {
+            failFast = true;
+            wil::details::ReportFailure_Base<wil::FailureType::FailFast, true>(__R_FN_CALL_FULL, resultPair, message, options);
+        }));
 
-    auto handler = AddVectoredExceptionHandler(1, TranslateExceptionCodeHandler);
-    auto removeVectoredHandler = wil::scope_exit([&] {
-        RemoveVectoredExceptionHandler(handler);
-    });
+    callOp();
 
-    return details::DoesCodeCrash(callOp);
+    return failFast;
 }
 
 template <typename Lambda>
 bool ReportsError(wistd::false_type, Lambda&& callOp)
 {
-    bool doesThrow = false;
-    bool doesCrash = DoesCodeCrash([&]() {
-        doesThrow = DoesCodeThrow(callOp);
-    });
-
-    return doesThrow || doesCrash;
+    // Non-HRESULT; expect throwing or fail-fast
+#ifdef WIL_ENABLE_EXCEPTIONS
+    try
+    {
+#endif
+        return DoesCodeFailFast(wistd::forward<Lambda>(callOp));
+#ifdef WIL_ENABLE_EXCEPTIONS
+    }
+    catch (...)
+    {
+        return true;
+    }
+#endif
 }
 
 template <typename Lambda>
 bool ReportsError(wistd::true_type, Lambda&& callOp)
 {
+    // HRESULT; expect error code
     return FAILED(callOp());
 }
 

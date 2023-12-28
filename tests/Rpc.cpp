@@ -1,3 +1,5 @@
+#include "pch.h"
+
 #include "common.h"
 
 #include <wil/rpc_helpers.h>

@@ -1,3 +1,5 @@
+#include "pch.h"
+
 #define WINAPI_PARTITION_DESKTOP 1 // for RO_INIT_SINGLETHREADED
 #include "common.h"
 #undef GetCurrentTime

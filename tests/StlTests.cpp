@@ -1,3 +1,4 @@
+#include "pch.h"
 
 #include <wil/stl.h>
 
@@ -150,15 +151,15 @@ TEST_CASE("StlTests::TestZStringView", "[stl][zstring_view]")
 
     // Test constructing with no NULL in range
     static constexpr char badCharArray[2][3] = {{'a', 'b', 'c'}, {'a', 'b', 'c'}};
-    REQUIRE_CRASH((wil::zstring_view{&badCharArray[0][0], _countof(badCharArray[0])}));
-    REQUIRE_CRASH((wil::zstring_view{badCharArray[0]}));
+    REQUIRE_ERROR((wil::zstring_view{&badCharArray[0][0], _countof(badCharArray[0])}));
+    REQUIRE_ERROR((wil::zstring_view{badCharArray[0]}));
 
     // Test constructing with a NULL one character past the valid range, guarding against off-by-one errors
     // Overloads taking an explicit length trust the user that they ensure valid memory follows the buffer
     static constexpr char badCharArrayOffByOne[2][3] = {{'a', 'b', 'c'}, {}};
     const wil::zstring_view fromTerminatedCharArray(&badCharArrayOffByOne[0][0], _countof(badCharArrayOffByOne[0]));
     REQUIRE(fromLiteral == fromTerminatedCharArray);
-    REQUIRE_CRASH((wil::zstring_view{badCharArrayOffByOne[0]}));
+    REQUIRE_ERROR((wil::zstring_view{badCharArrayOffByOne[0]}));
 
     // Test constructing from custom string type
     CustomNoncopyableString customString;
@@ -236,15 +237,15 @@ TEST_CASE("StlTests::TestZWStringView", "[stl][zstring_view]")
 
     // Test constructing with no NULL in range
     static constexpr wchar_t badCharArray[2][3] = {{L'a', L'b', L'c'}, {L'a', L'b', L'c'}};
-    REQUIRE_CRASH((wil::zwstring_view{&badCharArray[0][0], _countof(badCharArray[0])}));
-    REQUIRE_CRASH((wil::zwstring_view{badCharArray[0]}));
+    REQUIRE_ERROR((wil::zwstring_view{&badCharArray[0][0], _countof(badCharArray[0])}));
+    REQUIRE_ERROR((wil::zwstring_view{badCharArray[0]}));
 
     // Test constructing with a NULL one character past the valid range, guarding against off-by-one errors
     // Overloads taking an explicit length trust the user that they ensure valid memory follows the buffer
     static constexpr wchar_t badCharArrayOffByOne[2][3] = {{L'a', L'b', L'c'}, {}};
     const wil::zwstring_view fromTerminatedCharArray(&badCharArrayOffByOne[0][0], _countof(badCharArrayOffByOne[0]));
     REQUIRE(fromLiteral == fromTerminatedCharArray);
-    REQUIRE_CRASH((wil::zwstring_view{badCharArrayOffByOne[0]}));
+    REQUIRE_ERROR((wil::zwstring_view{badCharArrayOffByOne[0]}));
 
     // Test constructing from custom string type
     CustomNoncopyableString customString;

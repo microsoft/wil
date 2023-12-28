@@ -52,7 +52,7 @@ namespace details
         using function_type = ReturnT(ArgsT...);
         static constexpr bool is_noexcept = false;
 
-        static __stdcall ReturnT callback(ArgsT... args)
+        static ReturnT __stdcall callback(ArgsT... args)
         {
             return DerivedT::invoke_callback(wistd::forward<ArgsT>(args)...);
         }
@@ -66,7 +66,7 @@ namespace details
         using function_type = ReturnT(ArgsT...);
         static constexpr bool is_noexcept = true;
 
-        static __stdcall ReturnT callback(ArgsT... args) noexcept
+        static ReturnT __stdcall callback(ArgsT... args) noexcept
         {
             return DerivedT::invoke_callback(wistd::forward<ArgsT>(args)...);
         }
@@ -81,7 +81,7 @@ namespace details
         using function_type = ReturnT(ArgsT...);
         static constexpr bool is_noexcept = false;
 
-        static __cdecl ReturnT callback(ArgsT... args)
+        static ReturnT __cdecl callback(ArgsT... args)
         {
             return DerivedT::invoke_callback(wistd::forward<ArgsT>(args)...);
         }
@@ -95,7 +95,7 @@ namespace details
         using function_type = ReturnT(ArgsT...);
         static constexpr bool is_noexcept = true;
 
-        static __cdecl ReturnT callback(ArgsT... args) noexcept
+        static ReturnT __cdecl callback(ArgsT... args) noexcept
         {
             return DerivedT::invoke_callback(wistd::forward<ArgsT>(args)...);
         }
@@ -113,7 +113,7 @@ namespace details
         using function_type = ReturnT(ArgsT...);
         static constexpr bool is_noexcept = false;
 
-        static __stdcall ReturnT callback(ArgsT... args)
+        static ReturnT __stdcall callback(ArgsT... args)
         {
             return DerivedT::invoke_callback(wistd::forward<ArgsT>(args)...);
         }
@@ -127,7 +127,7 @@ namespace details
         using function_type = ReturnT(ArgsT...);
         static constexpr bool is_noexcept = true;
 
-        static __stdcall ReturnT callback(ArgsT... args) noexcept
+        static ReturnT __stdcall callback(ArgsT... args) noexcept
         {
             return DerivedT::invoke_callback(wistd::forward<ArgsT>(args)...);
         }
@@ -142,7 +142,7 @@ namespace details
         using function_type = ReturnT(ArgsT...);
         static constexpr bool is_noexcept = false;
 
-        static __cdecl ReturnT callback(ArgsT... args)
+        static ReturnT __cdecl callback(ArgsT... args)
         {
             return DerivedT::invoke_callback(wistd::forward<ArgsT>(args)...);
         }
@@ -156,7 +156,7 @@ namespace details
         using function_type = ReturnT(ArgsT...);
         static constexpr bool is_noexcept = true;
 
-        static __cdecl ReturnT callback(ArgsT... args) noexcept
+        static ReturnT __cdecl callback(ArgsT... args) noexcept
         {
             return DerivedT::invoke_callback(wistd::forward<ArgsT>(args)...);
         }

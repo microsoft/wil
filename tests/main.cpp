@@ -1,3 +1,4 @@
+#include "pch.h"
 
 #pragma comment(lib, "Pathcch.lib")
 #pragma comment(lib, "RuntimeObject.lib")

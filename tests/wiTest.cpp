@@ -1,3 +1,4 @@
+#include "pch.h"
 
 #include <wil/result.h>
 #include <wil/resource.h>
@@ -298,12 +299,9 @@ bool VerifyResult(unsigned int lineNumber, EType type, HRESULT hr, TLambda&& lam
     {
 #endif
         HRESULT lambdaResult = E_FAIL;
-        bool didFailFast = true;
-        {
-            didFailFast = witest::DoesCodeCrash([&]() {
-                lambdaResult = lambda();
-            });
-        }
+        bool didFailFast = witest::DoesCodeFailFast([&]() {
+            lambdaResult = lambda();
+        });
         if (WI_IsFlagSet(type, EType::FailFast))
         {
             REQUIRE(didFailFast);
@@ -441,8 +439,8 @@ TEST_CASE("WindowsInternalTests::ResultMacros", "[result_macros]")
     REQUIRE_FAILFAST(E_FAIL, [] { FAIL_FAST_HR(E_FAIL); });
     REQUIRE_FAILFAST_MSG(E_FAIL, [] { FAIL_FAST_HR_MSG(E_FAIL, "msg: %d", __LINE__); });
 
-    REQUIRE_FAILFAST_UNSPECIFIED([] { ::SetLastError(0); FAIL_FAST_LAST_ERROR(); });
-    REQUIRE_FAILFAST_UNSPECIFIED([] { ::SetLastError(0); FAIL_FAST_LAST_ERROR_MSG("msg: %d", __LINE__); });
+    REQUIRE_FAILFAST_UNSPECIFIED([] { ::SetLastError(ERROR_ACCESS_DENIED); FAIL_FAST_LAST_ERROR(); });
+    REQUIRE_FAILFAST_UNSPECIFIED([] { ::SetLastError(ERROR_ACCESS_DENIED); FAIL_FAST_LAST_ERROR_MSG("msg: %d", __LINE__); });
 
     REQUIRE_RETURNS(E_AD, [] { SetAD(); RETURN_LAST_ERROR(); });
     REQUIRE_RETURNS_MSG(E_AD, [] { SetAD(); RETURN_LAST_ERROR_MSG("msg: %d", __LINE__); });
@@ -692,8 +690,8 @@ TEST_CASE("WindowsInternalTests::ResultMacros", "[result_macros]")
     REQUIRE_FAILFAST(S_OK, [] { REQUIRE(pValid == FAIL_FAST_HR_IF_NULL(E_FAIL, MDEC(pValidRef()))); });
     REQUIRE_FAILFAST_MSG(S_OK, [] { REQUIRE(pValid == FAIL_FAST_HR_IF_NULL_MSG(E_FAIL, MDEC(pValidRef()), "msg: %d", __LINE__)); });
 
-    REQUIRE_FAILFAST_UNSPECIFIED([] { ::SetLastError(0); FAIL_FAST_LAST_ERROR_IF(fTrue); });
-    REQUIRE_FAILFAST_UNSPECIFIED([] { ::SetLastError(0); FAIL_FAST_LAST_ERROR_IF_MSG(fTrue, "msg: %d", __LINE__); });
+    REQUIRE_FAILFAST_UNSPECIFIED([] { ::SetLastError(ERROR_ACCESS_DENIED); FAIL_FAST_LAST_ERROR_IF(fTrue); });
+    REQUIRE_FAILFAST_UNSPECIFIED([] { ::SetLastError(ERROR_ACCESS_DENIED); FAIL_FAST_LAST_ERROR_IF_MSG(fTrue, "msg: %d", __LINE__); });
     REQUIRE_RETURNS(E_AD, [] { SetAD(); RETURN_LAST_ERROR_IF(fTrue); return S_OK; });
     REQUIRE_RETURNS_MSG(E_AD, [] { SetAD(); RETURN_LAST_ERROR_IF_MSG(fTrue, "msg: %d", __LINE__); return S_OK; });
     REQUIRE_RETURNS_EXPECTED(E_AD, [] { SetAD(); RETURN_LAST_ERROR_IF_EXPECTED(fTrue); return S_OK; });
@@ -714,8 +712,8 @@ TEST_CASE("WindowsInternalTests::ResultMacros", "[result_macros]")
     REQUIRE_FAILFAST(S_OK, [] { REQUIRE(fFalse == FAIL_FAST_LAST_ERROR_IF(MDEC(fFalseRef()))); });
     REQUIRE_FAILFAST_MSG(S_OK, [] { REQUIRE(fFalse == FAIL_FAST_LAST_ERROR_IF_MSG(MDEC(fFalseRef()), "msg: %d", __LINE__)); });
 
-    REQUIRE_FAILFAST_UNSPECIFIED([] { ::SetLastError(0); FAIL_FAST_LAST_ERROR_IF_NULL(pNull); });
-    REQUIRE_FAILFAST_UNSPECIFIED([] { ::SetLastError(0); FAIL_FAST_LAST_ERROR_IF_NULL_MSG(pNull, "msg: %d", __LINE__); });
+    REQUIRE_FAILFAST_UNSPECIFIED([] { ::SetLastError(ERROR_ACCESS_DENIED); FAIL_FAST_LAST_ERROR_IF_NULL(pNull); });
+    REQUIRE_FAILFAST_UNSPECIFIED([] { ::SetLastError(ERROR_ACCESS_DENIED); FAIL_FAST_LAST_ERROR_IF_NULL_MSG(pNull, "msg: %d", __LINE__); });
     REQUIRE_RETURNS(E_AD, [] { SetAD(); RETURN_LAST_ERROR_IF_NULL(pNull); return S_OK; });
     REQUIRE_RETURNS_MSG(E_AD, [] { SetAD(); RETURN_LAST_ERROR_IF_NULL_MSG(pNull, "msg: %d", __LINE__); return S_OK; });
     REQUIRE_RETURNS_EXPECTED(E_AD, [] { SetAD(); RETURN_LAST_ERROR_IF_NULL_EXPECTED(pNull); return S_OK; });

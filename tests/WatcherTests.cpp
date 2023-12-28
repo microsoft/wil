@@ -1,3 +1,4 @@
+#include "pch.h"
 
 #include <wil/filesystem.h>
 #include <wil/registry.h>

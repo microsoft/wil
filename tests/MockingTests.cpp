@@ -1,4 +1,5 @@
 // Relatively simple tests as a sanity check to verify that our funciton mocking & use of detours is working correctly
+#include "pch.h"
 
 #include "common.h"
 
@@ -95,6 +96,7 @@ TEST_CASE("MockingTests::GlobalDetourWithLambda", "[mocking]")
     REQUIRE(::GetFileAttributesW(path) == INVALID_FILE_ATTRIBUTES);
 }
 
+#pragma optimize("", off) // Don't evaluate at compile-time
 __declspec(noinline) int __cdecl LocalAddFunction(int lhs, int rhs)
 {
     return lhs + rhs;

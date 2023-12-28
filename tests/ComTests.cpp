@@ -1,3 +1,4 @@
+#include "pch.h"
 
 #include <ocidl.h> // Bring in IObjectWithSite
 
@@ -702,6 +703,7 @@ template <typename T, typename U, typename = wistd::enable_if_t<!wistd::is_same_
 T* cast_object(U*)
 {
     FAIL_FAST();
+    return nullptr; // Because we define 'RESULT_NORETURN' to nothing for other tests
 }
 
 template <typename T>

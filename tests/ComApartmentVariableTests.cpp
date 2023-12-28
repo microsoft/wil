@@ -1,3 +1,5 @@
+#include "pch.h"
+
 #include <wil/com_apartment_variable.h>
 #include <wil/com.h>
 #include <functional>

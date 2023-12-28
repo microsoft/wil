@@ -1,3 +1,4 @@
+#include "pch.h"
 
 #include <windows.h>
 #include <winstring.h> // For wil::unique_hstring

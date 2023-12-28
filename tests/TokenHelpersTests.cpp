@@ -1,3 +1,4 @@
+#include "pch.h"
 
 #include <wil/token_helpers.h>
 
