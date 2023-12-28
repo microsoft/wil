@@ -3191,14 +3191,9 @@ namespace details
     struct com_enumerator_traits
     {
         using Result = typename com_enumerator_next_traits<decltype(&Interface::Next)>::Result;
-<<<<<<< HEAD
-        // If the result is a COM pointer type (IFoo*), then we use wil::com_ptr<IFoo>. Otherwise, we use the raw pointer type IFoo*.
-        using smart_result = wistd::conditional_t<
-            wistd::is_pointer_v<Result> && wistd::is_base_of_v<::IUnknown, wistd::remove_pointer_t<Result>>,
-            wil::com_ptr<wistd::remove_pointer_t<Result>>,
-            Result>;
-=======
-        // If the result is a COM pointer type (IFoo*), then we use wil::com_ptr<IFoo>. Otherwise, smart_result is void.
+
+        // If the result is a COM pointer type (IFoo*), then we use wil::com_ptr<IFoo>. 
+        // Otherwise, you must explicitly specify a smart output type.
         using smart_result = wistd::conditional_t<wistd::is_pointer_v<Result> && wistd::is_base_of_v<::IUnknown, wistd::remove_pointer_t<Result>>,
             wil::com_ptr<wistd::remove_pointer_t<Result>>, You_must_specify_Smart_Output_type_explicitly<Interface>>;
     };
@@ -3290,7 +3285,6 @@ template<typename IEnumType>
 com_iterator(IEnumType*) -> com_iterator<void, IEnumType>;
 
 template<typename TStoredType = void, typename IEnumXxx, wistd::enable_if_t<wil::details::has_next_v<IEnumXxx*>, int> = 0>
->>>>>>> a8d394f (Don't allow raw output type access; either it's a COM pointer, or you need to pass the type you want to hold (like unique_idlist))
 WI_NODISCARD auto make_range(IEnumXxx* enumPtr)
 {
   using TActualStoredType = wistd::conditional_t<wistd::is_same_v<TStoredType, void>, typename wil::details::com_enumerator_traits<IEnumXxx>::smart_result, TStoredType>;
