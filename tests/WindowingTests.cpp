@@ -40,6 +40,7 @@ TEST_CASE("EnumWindows", "[windowing]")
         return true;
     });
 
+#ifdef WIL_ENABLE_EXCEPTIONS
     // throwing version
     wil::for_each_window([](HWND hwnd) {
         REQUIRE(IsWindow(hwnd));
@@ -64,6 +65,7 @@ TEST_CASE("EnumWindows", "[windowing]")
             throw std::exception();
         }),
         std::exception);
+#endif
 }
 
 TEST_CASE("EnumThreadWindows", "[windowing]")
@@ -107,6 +109,7 @@ TEST_CASE("EnumThreadWindows", "[windowing]")
         });
     }
 
+#ifdef WIL_ENABLE_EXCEPTIONS
     // throwing version
     {
         wil::for_each_thread_window(thread_id, [](HWND hwnd) {
@@ -143,6 +146,7 @@ TEST_CASE("EnumThreadWindows", "[windowing]")
                 }),
             std::exception);
     }
+#endif
 }
 
 TEST_CASE("EnumChildWindows", "[windowing]")
@@ -185,6 +189,7 @@ TEST_CASE("EnumChildWindows", "[windowing]")
         });
     }
 
+#ifdef WIL_ENABLE_EXCEPTIONS
     // throwing version
     {
         wil::for_each_child_window(parent, [](HWND hwnd) {
@@ -220,6 +225,7 @@ TEST_CASE("EnumChildWindows", "[windowing]")
                 }),
             std::exception);
     }
+#endif
 }
 
 #endif
