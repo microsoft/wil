@@ -28,7 +28,7 @@ namespace details
     {
     };
 
-    template<typename TEnumApi, typename TCallback>
+    template <typename TEnumApi, typename TCallback>
     void CallCallbackNoThrow(TEnumApi&& enumApi, TCallback&& callback) noexcept
     {
         auto enumproc = [](HWND hwnd, LPARAM lParam) -> BOOL {
@@ -60,7 +60,6 @@ namespace details
         };
         enumApi(enumproc, reinterpret_cast<LPARAM>(&callbackData));
     }
-
 
 #ifdef WIL_ENABLE_EXCEPTIONS
     template <typename TEnumApi, typename TCallback>
