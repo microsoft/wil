@@ -29,8 +29,8 @@ namespace details
     {
         auto enumproc = [](HWND hwnd, LPARAM lParam) -> BOOL {
             auto pCallback = reinterpret_cast<TCallback*>(lParam);
-            using result_t = decltype((*pCallback)(hwnd));
 #ifdef __cpp_if_constexpr
+            using result_t = decltype((*pCallback)(hwnd));
             if constexpr (std::is_void_v<result_t>)
             {
                 (*pCallback)(hwnd);
@@ -70,8 +70,8 @@ namespace details
             try
             {
                 auto pCallback = pCallbackData->pCallback;
-                using result_t = decltype((*pCallback)(hwnd));
 #ifdef __cpp_if_constexpr
+                using result_t = decltype((*pCallback)(hwnd));
                 if constexpr (std::is_void_v<result_t>)
                 {
                     (*pCallback)(hwnd);
