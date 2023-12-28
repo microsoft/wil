@@ -2900,7 +2900,8 @@ TEST_CASE("COMEnumerator", "[com][enumerator]")
         static_assert(std::is_same_v<wil::details::com_enumerator_next_traits<decltype(&IEnumMuffins::Next)>::Result, int32_t>);
         static_assert(std::is_same_v<wil::details::com_enumerator_next_traits<decltype(&IEnumMuffins::Next)>::Interface, IEnumMuffins>);
         static_assert(std::is_same_v<wil::details::com_enumerator_traits<IEnumMuffins>::Result, int32_t>);
-        static_assert(std::is_same_v<wil::details::com_enumerator_traits<IEnumMuffins>::smart_result, wil::details::You_must_specify_Smart_Output_type_explicitly<IEnumMuffins>>); // no smart type for int32_t specified
+        static_assert(
+            std::is_same_v<wil::details::com_enumerator_traits<IEnumMuffins>::smart_result, wil::details::You_must_specify_Smart_Output_type_explicitly<IEnumMuffins>>); // no smart type for int32_t specified
 
         static_assert(std::is_same_v<wil::details::com_enumerator_next_traits<decltype(&IEnumMuffinsCOM::Next)>::Result, IUnknown*>);
         static_assert(
@@ -2909,12 +2910,12 @@ TEST_CASE("COMEnumerator", "[com][enumerator]")
         static_assert(std::is_same_v<wil::details::com_enumerator_traits<IEnumMuffinsCOM>::smart_result, wil::com_ptr<IUnknown>>);
 
         {
-          using custom_stored_type_enumerator = decltype(wil::make_range<unique_idlist, IEnumIDList>(nullptr).begin());
-          static_assert(std::is_same_v<custom_stored_type_enumerator::smart_result, unique_idlist>);
+            using custom_stored_type_enumerator = decltype(wil::make_range<unique_idlist, IEnumIDList>(nullptr).begin());
+            static_assert(std::is_same_v<custom_stored_type_enumerator::smart_result, unique_idlist>);
         }
         {
-          using custom_stored_type_enumerator = decltype(wil::make_range<unique_idlist>(wistd::declval<IEnumIDList*>()).begin());
-          static_assert(std::is_same_v<custom_stored_type_enumerator::smart_result, unique_idlist>);
+            using custom_stored_type_enumerator = decltype(wil::make_range<unique_idlist>(wistd::declval<IEnumIDList*>()).begin());
+            static_assert(std::is_same_v<custom_stored_type_enumerator::smart_result, unique_idlist>);
         }
     }
     SECTION("static_assert com_iterator types")
@@ -2973,9 +2974,8 @@ TEST_CASE("COMEnumerator", "[com][enumerator]")
         auto muffinsCOM = IEnumMuffinsCOM(1, nullptr);
         using muffins_ctad_type = decltype(wil::com_iterator(&muffinsCOM));
         static_assert(std::is_same_v<muffins_ctad_type::smart_result, wil::com_ptr<IUnknown>>);
-        static_assert(std::is_same_v<decltype(*std::declval<muffins_ctad_type>()),
-            wil::com_ptr<IUnknown>&>);
-        
+        static_assert(std::is_same_v<decltype(*std::declval<muffins_ctad_type>()), wil::com_ptr<IUnknown>&>);
+
         wil::com_ptr<IEnumString> enumString;
         auto it = wil::make_range<wil::unique_cotaskmem_string>(enumString.get());
         static_assert(std::is_same_v<decltype(*(it.begin())), wil::unique_cotaskmem_string&>);
