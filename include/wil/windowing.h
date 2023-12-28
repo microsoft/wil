@@ -32,8 +32,7 @@ namespace details
     void CallCallbackNoThrow(TEnumApi&& enumApi, TCallback&& callback) noexcept
     {
         auto enumproc = [](HWND hwnd, LPARAM lParam) -> BOOL {
-            auto pCallbackData = reinterpret_cast<decltype(&callbackData)>(lParam);
-            auto pCallback = pCallbackData->pCallback;
+            auto pCallback = reinterpret_cast<TCallback*>(lParam);
             using result_t = decltype((*pCallback)(hwnd));
 #ifdef __cpp_if_constexpr
             if constexpr (std::is_void_v<result_t>)
@@ -58,7 +57,7 @@ namespace details
             return (*pCallback)(hwnd);
 #endif
         };
-        enumApi(enumproc, reinterpret_cast<LPARAM>(&callbackData));
+        enumApi(enumproc, reinterpret_cast<LPARAM>(&callback));
     }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
