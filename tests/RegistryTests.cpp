@@ -3437,7 +3437,7 @@ TEST_CASE("BasicRegistryTests::value_iterator", "[registry]]")
         const auto begin = wil::reg::value_iterator{write_hkey.get()};
         const auto end = wil::reg::value_iterator{};
 
-        auto count = 0;
+        size_t count = 0u;
         std::for_each(begin, end, [&](auto nameAndType) {
             auto stringLength = wcslen(nameAndType.name.c_str());
             REQUIRE(stringLength == nameAndType.name.size());
@@ -3770,7 +3770,7 @@ TEST_CASE("BasicRegistryTests::key_iterator", "[registry]]")
         const auto begin = wil::reg::key_iterator{write_hkey.get()};
         const auto end = wil::reg::key_iterator{};
 
-        auto count = 0;
+        size_t count = 0u;
         std::for_each(begin, end, [&](auto keyInfo) {
             auto stringLength = wcslen(keyInfo.name.c_str());
             REQUIRE(stringLength == keyInfo.name.size());
@@ -4024,7 +4024,7 @@ TEST_CASE("BasicRegistryTests::value_bstr_iterator", "[registry]]")
         const auto begin = wil::reg::value_bstr_iterator{write_hkey.get()};
         const auto end = wil::reg::value_bstr_iterator{};
 
-        auto count = 0;
+        size_t count = 0u;
         std::for_each(begin, end, [&](auto nameAndType) {
             auto stringLength = wcslen(nameAndType.name.get());
             REQUIRE(stringLength == SysStringLen(nameAndType.name.get()));
@@ -4343,7 +4343,7 @@ TEST_CASE("BasicRegistryTests::key_bstr_iterator", "[registry]]")
         const auto begin = wil::reg::key_bstr_iterator{write_hkey.get()};
         const auto end = wil::reg::key_bstr_iterator{};
 
-        auto count = 0;
+        size_t count = 0u;
         std::for_each(begin, end, [&](auto keyInfo) {
             auto stringLength = wcslen(keyInfo.name.get());
             REQUIRE(stringLength == ::SysStringLen(keyInfo.name.get()));
@@ -4634,7 +4634,7 @@ TEST_CASE("BasicRegistryTests::value_heap_string_iterator", "[registry]]")
         const auto begin = wil::reg::value_heap_string_iterator{write_hkey.get()};
         const auto end = wil::reg::value_heap_string_iterator{};
 
-        auto count = 0;
+        size_t count = 0u;
         std::for_each(begin, end, [&](auto nameAndType) {
             auto stringLength = wcslen(nameAndType.name.get());
             REQUIRE(stringLength == wcslen(enumTestNames[count]));
@@ -4951,7 +4951,7 @@ TEST_CASE("BasicRegistryTests::key_heap_string_iterator", "[registry]]")
         const auto begin = wil::reg::key_heap_string_iterator{write_hkey.get()};
         const auto end = wil::reg::key_heap_string_iterator{};
 
-        auto count = 0;
+        size_t count = 0u;
         std::for_each(begin, end, [&](auto keyInfo) {
             auto stringLength = wcslen(keyInfo.name.get());
             REQUIRE(stringLength == wcslen(enumTestNames[count]));
@@ -5261,7 +5261,7 @@ TEST_CASE("BasicRegistryTests::value_bstr_nothrow_iterator", "[registry]]")
         const auto begin = wil::reg::value_bstr_nothrow_iterator{write_hkey.get()};
         const auto end = wil::reg::value_bstr_nothrow_iterator{};
 
-        auto count = 0;
+        size_t count = 0u;
         std::for_each(begin, end, [&](auto nameAndType) {
             auto stringLength = wcslen(nameAndType.name.get());
             REQUIRE(stringLength == SysStringLen(nameAndType.name.get()));
@@ -5573,7 +5573,7 @@ TEST_CASE("BasicRegistryTests::key_bstr_nothrow_iterator", "[registry]]")
         const auto begin = wil::reg::key_bstr_nothrow_iterator{write_hkey.get()};
         const auto end = wil::reg::key_bstr_nothrow_iterator{};
 
-        auto count = 0;
+        size_t count = 0u;
         std::for_each(begin, end, [&](auto keyInfo) {
             auto stringLength = wcslen(keyInfo.name.get());
             REQUIRE(stringLength == ::SysStringLen(keyInfo.name.get()));
@@ -5866,7 +5866,7 @@ TEST_CASE("BasicRegistryTests::value_heap_string_nothrow_iterator", "[registry]]
         const auto begin = wil::reg::value_heap_string_nothrow_iterator{write_hkey.get()};
         const auto end = wil::reg::value_heap_string_nothrow_iterator{};
 
-        auto count = 0;
+        size_t count = 0u;
         std::for_each(begin, end, [&](auto nameAndType) {
             auto stringLength = wcslen(nameAndType.name.get());
             REQUIRE(stringLength == wcslen(enumTestNames[count]));
@@ -6175,7 +6175,7 @@ TEST_CASE("BasicRegistryTests::key_heap_string_nothrow_iterator", "[registry]]")
         const auto begin = wil::reg::key_heap_string_nothrow_iterator{write_hkey.get()};
         const auto end = wil::reg::key_heap_string_nothrow_iterator{};
 
-        auto count = 0;
+        size_t count = 0u;
         std::for_each(begin, end, [&](auto keyInfo) {
             auto stringLength = wcslen(keyInfo.name.get());
             REQUIRE(stringLength == wcslen(enumTestNames[count]));
