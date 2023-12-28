@@ -11,10 +11,6 @@
 #ifndef __WIL_WINDOWING_INCLUDED
 #define __WIL_WINDOWING_INCLUDED
 
-#ifndef WIL_ENABLE_EXCEPTIONS
-#error This header requires exceptions
-#endif
-
 #include <WinUser.h>
 #include <exception>
 
