@@ -3437,7 +3437,7 @@ TEST_CASE("BasicRegistryTests::value_iterator", "[registry]]")
         const auto begin = wil::reg::value_iterator{write_hkey.get()};
         const auto end = wil::reg::value_iterator{};
 
-        auto count = 0;
+        size_t count = 0u;
         std::for_each(begin, end, [&](auto nameAndType) {
             auto stringLength = wcslen(nameAndType.name.c_str());
             REQUIRE(stringLength == nameAndType.name.size());

@@ -3282,7 +3282,7 @@ private:
 
 // CTAD for com_iterator
 template <typename TStoredType, typename IEnumType>
-com_iterator(IEnumType*) -> com_iterator<TStoredType, IEnumType>;
+com_iterator(IEnumType*) -> com_iterator<typename TStoredType, IEnumType>;
 
 template <typename IEnumType>
 com_iterator(IEnumType*) -> com_iterator<void, IEnumType>;
