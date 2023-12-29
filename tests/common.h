@@ -206,46 +206,13 @@ bool DoesCodeThrow(Lambda&& callOp)
     return false;
 }
 
-[[noreturn]] inline void __stdcall TranslateFailFastException(PEXCEPTION_RECORD rec, PCONTEXT, DWORD)
-{
-    // RaiseFailFastException cannot be continued or handled. By instead calling RaiseException, it allows us to
-    // handle exceptions
-    ::RaiseException(rec->ExceptionCode, rec->ExceptionFlags, rec->NumberParameters, rec->ExceptionInformation);
-#ifdef __clang__
-    __builtin_unreachable();
-#endif
-}
-
-[[noreturn]] inline void __stdcall FakeFailfastWithContext(const wil::FailureInfo&) noexcept
-{
-    ::RaiseException(STATUS_STACK_BUFFER_OVERRUN, 0, 0, nullptr);
-#ifdef __clang__
-    __builtin_unreachable();
-#endif
-}
-
-constexpr DWORD msvc_exception_code = 0xE06D7363;
-
-// This is a MAJOR hack. Catch2 registers a vectored exception handler - which gets run before our handler below -
-// that interprets a set of exception codes as fatal. We don't want this behavior since we may be expecting such
-// crashes, so instead translate all exception codes to something not fatal
-inline LONG WINAPI TranslateExceptionCodeHandler(PEXCEPTION_POINTERS info)
-{
-    if (info->ExceptionRecord->ExceptionCode != witest::msvc_exception_code)
-    {
-        info->ExceptionRecord->ExceptionCode = STATUS_STACK_BUFFER_OVERRUN;
-    }
-
-    return EXCEPTION_CONTINUE_SEARCH;
-}
-
 template <typename TLambda>
 bool DoesCodeCrash(TLambda&& lambda)
 {
     bool crashed = false;
     __try
     {
-        // for the purposes of this test, throwing an exception is not = a crash
+        // for the purposes of this test, throwing an exception is not a crash
         DoesCodeThrow(wistd::forward<TLambda>(lambda));
     }
     __except (EXCEPTION_EXECUTE_HANDLER)
