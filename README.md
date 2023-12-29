@@ -66,12 +66,12 @@ To get started contributing to WIL, first make sure that you have:
 * [vcpkg](https://vcpkg.io) available on your system.
 Follow their [getting started](https://vcpkg.io/en/getting-started) guide to get set up.
 You'll need to provide the path to vcpkg when initializing with CMake by passing `-DCMAKE_TOOLCHAIN_FILE=[path to vcpkg]/scripts/buildsystems/vcpkg.cmake`.
-Note that if you use the `init.cmd` script (mentioned below), this path can be specified or detected if you:
+Note that if you use the `init.cmd` script (mentioned below), this path can be specified or auto-detected if you:
   1. Manually specify the path to the root of your vcpkg clone via the `-p` or `--vcpkg` argument,
   1. Have the `VCPKG_ROOT` environment variable set to the root of your vcpkg clone.
   You can use the `setx` command to have this variable persist across shell sessions,
   1. Have the path to the root of your vcpkg clone added to your `PATH` (i.e. the path to `vcpkg.exe`), or
-  1. If your vcpkg clone is located at the root of the same drive as your wil clone (e.g. `C:\vcpkg` if your WIL clone is on the `C:` drive)
+  1. If your vcpkg clone is located at the root of the same drive as your WIL clone (e.g. `C:\vcpkg` if your WIL clone is on the `C:` drive)
 
 If you are doing any non-trivial work, also be sure to have:
 
