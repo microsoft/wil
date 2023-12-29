@@ -93,7 +93,7 @@ For example:
   Note that for either script, projects will only be generated for the architecture of the current VS command window.
 
 To set up Visual Studio with IntelliSense, see below.
-If you used the `init.cmd` script, the corresponding build output directory should contain a `compile_commands.json` file that describes the command used to compile each input file.
+If you used the `init.cmd` script, the corresponding build output directory should contain a `compile_commands.json` file that describes the commands used to compile each input file.
 Some editors such as Visual Studio Code can be configured to use this file to provide better auto-complete, tooltips, etc.
 Visual Studio Code, in particular should auto-detect the presence of this file and prompt you to use it for better IntelliSense.
 If you are not auto-prompted, this can be manually configured in the workspace's C/C++ properties under the property name `compileCommands`.
