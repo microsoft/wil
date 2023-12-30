@@ -190,48 +190,12 @@ public:
 
     detoured_global_function(const detoured_global_function&) = delete;
     detoured_global_function& operator=(const detoured_global_function&) = delete;
-
-    detoured_global_function(detoured_global_function&& other) noexcept
-    {
-        swap(other);
-    }
-
-    detoured_global_function& operator=(detoured_global_function&& other) noexcept
-    {
-        swap(other);
-        return *this;
-    }
+    // It's not safe to move construct/assign this type because it's not safe to move the function object while it's potentially
+    // being invoked by a different thread
 
     ~detoured_global_function()
     {
         WI_VERIFY_SUCCEEDED(reset());
-    }
-
-    void swap(detoured_global_function& other) noexcept
-    {
-        auto lock = details::s_detourLock.lock_exclusive();
-        wistd::swap_wil(m_next, other.m_next);
-        wistd::swap_wil(m_detour, other.m_detour);
-        wistd::swap_wil(m_entryCount, other.m_entryCount);
-        wistd::swap_wil(m_removed, other.m_removed);
-        // NOTE: We can't swap 'm_invokeComplete' because it's not movable. Luckily, this is not necessary because neither object
-        // is in the process of running its destructor
-
-        // We need to swap positions in the linked list
-        detoured_global_function** thisPos = nullptr;
-        detoured_global_function** otherPos = nullptr;
-        for (auto ptr = &s_globalInstance; *ptr; ptr = &(*ptr)->m_next)
-        {
-            if (*ptr == this)
-                thisPos = ptr;
-            else if (*ptr == &other)
-                otherPos = ptr;
-        }
-
-        if (thisPos)
-            *thisPos = &other;
-        if (otherPos)
-            *otherPos = this;
     }
 
     HRESULT reset() noexcept
@@ -405,7 +369,6 @@ public:
 
     void swap(detoured_thread_function& other) noexcept
     {
-        wistd::swap_wil(m_next, other.m_next);
         wistd::swap_wil(m_detour, other.m_detour);
         wistd::swap_wil(m_reentry, other.m_reentry);
 
@@ -420,10 +383,42 @@ public:
                 otherPos = ptr;
         }
 
-        if (thisPos)
+        if (!thisPos)
+        {
+            // This not in the list; put it in other's position
+            if (otherPos)
+            {
+                *otherPos = this;
+                wistd::swap_wil(m_next, other.m_next);
+            }
+        }
+        else if (!otherPos)
+        {
+            // Other not in the list; put it in this's position
             *thisPos = &other;
-        if (otherPos)
+            wistd::swap_wil(m_next, other.m_next);
+        }
+        // Otherwise, both are in the list
+        else if (m_next == &other)
+        {
+            // Special case; other needs to point to this now
+            WI_ASSERT(otherPos == &m_next);
+            *thisPos = &other;
+            m_next = wistd::exchange(other.m_next, this);
+        }
+        else if (other.m_next == this)
+        {
+            // Same as above, just swapped
+            WI_ASSERT(thisPos == &other.m_next);
             *otherPos = this;
+            other.m_next = wistd::exchange(m_next, &other);
+        }
+        else
+        {
+            // General "easy" case; we can swap pointers
+            wistd::swap_wil(*thisPos, *otherPos);
+            wistd::swap_wil(m_next, other.m_next);
+        }
     }
 
     HRESULT reset() noexcept

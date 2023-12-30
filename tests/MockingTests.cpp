@@ -264,27 +264,26 @@ TEST_CASE("MockingTests::ThreadDetourMoving", "[mocking]")
     REQUIRE(LocalAddFunction(2, 3) == 5); // Reverted back by now
 }
 
-TEST_CASE("MockingTests::GlobalDetourMoving", "[mocking]")
+TEST_CASE("MockingTests::ThreadDetourSwap", "[mocking]")
 {
-    witest::detoured_global_function<&LocalAddFunction> outer;
     {
-        witest::detoured_global_function<&LocalAddFunction> middle;
+        witest::detoured_thread_function<&LocalAddFunction> outer;
+        REQUIRE_SUCCEEDED(outer.reset([](int lhs, int rhs) {
+            return lhs * rhs;
+        }));
         {
-            witest::detoured_global_function<&LocalAddFunction> inner;
+            witest::detoured_thread_function<&LocalAddFunction> inner;
             REQUIRE_SUCCEEDED(inner.reset([](int lhs, int rhs) {
-                return lhs * rhs;
+                return 2 * LocalAddFunction(lhs, rhs);
             }));
-            REQUIRE(LocalAddFunction(2, 3) == 6);
-            middle = std::move(inner);
+            REQUIRE(LocalAddFunction(2, 3) == 12); // 2 * (2 * 3)
+            inner.swap(outer);
+            REQUIRE(LocalAddFunction(2, 3) == 12); // Order of evaluation should stay the same
+            outer.swap(inner); // Swap the other way around
+            REQUIRE(LocalAddFunction(2, 3) == 12); // Still the same...
+            outer.swap(inner); // So that inner's lambda is copied into 'outer' when 'inner' goes out of scope
         }
-        REQUIRE(LocalAddFunction(2, 3) == 6);
-        outer = std::move(middle);
-    }
-    REQUIRE(LocalAddFunction(2, 3) == 6);
-
-    {
-        witest::detoured_global_function other(std::move(outer));
-        REQUIRE(LocalAddFunction(2, 3) == 6);
+        REQUIRE(LocalAddFunction(2, 3) == 10); // 2 * (2 + 3)
     }
 
     REQUIRE(LocalAddFunction(2, 3) == 5); // Reverted back by now

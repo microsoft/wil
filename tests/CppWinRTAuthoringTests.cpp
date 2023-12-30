@@ -229,72 +229,57 @@ TEST_CASE("CppWinRTAuthoringTests::EventsAndCppWinRt", "[property]")
 #include <winrt/Windows.UI.Xaml.Hosting.h>
 
 // This test seems to have issues on the CI machines, so enabling only when run locally
-TEST_CASE("CppWinRTAuthoringTests::NotifyPropertyChanged", "[property][LocalOnly]")
+TEST_CASE("CppWinRTAuthoringTests::NotifyPropertyChanged", "[property]")
 {
 #if defined(WIL_ENABLE_EXCEPTIONS)
-    auto uninit = wil::RoInitialize_failfast(RO_INIT_MULTITHREADED);
+    auto uninit = wil::RoInitialize_failfast(RO_INIT_SINGLETHREADED);
     // We need to initialize the XAML core in order to instantiate a PropertyChangedEventArgs.
-    // Do all the work on a separate DispatcherQueue thread so we can shut it down cleanly
-    // and make sure COM is completely cleaned up before we finish the test.
-
-    auto controller = winrt::Windows::System::DispatcherQueueController::CreateOnDedicatedThread();
-    winrt::handle dispatcherThreadHandle;
-
-    auto enqueueResult = controller.DispatcherQueue().TryEnqueue([&] {
-        winrt::check_bool(DuplicateHandle(
-            GetCurrentProcess(), GetCurrentThread(), GetCurrentProcess(), dispatcherThreadHandle.put(), SYNCHRONIZE, FALSE, 0));
-        auto manager = winrt::Windows::UI::Xaml::Hosting::WindowsXamlManager::InitializeForCurrentThread();
+    auto manager = winrt::Windows::UI::Xaml::Hosting::WindowsXamlManager::InitializeForCurrentThread();
+    {
+        struct Test : winrt::implements<Test, winrt::Windows::UI::Xaml::Data::INotifyPropertyChanged>,
+                      wil::notify_property_changed_base<Test>
         {
-            struct Test : winrt::implements<Test, winrt::Windows::UI::Xaml::Data::INotifyPropertyChanged>,
-                          wil::notify_property_changed_base<Test>
+            wil::single_threaded_notifying_property<int> MyProperty;
+            Test() : INIT_NOTIFYING_PROPERTY(MyProperty, 42)
             {
-                wil::single_threaded_notifying_property<int> MyProperty;
-                Test() : INIT_NOTIFYING_PROPERTY(MyProperty, 42)
-                {
-                }
-            };
-            auto test = winrt::make<Test>();
-            auto testImpl = winrt::get_self<Test>(test);
-            bool notified = false;
-            auto token = test.PropertyChanged(
-                [&](winrt::Windows::Foundation::IInspectable, winrt::Windows::UI::Xaml::Data::PropertyChangedEventArgs args) {
-                    REQUIRE(args.PropertyName() == L"MyProperty");
-                    REQUIRE(testImpl->MyProperty() == 43);
-                    notified = true;
-                });
+            }
+        };
+        auto test = winrt::make<Test>();
+        auto testImpl = winrt::get_self<Test>(test);
+        bool notified = false;
+        auto token = test.PropertyChanged(
+            [&](winrt::Windows::Foundation::IInspectable, winrt::Windows::UI::Xaml::Data::PropertyChangedEventArgs args) {
+                REQUIRE(args.PropertyName() == L"MyProperty");
+                REQUIRE(testImpl->MyProperty() == 43);
+                notified = true;
+            });
 
-            testImpl->MyProperty(43);
-            REQUIRE(notified);
-            test.PropertyChanged(token);
-            REQUIRE(testImpl->MyProperty.Name() == L"MyProperty");
-        }
+        testImpl->MyProperty(43);
+        REQUIRE(notified);
+        test.PropertyChanged(token);
+        REQUIRE(testImpl->MyProperty.Name() == L"MyProperty");
+    }
+    {
+        struct Test : winrt::implements<Test, winrt::Windows::UI::Xaml::Data::INotifyPropertyChanged>,
+                      wil::notify_property_changed_base<Test>
         {
-            struct Test : winrt::implements<Test, winrt::Windows::UI::Xaml::Data::INotifyPropertyChanged>,
-                          wil::notify_property_changed_base<Test>
-            {
-                WIL_NOTIFYING_PROPERTY(int, MyProperty, 42);
-            };
-            auto test = winrt::make<Test>();
-            auto testImpl = winrt::get_self<Test>(test);
-            bool notified = false;
-            auto token = test.PropertyChanged(
-                [&](winrt::Windows::Foundation::IInspectable, winrt::Windows::UI::Xaml::Data::PropertyChangedEventArgs args) {
-                    REQUIRE(args.PropertyName() == L"MyProperty");
-                    REQUIRE(testImpl->MyProperty() == 43);
-                    notified = true;
-                });
+            WIL_NOTIFYING_PROPERTY(int, MyProperty, 42);
+        };
+        auto test = winrt::make<Test>();
+        auto testImpl = winrt::get_self<Test>(test);
+        bool notified = false;
+        auto token = test.PropertyChanged(
+            [&](winrt::Windows::Foundation::IInspectable, winrt::Windows::UI::Xaml::Data::PropertyChangedEventArgs args) {
+                REQUIRE(args.PropertyName() == L"MyProperty");
+                REQUIRE(testImpl->MyProperty() == 43);
+                notified = true;
+            });
 
-            testImpl->MyProperty(43);
-            REQUIRE(notified);
-            test.PropertyChanged(token);
-        }
-        manager.Close();
-    });
-    REQUIRE(enqueueResult);
-    controller.ShutdownQueueAsync();
-    // Make sure the dispatcher thread has terminated and shut down COM.
-    // Give CoUninitialize a generous 5 seconds to complete.
-    REQUIRE(WaitForSingleObject(dispatcherThreadHandle.get(), 5000) == WAIT_OBJECT_0);
+        testImpl->MyProperty(43);
+        REQUIRE(notified);
+        test.PropertyChanged(token);
+    }
+    manager.Close();
 #endif
 }
 #endif // msvc
