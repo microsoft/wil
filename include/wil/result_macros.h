@@ -5183,8 +5183,8 @@ namespace details
     }
 
     template <typename T>
-    __declspec(noinline) RESULT_NORETURN inline void ReportFailure_CustomExceptionMsg(
-        __R_FN_PARAMS _In_ T exception, _In_ _Printf_format_string_ PCSTR formatString, ...)
+    __declspec(noinline) RESULT_NORETURN
+        inline void ReportFailure_CustomExceptionMsg(__R_FN_PARAMS _In_ T exception, _In_ _Printf_format_string_ PCSTR formatString, ...)
     {
         va_list argList;
         va_start(argList, formatString);

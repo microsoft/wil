@@ -279,9 +279,9 @@ TEST_CASE("MockingTests::ThreadDetourSwap", "[mocking]")
             REQUIRE(LocalAddFunction(2, 3) == 12); // 2 * (2 * 3)
             inner.swap(outer);
             REQUIRE(LocalAddFunction(2, 3) == 12); // Order of evaluation should stay the same
-            outer.swap(inner); // Swap the other way around
+            outer.swap(inner);                     // Swap the other way around
             REQUIRE(LocalAddFunction(2, 3) == 12); // Still the same...
-            outer.swap(inner); // So that inner's lambda is copied into 'outer' when 'inner' goes out of scope
+            outer.swap(inner);                     // So that inner's lambda is copied into 'outer' when 'inner' goes out of scope
         }
         REQUIRE(LocalAddFunction(2, 3) == 10); // 2 * (2 + 3)
     }
