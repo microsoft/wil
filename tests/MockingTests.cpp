@@ -367,19 +367,18 @@ TEST_CASE("MockingTests::GlobalDetourMultithreaded", "[mocking]")
 TEST_CASE("MockingTests::GlobalDetourDestructorRace", "[mocking]")
 {
     wil::unique_event detourRunningEvent(wil::EventOptions::None);
-    wil::unique_event detourContinueEvent(wil::EventOptions::None);
     wil::unique_event nonDetourContinueEvent(wil::EventOptions::None);
+    wil::unique_event nonDetourCompleteEvent(wil::EventOptions::None);
     witest::detoured_thread_function<&::SleepConditionVariableSRW> cvWaitDetour(
         [&](PCONDITION_VARIABLE cv, PSRWLOCK lock, DWORD dwMilliseconds, ULONG flags) {
             // This should be called during the call to 'reset' since there's an "active" call
-            detourContinueEvent.SetEvent();    // Allow the 'detour' invocation to complete
-            nonDetourContinueEvent.SetEvent(); // Kick off a second
+            nonDetourContinueEvent.SetEvent(); // Kick off a non-detoured call
             return ::SleepConditionVariableSRW(cv, lock, dwMilliseconds, flags);
         });
 
     witest::detoured_global_function<&LocalAddFunction> detour([&](int lhs, int rhs) {
         detourRunningEvent.SetEvent();
-        detourContinueEvent.wait(); // Wait until 'reset' is called
+        nonDetourCompleteEvent.wait(); // Wait until the non-detoured call is complete (implies we're in 'reset')
         return lhs * rhs;
     });
 
@@ -392,6 +391,7 @@ TEST_CASE("MockingTests::GlobalDetourDestructorRace", "[mocking]")
     std::thread nonDetouredThread([&] {
         nonDetourContinueEvent.wait(); // Wait until 'reset is called'
         nonDetouredResult = LocalAddFunction(2, 3);
+        nonDetourCompleteEvent.SetEvent();
     });
 
     detourRunningEvent.wait(); // Wait for 'detouredThread' to kick off & invoke the detoured function
