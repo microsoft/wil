@@ -389,18 +389,19 @@ TEST_CASE("MockingTests::GlobalDetourDestructorRace", "[mocking]")
 
     int nonDetouredResult = 0;
     std::thread nonDetouredThread([&] {
-        nonDetourContinueEvent.wait(); // Wait until 'reset is called'
+        nonDetourContinueEvent.wait(); // Wait until 'reset' is called
         nonDetouredResult = LocalAddFunction(2, 3);
-        nonDetourCompleteEvent.SetEvent();
+        nonDetourCompleteEvent.SetEvent(); // Let the original call complete, which allows 'reset' to complete
     });
 
     detourRunningEvent.wait(); // Wait for 'detouredThread' to kick off & invoke the detoured function
     detour.reset();            // Kick off everything to continue
 
-    detouredThread.join();
-    nonDetouredThread.join();
-
+    // By the time 'reset' completes, all calls should also have completed, hence the check before the calls to 'join' are fine
     REQUIRE(detouredResult == 6);
     REQUIRE(nonDetouredResult == 5);
+
+    detouredThread.join();
+    nonDetouredThread.join();
 }
 #endif
