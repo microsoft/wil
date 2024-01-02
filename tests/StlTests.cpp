@@ -51,42 +51,6 @@ TEST_CASE("StlTests::TestSecureAllocator", "[stl][secure_allocator]")
     }
 }
 
-// MockMethod<void(std::allocator<T>::*)(T*, size_t)>
-// MakeDeallocateMock()
-// {
-//     return Mock::Method(
-//         &std::allocator<T>::deallocate,
-//         [] (std::allocator<T>& a, T* p, size_t n)
-//     {
-//         for (size_t i = 0; i < n; ++i)
-//         {
-//             // By the time wil::secure_allocator<T>::deallocate
-//             // calls into std::allocator<T>::deallocate, the memory
-//             // should have been cleared.
-//             VERIFY_ARE_EQUAL(T{}, p[i]);
-//         }
-
-//         a.deallocate(p, n);
-//     });
-// }
-// TEST_CASE("StlTests::TestSecureDeleteVector", "[stl][secure_allocator]")
-// {
-//     auto mockByteDeallocate = MakeDeallocateMock<BYTE>();
-//     wil::secure_vector<BYTE> sensitiveBytes(32, 0xAB);
-// }
-
-// TEST_CASE("StlTests::TestSecureDeleteString", "[stl][secure_allocator]")
-// {
-//     auto mockStringDeallocate = MakeDeallocateMock<char>();
-//     wil::secure_string password = "CorrectHorseBatteryStaple";
-// }
-
-// TEST_CASE("StlTests::TestSecureDeleteUnicodeString", "[stl][secure_allocator]")
-// {
-//     auto mockUnicodeStringDeallocate = MakeDeallocateMock<wchar_t>();
-//     wil::secure_wstring password = L"CorrectHorseBatteryStaple";
-// }
-
 #if __WI_LIBCPP_STD_VER >= 17
 
 struct CustomNoncopyableString
