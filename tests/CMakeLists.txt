@@ -87,6 +87,7 @@ if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
 elseif(${CMAKE_BUILD_TYPE} STREQUAL "RelWithDebInfo")
     set(HAS_DEBUG_INFO TRUE)
 endif()
+# Release & MinSizeRel => keep all false
 
 set(ASAN_AVAILABLE FALSE)
 set(UBSAN_AVAILABLE FALSE)
@@ -94,8 +95,10 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
     # Address Sanitizer is available for all architectures and build types, but warns/errors if debug info is not enabled
     set(ASAN_AVAILABLE ${HAS_DEBUG_INFO})
 elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    # Address Sanitizer is not available with debug libraries
-    set(ASAN_AVAILABLE NOT ${DEBUG_BUILD})
+    # Sanitizers are not available with debug libraries
+    # Starting with Clang 17, there appears to be some issue where linking to the dynamic asan libraries seems to think that
+    # things like 'operator new' are present in the executable, but only for x64 for some reason
+    set(ASAN_AVAILABLE NOT ${DEBUG_BUILD} AND $ENV{Platform} STREQUAL "x86")
     set(UBSAN_AVAILABLE NOT ${DEBUG_BUILD})
 endif()
 
