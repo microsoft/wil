@@ -17,7 +17,7 @@ Some things that WIL includes to whet your appetite:
   that save you the work of manually specifying buffer sizes, calling a function twice
   to get the needed buffer size and then allocate and pass the right-size buffer,
   casting or converting between types, and so on.
-- [`include/wil/registry.h`](include/wil/registry.h): Type-safe functions to read from, write to,
+- [`include/wil/registry.h`](include/wil/registry.h) ([documentation])(https://github.com/microsoft/wil/wiki/Registry-Helpers)): Type-safe functions to read from, write to,
   and watch the registry. Also, registry watchers that can call a lambda function or a callback function
   you provide whenever a certain tree within the Windows registry changes.
 - [`include/wil/result.h`](include/wil/result.h)
@@ -25,10 +25,10 @@ Some things that WIL includes to whet your appetite:
   Preprocessor macros to help you check for errors from Windows API functions,
   in many of the myriad ways those errors are reported, and surface them as
   error codes or C++ exceptions in your code.
-- [`include/wil/Tracelogging.h`](include/wil/Tracelogging.h): This file contains the convenience macros 
+- [`include/wil/Tracelogging.h`](include/wil/Tracelogging.h): This file contains the convenience macros
   that enable developers define and log telemetry. These macros use
-  [`TraceLogging API`](https://docs.microsoft.com/en-us/windows/win32/tracelogging/trace-logging-portal) 
-  to log data. This data can be viewed in tools such as 
+  [`TraceLogging API`](https://docs.microsoft.com/en-us/windows/win32/tracelogging/trace-logging-portal)
+  to log data. This data can be viewed in tools such as
   [`Windows Performance Analyzer`](https://docs.microsoft.com/en-us/windows-hardware/test/wpt/windows-performance-analyzer).
 
 WIL can be used by C++ code that uses C++ exceptions as well as code that uses returned
@@ -173,7 +173,7 @@ You can review them, stage them, and then commit.
 Please note that this will use whichever version of `clang-format` is configured to run with this command.
 You can pass `--binary <path>` to specify the path to `clang-format.exe` you would like the command to use.
 
-If you'd like to format changes at the end of developement, you can run `git clang-format` against a specific commit/label.
+If you'd like to format changes at the end of development, you can run `git clang-format` against a specific commit/label.
 The simplest is to run against `upstream/master` or `origin/master` depending on whether or not you are developing in a fork.
 Please note that you likely want to sync/merge with the master branch prior to doing this step.
 You can leverage the `format-changes.cmd` script we provide, which will use the version of `clang-format` that ships with Visual Studio:
