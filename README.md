@@ -156,7 +156,7 @@ You can review them, stage them, and then commit.
 Please note that this will use whichever version of `clang-format` is configured to run with this command.
 You can pass `--binary <path>` to specify the path to `clang-format.exe` you would like the command to use.
 
-If you'd like to format changes at the end of developement, you can run `git clang-format` against a specific commit/label.
+If you'd like to format changes at the end of development, you can run `git clang-format` against a specific commit/label.
 The simplest is to run against `upstream/master` or `origin/master` depending on whether or not you are developing in a fork.
 Please note that you likely want to sync/merge with the master branch prior to doing this step.
 You can leverage the `format-changes.cmd` script we provide, which will use the version of `clang-format` that ships with Visual Studio:
