@@ -3218,7 +3218,7 @@ void verify_try_byte_vector(
 #endif // #if defined(__cpp_lib_optional)
 } // namespace
 
-TEST_CASE("BasicRegistryTests::vector-bytes", "[registry]]")
+TEST_CASE("BasicRegistryTests::vector-bytes", "[registry]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
     if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
@@ -3314,7 +3314,7 @@ TEST_CASE("BasicRegistryTests::vector-bytes", "[registry]]")
 #endif // #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
 
 #if defined(__WIL_OBJBASE_H_)
-TEST_CASE("BasicRegistryTests::cotaskmem_array-bytes", "[registry]]")
+TEST_CASE("BasicRegistryTests::cotaskmem_array-bytes", "[registry]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
     if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
@@ -3356,7 +3356,7 @@ TEST_CASE("BasicRegistryTests::cotaskmem_array-bytes", "[registry]]")
 
 #if defined(WIL_ENABLE_EXCEPTIONS)
 #if defined(_STRING_)
-TEST_CASE("BasicRegistryTests::value_iterator", "[registry]]")
+TEST_CASE("BasicRegistryTests::value_iterator", "[registry]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
     if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
@@ -3684,7 +3684,7 @@ TEST_CASE("BasicRegistryTests::value_iterator", "[registry]]")
     }
 }
 
-TEST_CASE("BasicRegistryTests::key_iterator", "[registry]]")
+TEST_CASE("BasicRegistryTests::key_iterator", "[registry]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
     if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
@@ -3943,7 +3943,7 @@ TEST_CASE("BasicRegistryTests::key_iterator", "[registry]]")
 #endif // #if !defined(_STRING_)
 
 #if defined(__WIL_OLEAUTO_H_)
-TEST_CASE("BasicRegistryTests::value_bstr_iterator", "[registry]]")
+TEST_CASE("BasicRegistryTests::value_bstr_iterator", "[registry]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
     if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
@@ -4257,7 +4257,7 @@ TEST_CASE("BasicRegistryTests::value_bstr_iterator", "[registry]]")
     }
 }
 
-TEST_CASE("BasicRegistryTests::key_bstr_iterator", "[registry]]")
+TEST_CASE("BasicRegistryTests::key_bstr_iterator", "[registry]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
     if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
@@ -4553,7 +4553,7 @@ TEST_CASE("BasicRegistryTests::key_bstr_iterator", "[registry]]")
 }
 #endif
 
-TEST_CASE("BasicRegistryTests::value_heap_string_iterator", "[registry]]")
+TEST_CASE("BasicRegistryTests::value_heap_string_iterator", "[registry]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
     if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
@@ -4865,7 +4865,7 @@ TEST_CASE("BasicRegistryTests::value_heap_string_iterator", "[registry]]")
     }
 }
 
-TEST_CASE("BasicRegistryTests::key_heap_string_iterator", "[registry]]")
+TEST_CASE("BasicRegistryTests::key_heap_string_iterator", "[registry]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
     if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
@@ -5160,7 +5160,7 @@ TEST_CASE("BasicRegistryTests::key_heap_string_iterator", "[registry]]")
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS)
 
 #if defined(__WIL_OLEAUTO_H_)
-TEST_CASE("BasicRegistryTests::value_bstr_nothrow_iterator", "[registry]]")
+TEST_CASE("BasicRegistryTests::value_bstr_nothrow_iterator", "[registry]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
     if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
@@ -5477,7 +5477,7 @@ TEST_CASE("BasicRegistryTests::value_bstr_nothrow_iterator", "[registry]]")
     }
 }
 
-TEST_CASE("BasicRegistryTests::key_bstr_nothrow_iterator", "[registry]]")
+TEST_CASE("BasicRegistryTests::key_bstr_nothrow_iterator", "[registry]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
     if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
@@ -5765,7 +5765,7 @@ TEST_CASE("BasicRegistryTests::key_bstr_nothrow_iterator", "[registry]]")
     }
 }
 #endif
-TEST_CASE("BasicRegistryTests::value_heap_string_nothrow_iterator", "[registry]]")
+TEST_CASE("BasicRegistryTests::value_heap_string_nothrow_iterator", "[registry]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
     if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
@@ -6079,7 +6079,7 @@ TEST_CASE("BasicRegistryTests::value_heap_string_nothrow_iterator", "[registry]]
     }
 }
 
-TEST_CASE("BasicRegistryTests::key_heap_string_nothrow_iterator", "[registry]]")
+TEST_CASE("BasicRegistryTests::key_heap_string_nothrow_iterator", "[registry]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
     if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
