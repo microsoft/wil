@@ -83,8 +83,11 @@ endif()
 find_path(DETOURS_INCLUDE_DIRS detours/detours.h)
 find_library(DETOURS_LIBRARY detours REQUIRED)
 
+find_package(Catch2 CONFIG REQUIRED)
+
 include_directories(${DETOURS_INCLUDE_DIRS})
-link_libraries(${DETOURS_LIBRARY})
+add_definitions(-DNOMINMAX)
+link_libraries(${DETOURS_LIBRARY} Catch2::Catch2WithMain)
 
 add_subdirectory(app)
 add_subdirectory(cpplatest)

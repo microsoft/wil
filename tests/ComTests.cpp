@@ -2469,7 +2469,7 @@ public:
     {
         if (pcbRead)
         {
-            *pcbRead = min(MaxReadSize, cb);
+            *pcbRead = std::min(MaxReadSize, cb);
         }
 
         ZeroMemory(pv, cb);
@@ -2480,7 +2480,7 @@ public:
     {
         if (pcbWritten)
         {
-            *pcbWritten = min(MaxWriteSize, cb);
+            *pcbWritten = std::min(MaxWriteSize, cb);
         }
 
         return (MaxWriteSize <= cb) ? S_OK : S_FALSE;
@@ -2516,7 +2516,7 @@ public:
             }
         }
 
-        Position = min(Position, PositionMax);
+        Position = std::min(Position, PositionMax);
 
         if (plibNewPosition)
         {

@@ -1,5 +1,6 @@
 {
   "dependencies": [
-    "detours"
+    "detours",
+    "catch2"
   ]
 }

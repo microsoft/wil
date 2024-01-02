@@ -825,7 +825,7 @@ auto Mock_GetModuleFileName(DWORD pathLength)
 {
     witest::detoured_thread_function<&GetModuleFileNameW> result;
     REQUIRE_SUCCEEDED(result.reset([pathLength](HMODULE, _Out_ PWSTR fileName, _In_ DWORD bufferSize) -> DWORD {
-        const DWORD amountToCopy = min(pathLength, bufferSize);
+        const DWORD amountToCopy = std::min(pathLength, bufferSize);
         for (size_t i = 0; i < amountToCopy; i++)
         {
             fileName[i] = L'a';
@@ -850,7 +850,7 @@ auto Mock_GetModuleFileNameEx(DWORD pathLength)
 {
     witest::detoured_thread_function<&GetModuleFileNameExW> result;
     REQUIRE_SUCCEEDED(result.reset([pathLength](HANDLE, HMODULE, _Out_ PWSTR fileName, _In_ DWORD bufferSize) -> DWORD {
-        const DWORD amountToCopy = min(pathLength, bufferSize);
+        const DWORD amountToCopy = std::min(pathLength, bufferSize);
         for (size_t i = 0; i < amountToCopy; i++)
         {
             fileName[i] = L'a';

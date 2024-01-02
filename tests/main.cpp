@@ -5,9 +5,6 @@
 #pragma comment(lib, "Synchronization.lib")
 #pragma comment(lib, "RpcRt4.lib")
 
-#define CATCH_CONFIG_MAIN
-#include "catch.hpp"
-
 #if WITEST_ADDRESS_SANITIZER
 extern "C" __declspec(dllexport) const char* __asan_default_options()
 {
