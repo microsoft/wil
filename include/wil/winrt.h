@@ -1260,7 +1260,7 @@ public:
 #if WIL_ITERATOR_DEBUG_LEVEL == 2
         // The IIterator we hold only advances forward; we can't reset it back to the beginning. Calling this method more than
         // once will very likely lead to unexpected behavior.
-        FAIL_FAST_ASSERT_MSG(m_index == 0, "Calling begin() on an already advanced vector_range_nothrow");
+        FAIL_FAST_ASSERT_MSG(m_index == 0, "Calling begin() on an already advanced iterable_range_nothrow");
 #endif
         return iterable_iterator_nothrow(this, this->m_iterator ? 0 : -1);
     }
