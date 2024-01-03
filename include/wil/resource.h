@@ -6110,7 +6110,7 @@ typedef unique_any<HPOWERNOTIFY, decltype(&::UnregisterPowerSettingNotification)
 /// @cond
 #define __WIL_PSID_DEF_H_
 /// @endcond
-typedef unique_any<PSID, decltype(&::FreeProcessHeap), ::CoTaskMemFree> unique_process_heap_psid;
+typedef unique_any<PSID, decltype(&::FreeProcessHeap), ::FreeProcessHeap> unique_process_heap_psid;
 typedef unique_any<PSID, decltype(&::LocalFree), ::LocalFree> unique_any_psid;
 #if defined(_OBJBASE_H_) || defined(WIL_DOXYGEN)
 typedef unique_any<PSID, decltype(&::CoTaskMemFree), ::CoTaskMemFree> unique_cotaskmem_psid;
