@@ -2886,6 +2886,8 @@ TEST_CASE("COMEnumerator", "[com][enumerator]")
     using IEnumMuffins = EnumT<int32_t>;
     using IEnumMuffinsCOM = EnumT<IUnknown*>;
 
+    using unique_idlist = wil::unique_any<LPITEMIDLIST, decltype(&ILFree), ILFree>;
+
     SECTION("static_assert COM enumerator details")
     {
         using real_next_t = decltype(&IEnumIDList::Next);
@@ -2895,29 +2897,39 @@ TEST_CASE("COMEnumerator", "[com][enumerator]")
 
         using traits_t = wil::details::com_enumerator_traits<IEnumIDList>;
         static_assert(std::is_same_v<traits_t::Result, LPITEMIDLIST>);
-        static_assert(std::is_same_v<traits_t::smart_result, LPITEMIDLIST>);
+        static_assert(std::is_same_v<traits_t::smart_result, wil::details::You_must_specify_Smart_Output_type_explicitly<IEnumIDList>>); // no smart pointer for LPITEMIDLIST specified
 
         static_assert(std::is_same_v<wil::details::com_enumerator_next_traits<decltype(&IEnumMuffins::Next)>::Result, int32_t>);
         static_assert(std::is_same_v<wil::details::com_enumerator_next_traits<decltype(&IEnumMuffins::Next)>::Interface, IEnumMuffins>);
         static_assert(std::is_same_v<wil::details::com_enumerator_traits<IEnumMuffins>::Result, int32_t>);
-        static_assert(std::is_same_v<wil::details::com_enumerator_traits<IEnumMuffins>::smart_result, int32_t>);
+        static_assert(
+            std::is_same_v<wil::details::com_enumerator_traits<IEnumMuffins>::smart_result, wil::details::You_must_specify_Smart_Output_type_explicitly<IEnumMuffins>>); // no smart type for int32_t specified
 
         static_assert(std::is_same_v<wil::details::com_enumerator_next_traits<decltype(&IEnumMuffinsCOM::Next)>::Result, IUnknown*>);
         static_assert(
             std::is_same_v<wil::details::com_enumerator_next_traits<decltype(&IEnumMuffinsCOM::Next)>::Interface, IEnumMuffinsCOM>);
         static_assert(std::is_same_v<wil::details::com_enumerator_traits<IEnumMuffinsCOM>::Result, IUnknown*>);
         static_assert(std::is_same_v<wil::details::com_enumerator_traits<IEnumMuffinsCOM>::smart_result, wil::com_ptr<IUnknown>>);
+
+        {
+            using custom_stored_type_enumerator = decltype(wil::make_range<unique_idlist, IEnumIDList>(nullptr).begin());
+            static_assert(std::is_same_v<custom_stored_type_enumerator::smart_result, unique_idlist>);
+        }
+        {
+            using custom_stored_type_enumerator = decltype(wil::make_range<unique_idlist>(wistd::declval<IEnumIDList*>()).begin());
+            static_assert(std::is_same_v<custom_stored_type_enumerator::smart_result, unique_idlist>);
+        }
     }
     SECTION("static_assert com_iterator types")
     {
-        using iterator_t = wil::com_iterator<IEnumIDList>;
-        static_assert(std::is_same_v<LPITEMIDLIST&, decltype(*iterator_t{nullptr})>);
+        using iterator_t = wil::com_iterator<unique_idlist, IEnumIDList>;
+        static_assert(std::is_same_v<unique_idlist&, decltype(*iterator_t{nullptr})>);
     }
     SECTION("Enumerate empty, non-COM type")
     {
         auto found = false;
         auto muffins = IEnumMuffins(0, 42);
-        for (auto muffin : wil::make_range(&muffins))
+        for (auto muffin : wil::make_range<int>(&muffins))
         {
             REQUIRE(muffin == 0);
             found = true;
@@ -2929,7 +2941,7 @@ TEST_CASE("COMEnumerator", "[com][enumerator]")
     {
         auto found = false;
         auto muffins = IEnumMuffins(3, 42);
-        for (auto muffin : wil::make_range(&muffins))
+        for (auto muffin : wil::make_range<int>(&muffins))
         {
             REQUIRE(muffin == 42);
             found = true;
@@ -2948,11 +2960,32 @@ TEST_CASE("COMEnumerator", "[com][enumerator]")
             break;
         }
         REQUIRE(found);
+
+        auto muffinsCOM_nothrow = IEnumMuffinsCOM(1, nullptr);
+        found = false;
+        for (auto muffin : wil::make_range<wil::com_ptr_nothrow<IUnknown>>(&muffinsCOM_nothrow))
+        {
+            REQUIRE(muffin == nullptr);
+            found = true;
+            break;
+        }
+        REQUIRE(found);
+    }
+    SECTION("CTAD")
+    {
+        auto muffinsCOM = IEnumMuffinsCOM(1, nullptr);
+        using muffins_ctad_type = decltype(wil::com_iterator(&muffinsCOM));
+        static_assert(std::is_same_v<muffins_ctad_type::smart_result, wil::com_ptr<IUnknown>>);
+        static_assert(std::is_same_v<decltype(*std::declval<muffins_ctad_type>()), wil::com_ptr<IUnknown>&>);
+
+        wil::com_ptr<IEnumString> enumString;
+        auto it = wil::make_range<wil::unique_cotaskmem_string>(enumString.get());
+        static_assert(std::is_same_v<decltype(*(it.begin())), wil::unique_cotaskmem_string&>);
     }
 #if (NTDDI_VERSION >= NTDDI_VISTA)
     SECTION("static_assert enumeration types for IEnumAssocHandlers")
     {
-        using range_idlist = decltype(wil::make_range(std::declval<IEnumIDList*>()));
+        using range_idlist = decltype(wil::make_range<unique_idlist>(std::declval<IEnumIDList*>()));
         using range_assochandler = decltype(wil::make_range(std::declval<IEnumAssocHandlers*>()));
         // this iterator_range is not the same as this other iterator_range
         static_assert(!std::is_same_v<range_idlist, range_assochandler>);
@@ -2996,11 +3029,27 @@ TEST_CASE("COMEnumerator", "[com][enumerator]")
         REQUIRE(enumIDList);
 
         auto count = 0;
-        for (auto pidl : wil::make_range(enumIDList.get()))
+        for (const auto& pidl : wil::make_range<unique_idlist>(enumIDList.get()))
         {
             REQUIRE(pidl);
             count++;
-            ILFree(pidl);
+            break;
+        }
+        REQUIRE(count > 0);
+    }
+    SECTION("Enumerate IShellFolder, with custom stored type")
+    {
+        wil::com_ptr<IShellFolder> desktop;
+        REQUIRE_SUCCEEDED(::SHGetDesktopFolder(&desktop));
+        wil::com_ptr<IEnumIDList> enumIDList;
+        REQUIRE_SUCCEEDED(desktop->EnumObjects(nullptr, SHCONTF_NONFOLDERS, &enumIDList));
+        REQUIRE(enumIDList);
+
+        auto count = 0;
+        for (auto& pidl : wil::make_range<unique_idlist>(enumIDList.get()))
+        {
+            REQUIRE(pidl);
+            count++;
             break;
         }
         REQUIRE(count > 0);
