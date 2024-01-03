@@ -6217,7 +6217,6 @@ typedef weak_any<shared_mdd_package_dependency_context> weak_mdd_package_depende
 /// @endcond
 typedef unique_any<DLL_DIRECTORY_COOKIE, decltype(&::RemoveDllDirectory), ::RemoveDllDirectory> unique_dll_directory_cookie;
 #endif // __WIL_APISETLIBLOADER_
-
 #if (defined(_APISETLIBLOADER_) && !defined(__WIL_APISETLIBLOADER_STL) && defined(WIL_RESOURCE_STL)) || defined(WIL_DOXYGEN)
 /// @cond
 #define __WIL_APISETLIBLOADER_STL
