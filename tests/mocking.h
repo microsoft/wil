@@ -431,8 +431,8 @@ public:
             while (*entryPtr && (*entryPtr != this))
                 entryPtr = &(*entryPtr)->m_next;
 
-            // Faling this check would imply likely imply that this object is being destroyed on the wrong thread. No matter the
-            // reason, this should be considered a pretty fatal error
+            // Faling this check would likely imply that this object is being destroyed on the wrong thread. No matter the reason,
+            // this should be considered a pretty fatal error
             FAIL_FAST_IF_NULL(*entryPtr);
             *entryPtr = m_next;
 
@@ -491,8 +491,8 @@ private:
     {
         WI_ASSERT(!m_reentry);
         m_reentry = true;
-        auto resetOnExit = wil::scope_exit([&] {
-            m_reentry = false; // No guarantee that 'return_type' is a movable type; NRVO is not guaranteed
+        auto resetOnExit = wil::scope_exit([&] { // No guarantee that 'return_type' is a movable type; NRVO is not guaranteed
+            m_reentry = false;
         });
         return m_detour(wistd::forward<ArgsT>(args)...);
     }
