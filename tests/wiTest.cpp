@@ -1692,7 +1692,7 @@ TEST_CASE("WindowsInternalTests::HandleWrappers", "[resource][unique_any]")
         REQUIRE_SUCCEEDED(detour.reset([](void* p) {
             if (p != nullptr)
             {
-                IMalloc* pMalloc = nullptr;
+                wil::com_ptr_nothrow<IMalloc> pMalloc;
                 if (SUCCEEDED(::CoGetMalloc(1, &pMalloc)))
                 {
                     size_t const size = pMalloc->GetSize(p);
@@ -1701,7 +1701,6 @@ TEST_CASE("WindowsInternalTests::HandleWrappers", "[resource][unique_any]")
                     {
                         REQUIRE(buffer[i] == 0);
                     }
-                    pMalloc->Release();
                 }
                 ::CoTaskMemFree(p);
             }

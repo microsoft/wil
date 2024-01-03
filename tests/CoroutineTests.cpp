@@ -3,7 +3,7 @@
 // this project.  The best we can do is to define WIN32_LEAN_AND_MEAN to prevent windows.h
 // from including <ole2.h> (which in turn includes <combasepi.h>).
 //
-// We also avoid including "common.h" from the current directory because it pulls in COM too.#include "pch.h"
+// We also avoid including "common.h" from the current directory because it pulls in COM too.
 #include "pch.h"
 
 #define WIN32_LEAN_AND_MEAN
