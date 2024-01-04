@@ -36,7 +36,7 @@ namespace details
                 (*pCallback)(hwnd);
                 return TRUE;
             }
-            else if constexpr (std::is_same_v<result_t, HRESULT>)
+            else if constexpr (wistd::is_same_v<result_t, HRESULT>)
             {
                 // NB: this works for both HRESULT and NTSTATUS as both S_OK and ERROR_SUCCESS are 0
                 return (S_OK == (*pCallback)(hwnd)) ? TRUE : FALSE;
