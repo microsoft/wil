@@ -31,7 +31,7 @@ namespace details
             auto pCallback = reinterpret_cast<TCallback*>(lParam);
 #ifdef __cpp_if_constexpr
             using result_t = decltype((*pCallback)(hwnd));
-            if constexpr (std::is_void_v<result_t>)
+            if constexpr (wistd::is_void_v<result_t>)
             {
                 (*pCallback)(hwnd);
                 return TRUE;
