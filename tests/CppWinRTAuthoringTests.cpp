@@ -232,78 +232,68 @@ TEST_CASE("CppWinRTAuthoringTests::NotifyPropertyChanged", "[property]")
 {
 #if defined(WIL_ENABLE_EXCEPTIONS)
     auto uninit = wil::RoInitialize_failfast(RO_INIT_MULTITHREADED);
-
-    // Since we effectively run the test on a different thread
-    std::exception_ptr exception;
-    wil::unique_event testCompleted(wil::EventOptions::None);
+    // We need to initialize the XAML core in order to instantiate a PropertyChangedEventArgs.
+    // Do all the work on a separate DispatcherQueue thread so we can shut it down cleanly
+    // and make sure COM is completely cleaned up before we finish the test.
 
     auto controller = winrt::Windows::System::DispatcherQueueController::CreateOnDedicatedThread();
+    winrt::handle dispatcherThreadHandle;
+
     auto enqueueResult = controller.DispatcherQueue().TryEnqueue([&] {
-        try
+        winrt::check_bool(DuplicateHandle(
+            GetCurrentProcess(), GetCurrentThread(), GetCurrentProcess(), dispatcherThreadHandle.put(), SYNCHRONIZE, FALSE, 0));
+        auto manager = winrt::Windows::UI::Xaml::Hosting::WindowsXamlManager::InitializeForCurrentThread();
         {
-            // We need to initialize the XAML core in order to instantiate a PropertyChangedEventArgs.
-            auto manager = winrt::Windows::UI::Xaml::Hosting::WindowsXamlManager::InitializeForCurrentThread();
+            struct Test : winrt::implements<Test, winrt::Windows::UI::Xaml::Data::INotifyPropertyChanged>,
+                          wil::notify_property_changed_base<Test>
             {
-                struct Test : winrt::implements<Test, winrt::Windows::UI::Xaml::Data::INotifyPropertyChanged>,
-                              wil::notify_property_changed_base<Test>
+                wil::single_threaded_notifying_property<int> MyProperty;
+                Test() : INIT_NOTIFYING_PROPERTY(MyProperty, 42)
                 {
-                    wil::single_threaded_notifying_property<int> MyProperty;
-                    Test() : INIT_NOTIFYING_PROPERTY(MyProperty, 42)
-                    {
-                    }
-                };
-                auto test = winrt::make<Test>();
-                auto testImpl = winrt::get_self<Test>(test);
-                bool notified = false;
-                auto token = test.PropertyChanged(
-                    [&](winrt::Windows::Foundation::IInspectable, winrt::Windows::UI::Xaml::Data::PropertyChangedEventArgs args) {
-                        REQUIRE(args.PropertyName() == L"MyProperty");
-                        REQUIRE(testImpl->MyProperty() == 43);
-                        notified = true;
-                    });
+                }
+            };
+            auto test = winrt::make<Test>();
+            auto testImpl = winrt::get_self<Test>(test);
+            bool notified = false;
+            auto token = test.PropertyChanged(
+                [&](winrt::Windows::Foundation::IInspectable, winrt::Windows::UI::Xaml::Data::PropertyChangedEventArgs args) {
+                    REQUIRE(args.PropertyName() == L"MyProperty");
+                    REQUIRE(testImpl->MyProperty() == 43);
+                    notified = true;
+                });
 
-                testImpl->MyProperty(43);
-                REQUIRE(notified);
-                test.PropertyChanged(token);
-                REQUIRE(testImpl->MyProperty.Name() == L"MyProperty");
-            }
-            {
-                struct Test : winrt::implements<Test, winrt::Windows::UI::Xaml::Data::INotifyPropertyChanged>,
-                              wil::notify_property_changed_base<Test>
-                {
-                    WIL_NOTIFYING_PROPERTY(int, MyProperty, 42);
-                };
-                auto test = winrt::make<Test>();
-                auto testImpl = winrt::get_self<Test>(test);
-                bool notified = false;
-                auto token = test.PropertyChanged(
-                    [&](winrt::Windows::Foundation::IInspectable, winrt::Windows::UI::Xaml::Data::PropertyChangedEventArgs args) {
-                        REQUIRE(args.PropertyName() == L"MyProperty");
-                        REQUIRE(testImpl->MyProperty() == 43);
-                        notified = true;
-                    });
-
-                testImpl->MyProperty(43);
-                REQUIRE(notified);
-                test.PropertyChanged(token);
-            }
-            manager.Close();
+            testImpl->MyProperty(43);
+            REQUIRE(notified);
+            test.PropertyChanged(token);
+            REQUIRE(testImpl->MyProperty.Name() == L"MyProperty");
         }
-        catch (...)
         {
-            exception = std::current_exception();
+            struct Test : winrt::implements<Test, winrt::Windows::UI::Xaml::Data::INotifyPropertyChanged>,
+                          wil::notify_property_changed_base<Test>
+            {
+                WIL_NOTIFYING_PROPERTY(int, MyProperty, 42);
+            };
+            auto test = winrt::make<Test>();
+            auto testImpl = winrt::get_self<Test>(test);
+            bool notified = false;
+            auto token = test.PropertyChanged(
+                [&](winrt::Windows::Foundation::IInspectable, winrt::Windows::UI::Xaml::Data::PropertyChangedEventArgs args) {
+                    REQUIRE(args.PropertyName() == L"MyProperty");
+                    REQUIRE(testImpl->MyProperty() == 43);
+                    notified = true;
+                });
+
+            testImpl->MyProperty(43);
+            REQUIRE(notified);
+            test.PropertyChanged(token);
         }
-        testCompleted.SetEvent();
+        manager.Close();
     });
     REQUIRE(enqueueResult);
-
-    testCompleted.wait();
-    controller.ShutdownQueueAsync().get(); // Not safe to release 'controller' until shutdown complete
-
-    if (exception)
-    {
-        std::rethrow_exception(exception);
-    }
+    controller.ShutdownQueueAsync();
+    // Make sure the dispatcher thread has terminated and shut down COM.
+    // Give CoUninitialize a generous 5 seconds to complete.
+    REQUIRE(WaitForSingleObject(dispatcherThreadHandle.get(), 5000) == WAIT_OBJECT_0);
 #endif
 }
 #endif // msvc
