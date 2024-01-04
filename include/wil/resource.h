@@ -5176,7 +5176,6 @@ using unique_wtsmem_ptr =
 typedef unique_any_handle_null<decltype(&::WTSVirtualChannelClose), ::WTSVirtualChannelClose> unique_channel_handle;
 #endif // __WIL_WTSAPI_WTSVIRTUALCHANNELCLOSE
 
-
 #if (defined(_WINSCARD_H_) && !defined(__WIL_WINSCARD_H_) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)) || defined(WIL_DOXYGEN)
 /// @cond
 #define __WIL_WINSCARD_H_
