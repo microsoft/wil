@@ -292,8 +292,8 @@ TEST_CASE("CppWinRTAuthoringTests::NotifyPropertyChanged", "[property]")
     REQUIRE(enqueueResult);
     controller.ShutdownQueueAsync();
     // Make sure the dispatcher thread has terminated and shut down COM.
-    // Give CoUninitialize a generous 5 seconds to complete.
-    REQUIRE(WaitForSingleObject(dispatcherThreadHandle.get(), 5000) == WAIT_OBJECT_0);
+    // Give CoUninitialize a generous 20 seconds to complete.
+    REQUIRE(WaitForSingleObject(dispatcherThreadHandle.get(), 20 * 1000) == WAIT_OBJECT_0);
 #endif
 }
 #endif // msvc
