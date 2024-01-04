@@ -296,9 +296,10 @@ TEST_CASE("CppWinRTAuthoringTests::NotifyPropertyChanged", "[property][LocalOnly
         testCompleted.SetEvent();
     });
     REQUIRE(enqueueResult);
-    controller.ShutdownQueueAsync();
 
     testCompleted.wait();
+    controller.ShutdownQueueAsync().get(); // Not safe to release 'controller' until shutdown complete
+
     if (exception)
     {
         std::rethrow_exception(exception);
