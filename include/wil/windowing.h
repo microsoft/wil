@@ -25,7 +25,7 @@ namespace details
     };
 
     template <typename TEnumApi, typename TCallback>
-    void CallCallbackNoThrow(TEnumApi&& enumApi, TCallback&& callback) noexcept
+    void DoEnumWindowsNoThrow(TEnumApi&& enumApi, TCallback&& callback) noexcept
     {
         auto enumproc = [](HWND hwnd, LPARAM lParam) -> BOOL {
             auto pCallback = reinterpret_cast<TCallback*>(lParam);
@@ -58,7 +58,7 @@ namespace details
 
 #ifdef WIL_ENABLE_EXCEPTIONS
     template <typename TEnumApi, typename TCallback>
-    void CallCallback(TEnumApi&& enumApi, TCallback&& callback)
+    void DoEnumWindows(TEnumApi&& enumApi, TCallback&& callback)
     {
         struct
         {
@@ -110,52 +110,52 @@ namespace details
 } // namespace details
 
 template <typename TCallback>
-auto for_each_window_nothrow(TCallback&& callback) noexcept
+void for_each_window_nothrow(TCallback&& callback) noexcept
 {
-    details::CallCallbackNoThrow(&EnumWindows, wistd::forward<TCallback>(callback));
+    details::DoEnumWindowsNoThrow(&EnumWindows, wistd::forward<TCallback>(callback));
 }
 
 template <typename TCallback>
-auto for_each_thread_window_nothrow(_In_ DWORD threadId, TCallback&& callback) noexcept
+void for_each_thread_window_nothrow(_In_ DWORD threadId, TCallback&& callback) noexcept
 {
     auto boundEnumThreadWindows = [threadId](WNDENUMPROC enumproc, LPARAM lParam) noexcept -> BOOL {
         return EnumThreadWindows(threadId, enumproc, lParam);
     };
-    details::CallCallbackNoThrow(boundEnumThreadWindows, wistd::forward<TCallback>(callback));
+    details::DoEnumWindowsNoThrow(boundEnumThreadWindows, wistd::forward<TCallback>(callback));
 }
 
 template <typename TCallback>
-auto for_each_child_window_nothrow(_In_ HWND hwndParent, TCallback&& callback) noexcept
+void for_each_child_window_nothrow(_In_ HWND hwndParent, TCallback&& callback) noexcept
 {
     auto boundEnumChildWindows = [hwndParent](WNDENUMPROC enumproc, LPARAM lParam) noexcept -> BOOL {
         return EnumChildWindows(hwndParent, enumproc, lParam);
     };
-    details::CallCallbackNoThrow(boundEnumChildWindows, wistd::forward<TCallback>(callback));
+    details::DoEnumWindowsNoThrow(boundEnumChildWindows, wistd::forward<TCallback>(callback));
 }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
 template <typename TCallback>
-auto for_each_window(TCallback&& callback)
+void for_each_window(TCallback&& callback)
 {
-    details::CallCallback(&EnumWindows, wistd::forward<TCallback>(callback));
+    details::DoEnumWindows(&EnumWindows, wistd::forward<TCallback>(callback));
 }
 
 template <typename TCallback>
-auto for_each_thread_window(_In_ DWORD threadId, TCallback&& callback)
+void for_each_thread_window(_In_ DWORD threadId, TCallback&& callback)
 {
     auto boundEnumThreadWindows = [threadId](WNDENUMPROC enumproc, LPARAM lParam) noexcept -> BOOL {
         return EnumThreadWindows(threadId, enumproc, lParam);
     };
-    details::CallCallback(boundEnumThreadWindows, wistd::forward<TCallback>(callback));
+    details::DoEnumWindows(boundEnumThreadWindows, wistd::forward<TCallback>(callback));
 }
 
 template <typename TCallback>
-auto for_each_child_window(_In_ HWND hwndParent, TCallback&& callback)
+void for_each_child_window(_In_ HWND hwndParent, TCallback&& callback)
 {
     auto boundEnumChildWindows = [hwndParent](WNDENUMPROC enumproc, LPARAM lParam) noexcept -> BOOL {
         return EnumChildWindows(hwndParent, enumproc, lParam);
     };
-    details::CallCallback(boundEnumChildWindows, wistd::forward<TCallback>(callback));
+    details::DoEnumWindows(boundEnumChildWindows, wistd::forward<TCallback>(callback));
 }
 #endif
 
