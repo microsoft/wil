@@ -1,3 +1,4 @@
+#include "pch.h"
 
 // Included first and then again later to ensure that we're able to "light up" new functionality based off new includes
 #include <wil/resource.h>

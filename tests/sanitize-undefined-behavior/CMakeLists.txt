@@ -1,6 +1,8 @@
 
 add_executable(witest.ubsan)
 
+target_precompile_headers(witest.ubsan PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../pch.h)
+
 target_compile_options(witest.ubsan PRIVATE
     -fsanitize=undefined
     -fno-sanitize-recover=undefined # So we get test failures

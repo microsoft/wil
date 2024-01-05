@@ -2154,15 +2154,15 @@ namespace reg
         });
         if (SUCCEEDED(hr))
         {
-            return {value};
+            return value;
         }
 
-        if (::wil::reg::is_registry_not_found(hr))
+        if (!::wil::reg::is_registry_not_found(hr))
         {
-            return {::std::nullopt};
+            THROW_HR(HRESULT_FROM_WIN32(hr));
         }
 
-        THROW_HR(HRESULT_FROM_WIN32(hr));
+        return ::std::nullopt;
     }
 
     /**

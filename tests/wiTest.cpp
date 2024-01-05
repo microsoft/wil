@@ -1,3 +1,4 @@
+#include "pch.h"
 
 #include <wil/result.h>
 #include <wil/resource.h>
@@ -23,39 +24,40 @@
 #include <windows.foundation.h>
 #endif
 
+#include <wrl/implements.h>
+
 // Include Resource.h a second time after including other headers
 #include <wil/resource.h>
 
 #include "common.h"
-#include "MallocSpy.h"
 #include "test_objects.h"
 
 #pragma warning(push)
 #pragma warning(disable : 4702) // Unreachable code
 
-TEST_CASE("WindowsInternalTests::CommonHelpers", "[resource]"){{wil::unique_handle spHandle;
-REQUIRE(spHandle == nullptr);
-REQUIRE(nullptr == spHandle);
-REQUIRE_FALSE(spHandle != nullptr);
-REQUIRE_FALSE(nullptr != spHandle);
-
-// equivalence check will static_assert because spMutex does not allow pointer access
-wil::mutex_release_scope_exit spMutex;
-// REQUIRE(spMutex == nullptr);
-// REQUIRE(nullptr == spMutex);
-
-// equivalence check will static_assert because spFile does not use nullptr_t as a invalid value
-wil::unique_hfile spFile;
-// REQUIRE(spFile == nullptr);
-}
-#ifdef __WIL_WINBASE_STL
+TEST_CASE("WindowsInternalTests::CommonHelpers", "[resource]")
 {
-    wil::shared_handle spHandle;
+    wil::unique_handle spHandle;
     REQUIRE(spHandle == nullptr);
     REQUIRE(nullptr == spHandle);
     REQUIRE_FALSE(spHandle != nullptr);
     REQUIRE_FALSE(nullptr != spHandle);
-}
+
+    // equivalence check will static_assert because spMutex does not allow pointer access
+    wil::mutex_release_scope_exit spMutex;
+    // REQUIRE(spMutex == nullptr);
+    // REQUIRE(nullptr == spMutex);
+
+    // equivalence check will static_assert because spFile does not use nullptr_t as a invalid value
+    wil::unique_hfile spFile;
+    // REQUIRE(spFile == nullptr);
+
+#ifdef __WIL_WINBASE_STL
+    wil::shared_handle spSharedHandle;
+    REQUIRE(spSharedHandle == nullptr);
+    REQUIRE(nullptr == spSharedHandle);
+    REQUIRE_FALSE(spSharedHandle != nullptr);
+    REQUIRE_FALSE(nullptr != spSharedHandle);
 #endif
 }
 
@@ -297,12 +299,9 @@ bool VerifyResult(unsigned int lineNumber, EType type, HRESULT hr, TLambda&& lam
     {
 #endif
         HRESULT lambdaResult = E_FAIL;
-        bool didFailFast = true;
-        {
-            didFailFast = witest::DoesCodeCrash([&]() {
-                lambdaResult = lambda();
-            });
-        }
+        bool didFailFast = witest::DoesCodeFailFast([&]() {
+            lambdaResult = lambda();
+        });
         if (WI_IsFlagSet(type, EType::FailFast))
         {
             REQUIRE(didFailFast);
@@ -440,8 +439,8 @@ TEST_CASE("WindowsInternalTests::ResultMacros", "[result_macros]")
     REQUIRE_FAILFAST(E_FAIL, [] { FAIL_FAST_HR(E_FAIL); });
     REQUIRE_FAILFAST_MSG(E_FAIL, [] { FAIL_FAST_HR_MSG(E_FAIL, "msg: %d", __LINE__); });
 
-    REQUIRE_FAILFAST_UNSPECIFIED([] { ::SetLastError(0); FAIL_FAST_LAST_ERROR(); });
-    REQUIRE_FAILFAST_UNSPECIFIED([] { ::SetLastError(0); FAIL_FAST_LAST_ERROR_MSG("msg: %d", __LINE__); });
+    REQUIRE_FAILFAST_UNSPECIFIED([] { ::SetLastError(ERROR_ACCESS_DENIED); FAIL_FAST_LAST_ERROR(); });
+    REQUIRE_FAILFAST_UNSPECIFIED([] { ::SetLastError(ERROR_ACCESS_DENIED); FAIL_FAST_LAST_ERROR_MSG("msg: %d", __LINE__); });
 
     REQUIRE_RETURNS(E_AD, [] { SetAD(); RETURN_LAST_ERROR(); });
     REQUIRE_RETURNS_MSG(E_AD, [] { SetAD(); RETURN_LAST_ERROR_MSG("msg: %d", __LINE__); });
@@ -691,8 +690,8 @@ TEST_CASE("WindowsInternalTests::ResultMacros", "[result_macros]")
     REQUIRE_FAILFAST(S_OK, [] { REQUIRE(pValid == FAIL_FAST_HR_IF_NULL(E_FAIL, MDEC(pValidRef()))); });
     REQUIRE_FAILFAST_MSG(S_OK, [] { REQUIRE(pValid == FAIL_FAST_HR_IF_NULL_MSG(E_FAIL, MDEC(pValidRef()), "msg: %d", __LINE__)); });
 
-    REQUIRE_FAILFAST_UNSPECIFIED([] { ::SetLastError(0); FAIL_FAST_LAST_ERROR_IF(fTrue); });
-    REQUIRE_FAILFAST_UNSPECIFIED([] { ::SetLastError(0); FAIL_FAST_LAST_ERROR_IF_MSG(fTrue, "msg: %d", __LINE__); });
+    REQUIRE_FAILFAST_UNSPECIFIED([] { ::SetLastError(ERROR_ACCESS_DENIED); FAIL_FAST_LAST_ERROR_IF(fTrue); });
+    REQUIRE_FAILFAST_UNSPECIFIED([] { ::SetLastError(ERROR_ACCESS_DENIED); FAIL_FAST_LAST_ERROR_IF_MSG(fTrue, "msg: %d", __LINE__); });
     REQUIRE_RETURNS(E_AD, [] { SetAD(); RETURN_LAST_ERROR_IF(fTrue); return S_OK; });
     REQUIRE_RETURNS_MSG(E_AD, [] { SetAD(); RETURN_LAST_ERROR_IF_MSG(fTrue, "msg: %d", __LINE__); return S_OK; });
     REQUIRE_RETURNS_EXPECTED(E_AD, [] { SetAD(); RETURN_LAST_ERROR_IF_EXPECTED(fTrue); return S_OK; });
@@ -713,8 +712,8 @@ TEST_CASE("WindowsInternalTests::ResultMacros", "[result_macros]")
     REQUIRE_FAILFAST(S_OK, [] { REQUIRE(fFalse == FAIL_FAST_LAST_ERROR_IF(MDEC(fFalseRef()))); });
     REQUIRE_FAILFAST_MSG(S_OK, [] { REQUIRE(fFalse == FAIL_FAST_LAST_ERROR_IF_MSG(MDEC(fFalseRef()), "msg: %d", __LINE__)); });
 
-    REQUIRE_FAILFAST_UNSPECIFIED([] { ::SetLastError(0); FAIL_FAST_LAST_ERROR_IF_NULL(pNull); });
-    REQUIRE_FAILFAST_UNSPECIFIED([] { ::SetLastError(0); FAIL_FAST_LAST_ERROR_IF_NULL_MSG(pNull, "msg: %d", __LINE__); });
+    REQUIRE_FAILFAST_UNSPECIFIED([] { ::SetLastError(ERROR_ACCESS_DENIED); FAIL_FAST_LAST_ERROR_IF_NULL(pNull); });
+    REQUIRE_FAILFAST_UNSPECIFIED([] { ::SetLastError(ERROR_ACCESS_DENIED); FAIL_FAST_LAST_ERROR_IF_NULL_MSG(pNull, "msg: %d", __LINE__); });
     REQUIRE_RETURNS(E_AD, [] { SetAD(); RETURN_LAST_ERROR_IF_NULL(pNull); return S_OK; });
     REQUIRE_RETURNS_MSG(E_AD, [] { SetAD(); RETURN_LAST_ERROR_IF_NULL_MSG(pNull, "msg: %d", __LINE__); return S_OK; });
     REQUIRE_RETURNS_EXPECTED(E_AD, [] { SetAD(); RETURN_LAST_ERROR_IF_NULL_EXPECTED(pNull); return S_OK; });
@@ -1689,11 +1688,23 @@ TEST_CASE("WindowsInternalTests::HandleWrappers", "[resource][unique_any]")
 
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
     {
-        auto verify = MakeSecureDeleterMallocSpy();
-        REQUIRE_SUCCEEDED(::CoRegisterMallocSpy(verify.Get()));
-        auto removeSpy = wil::scope_exit([&] {
-            ::CoRevokeMallocSpy();
-        });
+        witest::detoured_thread_function<&::CoTaskMemFree> detour;
+        REQUIRE_SUCCEEDED(detour.reset([](void* p) {
+            if (p != nullptr)
+            {
+                wil::com_ptr_nothrow<IMalloc> pMalloc;
+                if (SUCCEEDED(::CoGetMalloc(1, &pMalloc)))
+                {
+                    size_t const size = pMalloc->GetSize(p);
+                    auto buffer = static_cast<byte*>(p);
+                    for (size_t i = 0; i < size; i++)
+                    {
+                        REQUIRE(buffer[i] == 0);
+                    }
+                }
+                ::CoTaskMemFree(p);
+            }
+        }));
 
         auto unique_cotaskmem_string_secure_failfast1 = wil::make_cotaskmem_string_secure_failfast(L"Foo");
         REQUIRE(wcscmp(L"Foo", unique_cotaskmem_string_secure_failfast1.get()) == 0);
@@ -1768,11 +1779,21 @@ TEST_CASE("WindowsInternalTests::HandleWrappers", "[resource][unique_any]")
 #endif
 
     {
-        auto verify = MakeSecureDeleterMallocSpy();
-        REQUIRE_SUCCEEDED(::CoRegisterMallocSpy(verify.Get()));
-        auto removeSpy = wil::scope_exit([&] {
-            ::CoRevokeMallocSpy();
-        });
+        witest::detoured_thread_function<&::LocalFree> detour;
+        REQUIRE_SUCCEEDED(detour.reset([](HLOCAL p) -> HLOCAL {
+            HLOCAL h = nullptr;
+            if (p != nullptr)
+            {
+                size_t const size = ::LocalSize(p);
+                auto buffer = static_cast<byte*>(p);
+                for (size_t i = 0; i < size; i++)
+                {
+                    REQUIRE(buffer[i] == 0);
+                }
+                h = ::LocalFree(p);
+            }
+            return h;
+        }));
 
         auto unique_hlocal_string_secure_failfast1 = wil::make_hlocal_string_secure_failfast(L"Foo");
         REQUIRE(wcscmp(L"Foo", unique_hlocal_string_secure_failfast1.get()) == 0);

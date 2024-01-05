@@ -1,6 +1,8 @@
 
 add_executable(witest.cpplatest)
 
+target_precompile_headers(witest.cpplatest PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../pch.h)
+
 # Compilers often don't use the latest C++ standard as the default. Periodically update this value (possibly conditioned
 # on compiler) as new standards are ratified/support is available
 target_compile_features(witest.cpplatest PRIVATE cxx_std_20)

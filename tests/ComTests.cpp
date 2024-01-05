@@ -1,3 +1,4 @@
+#include "pch.h"
 
 #include <ocidl.h> // Bring in IObjectWithSite
 
@@ -702,6 +703,7 @@ template <typename T, typename U, typename = wistd::enable_if_t<!wistd::is_same_
 T* cast_object(U*)
 {
     FAIL_FAST();
+    return nullptr; // Because we define 'RESULT_NORETURN' to nothing for other tests
 }
 
 template <typename T>
@@ -2314,6 +2316,7 @@ TEST_CASE("ComTests::VerifyCoCreateInstanceExNoThrowMissingInterface", "[com][Co
     }
 }
 
+#ifdef WIL_ENABLE_EXCEPTIONS
 TEST_CASE("ComTests::VerifyTryCoCreateInstanceMissingInterface", "[com][CoCreateInstance]")
 {
     auto init = wil::CoInitializeEx_failfast();
@@ -2339,7 +2342,6 @@ TEST_CASE("ComTests::VerifyTryCoCreateInstanceMissingInterface", "[com][CoCreate
     }
 }
 
-#ifdef WIL_ENABLE_EXCEPTIONS
 TEST_CASE("ComTests::VerifyQueryMultipleInterfaces", "[com][com_multi_query]")
 {
     auto init = wil::CoInitializeEx_failfast();
@@ -2467,7 +2469,7 @@ public:
     {
         if (pcbRead)
         {
-            *pcbRead = min(MaxReadSize, cb);
+            *pcbRead = std::min(MaxReadSize, cb);
         }
 
         ZeroMemory(pv, cb);
@@ -2478,7 +2480,7 @@ public:
     {
         if (pcbWritten)
         {
-            *pcbWritten = min(MaxWriteSize, cb);
+            *pcbWritten = std::min(MaxWriteSize, cb);
         }
 
         return (MaxWriteSize <= cb) ? S_OK : S_FALSE;
@@ -2514,7 +2516,7 @@ public:
             }
         }
 
-        Position = min(Position, PositionMax);
+        Position = std::min(Position, PositionMax);
 
         if (plibNewPosition)
         {

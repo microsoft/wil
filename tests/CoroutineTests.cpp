@@ -4,6 +4,8 @@
 // from including <ole2.h> (which in turn includes <combasepi.h>).
 //
 // We also avoid including "common.h" from the current directory because it pulls in COM too.
+#include "pch.h"
+
 #define WIN32_LEAN_AND_MEAN
 
 #if defined(__cpp_impl_coroutine) || defined(__cpp_coroutines) || defined(_RESUMABLE_FUNCTIONS_SUPPORTED)

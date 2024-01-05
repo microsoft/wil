@@ -1,3 +1,4 @@
+#include "pch.h"
 
 #include <wil/common.h>
 #include <wil/resource.h>

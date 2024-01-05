@@ -1,3 +1,4 @@
+#include "pch.h"
 
 #include <wil/wistd_functional.h>
 
