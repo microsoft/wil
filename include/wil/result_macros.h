@@ -62,9 +62,8 @@
 #define __WI_ASSERT_FAIL_ANNOTATION(msg) __annotation(L"Debug", L"AssertFail", msg)
 #endif
 
-#define WI_ASSERT(condition) \
-    (__WI_ANALYSIS_ASSUME(condition), \
-     ((!(condition)) ? (__WI_ASSERT_FAIL_ANNOTATION(L"" #condition), DbgRaiseAssertionFailure(), FALSE) : TRUE))
+#define WI_ASSERT_FAIL(msg) __WI_ASSERT_FAIL_ANNOTATION(L"" msg), DbgRaiseAssertionFailure()
+#define WI_ASSERT(condition) (__WI_ANALYSIS_ASSUME(condition), ((!(condition)) ? (WI_ASSERT_FAIL(#condition), FALSE) : TRUE))
 #define WI_ASSERT_MSG(condition, msg) \
     (__WI_ANALYSIS_ASSUME(condition), ((!(condition)) ? (__WI_ASSERT_FAIL_ANNOTATION(L##msg), DbgRaiseAssertionFailure(), FALSE) : TRUE))
 #define WI_ASSERT_NOASSUME WI_ASSERT
@@ -73,6 +72,7 @@
 #define WI_VERIFY_MSG WI_ASSERT_MSG
 #define WI_VERIFY_SUCCEEDED(condition) WI_ASSERT(SUCCEEDED(condition))
 #else
+#define WI_ASSERT_FAIL(msg)
 #define WI_ASSERT(condition) (__WI_ANALYSIS_ASSUME(condition), 0)
 #define WI_ASSERT_MSG(condition, msg) (__WI_ANALYSIS_ASSUME(condition), 0)
 #define WI_ASSERT_NOASSUME(condition) ((void)0)
@@ -1259,6 +1259,26 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
             wil::details::g_pfnFailFastInLoaderCallout(); \
         } \
     } while ((void)0, 0)
+
+// Like 'FAIL_FAST_IF', but raises an assertion failure first for easier debugging
+#define FAIL_FAST_ASSERT(condition) \
+    do \
+    { \
+        if (!wil::verify_bool(condition)) \
+        { \
+            WI_ASSERT_FAIL(#condition); \
+            __RFF_FN(FailFast_Unexpected)(__RFF_INFO_ONLY(#condition)) \
+        } \
+    } while (0, 0)
+#define FAIL_FAST_ASSERT_MSG(condition, msg) \
+    do \
+    { \
+        if (!wil::verify_bool(condition)) \
+        { \
+            WI_ASSERT_FAIL(msg); \
+            __RFF_FN(FailFast_UnexpectedMsg)(__RFF_INFO(#condition) __WI_CHECK_MSG_FMT(msg)); \
+        } \
+    } while (0, 0)
 
 //*****************************************************************************
 // Macros to throw exceptions on failure

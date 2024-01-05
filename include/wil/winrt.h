@@ -769,6 +769,8 @@ private:
 
 #pragma region error code based IVector<>/IVectorView<>
 
+__WI_ITR_NAMESPACE_BEGIN
+
 template <typename VectorType>
 class vector_range_nothrow
 {
@@ -807,32 +809,39 @@ public:
         typedef const TSmart& reference;
 
         vector_iterator_nothrow() = delete;
-        vector_iterator_nothrow(vector_range_nothrow<VectorType>* range, unsigned int pos) : m_range(range), m_i(pos)
+        vector_iterator_nothrow(vector_range_nothrow<VectorType>* range, unsigned int pos) :
+            m_range(range),
+            m_i(pos)
+#if WIL_ITERATOR_DEBUG_LEVEL > 0
+            ,
+            m_version(range->m_version)
+#endif
         {
         }
 
         WI_NODISCARD reference operator*() const
         {
-            return m_range->m_currentElement;
+            return *this->operator->();
         }
 
         WI_NODISCARD pointer operator->() const
         {
+#if WIL_ITERATOR_DEBUG_LEVEL > 0
+            FAIL_FAST_ASSERT_MSG(m_version == m_range->m_version, "Dereferencing an out-of-date vector_iterator_nothrow");
+            FAIL_FAST_ASSERT_MSG(SUCCEEDED(*m_range->m_result), "Dereferencing a vector_iterator_nothrow in a failed state");
+            FAIL_FAST_ASSERT_MSG(m_i < m_range->m_size, "Dereferencing an 'end' iterator");
+#endif
             return wistd::addressof(m_range->m_currentElement);
         }
 
         vector_iterator_nothrow& operator++()
         {
-            ++m_i;
-            m_range->get_at_current(m_i);
-            return *this;
+            return *this += 1;
         }
 
         vector_iterator_nothrow& operator--()
         {
-            --m_i;
-            m_range->get_at_current(m_i);
-            return *this;
+            return *this += -1;
         }
 
         vector_iterator_nothrow operator++(int)
@@ -851,16 +860,27 @@ public:
 
         vector_iterator_nothrow& operator+=(int n)
         {
+#if WIL_ITERATOR_DEBUG_LEVEL == 2
+            // This is _technically_ safe because we are not reading the out-of-date cached value, however having two active
+            // copies of iterators is generally a sign of problematic code with a bug waiting to happen
+            FAIL_FAST_ASSERT_MSG(
+                m_version == m_range->m_version, "Incrementing/decrementing an out-of-date copy of a vector_iterator_nothrow");
+#endif
             m_i += n;
+#if WIL_ITERATOR_DEBUG_LEVEL > 0
+            // NOTE: 'm_i' is unsigned, hence the single check for increment/decrement
+            FAIL_FAST_ASSERT_MSG(m_i <= m_range->m_size, "Incrementing/decrementing a vector_iterator_nothrow out of range");
+#endif
             m_range->get_at_current(m_i);
+#if WIL_ITERATOR_DEBUG_LEVEL > 0
+            m_version = m_range->m_version;
+#endif
             return *this;
         }
 
         vector_iterator_nothrow& operator-=(int n)
         {
-            m_i -= n;
-            m_range->get_at_current(m_i);
-            return *this;
+            return *this += -n;
         }
 
         WI_NODISCARD bool operator==(vector_iterator_nothrow const& other) const
@@ -876,10 +896,17 @@ public:
     private:
         vector_range_nothrow<VectorType>* m_range;
         unsigned int m_i = 0;
+
+#if WIL_ITERATOR_DEBUG_LEVEL > 0
+        // For checked iterator support; must match the version in 'm_range'
+        int m_version = 0;
+#endif
     };
 
     vector_iterator_nothrow begin()
     {
+        // NOTE: Calling 'begin()' more than once is explicitly allowed as a way to reset the range, however because state is
+        // shared between all iterators, this invalidates previously created iterators
         get_at_current(0);
         return vector_iterator_nothrow(this, 0);
     }
@@ -899,6 +926,10 @@ public:
         if (SUCCEEDED(*m_result) && (i < m_size))
         {
             *m_result = m_v->GetAt(i, m_currentElement.ReleaseAndGetAddressOf());
+
+#if WIL_ITERATOR_DEBUG_LEVEL > 0
+            ++m_version;
+#endif
         }
     }
 
@@ -911,7 +942,14 @@ private:
     HRESULT* m_result;
     HRESULT m_resultStorage = S_OK; // for the case where the caller does not provide the location to store the result
     TSmart m_currentElement;
+
+#if WIL_ITERATOR_DEBUG_LEVEL > 0
+    // For checked iterator support
+    int m_version = 0;
+#endif
 };
+
+__WI_ITR_NAMESPACE_END
 
 #pragma endregion
 
@@ -966,9 +1004,12 @@ public:
 
         iterable_iterator& operator=(const iterable_iterator& other)
         {
-            m_iterator = other.m_iterator;
-            m_i = other.m_i;
-            err_policy::HResult(other.m_element.CopyTo(m_element.ReleaseAndGetAddressOf()));
+            if (this != wistd::addressof(other))
+            {
+                m_iterator = other.m_iterator;
+                m_i = other.m_i;
+                err_policy::HResult(other.m_element.CopyTo(m_element.ReleaseAndGetAddressOf()));
+            }
             return *this;
         }
 
@@ -1074,6 +1115,9 @@ auto to_vector(VectorType* src)
 #endif
 
 #pragma region error code base IIterable<>
+
+__WI_ITR_NAMESPACE_BEGIN
+
 template <typename T>
 class iterable_range_nothrow
 {
@@ -1089,6 +1133,10 @@ public:
     iterable_range_nothrow(iterable_range_nothrow&& other) WI_NOEXCEPT : m_iterator(wistd::move(other.m_iterator)),
                                                                          m_element(wistd::move(other.m_element)),
                                                                          m_resultStorage(other.m_resultStorage)
+#if WIL_ITERATOR_DEBUG_LEVEL > 0
+        ,
+                                                                         m_index(other.m_index)
+#endif
     {
         if (other.m_result == &other.m_resultStorage)
         {
@@ -1151,16 +1199,26 @@ public:
 
         WI_NODISCARD reference operator*() const WI_NOEXCEPT
         {
-            return m_range->m_element;
+            return *this->operator->();
         }
 
         WI_NODISCARD pointer operator->() const WI_NOEXCEPT
         {
+#if WIL_ITERATOR_DEBUG_LEVEL > 0
+            FAIL_FAST_ASSERT_MSG(SUCCEEDED(*m_range->m_result), "Dereferencing an iterable_iterator_nothrow in a failed state");
+            FAIL_FAST_ASSERT_MSG(m_i >= 0, "Dereferencing an 'end' iterator");
+            FAIL_FAST_ASSERT_MSG(m_i == m_range->m_index, "Dereferencing an out-of-date iterable_iterator_nothrow");
+#endif
             return wistd::addressof(m_range->m_element);
         }
 
         iterable_iterator_nothrow& operator++()
         {
+#if WIL_ITERATOR_DEBUG_LEVEL > 0
+            // Failing this check is always bad because the iterator object we hold always advances forward
+            FAIL_FAST_ASSERT_MSG(m_i >= 0, "Incrementing an end iterator");
+            FAIL_FAST_ASSERT_MSG(m_i == m_range->m_index, "Incrementing an out-of-date copy of an iterable_iterator_nothrow");
+#endif
             boolean hasCurrent;
             *m_range->m_result = m_range->m_iterator->MoveNext(&hasCurrent);
             if (SUCCEEDED(*m_range->m_result) && hasCurrent)
@@ -1179,12 +1237,15 @@ public:
             {
                 m_i = -1;
             }
+#if WIL_ITERATOR_DEBUG_LEVEL > 0
+            m_range->m_index = m_i;
+#endif
             return *this;
         }
 
-        iterable_range_nothrow operator++(int)
+        iterable_iterator_nothrow operator++(int)
         {
-            iterable_range_nothrow old(*this);
+            iterable_iterator_nothrow old(*this);
             ++*this;
             return old;
         }
@@ -1196,6 +1257,11 @@ public:
 
     iterable_iterator_nothrow begin()
     {
+#if WIL_ITERATOR_DEBUG_LEVEL == 2
+        // The IIterator we hold only advances forward; we can't reset it back to the beginning. Calling this method more than
+        // once will very likely lead to unexpected behavior.
+        FAIL_FAST_ASSERT_MSG(m_index == 0, "Calling begin() on an already advanced iterable_range_nothrow");
+#endif
         return iterable_iterator_nothrow(this, this->m_iterator ? 0 : -1);
     }
 
@@ -1212,7 +1278,14 @@ private:
     TSmart m_element;
     HRESULT* m_result;
     HRESULT m_resultStorage = S_OK;
+
+#if WIL_ITERATOR_DEBUG_LEVEL > 0
+    // For checked iterator support
+    int m_index = 0;
+#endif
 };
+
+__WI_ITR_NAMESPACE_END
 
 #pragma endregion
 

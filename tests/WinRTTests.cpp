@@ -700,7 +700,8 @@ TEST_CASE("WinRTTests::TimeTTests", "[winrt][time_t]")
     REQUIRE(time1.UniversalTime == time2.UniversalTime);
 }
 
-ComPtr<IVector<IInspectable*>> MakeSampleInspectableVector(UINT32 count = 5)
+template <template <typename> class ResultT = IVector>
+ComPtr<ResultT<IInspectable*>> MakeSampleInspectableVector(UINT32 count = 5)
 {
     auto result = Make<FakeVector<IInspectable*>>();
     REQUIRE(result);
@@ -718,7 +719,8 @@ ComPtr<IVector<IInspectable*>> MakeSampleInspectableVector(UINT32 count = 5)
     return result;
 }
 
-ComPtr<IVector<HSTRING>> MakeSampleStringVector()
+template <template <typename> class ResultT = IVector>
+ComPtr<ResultT<HSTRING>> MakeSampleStringVector()
 {
     auto result = Make<FakeVector<HSTRING>>();
     REQUIRE(result);
@@ -732,7 +734,8 @@ ComPtr<IVector<HSTRING>> MakeSampleStringVector()
     return result;
 }
 
-ComPtr<IVector<Point>> MakeSamplePointVector(int count = 5)
+template <template <typename> class ResultT = IVector>
+ComPtr<ResultT<Point>> MakeSamplePointVector(int count = 5)
 {
     auto result = Make<FakeVector<Point>>();
     REQUIRE(result);
@@ -842,6 +845,43 @@ TEST_CASE("WinRTTests::VectorRangeTest", "[winrt][vector_range]")
         REQUIRE(index++ == itr->Get().X);
     }
 
+    // The following are examples of code that will trigger an assertion failure/fail-fast due to unsafe iterator use
+#if 0 && (WIL_ITERATOR_DEBUG_LEVEL > 0)
+    auto pointsRange = wil::get_range_nothrow(points.Get());
+    [[maybe_unused]] auto pointsBegin = pointsRange.begin();
+    [[maybe_unused]] auto pointsEnd = pointsRange.end();
+#if 1   // Dereferencing a post-incremented iterator
+    // This will fail because post-increment returns a copy to the iterator in its original state. This returned iterator is out
+    // of date (and therefore dereferencing it will fail the assertion)
+    (void)*pointsBegin++; // Fails
+    FAIL("Unreachable; the above operation should cause process termination");
+#elif 1 // Dereferincing an iterator invalidated by a second call to 'begin'
+    (void)pointsRange.begin();
+    (void)*pointsBegin; // Fails
+    FAIL("Unreachable; the above operation should cause process termination");
+#elif 1 // Dereferencing an end iterator
+    (void)*pointsEnd; // Fails
+    FAIL("Unreachable; the above operation should cause process termination");
+#elif 1 // Incrementing an end iterator
+    ++pointsEnd; // Fails
+    FAIL("Unreachable; the above operation should cause process termination");
+#elif 1 // Decrementing a begin iterator
+    --pointsBegin; // Fails
+    FAIL("Unreachable; the above operation should cause process termination");
+#elif 1 // Dereferencing in a failed state
+    points->Clear();
+    (void)(*++pointsBegin); // Fails
+    FAIL("Unreachable; the above operation should cause process termination");
+#elif WIL_ITERATOR_DEBUG_LEVEL == 2
+#if 1 // Incrementing an out of date iterator
+    auto pointsBeginCopy = pointsBegin;
+    ++pointsBegin;
+    ++pointsBeginCopy; // Fails
+    FAIL("Unreachable; the above operation should cause process termination");
+#endif
+#endif
+#endif
+
 #if (defined WIL_ENABLE_EXCEPTIONS)
     idx = 0;
     for (const auto& i : wil::get_range(inspectables.Get()))
@@ -944,6 +984,7 @@ TEST_CASE("WinRTTests::VectorRangeLeakTest", "[winrt][vector_range]")
     inspectables = nullptr; // clear all refs to verifyNotLeaked
     REQUIRE_SUCCEEDED(hr);
     REQUIRE(GetComObjectRefCount(verifyNotLeaked.Get()) == 1);
+    verifyNotLeaked.Reset();
 
     inspectables = MakeSampleInspectableVector();
     for (const auto& ptr : wil::get_range_failfast(inspectables.Get()))
@@ -955,6 +996,7 @@ TEST_CASE("WinRTTests::VectorRangeLeakTest", "[winrt][vector_range]")
     }
     inspectables = nullptr; // clear all refs to verifyNotLeaked
     REQUIRE(GetComObjectRefCount(verifyNotLeaked.Get()) == 1);
+    verifyNotLeaked.Reset();
 
 #if (defined WIL_ENABLE_EXCEPTIONS)
     inspectables = MakeSampleInspectableVector();
@@ -967,6 +1009,176 @@ TEST_CASE("WinRTTests::VectorRangeLeakTest", "[winrt][vector_range]")
     }
     inspectables = nullptr; // clear all refs to verifyNotLeaked
     REQUIRE(GetComObjectRefCount(verifyNotLeaked.Get()) == 1);
+    verifyNotLeaked.Reset();
+#endif
+}
+
+TEST_CASE("WinRTTests::IterableRangeTest", "[winrt][iterable_range]")
+{
+    auto uninit = wil::RoInitialize_failfast();
+
+    auto inspectables = MakeSampleInspectableVector();
+    unsigned count = 0;
+    REQUIRE_SUCCEEDED(inspectables->get_Size(&count));
+    ComPtr<IIterable<IInspectable*>> inspIterable;
+    REQUIRE_SUCCEEDED(inspectables.As(&inspIterable));
+
+    unsigned idx = 0;
+    HRESULT success = S_OK;
+    for (const auto& i : wil::get_range_nothrow(inspIterable.Get(), &success))
+    {
+        // Duplications are not a typo - they verify the thing is callable twice
+
+        UINT32 value;
+        ComPtr<IReference<UINT32>> intRef;
+        REQUIRE_SUCCEEDED(i.CopyTo(IID_PPV_ARGS(&intRef)));
+        REQUIRE_SUCCEEDED(intRef->get_Value(&value));
+        REQUIRE(idx == value);
+        REQUIRE_SUCCEEDED(i.CopyTo(IID_PPV_ARGS(&intRef)));
+        REQUIRE_SUCCEEDED(intRef->get_Value(&value));
+        REQUIRE(idx == value);
+
+        ++idx;
+
+        HString rtc;
+        REQUIRE_SUCCEEDED(i->GetRuntimeClassName(rtc.GetAddressOf()));
+        REQUIRE_SUCCEEDED(i->GetRuntimeClassName(rtc.GetAddressOf()));
+    }
+    REQUIRE_SUCCEEDED(success);
+    REQUIRE(count == idx);
+
+    auto strings = MakeSampleStringVector<IIterable>();
+    for (const auto& i : wil::get_range_nothrow(strings.Get(), &success))
+    {
+        REQUIRE(i.Get());
+        REQUIRE(i.Get());
+    }
+    REQUIRE_SUCCEEDED(success);
+
+    int index = 0;
+    auto points = MakeSamplePointVector<IIterable>();
+    for (auto value : wil::get_range_nothrow(points.Get(), &success))
+    {
+        REQUIRE(index++ == value.Get().X);
+    }
+    REQUIRE_SUCCEEDED(success);
+
+    // operator-> should not clear out the pointer
+    auto inspRange = wil::get_range_nothrow(inspIterable.Get());
+    for (auto itr = inspRange.begin(); itr != inspRange.end(); ++itr)
+    {
+        REQUIRE(itr->Get());
+    }
+
+    auto strRange = wil::get_range_nothrow(strings.Get());
+    for (auto itr = strRange.begin(); itr != strRange.end(); ++itr)
+    {
+        REQUIRE(itr->Get());
+    }
+
+    index = 0;
+    auto pointRange = wil::get_range_nothrow(points.Get());
+    for (auto itr = pointRange.begin(); itr != pointRange.end(); ++itr)
+    {
+        REQUIRE(index++ == itr->Get().X);
+    }
+
+    // The following are examples of code that will trigger an assertion failure/fail-fast due to unsafe iterator use
+#if 0 && (WIL_ITERATOR_DEBUG_LEVEL > 0)
+    auto pointsRange = wil::get_range_nothrow(points.Get());
+    [[maybe_unused]] auto pointsBegin = pointsRange.begin();
+    [[maybe_unused]] auto pointsEnd = pointsRange.end();
+#if 1   // Dereferencing a post-incremented iterator
+    // This will fail because post-increment returns a copy to the iterator in its original state. This returned iterator is out
+    // of date (and therefore dereferencing it will fail the assertion)
+    (void)*pointsBegin++; // Fails
+    FAIL("Unreachable; the above operation should cause process termination");
+#elif 1 // Dereferencing an end iterator
+    (void)*pointsEnd; // Fails
+    FAIL("Unreachable; the above operation should cause process termination");
+#elif 1 // Incrementing an end iterator
+    ++pointsEnd; // Fails
+    FAIL("Unreachable; the above operation should cause process termination");
+#elif 1 // Dereferencing in a failed state
+    ComPtr<IVector<Point>> pointsVector;
+    REQUIRE_SUCCEEDED(points.As(&pointsVector));
+    pointsVector->Clear();
+    (void)(*++pointsBegin); // Fails
+    FAIL("Unreachable; the above operation should cause process termination");
+#elif 1 // Incrementing an out of date iterator
+    auto pointsBeginCopy = pointsBegin;
+    ++pointsBegin;
+    ++pointsBeginCopy; // Fails
+    FAIL("Unreachable; the above operation should cause process termination");
+#endif
+#if WIL_ITERATOR_DEBUG_LEVEL == 2
+#if 1 // Calling 'begin' again after the first iterator has advanced
+    ++pointsBegin;
+    (void)pointsRange.begin(); // Fails
+    FAIL("Unreachable; the above operation should cause process termination");
+#endif
+#endif
+#endif
+
+#if (defined WIL_ENABLE_EXCEPTIONS)
+    idx = 0;
+    for (const auto& i : wil::get_range(inspIterable.Get()))
+    {
+        // Duplications are not a typo - they verify the thing is callable twice
+
+        UINT32 value;
+        ComPtr<IReference<UINT32>> intRef;
+        REQUIRE_SUCCEEDED(i.CopyTo(IID_PPV_ARGS(&intRef)));
+        REQUIRE_SUCCEEDED(intRef->get_Value(&value));
+        REQUIRE(idx == value);
+        REQUIRE_SUCCEEDED(i.CopyTo(IID_PPV_ARGS(&intRef)));
+        REQUIRE_SUCCEEDED(intRef->get_Value(&value));
+        REQUIRE(idx == value);
+
+        ++idx;
+
+        HString rtc;
+        REQUIRE_SUCCEEDED(i->GetRuntimeClassName(rtc.GetAddressOf()));
+        REQUIRE_SUCCEEDED(i->GetRuntimeClassName(rtc.GetAddressOf()));
+    }
+    REQUIRE(count == idx);
+
+    for (const auto& i : wil::get_range(strings.Get()))
+    {
+        REQUIRE(i.Get());
+        REQUIRE(i.Get());
+    }
+
+    index = 0;
+    for (auto value : wil::get_range(points.Get()))
+    {
+        REQUIRE(index++ == value.Get().X);
+    }
+
+    // Iterator self-assignment is a nop.
+    {
+        auto inspRange2 = wil::get_range(inspIterable.Get());
+        auto itr = inspRange2.begin();
+        REQUIRE(itr != inspRange2.end()); // should have something in it
+        auto& ref = *itr;
+        auto val = ref;
+        itr = itr;
+        REQUIRE(val == ref);
+        itr = std::move(itr);
+        REQUIRE(val == ref);
+    }
+
+    {
+        auto strRange2 = wil::get_range(strings.Get());
+        auto itr = strRange2.begin();
+        REQUIRE(itr != strRange2.end()); // should have something in it
+        auto& ref = *itr;
+        auto val = ref.Get();
+        itr = itr;
+        REQUIRE(val == ref);
+        itr = std::move(itr);
+        REQUIRE(val == ref.Get());
+    }
 #endif
 }
 
