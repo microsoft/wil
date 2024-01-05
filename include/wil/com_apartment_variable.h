@@ -217,11 +217,13 @@ namespace details
         // get current value or throw if no value has been set
         std::any& get_existing()
         {
-            if (auto any = get_if())
+            auto any = get_if();
+            if (!any)
             {
-                return *any;
+                THROW_HR(E_NOT_SET);
             }
-            THROW_HR(E_NOT_SET);
+
+            return *any;
         }
 
         static apartment_variable_storage* get_current_apartment_variable_storage()

@@ -2,6 +2,7 @@
 // Prior to C++/WinRT 2.0 this would cause issues since we're not including wil/cppwinrt.h in this translation unit.
 // However, since we're going to link into the same executable as 'CppWinRTTests.cpp', the 'winrt_to_hresult_handler'
 // global function pointer should be set, so these should all run successfully
+#include "pch.h"
 
 #include <inspectable.h> // Must be included before base.h
 

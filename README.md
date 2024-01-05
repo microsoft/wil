@@ -17,7 +17,7 @@ Some things that WIL includes to whet your appetite:
   that save you the work of manually specifying buffer sizes, calling a function twice
   to get the needed buffer size and then allocate and pass the right-size buffer,
   casting or converting between types, and so on.
-- [`include/wil/registry.h`](include/wil/registry.h) ([documentation])(https://github.com/microsoft/wil/wiki/Registry-Helpers)): Type-safe functions to read from, write to,
+- [`include/wil/registry.h`](include/wil/registry.h) ([documentation](https://github.com/microsoft/wil/wiki/Registry-Helpers)): Type-safe functions to read from, write to,
   and watch the registry. Also, registry watchers that can call a lambda function or a callback function
   you provide whenever a certain tree within the Windows registry changes.
 - [`include/wil/result.h`](include/wil/result.h)
@@ -59,10 +59,19 @@ Note that even though WIL is a header-only library, you still need to install th
 
 To get started contributing to WIL, first make sure that you have:
 
-* A recent version of [Visual Studio](https://visualstudio.microsoft.com/downloads/)
+* The latest version of [Visual Studio](https://visualstudio.microsoft.com/downloads/) or Build Tools for Visual Studio with the latest MSVC C++ build tools and Address Sanitizer components included.
 * The most recent [Windows SDK](https://developer.microsoft.com/windows/downloads/windows-sdk)
 * [Nuget](https://www.nuget.org/downloads) downloaded and added to `PATH`
   * (`winget install nuget`; see [Install NuGet client tools](https://learn.microsoft.com/nuget/install-nuget-client-tools))
+* [vcpkg](https://vcpkg.io) available on your system.
+Follow their [getting started](https://vcpkg.io/en/getting-started) guide to get set up.
+You'll need to provide the path to vcpkg when initializing with CMake by passing `-DCMAKE_TOOLCHAIN_FILE=[path to vcpkg]/scripts/buildsystems/vcpkg.cmake`.
+Note that if you use the `init.cmd` script (mentioned below), this path can be specified or auto-detected if you:
+  1. Manually specify the path to the root of your vcpkg clone via the `-p` or `--vcpkg` argument,
+  1. Have the `VCPKG_ROOT` environment variable set to the root of your vcpkg clone.
+  You can use the `setx` command to have this variable persist across shell sessions,
+  1. Have the path to the root of your vcpkg clone added to your `PATH` (i.e. the path to `vcpkg.exe`), or
+  1. If your vcpkg clone is located at the root of the same drive as your WIL clone (e.g. `C:\vcpkg` if your WIL clone is on the `C:` drive)
 
 If you are doing any non-trivial work, also be sure to have:
 
@@ -74,15 +83,20 @@ If you are doing any non-trivial work, also be sure to have:
 Once everything is installed (you'll need to restart Terminal if you updated `PATH` and don't have [this 2023 fix](https://github.com/microsoft/terminal/pull/14999)), open a VS native command window (e.g. `x64 Native Tools Command Prompt for VS 2022` \[_not_ `Developer Command Prompt for VS2022`]).
 
 * If you are familiar with CMake you can get started building normally.
-* Otherwise, or if you prefer to skip all of the boilerplate, you can use one of the scripts in the [scripts](scripts) directory, like `scripts\init.cmd [optional arguments]`
-  * For example:
-    ```cmd
-    C:\wil> scripts\init.cmd -c clang -g ninja -b debug
-    ```
+* Otherwise, or if you prefer to skip all of the boilerplate, you can use the `init.cmd` script in the [scripts](scripts) directory.
+For example:
+  ```cmd
+  C:\wil> scripts\init.cmd -c clang -g ninja -b debug
+  ```
+  You can execute `init.cmd --help` for a summary of available options.
+  The `scripts/init_all.cmd` script will run the `init.cmd` script for all combinations of Clang/MSVC and Debug/RelWithDebInfo.
+  Note that for either script, projects will only be generated for the architecture of the current VS command window.
 
-To set up IDEs with IntelliSense, see below.
-
-You can execute `init.cmd --help` for a summary of available options.
+To set up Visual Studio with IntelliSense, see below.
+If you used the `init.cmd` script, the corresponding build output directory should contain a `compile_commands.json` file that describes the commands used to compile each input file.
+Some editors such as Visual Studio Code can be configured to use this file to provide better auto-complete, tooltips, etc.
+Visual Studio Code, in particular should auto-detect the presence of this file and prompt you to use it for better IntelliSense.
+If you are not auto-prompted, this can be manually configured in the workspace's C/C++ properties under the property name `compileCommands`.
 
 ### Visual Studio setup
 
@@ -91,7 +105,10 @@ To generate a Visual Studio solution with IntelliSense:
 C:\wil> scripts\init.cmd -c msvc -g msbuild
 ```
 
-That will create a `.sln` file in the corresponding`build/` subdirectory. You can also invoke MSBuild directly to build.
+That will create a `.sln` file in the corresponding `build/` subdirectory (e.g. `build/msvc64debug`).
+You can open this solution in Visual Studio to develop and build, or you can invoke MSBuild directly.
+
+> **Important!** When using MSVC as the generator, the build type (`-b` argument to `init.cmd`) is mostly ignored by Visual Studio (since you can change the build type in the IDE), however this selection may still have an impact on project generation due to logic in the CMake files.
 
 You can also get decent IntelliSense just by opening the repo directory in Visual Studio; VS should auto-detect CMake. You'll have to compile and run tests in a terminal window, though.
 

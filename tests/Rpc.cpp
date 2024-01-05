@@ -1,3 +1,5 @@
+#include "pch.h"
+
 #include "common.h"
 
 #include <wil/rpc_helpers.h>
@@ -91,7 +93,7 @@ TEST_CASE("Rpc::NonThrowing", "[rpc]")
 
 #include <sstream>
 
-class WilExceptionMatcher : public Catch::MatcherBase<wil::ResultException>
+class WilExceptionMatcher : public Catch::Matchers::MatcherBase<wil::ResultException>
 {
     HRESULT m_expected;
 
