@@ -160,6 +160,11 @@ There are a few different ways to format your code:
 
 ### 1. Formatting with `git clang-format`
 
+> **Important!** Git integration with `clang-format` is only available through the LLVM distribution.
+You can install LLVM through their [GibHub releases page](https://github.com/llvm/llvm-project/releases), via `winget install llvm.llvm`, or through the package manager of your choice.
+
+> **Important!** The use of `git clang-format` additionally requires Python to be installed and available on your `PATH`.
+
 The simplest way to format just your changes is to use `clang-format`'s `git` integration.
 You have the option to do this continuously as you make changes, or at the very end when you're ready to submit a PR.
 To format code continuously as you make changes, you run `git clang-format` after staging your changes.
@@ -184,6 +189,11 @@ C:\wil> scripts\format-changes.cmd upstream/master
 ```
 
 ### 2. Formatting with `clang-format`
+
+> **Important!** The path to `clang-format.exe` is not added to `PATH` automatically, even when using a Visual Studio command window.
+The LLVM installer has the option to add itself to the system or user `PATH` if you'd like.
+If you would like the path to the version of `clang-format` that ships with Visual Studio added to your path, you will need to do so manually.
+Otherwise, the `run-clang-format.cmd` script mentioned below (or, equivalently, building the `format` target) will manually invoke the `clang-format.exe` under your Visual Studio install path.
 
 An alternative, and generally easier option, is to run `clang-format` either on all source files or on all source files you've modified.
 Note, however, that depending on how `clang-format` is invoked, the version used may not be the one that ships with Visual Studio.
