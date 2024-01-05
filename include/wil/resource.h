@@ -4086,6 +4086,9 @@ using hlocal_deleter = function_deleter<decltype(&::LocalFree), LocalFree>;
 template <typename T = void>
 using unique_hlocal_ptr = wistd::unique_ptr<details::ensure_trivially_destructible_t<T>, hlocal_deleter>;
 
+template <typename T>
+using unique_hlocal_array_ptr = wil::unique_array_ptr<T, wil::hlocal_deleter>;
+
 /** Provides `std::make_unique()` semantics for resources allocated with `LocalAlloc()` in a context that may not throw upon
 allocation failure. Use `wil::make_unique_hlocal_nothrow()` for resources returned from APIs that must satisfy a memory allocation
 contract that requires the use of `LocalAlloc()` / `LocalFree()`. Use `wil::make_unique_nothrow()` when `LocalAlloc()` is not
@@ -5168,6 +5171,11 @@ using unique_wtsmem_ptr =
     wistd::unique_ptr<details::ensure_trivially_destructible_t<T>, function_deleter<decltype(&WTSFreeMemory), WTSFreeMemory>>;
 #endif // __WIL_WTSAPI
 
+#if (defined(_INC_WTSAPI) && !defined(__WIL_WTSAPI_WTSVIRTUALCHANNELCLOSE)) || defined(WIL_DOXYGEN)
+#define __WIL_WTSAPI_WTSVIRTUALCHANNELCLOSE
+typedef unique_any_handle_null<decltype(&::WTSVirtualChannelClose), ::WTSVirtualChannelClose> unique_channel_handle;
+#endif // __WIL_WTSAPI_WTSVIRTUALCHANNELCLOSE
+
 #if (defined(_WINSCARD_H_) && !defined(__WIL_WINSCARD_H_) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)) || defined(WIL_DOXYGEN)
 /// @cond
 #define __WIL_WINSCARD_H_
@@ -6101,6 +6109,7 @@ typedef unique_any<HPOWERNOTIFY, decltype(&::UnregisterPowerSettingNotification)
 /// @cond
 #define __WIL_PSID_DEF_H_
 /// @endcond
+typedef unique_any<PSID, decltype(&details::FreeProcessHeap), details::FreeProcessHeap> unique_process_heap_psid;
 typedef unique_any<PSID, decltype(&::LocalFree), ::LocalFree> unique_any_psid;
 #if defined(_OBJBASE_H_) || defined(WIL_DOXYGEN)
 typedef unique_any<PSID, decltype(&::CoTaskMemFree), ::CoTaskMemFree> unique_cotaskmem_psid;
@@ -6171,6 +6180,9 @@ using unique_environansistrings_ptr =
 #define __WIL_APPMODEL_H_
 /// @endcond
 typedef unique_any<PACKAGE_INFO_REFERENCE, decltype(&::ClosePackageInfo), ::ClosePackageInfo> unique_package_info_reference;
+#if NTDDI_VERSION >= NTDDI_WIN10_CO
+typedef unique_any<PACKAGEDEPENDENCY_CONTEXT, decltype(&::RemovePackageDependency), ::RemovePackageDependency> unique_package_dependency_context;
+#endif // NTDDI_VERSION >= NTDDI_WIN10_CO
 #endif // __WIL_APPMODEL_H_
 #if (defined(__WIL_APPMODEL_H_) && !defined(__WIL_APPMODEL_H_STL) && defined(WIL_RESOURCE_STL)) || defined(WIL_DOXYGEN)
 /// @cond
@@ -6178,7 +6190,39 @@ typedef unique_any<PACKAGE_INFO_REFERENCE, decltype(&::ClosePackageInfo), ::Clos
 /// @endcond
 typedef shared_any<unique_package_info_reference> shared_package_info_reference;
 typedef weak_any<shared_package_info_reference> weak_package_info_reference;
+#if NTDDI_VERSION >= NTDDI_WIN10_CO
+typedef shared_any<unique_package_dependency_context> shared_package_dependency_context;
+typedef weak_any<shared_package_dependency_context> weak_package_dependency_context;
+#endif // NTDDI_VERSION >= NTDDI_WIN10_CO
 #endif // __WIL_APPMODEL_H_STL
+
+#if (defined(MSIXDYNAMICDEPENDENCY_H) && !defined(__WIL_MSIXDYNAMICDEPENDENCY_H)) || defined(WIL_DOXYGEN)
+/// @cond
+#define __WIL_MSIXDYNAMICDEPENDENCY_H
+/// @endcond
+typedef unique_any<MDD_PACKAGEDEPENDENCY_CONTEXT, decltype(&::MddRemovePackageDependency), ::MddRemovePackageDependency> unique_mdd_package_dependency_context;
+#endif // __WIL_MSIXDYNAMICDEPENDENCY_H
+#if (defined(MSIXDYNAMICDEPENDENCY_H) && !defined(__WIL_MSIXDYNAMICDEPENDENCY_H_STL) && defined(WIL_RESOURCE_STL)) || defined(WIL_DOXYGEN)
+/// @cond
+#define __WIL_MSIXDYNAMICDEPENDENCY_H_STL
+/// @endcond
+typedef shared_any<unique_mdd_package_dependency_context> shared_mdd_package_dependency_context;
+typedef weak_any<shared_mdd_package_dependency_context> weak_mdd_package_dependency_context;
+#endif // __WIL_MSIXDYNAMICDEPENDENCY_H_STL
+
+#if (defined(_APISETLIBLOADER_) && !defined(__WIL_APISETLIBLOADER_)) || defined(WIL_DOXYGEN)
+/// @cond
+#define __WIL_APISETLIBLOADER_
+/// @endcond
+typedef unique_any<DLL_DIRECTORY_COOKIE, decltype(&::RemoveDllDirectory), ::RemoveDllDirectory> unique_dll_directory_cookie;
+#endif // __WIL_APISETLIBLOADER_
+#if (defined(_APISETLIBLOADER_) && !defined(__WIL_APISETLIBLOADER_STL) && defined(WIL_RESOURCE_STL)) || defined(WIL_DOXYGEN)
+/// @cond
+#define __WIL_APISETLIBLOADER_STL
+/// @endcond
+typedef shared_any<unique_dll_directory_cookie> shared_dll_directory_cookie;
+typedef weak_any<shared_dll_directory_cookie> weak_dll_directory_cookie;
+#endif // __WIL_APISETLIBLOADER_STL
 
 #if (defined(WDFAPI) && !defined(__WIL_WDFAPI)) || defined(WIL_DOXYGEN)
 /// @cond
