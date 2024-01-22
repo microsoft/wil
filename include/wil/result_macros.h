@@ -1261,7 +1261,7 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
     } while ((void)0, 0)
 
 // Like 'FAIL_FAST_IF', but raises an assertion failure first for easier debugging
-#define FAIL_FAST_ASSERT(condition) \
+#define WI_FAIL_FAST_ASSERT(condition) \
     do \
     { \
         if (!wil::verify_bool(condition)) \
@@ -1270,7 +1270,7 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
             __RFF_FN(FailFast_Unexpected)(__RFF_INFO_ONLY(#condition)) \
         } \
     } while (0, 0)
-#define FAIL_FAST_ASSERT_MSG(condition, msg) \
+#define WI_FAIL_FAST_ASSERT_MSG(condition, msg) \
     do \
     { \
         if (!wil::verify_bool(condition)) \

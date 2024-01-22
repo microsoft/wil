@@ -827,9 +827,9 @@ public:
         WI_NODISCARD pointer operator->() const
         {
 #if WIL_ITERATOR_DEBUG_LEVEL > 0
-            FAIL_FAST_ASSERT_MSG(m_version == m_range->m_version, "Dereferencing an out-of-date vector_iterator_nothrow");
-            FAIL_FAST_ASSERT_MSG(SUCCEEDED(*m_range->m_result), "Dereferencing a vector_iterator_nothrow in a failed state");
-            FAIL_FAST_ASSERT_MSG(m_i < m_range->m_size, "Dereferencing an 'end' iterator");
+            WI_FAIL_FAST_ASSERT_MSG(m_version == m_range->m_version, "Dereferencing an out-of-date vector_iterator_nothrow");
+            WI_FAIL_FAST_ASSERT_MSG(SUCCEEDED(*m_range->m_result), "Dereferencing a vector_iterator_nothrow in a failed state");
+            WI_FAIL_FAST_ASSERT_MSG(m_i < m_range->m_size, "Dereferencing an 'end' iterator");
 #endif
             return wistd::addressof(m_range->m_currentElement);
         }
@@ -863,13 +863,13 @@ public:
 #if WIL_ITERATOR_DEBUG_LEVEL == 2
             // This is _technically_ safe because we are not reading the out-of-date cached value, however having two active
             // copies of iterators is generally a sign of problematic code with a bug waiting to happen
-            FAIL_FAST_ASSERT_MSG(
+            WI_FAIL_FAST_ASSERT_MSG(
                 m_version == m_range->m_version, "Incrementing/decrementing an out-of-date copy of a vector_iterator_nothrow");
 #endif
             m_i += n;
 #if WIL_ITERATOR_DEBUG_LEVEL > 0
             // NOTE: 'm_i' is unsigned, hence the single check for increment/decrement
-            FAIL_FAST_ASSERT_MSG(m_i <= m_range->m_size, "Incrementing/decrementing a vector_iterator_nothrow out of range");
+            WI_FAIL_FAST_ASSERT_MSG(m_i <= m_range->m_size, "Incrementing/decrementing a vector_iterator_nothrow out of range");
 #endif
             m_range->get_at_current(m_i);
 #if WIL_ITERATOR_DEBUG_LEVEL > 0
@@ -1205,9 +1205,9 @@ public:
         WI_NODISCARD pointer operator->() const WI_NOEXCEPT
         {
 #if WIL_ITERATOR_DEBUG_LEVEL > 0
-            FAIL_FAST_ASSERT_MSG(SUCCEEDED(*m_range->m_result), "Dereferencing an iterable_iterator_nothrow in a failed state");
-            FAIL_FAST_ASSERT_MSG(m_i >= 0, "Dereferencing an 'end' iterator");
-            FAIL_FAST_ASSERT_MSG(m_i == m_range->m_index, "Dereferencing an out-of-date iterable_iterator_nothrow");
+            WI_FAIL_FAST_ASSERT_MSG(SUCCEEDED(*m_range->m_result), "Dereferencing an iterable_iterator_nothrow in a failed state");
+            WI_FAIL_FAST_ASSERT_MSG(m_i >= 0, "Dereferencing an 'end' iterator");
+            WI_FAIL_FAST_ASSERT_MSG(m_i == m_range->m_index, "Dereferencing an out-of-date iterable_iterator_nothrow");
 #endif
             return wistd::addressof(m_range->m_element);
         }
@@ -1216,8 +1216,8 @@ public:
         {
 #if WIL_ITERATOR_DEBUG_LEVEL > 0
             // Failing this check is always bad because the iterator object we hold always advances forward
-            FAIL_FAST_ASSERT_MSG(m_i >= 0, "Incrementing an end iterator");
-            FAIL_FAST_ASSERT_MSG(m_i == m_range->m_index, "Incrementing an out-of-date copy of an iterable_iterator_nothrow");
+            WI_FAIL_FAST_ASSERT_MSG(m_i >= 0, "Incrementing an end iterator");
+            WI_FAIL_FAST_ASSERT_MSG(m_i == m_range->m_index, "Incrementing an out-of-date copy of an iterable_iterator_nothrow");
 #endif
             boolean hasCurrent;
             *m_range->m_result = m_range->m_iterator->MoveNext(&hasCurrent);
@@ -1260,7 +1260,7 @@ public:
 #if WIL_ITERATOR_DEBUG_LEVEL == 2
         // The IIterator we hold only advances forward; we can't reset it back to the beginning. Calling this method more than
         // once will very likely lead to unexpected behavior.
-        FAIL_FAST_ASSERT_MSG(m_index == 0, "Calling begin() on an already advanced iterable_range_nothrow");
+        WI_FAIL_FAST_ASSERT_MSG(m_index == 0, "Calling begin() on an already advanced iterable_range_nothrow");
 #endif
         return iterable_iterator_nothrow(this, this->m_iterator ? 0 : -1);
     }
