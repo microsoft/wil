@@ -3288,6 +3288,16 @@ WIL_WARN_DEPRECATED_1612_PRAGMA("IMPLEMENT_TRACELOGGING_CLASS")
 // Use these macros to define very simple telemetry events for a Provider.  The events can
 // be TELEMETRY events or TRACELOGGING events.
 
+// To comply with the General Data Protection Regulations (GDPR), all collected Asimov events must
+// be tagged with a Privacy Data Type per release and per event instance.  Starting with 19H1,
+// events will not be uploaded unless they are tagged in code or in DataGrid.  Tagging in code is
+// preferred and only the "compliant" macro variants (which supply a privacy data type) are
+// supported outside of the Windows codebase.
+//
+// [Microsoft Internal] See also: https://osgwiki.com/wiki/Privacy_Data_Type_-_Tagging_in_Code
+
+#ifndef DISABLE_NONCOMPLIANT_TELEMETRY
+
 #define DEFINE_TELEMETRY_EVENT(EventId) DEFINE_TRACELOGGING_EVENT(EventId, TraceLoggingKeyword(MICROSOFT_KEYWORD_TELEMETRY))
 
 #define DEFINE_TELEMETRY_EVENT_PARAM1(EventId, VarType1, varName1) \
@@ -3412,6 +3422,8 @@ WIL_WARN_DEPRECATED_1612_PRAGMA("IMPLEMENT_TRACELOGGING_CLASS")
 #define DEFINE_TELEMETRY_EVENT_UINT32(EventId, varName) DEFINE_TELEMETRY_EVENT_PARAM1(EventId, UINT32, varName)
 #define DEFINE_TELEMETRY_EVENT_BOOL(EventId, varName) DEFINE_TELEMETRY_EVENT_PARAM1(EventId, bool, varName)
 #define DEFINE_TELEMETRY_EVENT_STRING(EventId, varName) DEFINE_TELEMETRY_EVENT_PARAM1(EventId, PCWSTR, varName)
+
+#endif
 
 #define DEFINE_COMPLIANT_TELEMETRY_EVENT(EventId, PrivacyTag) \
     DEFINE_TRACELOGGING_EVENT(EventId, TraceLoggingKeyword(MICROSOFT_KEYWORD_TELEMETRY), TelemetryPrivacyDataTag(PrivacyTag))
@@ -3810,6 +3822,8 @@ WIL_WARN_DEPRECATED_1612_PRAGMA("IMPLEMENT_TRACELOGGING_CLASS")
 // [Optional] Simple Events
 // Use these macros to define very simple measure events for a Provider.
 
+#ifndef DISABLE_NONCOMPLIANT_TELEMETRY
+
 #define DEFINE_MEASURES_EVENT(EventId) DEFINE_TRACELOGGING_EVENT(EventId, TraceLoggingKeyword(MICROSOFT_KEYWORD_MEASURES))
 #define DEFINE_MEASURES_EVENT_PARAM1(EventId, VarType1, varName1) \
     DEFINE_TRACELOGGING_EVENT_PARAM1(EventId, VarType1, varName1, TraceLoggingKeyword(MICROSOFT_KEYWORD_MEASURES))
@@ -3933,6 +3947,8 @@ WIL_WARN_DEPRECATED_1612_PRAGMA("IMPLEMENT_TRACELOGGING_CLASS")
 #define DEFINE_MEASURES_EVENT_UINT32(EventId, varName) DEFINE_MEASURES_EVENT_PARAM1(EventId, UINT32, varName)
 #define DEFINE_MEASURES_EVENT_BOOL(EventId, varName) DEFINE_MEASURES_EVENT_PARAM1(EventId, bool, varName)
 #define DEFINE_MEASURES_EVENT_STRING(EventId, varName) DEFINE_MEASURES_EVENT_PARAM1(EventId, PCWSTR, varName)
+
+#endif
 
 #define DEFINE_COMPLIANT_MEASURES_EVENT(EventId, PrivacyTag) \
     DEFINE_TRACELOGGING_EVENT(EventId, TraceLoggingKeyword(MICROSOFT_KEYWORD_MEASURES), TelemetryPrivacyDataTag(PrivacyTag))
@@ -4460,6 +4476,8 @@ WIL_WARN_DEPRECATED_1612_PRAGMA("IMPLEMENT_TRACELOGGING_CLASS")
 // [Optional] Simple Events
 // Use these macros to define very simple critical data events for a Provider.
 
+#ifndef DISABLE_NONCOMPLIANT_TELEMETRY
+
 #define DEFINE_CRITICAL_DATA_EVENT(EventId) \
     DEFINE_TRACELOGGING_EVENT(EventId, TraceLoggingKeyword(MICROSOFT_KEYWORD_CRITICAL_DATA))
 #define DEFINE_CRITICAL_DATA_EVENT_PARAM1(EventId, VarType1, varName1) \
@@ -4586,6 +4604,8 @@ WIL_WARN_DEPRECATED_1612_PRAGMA("IMPLEMENT_TRACELOGGING_CLASS")
 #define DEFINE_CRITICAL_DATA_EVENT_UINT32(EventId, varName) DEFINE_CRITICAL_DATA_EVENT_PARAM1(EventId, UINT32, varName)
 #define DEFINE_CRITICAL_DATA_EVENT_BOOL(EventId, varName) DEFINE_CRITICAL_DATA_EVENT_PARAM1(EventId, bool, varName)
 #define DEFINE_CRITICAL_DATA_EVENT_STRING(EventId, varName) DEFINE_CRITICAL_DATA_EVENT_PARAM1(EventId, PCWSTR, varName)
+
+#endif
 
 #define DEFINE_COMPLIANT_CRITICAL_DATA_EVENT(EventId, PrivacyTag) \
     DEFINE_TRACELOGGING_EVENT(EventId, TraceLoggingKeyword(MICROSOFT_KEYWORD_CRITICAL_DATA), TelemetryPrivacyDataTag(PrivacyTag))
@@ -5035,12 +5055,14 @@ WIL_WARN_DEPRECATED_1612_PRAGMA("IMPLEMENT_TRACELOGGING_CLASS")
     __IMPLEMENT_ACTIVITY_CLASS(ActivityClassName)
 
 // [optional] param is: Level, PrivacyTag
+#ifndef DISABLE_NONCOMPLIANT_TELEMETRY
 #define BEGIN_TRACELOGGING_ACTIVITY_CLASS(ActivityClassName) \
     __BEGIN_TRACELOGGING_ACTIVITY_CLASS(ActivityClassName) \
     __IMPLEMENT_ACTIVITY_CLASS(ActivityClassName)
 #define BEGIN_TRACELOGGING_ACTIVITY_CLASS_WITH_LEVEL(ActivityClassName, Level) \
     __BEGIN_TRACELOGGING_ACTIVITY_CLASS(ActivityClassName, wil::ActivityOptions::None, 0, Level) \
     __IMPLEMENT_ACTIVITY_CLASS(ActivityClassName)
+#endif
 #define BEGIN_COMPLIANT_TRACELOGGING_ACTIVITY_CLASS(ActivityClassName, PrivacyTag) \
     __BEGIN_TRACELOGGING_ACTIVITY_CLASS(ActivityClassName, wil::ActivityOptions::None, 0, WINEVENT_LEVEL_VERBOSE, PrivacyTag) \
     __IMPLEMENT_ACTIVITY_CLASS(ActivityClassName)
@@ -5049,12 +5071,14 @@ WIL_WARN_DEPRECATED_1612_PRAGMA("IMPLEMENT_TRACELOGGING_CLASS")
     __IMPLEMENT_ACTIVITY_CLASS(ActivityClassName)
 
 // [optional] param is: Level
+#ifndef DISABLE_NONCOMPLIANT_TELEMETRY
 #define BEGIN_CALLCONTEXT_ACTIVITY_CLASS(ActivityClassName) \
     __BEGIN_TRACELOGGING_ACTIVITY_CLASS(ActivityClassName, wil::ActivityOptions::TelemetryOnFailure) \
     __IMPLEMENT_ACTIVITY_CLASS(ActivityClassName)
 #define BEGIN_CALLCONTEXT_ACTIVITY_CLASS_WITH_LEVEL(ActivityClassName, Level) \
     __BEGIN_TRACELOGGING_ACTIVITY_CLASS(ActivityClassName, wil::ActivityOptions::TelemetryOnFailure, 0, Level) \
     __IMPLEMENT_ACTIVITY_CLASS(ActivityClassName)
+#endif
 #define BEGIN_COMPLIANT_CALLCONTEXT_ACTIVITY_CLASS(ActivityClassName, PrivacyTag) \
     __BEGIN_TRACELOGGING_ACTIVITY_CLASS(ActivityClassName, wil::ActivityOptions::TelemetryOnFailure, 0, WINEVENT_LEVEL_VERBOSE, PrivacyTag) \
     __IMPLEMENT_ACTIVITY_CLASS(ActivityClassName)
@@ -5063,12 +5087,14 @@ WIL_WARN_DEPRECATED_1612_PRAGMA("IMPLEMENT_TRACELOGGING_CLASS")
     __IMPLEMENT_ACTIVITY_CLASS(ActivityClassName)
 
 // [optional] param is: Level
+#ifndef DISABLE_NONCOMPLIANT_TELEMETRY
 #define BEGIN_TELEMETRY_ACTIVITY_CLASS(ActivityClassName) \
     __BEGIN_TRACELOGGING_ACTIVITY_CLASS(ActivityClassName, wil::ActivityOptions::TelemetryOnFailure, MICROSOFT_KEYWORD_TELEMETRY) \
     __IMPLEMENT_ACTIVITY_CLASS(ActivityClassName)
 #define BEGIN_TELEMETRY_ACTIVITY_CLASS_WITH_LEVEL(ActivityClassName, Level) \
     __BEGIN_TRACELOGGING_ACTIVITY_CLASS(ActivityClassName, wil::ActivityOptions::TelemetryOnFailure, MICROSOFT_KEYWORD_TELEMETRY, Level) \
     __IMPLEMENT_ACTIVITY_CLASS(ActivityClassName)
+#endif
 #define BEGIN_COMPLIANT_TELEMETRY_ACTIVITY_CLASS(ActivityClassName, PrivacyTag) \
     __BEGIN_TRACELOGGING_ACTIVITY_CLASS( \
         ActivityClassName, wil::ActivityOptions::TelemetryOnFailure, MICROSOFT_KEYWORD_TELEMETRY, WINEVENT_LEVEL_VERBOSE, PrivacyTag) \
@@ -5079,12 +5105,14 @@ WIL_WARN_DEPRECATED_1612_PRAGMA("IMPLEMENT_TRACELOGGING_CLASS")
     __IMPLEMENT_ACTIVITY_CLASS(ActivityClassName)
 
 // [optional] param is: Level
+#ifndef DISABLE_NONCOMPLIANT_TELEMETRY
 #define BEGIN_MEASURES_ACTIVITY_CLASS(ActivityClassName) \
     __BEGIN_TRACELOGGING_ACTIVITY_CLASS(ActivityClassName, wil::ActivityOptions::TelemetryOnFailure, MICROSOFT_KEYWORD_MEASURES) \
     __IMPLEMENT_ACTIVITY_CLASS(ActivityClassName)
 #define BEGIN_MEASURES_ACTIVITY_CLASS_WITH_LEVEL(ActivityClassName, Level) \
     __BEGIN_TRACELOGGING_ACTIVITY_CLASS(ActivityClassName, wil::ActivityOptions::TelemetryOnFailure, MICROSOFT_KEYWORD_MEASURES, Level) \
     __IMPLEMENT_ACTIVITY_CLASS(ActivityClassName)
+#endif
 #define BEGIN_COMPLIANT_MEASURES_ACTIVITY_CLASS(ActivityClassName, PrivacyTag) \
     __BEGIN_TRACELOGGING_ACTIVITY_CLASS( \
         ActivityClassName, wil::ActivityOptions::TelemetryOnFailure, MICROSOFT_KEYWORD_MEASURES, WINEVENT_LEVEL_VERBOSE, PrivacyTag) \
@@ -5095,12 +5123,14 @@ WIL_WARN_DEPRECATED_1612_PRAGMA("IMPLEMENT_TRACELOGGING_CLASS")
     __IMPLEMENT_ACTIVITY_CLASS(ActivityClassName)
 
 // [optional] param is: Level
+#ifndef DISABLE_NONCOMPLIANT_TELEMETRY
 #define BEGIN_CRITICAL_DATA_ACTIVITY_CLASS(ActivityClassName) \
     __BEGIN_TRACELOGGING_ACTIVITY_CLASS(ActivityClassName, wil::ActivityOptions::TelemetryOnFailure, MICROSOFT_KEYWORD_CRITICAL_DATA) \
     __IMPLEMENT_ACTIVITY_CLASS(ActivityClassName)
 #define BEGIN_CRITICAL_DATA_ACTIVITY_CLASS_WITH_LEVEL(ActivityClassName, Level) \
     __BEGIN_TRACELOGGING_ACTIVITY_CLASS(ActivityClassName, wil::ActivityOptions::TelemetryOnFailure, MICROSOFT_KEYWORD_CRITICAL_DATA, Level) \
     __IMPLEMENT_ACTIVITY_CLASS(ActivityClassName)
+#endif
 #define BEGIN_COMPLIANT_CRITICAL_DATA_ACTIVITY_CLASS(ActivityClassName, PrivacyTag) \
     __BEGIN_TRACELOGGING_ACTIVITY_CLASS( \
         ActivityClassName, wil::ActivityOptions::TelemetryOnFailure, MICROSOFT_KEYWORD_CRITICAL_DATA, WINEVENT_LEVEL_VERBOSE, PrivacyTag) \
@@ -5118,6 +5148,7 @@ WIL_WARN_DEPRECATED_1612_PRAGMA("IMPLEMENT_TRACELOGGING_CLASS")
 // the name (for tracelogging you can give other options)
 
 // [optional] params are:  Options, Keyword, Level
+#ifndef DISABLE_NONCOMPLIANT_TELEMETRY
 #define DEFINE_CUSTOM_ACTIVITY(ActivityClassName, ...) \
     BEGIN_CUSTOM_ACTIVITY_CLASS(ActivityClassName, __VA_ARGS__) \
     END_ACTIVITY_CLASS()
@@ -5142,6 +5173,8 @@ WIL_WARN_DEPRECATED_1612_PRAGMA("IMPLEMENT_TRACELOGGING_CLASS")
 #define DEFINE_TELEMETRY_ACTIVITY_WITH_LEVEL(ActivityClassName, Level) \
     BEGIN_TELEMETRY_ACTIVITY_CLASS_WITH_LEVEL(ActivityClassName, Level) \
     END_ACTIVITY_CLASS()
+#endif
+
 #define DEFINE_COMPLIANT_TELEMETRY_ACTIVITY(ActivityClassName, PrivacyTag) \
     BEGIN_COMPLIANT_TELEMETRY_ACTIVITY_CLASS(ActivityClassName, PrivacyTag) \
     END_ACTIVITY_CLASS()
@@ -5149,12 +5182,15 @@ WIL_WARN_DEPRECATED_1612_PRAGMA("IMPLEMENT_TRACELOGGING_CLASS")
     BEGIN_COMPLIANT_TELEMETRY_ACTIVITY_CLASS_WITH_LEVEL(ActivityClassName, PrivacyTag, Level) \
     END_ACTIVITY_CLASS()
 
+#ifndef DISABLE_NONCOMPLIANT_TELEMETRY
 #define DEFINE_MEASURES_ACTIVITY(ActivityClassName) \
     BEGIN_MEASURES_ACTIVITY_CLASS(ActivityClassName) \
     END_ACTIVITY_CLASS()
 #define DEFINE_MEASURES_ACTIVITY_WITH_LEVEL(ActivityClassName, Level) \
     BEGIN_MEASURES_ACTIVITY_CLASS_WITH_LEVEL(ActivityClassName, Level) \
     END_ACTIVITY_CLASS()
+#endif
+
 #define DEFINE_COMPLIANT_MEASURES_ACTIVITY(ActivityClassName, PrivacyTag) \
     BEGIN_COMPLIANT_MEASURES_ACTIVITY_CLASS(ActivityClassName, PrivacyTag) \
     END_ACTIVITY_CLASS()
@@ -5162,12 +5198,15 @@ WIL_WARN_DEPRECATED_1612_PRAGMA("IMPLEMENT_TRACELOGGING_CLASS")
     BEGIN_COMPLIANT_MEASURES_ACTIVITY_CLASS_WITH_LEVEL(ActivityClassName, PrivacyTag, Level) \
     END_ACTIVITY_CLASS()
 
+#ifndef DISABLE_NONCOMPLIANT_TELEMETRY
 #define DEFINE_CRITICAL_DATA_ACTIVITY(ActivityClassName) \
     BEGIN_CRITICAL_DATA_ACTIVITY_CLASS(ActivityClassName) \
     END_ACTIVITY_CLASS()
 #define DEFINE_CRITICAL_DATA_ACTIVITY_WITH_LEVEL(ActivityClassName, Level) \
     BEGIN_CRITICAL_DATA_ACTIVITY_CLASS_WITH_LEVEL(ActivityClassName, Level) \
     END_ACTIVITY_CLASS()
+#endif
+
 #define DEFINE_COMPLIANT_CRITICAL_DATA_ACTIVITY(ActivityClassName, PrivacyTag) \
     BEGIN_COMPLIANT_CRITICAL_DATA_ACTIVITY_CLASS(ActivityClassName, PrivacyTag) \
     END_ACTIVITY_CLASS()
@@ -5203,6 +5242,8 @@ WIL_WARN_DEPRECATED_1612_PRAGMA("IMPLEMENT_TRACELOGGING_CLASS")
 
 // [Optional] Simple Tagged Events for Activities
 // Use these methods to define very simple tagged events for a Custom Activity.
+
+#ifndef DISABLE_NONCOMPLIANT_TELEMETRY
 
 #define DEFINE_TAGGED_TELEMETRY_EVENT(EventId) \
     DEFINE_TAGGED_TRACELOGGING_EVENT(EventId, TraceLoggingKeyword(MICROSOFT_KEYWORD_TELEMETRY))
@@ -5331,6 +5372,8 @@ WIL_WARN_DEPRECATED_1612_PRAGMA("IMPLEMENT_TRACELOGGING_CLASS")
 #define DEFINE_TAGGED_TELEMETRY_EVENT_UINT32(EventId, varName) DEFINE_TAGGED_TELEMETRY_EVENT_PARAM1(EventId, UINT32, varName)
 #define DEFINE_TAGGED_TELEMETRY_EVENT_BOOL(EventId, varName) DEFINE_TAGGED_TELEMETRY_EVENT_PARAM1(EventId, bool, varName)
 #define DEFINE_TAGGED_TELEMETRY_EVENT_STRING(EventId, varName) DEFINE_TAGGED_TELEMETRY_EVENT_PARAM1(EventId, PCWSTR, varName)
+
+#endif
 
 #define DEFINE_TAGGED_COMPLIANT_TELEMETRY_EVENT(EventId, PrivacyTag) \
     DEFINE_TAGGED_TRACELOGGING_EVENT(EventId, TraceLoggingKeyword(MICROSOFT_KEYWORD_TELEMETRY), TelemetryPrivacyDataTag(PrivacyTag))
@@ -5461,6 +5504,8 @@ WIL_WARN_DEPRECATED_1612_PRAGMA("IMPLEMENT_TRACELOGGING_CLASS")
 // [Optional] Simple Tagged Events for Activities
 // Use these methods to define very simple tagged measures events for a Custom Activity.
 
+#ifndef DISABLE_NONCOMPLIANT_TELEMETRY
+
 #define DEFINE_TAGGED_MEASURES_EVENT(EventId) \
     DEFINE_TAGGED_TRACELOGGING_EVENT(EventId, TraceLoggingKeyword(MICROSOFT_KEYWORD_MEASURES))
 #define DEFINE_TAGGED_MEASURES_EVENT_PARAM1(EventId, VarType1, varName1) \
@@ -5587,6 +5632,8 @@ WIL_WARN_DEPRECATED_1612_PRAGMA("IMPLEMENT_TRACELOGGING_CLASS")
 #define DEFINE_TAGGED_MEASURES_EVENT_UINT32(EventId, varName) DEFINE_TAGGED_MEASURES_EVENT_PARAM1(EventId, UINT32, varName)
 #define DEFINE_TAGGED_MEASURES_EVENT_BOOL(EventId, varName) DEFINE_TAGGED_MEASURES_EVENT_PARAM1(EventId, bool, varName)
 #define DEFINE_TAGGED_MEASURES_EVENT_STRING(EventId, varName) DEFINE_TAGGED_MEASURES_EVENT_PARAM1(EventId, PCWSTR, varName)
+
+#endif
 
 #define DEFINE_TAGGED_COMPLIANT_MEASURES_EVENT(EventId, PrivacyTag) \
     DEFINE_TAGGED_TRACELOGGING_EVENT(EventId, TraceLoggingKeyword(MICROSOFT_KEYWORD_MEASURES), TelemetryPrivacyDataTag(PrivacyTag))
@@ -5716,6 +5763,8 @@ WIL_WARN_DEPRECATED_1612_PRAGMA("IMPLEMENT_TRACELOGGING_CLASS")
 
 // [Optional] Simple Tagged Events for Activities
 // Use these methods to define very simple tagged CRITICAL_DATA events for a Custom Activity.
+
+#ifndef DISABLE_NONCOMPLIANT_TELEMETRY
 
 #define DEFINE_TAGGED_CRITICAL_DATA_EVENT(EventId) \
     DEFINE_TAGGED_TRACELOGGING_EVENT(EventId, TraceLoggingKeyword(MICROSOFT_KEYWORD_CRITICAL_DATA))
@@ -5887,6 +5936,8 @@ WIL_WARN_DEPRECATED_1612_PRAGMA("IMPLEMENT_TRACELOGGING_CLASS")
 #define DEFINE_TAGGED_CRITICAL_DATA_EVENT_BOOL(EventId, varName) DEFINE_TAGGED_CRITICAL_DATA_EVENT_PARAM1(EventId, bool, varName)
 #define DEFINE_TAGGED_CRITICAL_DATA_EVENT_STRING(EventId, varName) \
     DEFINE_TAGGED_CRITICAL_DATA_EVENT_PARAM1(EventId, PCWSTR, varName)
+
+#endif
 
 #define DEFINE_TAGGED_COMPLIANT_CRITICAL_DATA_EVENT(EventId, PrivacyTag) \
     DEFINE_TAGGED_TRACELOGGING_EVENT(EventId, TraceLoggingKeyword(MICROSOFT_KEYWORD_CRITICAL_DATA), TelemetryPrivacyDataTag(PrivacyTag))
