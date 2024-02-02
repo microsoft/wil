@@ -1290,7 +1290,7 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
         if (!wil::verify_bool(condition)) \
         { \
             WI_ASSERT_FAIL(#condition); \
-            __RFF_FN(FailFast_Unexpected)(__RFF_INFO_ONLY(#condition)) \
+            __RFF_FN(FailFast_Unexpected)(__RFF_INFO_ONLY(#condition)); \
         } \
     } while (0, 0)
 #define WI_FAIL_FAST_ASSERT_MSG(condition, msg) \
