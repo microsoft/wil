@@ -75,6 +75,7 @@ set(COMMON_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/WistdTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/wiTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../natvis/wil.natvis
+    ${CMAKE_CURRENT_SOURCE_DIR}/Toolhelp32Tests.cpp
     )
 
 if (MSVC)

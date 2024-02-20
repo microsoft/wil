@@ -227,11 +227,14 @@ bool DoesCodeFailFast(TLambda&& callOp)
 {
     bool failFast = false;
     witest::detoured_thread_function<&wil::details::ReportFailure_Base<wil::FailureType::FailFast, false>> detour;
-    REQUIRE_SUCCEEDED(detour.reset(
-        [&](__R_FN_PARAMS_FULL, const wil::details::ResultStatus& resultPair, PCWSTR message, wil::details::ReportFailureOptions options) {
-            failFast = true;
-            wil::details::ReportFailure_Base<wil::FailureType::FailFast, true>(__R_FN_CALL_FULL, resultPair, message, options);
-        }));
+    REQUIRE_SUCCEEDED(detour.reset([&](__R_FN_PARAMS_FULL,
+                                       const wil::details::ResultStatus& resultPair,
+                                       PCWSTR message,
+                                       wil::details::ReportFailureOptions options,
+                                       wil::FailureFlags flags) {
+        failFast = true;
+        wil::details::ReportFailure_Base<wil::FailureType::FailFast, true>(__R_FN_CALL_FULL, resultPair, message, options, flags);
+    }));
 
     callOp();
 
