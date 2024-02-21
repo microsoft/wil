@@ -810,7 +810,7 @@ _Post_satisfies_(return == error) inline T verify_win32(T error)
 // Implementation details for macros and helper functions... do not use directly.
 namespace details
 {
-// Use size-specific casts to avoid sign extending numbers -- avoid warning C4310: cast truncates constant value
+    // Use size-specific casts to avoid sign extending numbers -- avoid warning C4310: cast truncates constant value
 #define __WI_MAKE_UNSIGNED(val) \
     (__pragma(warning(push)) __pragma(warning(disable : 4310 4309))( \
         sizeof(val) == 1   ? static_cast<unsigned char>(val) \

@@ -54,7 +54,7 @@ TEST_CASE("CppWinRTComServerTests::DefaultNotifiableModuleLock", "[cppwinrt_com_
 TEST_CASE("CppWinRTComServerTests::RegisterComServer", "[cppwinrt_com_server]")
 {
     winrt::init_apartment();
-    
+
     {
         auto revoker = wil::register_com_server<MyServer>();
         auto instance = create_my_server_instance();
