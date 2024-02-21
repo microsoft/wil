@@ -33,7 +33,7 @@ struct Factory : winrt::implements<Factory<T>, IClassFactory, winrt::no_module_l
             return CLASS_E_NOAGGREGATION;
         }
 
-        return T().as(iid, result);
+        return winrt::make_self<T>().as(iid, result);
     }
 
     HRESULT __stdcall LockServer(BOOL) noexcept final
