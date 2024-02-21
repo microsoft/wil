@@ -66,7 +66,7 @@ struct notifiable_module_lock
         return m_count;
     }
 
-    static void set_notifier(Func& func)
+    static void set_notifier(Func func)
     {
         notifier = func;
     }
