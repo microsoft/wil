@@ -92,6 +92,7 @@ link_libraries(${DETOURS_LIBRARY} Catch2::Catch2WithMain)
 
 add_subdirectory(app)
 add_subdirectory(cpplatest)
+add_subdirectory(cppwinrt-com-server)
 add_subdirectory(noexcept)
 add_subdirectory(normal)
 add_subdirectory(win7)

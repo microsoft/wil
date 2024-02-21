@@ -8,6 +8,6 @@ target_precompile_headers(witest.cppwinrt-com-server PRIVATE ${CMAKE_CURRENT_SOU
 target_compile_features(witest.cppwinrt-com-server PRIVATE cxx_std_20)
 
 target_sources(witest.cppwinrt-com-server PRIVATE
-    ${COMMON_SOURCES}
+    ${CMAKE_CURRENT_SOURCE_DIR}/../main.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../CppWinRTComServerTests.cpp
     )
