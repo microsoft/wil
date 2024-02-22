@@ -22,7 +22,7 @@
 namespace wil::details
 {
 template <typename T>
-struct CppWinRTClassFactory : winrt::implements<Factory<T>, IClassFactory, winrt::no_module_lock>
+struct CppWinRTClassFactory : winrt::implements<CppWinRTClassFactory<T>, IClassFactory, winrt::no_module_lock>
 {
     HRESULT __stdcall CreateInstance(IUnknown* outer, GUID const& iid, void** result) noexcept final
     {
@@ -46,8 +46,8 @@ template <typename T = void, typename... Rest>
 void register_com_server(std::vector<DWORD>& registrations)
 {
     auto& back = registrations.emplace_back();
-    winrt::check_hresult(
-        CoRegisterClassObject(winrt::guid_of<T>(), winrt::make<Factory<T>>().get(), CLSCTX_LOCAL_SERVER, REGCLS_MULTIPLEUSE, &back));
+    winrt::check_hresult(CoRegisterClassObject(
+        winrt::guid_of<T>(), winrt::make<CppWinRTClassFactory<T>>().get(), CLSCTX_LOCAL_SERVER, REGCLS_MULTIPLEUSE, &back));
     register_com_server<Rest...>(registrations);
 }
 
