@@ -2,7 +2,6 @@
 
 #include "common.h"
 #undef GetCurrentTime
-#if _MSVC_LANG >= 201703L
 #include <wil/cppwinrt_notifiable_module_lock.h>
 #include <winrt/Windows.Foundation.h>
 #include <wil/cppwinrt_register_com_server.h>
@@ -98,5 +97,3 @@ TEST_CASE("CppWinRTComServerTests::NotifierAndRegistration", "[cppwinrt_com_serv
 
     REQUIRE(!winrt::get_module_lock());
 }
-
-#endif

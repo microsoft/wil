@@ -2,7 +2,6 @@
 
 #include "common.h"
 #undef GetCurrentTime
-#if _MSVC_LANG >= 201703L
 #define WIL_CPPWINRT_COM_SERVER_CUSTOM_MODULE_LOCK
 #include <wil/cppwinrt_notifiable_module_lock.h>
 namespace winrt
@@ -61,5 +60,3 @@ TEST_CASE("CppWinRTComServerTests::DefaultNotifiableModuleLock", "[cppwinrt_com_
 
     REQUIRE(!winrt::get_module_lock());
 }
-
-#endif
