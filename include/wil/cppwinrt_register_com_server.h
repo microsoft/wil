@@ -72,6 +72,7 @@ struct com_server_revoker
         {
             winrt::check_hresult(CoRevokeClassObject(registration));
         }
+        registrations.clear();
     }
 };
 
