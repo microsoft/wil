@@ -45,9 +45,10 @@ struct CppWinRTClassFactory : winrt::implements<CppWinRTClassFactory<T>, IClassF
 template <typename T = void, typename... Rest>
 void register_com_server(std::vector<DWORD>& registrations)
 {
-    auto& back = registrations.emplace_back();
+    DWORD registration{};
     winrt::check_hresult(CoRegisterClassObject(
-        winrt::guid_of<T>(), winrt::make<CppWinRTClassFactory<T>>().get(), CLSCTX_LOCAL_SERVER, REGCLS_MULTIPLEUSE, &back));
+        winrt::guid_of<T>(), winrt::make<CppWinRTClassFactory<T>>().get(), CLSCTX_LOCAL_SERVER, REGCLS_MULTIPLEUSE, &registration));
+    registrations.push_back(registration);
     register_com_server<Rest...>(registrations);
 }
 
