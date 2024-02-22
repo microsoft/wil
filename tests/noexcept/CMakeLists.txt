@@ -1,6 +1,8 @@
 
 add_executable(witest.noexcept)
 
+target_precompile_headers(witest.noexcept PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../pch.h)
+
 # Turn off exceptions for this test
 if (MSVC)
     replace_cxx_flag("/EHsc" "/EHs-c-")

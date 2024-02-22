@@ -105,9 +105,8 @@ struct WinRTStorage<T*>
 
 // Very minimal IAsyncOperation implementation that gives calling tests control over when it completes
 template <typename Logical, typename Abi = Logical>
-struct FakeAsyncOperation : Microsoft::WRL::RuntimeClass<
-    ABI::Windows::Foundation::IAsyncInfo,
-    ABI::Windows::Foundation::IAsyncOperation<Logical>>
+struct FakeAsyncOperation
+    : Microsoft::WRL::RuntimeClass<ABI::Windows::Foundation::IAsyncInfo, ABI::Windows::Foundation::IAsyncOperation<Logical>>
 {
     using Handler = ABI::Windows::Foundation::IAsyncOperationCompletedHandler<Logical>;
 
@@ -199,7 +198,6 @@ struct FakeAsyncOperation : Microsoft::WRL::RuntimeClass<
     }
 
 private:
-
     wil::srwlock m_lock;
     Microsoft::WRL::ComPtr<Handler> m_handler;
     ABI::Windows::Foundation::AsyncStatus m_status = ABI::Windows::Foundation::AsyncStatus::Started;
@@ -207,11 +205,20 @@ private:
     WinRTStorage<Abi> m_storage;
 };
 
+template <typename VectorT>
+struct FakeIterator;
+
 template <typename Logical, typename Abi = Logical, size_t MaxSize = 250>
 struct FakeVector : Microsoft::WRL::RuntimeClass<
-    ABI::Windows::Foundation::Collections::IVector<Logical>,
-    ABI::Windows::Foundation::Collections::IVectorView<Logical>>
+                        ABI::Windows::Foundation::Collections::IVector<Logical>,
+                        ABI::Windows::Foundation::Collections::IVectorView<Logical>,
+                        ABI::Windows::Foundation::Collections::IIterable<Logical>>
 {
+    friend struct FakeIterator<FakeVector>;
+
+    using LogicalT = Logical;
+    using AbiT = Abi;
+
     // IVector
     IFACEMETHODIMP GetAt(unsigned index, Abi* item) override
     {
@@ -393,8 +400,60 @@ struct FakeVector : Microsoft::WRL::RuntimeClass<
         return hr;
     }
 
-private:
+    // IIterable
+    IFACEMETHODIMP First(ABI::Windows::Foundation::Collections::IIterator<Logical>** result) override
+    {
+        *result = Microsoft::WRL::Make<FakeIterator<FakeVector>>(this).Detach();
+        return *result ? S_OK : E_OUTOFMEMORY;
+    }
 
+private:
     size_t m_size = 0;
     WinRTStorage<Abi> m_data[MaxSize];
+};
+
+template <typename VectorT>
+struct FakeIterator : Microsoft::WRL::RuntimeClass<ABI::Windows::Foundation::Collections::IIterator<typename VectorT::LogicalT>>
+{
+    FakeIterator(VectorT* ptr) : m_vector(ptr)
+    {
+    }
+
+    IFACEMETHODIMP get_Current(typename VectorT::AbiT* current) override
+    {
+        return m_vector->GetAt(m_index, current);
+    }
+
+    IFACEMETHODIMP get_HasCurrent(boolean* hasCurrent) override
+    {
+        *hasCurrent = m_index < m_vector->m_size;
+        return S_OK;
+    }
+
+    IFACEMETHODIMP MoveNext(boolean* hasCurrent) override
+    {
+        if (m_index >= m_vector->m_size)
+        {
+            return E_BOUNDS;
+        }
+
+        ++m_index;
+        return get_HasCurrent(hasCurrent);
+    }
+
+    IFACEMETHODIMP GetMany(unsigned int capacity, typename VectorT::AbiT* value, unsigned int* actual) override
+    {
+        auto hr = m_vector->GetMany(m_index, capacity, value, actual);
+        if (FAILED(hr))
+        {
+            return hr;
+        }
+
+        m_index += *actual;
+        return S_OK;
+    }
+
+private:
+    Microsoft::WRL::ComPtr<VectorT> m_vector;
+    unsigned int m_index = 0;
 };

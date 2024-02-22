@@ -1,3 +1,4 @@
+#include "pch.h"
 
 #include <wil/token_helpers.h>
 
@@ -82,8 +83,7 @@ TEST_CASE("TokenHelpersTests::VerifyGetTokenInformation", "[token_helpers]")
 #endif
 
 // This fails with 'ERROR_NO_SUCH_LOGON_SESSION' on the CI machines, so disable
-#ifndef WIL_FAST_BUILD
-TEST_CASE("TokenHelpersTests::VerifyLinkedToken", "[token_helpers]")
+TEST_CASE("TokenHelpersTests::VerifyLinkedToken", "[token_helpers][LocalOnly]")
 {
     wil::unique_token_linked_token theToken;
     REQUIRE_SUCCEEDED(wil::get_token_information_nothrow(theToken, nullptr));
@@ -92,7 +92,6 @@ TEST_CASE("TokenHelpersTests::VerifyLinkedToken", "[token_helpers]")
     REQUIRE_NOTHROW(wil::get_linked_token_information());
 #endif
 }
-#endif
 #endif
 
 bool IsImpersonating()
@@ -265,7 +264,8 @@ TEST_CASE("TokenHelpersTests::StaticSid", "[token_helpers]")
 {
     SID_IDENTIFIER_AUTHORITY ntAuthority = SECURITY_NT_AUTHORITY;
     auto staticSid = wil::make_static_sid(SECURITY_NT_AUTHORITY, SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_GUESTS);
-    auto largerSid = wil::make_static_sid(SECURITY_NT_AUTHORITY, SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_GUESTS, DOMAIN_ALIAS_RID_BACKUP_OPS);
+    auto largerSid =
+        wil::make_static_sid(SECURITY_NT_AUTHORITY, SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_GUESTS, DOMAIN_ALIAS_RID_BACKUP_OPS);
 
     largerSid = staticSid;
     largerSid = largerSid;
@@ -283,10 +283,7 @@ TEST_CASE("TokenHelpersTests::TestMembership", "[token_helpers]")
 {
     bool member;
     REQUIRE_SUCCEEDED(wil::test_token_membership_nothrow(
-        &member,
-        GetCurrentThreadEffectiveToken(),
-        SECURITY_NT_AUTHORITY,
-        SECURITY_AUTHENTICATED_USER_RID));
+        &member, GetCurrentThreadEffectiveToken(), SECURITY_NT_AUTHORITY, SECURITY_AUTHENTICATED_USER_RID));
 }
 
 #ifdef WIL_ENABLE_EXCEPTIONS

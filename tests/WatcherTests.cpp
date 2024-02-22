@@ -1,3 +1,4 @@
+#include "pch.h"
 
 #include <wil/filesystem.h>
 #include <wil/registry.h>
@@ -12,7 +13,7 @@ TEST_CASE("EventWatcherTests::Construction", "[resource][event_watcher]")
 {
     SECTION("Create unique_event_watcher_nothrow without event")
     {
-        auto watcher = wil::make_event_watcher_nothrow([]{});
+        auto watcher = wil::make_event_watcher_nothrow([] {});
         REQUIRE(watcher != nullptr);
     }
 
@@ -20,7 +21,7 @@ TEST_CASE("EventWatcherTests::Construction", "[resource][event_watcher]")
     {
         wil::unique_event_nothrow eventToPass;
         FAIL_FAST_IF_FAILED(eventToPass.create(wil::EventOptions::None));
-        auto watcher = wil::make_event_watcher_nothrow(wistd::move(eventToPass), []{});
+        auto watcher = wil::make_event_watcher_nothrow(wistd::move(eventToPass), [] {});
         REQUIRE(watcher != nullptr);
         REQUIRE(eventToPass.get() == nullptr); // move construction must take it
     }
@@ -29,7 +30,7 @@ TEST_CASE("EventWatcherTests::Construction", "[resource][event_watcher]")
     {
         wil::unique_event_nothrow eventToDupe;
         FAIL_FAST_IF_FAILED(eventToDupe.create(wil::EventOptions::None));
-        auto watcher = wil::make_event_watcher_nothrow(eventToDupe.get(), []{});
+        auto watcher = wil::make_event_watcher_nothrow(eventToDupe.get(), [] {});
         REQUIRE(watcher != nullptr);
         REQUIRE(eventToDupe.get() != nullptr); // handle duped in this case
     }
@@ -38,41 +39,41 @@ TEST_CASE("EventWatcherTests::Construction", "[resource][event_watcher]")
     SECTION("Create unique_event_watcher_nothrow with unique_event")
     {
         wil::unique_event eventToPass(wil::EventOptions::None);
-        auto watcher = wil::make_event_watcher_nothrow(wistd::move(eventToPass), []{});
+        auto watcher = wil::make_event_watcher_nothrow(wistd::move(eventToPass), [] {});
         REQUIRE(watcher != nullptr);
         REQUIRE(eventToPass.get() == nullptr); // move construction must take it
     }
 
     SECTION("Create unique_event_watcher without event")
     {
-        auto watcher = wil::make_event_watcher([]{});
+        auto watcher = wil::make_event_watcher([] {});
     }
 
     SECTION("Create unique_event_watcher with unique_event_nothrow")
     {
         wil::unique_event_nothrow eventToPass;
         THROW_IF_FAILED(eventToPass.create(wil::EventOptions::None));
-        auto watcher = wil::make_event_watcher(wistd::move(eventToPass), []{});
+        auto watcher = wil::make_event_watcher(wistd::move(eventToPass), [] {});
         REQUIRE(eventToPass.get() == nullptr); // move construction must take it
     }
 
     SECTION("Create unique_event_watcher with unique_event")
     {
         wil::unique_event eventToPass(wil::EventOptions::None);
-        auto watcher = wil::make_event_watcher(wistd::move(eventToPass), []{});
+        auto watcher = wil::make_event_watcher(wistd::move(eventToPass), [] {});
         REQUIRE(eventToPass.get() == nullptr); // move construction must take it
     }
 
     SECTION("Create unique_event_watcher with handle")
     {
         wil::unique_event eventToDupe(wil::EventOptions::None);
-        auto watcher = wil::make_event_watcher(eventToDupe.get(), []{});
+        auto watcher = wil::make_event_watcher(eventToDupe.get(), [] {});
         REQUIRE(eventToDupe.get() != nullptr); // handle duped in this case
     }
 
     SECTION("Create unique_event_watcher shared watcher")
     {
-        wil::shared_event_watcher sharedWatcher = wil::make_event_watcher([]{});
+        wil::shared_event_watcher sharedWatcher = wil::make_event_watcher([] {});
     }
 #endif
 }
@@ -89,8 +90,7 @@ TEST_CASE("EventWatcherTests::VerifyDelivery", "[resource][event_watcher]")
     auto notificationReceived = make_event();
 
     int volatile countObserved = 0;
-    auto watcher = wil::make_event_watcher_nothrow([&]
-    {
+    auto watcher = wil::make_event_watcher_nothrow([&] {
         countObserved = countObserved + 1;
         notificationReceived.SetEvent();
     });
@@ -106,24 +106,23 @@ TEST_CASE("EventWatcherTests::VerifyDelivery", "[resource][event_watcher]")
 
 TEST_CASE("EventWatcherTests::VerifyLastChangeObserved", "[resource][event_watcher]")
 {
-    wil::EventOptions const eventOptions[] =
-    {
+    wil::EventOptions const eventOptions[] = {
         wil::EventOptions::None,
         wil::EventOptions::ManualReset,
         wil::EventOptions::Signaled,
         wil::EventOptions::ManualReset | wil::EventOptions::Signaled,
     };
 
-    for (auto const &eventOption : eventOptions)
+    for (auto const& eventOption : eventOptions)
     {
-        auto allChangesMade = make_event(wil::EventOptions::ManualReset); // ManualReset to avoid hang in case where 2 callbacks are generated (a test failure).
+        auto allChangesMade = make_event(
+            wil::EventOptions::ManualReset); // ManualReset to avoid hang in case where 2 callbacks are generated (a test failure).
         auto processedChange = make_event();
 
         DWORD volatile stateToObserve = 0;
         DWORD volatile lastObservedState = 0;
         int volatile countObserved = 0;
-        auto watcher = wil::make_event_watcher_nothrow(make_event(eventOption), [&]
-        {
+        auto watcher = wil::make_event_watcher_nothrow(make_event(eventOption), [&] {
             allChangesMade.wait();
             countObserved = countObserved + 1;
             lastObservedState = stateToObserve;
@@ -150,7 +149,7 @@ TEST_CASE("RegistryWatcherTests::Construction", "[registry][registry_watcher]")
 {
     SECTION("Create unique_registry_watcher_nothrow with string")
     {
-        auto watcher = wil::make_registry_watcher_nothrow(ROOT_KEY_PAIR, true, [&](wil::RegistryChangeKind){});
+        auto watcher = wil::make_registry_watcher_nothrow(ROOT_KEY_PAIR, true, [&](wil::RegistryChangeKind) {});
         REQUIRE(watcher);
     }
 
@@ -159,7 +158,7 @@ TEST_CASE("RegistryWatcherTests::Construction", "[registry][registry_watcher]")
         wil::unique_hkey keyToMove;
         REQUIRE_SUCCEEDED(HRESULT_FROM_WIN32(RegCreateKeyExW(ROOT_KEY_PAIR, 0, nullptr, 0, KEY_NOTIFY, nullptr, &keyToMove, nullptr)));
 
-        auto watcher = wil::make_registry_watcher_nothrow(wistd::move(keyToMove), true, [&](wil::RegistryChangeKind){});
+        auto watcher = wil::make_registry_watcher_nothrow(wistd::move(keyToMove), true, [&](wil::RegistryChangeKind) {});
         REQUIRE(watcher);
         REQUIRE(keyToMove.get() == nullptr); // ownership is transferred
     }
@@ -170,14 +169,14 @@ TEST_CASE("RegistryWatcherTests::Construction", "[registry][registry_watcher]")
         wil::unique_hkey rootKey;
         REQUIRE_SUCCEEDED(HRESULT_FROM_WIN32(RegCreateKeyExW(ROOT_KEY_PAIR, 0, nullptr, 0, KEY_NOTIFY, nullptr, &rootKey, nullptr)));
 
-        auto watcher = wil::make_registry_watcher_nothrow(rootKey.get(), L"", true, [&](wil::RegistryChangeKind){});
+        auto watcher = wil::make_registry_watcher_nothrow(rootKey.get(), L"", true, [&](wil::RegistryChangeKind) {});
         REQUIRE(watcher);
     }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
     SECTION("Create unique_registry_watcher with string")
     {
-        REQUIRE_NOTHROW(wil::make_registry_watcher(ROOT_KEY_PAIR, true, [&](wil::RegistryChangeKind){}));
+        REQUIRE_NOTHROW(wil::make_registry_watcher(ROOT_KEY_PAIR, true, [&](wil::RegistryChangeKind) {}));
     }
 
     SECTION("Create unique_registry_watcher with unique_hkey")
@@ -185,7 +184,7 @@ TEST_CASE("RegistryWatcherTests::Construction", "[registry][registry_watcher]")
         wil::unique_hkey keyToMove;
         THROW_IF_FAILED(HRESULT_FROM_WIN32(RegCreateKeyExW(ROOT_KEY_PAIR, 0, nullptr, 0, KEY_NOTIFY, nullptr, &keyToMove, nullptr)));
 
-        REQUIRE_NOTHROW(wil::make_registry_watcher(wistd::move(keyToMove), true, [&](wil::RegistryChangeKind){}));
+        REQUIRE_NOTHROW(wil::make_registry_watcher(wistd::move(keyToMove), true, [&](wil::RegistryChangeKind) {}));
         REQUIRE(keyToMove.get() == nullptr); // ownership is transferred
     }
 #endif
@@ -211,8 +210,7 @@ TEST_CASE("RegistryWatcherTests::VerifyDelivery", "[registry][registry_watcher]"
 
     int volatile countObserved = 0;
     auto volatile observedChangeType = wil::RegistryChangeKind::Delete;
-    auto watcher = wil::make_registry_watcher_nothrow(ROOT_KEY_PAIR, true, [&](wil::RegistryChangeKind changeType)
-    {
+    auto watcher = wil::make_registry_watcher_nothrow(ROOT_KEY_PAIR, true, [&](wil::RegistryChangeKind changeType) {
         countObserved = countObserved + 1;
         observedChangeType = changeType;
         notificationReceived.SetEvent();
@@ -234,15 +232,15 @@ TEST_CASE("RegistryWatcherTests::VerifyDelivery", "[registry][registry_watcher]"
 TEST_CASE("RegistryWatcherTests::VerifyLastChangeObserved", "[registry][registry_watcher]")
 {
     RegDeleteTreeW(ROOT_KEY_PAIR);
-    auto allChangesMade = make_event(wil::EventOptions::ManualReset); // ManualReset for the case where both registry operations result in a callback.
+    auto allChangesMade =
+        make_event(wil::EventOptions::ManualReset); // ManualReset for the case where both registry operations result in a callback.
     auto processedChange = make_event();
 
     DWORD volatile stateToObserve = 0;
     DWORD volatile lastObservedState = 0;
     DWORD volatile lastObservedValue = 0;
     int volatile countObserved = 0;
-    auto watcher = wil::make_registry_watcher_nothrow(ROOT_KEY_PAIR, true, [&, called = false](wil::RegistryChangeKind) mutable
-    {
+    auto watcher = wil::make_registry_watcher_nothrow(ROOT_KEY_PAIR, true, [&, called = false](wil::RegistryChangeKind) mutable {
         // This callback may be called more than once (since we modify the key twice), but we're holding references to
         // local variables. Therefore, bail out if this is not the first time we're called
         if (called)
@@ -285,8 +283,7 @@ TEST_CASE("RegistryWatcherTests::VerifyDeleteBehavior", "[registry][registry_wat
 
     int volatile countObserved = 0;
     auto volatile observedChangeType = wil::RegistryChangeKind::Modify;
-    auto watcher = wil::make_registry_watcher_nothrow(ROOT_KEY_PAIR, true, [&](wil::RegistryChangeKind changeType)
-    {
+    auto watcher = wil::make_registry_watcher_nothrow(ROOT_KEY_PAIR, true, [&](wil::RegistryChangeKind changeType) {
         countObserved = countObserved + 1;
         observedChangeType = changeType;
         notificationReceived.SetEvent();
@@ -303,8 +300,7 @@ TEST_CASE("RegistryWatcherTests::VerifyResetInCallback", "[registry][registry_wa
 {
     auto notificationReceived = make_event();
 
-    wil::unique_registry_watcher_nothrow watcher = wil::make_registry_watcher_nothrow(ROOT_KEY_PAIR, TRUE, [&](wil::RegistryChangeKind)
-    {
+    wil::unique_registry_watcher_nothrow watcher = wil::make_registry_watcher_nothrow(ROOT_KEY_PAIR, TRUE, [&](wil::RegistryChangeKind) {
         watcher.reset();
         DWORD value = 2;
         SetRegistryValue(ROOT_KEY_PAIR, L"value", REG_DWORD, &value, sizeof(value));
@@ -325,16 +321,16 @@ TEST_CASE("RegistryWatcherTests::VerifyResetInCallbackStress", "[LocalOnly][regi
         wil::srwlock lock;
         auto notificationReceived = make_event();
 
-        wil::unique_registry_watcher_nothrow watcher = wil::make_registry_watcher_nothrow(ROOT_KEY_PAIR, TRUE, [&](wil::RegistryChangeKind)
-        {
-            {
-                auto al = lock.lock_exclusive();
-                watcher.reset(); // get m_refCount to 1 to ensure the Release happens on the background thread
-            }
-            ++value;
-            SetRegistryValue(ROOT_KEY_PAIR, L"value", REG_DWORD, &value, sizeof(value));
-            notificationReceived.SetEvent();
-        });
+        wil::unique_registry_watcher_nothrow watcher =
+            wil::make_registry_watcher_nothrow(ROOT_KEY_PAIR, TRUE, [&](wil::RegistryChangeKind) {
+                {
+                    auto al = lock.lock_exclusive();
+                    watcher.reset(); // get m_refCount to 1 to ensure the Release happens on the background thread
+                }
+                ++value;
+                SetRegistryValue(ROOT_KEY_PAIR, L"value", REG_DWORD, &value, sizeof(value));
+                notificationReceived.SetEvent();
+            });
         REQUIRE(watcher);
 
         SetRegistryValue(ROOT_KEY_PAIR, L"value", REG_DWORD, &value, sizeof(value));
@@ -353,19 +349,18 @@ TEST_CASE("RegistryWatcherTests::VerifyResetAfterDelete", "[registry][registry_w
 
     int volatile countObserved = 0;
     auto volatile observedChangeType = wil::RegistryChangeKind::Modify;
-    wil::unique_registry_watcher_nothrow watcher = wil::make_registry_watcher_nothrow(ROOT_KEY_PAIR, true, [&](wil::RegistryChangeKind changeType)
-    {
-        countObserved = countObserved + 1;
-        observedChangeType = changeType;
-        notificationReceived.SetEvent();
-        watcher = wil::make_registry_watcher_nothrow(ROOT_KEY_PAIR, true, [&](wil::RegistryChangeKind changeType)
-        {
+    wil::unique_registry_watcher_nothrow watcher =
+        wil::make_registry_watcher_nothrow(ROOT_KEY_PAIR, true, [&](wil::RegistryChangeKind changeType) {
             countObserved = countObserved + 1;
             observedChangeType = changeType;
             notificationReceived.SetEvent();
+            watcher = wil::make_registry_watcher_nothrow(ROOT_KEY_PAIR, true, [&](wil::RegistryChangeKind changeType) {
+                countObserved = countObserved + 1;
+                observedChangeType = changeType;
+                notificationReceived.SetEvent();
+            });
+            REQUIRE(watcher);
         });
-        REQUIRE(watcher);
-    });
     REQUIRE(watcher);
 
     RegDeleteTreeW(ROOT_KEY_PAIR); // delete the key to signal the watcher with the special error case
@@ -389,8 +384,7 @@ TEST_CASE("RegistryWatcherTests::VerifyCallbackFinishesBeforeFreed", "[registry]
     auto deleteNotification = make_event();
 
     int volatile deleteObserved = 0;
-    auto watcher = wil::make_registry_watcher_nothrow(ROOT_KEY_PAIR, true, [&](wil::RegistryChangeKind)
-    {
+    auto watcher = wil::make_registry_watcher_nothrow(ROOT_KEY_PAIR, true, [&](wil::RegistryChangeKind) {
         notificationReceived.SetEvent();
         // ensure that the callback is still being executed while the watcher is reset().
         deleteNotification.wait(200);
@@ -407,29 +401,62 @@ TEST_CASE("RegistryWatcherTests::VerifyCallbackFinishesBeforeFreed", "[registry]
     REQUIRE(deleteObserved == 1);
 }
 
+#ifdef WIL_ENABLE_EXCEPTIONS
+TEST_CASE("RegistryWatcherTests::VerifyDeleteDuringNotification", "[registry][registry_watcher]")
+{
+    wil::unique_event notificationReceived(wil::EventOptions::None);
+    wil::unique_event deleteNotification(wil::EventOptions::None);
+
+    int mockObserved = 0;
+    witest::detoured_global_function<&RegNotifyChangeKeyValue> mockRegNotifyChangeKeyValue;
+    REQUIRE_SUCCEEDED(mockRegNotifyChangeKeyValue.reset([&](HKEY, BOOL, DWORD, HANDLE event, BOOL) -> LSTATUS {
+        if (!mockObserved)
+        {
+            mockObserved++;
+            SetEvent(event);
+            // on watcher create just return
+            return ERROR_SUCCESS;
+        }
+        else
+        {
+            mockObserved++;
+            notificationReceived.SetEvent();
+            deleteNotification.wait();
+            return ERROR_SUCCESS;
+        }
+    }));
+
+    auto watcher = wil::make_registry_watcher(ROOT_KEY_PAIR, true, [&](wil::RegistryChangeKind) {});
+    notificationReceived.wait();
+    REQUIRE(mockObserved == 2);
+    deleteNotification.SetEvent();
+    watcher.reset();
+}
+#endif
+
 TEST_CASE("FileSystemWatcherTests::Construction", "[resource][folder_watcher]")
 {
     SECTION("Create unique_folder_watcher_nothrow with valid path")
     {
-        auto watcher = wil::make_folder_watcher_nothrow(L"C:\\Windows\\System32", true, wil::FolderChangeEvents::All, []{});
+        auto watcher = wil::make_folder_watcher_nothrow(L"C:\\Windows\\System32", true, wil::FolderChangeEvents::All, [] {});
         REQUIRE(watcher);
     }
 
     SECTION("Create unique_folder_watcher_nothrow with invalid path")
     {
-        auto watcher = wil::make_folder_watcher_nothrow(L"X:\\invalid path", true, wil::FolderChangeEvents::All, []{});
+        auto watcher = wil::make_folder_watcher_nothrow(L"X:\\invalid path", true, wil::FolderChangeEvents::All, [] {});
         REQUIRE(!watcher);
     }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
     SECTION("Create unique_folder_watcher with valid path")
     {
-        REQUIRE_NOTHROW(wil::make_folder_watcher(L"C:\\Windows\\System32", true, wil::FolderChangeEvents::All, []{}));
+        REQUIRE_NOTHROW(wil::make_folder_watcher(L"C:\\Windows\\System32", true, wil::FolderChangeEvents::All, [] {}));
     }
 
     SECTION("Create unique_folder_watcher with invalid path")
     {
-        REQUIRE_THROWS(wil::make_folder_watcher(L"X:\\invalid path", true, wil::FolderChangeEvents::All, []{}));
+        REQUIRE_THROWS(wil::make_folder_watcher(L"X:\\invalid path", true, wil::FolderChangeEvents::All, [] {}));
     }
 #endif
 }
@@ -441,8 +468,7 @@ TEST_CASE("FileSystemWatcherTests::VerifyDelivery", "[resource][folder_watcher]"
 
     auto notificationEvent = make_event();
     int observedCount = 0;
-    auto watcher = wil::make_folder_watcher_nothrow(folder.Path(), true, wil::FolderChangeEvents::All, [&]
-    {
+    auto watcher = wil::make_folder_watcher_nothrow(folder.Path(), true, wil::FolderChangeEvents::All, [&] {
         ++observedCount;
         notificationEvent.SetEvent();
     });
@@ -463,13 +489,15 @@ TEST_CASE("FolderChangeReaderTests::Construction", "[resource][folder_change_rea
 {
     SECTION("Create folder_change_reader_nothrow with valid path")
     {
-        auto reader = wil::make_folder_change_reader_nothrow(L"C:\\Windows\\System32", true, wil::FolderChangeEvents::All, [](auto, auto) {});
+        auto reader =
+            wil::make_folder_change_reader_nothrow(L"C:\\Windows\\System32", true, wil::FolderChangeEvents::All, [](auto, auto) {});
         REQUIRE(reader);
     }
 
     SECTION("Create folder_change_reader_nothrow with invalid path")
     {
-        auto reader = wil::make_folder_change_reader_nothrow(L"X:\\invalid path", true, wil::FolderChangeEvents::All, [](auto, auto) {});
+        auto reader =
+            wil::make_folder_change_reader_nothrow(L"X:\\invalid path", true, wil::FolderChangeEvents::All, [](auto, auto) {});
         REQUIRE(!reader);
     }
 
@@ -494,13 +522,12 @@ TEST_CASE("FolderChangeReaderTests::VerifyDelivery", "[resource][folder_change_r
     auto notificationEvent = make_event();
     wil::FolderChangeEvent observedEvent;
     wchar_t observedFileName[MAX_PATH] = L"";
-    auto reader = wil::make_folder_change_reader_nothrow(folder.Path(), true, wil::FolderChangeEvents::All,
-        [&](wil::FolderChangeEvent event, PCWSTR fileName)
-    {
-        observedEvent = event;
-        StringCchCopyW(observedFileName, ARRAYSIZE(observedFileName), fileName);
-        notificationEvent.SetEvent();
-    });
+    auto reader = wil::make_folder_change_reader_nothrow(
+        folder.Path(), true, wil::FolderChangeEvents::All, [&](wil::FolderChangeEvent event, PCWSTR fileName) {
+            observedEvent = event;
+            StringCchCopyW(observedFileName, ARRAYSIZE(observedFileName), fileName);
+            notificationEvent.SetEvent();
+        });
     REQUIRE(reader);
 
     witest::TestFile testFile(folder.Path(), L"file.txt");

@@ -1,3 +1,4 @@
+#include "pch.h"
 
 #include <ocidl.h> // Bring in IObjectWithSite
 
@@ -24,8 +25,7 @@ class DECLSPEC_UUID("00021401-0000-0000-C000-000000000046") ShellLink;
 // #define WIL_EXHAUSTIVE_TEST
 
 // Helper objects / functions
-class __declspec(uuid("a817e7a2-43fa-11d0-9e44-00aa00b6770a"))
-IUnknownFake : public IUnknown
+class __declspec(uuid("a817e7a2-43fa-11d0-9e44-00aa00b6770a")) IUnknownFake : public IUnknown
 {
 public:
     STDMETHOD_(ULONG, AddRef)()
@@ -38,7 +38,7 @@ public:
         ReleaseCounter++;
         return 0;
     }
-    STDMETHOD(QueryInterface)(REFIID riid, _Outptr_result_nullonfailure_ void **ppvObject)
+    STDMETHOD(QueryInterface)(REFIID riid, _Outptr_result_nullonfailure_ void** ppvObject)
     {
         if (riid == __uuidof(IUnknown))
         {
@@ -69,6 +69,7 @@ public:
         ReleaseCounter = 0;
         return res;
     }
+
 protected:
     static int AddRefCounter;
     static int ReleaseCounter;
@@ -77,8 +78,9 @@ protected:
 int IUnknownFake::AddRefCounter = 0;
 int IUnknownFake::ReleaseCounter = 0;
 
-class __declspec(uuid("a817e7a2-43fa-11d0-9e44-00aa00b6770b"))
-IUnknownFake2 : public IUnknownFake {};
+class __declspec(uuid("a817e7a2-43fa-11d0-9e44-00aa00b6770b")) IUnknownFake2 : public IUnknownFake
+{
+};
 
 TEST_CASE("ComTests::Test_Constructors", "[com][com_ptr]")
 {
@@ -87,10 +89,10 @@ TEST_CASE("ComTests::Test_Constructors", "[com][com_ptr]")
 
     SECTION("Null/default construction")
     {
-        wil::com_ptr_nothrow<IUnknown> ptr; //default constructor
+        wil::com_ptr_nothrow<IUnknown> ptr; // default constructor
         REQUIRE(ptr.get() == nullptr);
 
-        wil::com_ptr_nothrow<IUnknown> ptr2(nullptr); //default explicit null constructor
+        wil::com_ptr_nothrow<IUnknown> ptr2(nullptr); // default explicit null constructor
         REQUIRE(ptr2.get() == nullptr);
 
         IUnknown* nullPtr = nullptr;
@@ -254,7 +256,7 @@ TEST_CASE("ComTests::Test_Operators", "[com][com_ptr]")
     IUnknownFake helper2;
     IUnknownFake2 helper3;
 
-    wil::com_ptr_nothrow<IUnknownFake> ptrNULL; //NULL one
+    wil::com_ptr_nothrow<IUnknownFake> ptrNULL; // NULL one
     wil::com_ptr_nothrow<IUnknownFake> ptrLT(&helper);
     wil::com_ptr_nothrow<IUnknownFake> ptrGT(&helper2);
     wil::com_ptr_nothrow<IUnknownFake2> ptrDiff(&helper3);
@@ -377,12 +379,12 @@ TEST_CASE("ComTests::Test_Helpers", "[com][com_ptr]")
     IUnknownFake::Clear();
     IUnknownFake helper;
     IUnknownFake helper2;
-    IUnknownFake *ptrHelper;
+    IUnknownFake* ptrHelper;
     wil::com_ptr_nothrow<IUnknownFake> ptr(&helper);
 
     SECTION("detach")
     {
-        IUnknownFake::Clear(); //clear addref counter
+        IUnknownFake::Clear(); // clear addref counter
         ptrHelper = ptr.detach();
         REQUIRE(ptr.get() == nullptr);
         REQUIRE(ptrHelper == &helper);
@@ -392,9 +394,9 @@ TEST_CASE("ComTests::Test_Helpers", "[com][com_ptr]")
     SECTION("attach")
     {
         ptrHelper = &helper;
-        wil::com_ptr_nothrow<IUnknownFake> ptr2(&helper2); //have some non null pointer
+        wil::com_ptr_nothrow<IUnknownFake> ptr2(&helper2); // have some non null pointer
 
-        IUnknownFake::Clear(); //clear addref counter
+        IUnknownFake::Clear(); // clear addref counter
         ptr2.attach(ptrHelper);
         REQUIRE(ptr2.get() == ptrHelper);
         REQUIRE(IUnknownFake::GetRelease() == 1);
@@ -486,14 +488,14 @@ TEST_CASE("ComTests::Test_CopyTo", "[com][com_ptr]")
     SECTION("copy by IID")
     {
         wil::com_ptr_nothrow<IUnknown> ptr2;
-        REQUIRE(S_OK == ptr.copy_to(__uuidof(IUnknown), reinterpret_cast<void **>(&ptr2)));
+        REQUIRE(S_OK == ptr.copy_to(__uuidof(IUnknown), reinterpret_cast<void**>(&ptr2)));
         REQUIRE(ptr2 != nullptr);
     }
 
     SECTION("copy by invalid IID")
     {
         wil::com_ptr_nothrow<IUnknown> ptr2;
-        REQUIRE(S_OK != ptr.copy_to(__uuidof(IDispatch), reinterpret_cast<void **>(&ptr2)));
+        REQUIRE(S_OK != ptr.copy_to(__uuidof(IDispatch), reinterpret_cast<void**>(&ptr2)));
         REQUIRE(ptr2 == nullptr);
     }
 
@@ -529,7 +531,7 @@ TEST_CASE("ComTests::Test_IID_PPV_ARGS", "[com][com_ptr]")
 {
     wil::com_ptr_nothrow<IUnknown> unk;
     IID_PPV_ARGS_Test_Helper(IID_PPV_ARGS(&unk));
-    //Test if we got the correct check value back
+    // Test if we got the correct check value back
     REQUIRE(unk.get() == reinterpret_cast<void*>(0x01));
     // Make sure that we will not try to release some garbage
     auto avoidWarning = unk.detach();
@@ -604,64 +606,75 @@ TEST_CASE("ComTests::Test_ComPtrWithForwardDeclaration", "[com][com_ptr]")
 // various com_ptr tests
 //*****************************************************************************
 
-interface __declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20a00"))
-ITest : public IUnknown
+interface __declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20a00")) ITest : public IUnknown
 {
-   STDMETHOD_(void, Test)() = 0;
+    STDMETHOD_(void, Test)() = 0;
 };
 
-interface __declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20a01"))
-IDerivedTest : public ITest
+interface __declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20a01")) IDerivedTest : public ITest
 {
-   STDMETHOD_(void, TestDerived)() = 0;
+    STDMETHOD_(void, TestDerived)() = 0;
 };
 
-interface __declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20a02"))
-ITestInspectable : public IInspectable
+interface __declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20a02")) ITestInspectable : public IInspectable
 {
-   STDMETHOD_(void, TestInspctable)() = 0;
+    STDMETHOD_(void, TestInspctable)() = 0;
 };
 
-interface __declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20a03"))
-IDerivedTestInspectable : public ITestInspectable
+interface __declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20a03")) IDerivedTestInspectable : public ITestInspectable
 {
-   STDMETHOD_(void, TestInspctableDerived)() = 0;
+    STDMETHOD_(void, TestInspctableDerived)() = 0;
 };
 
-interface __declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20a04"))
-INever : public IUnknown
+interface __declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20a04")) INever : public IUnknown
 {
-   STDMETHOD_(void, Never)() = 0;
+    STDMETHOD_(void, Never)() = 0;
 };
 
-interface __declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20a05"))
-IAlways : public IUnknown
+interface __declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20a05")) IAlways : public IUnknown
 {
-   STDMETHOD_(void, Always)() = 0;
+    STDMETHOD_(void, Always)() = 0;
 };
 
 class __declspec(empty_bases) __declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20b00")) // non-implemented to allow QI for the class to be attempted (and fail)
-ComObject : witest::AllocatedObject,
-    public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::RuntimeClassType::ClassicCom>,
-                                        Microsoft::WRL::ChainInterfaces<IDerivedTest, ITest>,
-                                        IAlways>{
+    ComObject
+    : witest::AllocatedObject,
+      public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::RuntimeClassType::ClassicCom>, Microsoft::WRL::ChainInterfaces<IDerivedTest, ITest>, IAlways>
+{
 public:
-    COM_DECLSPEC_NOTHROW IFACEMETHODIMP_(void) Test() {}
-    COM_DECLSPEC_NOTHROW IFACEMETHODIMP_(void) TestDerived() {}
-    COM_DECLSPEC_NOTHROW IFACEMETHODIMP_(void) Always() {}
+    COM_DECLSPEC_NOTHROW IFACEMETHODIMP_(void) Test()
+    {
+    }
+    COM_DECLSPEC_NOTHROW IFACEMETHODIMP_(void) TestDerived()
+    {
+    }
+    COM_DECLSPEC_NOTHROW IFACEMETHODIMP_(void) Always()
+    {
+    }
 };
 
 class __declspec(empty_bases) __declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20b01")) // non-implemented to allow QI for the class to be attempted (and fail)
-WinRtObject : witest::AllocatedObject,
-    public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::RuntimeClassType::WinRtClassicComMix>,
-                                        ITest, IDerivedTest, ITestInspectable, IDerivedTestInspectable, IAlways, Microsoft::WRL::FtmBase>
+    WinRtObject
+    : witest::AllocatedObject,
+      public Microsoft::WRL::
+          RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::RuntimeClassType::WinRtClassicComMix>, ITest, IDerivedTest, ITestInspectable, IDerivedTestInspectable, IAlways, Microsoft::WRL::FtmBase>
 {
 public:
-    COM_DECLSPEC_NOTHROW IFACEMETHODIMP_(void) Test() {}
-    COM_DECLSPEC_NOTHROW IFACEMETHODIMP_(void) TestDerived() {}
-    COM_DECLSPEC_NOTHROW IFACEMETHODIMP_(void) TestInspctable() {}
-    COM_DECLSPEC_NOTHROW IFACEMETHODIMP_(void) TestInspctableDerived() {}
-    COM_DECLSPEC_NOTHROW IFACEMETHODIMP_(void) Always() {}
+    COM_DECLSPEC_NOTHROW IFACEMETHODIMP_(void) Test()
+    {
+    }
+    COM_DECLSPEC_NOTHROW IFACEMETHODIMP_(void) TestDerived()
+    {
+    }
+    COM_DECLSPEC_NOTHROW IFACEMETHODIMP_(void) TestInspctable()
+    {
+    }
+    COM_DECLSPEC_NOTHROW IFACEMETHODIMP_(void) TestInspctableDerived()
+    {
+    }
+    COM_DECLSPEC_NOTHROW IFACEMETHODIMP_(void) Always()
+    {
+    }
 };
 
 class __declspec(empty_bases) NoCom : witest::AllocatedObject
@@ -690,6 +703,7 @@ template <typename T, typename U, typename = wistd::enable_if_t<!wistd::is_same_
 T* cast_object(U*)
 {
     FAIL_FAST();
+    return nullptr; // Because we define 'RESULT_NORETURN' to nothing for other tests
 }
 
 template <typename T>
@@ -728,7 +742,7 @@ void TestSmartPointer(const Ptr& ptr1, const Ptr& ptr2)
     {
         auto p1 = ptr1;
         auto p2 = ptr2;
-        p1.swap(p2);  // l-value
+        p1.swap(p2); // l-value
         REQUIRE(((p1 == ptr2) && (p2 == ptr1)));
         p1.swap(wistd::move(p2)); // r-value
         REQUIRE(((p1 == ptr1) && (p2 == ptr2)));
@@ -740,7 +754,7 @@ void TestSmartPointer(const Ptr& ptr1, const Ptr& ptr2)
     {
         auto p1 = ptr1;
         Microsoft::WRL::ComPtr<typename Ptr::element_type> p2 = ptr2.get();
-        p1.swap(p2);  // l-value
+        p1.swap(p2); // l-value
         REQUIRE(((p1 == ptr2) && (p2 == ptr1)));
         p1.swap(wistd::move(p2)); // r-value
         REQUIRE(((p1 == ptr1) && (p2 == ptr2)));
@@ -1076,7 +1090,7 @@ TEST_CASE("ComTests::Test_PointerConversion", "[com][com_ptr]")
 }
 
 template <typename TargetIFace, typename Ptr>
-void TestGlobalQueryIidPpv(wistd::true_type, const Ptr& source)     // interface
+void TestGlobalQueryIidPpv(wistd::true_type, const Ptr& source) // interface
 {
     using DestPtr = wil::com_ptr_nothrow<TargetIFace>;
     wil::com_ptr_nothrow<INever> never;
@@ -1134,8 +1148,8 @@ void TestGlobalQueryIidPpv(wistd::true_type, const Ptr& source)     // interface
 
     SECTION("com_copy_to(iid, ppv)")
     {
-    if (source)
-    {
+        if (source)
+        {
 #ifdef WIL_ENABLE_EXCEPTIONS
             DestPtr dest1;
             wil::com_copy_to(source, IID_PPV_ARGS(&dest1));
@@ -1185,7 +1199,7 @@ void TestGlobalQueryIidPpv(wistd::true_type, const Ptr& source)     // interface
 }
 
 template <typename TargetIFace, typename Ptr>
-void TestGlobalQueryIidPpv(wistd::false_type, const Ptr&)     // class
+void TestGlobalQueryIidPpv(wistd::false_type, const Ptr&) // class
 {
     // we can't compile against iid, ppv with a class
 }
@@ -1405,7 +1419,7 @@ static void TestGlobalQuery(const Ptr& source)
 
 // Test fluent query functions for types that support them (exception and fail fast)
 template <typename IFace, typename Ptr>
-void TestSmartPointerQueryFluent(wistd::true_type, const Ptr& source)     // void return (non-error based)
+void TestSmartPointerQueryFluent(wistd::true_type, const Ptr& source) // void return (non-error based)
 {
     SECTION("query")
     {
@@ -1438,14 +1452,14 @@ void TestSmartPointerQueryFluent(wistd::true_type, const Ptr& source)     // voi
 
 // "Test" fluent query functions for error-based types (by doing nothing)
 template <typename IFace, typename Ptr>
-void TestSmartPointerQueryFluent(wistd::false_type, const Ptr& /*source*/)     // error-code based return
+void TestSmartPointerQueryFluent(wistd::false_type, const Ptr& /*source*/) // error-code based return
 {
     // error code based code cannot call the fluent error methods
 }
 
 // Test iid, ppv queries for types that support them (interfaces yes, classes no)
 template <typename IFace, typename Ptr>
-void TestSmartPointerQueryIidPpv(wistd::true_type, const Ptr& source)       // interface
+void TestSmartPointerQueryIidPpv(wistd::true_type, const Ptr& source) // interface
 {
     wil::com_ptr_nothrow<INever> never;
     using DestPtr = wil::com_ptr_nothrow<IFace>;
@@ -1525,7 +1539,7 @@ void TestSmartPointerQueryIidPpv(wistd::true_type, const Ptr& source)       // i
 
 // "Test" iid, ppv queries for types that support them for a class (unsupported same (interfaces yes, classes no)
 template <typename IFace, typename Ptr>
-void TestSmartPointerQueryIidPpv(wistd::false_type, const Ptr& /*source*/)      // class
+void TestSmartPointerQueryIidPpv(wistd::false_type, const Ptr& /*source*/) // class
 {
     // we can't compile against iid, ppv with a class
 }
@@ -1690,26 +1704,26 @@ TEST_CASE("ComTests::Test_Query", "[com][com_ptr]")
 
     // This adds a significant amount of time to the compilation duration, so most tests are disabled by default...
 #ifdef WIL_EXHAUSTIVE_TEST
-    TestQuery<ComObject, IDerivedTest, ComObject>();                         // ComObject
+    TestQuery<ComObject, IDerivedTest, ComObject>(); // ComObject
     TestQuery<ComObject, IAlways, ComObject>();
-    TestQuery<IUnknown, IUnknown, ComObject>();                              // IUnknown
+    TestQuery<IUnknown, IUnknown, ComObject>(); // IUnknown
     TestQuery<IUnknown, ITest, ComObject>();
     TestQuery<IUnknown, IDerivedTest, ComObject>();
     TestQuery<IUnknown, IAlways, ComObject>();
-    TestQuery<ITest, IUnknown, ComObject>();                                 // ITest
+    TestQuery<ITest, IUnknown, ComObject>(); // ITest
     TestQuery<ITest, ITest, ComObject>();
     TestQuery<ITest, IDerivedTest, ComObject>();
     TestQuery<ITest, IAlways, ComObject>();
-    TestQuery<IDerivedTest, IUnknown, ComObject>();                          // IDerivedTest
+    TestQuery<IDerivedTest, IUnknown, ComObject>(); // IDerivedTest
     TestQuery<IDerivedTest, ITest, ComObject>();
     TestQuery<IDerivedTest, IDerivedTest, ComObject>();
     TestQuery<IDerivedTest, IAlways, ComObject>();
-    TestQuery<IAlways, IUnknown, ComObject>();                               // IAlways
+    TestQuery<IAlways, IUnknown, ComObject>(); // IAlways
     TestQuery<IAlways, ITest, ComObject>();
     TestQuery<IAlways, IDerivedTest, ComObject>();
     TestQuery<IAlways, IAlways, ComObject>();
 
-    TestQuery<WinRtObject, WinRtObject, WinRtObject>();                      // WinRtObject
+    TestQuery<WinRtObject, WinRtObject, WinRtObject>(); // WinRtObject
     TestQuery<WinRtObject, IUnknown, WinRtObject>();
     TestQuery<WinRtObject, ITest, WinRtObject>();
     TestQuery<WinRtObject, IInspectable, WinRtObject>();
@@ -1717,49 +1731,49 @@ TEST_CASE("ComTests::Test_Query", "[com][com_ptr]")
     TestQuery<WinRtObject, IDerivedTest, WinRtObject>();
     TestQuery<WinRtObject, IDerivedTestInspectable, WinRtObject>();
     TestQuery<WinRtObject, IAlways, WinRtObject>();
-    TestQuery<IUnknown, IUnknown, WinRtObject>();                            // IUnknown
+    TestQuery<IUnknown, IUnknown, WinRtObject>(); // IUnknown
     TestQuery<IUnknown, IInspectable, WinRtObject>();
     TestQuery<IUnknown, ITest, WinRtObject>();
     TestQuery<IUnknown, IDerivedTest, WinRtObject>();
     TestQuery<IUnknown, ITestInspectable, WinRtObject>();
     TestQuery<IUnknown, IDerivedTestInspectable, WinRtObject>();
     TestQuery<IUnknown, IAlways, WinRtObject>();
-    TestQuery<IInspectable, IUnknown, WinRtObject>();                        // IInspectable
+    TestQuery<IInspectable, IUnknown, WinRtObject>(); // IInspectable
     TestQuery<IInspectable, IInspectable, WinRtObject>();
     TestQuery<IInspectable, ITest, WinRtObject>();
     TestQuery<IInspectable, IDerivedTest, WinRtObject>();
     TestQuery<IInspectable, ITestInspectable, WinRtObject>();
     TestQuery<IInspectable, IDerivedTestInspectable, WinRtObject>();
     TestQuery<IInspectable, IAlways, WinRtObject>();
-    TestQuery<ITest, IUnknown, WinRtObject>();                               // ITest
+    TestQuery<ITest, IUnknown, WinRtObject>(); // ITest
     TestQuery<ITest, IInspectable, WinRtObject>();
     TestQuery<ITest, ITest, WinRtObject>();
     TestQuery<ITest, IDerivedTest, WinRtObject>();
     TestQuery<ITest, ITestInspectable, WinRtObject>();
     TestQuery<ITest, IDerivedTestInspectable, WinRtObject>();
     TestQuery<ITest, IAlways, WinRtObject>();
-    TestQuery<IDerivedTest, IUnknown, WinRtObject>();                        // IDerivedTest
+    TestQuery<IDerivedTest, IUnknown, WinRtObject>(); // IDerivedTest
     TestQuery<IDerivedTest, IInspectable, WinRtObject>();
     TestQuery<IDerivedTest, ITest, WinRtObject>();
     TestQuery<IDerivedTest, IDerivedTest, WinRtObject>();
     TestQuery<IDerivedTest, ITestInspectable, WinRtObject>();
     TestQuery<IDerivedTest, IDerivedTestInspectable, WinRtObject>();
     TestQuery<IDerivedTest, IAlways, WinRtObject>();
-    TestQuery<ITestInspectable, IUnknown, WinRtObject>();                     // ITestInspectable
+    TestQuery<ITestInspectable, IUnknown, WinRtObject>(); // ITestInspectable
     TestQuery<ITestInspectable, IInspectable, WinRtObject>();
     TestQuery<ITestInspectable, ITest, WinRtObject>();
     TestQuery<ITestInspectable, IDerivedTest, WinRtObject>();
     TestQuery<ITestInspectable, ITestInspectable, WinRtObject>();
     TestQuery<ITestInspectable, IDerivedTestInspectable, WinRtObject>();
     TestQuery<ITestInspectable, IAlways, WinRtObject>();
-    TestQuery<IDerivedTestInspectable, IUnknown, WinRtObject>();              // IDerivedTestInspectable
+    TestQuery<IDerivedTestInspectable, IUnknown, WinRtObject>(); // IDerivedTestInspectable
     TestQuery<IDerivedTestInspectable, IInspectable, WinRtObject>();
     TestQuery<IDerivedTestInspectable, ITest, WinRtObject>();
     TestQuery<IDerivedTestInspectable, IDerivedTest, WinRtObject>();
     TestQuery<IDerivedTestInspectable, ITestInspectable, WinRtObject>();
     TestQuery<IDerivedTestInspectable, IDerivedTestInspectable, WinRtObject>();
     TestQuery<IDerivedTestInspectable, IAlways, WinRtObject>();
-    TestQuery<IAlways, IUnknown, WinRtObject>();                              // IAlways
+    TestQuery<IAlways, IUnknown, WinRtObject>(); // IAlways
     TestQuery<IAlways, IInspectable, WinRtObject>();
     TestQuery<IAlways, ITest, WinRtObject>();
     TestQuery<IAlways, IDerivedTest, WinRtObject>();
@@ -1819,7 +1833,9 @@ void TestAgileCombinations()
     auto ptr = make_object<IFace, WinRtObject>();
 
     REQUIRE_SUCCEEDED(::CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED));
-    auto exit = wil::scope_exit([] { ::CoUninitialize(); });
+    auto exit = wil::scope_exit([] {
+        ::CoUninitialize();
+    });
 
     TestAgile(ptr);
     TestAgile(wil::com_ptr_nothrow<IFace>(ptr));
@@ -1989,7 +2005,6 @@ void TestGlobalQueryWithFailedResolve(const Ptr& source)
         REQUIRE((!dest2 && !dest3));
     }
 
-
     SECTION("try_com_copy")
     {
 #ifdef WIL_ENABLE_EXCEPTIONS
@@ -2057,7 +2072,7 @@ void TestSmartPointerQueryFluentWithFailedResolve(wistd::false_type, const Ptr& 
 {
 }
 
-    template <typename TargetIFace, typename Ptr>
+template <typename TargetIFace, typename Ptr>
 void TestSmartPointerQueryFluentWithFailedResolve(wistd::true_type, const Ptr& source)
 {
     REQUIRE_ERROR(source.template query<TargetIFace>());
@@ -2172,7 +2187,7 @@ void TestWeakCombinations()
 
     auto weakPtr = wil::com_weak_query_failfast(ptr);
     TestQuery<IUnknown>(weakPtr.get()); // Not IInspectable derived
-    TestQuery<ITest>(weakPtr.get()); // IInspectable derived
+    TestQuery<ITest>(weakPtr.get());    // IInspectable derived
 
 #ifdef WIL_EXHAUSTIVE_TEST
     TestQuery<IInspectable>(weakPtr.get());
@@ -2262,15 +2277,18 @@ TEST_CASE("ComTests::VerifyCoCreateEx", "[com][CoCreateInstance]")
 
     {
 #ifdef WIL_ENABLE_EXCEPTIONS
-        auto [sp1, ps1] = wil::CoCreateInstanceEx<IBackgroundCopyManager, IUnknown>(__uuidof(BackgroundCopyManager), CLSCTX_LOCAL_SERVER);
+        auto [sp1, ps1] =
+            wil::CoCreateInstanceEx<IBackgroundCopyManager, IUnknown>(__uuidof(BackgroundCopyManager), CLSCTX_LOCAL_SERVER);
         REQUIRE((sp1 && ps1));
 #endif
-        auto [hr, unk] = wil::CoCreateInstanceExNoThrow<IBackgroundCopyManager, IUnknown>(__uuidof(BackgroundCopyManager), CLSCTX_LOCAL_SERVER);
+        auto [hr, unk] =
+            wil::CoCreateInstanceExNoThrow<IBackgroundCopyManager, IUnknown>(__uuidof(BackgroundCopyManager), CLSCTX_LOCAL_SERVER);
         REQUIRE_SUCCEEDED(hr);
         auto sp = std::get<0>(unk);
         auto ps = std::get<1>(unk);
         REQUIRE((sp && ps));
-        auto [sp3, ps3] = wil::CoCreateInstanceExFailFast<IBackgroundCopyManager, IUnknown>(__uuidof(BackgroundCopyManager), CLSCTX_LOCAL_SERVER);
+        auto [sp3, ps3] =
+            wil::CoCreateInstanceExFailFast<IBackgroundCopyManager, IUnknown>(__uuidof(BackgroundCopyManager), CLSCTX_LOCAL_SERVER);
         REQUIRE((sp3 && ps3));
     }
 
@@ -2289,8 +2307,8 @@ TEST_CASE("ComTests::VerifyCoCreateInstanceExNoThrowMissingInterface", "[com][Co
 
     {
         // IPropertyBag is not implemented
-        auto [error, result] = wil::CoCreateInstanceExNoThrow<IBackgroundCopyManager, IUnknown, IPropertyBag>
-            (__uuidof(BackgroundCopyManager), CLSCTX_LOCAL_SERVER);
+        auto [error, result] = wil::CoCreateInstanceExNoThrow<IBackgroundCopyManager, IUnknown, IPropertyBag>(
+            __uuidof(BackgroundCopyManager), CLSCTX_LOCAL_SERVER);
         REQUIRE(error == E_NOINTERFACE);
         REQUIRE(std::get<0>(result).get() == nullptr);
         REQUIRE(std::get<1>(result).get() == nullptr);
@@ -2298,32 +2316,32 @@ TEST_CASE("ComTests::VerifyCoCreateInstanceExNoThrowMissingInterface", "[com][Co
     }
 }
 
+#ifdef WIL_ENABLE_EXCEPTIONS
 TEST_CASE("ComTests::VerifyTryCoCreateInstanceMissingInterface", "[com][CoCreateInstance]")
 {
     auto init = wil::CoInitializeEx_failfast();
 
     // request some implemented, one not (IPropertyBag), partial results enabled
     {
-        auto [sp, pb] = wil::TryCoCreateInstanceEx<IBackgroundCopyManager, IPropertyBag>
-            (__uuidof(BackgroundCopyManager), CLSCTX_LOCAL_SERVER);
+        auto [sp, pb] =
+            wil::TryCoCreateInstanceEx<IBackgroundCopyManager, IPropertyBag>(__uuidof(BackgroundCopyManager), CLSCTX_LOCAL_SERVER);
         REQUIRE(sp != nullptr);
         REQUIRE(pb == nullptr);
     }
     {
-        auto [sp, pb] = wil::TryCoCreateInstanceExNoThrow<IBackgroundCopyManager, IPropertyBag>
-            (__uuidof(BackgroundCopyManager), CLSCTX_LOCAL_SERVER);
+        auto [sp, pb] = wil::TryCoCreateInstanceExNoThrow<IBackgroundCopyManager, IPropertyBag>(
+            __uuidof(BackgroundCopyManager), CLSCTX_LOCAL_SERVER);
         REQUIRE(sp != nullptr);
         REQUIRE(pb == nullptr);
     }
     {
-        auto [sp, pb] = wil::TryCoCreateInstanceExFailFast<IBackgroundCopyManager, IPropertyBag>
-            (__uuidof(BackgroundCopyManager), CLSCTX_LOCAL_SERVER);
+        auto [sp, pb] = wil::TryCoCreateInstanceExFailFast<IBackgroundCopyManager, IPropertyBag>(
+            __uuidof(BackgroundCopyManager), CLSCTX_LOCAL_SERVER);
         REQUIRE(sp != nullptr);
         REQUIRE(pb == nullptr);
     }
 }
 
-#ifdef WIL_ENABLE_EXCEPTIONS
 TEST_CASE("ComTests::VerifyQueryMultipleInterfaces", "[com][com_multi_query]")
 {
     auto init = wil::CoInitializeEx_failfast();
@@ -2350,7 +2368,7 @@ TEST_CASE("ComTests::VerifyComSetSiteNullIsMoveOnly", "[com][com_set_site]")
 
     auto siteSetter = wil::com_set_site(nullptr, nullptr);
     auto siteSetter2 = std::move(siteSetter); // Move construction
-    siteSetter2 = std::move(siteSetter); // Move assignment
+    siteSetter2 = std::move(siteSetter);      // Move assignment
 }
 
 TEST_CASE("ComTests::VerifyComSetSite", "[com][com_set_site]")
@@ -2387,6 +2405,7 @@ TEST_CASE("ComTests::VerifyComSetSite", "[com][com_set_site]")
             *ppv = nullptr;
             return E_NOTIMPL;
         }
+
     private:
         wil::com_ptr_nothrow<IUnknown> m_site;
     };
@@ -2403,8 +2422,7 @@ TEST_CASE("ComTests::VerifyComSetSite", "[com][com_set_site]")
         REQUIRE(static_cast<bool>(site));
 
         auto siteCount = 0;
-        wil::for_each_site(objWithSite.Get(), [&](IUnknown* /*site*/)
-        {
+        wil::for_each_site(objWithSite.Get(), [&](IUnknown* /*site*/) {
             siteCount++;
         });
         REQUIRE(siteCount == 2);
@@ -2419,12 +2437,9 @@ TEST_CASE("ComTests::VerifyComSetSite", "[com][com_set_site]")
 class FakeStream : public IStream
 {
 public:
-
     STDMETHOD(QueryInterface)(REFIID riid, PVOID* ppv) override
     {
-        if ((riid == __uuidof(IStream)) ||
-            (riid == __uuidof(ISequentialStream)) ||
-            (riid == __uuidof(IUnknown)))
+        if ((riid == __uuidof(IStream)) || (riid == __uuidof(ISequentialStream)) || (riid == __uuidof(IUnknown)))
         {
             *ppv = static_cast<IStream*>(this);
             return S_OK;
@@ -2450,29 +2465,29 @@ public:
     unsigned long long TotalSize = 0;
 
     // ISequentialStream
-    STDMETHOD(Read)(_Out_writes_bytes_to_(cb, *pcbRead) void *pv, _In_ ULONG cb, _Out_opt_ ULONG *pcbRead) override
+    STDMETHOD(Read)(_Out_writes_bytes_to_(cb, *pcbRead) void* pv, _In_ ULONG cb, _Out_opt_ ULONG* pcbRead) override
     {
         if (pcbRead)
         {
-            *pcbRead = min(MaxReadSize, cb);
+            *pcbRead = std::min(MaxReadSize, cb);
         }
 
         ZeroMemory(pv, cb);
         return (MaxReadSize <= cb) ? S_OK : S_FALSE;
     }
 
-    STDMETHOD(Write)(_In_reads_bytes_(cb) const void *, _In_ ULONG cb, _Out_opt_ ULONG *pcbWritten) override
+    STDMETHOD(Write)(_In_reads_bytes_(cb) const void*, _In_ ULONG cb, _Out_opt_ ULONG* pcbWritten) override
     {
         if (pcbWritten)
         {
-            *pcbWritten = min(MaxWriteSize, cb);
+            *pcbWritten = std::min(MaxWriteSize, cb);
         }
 
         return (MaxWriteSize <= cb) ? S_OK : S_FALSE;
     }
 
     // IStream
-    STDMETHOD(Seek)(LARGE_INTEGER dlibMove, DWORD dwOrigin, _Out_opt_ ULARGE_INTEGER *plibNewPosition)
+    STDMETHOD(Seek)(LARGE_INTEGER dlibMove, DWORD dwOrigin, _Out_opt_ ULARGE_INTEGER* plibNewPosition)
     {
         if (dwOrigin == STREAM_SEEK_CUR)
         {
@@ -2501,7 +2516,7 @@ public:
             }
         }
 
-        Position = min(Position, PositionMax);
+        Position = std::min(Position, PositionMax);
 
         if (plibNewPosition)
         {
@@ -2511,7 +2526,7 @@ public:
         return S_OK;
     }
 
-    STDMETHOD(Stat)(__RPC__out STATSTG *pstatstg, DWORD) override
+    STDMETHOD(Stat)(__RPC__out STATSTG* pstatstg, DWORD) override
     {
         *pstatstg = {};
         pstatstg->cbSize.QuadPart = TotalSize;
@@ -2528,7 +2543,7 @@ public:
         return E_NOTIMPL;
     }
 
-    STDMETHOD(Clone)(__RPC__deref_out_opt IStream **ppstm) override
+    STDMETHOD(Clone)(__RPC__deref_out_opt IStream** ppstm) override
     {
         *ppstm = this;
         return S_OK;
@@ -2539,7 +2554,7 @@ public:
         return E_NOTIMPL;
     }
 
-    STDMETHOD(CopyTo)(_In_ IStream *pstm, ULARGE_INTEGER cb, _Out_opt_ ULARGE_INTEGER *pcbRead, _Out_opt_ ULARGE_INTEGER *pcbWritten) override
+    STDMETHOD(CopyTo)(_In_ IStream* pstm, ULARGE_INTEGER cb, _Out_opt_ ULARGE_INTEGER* pcbRead, _Out_opt_ ULARGE_INTEGER* pcbWritten) override
     {
         unsigned long didWrite;
         unsigned long didRead;
@@ -2648,7 +2663,7 @@ TEST_CASE("StreamTests::Read", "[com][IStream]")
 TEST_CASE("StreamTests::Write", "[com][IStream]")
 {
     FakeStream stream;
-    BYTE buffer[16] = { 8, 6, 7, 5, 3, 0, 9 };
+    BYTE buffer[16] = {8, 6, 7, 5, 3, 0, 9};
 
     stream.MaxWriteSize = sizeof(buffer) + 1;
     REQUIRE_SUCCEEDED(wil::stream_write_nothrow(&stream, buffer, sizeof(buffer)));
@@ -2660,7 +2675,7 @@ TEST_CASE("StreamTests::Write", "[com][IStream]")
     {
         ULONG Flags;
         ULONG Other;
-    } header = { 1, 2 };
+    } header = {1, 2};
 
     stream.MaxWriteSize = sizeof(header) + 1;
     REQUIRE_SUCCEEDED(wil::stream_write_nothrow(&stream, header));
@@ -2675,7 +2690,7 @@ TEST_CASE("StreamTests::Write", "[com][IStream]")
     stream.MaxWriteSize = sizeof(buffer) - 1;
     REQUIRE_THROWS(wil::stream_write(&stream, buffer, sizeof(buffer)));
 
-    header = { 1, 2 };
+    header = {1, 2};
     stream.MaxWriteSize = sizeof(header) + 1;
     REQUIRE_NOTHROW(wil::stream_write(&stream, header));
 
@@ -2824,25 +2839,36 @@ TEST_CASE("StreamTests::Saver", "[com][IStream]")
 }
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && WIL_HAS_CXX_17
 
-template<typename T>
+template <typename T>
 struct EnumT : IUnknown
 {
     // IUnknown
-    HRESULT __stdcall QueryInterface(REFIID, void**) noexcept { return E_NOINTERFACE; }
-    ULONG __stdcall AddRef() noexcept { return 0; }
-    ULONG __stdcall Release() noexcept { return 0; }
+    HRESULT __stdcall QueryInterface(REFIID, void**) noexcept
+    {
+        return E_NOINTERFACE;
+    }
+    ULONG __stdcall AddRef() noexcept
+    {
+        return 0;
+    }
+    ULONG __stdcall Release() noexcept
+    {
+        return 0;
+    }
     // IEnumXxx
     HRESULT __stdcall Next(ULONG, T* output, ULONG*) noexcept
     {
         if (m_nextIndex++ < m_nItems)
         {
-            *output = m_mockValue; 
+            *output = m_mockValue;
             return S_OK;
         }
         return S_FALSE;
     }
 
-    EnumT(int nItems, const T& value) : m_nItems(nItems), m_mockValue(value) {}
+    EnumT(int nItems, const T& value) : m_nItems(nItems), m_mockValue(value)
+    {
+    }
 
     int m_nItems = 0;
     int m_nextIndex = 0;
@@ -2860,6 +2886,8 @@ TEST_CASE("COMEnumerator", "[com][enumerator]")
     using IEnumMuffins = EnumT<int32_t>;
     using IEnumMuffinsCOM = EnumT<IUnknown*>;
 
+    using unique_idlist = wil::unique_any<LPITEMIDLIST, decltype(&ILFree), ILFree>;
+
     SECTION("static_assert COM enumerator details")
     {
         using real_next_t = decltype(&IEnumIDList::Next);
@@ -2869,28 +2897,39 @@ TEST_CASE("COMEnumerator", "[com][enumerator]")
 
         using traits_t = wil::details::com_enumerator_traits<IEnumIDList>;
         static_assert(std::is_same_v<traits_t::Result, LPITEMIDLIST>);
-        static_assert(std::is_same_v<traits_t::smart_result, LPITEMIDLIST>);
+        static_assert(std::is_same_v<traits_t::smart_result, wil::details::You_must_specify_Smart_Output_type_explicitly<IEnumIDList>>); // no smart pointer for LPITEMIDLIST specified
 
         static_assert(std::is_same_v<wil::details::com_enumerator_next_traits<decltype(&IEnumMuffins::Next)>::Result, int32_t>);
         static_assert(std::is_same_v<wil::details::com_enumerator_next_traits<decltype(&IEnumMuffins::Next)>::Interface, IEnumMuffins>);
         static_assert(std::is_same_v<wil::details::com_enumerator_traits<IEnumMuffins>::Result, int32_t>);
-        static_assert(std::is_same_v<wil::details::com_enumerator_traits<IEnumMuffins>::smart_result, int32_t>);
+        static_assert(
+            std::is_same_v<wil::details::com_enumerator_traits<IEnumMuffins>::smart_result, wil::details::You_must_specify_Smart_Output_type_explicitly<IEnumMuffins>>); // no smart type for int32_t specified
 
         static_assert(std::is_same_v<wil::details::com_enumerator_next_traits<decltype(&IEnumMuffinsCOM::Next)>::Result, IUnknown*>);
-        static_assert(std::is_same_v<wil::details::com_enumerator_next_traits<decltype(&IEnumMuffinsCOM::Next)>::Interface, IEnumMuffinsCOM>);
+        static_assert(
+            std::is_same_v<wil::details::com_enumerator_next_traits<decltype(&IEnumMuffinsCOM::Next)>::Interface, IEnumMuffinsCOM>);
         static_assert(std::is_same_v<wil::details::com_enumerator_traits<IEnumMuffinsCOM>::Result, IUnknown*>);
         static_assert(std::is_same_v<wil::details::com_enumerator_traits<IEnumMuffinsCOM>::smart_result, wil::com_ptr<IUnknown>>);
+
+        {
+            using custom_stored_type_enumerator = decltype(wil::make_range<unique_idlist, IEnumIDList>(nullptr).begin());
+            static_assert(std::is_same_v<custom_stored_type_enumerator::smart_result, unique_idlist>);
+        }
+        {
+            using custom_stored_type_enumerator = decltype(wil::make_range<unique_idlist>(wistd::declval<IEnumIDList*>()).begin());
+            static_assert(std::is_same_v<custom_stored_type_enumerator::smart_result, unique_idlist>);
+        }
     }
     SECTION("static_assert com_iterator types")
     {
-        using iterator_t = wil::com_iterator<IEnumIDList>;
-        static_assert(std::is_same_v<LPITEMIDLIST&, decltype(*iterator_t{nullptr})>);
+        using iterator_t = wil::com_iterator<unique_idlist, IEnumIDList>;
+        static_assert(std::is_same_v<unique_idlist&, decltype(*iterator_t{nullptr})>);
     }
     SECTION("Enumerate empty, non-COM type")
     {
         auto found = false;
         auto muffins = IEnumMuffins(0, 42);
-        for (auto muffin : wil::make_range(&muffins))
+        for (auto muffin : wil::make_range<int>(&muffins))
         {
             REQUIRE(muffin == 0);
             found = true;
@@ -2902,7 +2941,7 @@ TEST_CASE("COMEnumerator", "[com][enumerator]")
     {
         auto found = false;
         auto muffins = IEnumMuffins(3, 42);
-        for (auto muffin : wil::make_range(&muffins))
+        for (auto muffin : wil::make_range<int>(&muffins))
         {
             REQUIRE(muffin == 42);
             found = true;
@@ -2921,11 +2960,32 @@ TEST_CASE("COMEnumerator", "[com][enumerator]")
             break;
         }
         REQUIRE(found);
+
+        auto muffinsCOM_nothrow = IEnumMuffinsCOM(1, nullptr);
+        found = false;
+        for (auto muffin : wil::make_range<wil::com_ptr_nothrow<IUnknown>>(&muffinsCOM_nothrow))
+        {
+            REQUIRE(muffin == nullptr);
+            found = true;
+            break;
+        }
+        REQUIRE(found);
+    }
+    SECTION("CTAD")
+    {
+        auto muffinsCOM = IEnumMuffinsCOM(1, nullptr);
+        using muffins_ctad_type = decltype(wil::com_iterator(&muffinsCOM));
+        static_assert(std::is_same_v<muffins_ctad_type::smart_result, wil::com_ptr<IUnknown>>);
+        static_assert(std::is_same_v<decltype(*std::declval<muffins_ctad_type>()), wil::com_ptr<IUnknown>&>);
+
+        wil::com_ptr<IEnumString> enumString;
+        auto it = wil::make_range<wil::unique_cotaskmem_string>(enumString.get());
+        static_assert(std::is_same_v<decltype(*(it.begin())), wil::unique_cotaskmem_string&>);
     }
 #if (NTDDI_VERSION >= NTDDI_VISTA)
     SECTION("static_assert enumeration types for IEnumAssocHandlers")
     {
-        using range_idlist = decltype(wil::make_range(std::declval<IEnumIDList*>()));
+        using range_idlist = decltype(wil::make_range<unique_idlist>(std::declval<IEnumIDList*>()));
         using range_assochandler = decltype(wil::make_range(std::declval<IEnumAssocHandlers*>()));
         // this iterator_range is not the same as this other iterator_range
         static_assert(!std::is_same_v<range_idlist, range_assochandler>);
@@ -2944,7 +3004,7 @@ TEST_CASE("COMEnumerator", "[com][enumerator]")
         {
             REQUIRE(assocHandler);
             found = true;
-            break; 
+            break;
         }
         REQUIRE(found);
     }
@@ -2954,8 +3014,7 @@ TEST_CASE("COMEnumerator", "[com][enumerator]")
         wil::verify_hresult(SHAssocEnumHandlers(L".jpg", ASSOC_FILTER_RECOMMENDED, &enumAssocHandlers));
         REQUIRE(enumAssocHandlers);
         auto iterator = wil::make_range(enumAssocHandlers.get());
-        const auto it = std::find_if(iterator.begin(), iterator.end(), [](const wil::com_ptr<IAssocHandler>& assocHandler)
-        {
+        const auto it = std::find_if(iterator.begin(), iterator.end(), [](const wil::com_ptr<IAssocHandler>& assocHandler) {
             return assocHandler != nullptr;
         });
         REQUIRE(*it != nullptr);
@@ -2970,11 +3029,27 @@ TEST_CASE("COMEnumerator", "[com][enumerator]")
         REQUIRE(enumIDList);
 
         auto count = 0;
-        for (auto pidl : wil::make_range(enumIDList.get()))
+        for (const auto& pidl : wil::make_range<unique_idlist>(enumIDList.get()))
         {
             REQUIRE(pidl);
             count++;
-            ILFree(pidl);
+            break;
+        }
+        REQUIRE(count > 0);
+    }
+    SECTION("Enumerate IShellFolder, with custom stored type")
+    {
+        wil::com_ptr<IShellFolder> desktop;
+        REQUIRE_SUCCEEDED(::SHGetDesktopFolder(&desktop));
+        wil::com_ptr<IEnumIDList> enumIDList;
+        REQUIRE_SUCCEEDED(desktop->EnumObjects(nullptr, SHCONTF_NONFOLDERS, &enumIDList));
+        REQUIRE(enumIDList);
+
+        auto count = 0;
+        for (auto& pidl : wil::make_range<unique_idlist>(enumIDList.get()))
+        {
+            REQUIRE(pidl);
+            count++;
             break;
         }
         REQUIRE(count > 0);

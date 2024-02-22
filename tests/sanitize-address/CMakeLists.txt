@@ -1,6 +1,8 @@
 
 add_executable(witest.asan)
 
+target_precompile_headers(witest.asan PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../pch.h)
+
 target_compile_options(witest.asan PRIVATE -fsanitize=address)
 
 target_compile_definitions(witest.asan PRIVATE
@@ -10,9 +12,6 @@ target_compile_definitions(witest.asan PRIVATE
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     target_compile_definitions(witest.asan PRIVATE
-        # Not compatible with using lld-link
-        -D_DISABLE_VECTOR_ANNOTATION
-        -D_DISABLE_STRING_ANNOTATION
         # See below; not compatible with exceptions
         -DCATCH_CONFIG_DISABLE_EXCEPTIONS
         )
@@ -42,6 +41,12 @@ else()
         ${CMAKE_CURRENT_SOURCE_DIR}/../StlTests.cpp
         )
 endif()
+
+target_compile_definitions(witest.asan PRIVATE
+    # Since we link with Catch2, which is pre-built
+    -D_DISABLE_VECTOR_ANNOTATION
+    -D_DISABLE_STRING_ANNOTATION
+    )
 
 target_sources(witest.asan PUBLIC
     ${COMMON_SOURCES}

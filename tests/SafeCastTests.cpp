@@ -1,3 +1,4 @@
+#include "pch.h"
 
 #include <wil/safecast.h>
 
@@ -10,21 +11,21 @@ TEST_CASE("SafeCastTests::SafeCastThrowsTemplateCheck", "[safecast]")
     SECTION("Unqualified char")
     {
         char orig = 1;
-        wil::safe_cast<char>              (orig);
-        wil::safe_cast<signed char>       (orig);
+        wil::safe_cast<char>(orig);
+        wil::safe_cast<signed char>(orig);
         // wil::safe_cast<unsigned char>     (orig); // No available conversion in intsafe
-        wil::safe_cast<short>             (orig);
-        wil::safe_cast<signed short>      (orig);
+        wil::safe_cast<short>(orig);
+        wil::safe_cast<signed short>(orig);
         // wil::safe_cast<unsigned short>    (orig); // No available conversion in intsafe
-        wil::safe_cast<int>               (orig);
-        wil::safe_cast<signed int>        (orig);
+        wil::safe_cast<int>(orig);
+        wil::safe_cast<signed int>(orig);
         // wil::safe_cast<unsigned int>      (orig); // No available conversion in intsafe
-        wil::safe_cast<long>              (orig);
+        wil::safe_cast<long>(orig);
         // wil::safe_cast<unsigned long>     (orig); // No available conversion in intsafe
-        wil::safe_cast<__int64>           (orig);
-        wil::safe_cast<signed __int64>    (orig);
+        wil::safe_cast<__int64>(orig);
+        wil::safe_cast<signed __int64>(orig);
         // wil::safe_cast<unsigned __int64>  (orig); // No available conversion in intsafe
-        wil::safe_cast<__int3264>         (orig);
+        wil::safe_cast<__int3264>(orig);
         // wil::safe_cast<unsigned __int3264>(orig); // No available conversion in intsafe
         // wil::safe_cast<wchar_t>           (orig); // No available conversion in intsafe
     }
@@ -32,353 +33,353 @@ TEST_CASE("SafeCastTests::SafeCastThrowsTemplateCheck", "[safecast]")
     SECTION("Signed char")
     {
         signed char orig = 1;
-        wil::safe_cast<char>              (orig);
-        wil::safe_cast<signed char>       (orig);
-        wil::safe_cast<unsigned char>     (orig);
-        wil::safe_cast<short>             (orig);
-        wil::safe_cast<signed short>      (orig);
-        wil::safe_cast<unsigned short>    (orig);
-        wil::safe_cast<int>               (orig);
-        wil::safe_cast<signed int>        (orig);
-        wil::safe_cast<unsigned int>      (orig);
-        wil::safe_cast<long>              (orig);
-        wil::safe_cast<unsigned long>     (orig);
-        wil::safe_cast<__int64>           (orig);
-        wil::safe_cast<signed __int64>    (orig);
-        wil::safe_cast<unsigned __int64>  (orig);
-        wil::safe_cast<__int3264>         (orig);
+        wil::safe_cast<char>(orig);
+        wil::safe_cast<signed char>(orig);
+        wil::safe_cast<unsigned char>(orig);
+        wil::safe_cast<short>(orig);
+        wil::safe_cast<signed short>(orig);
+        wil::safe_cast<unsigned short>(orig);
+        wil::safe_cast<int>(orig);
+        wil::safe_cast<signed int>(orig);
+        wil::safe_cast<unsigned int>(orig);
+        wil::safe_cast<long>(orig);
+        wil::safe_cast<unsigned long>(orig);
+        wil::safe_cast<__int64>(orig);
+        wil::safe_cast<signed __int64>(orig);
+        wil::safe_cast<unsigned __int64>(orig);
+        wil::safe_cast<__int3264>(orig);
         wil::safe_cast<unsigned __int3264>(orig);
-        wil::safe_cast<wchar_t>           (orig);
+        wil::safe_cast<wchar_t>(orig);
     }
 
     SECTION("Unsigned char")
     {
         unsigned char orig = 1;
-        wil::safe_cast<char>              (orig);
-        wil::safe_cast<signed char>       (orig);
-        wil::safe_cast<unsigned char>     (orig);
-        wil::safe_cast<short>             (orig);
-        wil::safe_cast<signed short>      (orig);
-        wil::safe_cast<unsigned short>    (orig);
-        wil::safe_cast<int>               (orig);
-        wil::safe_cast<signed int>        (orig);
-        wil::safe_cast<unsigned int>      (orig);
-        wil::safe_cast<long>              (orig);
-        wil::safe_cast<unsigned long>     (orig);
-        wil::safe_cast<__int64>           (orig);
-        wil::safe_cast<signed __int64>    (orig);
-        wil::safe_cast<unsigned __int64>  (orig);
-        wil::safe_cast<__int3264>         (orig);
+        wil::safe_cast<char>(orig);
+        wil::safe_cast<signed char>(orig);
+        wil::safe_cast<unsigned char>(orig);
+        wil::safe_cast<short>(orig);
+        wil::safe_cast<signed short>(orig);
+        wil::safe_cast<unsigned short>(orig);
+        wil::safe_cast<int>(orig);
+        wil::safe_cast<signed int>(orig);
+        wil::safe_cast<unsigned int>(orig);
+        wil::safe_cast<long>(orig);
+        wil::safe_cast<unsigned long>(orig);
+        wil::safe_cast<__int64>(orig);
+        wil::safe_cast<signed __int64>(orig);
+        wil::safe_cast<unsigned __int64>(orig);
+        wil::safe_cast<__int3264>(orig);
         wil::safe_cast<unsigned __int3264>(orig);
-        wil::safe_cast<wchar_t>           (orig);
+        wil::safe_cast<wchar_t>(orig);
     }
 
     SECTION("Unqualified short")
     {
         short orig = 1;
-        wil::safe_cast<char>              (orig);
-        wil::safe_cast<signed char>       (orig);
-        wil::safe_cast<unsigned char>     (orig);
-        wil::safe_cast<short>             (orig);
-        wil::safe_cast<signed short>      (orig);
-        wil::safe_cast<unsigned short>    (orig);
-        wil::safe_cast<int>               (orig);
-        wil::safe_cast<signed int>        (orig);
-        wil::safe_cast<unsigned int>      (orig);
-        wil::safe_cast<long>              (orig);
-        wil::safe_cast<unsigned long>     (orig);
-        wil::safe_cast<__int64>           (orig);
-        wil::safe_cast<signed __int64>    (orig);
-        wil::safe_cast<unsigned __int64>  (orig);
-        wil::safe_cast<__int3264>         (orig);
+        wil::safe_cast<char>(orig);
+        wil::safe_cast<signed char>(orig);
+        wil::safe_cast<unsigned char>(orig);
+        wil::safe_cast<short>(orig);
+        wil::safe_cast<signed short>(orig);
+        wil::safe_cast<unsigned short>(orig);
+        wil::safe_cast<int>(orig);
+        wil::safe_cast<signed int>(orig);
+        wil::safe_cast<unsigned int>(orig);
+        wil::safe_cast<long>(orig);
+        wil::safe_cast<unsigned long>(orig);
+        wil::safe_cast<__int64>(orig);
+        wil::safe_cast<signed __int64>(orig);
+        wil::safe_cast<unsigned __int64>(orig);
+        wil::safe_cast<__int3264>(orig);
         wil::safe_cast<unsigned __int3264>(orig);
-        wil::safe_cast<wchar_t>           (orig);
+        wil::safe_cast<wchar_t>(orig);
     }
 
     SECTION("Signed short")
     {
         signed short orig = 1;
-        wil::safe_cast<char>              (orig);
-        wil::safe_cast<signed char>       (orig);
-        wil::safe_cast<unsigned char>     (orig);
-        wil::safe_cast<short>             (orig);
-        wil::safe_cast<signed short>      (orig);
-        wil::safe_cast<unsigned short>    (orig);
-        wil::safe_cast<int>               (orig);
-        wil::safe_cast<signed int>        (orig);
-        wil::safe_cast<unsigned int>      (orig);
-        wil::safe_cast<long>              (orig);
-        wil::safe_cast<unsigned long>     (orig);
-        wil::safe_cast<__int64>           (orig);
-        wil::safe_cast<signed __int64>    (orig);
-        wil::safe_cast<unsigned __int64>  (orig);
-        wil::safe_cast<__int3264>         (orig);
+        wil::safe_cast<char>(orig);
+        wil::safe_cast<signed char>(orig);
+        wil::safe_cast<unsigned char>(orig);
+        wil::safe_cast<short>(orig);
+        wil::safe_cast<signed short>(orig);
+        wil::safe_cast<unsigned short>(orig);
+        wil::safe_cast<int>(orig);
+        wil::safe_cast<signed int>(orig);
+        wil::safe_cast<unsigned int>(orig);
+        wil::safe_cast<long>(orig);
+        wil::safe_cast<unsigned long>(orig);
+        wil::safe_cast<__int64>(orig);
+        wil::safe_cast<signed __int64>(orig);
+        wil::safe_cast<unsigned __int64>(orig);
+        wil::safe_cast<__int3264>(orig);
         wil::safe_cast<unsigned __int3264>(orig);
-        wil::safe_cast<wchar_t>           (orig);
+        wil::safe_cast<wchar_t>(orig);
     }
 
     SECTION("Unsigned short")
     {
         unsigned short orig = 1;
-        wil::safe_cast<char>              (orig);
-        wil::safe_cast<signed char>       (orig);
-        wil::safe_cast<unsigned char>     (orig);
-        wil::safe_cast<short>             (orig);
-        wil::safe_cast<signed short>      (orig);
-        wil::safe_cast<unsigned short>    (orig);
-        wil::safe_cast<int>               (orig);
-        wil::safe_cast<signed int>        (orig);
-        wil::safe_cast<unsigned int>      (orig);
-        wil::safe_cast<long>              (orig);
-        wil::safe_cast<unsigned long>     (orig);
-        wil::safe_cast<__int64>           (orig);
-        wil::safe_cast<signed __int64>    (orig);
-        wil::safe_cast<unsigned __int64>  (orig);
-        wil::safe_cast<__int3264>         (orig);
+        wil::safe_cast<char>(orig);
+        wil::safe_cast<signed char>(orig);
+        wil::safe_cast<unsigned char>(orig);
+        wil::safe_cast<short>(orig);
+        wil::safe_cast<signed short>(orig);
+        wil::safe_cast<unsigned short>(orig);
+        wil::safe_cast<int>(orig);
+        wil::safe_cast<signed int>(orig);
+        wil::safe_cast<unsigned int>(orig);
+        wil::safe_cast<long>(orig);
+        wil::safe_cast<unsigned long>(orig);
+        wil::safe_cast<__int64>(orig);
+        wil::safe_cast<signed __int64>(orig);
+        wil::safe_cast<unsigned __int64>(orig);
+        wil::safe_cast<__int3264>(orig);
         wil::safe_cast<unsigned __int3264>(orig);
-        wil::safe_cast<wchar_t>           (orig);
+        wil::safe_cast<wchar_t>(orig);
     }
 
     SECTION("Unqualified int")
     {
         int orig = 1;
-        wil::safe_cast<char>              (orig);
-        wil::safe_cast<signed char>       (orig);
-        wil::safe_cast<unsigned char>     (orig);
-        wil::safe_cast<short>             (orig);
-        wil::safe_cast<signed short>      (orig);
-        wil::safe_cast<unsigned short>    (orig);
-        wil::safe_cast<int>               (orig);
-        wil::safe_cast<signed int>        (orig);
-        wil::safe_cast<unsigned int>      (orig);
-        wil::safe_cast<long>              (orig);
-        wil::safe_cast<unsigned long>     (orig);
-        wil::safe_cast<__int64>           (orig);
-        wil::safe_cast<signed __int64>    (orig);
-        wil::safe_cast<unsigned __int64>  (orig);
-        wil::safe_cast<__int3264>         (orig);
+        wil::safe_cast<char>(orig);
+        wil::safe_cast<signed char>(orig);
+        wil::safe_cast<unsigned char>(orig);
+        wil::safe_cast<short>(orig);
+        wil::safe_cast<signed short>(orig);
+        wil::safe_cast<unsigned short>(orig);
+        wil::safe_cast<int>(orig);
+        wil::safe_cast<signed int>(orig);
+        wil::safe_cast<unsigned int>(orig);
+        wil::safe_cast<long>(orig);
+        wil::safe_cast<unsigned long>(orig);
+        wil::safe_cast<__int64>(orig);
+        wil::safe_cast<signed __int64>(orig);
+        wil::safe_cast<unsigned __int64>(orig);
+        wil::safe_cast<__int3264>(orig);
         wil::safe_cast<unsigned __int3264>(orig);
-        wil::safe_cast<wchar_t>           (orig);
+        wil::safe_cast<wchar_t>(orig);
     }
 
     SECTION("Signed int")
     {
         signed int orig = 1;
-        wil::safe_cast<char>              (orig);
-        wil::safe_cast<signed char>       (orig);
-        wil::safe_cast<unsigned char>     (orig);
-        wil::safe_cast<short>             (orig);
-        wil::safe_cast<signed short>      (orig);
-        wil::safe_cast<unsigned short>    (orig);
-        wil::safe_cast<int>               (orig);
-        wil::safe_cast<signed int>        (orig);
-        wil::safe_cast<unsigned int>      (orig);
-        wil::safe_cast<long>              (orig);
-        wil::safe_cast<unsigned long>     (orig);
-        wil::safe_cast<__int64>           (orig);
-        wil::safe_cast<signed __int64>    (orig);
-        wil::safe_cast<unsigned __int64>  (orig);
-        wil::safe_cast<__int3264>         (orig);
+        wil::safe_cast<char>(orig);
+        wil::safe_cast<signed char>(orig);
+        wil::safe_cast<unsigned char>(orig);
+        wil::safe_cast<short>(orig);
+        wil::safe_cast<signed short>(orig);
+        wil::safe_cast<unsigned short>(orig);
+        wil::safe_cast<int>(orig);
+        wil::safe_cast<signed int>(orig);
+        wil::safe_cast<unsigned int>(orig);
+        wil::safe_cast<long>(orig);
+        wil::safe_cast<unsigned long>(orig);
+        wil::safe_cast<__int64>(orig);
+        wil::safe_cast<signed __int64>(orig);
+        wil::safe_cast<unsigned __int64>(orig);
+        wil::safe_cast<__int3264>(orig);
         wil::safe_cast<unsigned __int3264>(orig);
-        wil::safe_cast<wchar_t>           (orig);
+        wil::safe_cast<wchar_t>(orig);
     }
 
     SECTION("Unsigned int")
     {
         unsigned int orig = 1;
-        wil::safe_cast<char>              (orig);
-        wil::safe_cast<signed char>       (orig);
-        wil::safe_cast<unsigned char>     (orig);
-        wil::safe_cast<short>             (orig);
-        wil::safe_cast<signed short>      (orig);
-        wil::safe_cast<unsigned short>    (orig);
-        wil::safe_cast<int>               (orig);
-        wil::safe_cast<signed int>        (orig);
-        wil::safe_cast<unsigned int>      (orig);
-        wil::safe_cast<long>              (orig);
-        wil::safe_cast<unsigned long>     (orig);
-        wil::safe_cast<__int64>           (orig);
-        wil::safe_cast<signed __int64>    (orig);
-        wil::safe_cast<unsigned __int64>  (orig);
-        wil::safe_cast<__int3264>         (orig);
+        wil::safe_cast<char>(orig);
+        wil::safe_cast<signed char>(orig);
+        wil::safe_cast<unsigned char>(orig);
+        wil::safe_cast<short>(orig);
+        wil::safe_cast<signed short>(orig);
+        wil::safe_cast<unsigned short>(orig);
+        wil::safe_cast<int>(orig);
+        wil::safe_cast<signed int>(orig);
+        wil::safe_cast<unsigned int>(orig);
+        wil::safe_cast<long>(orig);
+        wil::safe_cast<unsigned long>(orig);
+        wil::safe_cast<__int64>(orig);
+        wil::safe_cast<signed __int64>(orig);
+        wil::safe_cast<unsigned __int64>(orig);
+        wil::safe_cast<__int3264>(orig);
         wil::safe_cast<unsigned __int3264>(orig);
-        wil::safe_cast<wchar_t>           (orig);
+        wil::safe_cast<wchar_t>(orig);
     }
 
     SECTION("Unqualified long")
     {
         long orig = 1;
-        wil::safe_cast<char>              (orig);
-        wil::safe_cast<signed char>       (orig);
-        wil::safe_cast<unsigned char>     (orig);
-        wil::safe_cast<short>             (orig);
-        wil::safe_cast<signed short>      (orig);
-        wil::safe_cast<unsigned short>    (orig);
-        wil::safe_cast<int>               (orig);
-        wil::safe_cast<signed int>        (orig);
-        wil::safe_cast<unsigned int>      (orig);
-        wil::safe_cast<long>              (orig);
-        wil::safe_cast<unsigned long>     (orig);
-        wil::safe_cast<__int64>           (orig);
-        wil::safe_cast<signed __int64>    (orig);
-        wil::safe_cast<unsigned __int64>  (orig);
-        wil::safe_cast<__int3264>         (orig);
+        wil::safe_cast<char>(orig);
+        wil::safe_cast<signed char>(orig);
+        wil::safe_cast<unsigned char>(orig);
+        wil::safe_cast<short>(orig);
+        wil::safe_cast<signed short>(orig);
+        wil::safe_cast<unsigned short>(orig);
+        wil::safe_cast<int>(orig);
+        wil::safe_cast<signed int>(orig);
+        wil::safe_cast<unsigned int>(orig);
+        wil::safe_cast<long>(orig);
+        wil::safe_cast<unsigned long>(orig);
+        wil::safe_cast<__int64>(orig);
+        wil::safe_cast<signed __int64>(orig);
+        wil::safe_cast<unsigned __int64>(orig);
+        wil::safe_cast<__int3264>(orig);
         wil::safe_cast<unsigned __int3264>(orig);
-        wil::safe_cast<wchar_t>           (orig);
+        wil::safe_cast<wchar_t>(orig);
     }
 
     SECTION("Unsigned log")
     {
         unsigned long orig = 1;
-        wil::safe_cast<char>              (orig);
-        wil::safe_cast<signed char>       (orig);
-        wil::safe_cast<unsigned char>     (orig);
-        wil::safe_cast<short>             (orig);
-        wil::safe_cast<signed short>      (orig);
-        wil::safe_cast<unsigned short>    (orig);
-        wil::safe_cast<int>               (orig);
-        wil::safe_cast<signed int>        (orig);
-        wil::safe_cast<unsigned int>      (orig);
-        wil::safe_cast<long>              (orig);
-        wil::safe_cast<unsigned long>     (orig);
-        wil::safe_cast<__int64>           (orig);
-        wil::safe_cast<signed __int64>    (orig);
-        wil::safe_cast<unsigned __int64>  (orig);
-        wil::safe_cast<__int3264>         (orig);
+        wil::safe_cast<char>(orig);
+        wil::safe_cast<signed char>(orig);
+        wil::safe_cast<unsigned char>(orig);
+        wil::safe_cast<short>(orig);
+        wil::safe_cast<signed short>(orig);
+        wil::safe_cast<unsigned short>(orig);
+        wil::safe_cast<int>(orig);
+        wil::safe_cast<signed int>(orig);
+        wil::safe_cast<unsigned int>(orig);
+        wil::safe_cast<long>(orig);
+        wil::safe_cast<unsigned long>(orig);
+        wil::safe_cast<__int64>(orig);
+        wil::safe_cast<signed __int64>(orig);
+        wil::safe_cast<unsigned __int64>(orig);
+        wil::safe_cast<__int3264>(orig);
         wil::safe_cast<unsigned __int3264>(orig);
-        wil::safe_cast<wchar_t>           (orig);
+        wil::safe_cast<wchar_t>(orig);
     }
 
     SECTION("Unqualified int64")
     {
         __int64 orig = 1;
-        wil::safe_cast<char>              (orig);
-        wil::safe_cast<signed char>       (orig);
-        wil::safe_cast<unsigned char>     (orig);
-        wil::safe_cast<short>             (orig);
-        wil::safe_cast<signed short>      (orig);
-        wil::safe_cast<unsigned short>    (orig);
-        wil::safe_cast<int>               (orig);
-        wil::safe_cast<signed int>        (orig);
-        wil::safe_cast<unsigned int>      (orig);
-        wil::safe_cast<long>              (orig);
-        wil::safe_cast<unsigned long>     (orig);
-        wil::safe_cast<__int64>           (orig);
-        wil::safe_cast<signed __int64>    (orig);
-        wil::safe_cast<unsigned __int64>  (orig);
-        wil::safe_cast<__int3264>         (orig);
+        wil::safe_cast<char>(orig);
+        wil::safe_cast<signed char>(orig);
+        wil::safe_cast<unsigned char>(orig);
+        wil::safe_cast<short>(orig);
+        wil::safe_cast<signed short>(orig);
+        wil::safe_cast<unsigned short>(orig);
+        wil::safe_cast<int>(orig);
+        wil::safe_cast<signed int>(orig);
+        wil::safe_cast<unsigned int>(orig);
+        wil::safe_cast<long>(orig);
+        wil::safe_cast<unsigned long>(orig);
+        wil::safe_cast<__int64>(orig);
+        wil::safe_cast<signed __int64>(orig);
+        wil::safe_cast<unsigned __int64>(orig);
+        wil::safe_cast<__int3264>(orig);
         wil::safe_cast<unsigned __int3264>(orig);
-        wil::safe_cast<wchar_t>           (orig);
+        wil::safe_cast<wchar_t>(orig);
     }
 
     SECTION("Signed int64")
     {
         signed __int64 orig = 1;
-        wil::safe_cast<char>              (orig);
-        wil::safe_cast<signed char>       (orig);
-        wil::safe_cast<unsigned char>     (orig);
-        wil::safe_cast<short>             (orig);
-        wil::safe_cast<signed short>      (orig);
-        wil::safe_cast<unsigned short>    (orig);
-        wil::safe_cast<int>               (orig);
-        wil::safe_cast<signed int>        (orig);
-        wil::safe_cast<unsigned int>      (orig);
-        wil::safe_cast<long>              (orig);
-        wil::safe_cast<unsigned long>     (orig);
-        wil::safe_cast<__int64>           (orig);
-        wil::safe_cast<signed __int64>    (orig);
-        wil::safe_cast<unsigned __int64>  (orig);
-        wil::safe_cast<__int3264>         (orig);
+        wil::safe_cast<char>(orig);
+        wil::safe_cast<signed char>(orig);
+        wil::safe_cast<unsigned char>(orig);
+        wil::safe_cast<short>(orig);
+        wil::safe_cast<signed short>(orig);
+        wil::safe_cast<unsigned short>(orig);
+        wil::safe_cast<int>(orig);
+        wil::safe_cast<signed int>(orig);
+        wil::safe_cast<unsigned int>(orig);
+        wil::safe_cast<long>(orig);
+        wil::safe_cast<unsigned long>(orig);
+        wil::safe_cast<__int64>(orig);
+        wil::safe_cast<signed __int64>(orig);
+        wil::safe_cast<unsigned __int64>(orig);
+        wil::safe_cast<__int3264>(orig);
         wil::safe_cast<unsigned __int3264>(orig);
-        wil::safe_cast<wchar_t>           (orig);
+        wil::safe_cast<wchar_t>(orig);
     }
 
     SECTION("Unsigned int64")
     {
         unsigned __int64 orig = 1;
-        wil::safe_cast<char>              (orig);
-        wil::safe_cast<signed char>       (orig);
-        wil::safe_cast<unsigned char>     (orig);
-        wil::safe_cast<short>             (orig);
-        wil::safe_cast<signed short>      (orig);
-        wil::safe_cast<unsigned short>    (orig);
-        wil::safe_cast<int>               (orig);
-        wil::safe_cast<signed int>        (orig);
-        wil::safe_cast<unsigned int>      (orig);
-        wil::safe_cast<long>              (orig);
-        wil::safe_cast<unsigned long>     (orig);
-        wil::safe_cast<__int64>           (orig);
-        wil::safe_cast<signed __int64>    (orig);
-        wil::safe_cast<unsigned __int64>  (orig);
-        wil::safe_cast<__int3264>         (orig);
+        wil::safe_cast<char>(orig);
+        wil::safe_cast<signed char>(orig);
+        wil::safe_cast<unsigned char>(orig);
+        wil::safe_cast<short>(orig);
+        wil::safe_cast<signed short>(orig);
+        wil::safe_cast<unsigned short>(orig);
+        wil::safe_cast<int>(orig);
+        wil::safe_cast<signed int>(orig);
+        wil::safe_cast<unsigned int>(orig);
+        wil::safe_cast<long>(orig);
+        wil::safe_cast<unsigned long>(orig);
+        wil::safe_cast<__int64>(orig);
+        wil::safe_cast<signed __int64>(orig);
+        wil::safe_cast<unsigned __int64>(orig);
+        wil::safe_cast<__int3264>(orig);
         wil::safe_cast<unsigned __int3264>(orig);
-        wil::safe_cast<wchar_t>           (orig);
+        wil::safe_cast<wchar_t>(orig);
     }
 
     SECTION("Unqualified int3264")
     {
         __int3264 orig = 1;
-        wil::safe_cast<char>              (orig);
-        wil::safe_cast<signed char>       (orig);
-        wil::safe_cast<unsigned char>     (orig);
-        wil::safe_cast<short>             (orig);
-        wil::safe_cast<signed short>      (orig);
-        wil::safe_cast<unsigned short>    (orig);
-        wil::safe_cast<int>               (orig);
-        wil::safe_cast<signed int>        (orig);
-        wil::safe_cast<unsigned int>      (orig);
-        wil::safe_cast<long>              (orig);
-        wil::safe_cast<unsigned long>     (orig);
-        wil::safe_cast<__int64>           (orig);
-        wil::safe_cast<signed __int64>    (orig);
-        wil::safe_cast<unsigned __int64>  (orig);
-        wil::safe_cast<__int3264>         (orig);
+        wil::safe_cast<char>(orig);
+        wil::safe_cast<signed char>(orig);
+        wil::safe_cast<unsigned char>(orig);
+        wil::safe_cast<short>(orig);
+        wil::safe_cast<signed short>(orig);
+        wil::safe_cast<unsigned short>(orig);
+        wil::safe_cast<int>(orig);
+        wil::safe_cast<signed int>(orig);
+        wil::safe_cast<unsigned int>(orig);
+        wil::safe_cast<long>(orig);
+        wil::safe_cast<unsigned long>(orig);
+        wil::safe_cast<__int64>(orig);
+        wil::safe_cast<signed __int64>(orig);
+        wil::safe_cast<unsigned __int64>(orig);
+        wil::safe_cast<__int3264>(orig);
         wil::safe_cast<unsigned __int3264>(orig);
-        wil::safe_cast<wchar_t>           (orig);
+        wil::safe_cast<wchar_t>(orig);
     }
 
     SECTION("Unsigned int3264")
     {
         unsigned __int3264 orig = 1;
-        wil::safe_cast<char>              (orig);
-        wil::safe_cast<signed char>       (orig);
-        wil::safe_cast<unsigned char>     (orig);
-        wil::safe_cast<short>             (orig);
-        wil::safe_cast<signed short>      (orig);
-        wil::safe_cast<unsigned short>    (orig);
-        wil::safe_cast<int>               (orig);
-        wil::safe_cast<signed int>        (orig);
-        wil::safe_cast<unsigned int>      (orig);
-        wil::safe_cast<long>              (orig);
-        wil::safe_cast<unsigned long>     (orig);
-        wil::safe_cast<__int64>           (orig);
-        wil::safe_cast<signed __int64>    (orig);
-        wil::safe_cast<unsigned __int64>  (orig);
-        wil::safe_cast<__int3264>         (orig);
+        wil::safe_cast<char>(orig);
+        wil::safe_cast<signed char>(orig);
+        wil::safe_cast<unsigned char>(orig);
+        wil::safe_cast<short>(orig);
+        wil::safe_cast<signed short>(orig);
+        wil::safe_cast<unsigned short>(orig);
+        wil::safe_cast<int>(orig);
+        wil::safe_cast<signed int>(orig);
+        wil::safe_cast<unsigned int>(orig);
+        wil::safe_cast<long>(orig);
+        wil::safe_cast<unsigned long>(orig);
+        wil::safe_cast<__int64>(orig);
+        wil::safe_cast<signed __int64>(orig);
+        wil::safe_cast<unsigned __int64>(orig);
+        wil::safe_cast<__int3264>(orig);
         wil::safe_cast<unsigned __int3264>(orig);
-        wil::safe_cast<wchar_t>           (orig);
+        wil::safe_cast<wchar_t>(orig);
     }
 
     SECTION("wchar_t")
     {
         wchar_t orig = 1;
-        wil::safe_cast<char>              (orig);
-        wil::safe_cast<signed char>       (orig);
-        wil::safe_cast<unsigned char>     (orig);
-        wil::safe_cast<short>             (orig);
-        wil::safe_cast<signed short>      (orig);
-        wil::safe_cast<unsigned short>    (orig);
-        wil::safe_cast<int>               (orig);
-        wil::safe_cast<signed int>        (orig);
-        wil::safe_cast<unsigned int>      (orig);
-        wil::safe_cast<long>              (orig);
-        wil::safe_cast<unsigned long>     (orig);
-        wil::safe_cast<__int64>           (orig);
-        wil::safe_cast<signed __int64>    (orig);
-        wil::safe_cast<unsigned __int64>  (orig);
-        wil::safe_cast<__int3264>         (orig);
+        wil::safe_cast<char>(orig);
+        wil::safe_cast<signed char>(orig);
+        wil::safe_cast<unsigned char>(orig);
+        wil::safe_cast<short>(orig);
+        wil::safe_cast<signed short>(orig);
+        wil::safe_cast<unsigned short>(orig);
+        wil::safe_cast<int>(orig);
+        wil::safe_cast<signed int>(orig);
+        wil::safe_cast<unsigned int>(orig);
+        wil::safe_cast<long>(orig);
+        wil::safe_cast<unsigned long>(orig);
+        wil::safe_cast<__int64>(orig);
+        wil::safe_cast<signed __int64>(orig);
+        wil::safe_cast<unsigned __int64>(orig);
+        wil::safe_cast<__int3264>(orig);
         wil::safe_cast<unsigned __int3264>(orig);
-        wil::safe_cast<wchar_t>           (orig);
+        wil::safe_cast<wchar_t>(orig);
     }
 }
 #endif
@@ -557,7 +558,7 @@ TEST_CASE("SafeCastTests::SafeCastExpectFailFast", "[safecast]")
     failures.clear();
     {
         size_t st = SIZE_T_MAX;
-        REQUIRE_CRASH(wil::safe_cast_failfast<short>(st));
+        REQUIRE_ERROR(wil::safe_cast_failfast<short>(st));
         REQUIRE(failures.size() == 1);
     }
 

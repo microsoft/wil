@@ -1,6 +1,8 @@
 
 add_executable(witest.win7)
 
+target_precompile_headers(witest.win7 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../pch.h)
+
 target_compile_definitions(witest.win7 PRIVATE
     -D_WIN32_WINNT=0x0601
     )

@@ -30,6 +30,13 @@ if (NOT ret EQUAL 0)
     message(FATAL_ERROR "Failed to run cppwinrt.exe")
 endif()
 
+# In general, we've supported C++14 as the minimum standard, however the C++17 standard is already a couple releases old
+# and the Windows OS build has been on C++17 for some time. For the time being, we will still try and guard uses of
+# C++17+ features, however we've started to take dependencies on C++17 features in the tests and therefore no longer
+# build them with older standards
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 include_directories(BEFORE SYSTEM ${CMAKE_BINARY_DIR}/include)
 
 # The build pipelines have limitations that local development environments do not, so turn a few knobs
@@ -56,6 +63,7 @@ set(COMMON_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/CommonTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ComTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/FileSystemTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/MockingTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/NTResultTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ResourceTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ResultTests.cpp
@@ -63,6 +71,7 @@ set(COMMON_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/SafeCastTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/TraceLoggingTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/TraceLoggingTests_PartB.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/WindowingTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/WistdTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/wiTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../natvis/wil.natvis
@@ -71,6 +80,15 @@ set(COMMON_SOURCES
 if (MSVC)
     add_link_options(/NATVIS:${CMAKE_SOURCE_DIR}/natvis/wil.natvis)
 endif()
+
+find_path(DETOURS_INCLUDE_DIRS detours/detours.h)
+find_library(DETOURS_LIBRARY detours REQUIRED)
+
+find_package(Catch2 CONFIG REQUIRED)
+
+include_directories(${DETOURS_INCLUDE_DIRS})
+add_definitions(-DNOMINMAX)
+link_libraries(${DETOURS_LIBRARY} Catch2::Catch2WithMain)
 
 add_subdirectory(app)
 add_subdirectory(cpplatest)
@@ -87,6 +105,7 @@ if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
 elseif(${CMAKE_BUILD_TYPE} STREQUAL "RelWithDebInfo")
     set(HAS_DEBUG_INFO TRUE)
 endif()
+# Release & MinSizeRel => keep all false
 
 set(ASAN_AVAILABLE FALSE)
 set(UBSAN_AVAILABLE FALSE)
@@ -94,8 +113,10 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
     # Address Sanitizer is available for all architectures and build types, but warns/errors if debug info is not enabled
     set(ASAN_AVAILABLE ${HAS_DEBUG_INFO})
 elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    # Address Sanitizer is not available with debug libraries
-    set(ASAN_AVAILABLE NOT ${DEBUG_BUILD})
+    # Sanitizers are not available with debug libraries
+    # Starting with Clang 17, there appears to be some issue where linking to the dynamic asan libraries seems to think that
+    # things like 'operator new' are present in the executable, but only for x64 for some reason
+    set(ASAN_AVAILABLE NOT ${DEBUG_BUILD} AND $ENV{Platform} STREQUAL "x86")
     set(UBSAN_AVAILABLE NOT ${DEBUG_BUILD})
 endif()
 

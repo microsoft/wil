@@ -1,3 +1,4 @@
+#include "pch.h"
 
 #include <wil/winrt.h>
 
@@ -39,11 +40,14 @@ TEST_CASE("WinRTTests::VerifyTraitsTypes", "[winrt]")
     static_assert(wistd::is_same_v<int, typename wil::details::LastType<int>::type>, "");
 
     static_assert(wistd::is_same_v<IAsyncAction*, decltype(wil::details::GetReturnParamPointerType(&IFileIOStatics::WriteTextAsync))>, "");
-    static_assert(wistd::is_same_v<IAsyncOperation<bool>*, decltype(wil::details::GetReturnParamPointerType(&ILauncherStatics::LaunchUriAsync))>, "");
+    static_assert(
+        wistd::is_same_v<IAsyncOperation<bool>*, decltype(wil::details::GetReturnParamPointerType(&ILauncherStatics::LaunchUriAsync))>, "");
 
     static_assert(wistd::is_same_v<void, decltype(wil::details::GetAsyncResultType(static_cast<IAsyncAction*>(nullptr)))>, "");
     static_assert(wistd::is_same_v<boolean, decltype(wil::details::GetAsyncResultType(static_cast<IAsyncOperation<bool>*>(nullptr)))>, "");
-    static_assert(wistd::is_same_v<IStorageFile*, decltype(wil::details::GetAsyncResultType(static_cast<IAsyncOperation<StorageFile*>*>(nullptr)))>, "");
+    static_assert(
+        wistd::is_same_v<IStorageFile*, decltype(wil::details::GetAsyncResultType(static_cast<IAsyncOperation<StorageFile*>*>(nullptr)))>,
+        "");
 }
 
 template <bool InhibitArrayReferences, bool IgnoreCase, typename LhsT, typename RhsT>
@@ -74,17 +78,15 @@ void DoHStringComparisonTest(LhsT&& lhs, RhsT&& rhs, int relation)
 
     // We wish to test with both const and non-const values. We can do this for free here so long as the type is
     // not an array since changing the const-ness of an array may change the expected results
-#pragma warning(suppress: 4127)
-    if (!wistd::is_array<wistd::remove_reference_t<LhsT>>::value &&
-        !wistd::is_const<wistd::remove_reference_t<LhsT>>::value)
+#pragma warning(suppress : 4127)
+    if (!wistd::is_array<wistd::remove_reference_t<LhsT>>::value && !wistd::is_const<wistd::remove_reference_t<LhsT>>::value)
     {
         const wistd::remove_reference_t<LhsT>& constLhs = lhs;
         DoHStringComparisonTest<InhibitArrayReferences, IgnoreCase>(constLhs, rhs, relation);
     }
 
-#pragma warning(suppress: 4127)
-    if (!wistd::is_array<wistd::remove_reference_t<RhsT>>::value &&
-        !wistd::is_const<wistd::remove_reference_t<RhsT>>::value)
+#pragma warning(suppress : 4127)
+    if (!wistd::is_array<wistd::remove_reference_t<RhsT>>::value && !wistd::is_const<wistd::remove_reference_t<RhsT>>::value)
     {
         const wistd::remove_reference_t<RhsT>& constRhs = rhs;
         DoHStringComparisonTest<InhibitArrayReferences, IgnoreCase>(lhs, constRhs, relation);
@@ -428,8 +430,7 @@ TEST_CASE("WinRTTests::HStringMapTest", "[winrt][hstring_compare]")
     std::wstring_view wstrview(wstr);
 #endif
 
-    auto verifyFunc = [&](int expectedValue, auto&& keyValue)
-    {
+    auto verifyFunc = [&](int expectedValue, auto&& keyValue) {
         auto itr = hstringMap.find(std::forward<decltype(keyValue)>(keyValue));
         REQUIRE(itr != hstringMap.end());
         REQUIRE(expectedValue == itr->second);
@@ -486,8 +487,7 @@ TEST_CASE("WinRTTests::HStringCaseInsensitiveMapTest", "[winrt][hstring_compare]
 {
     std::map<HString, int, wil::hstring_insensitive_less> hstringMap;
 
-    auto emplaceFunc = [&](auto&& key, int value)
-    {
+    auto emplaceFunc = [&](auto&& key, int value) {
         HString str;
         THROW_IF_FAILED(str.Set(std::forward<decltype(key)>(key)));
         hstringMap.emplace(std::move(str), value);
@@ -523,8 +523,7 @@ TEST_CASE("WinRTTests::HStringCaseInsensitiveMapTest", "[winrt][hstring_compare]
     std::wstring_view wstrview(wstr);
 #endif
 
-    auto verifyFunc = [&](int expectedValue, auto&& key)
-    {
+    auto verifyFunc = [&](int expectedValue, auto&& key) {
         auto itr = hstringMap.find(std::forward<decltype(key)>(key));
         REQUIRE(itr != std::end(hstringMap));
         REQUIRE(expectedValue == itr->second);
@@ -575,8 +574,7 @@ TEST_CASE("WinRTTests::RunWhenCompleteMoveOnlyTest", "[winrt][run_when_complete]
     REQUIRE(op);
 
     bool gotEvent = false;
-    auto hr = wil::run_when_complete_nothrow(op.Get(), [&gotEvent, enforce = cannot_copy{}](HRESULT hr, int result)
-    {
+    auto hr = wil::run_when_complete_nothrow(op.Get(), [&gotEvent, enforce = cannot_copy{}](HRESULT hr, int result) {
         (void)enforce;
         REQUIRE_SUCCEEDED(hr);
         REQUIRE(result == 42);
@@ -605,7 +603,7 @@ TEST_CASE("WinRTTests::WaitForCompletionTimeout", "[winrt][wait_for_completion]"
 
 // This is not a test method, nor should it be called. This is a compilation-only test.
 #pragma warning(push)
-#pragma warning(disable: 4702) // Unreachable code
+#pragma warning(disable : 4702) // Unreachable code
 void WaitForCompletionCompilationTest()
 {
     // Ensure the wait_for_completion variants compile
@@ -670,9 +668,10 @@ void WaitForCompletionCompilationTest()
     wil::wait_for_completion(operation);
     wil::wait_for_completion(operation, COWAIT_DEFAULT);
 
-    // template <typename TResult, typename TProgress, typename TReturn = typename wil::details::MapToSmartType<typename wil::details::MapAsyncOpResultType<TResult>::type>::type>
-    // TReturn
-    //     wait_for_completion(_In_ ABI::Windows::Foundation::IAsyncOperationWithProgress<TResult, TProgress>* operation, COWAIT_FLAGS flags = COWAIT_DISPATCH_CALLS, DWORD timeout = INFINITE);
+    // template <typename TResult, typename TProgress, typename TReturn = typename wil::details::MapToSmartType<typename
+    // wil::details::MapAsyncOpResultType<TResult>::type>::type> TReturn
+    //     wait_for_completion(_In_ ABI::Windows::Foundation::IAsyncOperationWithProgress<TResult, TProgress>* operation,
+    //     COWAIT_FLAGS flags = COWAIT_DISPATCH_CALLS, DWORD timeout = INFINITE);
     result = wil::wait_for_completion(operationWithResult.Get());
     result = wil::wait_for_completion(operationWithResult.Get(), COWAIT_DEFAULT);
 #endif
@@ -683,7 +682,7 @@ void WaitForCompletionCompilationTest()
 TEST_CASE("WinRTTests::TimeTTests", "[winrt][time_t]")
 {
     // Verifying that converting DateTime variable set as the date that means 0 as time_t works
-    DateTime time1 = { wil::SecondsToStartOf1970 * wil::HundredNanoSecondsInSecond };
+    DateTime time1 = {wil::SecondsToStartOf1970 * wil::HundredNanoSecondsInSecond};
     __time64_t time_t1 = wil::DateTime_to_time_t(time1);
     REQUIRE(time_t1 == 0);
 
@@ -701,7 +700,8 @@ TEST_CASE("WinRTTests::TimeTTests", "[winrt][time_t]")
     REQUIRE(time1.UniversalTime == time2.UniversalTime);
 }
 
-ComPtr<IVector<IInspectable*>> MakeSampleInspectableVector(UINT32 count = 5)
+template <template <typename> class ResultT = IVector>
+ComPtr<ResultT<IInspectable*>> MakeSampleInspectableVector(UINT32 count = 5)
 {
     auto result = Make<FakeVector<IInspectable*>>();
     REQUIRE(result);
@@ -719,12 +719,13 @@ ComPtr<IVector<IInspectable*>> MakeSampleInspectableVector(UINT32 count = 5)
     return result;
 }
 
-ComPtr<IVector<HSTRING>> MakeSampleStringVector()
+template <template <typename> class ResultT = IVector>
+ComPtr<ResultT<HSTRING>> MakeSampleStringVector()
 {
     auto result = Make<FakeVector<HSTRING>>();
     REQUIRE(result);
 
-    const HStringReference items[] = { HStringReference(L"one"), HStringReference(L"two"), HStringReference(L"three") };
+    const HStringReference items[] = {HStringReference(L"one"), HStringReference(L"two"), HStringReference(L"three")};
     for (const auto& i : items)
     {
         REQUIRE_SUCCEEDED(result->Append(i.Get()));
@@ -733,7 +734,8 @@ ComPtr<IVector<HSTRING>> MakeSampleStringVector()
     return result;
 }
 
-ComPtr<IVector<Point>> MakeSamplePointVector(int count = 5)
+template <template <typename> class ResultT = IVector>
+ComPtr<ResultT<Point>> MakeSamplePointVector(int count = 5)
 {
     auto result = Make<FakeVector<Point>>();
     REQUIRE(result);
@@ -741,13 +743,14 @@ ComPtr<IVector<Point>> MakeSamplePointVector(int count = 5)
     for (int i = 0; i < count; ++i)
     {
         auto value = static_cast<float>(i);
-        REQUIRE_SUCCEEDED(result->Append(Point{ value, value }));
+        REQUIRE_SUCCEEDED(result->Append(Point{value, value}));
     }
 
     return result;
 }
 
-template<typename T> auto cast_to(ComPtr<IInspectable> const& src)
+template <typename T>
+auto cast_to(ComPtr<IInspectable> const& src)
 {
     ComPtr<IReference<T>> theRef;
     T value{};
@@ -842,6 +845,43 @@ TEST_CASE("WinRTTests::VectorRangeTest", "[winrt][vector_range]")
         REQUIRE(index++ == itr->Get().X);
     }
 
+    // The following are examples of code that will trigger an assertion failure/fail-fast due to unsafe iterator use
+#if 0 && (WIL_ITERATOR_DEBUG_LEVEL > 0)
+    auto pointsRange = wil::get_range_nothrow(points.Get());
+    [[maybe_unused]] auto pointsBegin = pointsRange.begin();
+    [[maybe_unused]] auto pointsEnd = pointsRange.end();
+#if 1   // Dereferencing a post-incremented iterator
+    // This will fail because post-increment returns a copy to the iterator in its original state. This returned iterator is out
+    // of date (and therefore dereferencing it will fail the assertion)
+    (void)*pointsBegin++; // Fails
+    FAIL("Unreachable; the above operation should cause process termination");
+#elif 1 // Dereferincing an iterator invalidated by a second call to 'begin'
+    (void)pointsRange.begin();
+    (void)*pointsBegin; // Fails
+    FAIL("Unreachable; the above operation should cause process termination");
+#elif 1 // Dereferencing an end iterator
+    (void)*pointsEnd; // Fails
+    FAIL("Unreachable; the above operation should cause process termination");
+#elif 1 // Incrementing an end iterator
+    ++pointsEnd; // Fails
+    FAIL("Unreachable; the above operation should cause process termination");
+#elif 1 // Decrementing a begin iterator
+    --pointsBegin; // Fails
+    FAIL("Unreachable; the above operation should cause process termination");
+#elif 1 // Dereferencing in a failed state
+    points->Clear();
+    (void)(*++pointsBegin); // Fails
+    FAIL("Unreachable; the above operation should cause process termination");
+#elif WIL_ITERATOR_DEBUG_LEVEL == 2
+#if 1 // Incrementing an out of date iterator
+    auto pointsBeginCopy = pointsBegin;
+    ++pointsBegin;
+    ++pointsBeginCopy; // Fails
+    FAIL("Unreachable; the above operation should cause process termination");
+#endif
+#endif
+#endif
+
 #if (defined WIL_ENABLE_EXCEPTIONS)
     idx = 0;
     for (const auto& i : wil::get_range(inspectables.Get()))
@@ -921,7 +961,11 @@ TEST_CASE("WinRTTests::VectorRangeTest", "[winrt][vector_range]")
 #endif
 }
 
-unsigned long GetComObjectRefCount(IUnknown* unk) { unk->AddRef(); return unk->Release(); }
+unsigned long GetComObjectRefCount(IUnknown* unk)
+{
+    unk->AddRef();
+    return unk->Release();
+}
 
 TEST_CASE("WinRTTests::VectorRangeLeakTest", "[winrt][vector_range]")
 {
@@ -940,6 +984,7 @@ TEST_CASE("WinRTTests::VectorRangeLeakTest", "[winrt][vector_range]")
     inspectables = nullptr; // clear all refs to verifyNotLeaked
     REQUIRE_SUCCEEDED(hr);
     REQUIRE(GetComObjectRefCount(verifyNotLeaked.Get()) == 1);
+    verifyNotLeaked.Reset();
 
     inspectables = MakeSampleInspectableVector();
     for (const auto& ptr : wil::get_range_failfast(inspectables.Get()))
@@ -951,6 +996,7 @@ TEST_CASE("WinRTTests::VectorRangeLeakTest", "[winrt][vector_range]")
     }
     inspectables = nullptr; // clear all refs to verifyNotLeaked
     REQUIRE(GetComObjectRefCount(verifyNotLeaked.Get()) == 1);
+    verifyNotLeaked.Reset();
 
 #if (defined WIL_ENABLE_EXCEPTIONS)
     inspectables = MakeSampleInspectableVector();
@@ -963,6 +1009,176 @@ TEST_CASE("WinRTTests::VectorRangeLeakTest", "[winrt][vector_range]")
     }
     inspectables = nullptr; // clear all refs to verifyNotLeaked
     REQUIRE(GetComObjectRefCount(verifyNotLeaked.Get()) == 1);
+    verifyNotLeaked.Reset();
+#endif
+}
+
+TEST_CASE("WinRTTests::IterableRangeTest", "[winrt][iterable_range]")
+{
+    auto uninit = wil::RoInitialize_failfast();
+
+    auto inspectables = MakeSampleInspectableVector();
+    unsigned count = 0;
+    REQUIRE_SUCCEEDED(inspectables->get_Size(&count));
+    ComPtr<IIterable<IInspectable*>> inspIterable;
+    REQUIRE_SUCCEEDED(inspectables.As(&inspIterable));
+
+    unsigned idx = 0;
+    HRESULT success = S_OK;
+    for (const auto& i : wil::get_range_nothrow(inspIterable.Get(), &success))
+    {
+        // Duplications are not a typo - they verify the thing is callable twice
+
+        UINT32 value;
+        ComPtr<IReference<UINT32>> intRef;
+        REQUIRE_SUCCEEDED(i.CopyTo(IID_PPV_ARGS(&intRef)));
+        REQUIRE_SUCCEEDED(intRef->get_Value(&value));
+        REQUIRE(idx == value);
+        REQUIRE_SUCCEEDED(i.CopyTo(IID_PPV_ARGS(&intRef)));
+        REQUIRE_SUCCEEDED(intRef->get_Value(&value));
+        REQUIRE(idx == value);
+
+        ++idx;
+
+        HString rtc;
+        REQUIRE_SUCCEEDED(i->GetRuntimeClassName(rtc.GetAddressOf()));
+        REQUIRE_SUCCEEDED(i->GetRuntimeClassName(rtc.GetAddressOf()));
+    }
+    REQUIRE_SUCCEEDED(success);
+    REQUIRE(count == idx);
+
+    auto strings = MakeSampleStringVector<IIterable>();
+    for (const auto& i : wil::get_range_nothrow(strings.Get(), &success))
+    {
+        REQUIRE(i.Get());
+        REQUIRE(i.Get());
+    }
+    REQUIRE_SUCCEEDED(success);
+
+    int index = 0;
+    auto points = MakeSamplePointVector<IIterable>();
+    for (auto value : wil::get_range_nothrow(points.Get(), &success))
+    {
+        REQUIRE(index++ == value.Get().X);
+    }
+    REQUIRE_SUCCEEDED(success);
+
+    // operator-> should not clear out the pointer
+    auto inspRange = wil::get_range_nothrow(inspIterable.Get());
+    for (auto itr = inspRange.begin(); itr != inspRange.end(); ++itr)
+    {
+        REQUIRE(itr->Get());
+    }
+
+    auto strRange = wil::get_range_nothrow(strings.Get());
+    for (auto itr = strRange.begin(); itr != strRange.end(); ++itr)
+    {
+        REQUIRE(itr->Get());
+    }
+
+    index = 0;
+    auto pointRange = wil::get_range_nothrow(points.Get());
+    for (auto itr = pointRange.begin(); itr != pointRange.end(); ++itr)
+    {
+        REQUIRE(index++ == itr->Get().X);
+    }
+
+    // The following are examples of code that will trigger an assertion failure/fail-fast due to unsafe iterator use
+#if 0 && (WIL_ITERATOR_DEBUG_LEVEL > 0)
+    auto pointsRange = wil::get_range_nothrow(points.Get());
+    [[maybe_unused]] auto pointsBegin = pointsRange.begin();
+    [[maybe_unused]] auto pointsEnd = pointsRange.end();
+#if 1   // Dereferencing a post-incremented iterator
+    // This will fail because post-increment returns a copy to the iterator in its original state. This returned iterator is out
+    // of date (and therefore dereferencing it will fail the assertion)
+    (void)*pointsBegin++; // Fails
+    FAIL("Unreachable; the above operation should cause process termination");
+#elif 1 // Dereferencing an end iterator
+    (void)*pointsEnd; // Fails
+    FAIL("Unreachable; the above operation should cause process termination");
+#elif 1 // Incrementing an end iterator
+    ++pointsEnd; // Fails
+    FAIL("Unreachable; the above operation should cause process termination");
+#elif 1 // Dereferencing in a failed state
+    ComPtr<IVector<Point>> pointsVector;
+    REQUIRE_SUCCEEDED(points.As(&pointsVector));
+    pointsVector->Clear();
+    (void)(*++pointsBegin); // Fails
+    FAIL("Unreachable; the above operation should cause process termination");
+#elif 1 // Incrementing an out of date iterator
+    auto pointsBeginCopy = pointsBegin;
+    ++pointsBegin;
+    ++pointsBeginCopy; // Fails
+    FAIL("Unreachable; the above operation should cause process termination");
+#endif
+#if WIL_ITERATOR_DEBUG_LEVEL == 2
+#if 1 // Calling 'begin' again after the first iterator has advanced
+    ++pointsBegin;
+    (void)pointsRange.begin(); // Fails
+    FAIL("Unreachable; the above operation should cause process termination");
+#endif
+#endif
+#endif
+
+#if (defined WIL_ENABLE_EXCEPTIONS)
+    idx = 0;
+    for (const auto& i : wil::get_range(inspIterable.Get()))
+    {
+        // Duplications are not a typo - they verify the thing is callable twice
+
+        UINT32 value;
+        ComPtr<IReference<UINT32>> intRef;
+        REQUIRE_SUCCEEDED(i.CopyTo(IID_PPV_ARGS(&intRef)));
+        REQUIRE_SUCCEEDED(intRef->get_Value(&value));
+        REQUIRE(idx == value);
+        REQUIRE_SUCCEEDED(i.CopyTo(IID_PPV_ARGS(&intRef)));
+        REQUIRE_SUCCEEDED(intRef->get_Value(&value));
+        REQUIRE(idx == value);
+
+        ++idx;
+
+        HString rtc;
+        REQUIRE_SUCCEEDED(i->GetRuntimeClassName(rtc.GetAddressOf()));
+        REQUIRE_SUCCEEDED(i->GetRuntimeClassName(rtc.GetAddressOf()));
+    }
+    REQUIRE(count == idx);
+
+    for (const auto& i : wil::get_range(strings.Get()))
+    {
+        REQUIRE(i.Get());
+        REQUIRE(i.Get());
+    }
+
+    index = 0;
+    for (auto value : wil::get_range(points.Get()))
+    {
+        REQUIRE(index++ == value.Get().X);
+    }
+
+    // Iterator self-assignment is a nop.
+    {
+        auto inspRange2 = wil::get_range(inspIterable.Get());
+        auto itr = inspRange2.begin();
+        REQUIRE(itr != inspRange2.end()); // should have something in it
+        auto& ref = *itr;
+        auto val = ref;
+        itr = itr;
+        REQUIRE(val == ref);
+        itr = std::move(itr);
+        REQUIRE(val == ref);
+    }
+
+    {
+        auto strRange2 = wil::get_range(strings.Get());
+        auto itr = strRange2.begin();
+        REQUIRE(itr != strRange2.end()); // should have something in it
+        auto& ref = *itr;
+        auto val = ref.Get();
+        itr = itr;
+        REQUIRE(val == ref);
+        itr = std::move(itr);
+        REQUIRE(val == ref.Get());
+    }
 #endif
 }
 
@@ -976,6 +1192,6 @@ TEST_CASE("WinRTTests::TwoPhaseConstructor", "[winrt][hstring]")
     REQUIRE_SUCCEEDED(StringCbCatW(maker.Get(), maker.ByteSize(), right));
     REQUIRE_SUCCEEDED(maker.Validate(needed * sizeof(wchar_t)));
 
-    wil::unique_hstring promoted{ maker.Promote() };
+    wil::unique_hstring promoted{maker.Promote()};
     REQUIRE(wcscmp(L"leftright", str_raw_ptr(promoted)) == 0);
 }

@@ -30,7 +30,13 @@ if (${WIL_BUILD_PACKAGING})
 endif()
 
 if (${WIL_BUILD_TESTS})
+    add_subdirectory(docs)
     add_subdirectory(tests)
+
+    # Custom target for running clang-format
+    add_custom_target(format
+        WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+        COMMAND scripts/run-clang-format.cmd)
 endif()
 
 # Gather headers into an interface library.

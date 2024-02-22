@@ -1,3 +1,4 @@
+#include "pch.h"
 
 #include <Windows.h>
 #include <wincrypt.h>
@@ -28,13 +29,7 @@ TEST_CASE("WilWintrustWrapperTest::VerifyUniqueHCATADMINAllocateAndFree", "[reso
 {
     wil::unique_hcatadmin hCatAdmin;
 
-    REQUIRE(
-        CryptCATAdminAcquireContext2(
-        hCatAdmin.addressof(),
-        nullptr,
-        BCRYPT_SHA256_ALGORITHM,
-        nullptr,
-        0));
+    REQUIRE(CryptCATAdminAcquireContext2(hCatAdmin.addressof(), nullptr, BCRYPT_SHA256_ALGORITHM, nullptr, 0));
 
     REQUIRE(hCatAdmin.get() != nullptr);
     hCatAdmin.reset();
@@ -47,13 +42,7 @@ TEST_CASE("WilWintrustWrapperTest::VerifyUnqiueHCATINFOAllocate", "[resource][wi
     wil::shared_hcatadmin hCatAdmin;
     HCATINFO hCatInfo = nullptr;
 
-    REQUIRE(
-        CryptCATAdminAcquireContext2(
-        hCatAdmin.addressof(),
-        nullptr,
-        BCRYPT_SHA256_ALGORITHM,
-        nullptr,
-        0));
+    REQUIRE(CryptCATAdminAcquireContext2(hCatAdmin.addressof(), nullptr, BCRYPT_SHA256_ALGORITHM, nullptr, 0));
 
     wil::unique_hcatinfo hCatInfoWrapper(hCatInfo, hCatAdmin);
     REQUIRE(hCatInfoWrapper.get() == nullptr);

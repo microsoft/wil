@@ -68,21 +68,18 @@ struct object_counter
 {
     object_counter_state* state;
 
-    object_counter(object_counter_state& s) :
-        state(&s)
+    object_counter(object_counter_state& s) : state(&s)
     {
         ::InterlockedIncrement(&state->constructed_count);
     }
 
-    object_counter(const object_counter& other) :
-        state(other.state)
+    object_counter(const object_counter& other) : state(other.state)
     {
         ::InterlockedIncrement(&state->constructed_count);
         ::InterlockedIncrement(&state->copy_count);
     }
 
-    object_counter(object_counter&& other) WI_NOEXCEPT :
-        state(other.state)
+    object_counter(object_counter&& other) WI_NOEXCEPT : state(other.state)
     {
         ::InterlockedIncrement(&state->constructed_count);
         ::InterlockedIncrement(&state->move_count);
