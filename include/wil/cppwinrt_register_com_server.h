@@ -62,6 +62,8 @@ namespace wil
 struct com_server_revoker
 {
     std::vector<DWORD> registrations;
+    com_server_revoker(com_server_revoker const& that) = delete;
+    void operator=(com_server_revoker const& that) = delete;
     ~com_server_revoker()
     {
         revoke();
