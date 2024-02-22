@@ -14,8 +14,6 @@
 #ifndef __WIL_CPPWINRT_REGISTER_COM_SERVER_DEFINED
 #define __WIL_CPPWINRT_REGISTER_COM_SERVER_DEFINED
 
-#if _MSVC_LANG >= 201703L
-
 #include <winrt/base.h>
 #include <vector>
 
@@ -93,7 +91,5 @@ template <typename T, typename... Rest>
     return com_server_revoker(std::move(registrations));
 }
 } // namespace wil
-
-#endif
 
 #endif

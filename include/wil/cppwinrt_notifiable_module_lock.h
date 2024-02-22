@@ -14,8 +14,6 @@
 #ifndef __WIL_CPPWINRT_NOTIFIABLE_MODULE_LOCK_DEFINED
 #define __WIL_CPPWINRT_NOTIFIABLE_MODULE_LOCK_DEFINED
 
-#if _MSVC_LANG >= 201703L
-
 #include <atomic>
 #include <cstdint>
 
@@ -95,8 +93,6 @@ auto& get_module_lock()
     return lock;
 }
 } // namespace winrt
-
-#endif
 
 #endif
 
