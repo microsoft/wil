@@ -62,7 +62,9 @@ namespace wil
 {
 struct com_server_revoker
 {
-    std::vector<DWORD> registrations;
+    com_server_revoker(std::vector<DWORD> registrations) : registrations(std::move(registrations))
+    {
+    }
     com_server_revoker(com_server_revoker const& that) = delete;
     void operator=(com_server_revoker const& that) = delete;
     ~com_server_revoker()
@@ -77,6 +79,9 @@ struct com_server_revoker
         }
         registrations.clear();
     }
+
+private:
+    std::vector<DWORD> registrations;
 };
 
 template <typename T, typename... Rest>
@@ -85,7 +90,7 @@ template <typename T, typename... Rest>
     std::vector<DWORD> registrations;
     registrations.reserve(sizeof...(Rest) + 1);
     details::register_com_server<T, Rest...>(registrations);
-    return {std::move(registrations)};
+    return com_server_revoker(std::move(registrations));
 }
 } // namespace wil
 
