@@ -22,7 +22,7 @@
 namespace wil::details
 {
 template <typename T>
-struct Factory : winrt::implements<Factory<T>, IClassFactory, winrt::no_module_lock>
+struct CppWinRTClassFactory : winrt::implements<Factory<T>, IClassFactory, winrt::no_module_lock>
 {
     HRESULT __stdcall CreateInstance(IUnknown* outer, GUID const& iid, void** result) noexcept final
     {
