@@ -60,7 +60,7 @@ namespace wil
 {
 struct com_server_revoker
 {
-    com_server_revoker(std::vector<DWORD> registrations) : registrations(std::move(registrations))
+    com_server_revoker(std::vector<DWORD> registrations) noexcept : registrations(std::move(registrations))
     {
     }
     com_server_revoker(com_server_revoker const& that) = delete;
@@ -69,11 +69,12 @@ struct com_server_revoker
     {
         revoke();
     }
-    void revoke()
+    void revoke() noexcept
     {
         for (auto&& registration : registrations)
         {
-            winrt::check_hresult(CoRevokeClassObject(registration));
+            // Ignore any revocation error, as per WRL implementation
+            CoRevokeClassObject(registration);
         }
         registrations.clear();
     }
@@ -87,8 +88,19 @@ template <typename T, typename... Rest>
 {
     std::vector<DWORD> registrations;
     registrations.reserve(sizeof...(Rest) + 1);
-    details::register_com_server<T, Rest...>(registrations);
-    return com_server_revoker(std::move(registrations));
+    try
+    {
+        details::register_com_server<T, Rest...>(registrations);
+        return com_server_revoker(std::move(registrations));
+    }
+    catch (...)
+    {
+        // Only registered server push its token to the list. Revoke them upon any error.
+        // Note: technically if ctor of com_server_revoker throws, this is a double-move. However
+        // the ctor is noexcept so this move and the move in the try block is mutually exclusive
+        com_server_revoker(std::move(registrations)).revoke();
+        throw;
+    }
 }
 } // namespace wil
 
