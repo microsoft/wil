@@ -68,7 +68,7 @@ struct notifiable_module_lock
         return m_count;
     }
 
-    template<typename Func>
+    template <typename Func>
     static void set_notifier(Func&& func)
     {
         notifier = std::forward<Func>(func);
