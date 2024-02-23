@@ -17,13 +17,12 @@
 #include <atomic>
 #include <cstdint>
 
-// Ligh up cppwinrt custom module lock
+// Light up cppwinrt custom module lock
 #define WINRT_CUSTOM_MODULE_LOCK
 
 namespace wil
 {
 // Adopted from cppwinrt
-template <typename Func>
 struct notifiable_module_lock
 {
     notifiable_module_lock() = default;
@@ -64,32 +63,25 @@ struct notifiable_module_lock
         return m_count;
     }
 
-    static void set_notifier(Func func)
+    template<typename Func>
+    static void set_notifier(Func&& func)
     {
-        notifier = func;
+        notifier = std::forward<Func>(func);
     }
 
 private:
     std::atomic<int32_t> m_count;
-    static inline Func notifier;
+    static inline std::function<void()> notifier;
 };
 } // namespace wil
 
 #ifndef WIL_CPPWINRT_COM_SERVER_CUSTOM_MODULE_LOCK
 
-namespace wil
-{
-void set_cppwinrt_module_notifier(void (*func)())
-{
-    wil::notifiable_module_lock<void (*)()>::set_notifier(func);
-}
-} // namespace wil
-
 namespace winrt
 {
 auto& get_module_lock()
 {
-    static wil::notifiable_module_lock<void (*)()> lock;
+    static wil::notifiable_module_lock lock;
     return lock;
 }
 } // namespace winrt

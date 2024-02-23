@@ -4,12 +4,20 @@
 #undef GetCurrentTime
 #define WIL_CPPWINRT_COM_SERVER_CUSTOM_MODULE_LOCK
 #include <wil/cppwinrt_notifiable_module_lock.h>
+struct custom_lock : wil::notifiable_module_lock
+{
+    uint32_t operator++() noexcept
+    {
+        auto result = wil::notifiable_module_lock::operator++();
+        // Additional user logic here...
+        return result;
+    }
+};
 namespace winrt
 {
 inline auto& get_module_lock()
 {
-    // Use a different signature to test that it isn't the default one
-    static wil::notifiable_module_lock<int (*)()> lock;
+    static custom_lock lock;
     return lock;
 }
 } // namespace winrt
@@ -24,10 +32,9 @@ using namespace std::string_view_literals;
 
 wil::unique_event _comExit;
 
-int notifier()
+void notifier()
 {
     _comExit.SetEvent();
-    return 0;
 }
 
 struct MyServer : winrt::implements<MyServer, winrt::Windows::Foundation::IStringable>
@@ -43,11 +50,11 @@ auto create_my_server_instance()
     return winrt::create_instance<winrt::Windows::Foundation::IStringable>(winrt::guid_of<MyServer>(), CLSCTX_LOCAL_SERVER);
 }
 
-TEST_CASE("CppWinRTComServerTests::DefaultNotifiableModuleLock", "[cppwinrt_com_server]")
+TEST_CASE("CppWinRTComServerTests::CustomNotifiableModuleLock", "[cppwinrt_com_server]")
 {
     _comExit.create();
 
-    wil::notifiable_module_lock<int (*)()>::set_notifier(notifier);
+    wil::notifiable_module_lock::set_notifier(notifier);
 
     winrt::init_apartment();
 

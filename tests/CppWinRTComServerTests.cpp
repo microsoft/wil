@@ -36,7 +36,7 @@ TEST_CASE("CppWinRTComServerTests::DefaultNotifiableModuleLock", "[cppwinrt_com_
 {
     _comExit.create();
 
-    wil::set_cppwinrt_module_notifier(notifier);
+    wil::notifiable_module_lock::set_notifier(notifier);
 
     winrt::init_apartment();
 
@@ -85,7 +85,7 @@ TEST_CASE("CppWinRTComServerTests::NotifierAndRegistration", "[cppwinrt_com_serv
 {
     _comExit.create();
 
-    wil::set_cppwinrt_module_notifier(notifier);
+    wil::notifiable_module_lock::set_notifier(notifier);
 
     winrt::init_apartment();
 
