@@ -2,6 +2,7 @@
 
 #include "common.h"
 #undef GetCurrentTime
+#define WINRT_CUSTOM_MODULE_LOCK
 #define WIL_CPPWINRT_COM_SERVER_CUSTOM_MODULE_LOCK
 #include <wil/cppwinrt_notifiable_module_lock.h>
 struct custom_lock : wil::notifiable_module_lock

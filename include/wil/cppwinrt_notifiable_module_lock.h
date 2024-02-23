@@ -14,11 +14,16 @@
 #ifndef __WIL_CPPWINRT_NOTIFIABLE_MODULE_LOCK_DEFINED
 #define __WIL_CPPWINRT_NOTIFIABLE_MODULE_LOCK_DEFINED
 
+#ifdef WINRT_BASE_H
+#error You must include this header before including any winrt header
+#endif
+
+#ifndef WINRT_CUSTOM_MODULE_LOCK
+#error You must define 'WINRT_CUSTOM_MODULE_LOCK' at the project level
+#endif
+
 #include <atomic>
 #include <cstdint>
-
-// Light up cppwinrt custom module lock
-#define WINRT_CUSTOM_MODULE_LOCK
 
 namespace wil
 {

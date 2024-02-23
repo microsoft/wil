@@ -2,6 +2,7 @@
 
 #include "common.h"
 #undef GetCurrentTime
+#define WINRT_CUSTOM_MODULE_LOCK
 #include <wil/cppwinrt_notifiable_module_lock.h>
 #include <winrt/Windows.Foundation.h>
 #include <wil/cppwinrt_register_com_server.h>
