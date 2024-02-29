@@ -11,8 +11,8 @@
 //! @file
 //! Utilities for making managing COM server easier
 
-#ifndef __WIL_CPPWINRT_REGISTER_COM_SERVER_DEFINED
-#define __WIL_CPPWINRT_REGISTER_COM_SERVER_DEFINED
+#ifndef __WIL_CPPWINRT_REGISTER_COM_SERVER_INCLUDED
+#define __WIL_CPPWINRT_REGISTER_COM_SERVER_INCLUDED
 
 #include <winrt/base.h>
 #include <vector>
