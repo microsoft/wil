@@ -11,8 +11,8 @@
 //! @file
 //! Utilities for implementing OOP COM server with cppwinrt only
 
-#ifndef __WIL_CPPWINRT_NOTIFIABLE_MODULE_LOCK_DEFINED
-#define __WIL_CPPWINRT_NOTIFIABLE_MODULE_LOCK_DEFINED
+#ifndef __WIL_CPPWINRT_NOTIFIABLE_MODULE_LOCK_INCLUDED
+#define __WIL_CPPWINRT_NOTIFIABLE_MODULE_LOCK_INCLUDED
 
 #ifdef WINRT_BASE_H
 #error You must include this header before including any winrt header
