@@ -46,6 +46,7 @@ void register_com_server(std::vector<DWORD>& registrations)
     DWORD registration{};
     winrt::check_hresult(CoRegisterClassObject(
         winrt::guid_of<T>(), winrt::make<CppWinRTClassFactory<T>>().get(), CLSCTX_LOCAL_SERVER, REGCLS_MULTIPLEUSE, &registration));
+    // This push_back is no-throw as wil::register_com_server already reserves enough capacity
     registrations.push_back(registration);
     register_com_server<Rest...>(registrations);
 }
