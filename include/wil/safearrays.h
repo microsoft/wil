@@ -157,7 +157,7 @@ namespace wil
 
     //! Class that facilitates the direct access to the contents of a SAFEARRAY and "unaccessing" it when done
     //! It enables treating the safearray like an regular array and/or performing a ranged-for on the contents.
-    //! Accessing a safearray increases it's lock count, so attempts to destroy the safearray will fail until it is unaccessed.
+    //! Accessing a safearray increases its lock count, so attempts to destroy the safearray will fail until it is unaccessed.
     //! This class works even if the SAFEARRAY is multi-dimensional by treating it as a large single-dimension array,
     //! but doesn't support access via a multi-dimensional index.
     //! NOTE: This class does not manage the lifetime of the SAFEARRAY itself.  See @ref safearray_t.
