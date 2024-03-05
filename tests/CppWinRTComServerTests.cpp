@@ -76,9 +76,16 @@ winrt::Windows::Foundation::IAsyncAction create_instance_after_5_s()
     using namespace std::chrono_literals;
     co_await winrt::resume_after(5s);
     {
-        auto instance = create_my_server_instance();
-        // 2 because this coroutine also gets counted
-        REQUIRE(winrt::get_module_lock() == 2);
+        try
+        {
+            auto instance = create_my_server_instance();
+            // 2 because this coroutine also gets counted
+            REQUIRE(winrt::get_module_lock() == 2);
+        }
+        catch (winrt::hresult_error const&)
+        {
+            REQUIRE(false);
+        }
     }
 }
 
