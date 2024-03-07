@@ -23,7 +23,7 @@ namespace wil::details
 template <typename T>
 struct CppWinRTClassFactory : winrt::implements<CppWinRTClassFactory<T>, IClassFactory, winrt::no_module_lock>
 {
-    HRESULT __stdcall CreateInstance(IUnknown* outer, GUID const& iid, void** result) noexcept final
+    HRESULT __stdcall CreateInstance(IUnknown* outer, GUID const& iid, void** result) noexcept final try
     {
         *result = nullptr;
 
@@ -31,9 +31,13 @@ struct CppWinRTClassFactory : winrt::implements<CppWinRTClassFactory<T>, IClassF
         {
             return CLASS_E_NOAGGREGATION;
         }
-
         return winrt::make_self<T>().as(iid, result);
     }
+    catch (winrt::hresult_error const& e)
+    {
+        return e.code();
+    }
+    CATCH_RETURN()
 
     HRESULT __stdcall LockServer(BOOL) noexcept final
     {

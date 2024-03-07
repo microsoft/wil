@@ -28,6 +28,18 @@ struct MyServer : winrt::implements<MyServer, winrt::Windows::Foundation::IStrin
     }
 };
 
+struct BuggyServer : winrt::implements<BuggyServer, winrt::Windows::Foundation::IStringable>
+{
+    BuggyServer()
+    {
+        throw winrt::hresult_access_denied{};
+    }
+    winrt::hstring ToString()
+    {
+        return L"BuggyServer from Server";
+    }
+};
+
 auto create_my_server_instance()
 {
     return winrt::create_instance<winrt::Windows::Foundation::IStringable>(winrt::guid_of<MyServer>(), CLSCTX_LOCAL_SERVER);
@@ -68,6 +80,24 @@ TEST_CASE("CppWinRTComServerTests::RegisterComServer", "[cppwinrt_com_server]")
     catch (winrt::hresult_error const& e)
     {
         REQUIRE(e.code() == REGDB_E_CLASSNOTREG);
+    }
+}
+
+TEST_CASE("CppWinRTComServerTests::RegisterComServerThrowIsSafe", "[cppwinrt_com_server]")
+{
+    winrt::init_apartment();
+
+    {
+        auto revoker = wil::register_com_server<BuggyServer>();
+        try
+        {
+            auto instance = winrt::create_instance<winrt::Windows::Foundation::IStringable>(winrt::guid_of<BuggyServer>(), CLSCTX_LOCAL_SERVER);
+            REQUIRE(false);
+        }
+        catch (winrt::hresult_error const& e)
+        {
+            REQUIRE(e.code() == E_ACCESSDENIED);
+        }
     }
 }
 
