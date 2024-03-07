@@ -75,7 +75,7 @@ struct notifiable_module_lock
     }
 
 private:
-    std::atomic<int32_t> m_count;
+    std::atomic<int32_t> m_count{0};
     static inline std::function<void()> notifier;
 };
 } // namespace wil
