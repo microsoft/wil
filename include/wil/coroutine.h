@@ -764,8 +764,8 @@ inline void __stdcall DestroyRestrictedErrorInformation(_In_ void* restricted_er
 
 struct apartment_info
 {
-    APTTYPE aptType;
-    APTTYPEQUALIFIER aptTypeQualifier;
+    APTTYPE aptType{};
+    APTTYPEQUALIFIER aptTypeQualifier{};
 
     void load()
     {
@@ -814,7 +814,7 @@ struct apartment_resumer
 
     __WI_COROUTINE_NAMESPACE::coroutine_handle<> waiter;
     wil::com_ptr<IContextCallback> context{nullptr};
-    apartment_info info;
+    apartment_info info{};
     HRESULT resume_result = S_OK;
 
     void capture_context(__WI_COROUTINE_NAMESPACE::coroutine_handle<> handle)
