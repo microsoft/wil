@@ -91,7 +91,8 @@ TEST_CASE("CppWinRTComServerTests::RegisterComServerThrowIsSafe", "[cppwinrt_com
         auto revoker = wil::register_com_server<BuggyServer>();
         try
         {
-            auto instance = winrt::create_instance<winrt::Windows::Foundation::IStringable>(winrt::guid_of<BuggyServer>(), CLSCTX_LOCAL_SERVER);
+            auto instance =
+                winrt::create_instance<winrt::Windows::Foundation::IStringable>(winrt::guid_of<BuggyServer>(), CLSCTX_LOCAL_SERVER);
             REQUIRE(false);
         }
         catch (winrt::hresult_error const& e)

@@ -24,7 +24,8 @@ namespace wil::details
 template <typename T>
 struct CppWinRTClassFactory : winrt::implements<CppWinRTClassFactory<T>, IClassFactory, winrt::no_module_lock>
 {
-    HRESULT __stdcall CreateInstance(IUnknown* outer, GUID const& iid, void** result) noexcept final try
+    HRESULT __stdcall CreateInstance(IUnknown* outer, GUID const& iid, void** result) noexcept final
+    try
     {
         *result = nullptr;
 
