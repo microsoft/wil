@@ -16,6 +16,7 @@
 
 #include <winrt/base.h>
 #include <wil/resource.h>
+#include <wil/cppwinrt.h>
 #include <vector>
 
 namespace wil::details
@@ -32,10 +33,6 @@ struct CppWinRTClassFactory : winrt::implements<CppWinRTClassFactory<T>, IClassF
             return CLASS_E_NOAGGREGATION;
         }
         return winrt::make_self<T>().as(iid, result);
-    }
-    catch (winrt::hresult_error const& e)
-    {
-        return e.code();
     }
     CATCH_RETURN()
 
