@@ -101,6 +101,31 @@ TEST_CASE("CppWinRTComServerTests::RegisterComServerThrowIsSafe", "[cppwinrt_com
     }
 }
 
+TEST_CASE("CppWinRTComServerTests::AnyRegisterFailureClearAllRegistrations", "[cppwinrt_com_server]")
+{
+    winrt::init_apartment();
+
+    witest::detoured_thread_function<&::CoRegisterClassObject> detour(
+        [](REFCLSID clsid, LPUNKNOWN obj, DWORD ctxt, DWORD flags, LPDWORD cookie) mutable {
+            if (winrt::guid{clsid} == winrt::guid_of<BuggyServer>())
+            {
+                *cookie = 0;
+                return E_UNEXPECTED;
+            }
+            return ::CoRegisterClassObject(clsid, obj, ctxt, flags, cookie);
+        });
+    try
+    {
+        auto revoker = wil::register_com_server<MyServer, BuggyServer>();
+        REQUIRE(false);
+    }
+    catch (winrt::hresult_error const& e)
+    {
+        REQUIRE(e.code() == E_UNEXPECTED);
+    }
+    REQUIRE(!winrt::get_module_lock());
+}
+
 winrt::Windows::Foundation::IAsyncAction create_instance_after_5_s()
 {
     using namespace std::chrono_literals;
