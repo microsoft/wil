@@ -30,12 +30,6 @@ namespace wil
 // Adopted from cppwinrt
 struct notifiable_module_lock
 {
-    notifiable_module_lock() = default;
-
-    notifiable_module_lock(uint32_t count) : m_count(count)
-    {
-    }
-
     uint32_t operator=(uint32_t count) noexcept
     {
         return m_count = count;
@@ -69,14 +63,27 @@ struct notifiable_module_lock
     }
 
     template <typename Func>
-    static void set_notifier(Func&& func)
+    void set_notifier(Func&& func)
     {
         notifier = std::forward<Func>(func);
     }
 
+    static notifiable_module_lock& instance() noexcept
+    {
+        static notifiable_module_lock lock;
+        return lock;
+    }
+
+protected:
+    notifiable_module_lock() = default;
+
+    notifiable_module_lock(uint32_t count) : m_count(count)
+    {
+    }
+
 private:
     std::atomic<int32_t> m_count{0};
-    static inline std::function<void()> notifier;
+    std::function<void()> notifier{};
 };
 } // namespace wil
 
@@ -86,8 +93,7 @@ namespace winrt
 {
 auto& get_module_lock()
 {
-    static wil::notifiable_module_lock lock;
-    return lock;
+    return wil::notifiable_module_lock::instance();
 }
 } // namespace winrt
 

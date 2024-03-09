@@ -7,10 +7,11 @@
 #include <wil/cppwinrt_notifiable_module_lock.h>
 struct custom_lock : wil::notifiable_module_lock
 {
+    bool called{};
     uint32_t operator++() noexcept
     {
         auto result = wil::notifiable_module_lock::operator++();
-        // Additional user logic here...
+        called = true;
         return result;
     }
 };
@@ -55,12 +56,13 @@ TEST_CASE("CppWinRTComServerTests::CustomNotifiableModuleLock", "[cppwinrt_com_s
 {
     _comExit.create();
 
-    wil::notifiable_module_lock::set_notifier(notifier);
+    winrt::get_module_lock().set_notifier(notifier);
 
     winrt::init_apartment();
 
     {
         auto server{winrt::make<MyServer>()};
+        REQUIRE(winrt::get_module_lock().called);
         REQUIRE(winrt::get_module_lock() == 1);
     }
 
