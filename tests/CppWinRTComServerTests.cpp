@@ -127,37 +127,34 @@ TEST_CASE("CppWinRTComServerTests::AnyRegisterFailureClearAllRegistrations", "[c
     REQUIRE(!winrt::get_module_lock());
 }
 
-winrt::Windows::Foundation::IAsyncAction create_instance_after_5_s()
-{
-    using namespace std::chrono_literals;
-    co_await winrt::resume_after(5s);
-    {
-        try
-        {
-            auto instance = create_my_server_instance();
-            // 2 because this coroutine also gets counted
-            REQUIRE(winrt::get_module_lock() == 2);
-        }
-        catch (winrt::hresult_error const&)
-        {
-            REQUIRE(false);
-        }
-    }
-}
-
 TEST_CASE("CppWinRTComServerTests::NotifierAndRegistration", "[cppwinrt_com_server]")
 {
-    _comExit.create();
+    wil::unique_event moduleEvent(wil::EventOptions::None);
+    wil::unique_event coroutineRunning(wil::EventOptions::None);
+    wil::unique_event coroutineContinue(wil::EventOptions::None);
 
-    wil::notifiable_module_lock::instance().set_notifier(notifier);
+    wil::notifiable_module_lock::instance().set_notifier([&]() {
+        moduleEvent.SetEvent();
+    });
 
     winrt::init_apartment();
 
     auto revoker = wil::register_com_server<MyServer>();
 
-    create_instance_after_5_s();
+    [&]() -> winrt::Windows::Foundation::IAsyncAction {
+        co_await winrt::resume_background();
+        coroutineRunning.SetEvent();
 
-    _comExit.wait();
+        coroutineContinue.wait();
+        auto instance = create_my_server_instance();
+        REQUIRE(winrt::get_module_lock() == 2);
+    }();
+
+    coroutineRunning.wait();
+    REQUIRE(winrt::get_module_lock() == 1); // Coroutine bumped count
+
+    coroutineContinue.SetEvent();
+    moduleEvent.wait();
 
     REQUIRE(!winrt::get_module_lock());
 }
