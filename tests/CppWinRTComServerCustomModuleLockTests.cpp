@@ -5,12 +5,12 @@
 #define WINRT_CUSTOM_MODULE_LOCK
 #define WIL_CPPWINRT_COM_SERVER_CUSTOM_MODULE_LOCK
 #include <wil/cppwinrt_notifiable_module_lock.h>
-struct custom_lock : wil::notifiable_module_lock
+struct custom_lock : wil::notifiable_module_lock_base
 {
     bool called{};
     uint32_t operator++() noexcept
     {
-        auto result = wil::notifiable_module_lock::operator++();
+        auto result = wil::notifiable_module_lock_base::operator++();
         called = true;
         return result;
     }

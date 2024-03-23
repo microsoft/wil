@@ -28,8 +28,14 @@
 namespace wil
 {
 // Adopted from cppwinrt
-struct notifiable_module_lock
+struct notifiable_module_lock_base
 {
+    notifiable_module_lock_base() = default;
+
+    notifiable_module_lock_base(uint32_t count) : m_count(count)
+    {
+    }
+
     uint32_t operator=(uint32_t count) noexcept
     {
         return m_count = count;
@@ -68,22 +74,18 @@ struct notifiable_module_lock
         notifier = std::forward<Func>(func);
     }
 
+private:
+    std::atomic<int32_t> m_count{0};
+    std::function<void()> notifier{};
+};
+
+struct notifiable_module_lock final : notifiable_module_lock_base
+{
     static notifiable_module_lock& instance() noexcept
     {
         static notifiable_module_lock lock;
         return lock;
     }
-
-protected:
-    notifiable_module_lock() = default;
-
-    notifiable_module_lock(uint32_t count) : m_count(count)
-    {
-    }
-
-private:
-    std::atomic<int32_t> m_count{0};
-    std::function<void()> notifier{};
 };
 } // namespace wil
 
