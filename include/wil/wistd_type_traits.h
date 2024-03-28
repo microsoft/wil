@@ -1946,7 +1946,7 @@ struct __numeric_type<void>
 
 // __promote
 
-template <class _A1, class _A2 = void, class _A3 = void, bool = __numeric_type<_A1>::value&& __numeric_type<_A2>::value&& __numeric_type<_A3>::value>
+template <class _A1, class _A2 = void, class _A3 = void, bool = __numeric_type<_A1>::value && __numeric_type<_A2>::value && __numeric_type<_A3>::value>
 class __promote_imp
 {
 public:

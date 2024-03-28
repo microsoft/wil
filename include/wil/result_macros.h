@@ -93,7 +93,7 @@ typedef _Return_type_success_(return >= 0) LONG NTSTATUS;
 #endif
 #ifndef __NTSTATUS_FROM_WIN32
 #define __NTSTATUS_FROM_WIN32(x) \
-    ((NTSTATUS)(x) <= 0 ? ((NTSTATUS)(x)) : ((NTSTATUS)(((x)&0x0000FFFF) | (FACILITY_WIN32 << 16) | ERROR_SEVERITY_ERROR)))
+    ((NTSTATUS)(x) <= 0 ? ((NTSTATUS)(x)) : ((NTSTATUS)(((x) & 0x0000FFFF) | (FACILITY_WIN32 << 16) | ERROR_SEVERITY_ERROR)))
 #endif
 
 #ifndef WIL_AllocateMemory
@@ -2770,7 +2770,7 @@ namespace details
             {
                 status =
                     ((NTSTATUS)(hr) <= 0 ? ((NTSTATUS)(hr))
-                                         : ((NTSTATUS)(((hr)&0x0000FFFF) | (FACILITY_SSPI << 16) | ERROR_SEVERITY_ERROR)));
+                                         : ((NTSTATUS)(((hr) & 0x0000FFFF) | (FACILITY_SSPI << 16) | ERROR_SEVERITY_ERROR)));
             }
             else
             {
