@@ -32,6 +32,8 @@
 #include "common.h"
 #include "test_objects.h"
 
+#include <optional>
+
 #pragma warning(push)
 #pragma warning(disable : 4702) // Unreachable code
 
@@ -3726,36 +3728,147 @@ TEST_CASE("WindowsInternalTests::ConditionVariableTests", "[resource][condition_
         }
     }
 }
+#include <iostream>
+struct ExpectedTestsCallbackCheck
+{
+    static void __stdcall TelemetryCallbackFn(bool alreadyReported, wil::FailureInfo const&) WI_NOEXCEPT
+    {
+        ExpectedTestsCallbackCheck::s_alreadyReported = alreadyReported;
+    }
+    static void __stdcall LoggingCallbackFn(const wil::FailureInfo&) WI_NOEXCEPT
+    {
+        ExpectedTestsCallbackCheck::s_loggingCalled = true;
+    }
+    static void RequireAlreadyReported()
+    {
+        REQUIRE(ExpectedTestsCallbackCheck::s_alreadyReported.has_value());
+        REQUIRE(*ExpectedTestsCallbackCheck::s_alreadyReported);
+        ResetTelemetry();
+    }
+    static void RequireNotAlreadyReported()
+    {
+        REQUIRE(ExpectedTestsCallbackCheck::s_alreadyReported.has_value());
+        REQUIRE_FALSE(*ExpectedTestsCallbackCheck::s_alreadyReported);
+        ResetTelemetry();
+    }
+    static void RequireTelemetryNotCalled()
+    {
+        REQUIRE_FALSE(ExpectedTestsCallbackCheck::s_alreadyReported.has_value());
+    }
+    static void RequireLoggingCalled()
+    {
+        REQUIRE(ExpectedTestsCallbackCheck::s_loggingCalled);
+        ResetLogging();
+    }
+    static void RequireLoggingNotCalled()
+    {
+        REQUIRE_FALSE(ExpectedTestsCallbackCheck::s_loggingCalled);
+    }
+    static void ResetTelemetry()
+    {
+        ExpectedTestsCallbackCheck::s_alreadyReported = std::nullopt;
+    }
+    static void ResetLogging()
+    {
+        ExpectedTestsCallbackCheck::s_loggingCalled = false;
+    }
+    static std::optional<bool> s_alreadyReported;
+    static bool s_loggingCalled;
+};
+std::optional<bool> ExpectedTestsCallbackCheck::s_alreadyReported = std::nullopt;
+bool ExpectedTestsCallbackCheck::s_loggingCalled = false;
 
 TEST_CASE("WindowsInternalTests::ReturnWithExpectedTests", "[result_macros]")
 {
     wil::g_pfnResultLoggingCallback = ResultMacrosLoggingCallback;
 
-    // Succeeded
+    // Also check that telemetry is invoked for these, if present
+    ExpectedTestsCallbackCheck::ResetTelemetry();
+    ExpectedTestsCallbackCheck::ResetLogging();
+    wil::SetResultLoggingCallback(&ExpectedTestsCallbackCheck::LoggingCallbackFn);
+    wil::SetResultTelemetryFallback(&ExpectedTestsCallbackCheck::TelemetryCallbackFn);
+
+    // Succeeded - no telemetry and no logging
     REQUIRE_RETURNS_EXPECTED(S_OK, [] {
         RETURN_IF_FAILED_WITH_EXPECTED(MDEC(hrOKRef()), E_UNEXPECTED);
         return S_OK;
     });
+    ExpectedTestsCallbackCheck::RequireTelemetryNotCalled();
+    ExpectedTestsCallbackCheck::RequireLoggingNotCalled();
 
-    // Expected
+    // Expected - no telemetry and no logging
     REQUIRE_RETURNS_EXPECTED(E_FAIL, [] {
         RETURN_IF_FAILED_WITH_EXPECTED(E_FAIL, E_FAIL);
         return S_OK;
     });
+    ExpectedTestsCallbackCheck::RequireTelemetryNotCalled();
+    ExpectedTestsCallbackCheck::RequireLoggingNotCalled();
     REQUIRE_RETURNS_EXPECTED(E_UNEXPECTED, [] {
         RETURN_IF_FAILED_WITH_EXPECTED(E_UNEXPECTED, E_FAIL, E_UNEXPECTED, E_POINTER, E_INVALIDARG);
         return S_OK;
     });
+    ExpectedTestsCallbackCheck::RequireTelemetryNotCalled();
+    ExpectedTestsCallbackCheck::RequireLoggingNotCalled();
 
-    // Unexpected
+    // Unexpected - with telemetry and with logging
     REQUIRE_RETURNS_EXPECTED(E_FAIL, [] {
         RETURN_IF_FAILED_WITH_EXPECTED(E_FAIL, E_UNEXPECTED);
         return S_OK;
     });
+    ExpectedTestsCallbackCheck::RequireNotAlreadyReported();
+    ExpectedTestsCallbackCheck::RequireLoggingCalled();
     REQUIRE_RETURNS_EXPECTED(E_FAIL, [] {
         RETURN_IF_FAILED_WITH_EXPECTED(E_FAIL, E_UNEXPECTED, E_POINTER, E_INVALIDARG);
         return S_OK;
     });
+    ExpectedTestsCallbackCheck::RequireNotAlreadyReported();
+    ExpectedTestsCallbackCheck::RequireLoggingCalled();
+}
+
+TEST_CASE("WindowsInternalTests::ReturnSuppressTelemetryIfExpectedTests", "[result_macros]")
+{
+    wil::g_pfnResultLoggingCallback = ResultMacrosLoggingCallback;
+
+    ExpectedTestsCallbackCheck::ResetTelemetry();
+    ExpectedTestsCallbackCheck::ResetLogging();
+    wil::SetResultLoggingCallback(&ExpectedTestsCallbackCheck::LoggingCallbackFn);
+    wil::SetResultTelemetryFallback(&ExpectedTestsCallbackCheck::TelemetryCallbackFn);
+
+    // Succeeded - no telemetry and no logging
+    REQUIRE_RETURNS_EXPECTED(S_OK, [] {
+        RETURN_IF_FAILED_SUPPRESS_TELEMETRY_IF_EXPECTED(MDEC(hrOKRef()), E_UNEXPECTED);
+        return S_OK;
+    });
+    ExpectedTestsCallbackCheck::RequireTelemetryNotCalled();
+    ExpectedTestsCallbackCheck::RequireLoggingNotCalled();
+
+    // Expected - suppressed telemetry but with logging
+    REQUIRE_RETURNS_EXPECTED(E_FAIL, [] {
+        RETURN_IF_FAILED_SUPPRESS_TELEMETRY_IF_EXPECTED(E_FAIL, E_FAIL);
+        return S_OK;
+    });
+    ExpectedTestsCallbackCheck::RequireAlreadyReported();
+    ExpectedTestsCallbackCheck::RequireLoggingCalled();
+    REQUIRE_RETURNS_EXPECTED(E_UNEXPECTED, [] {
+        RETURN_IF_FAILED_SUPPRESS_TELEMETRY_IF_EXPECTED(E_UNEXPECTED, E_FAIL, E_UNEXPECTED, E_POINTER, E_INVALIDARG);
+        return S_OK;
+    });
+    ExpectedTestsCallbackCheck::RequireAlreadyReported();
+    ExpectedTestsCallbackCheck::RequireLoggingCalled();
+
+    // Unexpected - with telemetry and with logging
+    REQUIRE_RETURNS_EXPECTED(E_FAIL, [] {
+        RETURN_IF_FAILED_SUPPRESS_TELEMETRY_IF_EXPECTED(E_FAIL, E_UNEXPECTED);
+        return S_OK;
+    });
+    ExpectedTestsCallbackCheck::RequireNotAlreadyReported();
+    ExpectedTestsCallbackCheck::RequireLoggingCalled();
+    REQUIRE_RETURNS_EXPECTED(E_FAIL, [] {
+        RETURN_IF_FAILED_SUPPRESS_TELEMETRY_IF_EXPECTED(E_FAIL, E_UNEXPECTED, E_POINTER, E_INVALIDARG);
+        return S_OK;
+    });
+    ExpectedTestsCallbackCheck::RequireNotAlreadyReported();
+    ExpectedTestsCallbackCheck::RequireLoggingCalled();
 }
 
 TEST_CASE("WindowsInternalTests::LogWithExpectedTests", "[result_macros]")

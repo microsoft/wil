@@ -1122,9 +1122,9 @@ struct file_and_error_result
     DWORD last_error{};
 };
 
-/** Non-throwing open existing using OPEN_EXISTING.
+/** Non-throwing open existing using OPEN_EXISTING, returns handle and error code.
 ~~~
-auto handle = wil::try_open_file(filePath.c_str());
+auto [handle, error] = wil::try_open_file(filePath.c_str());
 ~~~
 */
 inline file_and_error_result try_open_file(
@@ -1173,7 +1173,7 @@ namespace details
 
 /** create using CREATE_NEW, returns handle and error code.
 ~~~
-auto [handle, error = wil::try_create_new_file(filePath.c_str());
+auto [handle, error] = wil::try_create_new_file(filePath.c_str());
 ~~~
 */
 inline file_and_error_result try_create_new_file(
@@ -1189,7 +1189,7 @@ inline file_and_error_result try_create_new_file(
 
 /** create using OPEN_ALWAYS, returns handle and error code.
 ~~~
-auto [handle, error = wil::try_open_or_create_file(filePath.c_str());
+auto [handle, error] = wil::try_open_or_create_file(filePath.c_str());
 ~~~
 */
 inline file_and_error_result try_open_or_create_file(
@@ -1205,7 +1205,7 @@ inline file_and_error_result try_open_or_create_file(
 
 /** create using CREATE_ALWAYS, returns handle and error code.
 ~~~
-auto [handle, error = wil::try_open_or_truncate_existing_file(filePath.c_str());
+auto [handle, error] = wil::try_open_or_truncate_existing_file(filePath.c_str());
 ~~~
 */
 inline file_and_error_result try_open_or_truncate_existing_file(
@@ -1221,7 +1221,7 @@ inline file_and_error_result try_open_or_truncate_existing_file(
 
 /** create using TRUNCATE_EXISTING, returns handle and error code.
 ~~~
-auto [handle, error = wil::try_truncate_existing_file(filePath.c_str());
+auto [handle, error] = wil::try_truncate_existing_file(filePath.c_str());
 ~~~
 */
 inline file_and_error_result try_truncate_existing_file(
