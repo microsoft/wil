@@ -38,12 +38,9 @@ TEST_CASE("Toolhelp32", "[EnumHeap]")
 {
     wil::for_each_heap_list([](HEAPLIST32 const& heapListEntry) {
         REQUIRE_FALSE(heapListEntry.th32HeapID == 0);
-        wil::for_each_heap(
-            heapListEntry.th32HeapID,
-            [](HEAPENTRY32 const& heapEntry) {
-                REQUIRE_FALSE(heapEntry.dwAddress == 0);
-            }
-        );
+        wil::for_each_heap(heapListEntry.th32HeapID, [](HEAPENTRY32 const& heapEntry) {
+            REQUIRE_FALSE(heapEntry.dwAddress == 0);
+        });
         return false;
     });
 }
