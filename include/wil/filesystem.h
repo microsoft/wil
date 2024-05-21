@@ -1150,7 +1150,7 @@ inline wil::unique_hfile open_file(
     DWORD dwDesiredAccess = GENERIC_READ,
     DWORD dwShareMode = FILE_SHARE_READ,
     DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL,
-    bool inheritHandle = false) noexcept
+    bool inheritHandle = false)
 {
     auto result = try_open_file(path, dwDesiredAccess, dwShareMode, dwFlagsAndAttributes, inheritHandle);
     THROW_WIN32_IF(result.last_error, !result.file.is_valid());
@@ -1247,7 +1247,7 @@ inline wil::unique_hfile create_new_file(
     DWORD dwShareMode = FILE_SHARE_READ,
     LPSECURITY_ATTRIBUTES lpSecurityAttributes = nullptr,
     DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL,
-    HANDLE hTemplateFile = nullptr) noexcept
+    HANDLE hTemplateFile = nullptr)
 {
     auto result = try_create_new_file(path, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwFlagsAndAttributes, hTemplateFile);
     THROW_WIN32_IF(result.last_error, !result.file.is_valid());
@@ -1265,7 +1265,7 @@ inline wil::unique_hfile open_or_create_file(
     DWORD dwShareMode = FILE_SHARE_READ,
     LPSECURITY_ATTRIBUTES lpSecurityAttributes = nullptr,
     DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL,
-    HANDLE hTemplateFile = nullptr) noexcept
+    HANDLE hTemplateFile = nullptr)
 {
     auto result = try_open_or_create_file(path, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwFlagsAndAttributes, hTemplateFile);
     THROW_WIN32_IF(result.last_error, !result.file.is_valid());
@@ -1283,7 +1283,7 @@ inline wil::unique_hfile open_or_truncate_existing_file(
     DWORD dwShareMode = FILE_SHARE_READ,
     LPSECURITY_ATTRIBUTES lpSecurityAttributes = nullptr,
     DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL,
-    HANDLE hTemplateFile = nullptr) noexcept
+    HANDLE hTemplateFile = nullptr)
 {
     auto result = try_open_or_truncate_existing_file(
         path, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwFlagsAndAttributes, hTemplateFile);
@@ -1302,7 +1302,7 @@ inline wil::unique_hfile truncate_existing_file(
     DWORD dwShareMode = FILE_SHARE_READ,
     LPSECURITY_ATTRIBUTES lpSecurityAttributes = nullptr,
     DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL,
-    HANDLE hTemplateFile = nullptr) noexcept
+    HANDLE hTemplateFile = nullptr)
 {
     auto result =
         try_truncate_existing_file(path, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwFlagsAndAttributes, hTemplateFile);
