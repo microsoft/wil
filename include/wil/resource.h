@@ -6434,6 +6434,11 @@ public:
         return m_wdfObject != WDF_NO_HANDLE;
     }
 
+    WI_NODISCARD wdf_object_t operator->() const WI_NOEXCEPT
+    {
+        return m_wdfObject;
+    }
+
     WI_NODISCARD wdf_object_t get() const WI_NOEXCEPT
     {
         return m_wdfObject;
