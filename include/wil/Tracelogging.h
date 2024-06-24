@@ -743,7 +743,7 @@ public:
     __pragma(warning(push)) __pragma(warning(disable : 4127)) do \
     { \
         _tlgActivityDecl(activity) \
-            TraceLoggingWriteActivity(TraceLoggingType::Provider(), (name), _tlgActivityRef(activity).Id(), NULL, __VA_ARGS__); \
+            TraceLoggingWriteActivity(TraceLoggingType::Provider(), (name), _tlgActivityRef(activity).Id(), NULL, ##__VA_ARGS__); \
     } \
     while (0) \
     __pragma(warning(pop)) /// @endcond
@@ -1303,11 +1303,11 @@ private:
         static const UINT8 _tlgActivity_Level = _tlgActivityRef(activity).Level; \
         static const UINT64 _tlgActivityPrivacyTag = _tlgActivityRef(activity).PrivacyTag; \
         static_assert( \
-            _tlgActivity_Keyword == (_tlgActivity_Keyword _tlg_FOREACH(_tlgKeywordVal, __VA_ARGS__)), \
+            _tlgActivity_Keyword == (_tlgActivity_Keyword _tlg_FOREACH(_tlgKeywordVal, ##__VA_ARGS__)), \
             "Do not use TraceLoggingKeyword in TraceLoggingWriteStart. Keywords for START events are " \
             "specified in the activity type, e.g. TraceLoggingActivity<Provider,Keyword,Level>."); \
         static_assert( \
-            _tlgActivity_Level == (_tlgActivity_Level _tlg_FOREACH(_tlgLevelVal, __VA_ARGS__)), \
+            _tlgActivity_Level == (_tlgActivity_Level _tlg_FOREACH(_tlgLevelVal, ##__VA_ARGS__)), \
             "Do not use TraceLoggingLevel in TraceLoggingWriteStart. The Level for START events is " \
             "specified in the activity type, e.g. TraceLoggingActivity<Provider,Keyword,Level>."); \
         _tlgActivityRef(activity).zInternalStart(); \
@@ -1321,14 +1321,14 @@ private:
             TraceLoggingLevel(_tlgActivity_Level), \
             TelemetryPrivacyDataTag(_tlgActivityPrivacyTag), \
             TraceLoggingDescription("~^" _wiltlg_LSTRINGIZE(activity) L"^~"), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     } \
     while (0) \
     __pragma(warning(pop))
 
 #define __WRITE_ACTIVITY_START(EventId, ...) \
     __TRACELOGGING_TEST_HOOK_ACTIVITY_START(); \
-    __WI_TraceLoggingWriteStart(*this, #EventId, __ACTIVITY_START_PARAMS(), __VA_ARGS__); \
+    __WI_TraceLoggingWriteStart(*this, #EventId, __ACTIVITY_START_PARAMS(), ##__VA_ARGS__); \
     EnsureWatchingCurrentThread()
 
 #define __WI_TraceLoggingWriteStop(activity, name, ...) \
@@ -1338,11 +1338,11 @@ private:
         static const UINT8 _tlgActivity_Level = _tlgActivityRef(activity).Level; \
         static const UINT64 _tlgActivityPrivacyTag = _tlgActivityRef(activity).PrivacyTag; \
         static_assert( \
-            _tlgActivity_Keyword == (_tlgActivity_Keyword _tlg_FOREACH(_tlgKeywordVal, __VA_ARGS__)), \
+            _tlgActivity_Keyword == (_tlgActivity_Keyword _tlg_FOREACH(_tlgKeywordVal, ##__VA_ARGS__)), \
             "Do not use TraceLoggingKeyword in TraceLoggingWriteStop. Keywords for STOP events are " \
             "specified in the activity type, e.g. TraceLoggingActivity<Provider,Keyword,Level>."); \
         static_assert( \
-            _tlgActivity_Level == (_tlgActivity_Level _tlg_FOREACH(_tlgLevelVal, __VA_ARGS__)), \
+            _tlgActivity_Level == (_tlgActivity_Level _tlg_FOREACH(_tlgLevelVal, ##__VA_ARGS__)), \
             "Do not use TraceLoggingLevel in TraceLoggingWriteStop. The Level for STOP events is " \
             "specified in the activity type, e.g. TraceLoggingActivity<Provider,Keyword,Level>."); \
         _tlgActivityRef(activity).zInternalStop(); \
@@ -1356,7 +1356,7 @@ private:
             TraceLoggingLevel(_tlgActivity_Level), \
             TelemetryPrivacyDataTag(_tlgActivityPrivacyTag), \
             TraceLoggingDescription("~^" _wiltlg_LSTRINGIZE(activity) L"^~"), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     } \
     while (0) \
     __pragma(warning(pop))
@@ -1369,23 +1369,23 @@ private:
         auto& failure = *pFailure; \
         if (false, WI_IsAnyFlagSet(Keyword, (MICROSOFT_KEYWORD_TELEMETRY | MICROSOFT_KEYWORD_MEASURES | MICROSOFT_KEYWORD_CRITICAL_DATA))) \
         { \
-            __WI_TraceLoggingWriteStop(*this, #EventId, __ACTIVITY_STOP_TELEMETRY_FAILURE_PARAMS(failure), __VA_ARGS__); \
+            __WI_TraceLoggingWriteStop(*this, #EventId, __ACTIVITY_STOP_TELEMETRY_FAILURE_PARAMS(failure), ##__VA_ARGS__); \
         } \
         else \
         { \
-            __WI_TraceLoggingWriteStop(*this, #EventId, __ACTIVITY_STOP_TRACELOGGING_FAILURE_PARAMS(failure), __VA_ARGS__); \
+            __WI_TraceLoggingWriteStop(*this, #EventId, __ACTIVITY_STOP_TRACELOGGING_FAILURE_PARAMS(failure), ##__VA_ARGS__); \
         } \
     } \
     else \
     { \
         __TRACELOGGING_TEST_HOOK_ACTIVITY_STOP(nullptr, GetResult()); \
-        __WI_TraceLoggingWriteStop(*this, #EventId, __ACTIVITY_STOP_PARAMS(GetResult()), __VA_ARGS__); \
+        __WI_TraceLoggingWriteStop(*this, #EventId, __ACTIVITY_STOP_PARAMS(GetResult()), ##__VA_ARGS__); \
     } \
     IgnoreCurrentThread();
 
 // optional params are:  KeyWord, Level, PrivacyTags, Options
 #define __BEGIN_TRACELOGGING_ACTIVITY_CLASS(ActivityClassName, ...) \
-    class ActivityClassName final : public wil::ActivityBase<TraceLoggingType, __VA_ARGS__> \
+    class ActivityClassName final : public wil::ActivityBase<TraceLoggingType, ##__VA_ARGS__> \
     { \
     protected: \
         void StopActivity() WI_NOEXCEPT override \
@@ -1547,13 +1547,13 @@ public: \
 #define DEFINE_TAGGED_TRACELOGGING_EVENT(EventId, ...) \
     void EventId() \
     { \
-        __WI_TraceLoggingWriteTagged(*this, #EventId, _GENERIC_PARTB_FIELDS_ENABLED, __VA_ARGS__); \
+        __WI_TraceLoggingWriteTagged(*this, #EventId, _GENERIC_PARTB_FIELDS_ENABLED, ##__VA_ARGS__); \
     }
 #else
 #define DEFINE_TAGGED_TRACELOGGING_EVENT(EventId, ...) \
     void EventId() \
     { \
-        __WI_TraceLoggingWriteTagged(*this, #EventId, __VA_ARGS__); \
+        __WI_TraceLoggingWriteTagged(*this, #EventId, ##__VA_ARGS__); \
     }
 #endif
 
@@ -1562,13 +1562,13 @@ public: \
     void EventId(PCSTR correlationVector) \
     { \
         __WI_TraceLoggingWriteTagged( \
-            *this, #EventId, _GENERIC_PARTB_FIELDS_ENABLED, TraceLoggingString(correlationVector, "__TlgCV__"), __VA_ARGS__); \
+            *this, #EventId, _GENERIC_PARTB_FIELDS_ENABLED, TraceLoggingString(correlationVector, "__TlgCV__"), ##__VA_ARGS__); \
     }
 #else
 #define DEFINE_TAGGED_TRACELOGGING_EVENT_CV(EventId, ...) \
     void EventId(PCSTR correlationVector) \
     { \
-        __WI_TraceLoggingWriteTagged(*this, #EventId, TraceLoggingString(correlationVector, "__TlgCV__"), __VA_ARGS__); \
+        __WI_TraceLoggingWriteTagged(*this, #EventId, TraceLoggingString(correlationVector, "__TlgCV__"), ##__VA_ARGS__); \
     }
 #endif
 
@@ -1582,7 +1582,7 @@ public: \
             #EventId, \
             TraceLoggingValue(static_cast<VarType1>(wistd::forward<T1>(varName1)), _wiltlg_STRINGIZE(varName1)), \
             _GENERIC_PARTB_FIELDS_ENABLED, \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #else
 #define DEFINE_TAGGED_TRACELOGGING_EVENT_PARAM1(EventId, VarType1, varName1, ...) \
@@ -1590,7 +1590,7 @@ public: \
     void EventId(T1&& varName1) \
     { \
         __WI_TraceLoggingWriteTagged( \
-            *this, #EventId, TraceLoggingValue(static_cast<VarType1>(wistd::forward<T1>(varName1)), _wiltlg_STRINGIZE(varName1)), __VA_ARGS__); \
+            *this, #EventId, TraceLoggingValue(static_cast<VarType1>(wistd::forward<T1>(varName1)), _wiltlg_STRINGIZE(varName1)), ##__VA_ARGS__); \
     }
 #endif
 
@@ -1605,7 +1605,7 @@ public: \
             TraceLoggingValue(static_cast<VarType1>(wistd::forward<T1>(varName1)), _wiltlg_STRINGIZE(varName1)), \
             _GENERIC_PARTB_FIELDS_ENABLED, \
             TraceLoggingString(correlationVector, "__TlgCV__"), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #else
 #define DEFINE_TAGGED_TRACELOGGING_EVENT_PARAM1_CV(EventId, VarType1, varName1, ...) \
@@ -1617,7 +1617,7 @@ public: \
             #EventId, \
             TraceLoggingValue(static_cast<VarType1>(wistd::forward<T1>(varName1)), _wiltlg_STRINGIZE(varName1)), \
             TraceLoggingString(correlationVector, "__TlgCV__"), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #endif
 
@@ -1632,7 +1632,7 @@ public: \
             TraceLoggingValue(static_cast<VarType1>(wistd::forward<T1>(varName1)), _wiltlg_STRINGIZE(varName1)), \
             TraceLoggingValue(static_cast<VarType2>(wistd::forward<T2>(varName2)), _wiltlg_STRINGIZE(varName2)), \
             _GENERIC_PARTB_FIELDS_ENABLED, \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #else
 #define DEFINE_TAGGED_TRACELOGGING_EVENT_PARAM2(EventId, VarType1, varName1, VarType2, varName2, ...) \
@@ -1644,7 +1644,7 @@ public: \
             #EventId, \
             TraceLoggingValue(static_cast<VarType1>(wistd::forward<T1>(varName1)), _wiltlg_STRINGIZE(varName1)), \
             TraceLoggingValue(static_cast<VarType2>(wistd::forward<T2>(varName2)), _wiltlg_STRINGIZE(varName2)), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #endif
 
@@ -1660,7 +1660,7 @@ public: \
             TraceLoggingValue(static_cast<VarType2>(wistd::forward<T2>(varName2)), _wiltlg_STRINGIZE(varName2)), \
             _GENERIC_PARTB_FIELDS_ENABLED, \
             TraceLoggingString(correlationVector, "__TlgCV__"), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #else
 #define DEFINE_TAGGED_TRACELOGGING_EVENT_PARAM2_CV(EventId, VarType1, varName1, VarType2, varName2, ...) \
@@ -1673,7 +1673,7 @@ public: \
             TraceLoggingValue(static_cast<VarType1>(wistd::forward<T1>(varName1)), _wiltlg_STRINGIZE(varName1)), \
             TraceLoggingValue(static_cast<VarType2>(wistd::forward<T2>(varName2)), _wiltlg_STRINGIZE(varName2)), \
             TraceLoggingString(correlationVector, "__TlgCV__"), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #endif
 
@@ -1689,7 +1689,7 @@ public: \
             TraceLoggingValue(static_cast<VarType2>(wistd::forward<T2>(varName2)), _wiltlg_STRINGIZE(varName2)), \
             TraceLoggingValue(static_cast<VarType3>(wistd::forward<T3>(varName3)), _wiltlg_STRINGIZE(varName3)), \
             _GENERIC_PARTB_FIELDS_ENABLED, \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #else
 #define DEFINE_TAGGED_TRACELOGGING_EVENT_PARAM3(EventId, VarType1, varName1, VarType2, varName2, VarType3, varName3, ...) \
@@ -1702,7 +1702,7 @@ public: \
             TraceLoggingValue(static_cast<VarType1>(wistd::forward<T1>(varName1)), _wiltlg_STRINGIZE(varName1)), \
             TraceLoggingValue(static_cast<VarType2>(wistd::forward<T2>(varName2)), _wiltlg_STRINGIZE(varName2)), \
             TraceLoggingValue(static_cast<VarType3>(wistd::forward<T3>(varName3)), _wiltlg_STRINGIZE(varName3)), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #endif
 
@@ -1719,7 +1719,7 @@ public: \
             TraceLoggingValue(static_cast<VarType3>(wistd::forward<T3>(varName3)), _wiltlg_STRINGIZE(varName3)), \
             _GENERIC_PARTB_FIELDS_ENABLED, \
             TraceLoggingString(correlationVector, "__TlgCV__"), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #else
 #define DEFINE_TAGGED_TRACELOGGING_EVENT_PARAM3_CV(EventId, VarType1, varName1, VarType2, varName2, VarType3, varName3, ...) \
@@ -1733,7 +1733,7 @@ public: \
             TraceLoggingValue(static_cast<VarType2>(wistd::forward<T2>(varName2)), _wiltlg_STRINGIZE(varName2)), \
             TraceLoggingValue(static_cast<VarType3>(wistd::forward<T3>(varName3)), _wiltlg_STRINGIZE(varName3)), \
             TraceLoggingString(correlationVector, "__TlgCV__"), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #endif
 
@@ -1751,7 +1751,7 @@ public: \
             TraceLoggingValue(static_cast<VarType3>(wistd::forward<T3>(varName3)), _wiltlg_STRINGIZE(varName3)), \
             TraceLoggingValue(static_cast<VarType4>(wistd::forward<T4>(varName4)), _wiltlg_STRINGIZE(varName4)), \
             _GENERIC_PARTB_FIELDS_ENABLED, \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #else
 #define DEFINE_TAGGED_TRACELOGGING_EVENT_PARAM4( \
@@ -1766,7 +1766,7 @@ public: \
             TraceLoggingValue(static_cast<VarType2>(wistd::forward<T2>(varName2)), _wiltlg_STRINGIZE(varName2)), \
             TraceLoggingValue(static_cast<VarType3>(wistd::forward<T3>(varName3)), _wiltlg_STRINGIZE(varName3)), \
             TraceLoggingValue(static_cast<VarType4>(wistd::forward<T4>(varName4)), _wiltlg_STRINGIZE(varName4)), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #endif
 
@@ -1785,7 +1785,7 @@ public: \
             TraceLoggingValue(static_cast<VarType4>(wistd::forward<T4>(varName4)), _wiltlg_STRINGIZE(varName4)), \
             _GENERIC_PARTB_FIELDS_ENABLED, \
             TraceLoggingString(correlationVector, "__TlgCV__"), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #else
 #define DEFINE_TAGGED_TRACELOGGING_EVENT_PARAM4_CV( \
@@ -1801,7 +1801,7 @@ public: \
             TraceLoggingValue(static_cast<VarType3>(wistd::forward<T3>(varName3)), _wiltlg_STRINGIZE(varName3)), \
             TraceLoggingValue(static_cast<VarType4>(wistd::forward<T4>(varName4)), _wiltlg_STRINGIZE(varName4)), \
             TraceLoggingString(correlationVector, "__TlgCV__"), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #endif
 
@@ -1820,7 +1820,7 @@ public: \
             TraceLoggingValue(static_cast<VarType4>(wistd::forward<T4>(varName4)), _wiltlg_STRINGIZE(varName4)), \
             TraceLoggingValue(static_cast<VarType5>(wistd::forward<T5>(varName5)), _wiltlg_STRINGIZE(varName5)), \
             _GENERIC_PARTB_FIELDS_ENABLED, \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #else
 #define DEFINE_TAGGED_TRACELOGGING_EVENT_PARAM5( \
@@ -1836,7 +1836,7 @@ public: \
             TraceLoggingValue(static_cast<VarType3>(wistd::forward<T3>(varName3)), _wiltlg_STRINGIZE(varName3)), \
             TraceLoggingValue(static_cast<VarType4>(wistd::forward<T4>(varName4)), _wiltlg_STRINGIZE(varName4)), \
             TraceLoggingValue(static_cast<VarType5>(wistd::forward<T5>(varName5)), _wiltlg_STRINGIZE(varName5)), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #endif
 
@@ -1856,7 +1856,7 @@ public: \
             TraceLoggingValue(static_cast<VarType5>(wistd::forward<T5>(varName5)), _wiltlg_STRINGIZE(varName5)), \
             _GENERIC_PARTB_FIELDS_ENABLED, \
             TraceLoggingString(correlationVector, "__TlgCV__"), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #else
 #define DEFINE_TAGGED_TRACELOGGING_EVENT_PARAM5_CV( \
@@ -1873,7 +1873,7 @@ public: \
             TraceLoggingValue(static_cast<VarType4>(wistd::forward<T4>(varName4)), _wiltlg_STRINGIZE(varName4)), \
             TraceLoggingValue(static_cast<VarType5>(wistd::forward<T5>(varName5)), _wiltlg_STRINGIZE(varName5)), \
             TraceLoggingString(correlationVector, "__TlgCV__"), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #endif
 
@@ -1893,7 +1893,7 @@ public: \
             TraceLoggingValue(static_cast<VarType5>(wistd::forward<T5>(varName5)), _wiltlg_STRINGIZE(varName5)), \
             TraceLoggingValue(static_cast<VarType6>(wistd::forward<T6>(varName6)), _wiltlg_STRINGIZE(varName6)), \
             _GENERIC_PARTB_FIELDS_ENABLED, \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #else
 #define DEFINE_TAGGED_TRACELOGGING_EVENT_PARAM6( \
@@ -1910,7 +1910,7 @@ public: \
             TraceLoggingValue(static_cast<VarType4>(wistd::forward<T4>(varName4)), _wiltlg_STRINGIZE(varName4)), \
             TraceLoggingValue(static_cast<VarType5>(wistd::forward<T5>(varName5)), _wiltlg_STRINGIZE(varName5)), \
             TraceLoggingValue(static_cast<VarType6>(wistd::forward<T6>(varName6)), _wiltlg_STRINGIZE(varName6)), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #endif
 
@@ -1931,7 +1931,7 @@ public: \
             TraceLoggingValue(static_cast<VarType6>(wistd::forward<T6>(varName6)), _wiltlg_STRINGIZE(varName6)), \
             _GENERIC_PARTB_FIELDS_ENABLED, \
             TraceLoggingString(correlationVector, "__TlgCV__"), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #else
 #define DEFINE_TAGGED_TRACELOGGING_EVENT_PARAM6_CV( \
@@ -1949,7 +1949,7 @@ public: \
             TraceLoggingValue(static_cast<VarType5>(wistd::forward<T5>(varName5)), _wiltlg_STRINGIZE(varName5)), \
             TraceLoggingValue(static_cast<VarType6>(wistd::forward<T6>(varName6)), _wiltlg_STRINGIZE(varName6)), \
             TraceLoggingString(correlationVector, "__TlgCV__"), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #endif
 
@@ -1970,7 +1970,7 @@ public: \
             TraceLoggingValue(static_cast<VarType6>(wistd::forward<T6>(varName6)), _wiltlg_STRINGIZE(varName6)), \
             TraceLoggingValue(static_cast<VarType7>(wistd::forward<T7>(varName7)), _wiltlg_STRINGIZE(varName7)), \
             _GENERIC_PARTB_FIELDS_ENABLED, \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #else
 #define DEFINE_TAGGED_TRACELOGGING_EVENT_PARAM7( \
@@ -1988,7 +1988,7 @@ public: \
             TraceLoggingValue(static_cast<VarType5>(wistd::forward<T5>(varName5)), _wiltlg_STRINGIZE(varName5)), \
             TraceLoggingValue(static_cast<VarType6>(wistd::forward<T6>(varName6)), _wiltlg_STRINGIZE(varName6)), \
             TraceLoggingValue(static_cast<VarType7>(wistd::forward<T7>(varName7)), _wiltlg_STRINGIZE(varName7)), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #endif
 
@@ -2010,7 +2010,7 @@ public: \
             TraceLoggingValue(static_cast<VarType7>(wistd::forward<T7>(varName7)), _wiltlg_STRINGIZE(varName7)), \
             _GENERIC_PARTB_FIELDS_ENABLED, \
             TraceLoggingString(correlationVector, "__TlgCV__"), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #else
 #define DEFINE_TAGGED_TRACELOGGING_EVENT_PARAM7_CV( \
@@ -2029,7 +2029,7 @@ public: \
             TraceLoggingValue(static_cast<VarType6>(wistd::forward<T6>(varName6)), _wiltlg_STRINGIZE(varName6)), \
             TraceLoggingValue(static_cast<VarType7>(wistd::forward<T7>(varName7)), _wiltlg_STRINGIZE(varName7)), \
             TraceLoggingString(correlationVector, "__TlgCV__"), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #endif
 
@@ -2051,7 +2051,7 @@ public: \
             TraceLoggingValue(static_cast<VarType7>(wistd::forward<T7>(varName7)), _wiltlg_STRINGIZE(varName7)), \
             TraceLoggingValue(static_cast<VarType8>(wistd::forward<T8>(varName8)), _wiltlg_STRINGIZE(varName8)), \
             _GENERIC_PARTB_FIELDS_ENABLED, \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #else
 #define DEFINE_TAGGED_TRACELOGGING_EVENT_PARAM8( \
@@ -2070,7 +2070,7 @@ public: \
             TraceLoggingValue(static_cast<VarType6>(wistd::forward<T6>(varName6)), _wiltlg_STRINGIZE(varName6)), \
             TraceLoggingValue(static_cast<VarType7>(wistd::forward<T7>(varName7)), _wiltlg_STRINGIZE(varName7)), \
             TraceLoggingValue(static_cast<VarType8>(wistd::forward<T8>(varName8)), _wiltlg_STRINGIZE(varName8)), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #endif
 
@@ -2094,7 +2094,7 @@ public: \
             TraceLoggingValue(static_cast<VarType8>(wistd::forward<T8>(varName8)), _wiltlg_STRINGIZE(varName8)), \
             _GENERIC_PARTB_FIELDS_ENABLED, \
             TraceLoggingString(correlationVector, "__TlgCV__"), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #else
 #define DEFINE_TAGGED_TRACELOGGING_EVENT_PARAM8_CV( \
@@ -2115,7 +2115,7 @@ public: \
             TraceLoggingValue(static_cast<VarType7>(wistd::forward<T7>(varName7)), _wiltlg_STRINGIZE(varName7)), \
             TraceLoggingValue(static_cast<VarType8>(wistd::forward<T8>(varName8)), _wiltlg_STRINGIZE(varName8)), \
             TraceLoggingString(correlationVector, "__TlgCV__"), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #endif
 
@@ -2158,7 +2158,7 @@ public: \
             TraceLoggingValue(static_cast<VarType8>(wistd::forward<T8>(varName8)), _wiltlg_STRINGIZE(varName8)), \
             TraceLoggingValue(static_cast<VarType9>(wistd::forward<T9>(varName9)), _wiltlg_STRINGIZE(varName9)), \
             _GENERIC_PARTB_FIELDS_ENABLED, \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #else
 #define DEFINE_TAGGED_TRACELOGGING_EVENT_PARAM9( \
@@ -2198,16 +2198,16 @@ public: \
             TraceLoggingValue(static_cast<VarType7>(wistd::forward<T7>(varName7)), _wiltlg_STRINGIZE(varName7)), \
             TraceLoggingValue(static_cast<VarType8>(wistd::forward<T8>(varName8)), _wiltlg_STRINGIZE(varName8)), \
             TraceLoggingValue(static_cast<VarType9>(wistd::forward<T9>(varName9)), _wiltlg_STRINGIZE(varName9)), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #endif
 
 #define DEFINE_TAGGED_TRACELOGGING_EVENT_UINT32(EventId, varName, ...) \
-    DEFINE_TAGGED_TRACELOGGING_EVENT_PARAM1(EventId, UINT32, varName, __VA_ARGS__)
+    DEFINE_TAGGED_TRACELOGGING_EVENT_PARAM1(EventId, UINT32, varName, ##__VA_ARGS__)
 #define DEFINE_TAGGED_TRACELOGGING_EVENT_BOOL(EventId, varName, ...) \
-    DEFINE_TAGGED_TRACELOGGING_EVENT_PARAM1(EventId, bool, varName, __VA_ARGS__)
+    DEFINE_TAGGED_TRACELOGGING_EVENT_PARAM1(EventId, bool, varName, ##__VA_ARGS__)
 #define DEFINE_TAGGED_TRACELOGGING_EVENT_STRING(EventId, varName, ...) \
-    DEFINE_TAGGED_TRACELOGGING_EVENT_PARAM1(EventId, PCWSTR, varName, __VA_ARGS__)
+    DEFINE_TAGGED_TRACELOGGING_EVENT_PARAM1(EventId, PCWSTR, varName, ##__VA_ARGS__)
 
 // Internal MACRO implementation of TraceLogging classes.
 // Do NOT use these macros directly.
@@ -2369,13 +2369,13 @@ public:
 #define DEFINE_TRACELOGGING_EVENT(EventId, ...) \
     static void EventId() \
     { \
-        TraceLoggingWrite(TraceLoggingType::Provider(), #EventId, _GENERIC_PARTB_FIELDS_ENABLED, __VA_ARGS__); \
+        TraceLoggingWrite(TraceLoggingType::Provider(), #EventId, _GENERIC_PARTB_FIELDS_ENABLED, ##__VA_ARGS__); \
     }
 #else
 #define DEFINE_TRACELOGGING_EVENT(EventId, ...) \
     static void EventId() \
     { \
-        TraceLoggingWrite(TraceLoggingType::Provider(), #EventId, __VA_ARGS__); \
+        TraceLoggingWrite(TraceLoggingType::Provider(), #EventId, ##__VA_ARGS__); \
     }
 #endif
 
@@ -2384,13 +2384,13 @@ public:
     static void EventId(PCSTR correlationVector) \
     { \
         TraceLoggingWrite( \
-            TraceLoggingType::Provider(), #EventId, _GENERIC_PARTB_FIELDS_ENABLED, TraceLoggingString(correlationVector, "__TlgCV__"), __VA_ARGS__); \
+            TraceLoggingType::Provider(), #EventId, _GENERIC_PARTB_FIELDS_ENABLED, TraceLoggingString(correlationVector, "__TlgCV__"), ##__VA_ARGS__); \
     }
 #else
 #define DEFINE_TRACELOGGING_EVENT_CV(EventId, ...) \
     static void EventId(PCSTR correlationVector) \
     { \
-        TraceLoggingWrite(TraceLoggingType::Provider(), #EventId, TraceLoggingString(correlationVector, "__TlgCV__"), __VA_ARGS__); \
+        TraceLoggingWrite(TraceLoggingType::Provider(), #EventId, TraceLoggingString(correlationVector, "__TlgCV__"), ##__VA_ARGS__); \
     }
 #endif
 
@@ -2404,7 +2404,7 @@ public:
             #EventId, \
             TraceLoggingValue(static_cast<VarType1>(wistd::forward<T1>(varName1)), _wiltlg_STRINGIZE(varName1)), \
             _GENERIC_PARTB_FIELDS_ENABLED, \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #else
 #define DEFINE_TRACELOGGING_EVENT_PARAM1(EventId, VarType1, varName1, ...) \
@@ -2415,7 +2415,7 @@ public:
             TraceLoggingType::Provider(), \
             #EventId, \
             TraceLoggingValue(static_cast<VarType1>(wistd::forward<T1>(varName1)), _wiltlg_STRINGIZE(varName1)), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #endif
 
@@ -2430,7 +2430,7 @@ public:
             TraceLoggingValue(static_cast<VarType1>(wistd::forward<T1>(varName1)), _wiltlg_STRINGIZE(varName1)), \
             _GENERIC_PARTB_FIELDS_ENABLED, \
             TraceLoggingString(correlationVector, "__TlgCV__"), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #else
 #define DEFINE_TRACELOGGING_EVENT_PARAM1_CV(EventId, VarType1, varName1, ...) \
@@ -2442,7 +2442,7 @@ public:
             #EventId, \
             TraceLoggingValue(static_cast<VarType1>(wistd::forward<T1>(varName1)), _wiltlg_STRINGIZE(varName1)), \
             TraceLoggingString(correlationVector, "__TlgCV__"), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #endif
 
@@ -2457,7 +2457,7 @@ public:
             TraceLoggingValue(static_cast<VarType1>(wistd::forward<T1>(varName1)), _wiltlg_STRINGIZE(varName1)), \
             TraceLoggingValue(static_cast<VarType2>(wistd::forward<T2>(varName2)), _wiltlg_STRINGIZE(varName2)), \
             _GENERIC_PARTB_FIELDS_ENABLED, \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #else
 #define DEFINE_TRACELOGGING_EVENT_PARAM2(EventId, VarType1, varName1, VarType2, varName2, ...) \
@@ -2469,7 +2469,7 @@ public:
             #EventId, \
             TraceLoggingValue(static_cast<VarType1>(wistd::forward<T1>(varName1)), _wiltlg_STRINGIZE(varName1)), \
             TraceLoggingValue(static_cast<VarType2>(wistd::forward<T2>(varName2)), _wiltlg_STRINGIZE(varName2)), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #endif
 
@@ -2485,7 +2485,7 @@ public:
             TraceLoggingValue(static_cast<VarType2>(wistd::forward<T2>(varName2)), _wiltlg_STRINGIZE(varName2)), \
             _GENERIC_PARTB_FIELDS_ENABLED, \
             TraceLoggingString(correlationVector, "__TlgCV__"), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #else
 #define DEFINE_TRACELOGGING_EVENT_PARAM2_CV(EventId, VarType1, varName1, VarType2, varName2, ...) \
@@ -2498,7 +2498,7 @@ public:
             TraceLoggingValue(static_cast<VarType1>(wistd::forward<T1>(varName1)), _wiltlg_STRINGIZE(varName1)), \
             TraceLoggingValue(static_cast<VarType2>(wistd::forward<T2>(varName2)), _wiltlg_STRINGIZE(varName2)), \
             TraceLoggingString(correlationVector, "__TlgCV__"), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #endif
 
@@ -2514,7 +2514,7 @@ public:
             TraceLoggingValue(static_cast<VarType2>(wistd::forward<T2>(varName2)), _wiltlg_STRINGIZE(varName2)), \
             TraceLoggingValue(static_cast<VarType3>(wistd::forward<T3>(varName3)), _wiltlg_STRINGIZE(varName3)), \
             _GENERIC_PARTB_FIELDS_ENABLED, \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #else
 #define DEFINE_TRACELOGGING_EVENT_PARAM3(EventId, VarType1, varName1, VarType2, varName2, VarType3, varName3, ...) \
@@ -2527,7 +2527,7 @@ public:
             TraceLoggingValue(static_cast<VarType1>(wistd::forward<T1>(varName1)), _wiltlg_STRINGIZE(varName1)), \
             TraceLoggingValue(static_cast<VarType2>(wistd::forward<T2>(varName2)), _wiltlg_STRINGIZE(varName2)), \
             TraceLoggingValue(static_cast<VarType3>(wistd::forward<T3>(varName3)), _wiltlg_STRINGIZE(varName3)), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #endif
 
@@ -2544,7 +2544,7 @@ public:
             TraceLoggingValue(static_cast<VarType3>(wistd::forward<T3>(varName3)), _wiltlg_STRINGIZE(varName3)), \
             _GENERIC_PARTB_FIELDS_ENABLED, \
             TraceLoggingString(correlationVector, "__TlgCV__"), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #else
 #define DEFINE_TRACELOGGING_EVENT_PARAM3_CV(EventId, VarType1, varName1, VarType2, varName2, VarType3, varName3, ...) \
@@ -2558,7 +2558,7 @@ public:
             TraceLoggingValue(static_cast<VarType2>(wistd::forward<T2>(varName2)), _wiltlg_STRINGIZE(varName2)), \
             TraceLoggingValue(static_cast<VarType3>(wistd::forward<T3>(varName3)), _wiltlg_STRINGIZE(varName3)), \
             TraceLoggingString(correlationVector, "__TlgCV__"), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #endif
 
@@ -2575,7 +2575,7 @@ public:
             TraceLoggingValue(static_cast<VarType3>(wistd::forward<T3>(varName3)), _wiltlg_STRINGIZE(varName3)), \
             TraceLoggingValue(static_cast<VarType4>(wistd::forward<T4>(varName4)), _wiltlg_STRINGIZE(varName4)), \
             _GENERIC_PARTB_FIELDS_ENABLED, \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #else
 #define DEFINE_TRACELOGGING_EVENT_PARAM4(EventId, VarType1, varName1, VarType2, varName2, VarType3, varName3, VarType4, varName4, ...) \
@@ -2589,7 +2589,7 @@ public:
             TraceLoggingValue(static_cast<VarType2>(wistd::forward<T2>(varName2)), _wiltlg_STRINGIZE(varName2)), \
             TraceLoggingValue(static_cast<VarType3>(wistd::forward<T3>(varName3)), _wiltlg_STRINGIZE(varName3)), \
             TraceLoggingValue(static_cast<VarType4>(wistd::forward<T4>(varName4)), _wiltlg_STRINGIZE(varName4)), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #endif
 
@@ -2607,7 +2607,7 @@ public:
             TraceLoggingValue(static_cast<VarType4>(wistd::forward<T4>(varName4)), _wiltlg_STRINGIZE(varName4)), \
             _GENERIC_PARTB_FIELDS_ENABLED, \
             TraceLoggingString(correlationVector, "__TlgCV__"), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #else
 #define DEFINE_TRACELOGGING_EVENT_PARAM4_CV(EventId, VarType1, varName1, VarType2, varName2, VarType3, varName3, VarType4, varName4, ...) \
@@ -2622,7 +2622,7 @@ public:
             TraceLoggingValue(static_cast<VarType3>(wistd::forward<T3>(varName3)), _wiltlg_STRINGIZE(varName3)), \
             TraceLoggingValue(static_cast<VarType4>(wistd::forward<T4>(varName4)), _wiltlg_STRINGIZE(varName4)), \
             TraceLoggingString(correlationVector, "__TlgCV__"), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #endif
 
@@ -2641,7 +2641,7 @@ public:
             TraceLoggingValue(static_cast<VarType4>(wistd::forward<T4>(varName4)), _wiltlg_STRINGIZE(varName4)), \
             TraceLoggingValue(static_cast<VarType5>(wistd::forward<T5>(varName5)), _wiltlg_STRINGIZE(varName5)), \
             _GENERIC_PARTB_FIELDS_ENABLED, \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #else
 #define DEFINE_TRACELOGGING_EVENT_PARAM5( \
@@ -2657,7 +2657,7 @@ public:
             TraceLoggingValue(static_cast<VarType3>(wistd::forward<T3>(varName3)), _wiltlg_STRINGIZE(varName3)), \
             TraceLoggingValue(static_cast<VarType4>(wistd::forward<T4>(varName4)), _wiltlg_STRINGIZE(varName4)), \
             TraceLoggingValue(static_cast<VarType5>(wistd::forward<T5>(varName5)), _wiltlg_STRINGIZE(varName5)), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #endif
 
@@ -2677,7 +2677,7 @@ public:
             TraceLoggingValue(static_cast<VarType5>(wistd::forward<T5>(varName5)), _wiltlg_STRINGIZE(varName5)), \
             _GENERIC_PARTB_FIELDS_ENABLED, \
             TraceLoggingString(correlationVector, "__TlgCV__"), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #else
 #define DEFINE_TRACELOGGING_EVENT_PARAM5_CV( \
@@ -2694,7 +2694,7 @@ public:
             TraceLoggingValue(static_cast<VarType4>(wistd::forward<T4>(varName4)), _wiltlg_STRINGIZE(varName4)), \
             TraceLoggingValue(static_cast<VarType5>(wistd::forward<T5>(varName5)), _wiltlg_STRINGIZE(varName5)), \
             TraceLoggingString(correlationVector, "__TlgCV__"), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #endif
 
@@ -2714,7 +2714,7 @@ public:
             TraceLoggingValue(static_cast<VarType5>(wistd::forward<T5>(varName5)), _wiltlg_STRINGIZE(varName5)), \
             TraceLoggingValue(static_cast<VarType6>(wistd::forward<T6>(varName6)), _wiltlg_STRINGIZE(varName6)), \
             _GENERIC_PARTB_FIELDS_ENABLED, \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #else
 #define DEFINE_TRACELOGGING_EVENT_PARAM6( \
@@ -2731,7 +2731,7 @@ public:
             TraceLoggingValue(static_cast<VarType4>(wistd::forward<T4>(varName4)), _wiltlg_STRINGIZE(varName4)), \
             TraceLoggingValue(static_cast<VarType5>(wistd::forward<T5>(varName5)), _wiltlg_STRINGIZE(varName5)), \
             TraceLoggingValue(static_cast<VarType6>(wistd::forward<T6>(varName6)), _wiltlg_STRINGIZE(varName6)), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #endif
 
@@ -2752,7 +2752,7 @@ public:
             TraceLoggingValue(static_cast<VarType6>(wistd::forward<T6>(varName6)), _wiltlg_STRINGIZE(varName6)), \
             _GENERIC_PARTB_FIELDS_ENABLED, \
             TraceLoggingString(correlationVector, "__TlgCV__"), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #else
 #define DEFINE_TRACELOGGING_EVENT_PARAM6_CV( \
@@ -2770,7 +2770,7 @@ public:
             TraceLoggingValue(static_cast<VarType5>(wistd::forward<T5>(varName5)), _wiltlg_STRINGIZE(varName5)), \
             TraceLoggingValue(static_cast<VarType6>(wistd::forward<T6>(varName6)), _wiltlg_STRINGIZE(varName6)), \
             TraceLoggingString(correlationVector, "__TlgCV__"), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #endif
 
@@ -2791,7 +2791,7 @@ public:
             TraceLoggingValue(static_cast<VarType6>(wistd::forward<T6>(varName6)), _wiltlg_STRINGIZE(varName6)), \
             TraceLoggingValue(static_cast<VarType7>(wistd::forward<T7>(varName7)), _wiltlg_STRINGIZE(varName7)), \
             _GENERIC_PARTB_FIELDS_ENABLED, \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #else
 #define DEFINE_TRACELOGGING_EVENT_PARAM7( \
@@ -2809,7 +2809,7 @@ public:
             TraceLoggingValue(static_cast<VarType5>(wistd::forward<T5>(varName5)), _wiltlg_STRINGIZE(varName5)), \
             TraceLoggingValue(static_cast<VarType6>(wistd::forward<T6>(varName6)), _wiltlg_STRINGIZE(varName6)), \
             TraceLoggingValue(static_cast<VarType7>(wistd::forward<T7>(varName7)), _wiltlg_STRINGIZE(varName7)), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #endif
 
@@ -2832,7 +2832,7 @@ public:
             TraceLoggingValue(static_cast<VarType7>(wistd::forward<T7>(varName7)), _wiltlg_STRINGIZE(varName7)), \
             _GENERIC_PARTB_FIELDS_ENABLED, \
             TraceLoggingString(correlationVector, "__TlgCV__"), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #else
 #define DEFINE_TRACELOGGING_EVENT_PARAM7_CV( \
@@ -2852,7 +2852,7 @@ public:
             TraceLoggingValue(static_cast<VarType6>(wistd::forward<T6>(varName6)), _wiltlg_STRINGIZE(varName6)), \
             TraceLoggingValue(static_cast<VarType7>(wistd::forward<T7>(varName7)), _wiltlg_STRINGIZE(varName7)), \
             TraceLoggingString(correlationVector, "__TlgCV__"), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #endif
 
@@ -2874,7 +2874,7 @@ public:
             TraceLoggingValue(static_cast<VarType7>(wistd::forward<T7>(varName7)), _wiltlg_STRINGIZE(varName7)), \
             TraceLoggingValue(static_cast<VarType8>(wistd::forward<T8>(varName8)), _wiltlg_STRINGIZE(varName8)), \
             _GENERIC_PARTB_FIELDS_ENABLED, \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #else
 #define DEFINE_TRACELOGGING_EVENT_PARAM8( \
@@ -2893,7 +2893,7 @@ public:
             TraceLoggingValue(static_cast<VarType6>(wistd::forward<T6>(varName6)), _wiltlg_STRINGIZE(varName6)), \
             TraceLoggingValue(static_cast<VarType7>(wistd::forward<T7>(varName7)), _wiltlg_STRINGIZE(varName7)), \
             TraceLoggingValue(static_cast<VarType8>(wistd::forward<T8>(varName8)), _wiltlg_STRINGIZE(varName8)), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #endif
 
@@ -2917,7 +2917,7 @@ public:
             TraceLoggingValue(static_cast<VarType8>(wistd::forward<T8>(varName8)), _wiltlg_STRINGIZE(varName8)), \
             _GENERIC_PARTB_FIELDS_ENABLED, \
             TraceLoggingString(correlationVector, "__TlgCV__"), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #else
 #define DEFINE_TRACELOGGING_EVENT_PARAM8_CV( \
@@ -2938,7 +2938,7 @@ public:
             TraceLoggingValue(static_cast<VarType7>(wistd::forward<T7>(varName7)), _wiltlg_STRINGIZE(varName7)), \
             TraceLoggingValue(static_cast<VarType8>(wistd::forward<T8>(varName8)), _wiltlg_STRINGIZE(varName8)), \
             TraceLoggingString(correlationVector, "__TlgCV__"), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #endif
 
@@ -2981,7 +2981,7 @@ public:
             TraceLoggingValue(static_cast<VarType8>(wistd::forward<T8>(varName8)), _wiltlg_STRINGIZE(varName8)), \
             TraceLoggingValue(static_cast<VarType9>(wistd::forward<T9>(varName9)), _wiltlg_STRINGIZE(varName9)), \
             _GENERIC_PARTB_FIELDS_ENABLED, \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #else
 #define DEFINE_TRACELOGGING_EVENT_PARAM9( \
@@ -3021,7 +3021,7 @@ public:
             TraceLoggingValue(static_cast<VarType7>(wistd::forward<T7>(varName7)), _wiltlg_STRINGIZE(varName7)), \
             TraceLoggingValue(static_cast<VarType8>(wistd::forward<T8>(varName8)), _wiltlg_STRINGIZE(varName8)), \
             TraceLoggingValue(static_cast<VarType9>(wistd::forward<T9>(varName9)), _wiltlg_STRINGIZE(varName9)), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #endif
 
@@ -3065,7 +3065,7 @@ public:
             TraceLoggingValue(static_cast<VarType9>(wistd::forward<T9>(varName9)), _wiltlg_STRINGIZE(varName9)), \
             _GENERIC_PARTB_FIELDS_ENABLED, \
             TraceLoggingString(correlationVector, "__TlgCV__"), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #else
 #define DEFINE_TRACELOGGING_EVENT_PARAM9_CV( \
@@ -3106,7 +3106,7 @@ public:
             TraceLoggingValue(static_cast<VarType8>(wistd::forward<T8>(varName8)), _wiltlg_STRINGIZE(varName8)), \
             TraceLoggingValue(static_cast<VarType9>(wistd::forward<T9>(varName9)), _wiltlg_STRINGIZE(varName9)), \
             TraceLoggingString(correlationVector, "__TlgCV__"), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #endif
 
@@ -3152,7 +3152,7 @@ public:
             TraceLoggingValue(static_cast<VarType9>(wistd::forward<T9>(varName9)), _wiltlg_STRINGIZE(varName9)), \
             TraceLoggingValue(static_cast<VarType10>(wistd::forward<T10>(varName10)), _wiltlg_STRINGIZE(varName10)), \
             _GENERIC_PARTB_FIELDS_ENABLED, \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #else
 #define DEFINE_TRACELOGGING_EVENT_PARAM10( \
@@ -3195,16 +3195,16 @@ public:
             TraceLoggingValue(static_cast<VarType8>(wistd::forward<T8>(varName8)), _wiltlg_STRINGIZE(varName8)), \
             TraceLoggingValue(static_cast<VarType9>(wistd::forward<T9>(varName9)), _wiltlg_STRINGIZE(varName9)), \
             TraceLoggingValue(static_cast<VarType10>(wistd::forward<T10>(varName10)), _wiltlg_STRINGIZE(varName10)), \
-            __VA_ARGS__); \
+            ##__VA_ARGS__); \
     }
 #endif
 
 #define DEFINE_TRACELOGGING_EVENT_UINT32(EventId, varName, ...) \
-    DEFINE_TRACELOGGING_EVENT_PARAM1(EventId, UINT32, varName, __VA_ARGS__)
+    DEFINE_TRACELOGGING_EVENT_PARAM1(EventId, UINT32, varName, ##__VA_ARGS__)
 #define DEFINE_TRACELOGGING_EVENT_BOOL(EventId, varName, ...) \
-    DEFINE_TRACELOGGING_EVENT_PARAM1(EventId, bool, varName, __VA_ARGS__)
+    DEFINE_TRACELOGGING_EVENT_PARAM1(EventId, bool, varName, ##__VA_ARGS__)
 #define DEFINE_TRACELOGGING_EVENT_STRING(EventId, varName, ...) \
-    DEFINE_TRACELOGGING_EVENT_PARAM1(EventId, PCWSTR, varName, __VA_ARGS__)
+    DEFINE_TRACELOGGING_EVENT_PARAM1(EventId, PCWSTR, varName, ##__VA_ARGS__)
 
 // Declaring a pure TraceLogging class
 // To declare a tracelogging class, declare your class derived from wil::TraceLoggingProvider, populate the uuid
@@ -3244,34 +3244,34 @@ WIL_WARN_DEPRECATED_1612_PRAGMA("IMPLEMENT_TRACELOGGING_CLASS")
 // within your Tracelogging class using one of the macros below.
 
 #define TraceLoggingProviderWrite(TraceLoggingClassName, EventId, ...) \
-    TraceLoggingWrite(TraceLoggingClassName::TraceLoggingType::Provider(), EventId, __VA_ARGS__)
+    TraceLoggingWrite(TraceLoggingClassName::TraceLoggingType::Provider(), EventId, ##__VA_ARGS__)
 
 #define TraceLoggingProviderWriteTelemetry(TraceLoggingClassName, EventId, ...) \
     TraceLoggingWrite( \
-        TraceLoggingClassName::TraceLoggingType::Provider(), EventId, TraceLoggingKeyword(MICROSOFT_KEYWORD_TELEMETRY), __VA_ARGS__)
+        TraceLoggingClassName::TraceLoggingType::Provider(), EventId, TraceLoggingKeyword(MICROSOFT_KEYWORD_TELEMETRY), ##__VA_ARGS__)
 
 #define TraceLoggingProviderWriteMeasure(TraceLoggingClassName, EventId, ...) \
-    TraceLoggingWrite(TraceLoggingClassName::TraceLoggingType::Provider(), EventId, TraceLoggingKeyword(MICROSOFT_KEYWORD_MEASURES), __VA_ARGS__)
+    TraceLoggingWrite(TraceLoggingClassName::TraceLoggingType::Provider(), EventId, TraceLoggingKeyword(MICROSOFT_KEYWORD_MEASURES), ##__VA_ARGS__)
 
 #define TraceLoggingProviderWriteCriticalData(TraceLoggingClassName, EventId, ...) \
     TraceLoggingWrite( \
-        TraceLoggingClassName::TraceLoggingType::Provider(), EventId, TraceLoggingKeyword(MICROSOFT_KEYWORD_CRITICAL_DATA), __VA_ARGS__)
+        TraceLoggingClassName::TraceLoggingType::Provider(), EventId, TraceLoggingKeyword(MICROSOFT_KEYWORD_CRITICAL_DATA), ##__VA_ARGS__)
 
 // [Optional] Custom Events
 // Use these macros to define a Custom Event for a Provider.  Use the TraceLoggingClassWrite or TraceLoggingClassWriteTelemetry
 // from within a custom event to issue the event.  Methods will be a no-op (and not be called) if the provider is not
 // enabled.
 
-#define TraceLoggingClassWrite(EventId, ...) TraceLoggingWrite(TraceLoggingType::Provider(), EventId, __VA_ARGS__)
+#define TraceLoggingClassWrite(EventId, ...) TraceLoggingWrite(TraceLoggingType::Provider(), EventId, ##__VA_ARGS__)
 
 #define TraceLoggingClassWriteTelemetry(EventId, ...) \
-    TraceLoggingWrite(TraceLoggingType::Provider(), EventId, TraceLoggingKeyword(MICROSOFT_KEYWORD_TELEMETRY), __VA_ARGS__)
+    TraceLoggingWrite(TraceLoggingType::Provider(), EventId, TraceLoggingKeyword(MICROSOFT_KEYWORD_TELEMETRY), ##__VA_ARGS__)
 
 #define TraceLoggingClassWriteMeasure(EventId, ...) \
-    TraceLoggingWrite(TraceLoggingType::Provider(), EventId, TraceLoggingKeyword(MICROSOFT_KEYWORD_MEASURES), __VA_ARGS__)
+    TraceLoggingWrite(TraceLoggingType::Provider(), EventId, TraceLoggingKeyword(MICROSOFT_KEYWORD_MEASURES), ##__VA_ARGS__)
 
 #define TraceLoggingClassWriteCriticalData(EventId, ...) \
-    TraceLoggingWrite(TraceLoggingType::Provider(), EventId, TraceLoggingKeyword(MICROSOFT_KEYWORD_CRITICAL_DATA), __VA_ARGS__)
+    TraceLoggingWrite(TraceLoggingType::Provider(), EventId, TraceLoggingKeyword(MICROSOFT_KEYWORD_CRITICAL_DATA), ##__VA_ARGS__)
 
 #define DEFINE_EVENT_METHOD(MethodName) \
     template <typename... TArgs> \
@@ -5051,7 +5051,7 @@ WIL_WARN_DEPRECATED_1612_PRAGMA("IMPLEMENT_TRACELOGGING_CLASS")
 
 // [optional] params are:  Options, Keyword, Level, PrivacyTag
 #define BEGIN_CUSTOM_ACTIVITY_CLASS(ActivityClassName, ...) \
-    __BEGIN_TRACELOGGING_ACTIVITY_CLASS(ActivityClassName, __VA_ARGS__) \
+    __BEGIN_TRACELOGGING_ACTIVITY_CLASS(ActivityClassName, ##__VA_ARGS__) \
     __IMPLEMENT_ACTIVITY_CLASS(ActivityClassName)
 
 // [optional] param is: Level, PrivacyTag
@@ -5150,7 +5150,7 @@ WIL_WARN_DEPRECATED_1612_PRAGMA("IMPLEMENT_TRACELOGGING_CLASS")
 // [optional] params are:  Options, Keyword, Level
 #ifndef DISABLE_NONCOMPLIANT_TELEMETRY
 #define DEFINE_CUSTOM_ACTIVITY(ActivityClassName, ...) \
-    BEGIN_CUSTOM_ACTIVITY_CLASS(ActivityClassName, __VA_ARGS__) \
+    BEGIN_CUSTOM_ACTIVITY_CLASS(ActivityClassName, ##__VA_ARGS__) \
     END_ACTIVITY_CLASS()
 
 #define DEFINE_TRACELOGGING_ACTIVITY(ActivityClassName) \
@@ -5229,16 +5229,16 @@ WIL_WARN_DEPRECATED_1612_PRAGMA("IMPLEMENT_TRACELOGGING_CLASS")
 // TraceLoggingClassWriteTagged or TraceLoggingClassWriteTaggedTelemetry macros from within a custom event
 // to write the event.
 
-#define TraceLoggingClassWriteTagged(EventId, ...) __WI_TraceLoggingWriteTagged(*this, #EventId, __VA_ARGS__)
+#define TraceLoggingClassWriteTagged(EventId, ...) __WI_TraceLoggingWriteTagged(*this, #EventId, ##__VA_ARGS__)
 
 #define TraceLoggingClassWriteTaggedTelemetry(EventId, ...) \
-    __WI_TraceLoggingWriteTagged(*this, #EventId, TraceLoggingKeyword(MICROSOFT_KEYWORD_TELEMETRY), __VA_ARGS__)
+    __WI_TraceLoggingWriteTagged(*this, #EventId, TraceLoggingKeyword(MICROSOFT_KEYWORD_TELEMETRY), ##__VA_ARGS__)
 
 #define TraceLoggingClassWriteTaggedMeasure(EventId, ...) \
-    __WI_TraceLoggingWriteTagged(*this, #EventId, TraceLoggingKeyword(MICROSOFT_KEYWORD_MEASURES), __VA_ARGS__)
+    __WI_TraceLoggingWriteTagged(*this, #EventId, TraceLoggingKeyword(MICROSOFT_KEYWORD_MEASURES), ##__VA_ARGS__)
 
 #define TraceLoggingClassWriteTaggedCriticalData(EventId, ...) \
-    __WI_TraceLoggingWriteTagged(*this, #EventId, TraceLoggingKeyword(MICROSOFT_KEYWORD_CRITICAL_DATA), __VA_ARGS__)
+    __WI_TraceLoggingWriteTagged(*this, #EventId, TraceLoggingKeyword(MICROSOFT_KEYWORD_CRITICAL_DATA), ##__VA_ARGS__)
 
 // [Optional] Simple Tagged Events for Activities
 // Use these methods to define very simple tagged events for a Custom Activity.
@@ -6253,10 +6253,10 @@ public:
 using TelemetryBase = wil::TraceLoggingProvider;
 
 #define TRACELOGGING_WRITE_EVENT(TraceLoggingClassName, EventId, ...) \
-    TraceLoggingWrite(TraceLoggingClassName::TraceLoggingType::Provider(), EventId, __VA_ARGS__)
+    TraceLoggingWrite(TraceLoggingClassName::TraceLoggingType::Provider(), EventId, ##__VA_ARGS__)
 
 #define TELEMETRY_WRITE_EVENT(EventId, ...) \
-    TraceLoggingWrite(TraceLoggingType::Provider(), EventId, TraceLoggingKeyword(MICROSOFT_KEYWORD_TELEMETRY), __VA_ARGS__)
+    TraceLoggingWrite(TraceLoggingType::Provider(), EventId, TraceLoggingKeyword(MICROSOFT_KEYWORD_TELEMETRY), ##__VA_ARGS__)
 
 #define DEFINE_TAGGED_EVENT_METHOD(MethodName) \
 public: \
@@ -6685,9 +6685,9 @@ namespace details
 #define __WI_LOG_API_USE1(apiName) __WI_LOG_CLASS_API_USE3(InternalGetRuntimeClassName(), apiName, nullptr)
 /// @endcond
 
-#define WI_LOG_CLASS_API_USE(...) WI_MACRO_DISPATCH(__WI_LOG_CLASS_API_USE, __VA_ARGS__)
+#define WI_LOG_CLASS_API_USE(...) WI_MACRO_DISPATCH(__WI_LOG_CLASS_API_USE, ##__VA_ARGS__)
 
-#define WI_LOG_API_USE(...) WI_MACRO_DISPATCH(__WI_LOG_API_USE, __VA_ARGS__)
+#define WI_LOG_API_USE(...) WI_MACRO_DISPATCH(__WI_LOG_API_USE, ##__VA_ARGS__)
 
 #ifdef __clang__
 #pragma clang diagnostic pop
