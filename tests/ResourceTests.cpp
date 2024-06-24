@@ -767,7 +767,8 @@ TEST_CASE("UniqueEnvironmentStrings", "[resource][win32]")
     }
 }
 
-#if (__STDC__ && !defined(_FORCENAMELESSUNION)) || defined(NONAMELESSUNION) || (!defined(_MSC_EXTENSIONS) && !defined(_FORCENAMELESSUNION))
+#if (__STDC__ && !defined(_FORCENAMELESSUNION)) || defined(NONAMELESSUNION) || \
+    (!defined(_MSC_EXTENSIONS) && !defined(_FORCENAMELESSUNION))
 #define VAR_ACCESS_1 .n1
 #define VAR_ACCESS_2 .n1.n2
 #define VAR_ACCESS_3 .n1.n2.n3

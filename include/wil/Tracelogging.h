@@ -3255,7 +3255,8 @@ WIL_WARN_DEPRECATED_1612_PRAGMA("IMPLEMENT_TRACELOGGING_CLASS")
         TraceLoggingClassName::TraceLoggingType::Provider(), EventId, TraceLoggingKeyword(MICROSOFT_KEYWORD_TELEMETRY), ##__VA_ARGS__)
 
 #define TraceLoggingProviderWriteMeasure(TraceLoggingClassName, EventId, ...) \
-    TraceLoggingWrite(TraceLoggingClassName::TraceLoggingType::Provider(), EventId, TraceLoggingKeyword(MICROSOFT_KEYWORD_MEASURES), ##__VA_ARGS__)
+    TraceLoggingWrite( \
+        TraceLoggingClassName::TraceLoggingType::Provider(), EventId, TraceLoggingKeyword(MICROSOFT_KEYWORD_MEASURES), ##__VA_ARGS__)
 
 #define TraceLoggingProviderWriteCriticalData(TraceLoggingClassName, EventId, ...) \
     TraceLoggingWrite( \
