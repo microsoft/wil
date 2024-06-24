@@ -767,12 +767,24 @@ TEST_CASE("UniqueEnvironmentStrings", "[resource][win32]")
     }
 }
 
+#if (__STDC__ && !defined(_FORCENAMELESSUNION)) || defined(NONAMELESSUNION) || (!defined(_MSC_EXTENSIONS) && !defined(_FORCENAMELESSUNION))
+#define VAR_ACCESS_1 .n1
+#define VAR_ACCESS_2 .n1.n2
+#define VAR_ACCESS_3 .n1.n2.n3
+#define VAR_ACCESS_4 .n1.n2.n3.brecVal
+#else
+#define VAR_ACCESS_1
+#define VAR_ACCESS_2
+#define VAR_ACCESS_3
+#define VAR_ACCESS_4
+#endif
+
 TEST_CASE("UniqueVariant", "[resource][com]")
 {
     wil::unique_variant var;
-    var.vt = VT_BSTR;
-    var.bstrVal = ::SysAllocString(L"25");
-    REQUIRE(var.bstrVal != nullptr);
+    var VAR_ACCESS_2.vt = VT_BSTR;
+    var VAR_ACCESS_3.bstrVal = ::SysAllocString(L"25");
+    REQUIRE(var VAR_ACCESS_3.bstrVal != nullptr);
 
     auto call = [](const VARIANT&) {};
     call(var);
@@ -782,8 +794,8 @@ TEST_CASE("UniqueVariant", "[resource][com]")
 
     wil::unique_variant var2;
     REQUIRE_SUCCEEDED(VariantChangeType(&var2, &var, 0, VT_UI4));
-    REQUIRE(var2.vt == VT_UI4);
-    REQUIRE(var2.uiVal == 25);
+    REQUIRE(var2 VAR_ACCESS_2.vt == VT_UI4);
+    REQUIRE(var2 VAR_ACCESS_3.uiVal == 25);
 }
 
 TEST_CASE("DefaultTemplateParamCompiles", "[resource]")

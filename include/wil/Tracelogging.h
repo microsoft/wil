@@ -1143,10 +1143,10 @@ private:
         return (m_sharedActivityData ? m_sharedActivityData->LockExclusive() : rwlock_release_exclusive_scope_exit());
     }
 
-    template <typename ActivityTraceLoggingType, typename TlgReflectorTag = _TlgReflectorTag_Param0IsProviderType>
-    class ActivityData : public _TlgActivityBase<ActivityData<ActivityTraceLoggingType, TlgReflectorTag>, keyword, level>
+    template <typename ActivityTraceLoggingTypeOther, typename TlgReflectorTagOther = _TlgReflectorTag_Param0IsProviderType>
+    class ActivityData : public _TlgActivityBase<ActivityData<ActivityTraceLoggingTypeOther, TlgReflectorTagOther>, keyword, level>
     {
-        using BaseTy = _TlgActivityBase<ActivityData<ActivityTraceLoggingType, TlgReflectorTag>, keyword, level>;
+        using BaseTy = _TlgActivityBase<ActivityData<ActivityTraceLoggingTypeOther, TlgReflectorTagOther>, keyword, level>;
         friend BaseTy;
         void OnStarted()
         {
@@ -1155,7 +1155,7 @@ private:
         {
         }
 
-        // SFINAE dispatching on presence of ActivityTraceLoggingType::CreateActivityId(_Out_ GUID& childActivityId, _In_opt_ const GUID* relatedActivityId)
+        // SFINAE dispatching on presence of ActivityTraceLoggingTypeOther::CreateActivityId(_Out_ GUID& childActivityId, _In_opt_ const GUID* relatedActivityId)
         template <typename ProviderType>
         auto CreateActivityIdByProviderType(int, _Out_ GUID& childActivityId)
             -> decltype(ProviderType::CreateActivityId(childActivityId, this->GetRelatedId()), (void)0)
@@ -1171,7 +1171,7 @@ private:
 
         void CreateActivityId(_Out_ GUID& childActivityId)
         {
-            CreateActivityIdByProviderType<ActivityTraceLoggingType>(0, childActivityId);
+            CreateActivityIdByProviderType<ActivityTraceLoggingTypeOther>(0, childActivityId);
         }
 
     public:
@@ -1221,7 +1221,7 @@ private:
 
         static TraceLoggingHProvider Provider()
         {
-            return ActivityTraceLoggingType::Provider();
+            return ActivityTraceLoggingTypeOther::Provider();
         }
 
         WI_NODISCARD bool NeedsStopped() const WI_NOEXCEPT
@@ -1299,9 +1299,11 @@ private:
 #define __WI_TraceLoggingWriteStart(activity, name, ...) \
     __pragma(warning(push)) __pragma(warning(disable : 4127)) do \
     { \
-        _tlgActivityDecl(activity) static const UINT64 _tlgActivity_Keyword = _tlgActivityRef(activity).Keyword; \
-        static const UINT8 _tlgActivity_Level = _tlgActivityRef(activity).Level; \
-        static const UINT64 _tlgActivityPrivacyTag = _tlgActivityRef(activity).PrivacyTag; \
+        _tlgActivityDecl(activity); \
+        using _tlg_Activity_t = wistd::remove_reference_t<decltype(activity)>; \
+        static constexpr const UINT64 _tlgActivity_Keyword = _tlg_Activity_t::Keyword; \
+        static constexpr const UINT8 _tlgActivity_Level = _tlg_Activity_t::Level; \
+        static constexpr const UINT64 _tlgActivityPrivacyTag = _tlg_Activity_t::PrivacyTag; \
         static_assert( \
             _tlgActivity_Keyword == (_tlgActivity_Keyword _tlg_FOREACH(_tlgKeywordVal, ##__VA_ARGS__)), \
             "Do not use TraceLoggingKeyword in TraceLoggingWriteStart. Keywords for START events are " \
@@ -1334,9 +1336,11 @@ private:
 #define __WI_TraceLoggingWriteStop(activity, name, ...) \
     __pragma(warning(push)) __pragma(warning(disable : 4127)) do \
     { \
-        _tlgActivityDecl(activity) static const UINT64 _tlgActivity_Keyword = _tlgActivityRef(activity).Keyword; \
-        static const UINT8 _tlgActivity_Level = _tlgActivityRef(activity).Level; \
-        static const UINT64 _tlgActivityPrivacyTag = _tlgActivityRef(activity).PrivacyTag; \
+        _tlgActivityDecl(activity); \
+        using _tlg_Activity_t = wistd::remove_reference_t<decltype(activity)>; \
+        static constexpr const UINT64 _tlgActivity_Keyword = _tlg_Activity_t::Keyword; \
+        static constexpr const UINT8 _tlgActivity_Level = _tlg_Activity_t::Level; \
+        static constexpr const UINT64 _tlgActivityPrivacyTag = _tlg_Activity_t::PrivacyTag; \
         static_assert( \
             _tlgActivity_Keyword == (_tlgActivity_Keyword _tlg_FOREACH(_tlgKeywordVal, ##__VA_ARGS__)), \
             "Do not use TraceLoggingKeyword in TraceLoggingWriteStop. Keywords for STOP events are " \
