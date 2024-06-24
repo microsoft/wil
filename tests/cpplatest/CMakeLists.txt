@@ -8,10 +8,16 @@ target_precompile_headers(witest.cpplatest PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/.
 target_compile_features(witest.cpplatest PRIVATE cxx_std_20)
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    # Clang seems to have issues with coroutines and exceptions, so disable some tests for now
+    set(COROUTINE_SOURCES)
+
     target_compile_options(witest.cpplatest PRIVATE
         -fno-ms-compatibility
         )
 else()
+    set(COROUTINE_SOURCES
+        ${CMAKE_CURRENT_SOURCE_DIR}/../ComApartmentVariableTests.cpp)
+
     target_compile_options(witest.cpplatest PRIVATE
         /Zc:preprocessor
         )
@@ -21,7 +27,6 @@ target_sources(witest.cpplatest PRIVATE
     ${COMMON_SOURCES}
     ${COROUTINE_SOURCES}
     ${CMAKE_CURRENT_SOURCE_DIR}/../RegistryTests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../ComApartmentVariableTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../CoroutineTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../CppWinRTTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../CppWinRT20Tests.cpp
