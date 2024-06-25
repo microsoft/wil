@@ -6602,13 +6602,13 @@ namespace details
 #else
             m_fireEventDelay = __TRACELOGGING_TEST_HOOK_API_TELEMETRY_EVENT_DELAY_MS;
 #endif
-            m_fireEventThreadPoolTimer.reset(::CreateThreadpoolTimer(
-                [](PTP_CALLBACK_INSTANCE, PVOID, PTP_TIMER) {
-                    FireEvent();
-                },
-                nullptr,
-                nullptr));
+            m_fireEventThreadPoolTimer.reset(::CreateThreadpoolTimer(&FireEventCallback, nullptr, nullptr));
             ScheduleFireEventCallback();
+        }
+
+        static void __stdcall FireEventCallback(PTP_CALLBACK_INSTANCE, PVOID, PTP_TIMER)
+        {
+            FireEvent();
         }
 
         ~ApiTelemetryLogger() WI_NOEXCEPT override
