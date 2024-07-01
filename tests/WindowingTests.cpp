@@ -156,11 +156,24 @@ TEST_CASE("EnumChildWindows", "[windowing]")
     wil::for_each_window_nothrow([&parent](HWND hwnd) {
         if (IsWindow(hwnd) && IsWindowVisible(hwnd))
         {
-            parent = hwnd;
-            return false;
+            // Make sure we choose a window that has children
+            bool hasChildren = false;
+            wil::for_each_child_window_nothrow(hwnd, [&](HWND) {
+                hasChildren = true;
+                return false;
+            });
+
+            if (hasChildren)
+            {
+                parent = hwnd;
+                return false;
+            }
         }
         return true;
     });
+
+    // Avoid confusing issues below
+    REQUIRE(parent != nullptr);
 
     // nothrow version
     {

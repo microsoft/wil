@@ -733,11 +733,14 @@ TEST_CASE("ResultTests::OriginatedWithMessagePreserved", "[result]")
 
 #endif
 
+static void __stdcall CustomLoggingCallback(const wil::FailureInfo&) noexcept
+{
+    ::SetLastError(ERROR_ABANDON_HIBERFILE);
+}
+
 TEST_CASE("ResultTests::ReportDoesNotChangeLastError", "[result]")
 {
-    decltype(wil::details::g_pfnLoggingCallback) oopsie = [](wil::FailureInfo const&) noexcept {
-        ::SetLastError(ERROR_ABANDON_HIBERFILE);
-    };
+    decltype(wil::details::g_pfnLoggingCallback) oopsie = CustomLoggingCallback;
     auto swap = witest::AssignTemporaryValue(&wil::details::g_pfnLoggingCallback, oopsie);
 
     ::SetLastError(ERROR_ABIOS_ERROR);
