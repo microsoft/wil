@@ -3537,7 +3537,7 @@ void ThreadPoolTimerWorkHelper(SetThreadpoolTimerT const& setThreadpoolTimerFn, 
         // Schedule timer
         myContext.Event.ResetEvent();
         const auto allowedWindow = 0;
-        LONGLONG dueTime = -5 * 10000I64; // 5ms
+        LONGLONG dueTime = -5 * 10000LL; // 5ms
         setThreadpoolTimerFn(timer.get(), reinterpret_cast<DueTimeT*>(&dueTime), 0, allowedWindow);
 
         // Wait until 'myContext.Counter' increments by 1.
@@ -3554,7 +3554,7 @@ void ThreadPoolTimerWorkHelper(SetThreadpoolTimerT const& setThreadpoolTimerFn, 
     // Schedule one last timer.
     myContext.Event.ResetEvent();
     const auto allowedWindow = 0;
-    LONGLONG dueTime = -5 * 10000I64; // 5ms
+    LONGLONG dueTime = -5 * 10000LL; // 5ms
     setThreadpoolTimerFn(timer.get(), reinterpret_cast<DueTimeT*>(&dueTime), 0, allowedWindow);
 
     if (requireExactCallbackCount)

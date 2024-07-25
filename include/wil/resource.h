@@ -27,10 +27,10 @@
 // stdint.h and intsafe.h have conflicting definitions, so it's not safe to include either to pick up our dependencies,
 // so the definitions we need are copied below
 #ifdef _WIN64
-#define __WI_SIZE_MAX 0xffffffffffffffffui64 // UINT64_MAX
-#else                                        /* _WIN64 */
-#define __WI_SIZE_MAX 0xffffffffui32         // UINT32_MAX
-#endif                                       /* _WIN64 */
+#define __WI_SIZE_MAX 0xffffffffffffffffULL // UINT64_MAX
+#else                                       /* _WIN64 */
+#define __WI_SIZE_MAX 0xffffffffUL          // UINT32_MAX
+#endif                                      /* _WIN64 */
 /// @endcond
 
 // Forward declaration
