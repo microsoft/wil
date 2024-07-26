@@ -556,6 +556,9 @@ doing it with global function pointers and header initialization allows a runtim
 #error linker pragma must include g_header_init variation
 #endif
 
+// Keep the misspelled name for backward compatibility.
+#define WI_HEADER_INITITALIZATION_FUNCTION(name, fn) WI_HEADER_INITIALIZATION_FUNCTION(name, fn)
+
 /** All Windows Implementation Library classes and functions are located within the "wil" namespace.
 The 'wil' namespace is an intentionally short name as the intent is for code to be able to reference
 the namespace directly (example: `wil::srwlock lock;`) without a using statement.  Resist adding a using
