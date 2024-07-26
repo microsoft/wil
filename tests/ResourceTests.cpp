@@ -711,7 +711,7 @@ TEST_CASE("UniqueStringAndStringMakerTests::VerifyStringMakerStdWString", "[reso
 }
 #endif
 
-TEST_CASE("UniqueStringAndStringMakerTests::VerifyLegacySTringMakers", "[resource][string_maker]")
+TEST_CASE("UniqueStringAndStringMakerTests::VerifyLegacyStringMakers", "[resource][string_maker]")
 {
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
     auto l = wil::make_hlocal_string(L"value");

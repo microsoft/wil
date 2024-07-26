@@ -37,7 +37,7 @@ TEST_CASE("WilWintrustWrapperTest::VerifyUniqueHCATADMINAllocateAndFree", "[reso
 }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
-TEST_CASE("WilWintrustWrapperTest::VerifyUnqiueHCATINFOAllocate", "[resource][wintrust]")
+TEST_CASE("WilWintrustWrapperTest::VerifyUniqueHCATINFOAllocate", "[resource][wintrust]")
 {
     wil::shared_hcatadmin hCatAdmin;
     HCATINFO hCatInfo = nullptr;
