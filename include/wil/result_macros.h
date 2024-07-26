@@ -2852,7 +2852,7 @@ namespace details
     // Result.h and ResultException.h in a build that does not have WINAPI_PARTITION_DESKTOP defined (where these are conditionally enabled).
 
     inline HRESULT WilStringLengthWorkerA(
-        _In_reads_or_z_(cchMax) STRSAFE_PCNZCH psz,
+        _In_reads_or_z_(cchMax) PCNZCH psz,
         _In_ _In_range_(<=, STRSAFE_MAX_CCH) size_t cchMax,
         _Out_opt_ _Deref_out_range_(<, cchMax) _Deref_out_range_(<=, _String_length_(psz)) size_t* pcchLength)
     {
@@ -2884,7 +2884,7 @@ namespace details
 
     _Must_inspect_result_
     inline HRESULT StringCchLengthA(
-        _In_reads_or_z_(cchMax) STRSAFE_PCNZCH psz,
+        _In_reads_or_z_(cchMax) PCNZCH psz,
         _In_ _In_range_(1, STRSAFE_MAX_CCH) size_t cchMax,
         _Out_opt_ _Deref_out_range_(<, cchMax) _Deref_out_range_(<=, _String_length_(psz)) size_t* pcchLength)
     {
@@ -2906,7 +2906,7 @@ namespace details
 #pragma warning(pop)
 
     _Post_satisfies_(cchDest > 0 && cchDest <= cchMax) inline HRESULT
-        WilStringValidateDestA(_In_reads_opt_(cchDest) STRSAFE_PCNZCH /*pszDest*/, _In_ size_t cchDest, _In_ const size_t cchMax)
+        WilStringValidateDestA(_In_reads_opt_(cchDest) PCNZCH /*pszDest*/, _In_ size_t cchDest, _In_ const size_t cchMax)
     {
         HRESULT hr = S_OK;
         if ((cchDest == 0) || (cchDest > cchMax))
