@@ -1700,8 +1700,8 @@ hr = run_when_complete_nothrow<StorageFile*>(getFileOp.Get(), [](HRESULT hr, ISt
 ~~~
 */
 
-//! Run a function when an async operation completes. Use Microsoft::WRL::FtmBase for TAgility to make the completion handler agile
-//! and run on the async thread.
+//! Run a function when an async operation completes. Use Microsoft::WRL::FtmBase for TAgility to make the completion handler
+//! agile and run on the async thread.
 template <typename TAgility = IUnknown, typename TFunc>
 HRESULT run_when_complete_nothrow(_In_ ABI::Windows::Foundation::IAsyncAction* operation, TFunc&& func) WI_NOEXCEPT
 {
@@ -1727,8 +1727,8 @@ HRESULT run_when_complete_nothrow(_In_ ABI::Windows::Foundation::IAsyncActionWit
 }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
-//! Run a function when an async operation completes. Use Microsoft::WRL::FtmBase for TAgility to make the completion handler agile
-//! and run on the async thread.
+//! Run a function when an async operation completes. Use Microsoft::WRL::FtmBase for TAgility to make the completion handler
+//! agile and run on the async thread.
 template <typename TAgility = IUnknown, typename TFunc>
 void run_when_complete(_In_ ABI::Windows::Foundation::IAsyncAction* operation, TFunc&& func)
 {
