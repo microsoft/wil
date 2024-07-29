@@ -2851,8 +2851,8 @@ namespace details
     // NOTE: The following two functions are unfortunate copies of strsafe.h functions that have been copied to reduce the friction associated with using
     // Result.h and ResultException.h in a build that does not have WINAPI_PARTITION_DESKTOP defined (where these are conditionally enabled).
 
-    static STRSAFEAPI WilStringLengthWorkerA(
-        _In_reads_or_z_(cchMax) STRSAFE_PCNZCH psz,
+    inline HRESULT WilStringLengthWorkerA(
+        _In_reads_or_z_(cchMax) PCNZCH psz,
         _In_ _In_range_(<=, STRSAFE_MAX_CCH) size_t cchMax,
         _Out_opt_ _Deref_out_range_(<, cchMax) _Deref_out_range_(<=, _String_length_(psz)) size_t* pcchLength)
     {
@@ -2883,8 +2883,8 @@ namespace details
     }
 
     _Must_inspect_result_
-    STRSAFEAPI StringCchLengthA(
-        _In_reads_or_z_(cchMax) STRSAFE_PCNZCH psz,
+    inline HRESULT StringCchLengthA(
+        _In_reads_or_z_(cchMax) PCNZCH psz,
         _In_ _In_range_(1, STRSAFE_MAX_CCH) size_t cchMax,
         _Out_opt_ _Deref_out_range_(<, cchMax) _Deref_out_range_(<=, _String_length_(psz)) size_t* pcchLength)
     {
@@ -2905,8 +2905,8 @@ namespace details
     }
 #pragma warning(pop)
 
-    _Post_satisfies_(cchDest > 0 && cchDest <= cchMax) static STRSAFEAPI
-        WilStringValidateDestA(_In_reads_opt_(cchDest) STRSAFE_PCNZCH /*pszDest*/, _In_ size_t cchDest, _In_ const size_t cchMax)
+    _Post_satisfies_(cchDest > 0 && cchDest <= cchMax) inline HRESULT
+        WilStringValidateDestA(_In_reads_opt_(cchDest) PCNZCH /*pszDest*/, _In_ size_t cchDest, _In_ const size_t cchMax)
     {
         HRESULT hr = S_OK;
         if ((cchDest == 0) || (cchDest > cchMax))
@@ -2916,7 +2916,7 @@ namespace details
         return hr;
     }
 
-    static STRSAFEAPI WilStringVPrintfWorkerA(
+    inline HRESULT WilStringVPrintfWorkerA(
         _Out_writes_(cchDest) _Always_(_Post_z_) STRSAFE_LPSTR pszDest,
         _In_ _In_range_(1, STRSAFE_MAX_CCH) size_t cchDest,
         _Always_(_Out_opt_ _Deref_out_range_(<=, cchDest - 1)) size_t* pcchNewDestLength,
@@ -2973,7 +2973,7 @@ namespace details
         return hr;
     }
 
-    __inline HRESULT StringCchPrintfA(
+    inline HRESULT StringCchPrintfA(
         _Out_writes_(cchDest) _Always_(_Post_z_) STRSAFE_LPSTR pszDest,
         _In_ size_t cchDest,
         _In_ _Printf_format_string_ STRSAFE_LPCSTR pszFormat,

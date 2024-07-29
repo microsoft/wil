@@ -27,10 +27,10 @@
 // stdint.h and intsafe.h have conflicting definitions, so it's not safe to include either to pick up our dependencies,
 // so the definitions we need are copied below
 #ifdef _WIN64
-#define __WI_SIZE_MAX 0xffffffffffffffffui64 // UINT64_MAX
-#else                                        /* _WIN64 */
-#define __WI_SIZE_MAX 0xffffffffui32         // UINT32_MAX
-#endif                                       /* _WIN64 */
+#define __WI_SIZE_MAX 0xffffffffffffffffULL // UINT64_MAX
+#else                                       /* _WIN64 */
+#define __WI_SIZE_MAX 0xffffffffUL          // UINT32_MAX
+#endif                                      /* _WIN64 */
 /// @endcond
 
 // Forward declaration
@@ -2892,6 +2892,7 @@ typedef unique_any_t<event_t<details::unique_storage<details::handle_resource_po
 typedef unique_any_t<event_t<details::unique_storage<details::handle_resource_policy>, err_exception_policy>> unique_event;
 #endif
 
+#ifndef WIL_NO_SLIM_EVENT
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && \
     ((_WIN32_WINNT >= _WIN32_WINNT_WIN8) || (__WIL_RESOURCE_ENABLE_QUIRKS && (_WIN32_WINNT >= _WIN32_WINNT_WIN7)))
 enum class SlimEventType
@@ -3060,6 +3061,7 @@ using slim_event_manual_reset = slim_event_t<SlimEventType::ManualReset>;
 using slim_event = slim_event_auto_reset;
 
 #endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && (_WIN32_WINNT >= _WIN32_WINNT_WIN8)
+#endif // WIL_NO_SLIM_EVENT
 
 typedef unique_any<HANDLE, decltype(&details::ReleaseMutex), details::ReleaseMutex, details::pointer_access_none> mutex_release_scope_exit;
 
