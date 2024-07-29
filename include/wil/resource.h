@@ -6266,7 +6266,7 @@ using wdf_wait_lock_release_scope_exit =
 using unique_wdf_device_init = unique_any<WDFDEVICE_INIT*, decltype(&::WdfDeviceInitFree), ::WdfDeviceInitFree>;
 #endif
 
-inline WI_NODISCARD _IRQL_requires_max_(PASSIVE_LEVEL)
+WI_NODISCARD inline _IRQL_requires_max_(PASSIVE_LEVEL)
 _Acquires_lock_(lock)
 wdf_wait_lock_release_scope_exit acquire_wdf_wait_lock(WDFWAITLOCK lock) WI_NOEXCEPT
 {
@@ -6274,7 +6274,7 @@ wdf_wait_lock_release_scope_exit acquire_wdf_wait_lock(WDFWAITLOCK lock) WI_NOEX
     return wdf_wait_lock_release_scope_exit(lock);
 }
 
-inline WI_NODISCARD _IRQL_requires_max_(APC_LEVEL)
+WI_NODISCARD inline _IRQL_requires_max_(APC_LEVEL)
 _When_(return, _Acquires_lock_(lock))
 wdf_wait_lock_release_scope_exit try_acquire_wdf_wait_lock(WDFWAITLOCK lock) WI_NOEXCEPT
 {
@@ -6293,7 +6293,7 @@ wdf_wait_lock_release_scope_exit try_acquire_wdf_wait_lock(WDFWAITLOCK lock) WI_
 using wdf_spin_lock_release_scope_exit =
     unique_any<WDFSPINLOCK, decltype(&::WdfSpinLockRelease), ::WdfSpinLockRelease, details::pointer_access_none>;
 
-inline WI_NODISCARD _IRQL_requires_max_(DISPATCH_LEVEL)
+WI_NODISCARD inline _IRQL_requires_max_(DISPATCH_LEVEL)
 _IRQL_raises_(DISPATCH_LEVEL)
 _Acquires_lock_(lock)
 wdf_spin_lock_release_scope_exit acquire_wdf_spin_lock(WDFSPINLOCK lock) WI_NOEXCEPT
@@ -6509,7 +6509,7 @@ private:
 // function only if the call-site source location is obtained from elsewhere (i.e., plumbed
 // through other abstractions).
 template <typename wdf_object_t>
-inline WI_NODISCARD unique_wdf_object_reference<wdf_object_t> wdf_object_reference_increment(
+WI_NODISCARD inline unique_wdf_object_reference<wdf_object_t> wdf_object_reference_increment(
     wdf_object_t wdfObject, PVOID tag, LONG lineNumber, PCSTR fileName) WI_NOEXCEPT
 {
     // Parameter is incorrectly marked as non-const, so the const-cast is required.
@@ -6518,7 +6518,7 @@ inline WI_NODISCARD unique_wdf_object_reference<wdf_object_t> wdf_object_referen
 }
 
 template <typename wdf_object_t>
-inline WI_NODISCARD unique_wdf_object_reference<wdf_object_t> wdf_object_reference_increment(
+WI_NODISCARD inline unique_wdf_object_reference<wdf_object_t> wdf_object_reference_increment(
     const wil::unique_wdf_any<wdf_object_t>& wdfObject, PVOID tag, LONG lineNumber, PCSTR fileName) WI_NOEXCEPT
 {
     return wdf_object_reference_increment(wdfObject.get(), tag, lineNumber, fileName);
