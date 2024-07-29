@@ -476,7 +476,7 @@ next_entry_offset_iterator<T> create_next_entry_offset_iterator(T* p)
 
 enum class FolderChangeEvent : DWORD
 {
-    ChangesLost = 0, // requies special handling, reset state as events were lost
+    ChangesLost = 0, // requires special handling, reset state as events were lost
     Added = FILE_ACTION_ADDED,
     Removed = FILE_ACTION_REMOVED,
     Modified = FILE_ACTION_MODIFIED,

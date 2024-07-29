@@ -6374,14 +6374,14 @@ namespace details
                         const wchar_t* strAfterNamespace = GetClassStringPointer(node->className);
                         size_t classStrLen = wcslen(strAfterNamespace ? strAfterNamespace : node->className);
 
-                        totalApiListLength += (classStrLen + wcslen(node->apiName) + 1); // We add 1 to account for the comma delimeter
+                        totalApiListLength += (classStrLen + wcslen(node->apiName) + 1); // We add 1 to account for the comma delimiter
                         if (node->specialization)
                         {
-                            totalSpecializationsLength += strlen(node->specialization) + 1; // We add 1 to account for the comma delimeter
+                            totalSpecializationsLength += strlen(node->specialization) + 1; // We add 1 to account for the comma delimiter
                         }
                         else
                         {
-                            totalSpecializationsLength += 2; // '-' plus comma delimeter
+                            totalSpecializationsLength += 2; // '-' plus comma delimiter
                         }
                         numCounts++;
                     });

@@ -2180,7 +2180,7 @@ void NullptrRaiiTests(lambda_t const& fnCreate)
     test_t var2(nullptr); // explicit
     REQUIRE_FALSE(var2);
 
-    // nullptr_t assingment
+    // nullptr_t assignment
     var1.reset(fnCreate());
     REQUIRE(var1);
     var1 = nullptr;

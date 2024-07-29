@@ -49,8 +49,8 @@ struct mock_platform
     static unsigned long long GetApartmentId()
     {
         APTTYPE type;
-        APTTYPEQUALIFIER qualifer;
-        REQUIRE_SUCCEEDED(CoGetApartmentType(&type, &qualifer)); // ensure COM is inited
+        APTTYPEQUALIFIER qualifier;
+        REQUIRE_SUCCEEDED(CoGetApartmentType(&type, &qualifier)); // ensure COM is inited
 
         // Approximate apartment Id
         if (type == APTTYPE_STA)

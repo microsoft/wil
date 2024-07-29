@@ -407,14 +407,15 @@ struct VerifyInterfaceHelper<WinRt, I, doStrictCheck, false>
         // IWeakReferenceSource is exception for WinRt and can be used however it cannot be first templated interface
         // Make sure that your interfaces inherit from IInspectable and are not IInspectable
         // The IInspectable is allowed only on RuntimeClass as first template parameter
-        static_assert((__is_base_of(IWeakReferenceSource, I) && doStrictCheck) ||
-            (__is_base_of(IInspectable, I) && !(doStrictCheck && IsSame<IInspectable, I>::value)),
-                "'I' has to derive from 'IWeakReferenceSource' or 'IInspectable' and must not be IInspectable");
+        static_assert(
+            (__is_base_of(IWeakReferenceSource, I) && doStrictCheck) ||
+                (__is_base_of(IInspectable, I) && !(doStrictCheck && IsSame<IInspectable, I>::value)),
+            "'I' has to derive from 'IWeakReferenceSource' or 'IInspectable' and must not be IInspectable");
 #else
-        // IWeakReference and IWeakReferneceSource are exceptions for WinRT
-        static_assert(__is_base_of(IWeakReference, I) ||
-                        __is_base_of(IWeakReferenceSource, I) ||
-                            __is_base_of(IInspectable, I), "'I' has to derive from 'IWeakReference', 'IWeakReferenceSource' or 'IInspectable'");
+        // IWeakReference and IWeakReferenceSource are exceptions for WinRT
+        static_assert(
+            __is_base_of(IWeakReference, I) || __is_base_of(IWeakReferenceSource, I) || __is_base_of(IInspectable, I),
+            "'I' has to derive from 'IWeakReference', 'IWeakReferenceSource' or 'IInspectable'");
 #endif
     }
 };
@@ -428,10 +429,9 @@ struct VerifyInterfaceHelper<type, I, true, true>
 #ifdef __WRL_STRICT__
         // Verifies if Implements has correct RuntimeClassFlags setting
         // Allow using FtmBase on classes configured with RuntimeClassFlags<WinRt> (Default configuration)
-        static_assert(I::ClassFlags::value == type ||
-                type == WinRtClassicComMix ||
-                    __is_base_of(::Microsoft::WRL::Details::FtmBaseMarker, I),
-            "Implements class must have the same and/or compatibile flags configuration");
+        static_assert(
+            I::ClassFlags::value == type || type == WinRtClassicComMix || __is_base_of(::Microsoft::WRL::Details::FtmBaseMarker, I),
+            "Implements class must have the same and/or compatible flags configuration");
 #endif
     }
 };
