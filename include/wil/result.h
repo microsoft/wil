@@ -435,7 +435,7 @@ namespace details_abi
     private:
         struct Node
         {
-            DWORD threadId = MAXDWORD;
+            DWORD threadId = 0xffffffff; // MAXDWORD
             Node* pNext = nullptr;
             T value{};
         };
