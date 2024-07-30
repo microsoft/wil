@@ -45,16 +45,6 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 
         # We don't want legacy MSVC conformance
         -fno-delayed-template-parsing
-
-        # NOTE: Windows headers not clean enough for us to realistically attempt to start fixing these errors yet. That
-        # said, errors that originate from WIL headers may benefit
-        # -fno-ms-compatibility
-        # -ferror-limit=999
-        # -fmacro-backtrace-limit=0
-
-        # -fno-ms-compatibility turns off preprocessor compatability, which currently only works when __VA_OPT__ support
-        # is available (i.e. >= C++20)
-        # -Xclang -std=c++2a
         )
 else()
     add_compile_options(
@@ -63,12 +53,6 @@ else()
 
         # wistd::function has padding due to alignment. This is expected
         /wd4324
-
-        # TODO: https://github.com/Microsoft/wil/issues/6
-        # /experimental:preprocessor
-
-        # CRT headers are not yet /experimental:preprocessor clean, so work around the known issues
-        # /Wv:18
 
         # Some tests have a LOT of template instantiations
         /bigobj

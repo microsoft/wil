@@ -4775,7 +4775,7 @@ struct underlying_type
 {
     static_assert(
         _Support,
-        "The underyling_type trait requires compiler "
+        "The underlying_type trait requires compiler "
         "support. Either no such support exists or "
         "libc++ does not know how to use it.");
 };

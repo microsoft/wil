@@ -1,4 +1,4 @@
-// Relatively simple tests as a sanity check to verify that our funciton mocking & use of detours is working correctly
+// Relatively simple tests as a sanity check to verify that our function mocking & use of detours is working correctly
 #include "pch.h"
 
 #include "common.h"
@@ -102,7 +102,7 @@ __declspec(noinline) int __cdecl LocalAddFunction(int lhs, int rhs)
     return lhs + rhs;
 }
 
-TEST_CASE("MockingTests::ThreadDetourLocalFunciton", "[mocking]")
+TEST_CASE("MockingTests::ThreadDetourLocalFunction", "[mocking]")
 {
     {
         witest::detoured_thread_function<&LocalAddFunction> detour;
@@ -116,7 +116,7 @@ TEST_CASE("MockingTests::ThreadDetourLocalFunciton", "[mocking]")
     REQUIRE(LocalAddFunction(2, 3) == 5);
 }
 
-TEST_CASE("MockingTests::GlobalDetourLocalFunciton", "[mocking]")
+TEST_CASE("MockingTests::GlobalDetourLocalFunction", "[mocking]")
 {
     {
         witest::detoured_global_function<&LocalAddFunction> detour;
