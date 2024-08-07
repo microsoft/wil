@@ -7249,6 +7249,7 @@ struct err_returncode_policy
     {
         return S_OK;
     }
+    static constexpr const bool is_nothrow = true;
 };
 
 // Use for classes which fail-fast on errors
@@ -7283,6 +7284,7 @@ struct err_failfast_policy
     __forceinline static result OK()
     {
     }
+    static constexpr const bool is_nothrow = true;
 };
 
 #ifdef WIL_ENABLE_EXCEPTIONS
@@ -7318,6 +7320,7 @@ struct err_exception_policy
     __forceinline static result OK()
     {
     }
+    static constexpr const bool is_nothrow = false;
 };
 #else
 // NOTE: A lot of types use 'err_exception_policy' as a default template argument and therefore it must be defined
@@ -7329,7 +7332,26 @@ struct err_exception_policy
 {
 };
 #endif
+/// @cond
+namespace details
+{
+    template <typename err_policy>
+    struct is_error_policy_nothrow_t
+    {
+        // Use 'is_nothrow' if it exists...
+        template <typename ErrPolicy = err_policy>
+        static wistd::bool_constant<ErrPolicy::is_nothrow> evaluate(int);
 
+        // ... otherwise it's safest to assume that it's not nothrow
+        static wistd::false_type evaluate(...);
+
+        static constexpr const bool value = decltype(evaluate(0))::value;
+    };
+
+    template <typename err_policy>
+    constexpr const bool is_error_policy_nothrow = is_error_policy_nothrow_t<err_policy>::value;
+}
+/// @endcond
 } // namespace wil
 
 #pragma warning(pop)
