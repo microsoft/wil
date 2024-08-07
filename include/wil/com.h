@@ -3325,6 +3325,66 @@ WI_NODISCARD auto make_range(IEnumXxx* enumPtr)
 #endif // WIL_HAS_CXX_17
 #endif // WIL_ENABLE_EXCEPTIONS
 
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
+#ifdef __WIL_WIN32_HELPERS_INCLUDED
+class rpc_timeout
+{
+public:
+    rpc_timeout(DWORD timeoutInMilliseconds):
+        m_threadId(GetCurrentThreadId())
+    {
+        m_cancelEnablementResult = CoEnableCallCancellation(nullptr);
+        if (SUCCEEDED(m_cancelEnablementResult))
+        {
+            m_timer.reset(CreateThreadpoolTimer(&rpc_timeout::timer_callback, this, nullptr));
+            LOG_LAST_ERROR_IF_NULL(m_timer.get());
+            if (m_timer)
+            {
+                FILETIME ft = filetime::get_system_time();
+                filetime::add(ft, filetime::convert_msec_to_100ns(timeoutInMilliseconds));
+                SetThreadpoolTimer(m_timer.get(), &ft, 0, 0);
+            }
+        }
+    }
+
+    ~rpc_timeout()
+    {
+        if (SUCCEEDED(m_cancelEnablementResult))
+        {
+            CoDisableCallCancellation(nullptr);
+        }
+
+        m_timer.reset();
+    }
+
+    bool timed_out() const
+    {
+        return m_timedOut;
+    }
+
+private:
+    // Disable use of new as this class should only be declared on the stack, never the heap.
+    void *operator new(size_t) = delete;
+    void *operator new[](size_t) = delete;
+
+    static void timer_callback(PTP_CALLBACK_INSTANCE /*instance*/, PVOID context, PTP_TIMER /*timer*/)
+    {
+        // The timer is waited upon during destruction so it is safe to rely on the this pointer in context.
+        rpc_timeout* self = static_cast<rpc_timeout*>(context);
+        if (SUCCEEDED(CoCancelCall(self->m_threadId, 0)))
+        {
+            self->m_timedOut = true;
+        }
+    }
+
+    wil::unique_threadpool_timer_nocancel m_timer;
+    HRESULT m_cancelEnablementResult{};
+    DWORD m_threadId{};
+    bool m_timedOut{};
+};
+#endif // __WIL_WIN32_HELPERS_INCLUDED
+#endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
+
 } // namespace wil
 
 #endif

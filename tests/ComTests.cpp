@@ -2,6 +2,7 @@
 
 #include <ocidl.h> // Bring in IObjectWithSite
 
+#include <wil/win32_helpers.h>
 #include <wil/com.h>
 #include <wrl/implements.h>
 
@@ -11,6 +12,7 @@
 #include <ShlObj_core.h>
 #endif
 #include <Bits.h>
+#include <thread>
 
 using namespace Microsoft::WRL;
 
@@ -3057,5 +3059,59 @@ TEST_CASE("COMEnumerator", "[com][enumerator]")
 }
 #pragma warning(pop)
 #endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && WIL_HAS_CXX_17
+
+
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
+#if (NTDDI_VERSION >= NTDDI_WINBLUE)
+TEST_CASE("rpc_timeout", "[com][rpc_timeout]")
+{
+    auto init = wil::CoInitializeEx_failfast();
+
+    SECTION("Basic construction")
+    {
+        wil::rpc_timeout timeout{5000};
+        REQUIRE(!timeout.timed_out());
+    }
+    SECTION("RPC timeout test")
+    {
+        // This test uses cross-thread marshaling within the current process to exercise RPC timeouts.  An STA
+        // thread is spun up and creates a thread-affine object (IShellFolder).  The STA thread then blocks so
+        // that calls to this STA object will hang, allowing us to trigger the timeout.
+        wil::shared_event initialized;
+        initialized.create();
+        wil::shared_event blocker;
+        blocker.create();
+        
+        wil::com_agile_ref_failfast agileDesktop;
+
+        auto staThread = std::thread([initialized, blocker, &agileDesktop] {
+            auto init = wil::CoInitializeEx_failfast(COINIT_APARTMENTTHREADED);
+
+            wil::com_ptr<IShellFolder> desktop;
+            REQUIRE_SUCCEEDED(::SHGetDesktopFolder(&desktop));
+            agileDesktop = wil::com_agile_query(desktop);
+
+            initialized.SetEvent(); // Tell the original thread that agileDesktop is ready
+            blocker.wait(5000); // And then block so that calls will hang.
+        });
+
+        REQUIRE(initialized.wait(5000));
+
+        wil::rpc_timeout timeout{100};
+
+        // Perform a cross-apartment call to the STA that is blocked.  The exact call doesn't matter as long
+        // as it will block.
+        auto marshaledFolder = agileDesktop.query<IShellFolder>();
+        REQUIRE(marshaledFolder);
+        wil::com_ptr<IEnumIDList> enumIDList;
+        REQUIRE(marshaledFolder->EnumObjects(nullptr, SHCONTF_NONFOLDERS, &enumIDList) == RPC_E_CALL_CANCELED);
+        REQUIRE(timeout.timed_out());
+
+        blocker.SetEvent();
+        staThread.join();
+    }
+}
+#endif // (NTDDI_VERSION >= NTDDI_WINBLUE)
+#endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
 
 #endif // WIL_ENABLE_EXCEPTIONS
