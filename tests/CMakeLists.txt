@@ -65,6 +65,7 @@ set(COMMON_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/FileSystemTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MockingTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/NTResultTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/PathTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ResourceTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ResultTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Rpc.cpp

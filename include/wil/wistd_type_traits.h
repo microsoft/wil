@@ -4909,6 +4909,14 @@ __WI_LIBCPP_INLINE_VAR constexpr bool negation_v = negation<_Tp>::value;
 #endif // __WI_LIBCPP_HAS_NO_VARIADICS
 #endif // __WI_LIBCPP_CXX03_LANG
 
+template <class _Tp>
+struct type_identity
+{
+    using type = _Tp;
+};
+template <typename _Tp>
+using type_identity_t = typename type_identity<_Tp>::type;
+
 // These traits are used in __tree and __hash_table
 #ifndef __WI_LIBCPP_CXX03_LANG
 struct __extract_key_fail_tag

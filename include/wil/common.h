@@ -879,6 +879,85 @@ namespace details
     {
         using type = typename variable_size<sizeof(T)>::type;
     };
+
+    // To avoid taking a reliance on STL types, which may or may not be available, the following type traits allow us to write
+    // generic code that accepts types that behave like certain STL types without needing to reference them by name
+    // WARNING: Even if these type traits match a specific type, it's generally not safe to assume various properties of the
+    //          target STL type(s). E.g. lifetime, ownership, etc.
+
+    // Matches types like 'std::basic_string' and 'std::basic_string_view'. Given some 'value' of type 'T', the following
+    // operations can be performed:
+    //      value.length()
+    //      value.data()
+    template <typename T, typename CharT>
+    struct is_string_view_like_t
+    {
+        template <typename U>
+        static auto evaluate(U&& value, int)
+            -> wistd::enable_if_t<
+                wistd::conjunction_v<
+                    wistd::is_same<typename U::value_type, wistd::remove_const_t<CharT>>, // Character type must match
+                    wistd::is_convertible<decltype(value.data()), wistd::add_const_t<CharT>*>, // .data() exists and returns acceptable type
+                    wistd::is_same<decltype(value.length()), size_t>, // .length() exists and returns correct type
+                    wistd::is_same<decltype(value.find_first_of(wistd::declval<CharT>())), size_t> // Sanity check for 'basic_string' / 'basic_string_view' types
+                    >,
+                wistd::true_type>;
+
+        template <typename U>
+        static wistd::false_type evaluate(U&& value, ...);
+
+        static constexpr const bool value = decltype(evaluate(wistd::declval<T>(), 0))::value;
+    };
+
+    template <typename T, typename CharT>
+    constexpr const bool is_string_view_like = is_string_view_like_t<T, CharT>::value;
+
+    // Same as above, but excludes std::string_view. Additional valid operations:
+    //      value.c_str()
+    template <typename T, typename CharT>
+    struct is_string_like_t
+    {
+        template <typename U>
+        static auto evaluate(U&& value, int)
+            -> wistd::enable_if_t<wistd::is_same_v<decltype(value.c_str()), wistd::add_const_t<CharT>*>, wistd::true_type>;
+
+        template <typename U>
+        static wistd::false_type evaluate(U&& value, ...);
+
+        static constexpr const bool value = is_string_view_like<T, CharT> && decltype(evaluate(wistd::declval<T>(), 0))::value;
+    };
+
+    template <typename T, typename CharT>
+    constexpr const bool is_string_like = is_string_like_t<T, CharT>::value;
+
+    // Matches 'std::filesystem::path' with a reasonable degree of certainty that it won't match other types. Given some 'value'
+    // of type 'T', the following operations can be performed:
+    //      value.native()
+    //      value.c_str()
+    //      value / value
+    template <typename T>
+    struct is_path_like_t
+    {
+        template <typename U>
+        static auto evaluate(U&& value, int)
+            -> wistd::enable_if_t<
+                wistd::conjunction_v<
+                    wistd::is_same<typename U::value_type, wchar_t>,                  // Wide character type
+                    wistd::is_same<decltype(value.native().c_str()), const wchar_t*>, // .native() exists and returns std::wstring
+                    wistd::is_same<decltype(value.c_str()), const wchar_t*>,          // .c_str() exists and returns correct type
+                    wistd::is_same<decltype(value / value), U>,                       // Path concatenation
+                    wistd::bool_constant<U::preferred_separator == L'\\'>             // Sanity check for 'path' type
+                    >,
+                wistd::true_type>;
+
+        template <typename U>
+        static wistd::false_type evaluate(U&& value, ...);
+
+        static constexpr const bool value = decltype(evaluate(wistd::declval<T>(), 0))::value;
+    };
+
+    template <typename T>
+    constexpr const bool is_path_like = is_path_like_t<T>::value;
 } // namespace details
 /// @endcond
 

@@ -4,6 +4,12 @@
 #include <wil/resource.h>
 #include <wrl/client.h>
 
+#ifdef WIL_ENABLE_EXCEPTIONS
+#include <filesystem>
+#include <string>
+#include <vector>
+#endif
+
 #include "common.h"
 
 TEST_CASE("CommonTests::OutParamHelpers", "[common]")
@@ -242,4 +248,98 @@ TEST_CASE("CommonTests::FlagsMacros", "[common]")
         WI_ToggleFlag(eclass, EClassTest::Two);
         REQUIRE(eclass == EClassTest::Two);
     }
+}
+
+TEST_CASE("CommonTests::TypeTraitsTests", "[common]")
+{
+#ifdef WIL_ENABLE_EXCEPTIONS
+    SECTION("is_string_view_like")
+    {
+        REQUIRE(wil::details::is_string_view_like<std::string, char>);
+        REQUIRE(wil::details::is_string_view_like<std::string_view, char>);
+        REQUIRE(wil::details::is_string_view_like<std::wstring, wchar_t>);
+        REQUIRE(wil::details::is_string_view_like<std::wstring_view, wchar_t>);
+
+        // Const T or CharT doesn't matter
+        REQUIRE(wil::details::is_string_view_like<const std::string, char>);
+        REQUIRE(wil::details::is_string_view_like<const std::string_view, char>);
+        REQUIRE(wil::details::is_string_view_like<const std::wstring, wchar_t>);
+        REQUIRE(wil::details::is_string_view_like<const std::wstring_view, wchar_t>);
+
+        REQUIRE(wil::details::is_string_view_like<std::string, const char>);
+        REQUIRE(wil::details::is_string_view_like<std::string_view, const char>);
+        REQUIRE(wil::details::is_string_view_like<std::wstring, const wchar_t>);
+        REQUIRE(wil::details::is_string_view_like<std::wstring_view, const wchar_t>);
+
+        // Should not be true if 'CharT' is a mis-match
+        REQUIRE(!wil::details::is_string_view_like<std::string, wchar_t>);
+        REQUIRE(!wil::details::is_string_view_like<std::string_view, wchar_t>);
+        REQUIRE(!wil::details::is_string_view_like<std::wstring, char>);
+        REQUIRE(!wil::details::is_string_view_like<std::wstring_view, char>);
+
+        REQUIRE(!wil::details::is_string_view_like<std::string, std::string>);
+        REQUIRE(!wil::details::is_string_view_like<std::string, std::string_view>);
+        REQUIRE(!wil::details::is_string_view_like<std::string_view, std::string>);
+
+        // std::vector should not match (why we use .length() instead of .size())
+        REQUIRE(!wil::details::is_string_view_like<std::vector<char>, char>);
+
+        // std::filesystem::path does not match interface (no .data() method)
+        REQUIRE(!wil::details::is_string_view_like<std::filesystem::path, char>);
+        REQUIRE(!wil::details::is_string_view_like<std::filesystem::path, wchar_t>);
+
+        // Non class types
+        REQUIRE(!wil::details::is_string_view_like<char, char>);
+        REQUIRE(!wil::details::is_string_view_like<char*, char>);
+        REQUIRE(!wil::details::is_string_view_like<char, std::string_view>);
+    }
+
+    SECTION("is_string_like")
+    {
+        REQUIRE(wil::details::is_string_like<std::string, char>);
+        REQUIRE(wil::details::is_string_like<std::wstring, wchar_t>);
+
+        // Const T or CharT doesn't matter
+        REQUIRE(wil::details::is_string_like<const std::string, char>);
+        REQUIRE(wil::details::is_string_like<const std::wstring, wchar_t>);
+
+        REQUIRE(wil::details::is_string_like<std::string, const char>);
+        REQUIRE(wil::details::is_string_like<std::wstring, const wchar_t>);
+
+        // Should not be true if 'CharT' is a mis-match
+        REQUIRE(!wil::details::is_string_like<std::string, wchar_t>);
+        REQUIRE(!wil::details::is_string_like<std::wstring, char>);
+
+        // std::string_view should not work
+        REQUIRE(!wil::details::is_string_like<std::string_view, char>);
+        REQUIRE(!wil::details::is_string_like<std::wstring_view, wchar_t>);
+
+        // std::vector should not match (why we use .length() instead of .size())
+        REQUIRE(!wil::details::is_string_like<std::vector<char>, char>);
+
+        // std::filesystem::path does not match interface (no .data() method)
+        REQUIRE(!wil::details::is_string_like<std::filesystem::path, char>);
+        REQUIRE(!wil::details::is_string_like<std::filesystem::path, wchar_t>);
+
+        // Non class types
+        REQUIRE(!wil::details::is_string_like<char, char>);
+        REQUIRE(!wil::details::is_string_like<char*, char>);
+        REQUIRE(!wil::details::is_string_like<char, std::string_view>);
+    }
+
+    SECTION("is_path_like")
+    {
+        REQUIRE(wil::details::is_path_like<std::filesystem::path>);
+
+        REQUIRE(!wil::details::is_path_like<std::string>);
+        REQUIRE(!wil::details::is_path_like<std::string_view>);
+        REQUIRE(!wil::details::is_path_like<std::wstring>);
+        REQUIRE(!wil::details::is_path_like<std::wstring_view>);
+
+        // Non class types
+        REQUIRE(!wil::details::is_path_like<char>);
+        REQUIRE(!wil::details::is_path_like<wchar_t>);
+        REQUIRE(!wil::details::is_path_like<wchar_t*>);
+    }
+#endif
 }
