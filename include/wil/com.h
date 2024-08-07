@@ -3327,6 +3327,20 @@ WI_NODISCARD auto make_range(IEnumXxx* enumPtr)
 
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
 #ifdef __WIL_WIN32_HELPERS_INCLUDED
+
+/** RAII support for making cross-apartment (or cross process) COM calls with a timeout applied to them.
+ * When this is active any timed out calls will fail with an RPC error code such as RPC_E_CALL_CANCELED.
+ * This is a shared timeout that applies to all calls made on the current thread for the lifetime of
+ * the wil::rpc_timeout object.
+~~~
+{
+  auto timeout = wil::rpc_timeout(5000);
+  remote_object->BlockingCOMCall();
+  remote_object->AnotherBlockingCOMCall();
+}
+~~~
+Include wil/win32_helpers.h before wil/com.h to use this.
+*/
 class rpc_timeout
 {
 public:

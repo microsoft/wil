@@ -3110,6 +3110,49 @@ TEST_CASE("rpc_timeout", "[com][rpc_timeout]")
         blocker.SetEvent();
         staThread.join();
     }
+    SECTION("Non-timeout unaffected test")
+    {
+        // This test uses cross-thread marshaling within the current process to exercise RPC timeouts.  An STA
+        // thread is spun up and creates a thread-affine object (IShellFolder).  The STA thread pumps messages
+        // to act like a healthy STA thread, allowing us to confirm that the rpc_timeout object does not break
+        // healthy scenarios.
+        wil::shared_event initialized;
+        initialized.create();
+        wil::shared_event blocker;
+        blocker.create();
+        
+        wil::com_agile_ref_failfast agileDesktop;
+
+        auto staThread = std::thread([initialized, blocker, &agileDesktop] {
+            auto init = wil::CoInitializeEx_failfast(COINIT_APARTMENTTHREADED);
+
+            wil::com_ptr<IShellFolder> desktop;
+            REQUIRE_SUCCEEDED(::SHGetDesktopFolder(&desktop));
+            agileDesktop = wil::com_agile_query(desktop);
+
+            initialized.SetEvent(); // Tell the original thread that agileDesktop is ready
+            
+            // Pump messages so this STA thread is healthy.
+            HANDLE handles[1] = {blocker.get()};
+            DWORD index;
+            CoWaitForMultipleObjects(CWMO_DISPATCH_CALLS  | CWMO_DISPATCH_WINDOW_MESSAGES, 5000, ARRAYSIZE(handles), handles, &index);
+        });
+
+        REQUIRE(initialized.wait(5000));
+
+        auto timeout = wil::rpc_timeout(100);
+
+        // Perform a cross-apartment call to the STA that is pumping.  The specific call doesn't matter
+        // as long as it is a blocking call.
+        auto marshaledFolder = agileDesktop.query<IShellFolder>();
+        REQUIRE(marshaledFolder);
+        wil::com_ptr<IEnumIDList> enumIDList;
+        REQUIRE_SUCCEEDED(marshaledFolder->EnumObjects(nullptr, SHCONTF_NONFOLDERS, &enumIDList));
+        REQUIRE(!timeout.timed_out());
+
+        blocker.SetEvent();
+        staThread.join();
+    }
 }
 #endif // (NTDDI_VERSION >= NTDDI_WINBLUE)
 #endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
