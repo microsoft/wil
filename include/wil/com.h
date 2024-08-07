@@ -3344,8 +3344,7 @@ Include wil/win32_helpers.h before wil/com.h to use this.
 class rpc_timeout
 {
 public:
-    rpc_timeout(DWORD timeoutInMilliseconds):
-        m_threadId(GetCurrentThreadId())
+    rpc_timeout(DWORD timeoutInMilliseconds) : m_threadId(GetCurrentThreadId())
     {
         m_cancelEnablementResult = CoEnableCallCancellation(nullptr);
         if (SUCCEEDED(m_cancelEnablementResult))
@@ -3378,8 +3377,8 @@ public:
 
 private:
     // Disable use of new as this class should only be declared on the stack, never the heap.
-    void *operator new(size_t) = delete;
-    void *operator new[](size_t) = delete;
+    void* operator new(size_t) = delete;
+    void* operator new[](size_t) = delete;
 
     static void timer_callback(PTP_CALLBACK_INSTANCE /*instance*/, PVOID context, PTP_TIMER /*timer*/)
     {

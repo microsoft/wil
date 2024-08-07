@@ -3060,7 +3060,6 @@ TEST_CASE("COMEnumerator", "[com][enumerator]")
 #pragma warning(pop)
 #endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && WIL_HAS_CXX_17
 
-
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
 #if (NTDDI_VERSION >= NTDDI_WINBLUE)
 TEST_CASE("rpc_timeout", "[com][rpc_timeout]")
@@ -3081,7 +3080,7 @@ TEST_CASE("rpc_timeout", "[com][rpc_timeout]")
         initialized.create();
         wil::shared_event blocker;
         blocker.create();
-        
+
         wil::com_agile_ref_failfast agileDesktop;
 
         auto staThread = std::thread([initialized, blocker, &agileDesktop] {
@@ -3092,7 +3091,7 @@ TEST_CASE("rpc_timeout", "[com][rpc_timeout]")
             agileDesktop = wil::com_agile_query(desktop);
 
             initialized.SetEvent(); // Tell the original thread that agileDesktop is ready
-            blocker.wait(5000); // And then block so that calls will hang.
+            blocker.wait(5000);     // And then block so that calls will hang.
         });
 
         REQUIRE(initialized.wait(5000));
@@ -3120,7 +3119,7 @@ TEST_CASE("rpc_timeout", "[com][rpc_timeout]")
         initialized.create();
         wil::shared_event blocker;
         blocker.create();
-        
+
         wil::com_agile_ref_failfast agileDesktop;
 
         auto staThread = std::thread([initialized, blocker, &agileDesktop] {
@@ -3131,11 +3130,11 @@ TEST_CASE("rpc_timeout", "[com][rpc_timeout]")
             agileDesktop = wil::com_agile_query(desktop);
 
             initialized.SetEvent(); // Tell the original thread that agileDesktop is ready
-            
+
             // Pump messages so this STA thread is healthy.
             HANDLE handles[1] = {blocker.get()};
             DWORD index;
-            CoWaitForMultipleObjects(CWMO_DISPATCH_CALLS  | CWMO_DISPATCH_WINDOW_MESSAGES, 5000, ARRAYSIZE(handles), handles, &index);
+            CoWaitForMultipleObjects(CWMO_DISPATCH_CALLS | CWMO_DISPATCH_WINDOW_MESSAGES, 5000, ARRAYSIZE(handles), handles, &index);
         });
 
         REQUIRE(initialized.wait(5000));
