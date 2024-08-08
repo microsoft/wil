@@ -3062,6 +3062,7 @@ TEST_CASE("COMEnumerator", "[com][enumerator]")
 
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
 #if (NTDDI_VERSION >= NTDDI_WINBLUE)
+#if defined(__cpp_impl_coroutine) || defined(__cpp_coroutines) || defined(_RESUMABLE_FUNCTIONS_SUPPORTED)
 
 #include <wil/cppwinrt_register_com_server.h>
 #include <winrt/windows.foundation.h>
@@ -3208,6 +3209,7 @@ TEST_CASE("com_timeout", "[com][com_timeout]")
     g_hangHandle = nullptr;
     g_doneHangingHandle = nullptr;
 }
+#endif // defined(__cpp_impl_coroutine) || defined(__cpp_coroutines) || defined(_RESUMABLE_FUNCTIONS_SUPPORTED)
 #endif // (NTDDI_VERSION >= NTDDI_WINBLUE)
 #endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
 
