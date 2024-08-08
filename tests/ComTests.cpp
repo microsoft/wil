@@ -3067,9 +3067,9 @@ TEST_CASE("COMEnumerator", "[com][enumerator]")
 #include <winrt/windows.foundation.h>
 #include <windows.foundation.h>
 
-const winrt::guid CLSID_RPCTimeoutTestServer{ L"CED2F47C-200B-476F-BFDC-D0D79B052AC6" };
-HANDLE g_hangHandle{ nullptr };
-HANDLE g_doneHangingHandle{ nullptr };
+const winrt::guid CLSID_RPCTimeoutTestServer{L"CED2F47C-200B-476F-BFDC-D0D79B052AC6"};
+HANDLE g_hangHandle{nullptr};
+HANDLE g_doneHangingHandle{nullptr};
 
 TEST_CASE("rpc_timeout", "[com][rpc_timeout]")
 {
@@ -3092,9 +3092,10 @@ TEST_CASE("rpc_timeout", "[com][rpc_timeout]")
             {
                 // Pump messages so this STA thread is healthy while we wait.  If this wait fails that means
                 // the cancel did not work.
-                HANDLE handles[1] = { g_hangHandle };
+                HANDLE handles[1] = {g_hangHandle};
                 DWORD index;
-                REQUIRE_SUCCEEDED(CoWaitForMultipleObjects(CWMO_DISPATCH_CALLS | CWMO_DISPATCH_WINDOW_MESSAGES, 10000, ARRAYSIZE(handles), handles, &index));
+                REQUIRE_SUCCEEDED(CoWaitForMultipleObjects(
+                    CWMO_DISPATCH_CALLS | CWMO_DISPATCH_WINDOW_MESSAGES, 10000, ARRAYSIZE(handles), handles, &index));
 
                 if (g_doneHangingHandle)
                 {
@@ -3118,15 +3119,20 @@ TEST_CASE("rpc_timeout", "[com][rpc_timeout]")
 
         DWORD registration{};
         REQUIRE_SUCCEEDED(CoRegisterClassObject(
-            winrt::guid{ CLSID_RPCTimeoutTestServer }, winrt::make<wil::details::CppWinRTClassFactory<RPCTimeoutTestServer>>().get(), CLSCTX_LOCAL_SERVER, REGCLS_MULTIPLEUSE, &registration));
-        wil::unique_com_class_object_cookie revoker{ registration };
+            winrt::guid{CLSID_RPCTimeoutTestServer},
+            winrt::make<wil::details::CppWinRTClassFactory<RPCTimeoutTestServer>>().get(),
+            CLSCTX_LOCAL_SERVER,
+            REGCLS_MULTIPLEUSE,
+            &registration));
+        wil::unique_com_class_object_cookie revoker{registration};
 
         comServerInitializedEvent.SetEvent();
 
         // Pump messages so this STA thread is healthy.
-        HANDLE handles[1] = { comServerEvent.get() };
+        HANDLE handles[1] = {comServerEvent.get()};
         DWORD index;
-        REQUIRE_SUCCEEDED(CoWaitForMultipleObjects(CWMO_DISPATCH_CALLS | CWMO_DISPATCH_WINDOW_MESSAGES, 10000, ARRAYSIZE(handles), handles, &index));
+        REQUIRE_SUCCEEDED(CoWaitForMultipleObjects(
+            CWMO_DISPATCH_CALLS | CWMO_DISPATCH_WINDOW_MESSAGES, 10000, ARRAYSIZE(handles), handles, &index));
     });
 
     REQUIRE(comServerInitializedEvent.wait(5000));
@@ -3154,11 +3160,12 @@ TEST_CASE("rpc_timeout", "[com][rpc_timeout]")
         doneHangingHandle.create();
         g_doneHangingHandle = doneHangingHandle.get();
 
-        wil::rpc_timeout timeout{ 100 };
+        wil::rpc_timeout timeout{100};
 
         // The timeout is now in place.  The blocking call should cancel in a timely manner and fail with RPC_E_CALL_CANCELED.
         wil::com_ptr<ABI::Windows::Foundation::IStringable> localServer;
-        REQUIRE_SUCCEEDED(CoCreateInstance(winrt::guid{ CLSID_RPCTimeoutTestServer }, nullptr, CLSCTX_LOCAL_SERVER, IID_PPV_ARGS(&localServer)));
+        REQUIRE_SUCCEEDED(
+            CoCreateInstance(winrt::guid{CLSID_RPCTimeoutTestServer}, nullptr, CLSCTX_LOCAL_SERVER, IID_PPV_ARGS(&localServer)));
         wil::unique_hstring value;
         REQUIRE(localServer->ToString(&value) == RPC_E_CALL_CANCELED);
         REQUIRE(timeout.timed_out());
@@ -3182,11 +3189,12 @@ TEST_CASE("rpc_timeout", "[com][rpc_timeout]")
     }
     SECTION("Non-timeout unaffected test")
     {
-        wil::rpc_timeout timeout{ 100 };
+        wil::rpc_timeout timeout{100};
 
         // g_hangHandle is not set so this call will not block.  It should not be affected by the timeout.
         wil::com_ptr<ABI::Windows::Foundation::IStringable> localServer;
-        REQUIRE_SUCCEEDED(CoCreateInstance(winrt::guid{ CLSID_RPCTimeoutTestServer }, nullptr, CLSCTX_LOCAL_SERVER, IID_PPV_ARGS(&localServer)));
+        REQUIRE_SUCCEEDED(
+            CoCreateInstance(winrt::guid{CLSID_RPCTimeoutTestServer}, nullptr, CLSCTX_LOCAL_SERVER, IID_PPV_ARGS(&localServer)));
         wil::unique_hstring value;
         REQUIRE_SUCCEEDED(localServer->ToString(&value));
         REQUIRE(!timeout.timed_out());
