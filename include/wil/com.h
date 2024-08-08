@@ -3357,7 +3357,7 @@ public:
             if (m_timer)
             {
                 FILETIME ft = filetime::get_system_time();
-                filetime::add(ft, filetime::convert_msec_to_100ns(timeoutInMilliseconds));
+                ft = filetime::add(ft, filetime::convert_msec_to_100ns(timeoutInMilliseconds));
                 SetThreadpoolTimer(m_timer.get(), &ft, timeoutInMilliseconds, 0);
             }
         }
