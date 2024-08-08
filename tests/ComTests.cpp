@@ -3139,7 +3139,7 @@ TEST_CASE("rpc_timeout", "[com][rpc_timeout]")
 
         REQUIRE(initialized.wait(5000));
 
-        auto timeout = wil::rpc_timeout(100);
+        auto timeout = wil::rpc_timeout(1000);
 
         // Perform a cross-apartment call to the STA that is pumping.  The specific call doesn't matter
         // as long as it is a blocking call.

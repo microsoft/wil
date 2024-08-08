@@ -3380,7 +3380,7 @@ private:
     void* operator new(size_t) = delete;
     void* operator new[](size_t) = delete;
 
-    static void timer_callback(PTP_CALLBACK_INSTANCE /*instance*/, PVOID context, PTP_TIMER /*timer*/)
+    static void __stdcall timer_callback(PTP_CALLBACK_INSTANCE /*instance*/, PVOID context, PTP_TIMER /*timer*/)
     {
         // The timer is waited upon during destruction so it is safe to rely on the this pointer in context.
         rpc_timeout* self = static_cast<rpc_timeout*>(context);
