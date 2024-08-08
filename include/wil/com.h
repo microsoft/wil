@@ -3331,28 +3331,28 @@ WI_NODISCARD auto make_range(IEnumXxx* enumPtr)
 /** RAII support for making cross-apartment (or cross process) COM calls with a timeout applied to them.
  * When this is active any timed out calls will fail with an RPC error code such as RPC_E_CALL_CANCELED.
  * This is a shared timeout that applies to all calls made on the current thread for the lifetime of
- * the wil::rpc_timeout object.
+ * the wil::com_timeout object.
  * A periodic timer is used to cancel calls that have been blocked too long.  If multiple blocking calls
  * are made, and multiple are timing out, then there may be a total delay of (timeoutInMilliseconds * N)
  * where N is the number of calls.
 ~~~
 {
-  auto timeout = wil::rpc_timeout(5000);
+  auto timeout = wil::com_timeout(5000);
   remote_object->BlockingCOMCall();
   remote_object->AnotherBlockingCOMCall();
 }
 ~~~
 Include wil/win32_helpers.h before wil/com.h to use this.
 */
-class rpc_timeout
+class com_timeout
 {
 public:
-    rpc_timeout(DWORD timeoutInMilliseconds) : m_threadId(GetCurrentThreadId())
+    com_timeout(DWORD timeoutInMilliseconds) : m_threadId(GetCurrentThreadId())
     {
         m_cancelEnablementResult = CoEnableCallCancellation(nullptr);
         if (SUCCEEDED(m_cancelEnablementResult))
         {
-            m_timer.reset(CreateThreadpoolTimer(&rpc_timeout::timer_callback, this, nullptr));
+            m_timer.reset(CreateThreadpoolTimer(&com_timeout::timer_callback, this, nullptr));
             LOG_LAST_ERROR_IF_NULL(m_timer.get());
             if (m_timer)
             {
@@ -3363,7 +3363,7 @@ public:
         }
     }
 
-    ~rpc_timeout()
+    ~com_timeout()
     {
         if (SUCCEEDED(m_cancelEnablementResult))
         {
@@ -3386,17 +3386,19 @@ private:
     static void __stdcall timer_callback(PTP_CALLBACK_INSTANCE /*instance*/, PVOID context, PTP_TIMER /*timer*/)
     {
         // The timer is waited upon during destruction so it is safe to rely on the this pointer in context.
-        rpc_timeout* self = static_cast<rpc_timeout*>(context);
+        com_timeout* self = static_cast<com_timeout*>(context);
         if (SUCCEEDED(CoCancelCall(self->m_threadId, 0)))
         {
             self->m_timedOut = true;
         }
     }
 
-    wil::unique_threadpool_timer_nocancel m_timer;
     HRESULT m_cancelEnablementResult{};
     DWORD m_threadId{};
     bool m_timedOut{};
+
+    // The threadpool timer goes last so that it destructs first, waiting until the timer callback has completed.
+    wil::unique_threadpool_timer_nocancel m_timer;
 };
 #endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
 

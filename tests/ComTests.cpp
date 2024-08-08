@@ -3071,7 +3071,7 @@ const winrt::guid CLSID_RPCTimeoutTestServer{L"CED2F47C-200B-476F-BFDC-D0D79B052
 HANDLE g_hangHandle{nullptr};
 HANDLE g_doneHangingHandle{nullptr};
 
-TEST_CASE("rpc_timeout", "[com][rpc_timeout]")
+TEST_CASE("com_timeout", "[com][com_timeout]")
 {
     auto init = wil::CoInitializeEx_failfast();
 
@@ -3144,7 +3144,7 @@ TEST_CASE("rpc_timeout", "[com][rpc_timeout]")
 
     SECTION("Basic construction")
     {
-        wil::rpc_timeout timeout{5000};
+        wil::com_timeout timeout{5000};
         REQUIRE(!timeout.timed_out());
     }
     SECTION("RPC timeout test")
@@ -3160,7 +3160,7 @@ TEST_CASE("rpc_timeout", "[com][rpc_timeout]")
         doneHangingHandle.create();
         g_doneHangingHandle = doneHangingHandle.get();
 
-        wil::rpc_timeout timeout{100};
+        wil::com_timeout timeout{100};
 
         // The timeout is now in place.  The blocking call should cancel in a timely manner and fail with RPC_E_CALL_CANCELED.
         wil::com_ptr<ABI::Windows::Foundation::IStringable> localServer;
@@ -3175,7 +3175,7 @@ TEST_CASE("rpc_timeout", "[com][rpc_timeout]")
 
         hangHandle.ResetEvent();
 
-        // Make a second blocking call within the lifetime of the same rpc_timeout instance.  This second call should also
+        // Make a second blocking call within the lifetime of the same com_timeout instance.  This second call should also
         // cancel and return.
         const auto result = localServer->ToString(&value);
         REQUIRE(result == RPC_E_CALL_CANCELED);
@@ -3189,7 +3189,7 @@ TEST_CASE("rpc_timeout", "[com][rpc_timeout]")
     }
     SECTION("Non-timeout unaffected test")
     {
-        wil::rpc_timeout timeout{100};
+        wil::com_timeout timeout{100};
 
         // g_hangHandle is not set so this call will not block.  It should not be affected by the timeout.
         wil::com_ptr<ABI::Windows::Foundation::IStringable> localServer;
