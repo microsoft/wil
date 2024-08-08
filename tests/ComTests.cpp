@@ -3062,9 +3062,79 @@ TEST_CASE("COMEnumerator", "[com][enumerator]")
 
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
 #if (NTDDI_VERSION >= NTDDI_WINBLUE)
+
+#include <wil/cppwinrt_register_com_server.h>
+#include <winrt/windows.foundation.h>
+#include <windows.foundation.h>
+
+const winrt::guid CLSID_RPCTimeoutTestServer{ L"CED2F47C-200B-476F-BFDC-D0D79B052AC6" };
+HANDLE g_hangHandle{ nullptr };
+HANDLE g_doneHangingHandle{ nullptr };
+
 TEST_CASE("rpc_timeout", "[com][rpc_timeout]")
 {
     auto init = wil::CoInitializeEx_failfast();
+
+    // These test cases require a COM server that will use RPC for communication so that we can exercise
+    // RPC cancellation.  Additionally, this server needs to support the ability to control if it hangs
+    // or returns quickly.  The following class provides that functionality, using some global events to
+    // provide deterministic ordering of operations.
+    //
+    // Normally a server in the same process would not use RPC.  By marking this as non_agile and running
+    // it on an STA thread we are able to get RPC involved enough to test cancellation.
+    struct RPCTimeoutTestServer : winrt::implements<RPCTimeoutTestServer, winrt::Windows::Foundation::IStringable, winrt::non_agile>
+    {
+        winrt::hstring ToString()
+        {
+            // If the global handle exists, block on it.  If it doesn't exist then this is a non-hang case
+            // so skip waiting.
+            if (g_hangHandle)
+            {
+                // Pump messages so this STA thread is healthy while we wait.  If this wait fails that means
+                // the cancel did not work.
+                HANDLE handles[1] = { g_hangHandle };
+                DWORD index;
+                REQUIRE_SUCCEEDED(CoWaitForMultipleObjects(CWMO_DISPATCH_CALLS | CWMO_DISPATCH_WINDOW_MESSAGES, 10000, ARRAYSIZE(handles), handles, &index));
+
+                if (g_doneHangingHandle)
+                {
+                    SetEvent(g_doneHangingHandle);
+                }
+            }
+            return L"RPCTimeoutTestServer";
+        }
+    };
+
+    // The COM server thread needs two events.  One is signaled when we want it to stop pumping messages and
+    // exit.  The other tells the calling thread that it is done initializing and we can rely on it.
+    wil::shared_event comServerEvent;
+    comServerEvent.create();
+    wil::shared_event comServerInitializedEvent;
+    comServerInitializedEvent.create();
+
+    auto comServerThread = std::thread([comServerEvent, comServerInitializedEvent] {
+        // This thread must be STA to pull RPC in as mediator between threads.
+        auto init = wil::CoInitializeEx_failfast(COINIT_APARTMENTTHREADED);
+
+        DWORD registration{};
+        REQUIRE_SUCCEEDED(CoRegisterClassObject(
+            winrt::guid{ CLSID_RPCTimeoutTestServer }, winrt::make<wil::details::CppWinRTClassFactory<RPCTimeoutTestServer>>().get(), CLSCTX_LOCAL_SERVER, REGCLS_MULTIPLEUSE, &registration));
+        wil::unique_com_class_object_cookie revoker{ registration };
+
+        comServerInitializedEvent.SetEvent();
+
+        // Pump messages so this STA thread is healthy.
+        HANDLE handles[1] = { comServerEvent.get() };
+        DWORD index;
+        REQUIRE_SUCCEEDED(CoWaitForMultipleObjects(CWMO_DISPATCH_CALLS | CWMO_DISPATCH_WINDOW_MESSAGES, 10000, ARRAYSIZE(handles), handles, &index));
+    });
+
+    REQUIRE(comServerInitializedEvent.wait(5000));
+
+    // The STA thread has to begin pumping messages before CoCreateInstance will succeed.  We have waited on thread
+    // creation and CoRegisterClassObject but there is still a race with the message loop.  A small sleep should avoid
+    // this race being lost.
+    Sleep(100);
 
     SECTION("Basic construction")
     {
@@ -3073,85 +3143,62 @@ TEST_CASE("rpc_timeout", "[com][rpc_timeout]")
     }
     SECTION("RPC timeout test")
     {
-        // This test uses cross-thread marshaling within the current process to exercise RPC timeouts.  An STA
-        // thread is spun up and creates a thread-affine object (IShellFolder).  The STA thread then blocks so
-        // that calls to this STA object will hang, allowing us to trigger the timeout.
-        wil::shared_event initialized;
-        initialized.create();
-        wil::shared_event blocker;
-        blocker.create();
+        // These handles are used to coordinate with the COM server thread.  The first one causes it to block.  The
+        // done hanging event lets us know that it is done blocking and we can proceed with a second call that should
+        // avoid reentering.
+        wil::unique_event hangHandle;
+        hangHandle.create();
+        g_hangHandle = hangHandle.get();
 
-        wil::com_agile_ref_failfast agileDesktop;
+        wil::unique_event doneHangingHandle;
+        doneHangingHandle.create();
+        g_doneHangingHandle = doneHangingHandle.get();
 
-        auto staThread = std::thread([initialized, blocker, &agileDesktop] {
-            auto init = wil::CoInitializeEx_failfast(COINIT_APARTMENTTHREADED);
+        wil::rpc_timeout timeout{ 100 };
 
-            wil::com_ptr<IShellFolder> desktop;
-            REQUIRE_SUCCEEDED(::SHGetDesktopFolder(&desktop));
-            agileDesktop = wil::com_agile_query(desktop);
-
-            initialized.SetEvent(); // Tell the original thread that agileDesktop is ready
-            blocker.wait(5000);     // And then block so that calls will hang.
-        });
-
-        REQUIRE(initialized.wait(5000));
-
-        wil::rpc_timeout timeout{100};
-
-        // Perform a cross-apartment call to the STA that is blocked.  The exact call doesn't matter as long
-        // as it will block.
-        auto marshaledFolder = agileDesktop.query<IShellFolder>();
-        REQUIRE(marshaledFolder);
-        wil::com_ptr<IEnumIDList> enumIDList;
-        REQUIRE(marshaledFolder->EnumObjects(nullptr, SHCONTF_NONFOLDERS, &enumIDList) == RPC_E_CALL_CANCELED);
+        // The timeout is now in place.  The blocking call should cancel in a timely manner and fail with RPC_E_CALL_CANCELED.
+        wil::com_ptr<ABI::Windows::Foundation::IStringable> localServer;
+        REQUIRE_SUCCEEDED(CoCreateInstance(winrt::guid{ CLSID_RPCTimeoutTestServer }, nullptr, CLSCTX_LOCAL_SERVER, IID_PPV_ARGS(&localServer)));
+        wil::unique_hstring value;
+        REQUIRE(localServer->ToString(&value) == RPC_E_CALL_CANCELED);
         REQUIRE(timeout.timed_out());
 
-        blocker.SetEvent();
-        staThread.join();
+        hangHandle.SetEvent();
+        REQUIRE(doneHangingHandle.wait(5000));
+
+        hangHandle.ResetEvent();
+
+        // Make a second blocking call within the lifetime of the same rpc_timeout instance.  This second call should also
+        // cancel and return.
+        const auto result = localServer->ToString(&value);
+        REQUIRE(result == RPC_E_CALL_CANCELED);
+        REQUIRE(timeout.timed_out());
+
+        hangHandle.SetEvent();
+        REQUIRE(doneHangingHandle.wait(5000));
+
+        g_hangHandle = nullptr;
+        g_doneHangingHandle = nullptr;
     }
     SECTION("Non-timeout unaffected test")
     {
-        // This test uses cross-thread marshaling within the current process to exercise RPC timeouts.  An STA
-        // thread is spun up and creates a thread-affine object (IShellFolder).  The STA thread pumps messages
-        // to act like a healthy STA thread, allowing us to confirm that the rpc_timeout object does not break
-        // healthy scenarios.
-        wil::shared_event initialized;
-        initialized.create();
-        wil::shared_event blocker;
-        blocker.create();
+        wil::rpc_timeout timeout{ 100 };
 
-        wil::com_agile_ref_failfast agileDesktop;
-
-        auto staThread = std::thread([initialized, blocker, &agileDesktop] {
-            auto init = wil::CoInitializeEx_failfast(COINIT_APARTMENTTHREADED);
-
-            wil::com_ptr<IShellFolder> desktop;
-            REQUIRE_SUCCEEDED(::SHGetDesktopFolder(&desktop));
-            agileDesktop = wil::com_agile_query(desktop);
-
-            initialized.SetEvent(); // Tell the original thread that agileDesktop is ready
-
-            // Pump messages so this STA thread is healthy.
-            HANDLE handles[1] = {blocker.get()};
-            DWORD index;
-            CoWaitForMultipleObjects(CWMO_DISPATCH_CALLS | CWMO_DISPATCH_WINDOW_MESSAGES, 5000, ARRAYSIZE(handles), handles, &index);
-        });
-
-        REQUIRE(initialized.wait(5000));
-
-        auto timeout = wil::rpc_timeout(1000);
-
-        // Perform a cross-apartment call to the STA that is pumping.  The specific call doesn't matter
-        // as long as it is a blocking call.
-        auto marshaledFolder = agileDesktop.query<IShellFolder>();
-        REQUIRE(marshaledFolder);
-        wil::com_ptr<IEnumIDList> enumIDList;
-        REQUIRE_SUCCEEDED(marshaledFolder->EnumObjects(nullptr, SHCONTF_NONFOLDERS, &enumIDList));
+        // g_hangHandle is not set so this call will not block.  It should not be affected by the timeout.
+        wil::com_ptr<ABI::Windows::Foundation::IStringable> localServer;
+        REQUIRE_SUCCEEDED(CoCreateInstance(winrt::guid{ CLSID_RPCTimeoutTestServer }, nullptr, CLSCTX_LOCAL_SERVER, IID_PPV_ARGS(&localServer)));
+        wil::unique_hstring value;
+        REQUIRE_SUCCEEDED(localServer->ToString(&value));
         REQUIRE(!timeout.timed_out());
-
-        blocker.SetEvent();
-        staThread.join();
+        REQUIRE(std::wstring_view{L"RPCTimeoutTestServer"} == WindowsGetStringRawBuffer(value.get(), nullptr));
     }
+
+    // We are done testing.  Tell the STA thread to exit and then block until it is done.
+    comServerEvent.SetEvent();
+    comServerThread.join();
+
+    g_hangHandle = nullptr;
+    g_doneHangingHandle = nullptr;
 }
 #endif // (NTDDI_VERSION >= NTDDI_WINBLUE)
 #endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)

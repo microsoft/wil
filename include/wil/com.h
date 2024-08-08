@@ -16,6 +16,7 @@
 #include <WeakReference.h>
 #include <combaseapi.h>
 #include "result.h"
+#include "win32_helpers.h"
 #include "resource.h" // last to ensure _COMBASEAPI_H_ protected definitions are available
 
 #if __has_include(<tuple>)
@@ -3326,12 +3327,14 @@ WI_NODISCARD auto make_range(IEnumXxx* enumPtr)
 #endif // WIL_ENABLE_EXCEPTIONS
 
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
-#ifdef __WIL_WIN32_HELPERS_INCLUDED
 
 /** RAII support for making cross-apartment (or cross process) COM calls with a timeout applied to them.
  * When this is active any timed out calls will fail with an RPC error code such as RPC_E_CALL_CANCELED.
  * This is a shared timeout that applies to all calls made on the current thread for the lifetime of
  * the wil::rpc_timeout object.
+ * A periodic timer is used to cancel calls that have been blocked too long.  If multiple blocking calls
+ * are made, and multiple are timing out, then there may be a total delay of (timeoutInMilliseconds * N)
+ * where N is the number of calls.
 ~~~
 {
   auto timeout = wil::rpc_timeout(5000);
@@ -3355,7 +3358,7 @@ public:
             {
                 FILETIME ft = filetime::get_system_time();
                 filetime::add(ft, filetime::convert_msec_to_100ns(timeoutInMilliseconds));
-                SetThreadpoolTimer(m_timer.get(), &ft, 0, 0);
+                SetThreadpoolTimer(m_timer.get(), &ft, timeoutInMilliseconds, 0);
             }
         }
     }
@@ -3395,7 +3398,6 @@ private:
     DWORD m_threadId{};
     bool m_timedOut{};
 };
-#endif // __WIL_WIN32_HELPERS_INCLUDED
 #endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
 
 } // namespace wil
