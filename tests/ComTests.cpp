@@ -3107,14 +3107,12 @@ TEST_CASE("com_timeout", "[com][com_timeout]")
         }
     };
 
-    // The COM server thread needs two events.  One is signaled when we want it to stop pumping messages and
-    // exit.  The other tells the calling thread that it is done initializing and we can rely on it.
+    // The COM server thread needs an event that is signaled when we want it to stop pumping messages and
+    // exit.
     wil::shared_event comServerEvent;
     comServerEvent.create();
-    wil::shared_event comServerInitializedEvent;
-    comServerInitializedEvent.create();
 
-    auto comServerThread = std::thread([comServerEvent, comServerInitializedEvent] {
+    auto comServerThread = std::thread([comServerEvent] {
         // This thread must be STA to pull RPC in as mediator between threads.
         auto init = wil::CoInitializeEx_failfast(COINIT_APARTMENTTHREADED);
 
@@ -3127,8 +3125,6 @@ TEST_CASE("com_timeout", "[com][com_timeout]")
             &registration));
         wil::unique_com_class_object_cookie revoker{registration};
 
-        comServerInitializedEvent.SetEvent();
-
         // Pump messages so this STA thread is healthy.
         HANDLE handles[1] = {comServerEvent.get()};
         DWORD index;
@@ -3136,12 +3132,21 @@ TEST_CASE("com_timeout", "[com][com_timeout]")
             CWMO_DISPATCH_CALLS | CWMO_DISPATCH_WINDOW_MESSAGES, 10000, ARRAYSIZE(handles), handles, &index));
     });
 
-    REQUIRE(comServerInitializedEvent.wait(5000));
+    // The STA thread has to begin pumping messages before CoCreateInstance will succeed.  There is
+    // not a great way to know when that has happened aside from polling until it succeeds.
+    const FILETIME deadline = wil::filetime::add(wil::filetime::get_system_time(), wil::filetime::convert_msec_to_100ns(10000));
+    while (true)
+    {
+        wil::com_ptr<ABI::Windows::Foundation::IStringable> localServer;
+        if (SUCCEEDED(CoCreateInstance(winrt::guid{CLSID_RPCTimeoutTestServer}, nullptr, CLSCTX_LOCAL_SERVER, IID_PPV_ARGS(&localServer))))
+        {
+            break;
+        }
 
-    // The STA thread has to begin pumping messages before CoCreateInstance will succeed.  We have waited on thread
-    // creation and CoRegisterClassObject but there is still a race with the message loop.  A small sleep should avoid
-    // this race being lost.
-    Sleep(100);
+        const auto now = wil::filetime::get_system_time();
+        REQUIRE(CompareFileTime(&now, &deadline) <= 0);
+        Sleep(50);
+    }
 
     SECTION("Basic construction")
     {
