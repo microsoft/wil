@@ -60,6 +60,7 @@ endif()
 
 set(COMMON_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/AllocatorTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/CommonTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ComTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/FileSystemTests.cpp

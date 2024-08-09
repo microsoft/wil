@@ -13,6 +13,7 @@
 #ifndef __WIL_PATH_INCLUDED
 #define __WIL_PATH_INCLUDED
 
+#include <stdint.h>
 #include <wchar.h>
 
 #include "result_macros.h"
@@ -81,7 +82,6 @@ namespace details
     struct path_base
     {
         using result_type = typename err_policy::result;
-        static inline constexpr const bool is_nothrow = !wistd::is_same_v<result_type, void>;
 
         // NOTE: This kind of gets messy with the implementation of functions, however the non-constness of the various types is
         // done to match that of std::basic_string_view
@@ -657,7 +657,6 @@ class path_view_t : public details::path_base<const wchar_t, err_policy>
 
 public:
     using result_type = typename BaseT::result_type;
-    static inline constexpr const bool is_nothrow = BaseT::is_nothrow;
 
     using value_type = typename BaseT::value_type;
     using pointer = typename BaseT::pointer;
@@ -774,6 +773,94 @@ inline /*constexpr*/ bool operator>=(path_view_t<ErrPolicy> lhs, wistd::type_ide
 using path_view = path_view_t<err_exception_policy>;
 using path_view_nothrow = path_view_t<err_returncode_policy>;
 using path_view_failfast = path_view_t<err_failfast_policy>;
+
+template <typename err_policy>
+class path_ref_t : public details::path_base<wchar_t, err_policy>
+{
+    using BaseT = details::path_base<const wchar_t, err_policy>;
+
+public:
+    using result_type = typename BaseT::result_type;
+
+    using value_type = typename BaseT::value_type;
+    using pointer = typename BaseT::pointer;
+    using const_pointer = typename BaseT::const_pointer;
+    using reference = typename BaseT::reference;
+    using const_reference = typename BaseT::const_reference;
+    // TODO: Iterators
+    using size_type = typename BaseT::size_type;
+    using difference_type = typename BaseT::difference_type;
+
+    static inline constexpr const size_type npos = BaseT::npos;
+
+    // This is a non-modifying view which need not be null-terminated, so a null pointer with length zero is valid
+    constexpr path_ref_t() noexcept = default;
+
+    constexpr path_ref_t(wistd::nullptr_t) noexcept
+    {
+    }
+
+    constexpr path_ref_t(const_pointer data, size_type length) noexcept : BaseT(data, length)
+    {
+    }
+
+    /*constexpr*/ path_ref_t(const_pointer data) noexcept : BaseT(data)
+    {
+    }
+
+    // std::wstring_view overload (allows r-values)
+    template <
+        typename StringViewLike,
+        wistd::enable_if_t<details::is_string_view_like<wistd::remove_reference_t<StringViewLike>, wchar_t> && !details::is_string_like<wistd::remove_reference_t<StringViewLike>, wchar_t>, int> = 0>
+    constexpr path_ref_t(StringViewLike&& str) noexcept : BaseT(str.data(), str.length())
+    {
+    }
+
+    // std::wstring overload (disallows r-values, i.e. temporaries)
+    template <typename StringLike, wistd::enable_if_t<details::is_string_like<wistd::remove_reference_t<StringLike>, wchar_t>, int> = 0>
+    constexpr path_ref_t(StringLike& str) noexcept : BaseT(str.data(), str.length())
+    {
+    }
+
+    // TODO: Iterators
+
+    //! Constructs a `T` using the pointer and length combo. Used to easily convert between the various path types or to STL types
+    //! such as `std::wstring` or `std::wstring_view`
+    template <typename T>
+    constexpr T as() const noexcept(wistd::is_nothrow_constructible_v<T, pointer, size_type>)
+    {
+        return T(BaseT::m_data, BaseT::m_length);
+    }
+
+    constexpr void remove_prefix(size_type count) noexcept
+    {
+        WI_ASSERT(count <= BaseT::m_length);
+        BaseT::m_data += count;
+        BaseT::m_length -= count;
+    }
+
+    constexpr void remove_suffix(size_type count) noexcept
+    {
+        WI_ASSERT(count <= BaseT::m_length);
+        BaseT::m_length -= count;
+    }
+
+    constexpr path_ref_t substr(size_type pos = 0, size_type count = npos) const noexcept
+    {
+        if (pos > BaseT::m_length)
+        {
+            // NOTE: Differs from std::basic_string_view in that we don't throw/fail in this case
+            return path_ref_t{};
+        }
+
+        auto len = (wistd::min)(count, BaseT::m_length - pos);
+        return path_ref_t(BaseT::m_data + pos, len);
+    }
+};
+
+using path_ref = path_ref_t<err_exception_policy>;
+using path_ref_nothrow = path_ref_t<err_returncode_policy>;
+using path_ref_failfast = path_ref_t<err_failfast_policy>;
 }
 
 #endif // __WIL_PATH_INCLUDED

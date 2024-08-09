@@ -1181,7 +1181,6 @@ using add_pointer_t = typename add_pointer<_Tp>::type;
 #endif
 
 // type_identity
-#if __WI_LIBCPP_STD_VER > 17
 template <class _Tp>
 struct type_identity
 {
@@ -1189,7 +1188,6 @@ struct type_identity
 };
 template <class _Tp>
 using type_identity_t = typename type_identity<_Tp>::type;
-#endif
 
 // is_signed
 
@@ -4908,14 +4906,6 @@ template <class _Tp>
 __WI_LIBCPP_INLINE_VAR constexpr bool negation_v = negation<_Tp>::value;
 #endif // __WI_LIBCPP_HAS_NO_VARIADICS
 #endif // __WI_LIBCPP_CXX03_LANG
-
-template <class _Tp>
-struct type_identity
-{
-    using type = _Tp;
-};
-template <typename _Tp>
-using type_identity_t = typename type_identity<_Tp>::type;
 
 // These traits are used in __tree and __hash_table
 #ifndef __WI_LIBCPP_CXX03_LANG

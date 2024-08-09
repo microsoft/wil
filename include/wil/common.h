@@ -880,6 +880,10 @@ namespace details
         using type = typename variable_size<sizeof(T)>::type;
     };
 
+    // Useful helper when metaprogramming; similar to std::void_t, but we control the resulting type
+    template <typename T, typename... Args>
+    using first_t = T;
+
     // To avoid taking a reliance on STL types, which may or may not be available, the following type traits allow us to write
     // generic code that accepts types that behave like certain STL types without needing to reference them by name
     // WARNING: Even if these type traits match a specific type, it's generally not safe to assume various properties of the
