@@ -3411,14 +3411,14 @@ private:
 // Error-policy driven forms of com_timeout
 
 #ifdef WIL_ENABLE_EXCEPTIONS
-//! COM pointer, errors throw exceptions (see @ref com_ptr_t for details)
+//! COM timeout, errors throw exceptions (see @ref com_timeout_t for details)
 using com_timeout = com_timeout_t<err_exception_policy>;
 #endif
 
-//! COM pointer, errors return error codes (see @ref com_ptr_t for details)
+//! COM timeout, errors return error codes (see @ref com_timeout_t for details)
 using com_timeout_nothrow = com_timeout_t<err_returncode_policy>;
 
-//! COM pointer, errors fail-fast (see @ref com_ptr_t for details)
+//! COM timeout, errors fail-fast (see @ref com_timeout_t for details)
 using com_timeout_failfast = com_timeout_t<err_failfast_policy>;
 
 #endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
