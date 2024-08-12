@@ -3342,18 +3342,19 @@ WI_NODISCARD auto make_range(IEnumXxx* enumPtr)
   remote_object->AnotherBlockingCOMCall();
 }
 ~~~
-Include wil/win32_helpers.h before wil/com.h to use this.
 */
-class com_timeout
+template <typename err_policy>
+class com_timeout_t
 {
 public:
-    com_timeout(DWORD timeoutInMilliseconds) : m_threadId(GetCurrentThreadId())
+    com_timeout_t(DWORD timeoutInMilliseconds) : m_threadId(GetCurrentThreadId())
     {
         m_cancelEnablementResult = CoEnableCallCancellation(nullptr);
+        err_policy::HResult(m_cancelEnablementResult);
         if (SUCCEEDED(m_cancelEnablementResult))
         {
-            m_timer.reset(CreateThreadpoolTimer(&com_timeout::timer_callback, this, nullptr));
-            LOG_LAST_ERROR_IF_NULL(m_timer.get());
+            m_timer.reset(CreateThreadpoolTimer(&com_timeout_t::timer_callback, this, nullptr));
+            err_policy::LastErrorIfFalse(static_cast<bool>(m_timer));
             if (m_timer)
             {
                 FILETIME ft = filetime::get_system_time();
@@ -3363,19 +3364,25 @@ public:
         }
     }
 
-    ~com_timeout()
+    ~com_timeout_t()
     {
+        m_timer.reset();
+
         if (SUCCEEDED(m_cancelEnablementResult))
         {
             CoDisableCallCancellation(nullptr);
         }
-
-        m_timer.reset();
     }
 
     bool timed_out() const
     {
         return m_timedOut;
+    }
+
+    operator bool() const noexcept
+    {
+        // All construction calls must succeed to provide us with a non-null m_timer value.
+        return static_cast<bool>(m_timer);
     }
 
 private:
@@ -3386,7 +3393,7 @@ private:
     static void __stdcall timer_callback(PTP_CALLBACK_INSTANCE /*instance*/, PVOID context, PTP_TIMER /*timer*/)
     {
         // The timer is waited upon during destruction so it is safe to rely on the this pointer in context.
-        com_timeout* self = static_cast<com_timeout*>(context);
+        com_timeout_t* self = static_cast<com_timeout_t*>(context);
         if (SUCCEEDED(CoCancelCall(self->m_threadId, 0)))
         {
             self->m_timedOut = true;
@@ -3400,6 +3407,20 @@ private:
     // The threadpool timer goes last so that it destructs first, waiting until the timer callback has completed.
     wil::unique_threadpool_timer_nocancel m_timer;
 };
+
+// Error-policy driven forms of com_timeout
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+//! COM pointer, errors throw exceptions (see @ref com_ptr_t for details)
+using com_timeout = com_timeout_t<err_exception_policy>;
+#endif
+
+//! COM pointer, errors return error codes (see @ref com_ptr_t for details)
+using com_timeout_nothrow = com_timeout_t<err_returncode_policy>;
+
+//! COM pointer, errors fail-fast (see @ref com_ptr_t for details)
+using com_timeout_failfast = com_timeout_t<err_failfast_policy>;
+
 #endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
 
 } // namespace wil

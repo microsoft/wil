@@ -3148,9 +3148,22 @@ TEST_CASE("com_timeout", "[com][com_timeout]")
         Sleep(50);
     }
 
-    SECTION("Basic construction")
+    SECTION("Basic construction nothrow")
+    {
+        wil::com_timeout_nothrow timeout{5000};
+        REQUIRE(static_cast<bool>(timeout));
+        REQUIRE(!timeout.timed_out());
+    }
+    SECTION("Basic construction throwing")
     {
         wil::com_timeout timeout{5000};
+        REQUIRE(static_cast<bool>(timeout));
+        REQUIRE(!timeout.timed_out());
+    }
+    SECTION("Basic construction failfast")
+    {
+        wil::com_timeout_failfast timeout{5000};
+        REQUIRE(static_cast<bool>(timeout));
         REQUIRE(!timeout.timed_out());
     }
     SECTION("RPC timeout test")
