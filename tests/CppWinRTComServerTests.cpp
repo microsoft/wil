@@ -50,6 +50,9 @@ TEST_CASE("CppWinRTComServerTests::DefaultNotifiableModuleLock", "[cppwinrt_com_
     _comExit.create();
 
     wil::notifiable_module_lock::instance().set_notifier(notifier);
+    auto resetOnExit = wil::scope_exit([&] {
+        wil::notifiable_module_lock::instance().set_notifier(nullptr);
+    });
 
     winrt::init_apartment();
 
@@ -136,18 +139,29 @@ TEST_CASE("CppWinRTComServerTests::NotifierAndRegistration", "[cppwinrt_com_serv
     wil::notifiable_module_lock::instance().set_notifier([&]() {
         moduleEvent.SetEvent();
     });
+    auto resetOnExit = wil::scope_exit([&] {
+        wil::notifiable_module_lock::instance().set_notifier(nullptr);
+    });
 
     winrt::init_apartment();
 
     auto revoker = wil::register_com_server<MyServer>();
 
+    std::exception_ptr coroutineException;
     [&]() -> winrt::Windows::Foundation::IAsyncAction {
-        co_await winrt::resume_background();
-        coroutineRunning.SetEvent();
+        try
+        {
+            co_await winrt::resume_background();
+            coroutineRunning.SetEvent();
 
-        coroutineContinue.wait();
-        auto instance = create_my_server_instance();
-        REQUIRE(winrt::get_module_lock() == 2);
+            coroutineContinue.wait();
+            auto instance = create_my_server_instance();
+            REQUIRE(winrt::get_module_lock() == 2);
+        }
+        catch (...)
+        {
+            coroutineException = std::current_exception();
+        }
     }();
 
     coroutineRunning.wait();
@@ -155,6 +169,11 @@ TEST_CASE("CppWinRTComServerTests::NotifierAndRegistration", "[cppwinrt_com_serv
 
     coroutineContinue.SetEvent();
     moduleEvent.wait();
+
+    if (coroutineException)
+    {
+        std::rethrow_exception(coroutineException);
+    }
 
     REQUIRE(!winrt::get_module_lock());
 }
