@@ -3064,11 +3064,9 @@ TEST_CASE("COMEnumerator", "[com][enumerator]")
 #if (NTDDI_VERSION >= NTDDI_WINBLUE)
 #if defined(__cpp_impl_coroutine) || defined(__cpp_coroutines) || defined(_RESUMABLE_FUNCTIONS_SUPPORTED)
 
-#include <wil/cppwinrt_register_com_server.h>
 #include <winrt/windows.foundation.h>
 #include <windows.foundation.h>
 
-const winrt::guid CLSID_RPCTimeoutTestServer{L"CED2F47C-200B-476F-BFDC-D0D79B052AC6"};
 HANDLE g_hangHandle{nullptr};
 HANDLE g_doneHangingHandle{nullptr};
 
@@ -3076,14 +3074,14 @@ TEST_CASE("com_timeout", "[com][com_timeout]")
 {
     auto init = wil::CoInitializeEx_failfast();
 
-    // These test cases require a COM server that will use RPC for communication so that we can exercise
-    // RPC cancellation.  Additionally, this server needs to support the ability to control if it hangs
+    // These test cases require calling a COM server via proxy, so that we can exercise cancellation through
+    // the COM runtime..  Additionally, this server needs to support the ability to control if it hangs
     // or returns quickly.  The following class provides that functionality, using some global events to
     // provide deterministic ordering of operations.
     //
-    // Normally a server in the same process would not use RPC.  By marking this as non_agile and running
-    // it on an STA thread we are able to get RPC involved enough to test cancellation.
-    struct RPCTimeoutTestServer : winrt::implements<RPCTimeoutTestServer, winrt::Windows::Foundation::IStringable, winrt::non_agile>
+    // To ensure the call goes through a proxy, the object must be non-agile and the call must cross between
+    // apartments (MTA -> STA in this case)
+    struct COMTimeoutTestObject : winrt::implements<COMTimeoutTestObject, winrt::Windows::Foundation::IStringable, winrt::non_agile>
     {
         winrt::hstring ToString()
         {
@@ -3103,7 +3101,7 @@ TEST_CASE("com_timeout", "[com][com_timeout]")
                     SetEvent(g_doneHangingHandle);
                 }
             }
-            return L"RPCTimeoutTestServer";
+            return L"COMTimeoutTestObject";
         }
     };
 
@@ -3111,19 +3109,18 @@ TEST_CASE("com_timeout", "[com][com_timeout]")
     // exit.
     wil::shared_event comServerEvent;
     comServerEvent.create();
+    wil::shared_event agileReferencePopulated;
+    agileReferencePopulated.create();
+    wil::com_agile_ref agileStringable;
 
-    auto comServerThread = std::thread([comServerEvent] {
+    auto comServerThread = std::thread([comServerEvent, agileReferencePopulated, &agileStringable] {
         // This thread must be STA to pull RPC in as mediator between threads.
         auto init = wil::CoInitializeEx_failfast(COINIT_APARTMENTTHREADED);
 
-        DWORD registration{};
-        REQUIRE_SUCCEEDED(CoRegisterClassObject(
-            winrt::guid{CLSID_RPCTimeoutTestServer},
-            winrt::make<wil::details::CppWinRTClassFactory<RPCTimeoutTestServer>>().get(),
-            CLSCTX_LOCAL_SERVER,
-            REGCLS_MULTIPLEUSE,
-            &registration));
-        wil::unique_com_class_object_cookie revoker{registration};
+        const auto stringable = winrt::make<COMTimeoutTestObject>();
+        agileStringable = wil::com_agile_query(stringable.as<ABI::Windows::Foundation::IStringable>().get());
+
+        agileReferencePopulated.SetEvent();
 
         // Pump messages so this STA thread is healthy.
         HANDLE handles[1] = {comServerEvent.get()};
@@ -3132,21 +3129,7 @@ TEST_CASE("com_timeout", "[com][com_timeout]")
             CWMO_DISPATCH_CALLS | CWMO_DISPATCH_WINDOW_MESSAGES, 10000, ARRAYSIZE(handles), handles, &index));
     });
 
-    // The STA thread has to begin pumping messages before CoCreateInstance will succeed.  There is
-    // not a great way to know when that has happened aside from polling until it succeeds.
-    const FILETIME deadline = wil::filetime::add(wil::filetime::get_system_time(), wil::filetime::convert_msec_to_100ns(10000));
-    while (true)
-    {
-        wil::com_ptr<ABI::Windows::Foundation::IStringable> localServer;
-        if (SUCCEEDED(CoCreateInstance(winrt::guid{CLSID_RPCTimeoutTestServer}, nullptr, CLSCTX_LOCAL_SERVER, IID_PPV_ARGS(&localServer))))
-        {
-            break;
-        }
-
-        const auto now = wil::filetime::get_system_time();
-        REQUIRE(CompareFileTime(&now, &deadline) <= 0);
-        Sleep(50);
-    }
+    agileReferencePopulated.wait(5000);
 
     SECTION("Basic construction nothrow")
     {
@@ -3182,9 +3165,8 @@ TEST_CASE("com_timeout", "[com][com_timeout]")
         wil::com_timeout timeout{100};
 
         // The timeout is now in place.  The blocking call should cancel in a timely manner and fail with RPC_E_CALL_CANCELED.
-        wil::com_ptr<ABI::Windows::Foundation::IStringable> localServer;
-        REQUIRE_SUCCEEDED(
-            CoCreateInstance(winrt::guid{CLSID_RPCTimeoutTestServer}, nullptr, CLSCTX_LOCAL_SERVER, IID_PPV_ARGS(&localServer)));
+        wil::com_ptr<ABI::Windows::Foundation::IStringable> localServer =
+            agileStringable.query<ABI::Windows::Foundation::IStringable>();
         wil::unique_hstring value;
         REQUIRE(localServer->ToString(&value) == RPC_E_CALL_CANCELED);
         REQUIRE(timeout.timed_out());
@@ -3211,13 +3193,12 @@ TEST_CASE("com_timeout", "[com][com_timeout]")
         wil::com_timeout timeout{100};
 
         // g_hangHandle is not set so this call will not block.  It should not be affected by the timeout.
-        wil::com_ptr<ABI::Windows::Foundation::IStringable> localServer;
-        REQUIRE_SUCCEEDED(
-            CoCreateInstance(winrt::guid{CLSID_RPCTimeoutTestServer}, nullptr, CLSCTX_LOCAL_SERVER, IID_PPV_ARGS(&localServer)));
+        wil::com_ptr<ABI::Windows::Foundation::IStringable> localServer =
+            agileStringable.query<ABI::Windows::Foundation::IStringable>();
         wil::unique_hstring value;
         REQUIRE_SUCCEEDED(localServer->ToString(&value));
         REQUIRE(!timeout.timed_out());
-        REQUIRE(std::wstring_view{L"RPCTimeoutTestServer"} == WindowsGetStringRawBuffer(value.get(), nullptr));
+        REQUIRE(std::wstring_view{L"COMTimeoutTestObject"} == WindowsGetStringRawBuffer(value.get(), nullptr));
     }
 
     // We are done testing.  Tell the STA thread to exit and then block until it is done.
