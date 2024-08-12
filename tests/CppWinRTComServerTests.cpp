@@ -148,7 +148,7 @@ TEST_CASE("CppWinRTComServerTests::NotifierAndRegistration", "[cppwinrt_com_serv
     auto revoker = wil::register_com_server<MyServer>();
 
     std::exception_ptr coroutineException;
-    [&]() -> winrt::Windows::Foundation::IAsyncAction {
+    auto asyncAction = [&]() -> winrt::Windows::Foundation::IAsyncAction {
         try
         {
             co_await winrt::resume_background();
@@ -170,6 +170,7 @@ TEST_CASE("CppWinRTComServerTests::NotifierAndRegistration", "[cppwinrt_com_serv
     coroutineContinue.SetEvent();
     moduleEvent.wait();
 
+    asyncAction.wait_for(winrt::Windows::Foundation::TimeSpan{INFINITE}); // Ensure exception pointer has time to be set
     if (coroutineException)
     {
         std::rethrow_exception(coroutineException);
