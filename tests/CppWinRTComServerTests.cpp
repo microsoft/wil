@@ -132,9 +132,9 @@ TEST_CASE("CppWinRTComServerTests::AnyRegisterFailureClearAllRegistrations", "[c
 
 TEST_CASE("CppWinRTComServerTests::NotifierAndRegistration", "[cppwinrt_com_server]")
 {
-    wil::unique_event moduleEvent(wil::EventOptions::None);
-    wil::unique_event coroutineRunning(wil::EventOptions::None);
-    wil::unique_event coroutineContinue(wil::EventOptions::None);
+    wil::unique_event moduleEvent(wil::EventOptions::ManualReset);
+    wil::unique_event coroutineRunning(wil::EventOptions::ManualReset);
+    wil::unique_event coroutineContinue(wil::EventOptions::ManualReset);
 
     wil::notifiable_module_lock::instance().set_notifier([&]() {
         moduleEvent.SetEvent();
@@ -148,7 +148,7 @@ TEST_CASE("CppWinRTComServerTests::NotifierAndRegistration", "[cppwinrt_com_serv
     auto revoker = wil::register_com_server<MyServer>();
 
     std::exception_ptr coroutineException;
-    auto asyncAction = [&]() -> winrt::Windows::Foundation::IAsyncAction {
+    auto asyncLambda = [&]() -> winrt::Windows::Foundation::IAsyncAction {
         try
         {
             co_await winrt::resume_background();
@@ -162,7 +162,8 @@ TEST_CASE("CppWinRTComServerTests::NotifierAndRegistration", "[cppwinrt_com_serv
         {
             coroutineException = std::current_exception();
         }
-    }();
+    };
+    asyncLambda();
 
     coroutineRunning.wait();
     REQUIRE(winrt::get_module_lock() == 1); // Coroutine bumped count
@@ -170,7 +171,6 @@ TEST_CASE("CppWinRTComServerTests::NotifierAndRegistration", "[cppwinrt_com_serv
     coroutineContinue.SetEvent();
     moduleEvent.wait();
 
-    asyncAction.wait_for(winrt::Windows::Foundation::TimeSpan{INFINITE}); // Ensure exception pointer has time to be set
     if (coroutineException)
     {
         std::rethrow_exception(coroutineException);
