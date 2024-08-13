@@ -304,8 +304,8 @@ TEST_CASE("CppWinRTAuthoringTests::NotifyPropertyChanged", "[property]")
     REQUIRE(enqueueResult);
     controller.ShutdownQueueAsync();
 
-    // Make sure the dispatcher thread has terminated and InputHost.dll's callback has been invoked. Give this a generous 30
-    // seconds to complete.
+    // Make sure the dispatcher thread has terminated and InputHost.dll's callback has been invoked. Give this a generous 60
+    // seconds to complete, in part because the CI machines can be quite slow.
     REQUIRE(WaitForSingleObject(dispatcherThreadHandle.get(), 30 * 1000) == WAIT_OBJECT_0);
 
     if (exception)
