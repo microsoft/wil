@@ -67,5 +67,5 @@ exit /B %EXIT_CODE%
 :execute_test
 if not exist tests\%1\%2 ( goto :eof )
 echo Running %1 tests...
-tests\%1\%2 -d yes %TEST_ARGS%
+tests\%1\%2 %TEST_ARGS%
 goto :eof

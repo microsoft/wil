@@ -39,7 +39,7 @@ if not exist %BUILD_DIR% (
 
 pushd %BUILD_DIR%
 echo Building from %CD%
-ninja witest.cpplatest
+ninja
 set EXIT_CODE=%ERRORLEVEL%
 popd
 exit /B %EXIT_CODE%
