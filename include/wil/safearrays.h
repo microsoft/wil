@@ -243,11 +243,6 @@ namespace wil
             access(psa);
         }
         safearraydata_t() = default;
-        safearraydata_t(safearraydata_t&&) = default;
-        ~safearraydata_t() = default;
-        safearraydata_t& operator=(safearraydata_t&&) = default;
-        safearraydata_t(const safearraydata_t&) = delete;
-        safearraydata_t& operator=(const safearraydata_t&) = delete;
 
         result access(pointer psa)
         {
