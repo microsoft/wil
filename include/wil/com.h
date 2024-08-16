@@ -16,6 +16,7 @@
 #include <WeakReference.h>
 #include <combaseapi.h>
 #include "result.h"
+#include "win32_helpers.h"
 #include "resource.h" // last to ensure _COMBASEAPI_H_ protected definitions are available
 
 #if __has_include(<tuple>)
@@ -2398,7 +2399,7 @@ RETURN_IF_FAILED(wil::stream_seek_nothrow(source, LLONG_MAX, STREAM_SEEK_CUR));
 @param stream The stream to seek
 @param offset The position, in bytes from the current position, to seek
 @param from The starting point from which to seek, from the STREAM_SEEK_* set of values
-@param value Optionally recieves the new absolute position from the stream
+@param value Optionally receives the new absolute position from the stream
 */
 inline HRESULT stream_seek_nothrow(_In_ IStream* stream, long long offset, unsigned long from, _Out_opt_ unsigned long long* value = nullptr)
 {
@@ -2418,7 +2419,7 @@ RETURN_HR(wil::stream_set_position_nothrow(source, 16));
 ~~~~
 @param stream The stream whose size is to be returned in `value`
 @param offset The position, in bytes from the start of the stream, to seek to
-@param value Optionally recieves the new absolute position from the stream
+@param value Optionally receives the new absolute position from the stream
 */
 inline HRESULT stream_set_position_nothrow(_In_ IStream* stream, unsigned long long offset, _Out_opt_ unsigned long long* value = nullptr)
 {
@@ -2888,7 +2889,7 @@ if (wcscmp(content.get(), L"waffles") == 0)
 @endcode
 @param source The stream from which to read a string
 @param options Controls the behavior when reading a zero-length string
-@return An non-null string (but possibly zero lengh) string read from `source`
+@return An non-null string (but possibly zero length) string read from `source`
 */
 inline wil::unique_cotaskmem_string stream_read_string(_In_ ISequentialStream* source, empty_string_options options = empty_string_options::returns_empty)
 {
@@ -3324,6 +3325,103 @@ WI_NODISCARD auto make_range(IEnumXxx* enumPtr)
 
 #endif // WIL_HAS_CXX_17
 #endif // WIL_ENABLE_EXCEPTIONS
+
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
+
+/** RAII support for making cross-apartment (or cross process) COM calls with a timeout applied to them.
+ * When this is active any timed out calls will fail with an RPC error code such as RPC_E_CALL_CANCELED.
+ * This is a shared timeout that applies to all calls made on the current thread for the lifetime of
+ * the wil::com_timeout object.
+ * A periodic timer is used to cancel calls that have been blocked too long.  If multiple blocking calls
+ * are made, and multiple are timing out, then there may be a total delay of (timeoutInMilliseconds * N)
+ * where N is the number of calls.
+~~~
+{
+  auto timeout = wil::com_timeout(5000);
+  remote_object->BlockingCOMCall();
+  remote_object->AnotherBlockingCOMCall();
+}
+~~~
+*/
+template <typename err_policy>
+class com_timeout_t
+{
+public:
+    com_timeout_t(DWORD timeoutInMilliseconds) : m_threadId(GetCurrentThreadId())
+    {
+        m_cancelEnablementResult = CoEnableCallCancellation(nullptr);
+        err_policy::HResult(m_cancelEnablementResult);
+        if (SUCCEEDED(m_cancelEnablementResult))
+        {
+            m_timer.reset(CreateThreadpoolTimer(&com_timeout_t::timer_callback, this, nullptr));
+            err_policy::LastErrorIfFalse(static_cast<bool>(m_timer));
+            if (m_timer)
+            {
+                FILETIME ft = filetime::get_system_time();
+                ft = filetime::add(ft, filetime::convert_msec_to_100ns(timeoutInMilliseconds));
+                SetThreadpoolTimer(m_timer.get(), &ft, timeoutInMilliseconds, 0);
+            }
+        }
+    }
+
+    ~com_timeout_t()
+    {
+        m_timer.reset();
+
+        if (SUCCEEDED(m_cancelEnablementResult))
+        {
+            CoDisableCallCancellation(nullptr);
+        }
+    }
+
+    bool timed_out() const
+    {
+        return m_timedOut;
+    }
+
+    operator bool() const noexcept
+    {
+        // All construction calls must succeed to provide us with a non-null m_timer value.
+        return static_cast<bool>(m_timer);
+    }
+
+private:
+    // Disable use of new as this class should only be declared on the stack, never the heap.
+    void* operator new(size_t) = delete;
+    void* operator new[](size_t) = delete;
+
+    static void __stdcall timer_callback(PTP_CALLBACK_INSTANCE /*instance*/, PVOID context, PTP_TIMER /*timer*/)
+    {
+        // The timer is waited upon during destruction so it is safe to rely on the this pointer in context.
+        com_timeout_t* self = static_cast<com_timeout_t*>(context);
+        if (SUCCEEDED(CoCancelCall(self->m_threadId, 0)))
+        {
+            self->m_timedOut = true;
+        }
+    }
+
+    HRESULT m_cancelEnablementResult{};
+    DWORD m_threadId{};
+    bool m_timedOut{};
+
+    // The threadpool timer goes last so that it destructs first, waiting until the timer callback has completed.
+    wil::unique_threadpool_timer_nocancel m_timer;
+};
+
+// Error-policy driven forms of com_timeout
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+//! COM timeout, errors throw exceptions (see @ref com_timeout_t for details)
+using com_timeout = com_timeout_t<err_exception_policy>;
+#endif
+
+//! COM timeout, errors return error codes (see @ref com_timeout_t for details)
+using com_timeout_nothrow = com_timeout_t<err_returncode_policy>;
+
+//! COM timeout, errors fail-fast (see @ref com_timeout_t for details)
+using com_timeout_failfast = com_timeout_t<err_failfast_policy>;
+
+#endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
 
 } // namespace wil
 

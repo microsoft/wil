@@ -2,7 +2,7 @@
 
 :: NOTE: Intentionally not specifying 'setlocal' as we want the side-effects of calling 'vcvars' to affect the caller
 
-:: NOTE: This is primarily intended to be used by the bulid pipelines, hence the hard-coded paths, and might not be
+:: NOTE: This is primarily intended to be used by the build pipelines, hence the hard-coded paths, and might not be
 ::       generally useful. The following check is intended to help diagnose such possible issues
 if NOT EXIST "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat" (
     echo ERROR: Could not locate 'vcvars' batch file. This script is intended to be run from a build machine & exit /B 1

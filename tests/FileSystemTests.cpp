@@ -365,7 +365,7 @@ TEST_CASE("FileSystemTests::VerifyExpandEnvAndSearchPath", "[filesystem]")
 
     // This test will exercise the case where AdaptFixedSizeToAllocatedResult will need to
     // reallocate the initial buffer to fit the final string.
-    // This test is sufficient to test both wil::ExpandEnvironmentStringsW and wil::SeachPathW
+    // This test is sufficient to test both wil::ExpandEnvironmentStringsW and wil::SearchPathW
     REQUIRE_SUCCEEDED((wil::ExpandEnvAndSearchPath<wil::unique_cotaskmem_string, c_stackBufferLimitTest>(c_variablePath, pathToTest)));
     REQUIRE(CompareStringOrdinal(pathToTest.get(), -1, c_expandedPath, -1, TRUE) == CSTR_EQUAL);
 
