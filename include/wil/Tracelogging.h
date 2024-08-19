@@ -1510,7 +1510,7 @@ public: \
 
 #define __IMPLEMENT_CALLCONTEXT_CLASS(ActivityClassName) \
 protected: \
-    ActivityClassName(_In_opt_ void**, PCSTR contextName, _In_opt_ _Printf_format_string_ PCSTR formatString, _In_opt_ va_list argList) : \
+    ActivityClassName(_In_opt_ void**, PCSTR contextName, _In_ _Printf_format_string_ PCSTR formatString, _In_opt_ va_list argList) : \
         ActivityBase(contextName) \
     { \
         GetCallContext()->SetMessage(formatString, argList); \
