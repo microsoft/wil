@@ -53,7 +53,10 @@ struct notifiable_module_lock_base
         if (remaining == 0)
         {
             std::atomic_thread_fence(std::memory_order_acquire);
-            notifier();
+            if (notifier) // Protect against callback not being set yet
+            {
+                notifier();
+            }
         }
         else if (remaining < 0)
         {
@@ -72,6 +75,11 @@ struct notifiable_module_lock_base
     void set_notifier(Func&& func)
     {
         notifier = std::forward<Func>(func);
+    }
+
+    void set_notifier(std::nullptr_t) noexcept
+    {
+        notifier = nullptr;
     }
 
 private:
