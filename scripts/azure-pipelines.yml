@@ -36,7 +36,7 @@ jobs:
     displayName: 'Check Formatting of Changes'
 
 - job: BuildAndTest
-  timeoutInMinutes: 360
+  timeoutInMinutes: 60
 
   variables:
     compilers: 'clang,msvc'
