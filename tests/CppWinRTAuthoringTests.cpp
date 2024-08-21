@@ -241,14 +241,20 @@ TEST_CASE("CppWinRTAuthoringTests::NotifyPropertyChanged", "[property]")
     // does not perform any extra work to ensure that the dll stays loaded causing a crash at a seemingly random time in the
     // future. As a workaround, we wait for the thread to terminate here to avoid hitting this crash.
     winrt::handle dispatcherThreadHandle;
+    wil::unique_event threadHandleValid(wil::EventOptions::ManualReset);
 
     // Unhandled exceptions thrown on other threads are problematic
     std::exception_ptr exception;
     auto enqueueResult = controller.DispatcherQueue().TryEnqueue([&] {
         try
         {
-            winrt::check_bool(DuplicateHandle(
-                GetCurrentProcess(), GetCurrentThread(), GetCurrentProcess(), dispatcherThreadHandle.put(), SYNCHRONIZE, FALSE, 0));
+            {
+                auto setEvent = wil::scope_exit([&] {
+                    threadHandleValid.SetEvent();
+                });
+                winrt::check_bool(DuplicateHandle(
+                    GetCurrentProcess(), GetCurrentThread(), GetCurrentProcess(), dispatcherThreadHandle.put(), SYNCHRONIZE, FALSE, 0));
+            }
             auto manager = winrt::Windows::UI::Xaml::Hosting::WindowsXamlManager::InitializeForCurrentThread();
             {
                 struct Test : winrt::implements<Test, winrt::Windows::UI::Xaml::Data::INotifyPropertyChanged>,
@@ -304,8 +310,9 @@ TEST_CASE("CppWinRTAuthoringTests::NotifyPropertyChanged", "[property]")
     REQUIRE(enqueueResult);
     controller.ShutdownQueueAsync();
 
-    // Make sure the dispatcher thread has terminated and InputHost.dll's callback has been invoked. Give this a generous 30
+    // Make sure the dispatcher thread has terminated and InputHost.dll's callback has been invoked. Give this a generous 60 total
     // seconds to complete.
+    REQUIRE(threadHandleValid.wait(30 * 1000));
     REQUIRE(WaitForSingleObject(dispatcherThreadHandle.get(), 30 * 1000) == WAIT_OBJECT_0);
 
     if (exception)
