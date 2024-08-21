@@ -46,6 +46,27 @@ file(GLOB_RECURSE HEADER_FILES "${PROJECT_SOURCE_DIR}/include/${PROJECT_NAME}/*.
 add_library(${PROJECT_NAME} INTERFACE)
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 
+# If MinGW and Clang, define SAL annotations as macros with empty definitions.
+if(MINGW AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    target_compile_definitions(${PROJECT_NAME} INTERFACE
+        _Frees_ptr_=
+        _Frees_ptr_opt_=
+        _Post_z_=
+        _Pre_maybenull_=
+        _Pre_opt_valid_=
+        _Pre_valid_=
+        _Translates_last_error_to_HRESULT_=
+        InterlockedDecrementNoFence=InterlockedDecrement
+        InterlockedIncrementNoFence=InterlockedIncrement
+        WIL_NO_SLIM_EVENT=
+    )
+    target_compile_options(${PROJECT_NAME} INTERFACE
+        "-D_Ret_opt_bytecap_(size)="
+        "-D_Translates_NTSTATUS_to_HRESULT_(status)="
+        "-D_Translates_Win32_to_HRESULT_(err)="
+    )
+endif()
+
 # The interface's include directory.
 target_include_directories(${PROJECT_NAME} INTERFACE
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
