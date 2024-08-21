@@ -292,4 +292,156 @@ TEST_CASE("AllocatorTraits::SelectOnContainerCopyConstruction", "[allocators]")
     using AllocBase = allocator_base<allocated_type>;
     AllocBase alloc;
     (void)wil::allocator_traits<AllocBase>::select_on_container_copy_construction(alloc); // Verify it can be called
+
+    using AllocSelect = allocator_with_select_on_container_copy_construction<allocated_type>;
+    AllocSelect allocSelect;
+    (void)wil::allocator_traits<AllocSelect>::select_on_container_copy_construction(allocSelect);
+    REQUIRE(allocSelect.copy_call_count == 1);
+}
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+template <typename Allocator>
+static void DoThrowingAllocatorTest(Allocator&& alloc)
+{
+    // Equality tests
+    REQUIRE(alloc == alloc);
+    REQUIRE_FALSE(alloc != alloc);
+    REQUIRE(alloc == Allocator(alloc));
+    REQUIRE_FALSE(alloc != Allocator(alloc));
+
+    auto ptr = alloc.allocate(42);
+    REQUIRE(ptr != nullptr);
+    alloc.deallocate(ptr, 42);
+
+    // Through allocator traits
+    ptr = wil::allocator_traits<wistd::remove_reference_t<Allocator>>::allocate(alloc, 10);
+    REQUIRE(ptr != nullptr);
+    wil::allocator_traits<wistd::remove_reference_t<Allocator>>::deallocate(alloc, ptr, 10);
+
+    // Failure
+    REQUIRE_THROWS_AS(alloc.allocate(SIZE_MAX), std::bad_alloc);
+
+    // Failure should also occur for reasonably large requests
+    REQUIRE_THROWS_AS(alloc.allocate(SIZE_MAX / (sizeof(int) * 2)), std::bad_alloc);
+}
+#endif
+
+template <typename Allocator>
+static void DoNothrowAllocatorTest(Allocator&& alloc)
+{
+    auto ptr = alloc.allocate(42);
+    REQUIRE(ptr != nullptr);
+    alloc.deallocate(ptr, 42);
+
+    // Through allocator traits
+    ptr = wil::allocator_traits<wistd::remove_reference_t<Allocator>>::allocate(alloc, 10);
+    REQUIRE(ptr != nullptr);
+    wil::allocator_traits<wistd::remove_reference_t<Allocator>>::deallocate(alloc, ptr, 10);
+
+    // Failure
+    ptr = alloc.allocate(SIZE_MAX);
+    REQUIRE(ptr == nullptr);
+
+    // Failure should also occur for reasonably large requests
+    ptr = alloc.allocate(SIZE_MAX / (sizeof(int) * 2));
+    REQUIRE(ptr == nullptr);
+}
+
+template <typename Allocator>
+static void DoFailfastAllocatorTest(Allocator&& alloc)
+{
+    auto ptr = alloc.allocate(42);
+    REQUIRE(ptr != nullptr);
+    alloc.deallocate(ptr, 42);
+
+    // Through allocator traits
+    ptr = wil::allocator_traits<wistd::remove_reference_t<Allocator>>::allocate(alloc, 10);
+    REQUIRE(ptr != nullptr);
+    wil::allocator_traits<wistd::remove_reference_t<Allocator>>::deallocate(alloc, ptr, 10);
+
+    // Failure
+    REQUIRE_ERROR(alloc.allocate(SIZE_MAX));
+
+    // Failure should also occur for reasonably large requests
+    REQUIRE_ERROR(alloc.allocate(SIZE_MAX / (sizeof(int) * 2)));
+}
+
+template <template <typename, typename> typename Allocator>
+static void DoAllocatorTests()
+{
+#ifdef WIL_ENABLE_EXCEPTIONS
+    SECTION("Throwing")
+    {
+        DoThrowingAllocatorTest(Allocator<int, wil::err_exception_policy>{});
+    }
+#endif
+
+    SECTION("Nothrow")
+    {
+        DoNothrowAllocatorTest(Allocator<int, wil::err_returncode_policy>{});
+    }
+
+    SECTION("Failfast")
+    {
+        DoFailfastAllocatorTest(Allocator<int, wil::err_failfast_policy>{});
+    }
+}
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+TEST_CASE("AllocatorTests::NewDeleteAllocator")
+{
+    DoAllocatorTests<wil::new_delete_allocator_t>();
+}
+#endif
+
+TEST_CASE("AllocatorTests::CoTaskMemAllocator")
+{
+    DoAllocatorTests<wil::cotaskmem_allocator_t>();
+}
+
+TEST_CASE("AllocatorTests::ProcessHeapAllocator")
+{
+    DoAllocatorTests<wil::process_heap_allocator_t>();
+}
+
+TEST_CASE("AllocatorTests::HeapAllocator")
+{
+    auto doCustomHeapTest = [](HANDLE heap) {
+#ifdef WIL_ENABLE_EXCEPTIONS
+        SECTION("Throwing")
+        {
+            wil::heap_allocator<int> alloc(heap);
+            DoThrowingAllocatorTest(alloc);
+        }
+#endif
+
+        SECTION("Nothrow")
+        {
+            wil::heap_allocator_nothrow<int> alloc(heap);
+            DoNothrowAllocatorTest(alloc);
+        }
+
+        SECTION("Failfast")
+        {
+            wil::heap_allocator_failfast<int> alloc(heap);
+            DoFailfastAllocatorTest(alloc);
+        }
+    };
+
+    // We need to construct with a heap and therefore cannot use 'DoAllocatorTests' directly
+    SECTION("Process heap")
+    {
+        doCustomHeapTest(::GetProcessHeap());
+    }
+
+    SECTION("Custom heap")
+    {
+        wil::unique_hheap heap(::HeapCreate(0, 0, 0x10000));
+        doCustomHeapTest(heap.get());
+    }
+}
+
+TEST_CASE("AllocatorTests::VirtualAllocator")
+{
+    DoAllocatorTests<wil::virtual_allocator_t>();
 }

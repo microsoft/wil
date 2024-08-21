@@ -13,3 +13,7 @@ target_sources(witest.app PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../UniqueWinRTEventTokenTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../WinRTTests.cpp
     )
+
+target_link_libraries(witest.app PRIVATE
+    WindowsApp.lib
+    )

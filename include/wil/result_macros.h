@@ -7320,6 +7320,14 @@ struct err_exception_policy
     __forceinline static result OK()
     {
     }
+    template <typename T>
+    __forceinline static result Pointer(T* ptr)
+    {
+        if (!ptr)
+        {
+            throw std::bad_alloc();
+        }
+    }
     static constexpr const bool is_nothrow = false;
 };
 #else
@@ -7332,26 +7340,176 @@ struct err_exception_policy
 {
 };
 #endif
-/// @cond
-namespace details
+
+// Allows additions to be made to the various error policies without breaking code that uses custom error policies. This goes one
+// step further by allowing some previously required functions from being omitted. I particular, the required functions/typedefs
+// from `err_policy` are:
+//      result      - typedef for the return type
+//      HResult     - Conditionally handles failure based off passed in HRESULT
+template <typename err_policy>
+struct err_policy_traits
 {
-    template <typename err_policy>
-    struct is_error_policy_nothrow_t
+private:
+    /// @cond
+    template <typename ErrPolicy = err_policy>
+    static wistd::bool_constant<ErrPolicy::is_nothrow> deduce_is_nothrow(int);
+    template <typename ErrPolicy = err_policy>
+    static wistd::false_type deduce_is_nothrow(...);
+
+    template <typename ErrPolicy = err_policy>
+    static details::first_t<wistd::true_type, decltype(ErrPolicy::OK())> deduce_has_OK(int);
+    template <typename ErrPolicy = err_policy>
+    static wistd::false_type deduce_has_OK(...);
+
+    template <typename ErrPolicy = err_policy>
+    static details::first_t<wistd::true_type, decltype(ErrPolicy::Win32Error(ERROR_SUCCESS))> deduce_has_Win32Error(int);
+    template <typename ErrPolicy = err_policy>
+    static wistd::false_type deduce_has_Win32Error(...);
+
+    template <typename ErrPolicy = err_policy>
+    static details::first_t<wistd::true_type, decltype(ErrPolicy::LastError())> deduce_has_LastError(int);
+    template <typename ErrPolicy = err_policy>
+    static wistd::false_type deduce_has_LastError(...);
+
+    template <typename ErrPolicy = err_policy>
+    static details::first_t<wistd::true_type, decltype(ErrPolicy::Win32BOOL(FALSE))> deduce_has_Win32BOOL(int);
+    template <typename ErrPolicy = err_policy>
+    static wistd::false_type deduce_has_Win32BOOL(...);
+
+    template <typename ErrPolicy = err_policy>
+    static details::first_t<wistd::true_type, decltype(ErrPolicy::Win32Handle(nullptr, nullptr))> deduce_has_Win32Handle(int);
+    template <typename ErrPolicy = err_policy>
+    static wistd::false_type deduce_has_Win32Handle(...);
+
+    template <typename ErrPolicy = err_policy>
+    static details::first_t<wistd::true_type, decltype(ErrPolicy::LastErrorIfFalse(false))> deduce_has_LastErrorIfFalse(int);
+    template <typename ErrPolicy = err_policy>
+    static wistd::false_type deduce_has_LastErrorIfFalse(...);
+
+    template <typename T, typename ErrPolicy = err_policy>
+    static details::first_t<wistd::true_type, decltype(ErrPolicy::Pointer(wistd::declval<T*>()))> deduce_has_Pointer(int);
+    template <typename T>
+    static wistd::false_type deduce_has_Pointer(...);
+    /// @endcond
+
+public:
+
+    using result = typename err_policy::result;
+
+    static constexpr const bool is_nothrow = decltype(deduce_is_nothrow(0))::value;
+
+    __forceinline static result HResult(HRESULT hr) noexcept(is_nothrow)
     {
-        // Use 'is_nothrow' if it exists...
-        template <typename ErrPolicy = err_policy>
-        static wistd::bool_constant<ErrPolicy::is_nothrow> evaluate(int);
+        // HResult is a required part of the interface
+        return err_policy::HResult(hr);
+    }
 
-        // ... otherwise it's safest to assume that it's not nothrow
-        static wistd::false_type evaluate(...);
+    __forceinline static result OK() noexcept // NOTE: Always expected to be nothrow
+    {
+        if constexpr (decltype(deduce_has_OK(0))::value)
+        {
+            return err_policy::OK();
+        }
+        else
+        {
+            return HResult(S_OK);
+        }
+    }
 
-        static constexpr const bool value = decltype(evaluate(0))::value;
-    };
+    __forceinline static result Win32Error(DWORD err) noexcept(is_nothrow)
+    {
+        if constexpr (decltype(deduce_has_Win32Error(0))::value)
+        {
+            return err_policy::Win32Error(err);
+        }
+        else
+        {
+            return HResult(HRESULT_FROM_WIN32(err));
+        }
+    }
 
-    template <typename err_policy>
-    constexpr const bool is_error_policy_nothrow = is_error_policy_nothrow_t<err_policy>::value;
-}
-/// @endcond
+    __forceinline static result LastError() noexcept(is_nothrow)
+    {
+        if constexpr (decltype(deduce_has_LastError(0))::value)
+        {
+            return err_policy::LastError();
+        }
+        else
+        {
+            return Win32Error(::GetLastError());
+        }
+    }
+
+    __forceinline static result Win32BOOL(BOOL fReturn) noexcept(is_nothrow)
+    {
+        if constexpr (decltype(deduce_has_Win32BOOL(0))::value)
+        {
+            return err_policy::Win32BOOL(fReturn);
+        }
+        else
+        {
+            if (!fReturn)
+            {
+                return LastError();
+            }
+
+            return OK();
+        }
+    }
+
+    __forceinline static result Win32Handle(HANDLE handle, _Out_ HANDLE* result) noexcept(is_nothrow)
+    {
+        if constexpr (decltype(deduce_has_Win32Handle(0))::value)
+        {
+            return err_policy::Win32Handle(handle, result);
+        }
+        else
+        {
+            *result = handle;
+            if (!handle)
+            {
+                return LastError();
+            }
+
+            return OK();
+        }
+    }
+
+    __forceinline static result LastErrorIfFalse(bool condition) noexcept(is_nothrow)
+    {
+        if constexpr (decltype(deduce_has_LastErrorIfFalse(0))::value)
+        {
+            return err_policy::LastErrorIfFalse(condition);
+        }
+        else
+        {
+            if (!condition)
+            {
+                return LastError();
+            }
+
+            return OK();
+        }
+    }
+
+    template <typename T>
+    __forceinline static result Pointer(T* ptr) noexcept(is_nothrow)
+    {
+        if constexpr (decltype(deduce_has_Pointer<T>(0))::value)
+        {
+            return err_policy::Pointer(ptr);
+        }
+        else
+        {
+            if (!ptr)
+            {
+                return HResult(E_OUTOFMEMORY);
+            }
+
+            return OK();
+        }
+    }
+};
 } // namespace wil
 
 #pragma warning(pop)

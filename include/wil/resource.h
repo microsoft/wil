@@ -3766,6 +3766,34 @@ namespace details
 } // namespace details
 /// @endcond
 
+inline auto make_process_heap_string_nothrow(
+    _When_((source != nullptr) && length != static_cast<size_t>(-1), _In_reads_(length))
+        _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_) PCWSTR source,
+    size_t length = static_cast<size_t>(-1)) WI_NOEXCEPT
+{
+    return make_unique_string_nothrow<unique_process_heap_string>(source, length);
+}
+
+inline auto make_process_heap_string_failfast(
+    _When_((source != nullptr) && length != static_cast<size_t>(-1), _In_reads_(length))
+        _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_) PCWSTR source,
+    size_t length = static_cast<size_t>(-1)) WI_NOEXCEPT
+{
+    return make_unique_string_failfast<unique_process_heap_string>(source, length);
+}
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+inline auto make_process_heap_string(
+    _When_((source != nullptr) && length != static_cast<size_t>(-1), _In_reads_(length))
+        _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_) PCWSTR source,
+    size_t length = static_cast<size_t>(-1))
+{
+    return make_unique_string<unique_process_heap_string>(source, length);
+}
+#endif // WIL_ENABLE_EXCEPTIONS
+
+typedef unique_any_handle_null<decltype(&::HeapDestroy), ::HeapDestroy> unique_hheap;
+
 /** Manages a typed pointer allocated with VirtualAlloc
 A specialization of wistd::unique_ptr<> that frees via VirtualFree(p, 0, MEM_RELEASE).
 */
@@ -4032,6 +4060,7 @@ typedef shared_any<unique_hfile> shared_hfile;
 typedef shared_any<unique_handle> shared_handle;
 typedef shared_any<unique_hfind> shared_hfind;
 typedef shared_any<unique_hmodule> shared_hmodule;
+typedef shared_any<unique_hheap> shared_hheap;
 
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 typedef shared_any<unique_threadpool_wait> shared_threadpool_wait;
@@ -4049,6 +4078,7 @@ typedef weak_any<shared_hfile> weak_hfile;
 typedef weak_any<shared_handle> weak_handle;
 typedef weak_any<shared_hfind> weak_hfind;
 typedef weak_any<shared_hmodule> weak_hmodule;
+typedef weak_any<shared_hheap> weak_hheap;
 
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 typedef weak_any<shared_threadpool_wait> weak_threadpool_wait;
@@ -4508,33 +4538,6 @@ namespace details
 } // namespace details
 /// @endcond
 
-inline auto make_process_heap_string_nothrow(
-    _When_((source != nullptr) && length != static_cast<size_t>(-1), _In_reads_(length))
-        _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_) PCWSTR source,
-    size_t length = static_cast<size_t>(-1)) WI_NOEXCEPT
-{
-    return make_unique_string_nothrow<unique_process_heap_string>(source, length);
-}
-
-inline auto make_process_heap_string_failfast(
-    _When_((source != nullptr) && length != static_cast<size_t>(-1), _In_reads_(length))
-        _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_) PCWSTR source,
-    size_t length = static_cast<size_t>(-1)) WI_NOEXCEPT
-{
-    return make_unique_string_failfast<unique_process_heap_string>(source, length);
-}
-
-#ifdef WIL_ENABLE_EXCEPTIONS
-inline auto make_process_heap_string(
-    _When_((source != nullptr) && length != static_cast<size_t>(-1), _In_reads_(length))
-        _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_) PCWSTR source,
-    size_t length = static_cast<size_t>(-1))
-{
-    return make_unique_string<unique_process_heap_string>(source, length);
-}
-#endif // WIL_ENABLE_EXCEPTIONS
-
-typedef unique_any_handle_null<decltype(&::HeapDestroy), ::HeapDestroy> unique_hheap;
 typedef unique_any<DWORD, decltype(&::TlsFree), ::TlsFree, details::pointer_access_all, DWORD, DWORD, TLS_OUT_OF_INDEXES, DWORD> unique_tls;
 typedef unique_any<PSECURITY_DESCRIPTOR, decltype(&::LocalFree), ::LocalFree> unique_hlocal_security_descriptor;
 typedef unique_any<PSECURITY_DESCRIPTOR, decltype(&details::DestroyPrivateObjectSecurity), details::DestroyPrivateObjectSecurity> unique_private_security_descriptor;
@@ -4572,7 +4575,6 @@ typedef unique_any<HWINSTA, decltype(&::CloseWindowStation), ::CloseWindowStatio
 /// @cond
 #define __WIL_WINBASE_DESKTOP_STL
 /// @endcond
-typedef shared_any<unique_hheap> shared_hheap;
 typedef shared_any<unique_hlocal> shared_hlocal;
 typedef shared_any<unique_tls> shared_tls;
 typedef shared_any<unique_hlocal_security_descriptor> shared_hlocal_security_descriptor;
@@ -4591,7 +4593,6 @@ typedef shared_any<unique_hhook> shared_hhook;
 typedef shared_any<unique_hwineventhook> shared_hwineventhook;
 #endif
 
-typedef weak_any<shared_hheap> weak_hheap;
 typedef weak_any<shared_hlocal> weak_hlocal;
 typedef weak_any<shared_tls> weak_tls;
 typedef weak_any<shared_hlocal_security_descriptor> weak_hlocal_security_descriptor;

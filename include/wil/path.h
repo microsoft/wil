@@ -109,7 +109,7 @@ namespace details
         }
 
         template <typename ErrPolicy = err_policy>
-        constexpr WCharT& at(size_type index) noexcept(details::is_error_policy_nothrow<ErrPolicy>)
+        constexpr WCharT& at(size_type index) noexcept(err_policy_traits<ErrPolicy>::is_nothrow)
         {
             static_assert(wistd::is_same_v<typename ErrPolicy::result, void>, "at requires exceptions or fail fast; use operator[] instead");
 
@@ -122,7 +122,7 @@ namespace details
         }
 
         template <typename ErrPolicy = err_policy>
-        constexpr const_reference at(size_type index) const noexcept(details::is_error_policy_nothrow<ErrPolicy>)
+        constexpr const_reference at(size_type index) const noexcept(err_policy_traits<ErrPolicy>::is_nothrow)
         {
             static_assert(wistd::is_same_v<typename ErrPolicy::result, void>, "at requires exceptions or fail fast; use operator[] instead");
 

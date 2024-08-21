@@ -747,3 +747,102 @@ TEST_CASE("ResultTests::ReportDoesNotChangeLastError", "[result]")
     LOG_IF_WIN32_BOOL_FALSE(FALSE);
     REQUIRE(::GetLastError() == ERROR_ABIOS_ERROR);
 }
+
+struct basic_error_policy
+{
+    // Only has the required things
+    struct result
+    {
+        HRESULT hr;
+    };
+
+    static result HResult(HRESULT hr)
+    {
+        return result{ hr };
+    }
+};
+
+struct custom_error_policy
+{
+    // Has all required and optional things
+    using result = int;
+
+    static constexpr const bool is_nothrow = true;
+
+    static result HResult(HRESULT) noexcept
+    {
+        return 0;
+    }
+
+    static result OK() noexcept
+    {
+        return 1;
+    }
+
+    static result Win32Error(DWORD) noexcept
+    {
+        return 2;
+    }
+
+    static result LastError() noexcept
+    {
+        return 3;
+    }
+
+    static result Win32BOOL(BOOL) noexcept
+    {
+        return 4;
+    }
+
+    static result Win32Handle(HANDLE, HANDLE*) noexcept
+    {
+        return 5;
+    }
+
+    static result LastErrorIfFalse(bool) noexcept
+    {
+        return 6;
+    }
+
+    template <typename T>
+    static result Pointer(T*) noexcept
+    {
+        return 7;
+    }
+};
+
+TEST_CASE("ResultTests::ErrorPolicyTraits", "[result]")
+{
+    using BasicTraits = wil::err_policy_traits<basic_error_policy>;
+    REQUIRE(!BasicTraits::is_nothrow);
+    REQUIRE(BasicTraits::HResult(E_FAIL).hr == E_FAIL);
+    REQUIRE(BasicTraits::OK().hr == S_OK);
+    REQUIRE(BasicTraits::Win32Error(ERROR_ACCESS_DENIED).hr == HRESULT_FROM_WIN32(ERROR_ACCESS_DENIED));
+    ::SetLastError(ERROR_FILE_NOT_FOUND);
+    REQUIRE(BasicTraits::LastError().hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
+    REQUIRE(BasicTraits::Win32BOOL(TRUE).hr == S_OK);
+    ::SetLastError(ERROR_FILE_EXISTS);
+    REQUIRE(BasicTraits::Win32BOOL(FALSE).hr == HRESULT_FROM_WIN32(ERROR_FILE_EXISTS));
+    HANDLE result;
+    REQUIRE(BasicTraits::Win32Handle(reinterpret_cast<HANDLE>(42), &result).hr == S_OK);
+    REQUIRE(result == reinterpret_cast<HANDLE>(42));
+    ::SetLastError(ERROR_BAD_DEVICE);
+    REQUIRE(BasicTraits::Win32Handle(nullptr, &result).hr == HRESULT_FROM_WIN32(ERROR_BAD_DEVICE));
+    REQUIRE(result == nullptr);
+    REQUIRE(BasicTraits::LastErrorIfFalse(true).hr == S_OK);
+    ::SetLastError(ERROR_FILE_ENCRYPTED);
+    REQUIRE(BasicTraits::LastErrorIfFalse(false).hr == HRESULT_FROM_WIN32(ERROR_FILE_ENCRYPTED));
+    REQUIRE(BasicTraits::Pointer(&result).hr == S_OK);
+    REQUIRE(BasicTraits::Pointer(static_cast<int*>(nullptr)).hr == E_OUTOFMEMORY);
+
+    using CustomTraits = wil::err_policy_traits<custom_error_policy>;
+    REQUIRE(CustomTraits::is_nothrow);
+    REQUIRE(CustomTraits::HResult(E_FAIL) == 0);
+    REQUIRE(CustomTraits::OK() == 1);
+    REQUIRE(CustomTraits::Win32Error(ERROR_ACCESS_DENIED) == 2);
+    REQUIRE(CustomTraits::LastError() == 3);
+    REQUIRE(CustomTraits::Win32BOOL(FALSE) == 4);
+    REQUIRE(CustomTraits::Win32Handle(nullptr, nullptr) == 5);
+    REQUIRE(CustomTraits::LastErrorIfFalse(false) == 6);
+    REQUIRE(CustomTraits::Pointer(&result) == 7);
+}

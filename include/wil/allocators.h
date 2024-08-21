@@ -15,6 +15,8 @@
 
 #include "result_macros.h"
 
+#include <objbase.h>
+
 namespace wil
 {
 // A substitute for std::allocator_traits to avoid dependencies on STL types. This also understands the notion of possibly having
@@ -166,7 +168,7 @@ struct allocator_traits
     }
 
     template <typename Alloc = AllocT>
-    static auto has_max_size(int) -> details::first_t<wistd::true_type, decltype(wistd::declval<Alloc>().max_size())>;
+    static auto has_max_size(int) -> details::first_t<wistd::true_type, decltype(wistd::declval<const Alloc>().max_size())>;
     template <typename Alloc = AllocT>
     static wistd::false_type has_max_size(...);
 
@@ -186,7 +188,7 @@ struct allocator_traits
 
     template <typename Alloc = AllocT>
     static auto has_select_on_container_copy_construction(int)
-        -> details::first_t<wistd::true_type, decltype(wistd::declval<Alloc>().select_on_container_copy_construction(wistd::declval<Alloc>()))>;
+        -> details::first_t<wistd::true_type, decltype(wistd::declval<const Alloc>().select_on_container_copy_construction())>;
     static wistd::false_type has_select_on_container_copy_construction(...);
 
     static constexpr AllocT select_on_container_copy_construction(const AllocT& alloc) // TODO: noexcept?
@@ -204,86 +206,239 @@ struct allocator_traits
     // NOTE: The following functions are not implemented because they rely on STL types:
     //      * allocate_at_least                 -   Requires std::allocation_result
 };
-#if 0
+
 /// @cond
 namespace details
 {
-    // Most allocators should have 'propagate_on_container_move_assignment' set to true, so we deduce as such when not present on
-    // the base type. This helps the deduction
-    template <typename AllocatorT>
-    struct deduce_propagate_on_container_move_assignment_t
-    {
-        template <typename T = AllocatorT>
-        static typename T::propagate_on_container_move_assignment evaluate(int);
-
-        template <typename T = AllocatorT>
-        static wistd::true_type evaluate(...);
-
-        using type = decltype(evaluate(0));
-    };
-
-    template <typename AllocatorT>
-    using deduce_propagate_on_container_move_assignment = typename deduce_propagate_on_container_move_assignment_t<AllocatorT>::type;
-
-    // Used to easily provide nothrow/failfast/exceptional allocators through a single base
+    // Used to easily provide nothrow/failfast/exceptional allocators through a single 'AllocatorT'. This type is epxected to have
+    // the following interface:
+    //      T* do_allocate(size_t count)        Returns null on failure
     template <typename AllocatorT, typename T, typename err_policy>
-    struct allocator_impl_t : protected AllocatorT
+    struct allocator_impl_t
     {
+    private:
+        using ErrTraits = wil::err_policy_traits<err_policy>;
+
+    public:
         using value_type = T;
         using size_type = size_t;
         using difference_type = ptrdiff_t;
-        using propagate_on_container_move_assignment = deduce_propagate_on_container_move_assignment<AllocatorT>;
 
-        constexpr allocator_impl_t() noexcept = default;
-        constexpr allocator_impl_t(const allocator_impl_t<AllocatorT, T, err_policy>&) noexcept
+        constexpr T* allocate(size_type count) noexcept(ErrTraits::is_nothrow)
         {
-            // TODO: Maybe not valid for all allocator types?
-        }
+            T* result = nullptr;
 
-        constexpr T* allocate(size_t count) noexcept(details::is_error_policy_nothrow<err_policy>)
-        {
-            auto result = do_allocate();
-            if (!result)
+            constexpr auto max_size = (static_cast<size_type>(0) - 1) / sizeof(T);
+            if (count <= max_size)
             {
-                // NOTE: May just return the same HRESULT; that's fine as we're expecting to be able to return null
-                err_policy::HResult(E_OUTOFMEMORY);
+                result = static_cast<AllocatorT*>(this)->do_allocate(count);
             }
 
+            ErrTraits::Pointer(result);
             return result;
         }
-
-        constexpr void deallocate(T* ptr, size_t count) noexcept
-        {
-            do_deallocate(ptr, count);
-        }
-
-        // NOTE: The following functions are not implemented because the standarad has deprecated/removed them:
-        //      * address                           -   Deprecated in C++17 / Removed in C++20
-        //      * allocate(size_t, const void*)     -   Deprecated in C++17 / Removed in C++20
-        //      * max_size                          -   Deprecated in C++17 / Removed in C++20
-        //      * construct                         -   Deprecated in C++17 / Removed in C++20
-        //      * destroy                           -   Deprecated in C++17 / Removed in C++20
-
-        // NOTE: The following functions are not implemented because they rely on STL types:
-        //      * allocate_at_least                 -   Requires std::allocation_result
     };
 
-    template <typename AllocatorT, typename LhsT, typename LhsErrPolicy, typename RhsT, typename RhsErrPolicy>
-    inline constexpr bool operator==(
-        const allocator_impl_t<AllocatorT, LhsT, LhsErrPolicy>&, const allocator_impl_t<AllocatorT, RhsT, RhsErrPolicy>&) noexcept
+    // Stateless allocators have a few more optimizations available to them
+    template <typename AllocatorT, typename T, typename err_policy>
+    struct stateless_allocator_impl_t : allocator_impl_t<AllocatorT, T, err_policy>
     {
-        return true;
-    }
+        // Used by container types to make move assignment 'noexcept' since otherwise they would need a runtime test for equality
+        // to check and see if they need to allocate new storage
+        using propagate_on_container_move_assignment = wistd::true_type;
 
-    template <typename AllocatorT, typename LhsT, typename LhsErrPolicy, typename RhsT, typename RhsErrPolicy>
-    inline constexpr bool operator!=(
-        const allocator_impl_t<AllocatorT, LhsT, LhsErrPolicy>&, const allocator_impl_t<AllocatorT, RhsT, RhsErrPolicy>&) noexcept
-    {
-        return false;
-    }
+        friend constexpr bool operator==(const AllocatorT&, const AllocatorT&) noexcept
+        {
+            return true;
+        }
+
+        friend constexpr bool operator!=(const AllocatorT&, const AllocatorT&) noexcept
+        {
+            return false;
+        }
+    };
 }
 /// @endcond
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+// Basically std::allocaotr, but we can refer to it directly even when STL use cannot be assumed
+template <typename T, typename err_policy = err_exception_policy>
+struct new_delete_allocator_t : details::stateless_allocator_impl_t<new_delete_allocator_t<T, err_policy>, T, err_policy>
+{
+private:
+    using Base = details::allocator_impl_t<new_delete_allocator_t, T, err_policy>;
+    friend Base;
+
+    T* do_allocate(typename Base::size_type count) noexcept
+    {
+        // NOTE: 'allocator_impl_t' is in charge of ensuring this doesn't overflow
+        return static_cast<T*>(::operator new(count * sizeof(T), std::align_val_t{alignof(T)}, std::nothrow));
+    }
+
+public:
+    using propagate_on_container_move_assignment = wistd::true_type;
+
+    void deallocate(T* ptr, typename Base::size_type count) noexcept
+    {
+        ::operator delete(ptr, count, std::align_val_t{alignof(T)});
+    }
+};
+
+template <typename T>
+using new_delete_allocator = new_delete_allocator_t<T, err_exception_policy>;
+template <typename T>
+using new_delete_allocator_nothrow = new_delete_allocator_t<T, err_returncode_policy>;
+template <typename T>
+using new_delete_allocator_failfast = new_delete_allocator_t<T, err_failfast_policy>;
 #endif
+
+template <typename T, typename err_policy = err_exception_policy>
+struct cotaskmem_allocator_t : details::stateless_allocator_impl_t<cotaskmem_allocator_t<T, err_policy>, T, err_policy>
+{
+private:
+    static_assert(alignof(T) <= MEMORY_ALLOCATION_ALIGNMENT , "Type cannot be properly aligned by CoTaskMemAlloc");
+
+    using Base = details::allocator_impl_t<cotaskmem_allocator_t<T, err_policy>, T, err_policy>;
+    friend Base;
+
+    T* do_allocate(typename Base::size_type count) noexcept
+    {
+        return static_cast<T*>(::CoTaskMemAlloc(count));
+    }
+
+public:
+    using propagate_on_container_move_assignment = wistd::true_type;
+
+    void deallocate(T* ptr, typename Base::size_type) noexcept
+    {
+        ::CoTaskMemFree(ptr);
+    }
+};
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+template <typename T>
+using cotaskmem_allocator = cotaskmem_allocator_t<T, err_exception_policy>;
+#endif
+template <typename T>
+using cotaskmem_allocator_nothrow = cotaskmem_allocator_t<T, err_returncode_policy>;
+template <typename T>
+using cotaskmem_allocator_failfast = cotaskmem_allocator_t<T, err_failfast_policy>;
+
+template <typename T, typename err_policy = err_exception_policy>
+struct process_heap_allocator_t : details::stateless_allocator_impl_t<process_heap_allocator_t<T, err_policy>, T, err_policy>
+{
+private:
+    static_assert(alignof(T) <= MEMORY_ALLOCATION_ALIGNMENT , "Type cannot be properly aligned by HeapAlloc");
+
+    using Base = details::allocator_impl_t<process_heap_allocator_t<T, err_policy>, T, err_policy>;
+    friend Base;
+
+    T* do_allocate(typename Base::size_type count) noexcept
+    {
+        return static_cast<T*>(::HeapAlloc(::GetProcessHeap(), 0, count * sizeof(T)));
+    }
+
+public:
+    using propagate_on_container_move_assignment = wistd::true_type;
+
+    void deallocate(T* ptr, typename Base::size_type) noexcept
+    {
+        ::HeapFree(::GetProcessHeap(), 0, ptr);
+    }
+};
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+template <typename T>
+using process_heap_allocator = process_heap_allocator_t<T, err_exception_policy>;
+#endif
+template <typename T>
+using process_heap_allocator_nothrow = process_heap_allocator_t<T, err_returncode_policy>;
+template <typename T>
+using process_heap_allocator_failfast = process_heap_allocator_t<T, err_failfast_policy>;
+
+template <typename T, typename err_policy = err_exception_policy>
+struct heap_allocator_t : details::allocator_impl_t<heap_allocator_t<T, err_policy>, T, err_policy>
+{
+private:
+    static_assert(alignof(T) <= MEMORY_ALLOCATION_ALIGNMENT , "Type cannot be properly aligned by HeapAlloc");
+
+    using Base = details::allocator_impl_t<heap_allocator_t<T, err_policy>, T, err_policy>;
+    friend Base;
+
+    T* do_allocate(typename Base::size_type count) noexcept
+    {
+        return static_cast<T*>(::HeapAlloc(m_heap, 0, count * sizeof(T)));
+    }
+
+    // ***NON OWNING***
+    HANDLE m_heap;
+
+public:
+    // When copying/moving/swapping, always take the old allocator so no re-allocation needs to be done
+    using propagate_on_container_copy_assignment = wistd::true_type;
+    using propagate_on_container_move_assignment = wistd::true_type;
+    using propagate_on_container_swap = wistd::true_type;
+
+    heap_allocator_t(HANDLE heap) : m_heap(heap)
+    {
+    }
+
+    void deallocate(T* ptr, typename Base::size_type) noexcept
+    {
+        ::HeapFree(m_heap, 0, ptr);
+    }
+
+    friend constexpr bool operator==(const heap_allocator_t& lhs, const heap_allocator_t& rhs) noexcept
+    {
+        return lhs.m_heap == rhs.m_heap;
+    }
+
+    friend constexpr bool operator!=(const heap_allocator_t& lhs, const heap_allocator_t& rhs) noexcept
+    {
+        return lhs.m_heap != rhs.m_heap;
+    }
+};
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+template <typename T>
+using heap_allocator = heap_allocator_t<T, err_exception_policy>;
+#endif
+template <typename T>
+using heap_allocator_nothrow = heap_allocator_t<T, err_returncode_policy>;
+template <typename T>
+using heap_allocator_failfast = heap_allocator_t<T, err_failfast_policy>;
+
+template <typename T, typename err_policy = err_exception_policy>
+struct virtual_allocator_t : details::stateless_allocator_impl_t<virtual_allocator_t<T, err_policy>, T, err_policy>
+{
+private:
+    static_assert(alignof(T) <= MEMORY_ALLOCATION_ALIGNMENT , "Type cannot be properly aligned by VirtualAlloc");
+
+    using Base = details::allocator_impl_t<virtual_allocator_t<T, err_policy>, T, err_policy>;
+    friend Base;
+
+    T* do_allocate(typename Base::size_type count) noexcept
+    {
+        return static_cast<T*>(::VirtualAlloc(nullptr, count * sizeof(T), MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE));
+    }
+
+public:
+    using propagate_on_container_move_assignment = wistd::true_type;
+
+    void deallocate(T* ptr, typename Base::size_type) noexcept
+    {
+        ::VirtualFree(ptr, 0, MEM_RELEASE);
+    }
+};
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+template <typename T>
+using virtual_allocator = virtual_allocator_t<T, err_exception_policy>;
+#endif
+template <typename T>
+using virtual_allocator_nothrow = virtual_allocator_t<T, err_returncode_policy>;
+template <typename T>
+using virtual_allocator_failfast = virtual_allocator_t<T, err_failfast_policy>;
 }
 
 #endif // __WIL_ALLOCATORS_INCLUDED
