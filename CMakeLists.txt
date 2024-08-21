@@ -61,6 +61,7 @@ if(MINGW AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
         WIL_NO_SLIM_EVENT=
     )
     target_compile_options(${PROJECT_NAME} INTERFACE
+        "-fms-extensions"
         "-D_Ret_opt_bytecap_(size)="
         "-D_Translates_NTSTATUS_to_HRESULT_(status)="
         "-D_Translates_Win32_to_HRESULT_(err)="
