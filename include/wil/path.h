@@ -55,7 +55,7 @@ namespace details
 
                 auto index = ch / 64;
                 auto bit = ch % 64;
-                bitmasks[index] |= 0x01 << bit;
+                bitmasks[index] |= static_cast<uint64_t>(0x01) << bit;
             }
 
             return true;
@@ -70,7 +70,7 @@ namespace details
 
             auto index = ch / 64;
             auto bit = ch % 64;
-            return (bitmasks[index] & (0x01 << bit)) != 0;
+            return (bitmasks[index] & (static_cast<uint64_t>(0x01) << bit)) != 0;
         }
 
     private:

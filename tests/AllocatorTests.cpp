@@ -3,7 +3,7 @@
 #include <wil/allocators.h>
 
 #ifdef WIL_ENABLE_EXCEPTIONS
-// TODO
+#include <vector>
 #endif
 
 #include "common.h"
@@ -99,6 +99,31 @@ struct allocator_base
     // NOTE: max_size not required; left up to derived types to implement
     // NOTE: select_on_container_copy_construction not required; left up to derived types to implement
 };
+
+template <typename T, typename Other, typename Another>
+struct allocator_with_many_args : allocator_base<T>
+{
+};
+
+template <typename T>
+struct allocator_with_rebind : allocator_base<T>
+{
+    template <typename U>
+    struct rebind
+    {
+        using other = double; // Make it very obvious we're using this one
+    };
+};
+
+TEST_CASE("AllocatorTraits::Rebind")
+{
+    REQUIRE(wistd::is_same_v<wil::allocator_traits<allocator_base<int>>::rebind_alloc<float>, allocator_base<float>>);
+    REQUIRE(
+        wistd::is_same_v<wil::allocator_traits<allocator_with_many_args<int, char, double>>::rebind_alloc<float>, allocator_with_many_args<float, char, double>>);
+    REQUIRE(wistd::is_same_v<wil::allocator_traits<allocator_with_rebind<int>>::rebind_alloc<float>, double>);
+
+    REQUIRE(wistd::is_same_v<wil::allocator_traits<allocator_base<int>>::rebind_traits<float>, wil::allocator_traits<allocator_base<float>>>);
+}
 
 // Simple type to validate construction
 struct allocated_type
@@ -299,6 +324,66 @@ TEST_CASE("AllocatorTraits::SelectOnContainerCopyConstruction", "[allocators]")
     REQUIRE(allocSelect.copy_call_count == 1);
 }
 
+template <typename Allocator>
+static void DoSTLContainerAllocatorTest(Allocator& alloc)
+{
+#ifdef WIL_ENABLE_EXCEPTIONS
+    // NOTE: 'Allocator' may be non-throwing, in which case it is incompatible with STL containers which assume allocation
+    // failures will throw, however we should not be under memory pressure during test execution
+    std::vector<int, Allocator> v(alloc);
+    REQUIRE(v.get_allocator() == alloc);
+
+    for (int i = 0; i < 42; ++i)
+    {
+        v.push_back(i);
+    }
+
+    REQUIRE(v.size() == 42);
+
+    for (int i = 0; i < 42; ++i)
+    {
+        REQUIRE(v[i] == i);
+    }
+
+    // Copy construction
+    auto ptr = v.data();
+    std::vector v2(v);
+    REQUIRE(v2.get_allocator() == alloc);
+    REQUIRE(v2 == v);
+    REQUIRE(v2.data() != ptr); // Deep copy
+
+    // Move construction
+    ptr = v2.data();
+    std::vector v3(std::move(v2));
+    REQUIRE(v3.get_allocator() == alloc);
+    REQUIRE(v3 == v);
+    REQUIRE(v3.data() == ptr); // Same allocator; should be same pointer
+
+    // Copy assignment
+    ptr = v.data();
+    v2 = v;
+    REQUIRE(v2.get_allocator() == alloc);
+    REQUIRE(v2 == v);
+    REQUIRE(v2.data() != ptr); // Deep copy
+
+    // Move assignment
+    v2.clear();
+    ptr = v3.data();
+    v2 = std::move(v3);
+    REQUIRE(v2.get_allocator() == alloc);
+    REQUIRE(v2 == v);
+    REQUIRE(v2.data() == ptr); // Same allocator; should be same pointer
+
+    // Swap
+    auto ptr2 = v.data();
+    v2.swap(v);
+    REQUIRE(v.get_allocator() == alloc);
+    REQUIRE(v2.get_allocator() == alloc);
+    REQUIRE(v.data() == ptr);
+    REQUIRE(v2.data() == ptr2);
+#endif
+}
+
 #ifdef WIL_ENABLE_EXCEPTIONS
 template <typename Allocator>
 static void DoThrowingAllocatorTest(Allocator&& alloc)
@@ -323,12 +408,20 @@ static void DoThrowingAllocatorTest(Allocator&& alloc)
 
     // Failure should also occur for reasonably large requests
     REQUIRE_THROWS_AS(alloc.allocate(SIZE_MAX / (sizeof(int) * 2)), std::bad_alloc);
+
+    DoSTLContainerAllocatorTest(alloc);
 }
 #endif
 
 template <typename Allocator>
 static void DoNothrowAllocatorTest(Allocator&& alloc)
 {
+    // Equality tests
+    REQUIRE(alloc == alloc);
+    REQUIRE_FALSE(alloc != alloc);
+    REQUIRE(alloc == Allocator(alloc));
+    REQUIRE_FALSE(alloc != Allocator(alloc));
+
     auto ptr = alloc.allocate(42);
     REQUIRE(ptr != nullptr);
     alloc.deallocate(ptr, 42);
@@ -345,11 +438,19 @@ static void DoNothrowAllocatorTest(Allocator&& alloc)
     // Failure should also occur for reasonably large requests
     ptr = alloc.allocate(SIZE_MAX / (sizeof(int) * 2));
     REQUIRE(ptr == nullptr);
+
+    DoSTLContainerAllocatorTest(alloc);
 }
 
 template <typename Allocator>
 static void DoFailfastAllocatorTest(Allocator&& alloc)
 {
+    // Equality tests
+    REQUIRE(alloc == alloc);
+    REQUIRE_FALSE(alloc != alloc);
+    REQUIRE(alloc == Allocator(alloc));
+    REQUIRE_FALSE(alloc != Allocator(alloc));
+
     auto ptr = alloc.allocate(42);
     REQUIRE(ptr != nullptr);
     alloc.deallocate(ptr, 42);
@@ -364,6 +465,8 @@ static void DoFailfastAllocatorTest(Allocator&& alloc)
 
     // Failure should also occur for reasonably large requests
     REQUIRE_ERROR(alloc.allocate(SIZE_MAX / (sizeof(int) * 2)));
+
+    DoSTLContainerAllocatorTest(alloc);
 }
 
 template <template <typename, typename> typename Allocator>
@@ -406,7 +509,13 @@ TEST_CASE("AllocatorTests::ProcessHeapAllocator")
 
 TEST_CASE("AllocatorTests::HeapAllocator")
 {
-    auto doCustomHeapTest = [](HANDLE heap) {
+    auto checkHeapEmpty = [](HANDLE heap) {
+        HEAP_SUMMARY summary{sizeof(summary)};
+        REQUIRE(::HeapSummary(heap, 0, &summary));
+        REQUIRE(summary.cbAllocated == 0);
+    };
+
+    auto doTest = [](HANDLE heap) {
 #ifdef WIL_ENABLE_EXCEPTIONS
         SECTION("Throwing")
         {
@@ -431,17 +540,70 @@ TEST_CASE("AllocatorTests::HeapAllocator")
     // We need to construct with a heap and therefore cannot use 'DoAllocatorTests' directly
     SECTION("Process heap")
     {
-        doCustomHeapTest(::GetProcessHeap());
+        doTest(::GetProcessHeap());
     }
 
     SECTION("Custom heap")
     {
         wil::unique_hheap heap(::HeapCreate(0, 0, 0x10000));
-        doCustomHeapTest(heap.get());
+        doTest(heap.get());
+        checkHeapEmpty(heap.get());
     }
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+    SECTION("Different heap move assignment")
+    {
+        wil::unique_hheap heap1(::HeapCreate(0, 0, 0x10000));
+        wil::heap_allocator<int> alloc1(heap1.get());
+        wil::unique_hheap heap2(::HeapCreate(0, 0, 0x10000));
+        wil::heap_allocator<int> alloc2(heap2.get());
+
+        // Different heaps; should not compare equal
+        REQUIRE_FALSE(alloc1 == alloc2);
+        REQUIRE(alloc1 != alloc2);
+
+        {
+            std::vector<int, wil::heap_allocator<int>> v1(alloc1);
+            std::vector<int, wil::heap_allocator<int>> v2(alloc2);
+
+            for (int i = 0; i < 42; ++i)
+            {
+                v1.push_back(i);
+            }
+
+            // Move assignment should effectively be a copy since the underlying heap is not the same
+            auto ptr = v1.data();
+            v2 = std::move(v1);
+            REQUIRE(v2.get_allocator() == alloc2); // Should not have changed
+            REQUIRE(ptr != v2.data()); // Needs new allocation
+
+            // NOTE: v1 is in a valid but unspecified state, so we can't use it for comparison
+            REQUIRE(v2.size() == 42);
+            for (int i = 0; i < 42; ++i)
+            {
+                REQUIRE(v2[i] == i);
+            }
+
+            // NOTE: Swapping containers with a non-equal allocator is UB when 'propagate_on_container_swap' is false
+        }
+
+        checkHeapEmpty(heap1.get());
+        checkHeapEmpty(heap2.get());
+    }
+#endif
 }
 
 TEST_CASE("AllocatorTests::VirtualAllocator")
 {
     DoAllocatorTests<wil::virtual_allocator_t>();
+}
+
+TEST_CASE("AllocatorTests::LocalAllocator")
+{
+    DoAllocatorTests<wil::local_allocator_t>();
+}
+
+TEST_CASE("AllocatorTests::GlobalAllocator")
+{
+    DoAllocatorTests<wil::global_allocator_t>();
 }
