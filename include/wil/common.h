@@ -414,22 +414,27 @@ check fails as opposed to the invalid parameter handler that the STL invokes. Th
 //!
 //! Common example usage (manipulation of flag variables):
 //! ~~~~
-//! WI_SetFlag(m_flags, MyFlags::Foo);                              // Set a single flag in the given variable
-//! WI_SetAllFlags(m_flags, MyFlags::Foo | MyFlags::Bar);           // Set one or more flags
-//! WI_ClearFlagIf(m_flags, MyFlags::Bar, isBarClosed);             // Conditionally clear a single flag based upon a bool
-//! WI_ClearAllFlags(m_flags, MyFlags::Foo | MyFlags::Bar);         // Clear one or more flags from the given variable
-//! WI_ToggleFlag(m_flags, MyFlags::Foo);                           // Toggle (change to the opposite value) a single flag
-//! WI_UpdateFlag(m_flags, MyFlags::Bar, isBarClosed);              // Sets or Clears a single flag from the given variable based
-//!                                                                 // upon a bool value
-//! WI_UpdateFlagsInMask(m_flags, flagsMask, newFlagValues);        // Sets or Clears the flags in flagsMask to the masked values
-//!                                                                 // from newFlagValues
+//! WI_SetFlag(m_flags, MyFlags::Foo);                                    // Set a single flag in the given variable
+//! WI_SetAllFlags(m_flags, MyFlags::Foo | MyFlags::Bar);                 // Set one or more flags
+//! WI_ClearFlagIf(m_flags, MyFlags::Bar, isBarClosed);                   // Conditionally clear a single flag based upon a bool
+//! WI_ClearAllFlags(m_flags, MyFlags::Foo | MyFlags::Bar);               // Clear one or more flags from the given variable
+//! WI_ToggleFlag(m_flags, MyFlags::Foo);                                 // Toggle (change to the opposite value) a single flag
+//! WI_UpdateFlag(m_flags, MyFlags::Bar, isBarClosed);                    // Sets or Clears a single flag from the given variable based
+//!                                                                       // upon a bool value
+//! WI_UpdateFlagsInMask(m_flags, flagsMask, newFlagValues);              // Sets or Clears the flags in flagsMask to the masked values
+//!                                                                       // from newFlagValues
 //! ~~~~
 //! Common example usage (inspection of flag variables):
 //! ~~~~
-//! if (WI_IsFlagSet(m_flags, MyFlags::Foo))                        // Is a single flag set in the given variable?
-//! if (WI_IsAnyFlagSet(m_flags, MyFlags::Foo | MyFlags::Bar))      // Is at least one flag from the given mask set?
-//! if (WI_AreAllFlagsClear(m_flags, MyFlags::Foo | MyFlags::Bar))  // Are all flags in the given list clear?
-//! if (WI_IsSingleFlagSet(m_flags))                                // Is *exactly* one flag set in the given variable?
+//! if (WI_IsFlagSet(m_flags, MyFlags::Foo))                              // Is a single flag set in the given variable?
+//! if (WI_IsAnyFlagSet(m_flags, MyFlags::Foo | MyFlags::Bar))            // Is at least one flag from the given mask set?
+//! if (WI_AreAllFlagsClear(m_flags, MyFlags::Foo | MyFlags::Bar))        // Are all flags in the given list clear?
+//! if (WI_IsSingleFlagSet(m_flags))                                      // Is *exactly* one flag set in the given variable?
+//! ~~~~
+//! Common example usage (masking/raising of flag(s) from variable):
+//! ~~~~
+//! SetFileAttributes(Path, WI_MaskFlag(Attr, FILE_ATTRIBUTE_READONLY));  // Mask flag inline without modifying the variable
+//! SetFileAttributes(Path, WI_RaiseFlag(Attr, FILE_ATTRIBUTE_READONLY)); // Raise flag inline without modifying the variable
 //! ~~~~
 //! @{
 
@@ -511,6 +516,19 @@ check fails as opposed to the invalid parameter handler that the STL invokes. Th
 //! set within `val`.
 #define WI_IsClearOrSingleFlagSetInMask(val, mask) wil::details::IsClearOrSingleFlagSetHelper((val) & (mask))
 //! @}      // bitwise inspection macros
+
+//! @name Bitwise masking/raising macros
+//! @{
+
+//! Mask zero or more bitflags specified by `flags` from the variable `var`.
+#define WI_MaskAllFlags(var, flags) ((var) & ~(flags))
+//! Mask a single compile-time constant `flag` from the variable `var`.
+#define WI_MaskFlag(var, flag) WI_MaskAllFlags(var, WI_StaticAssertSingleBitSet(flag))
+//! Raise zero or more bitflags specified by `flags` from the variable `var`.
+#define WI_RaiseAllFlags(var, flags) ((var) | (flags))
+//! Raise a single compile-time constant `flag` from the variable `var`.
+#define WI_RaiseFlag(var, flag) WI_RaiseAllFlags(var, WI_StaticAssertSingleBitSet(flag))
+//! @}      // bitwise masking/raising macros
 
 //! @}      // group bitwise
 
