@@ -69,15 +69,14 @@
 
 /// @cond
 #if defined(_MSVC_LANG)
-#define __WI_SUPPRESS_4127_S \
-    __pragma(warning(push)) __pragma(warning(disable : 4127)) __pragma(warning(disable : 26498)) __pragma(warning(disable : 4245))
-#define __WI_SUPPRESS_4127_E __pragma(warning(pop))
-#define __WI_SUPPRESS_NULLPTR_ANALYSIS __pragma(warning(suppress : 28285)) __pragma(warning(suppress : 6504))
+#define __WI_SUPPRESS_BREAKING_WARNINGS_S __pragma(warning(push)) __pragma(warning(disable : 4127 26498 4245 26814))
+#define __WI_SUPPRESS_BREAKING_WARNINGS_E __pragma(warning(pop))
+#define __WI_SUPPRESS_NULLPTR_ANALYSIS __pragma(warning(suppress : 28285 6504))
 #define __WI_SUPPRESS_NONINIT_ANALYSIS __pragma(warning(suppress : 26495))
 #define __WI_SUPPRESS_NOEXCEPT_ANALYSIS __pragma(warning(suppress : 26439))
 #else
-#define __WI_SUPPRESS_4127_S
-#define __WI_SUPPRESS_4127_E
+#define __WI_SUPPRESS_BREAKING_WARNINGS_S
+#define __WI_SUPPRESS_BREAKING_WARNINGS_E
 #define __WI_SUPPRESS_NULLPTR_ANALYSIS
 #define __WI_SUPPRESS_NONINIT_ANALYSIS
 #define __WI_SUPPRESS_NOEXCEPT_ANALYSIS
