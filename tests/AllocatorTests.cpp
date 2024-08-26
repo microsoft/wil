@@ -324,8 +324,26 @@ TEST_CASE("AllocatorTraits::SelectOnContainerCopyConstruction", "[allocators]")
     REQUIRE(allocSelect.copy_call_count == 1);
 }
 
+template <typename T, typename ErrPolicy>
+struct allocator_with_err_policy : allocator_base<T>
+{
+    using err_policy = ErrPolicy;
+};
+
+TEST_CASE("AllocatorTraits::ErrorPolicy", "[allocators]")
+{
+#ifdef WIL_ENABLE_EXCEPTIONS
+    // err_exception_policy is the default
+    REQUIRE(wistd::is_same_v<wil::err_exception_policy, typename wil::allocator_traits<std::allocator<int>>::err_policy>);
+#endif
+
+    REQUIRE(wistd::is_same_v<wil::err_exception_policy, typename wil::allocator_traits<allocator_with_err_policy<int, wil::err_exception_policy>>::err_policy>);
+    REQUIRE(wistd::is_same_v<wil::err_returncode_policy, typename wil::allocator_traits<allocator_with_err_policy<int, wil::err_returncode_policy>>::err_policy>);
+    REQUIRE(wistd::is_same_v<wil::err_failfast_policy, typename wil::allocator_traits<allocator_with_err_policy<int, wil::err_failfast_policy>>::err_policy>);
+}
+
 template <typename Allocator>
-static void DoSTLContainerAllocatorTest(Allocator& alloc)
+static void DoSTLContainerAllocatorTest([[maybe_unused]] Allocator& alloc)
 {
 #ifdef WIL_ENABLE_EXCEPTIONS
     // NOTE: 'Allocator' may be non-throwing, in which case it is incompatible with STL containers which assume allocation
@@ -388,6 +406,9 @@ static void DoSTLContainerAllocatorTest(Allocator& alloc)
 template <typename Allocator>
 static void DoThrowingAllocatorTest(Allocator&& alloc)
 {
+    using Traits = wil::allocator_traits<wistd::remove_reference_t<Allocator>>;
+    REQUIRE(wistd::is_same_v<wil::err_exception_policy, typename Traits::err_policy>);
+
     // Equality tests
     REQUIRE(alloc == alloc);
     REQUIRE_FALSE(alloc != alloc);
@@ -399,9 +420,9 @@ static void DoThrowingAllocatorTest(Allocator&& alloc)
     alloc.deallocate(ptr, 42);
 
     // Through allocator traits
-    ptr = wil::allocator_traits<wistd::remove_reference_t<Allocator>>::allocate(alloc, 10);
+    ptr = Traits::allocate(alloc, 10);
     REQUIRE(ptr != nullptr);
-    wil::allocator_traits<wistd::remove_reference_t<Allocator>>::deallocate(alloc, ptr, 10);
+    Traits::deallocate(alloc, ptr, 10);
 
     // Failure
     REQUIRE_THROWS_AS(alloc.allocate(SIZE_MAX), std::bad_alloc);
@@ -416,6 +437,9 @@ static void DoThrowingAllocatorTest(Allocator&& alloc)
 template <typename Allocator>
 static void DoNothrowAllocatorTest(Allocator&& alloc)
 {
+    using Traits = wil::allocator_traits<wistd::remove_reference_t<Allocator>>;
+    REQUIRE(wistd::is_same_v<wil::err_returncode_policy, typename Traits::err_policy>);
+
     // Equality tests
     REQUIRE(alloc == alloc);
     REQUIRE_FALSE(alloc != alloc);
@@ -427,9 +451,9 @@ static void DoNothrowAllocatorTest(Allocator&& alloc)
     alloc.deallocate(ptr, 42);
 
     // Through allocator traits
-    ptr = wil::allocator_traits<wistd::remove_reference_t<Allocator>>::allocate(alloc, 10);
+    ptr = Traits::allocate(alloc, 10);
     REQUIRE(ptr != nullptr);
-    wil::allocator_traits<wistd::remove_reference_t<Allocator>>::deallocate(alloc, ptr, 10);
+    Traits::deallocate(alloc, ptr, 10);
 
     // Failure
     ptr = alloc.allocate(SIZE_MAX);
@@ -445,6 +469,9 @@ static void DoNothrowAllocatorTest(Allocator&& alloc)
 template <typename Allocator>
 static void DoFailfastAllocatorTest(Allocator&& alloc)
 {
+    using Traits = wil::allocator_traits<wistd::remove_reference_t<Allocator>>;
+    REQUIRE(wistd::is_same_v<wil::err_failfast_policy, typename Traits::err_policy>);
+
     // Equality tests
     REQUIRE(alloc == alloc);
     REQUIRE_FALSE(alloc != alloc);
@@ -456,9 +483,9 @@ static void DoFailfastAllocatorTest(Allocator&& alloc)
     alloc.deallocate(ptr, 42);
 
     // Through allocator traits
-    ptr = wil::allocator_traits<wistd::remove_reference_t<Allocator>>::allocate(alloc, 10);
+    ptr = Traits::allocate(alloc, 10);
     REQUIRE(ptr != nullptr);
-    wil::allocator_traits<wistd::remove_reference_t<Allocator>>::deallocate(alloc, ptr, 10);
+    Traits::deallocate(alloc, ptr, 10);
 
     // Failure
     REQUIRE_ERROR(alloc.allocate(SIZE_MAX));
@@ -571,13 +598,12 @@ TEST_CASE("AllocatorTests::HeapAllocator")
                 v1.push_back(i);
             }
 
-            // Move assignment should effectively be a copy since the underlying heap is not the same
+            // Move assignment should re-allocate since the underlying heap is not the same
             auto ptr = v1.data();
             v2 = std::move(v1);
             REQUIRE(v2.get_allocator() == alloc2); // Should not have changed
             REQUIRE(ptr != v2.data()); // Needs new allocation
 
-            // NOTE: v1 is in a valid but unspecified state, so we can't use it for comparison
             REQUIRE(v2.size() == 42);
             for (int i = 0; i < 42; ++i)
             {
