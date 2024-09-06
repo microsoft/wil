@@ -330,5 +330,31 @@ private:
  */
 #define INIT_NOTIFYING_PROPERTY(NAME, VALUE) NAME(&m_propertyChanged, *this, L"" #NAME, VALUE)
 
+namespace details
+{
+#ifdef WINRT_Microsoft_UI_Xaml_Data_H
+    using Xaml_DepencyProperty = winrt::Microsoft::UI::Xaml::DependencyProperty;
+#elif defined(WINRT_Windows_UI_Xaml_Data_H)
+    using Xaml_DepencyProperty = winrt::Windows::UI::Xaml::DependencyProperty;
+#endif
+}
+
+#define WIL_DEFINE_DP(type, name) \
+    static wil::details::Xaml_DepencyProperty s_##name##Property; \
+    static wil::details::Xaml_DepencyProperty name##Property() \
+    { \
+        /* You need to initialize (register) this dependency property */ \
+        FAIL_FAST_HR_IF_MSG(E_NOTIMPL, s_##name##Property == nullptr, "##name##"); \
+        return s_##name##Property; \
+    } \
+    auto name() const \
+    { \
+        return winrt::unbox_value<type>(GetValue(s_##name##Property)); \
+    } \
+    void name(type value) const \
+    { \
+        SetValue(s_##name##Property, winrt::box_value(value)); \
+    } \
+
 #endif // !defined(__WIL_CPPWINRT_AUTHORING_INCLUDED_XAML_DATA) && (defined(WINRT_Microsoft_UI_Xaml_Data_H) || defined(WINRT_Windows_UI_Xaml_Data_H))
 } // namespace wil

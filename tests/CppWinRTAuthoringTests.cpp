@@ -7,6 +7,7 @@
 #if _MSVC_LANG >= 201703L
 #include <winrt/Windows.Foundation.h>
 #include <winrt/Windows.System.h>
+#include <winrt/Windows.UI.Xaml.h>
 #include <winrt/Windows.UI.Xaml.Data.h>
 #include <winrt/Windows.UI.Xaml.Input.h>
 #endif
@@ -172,6 +173,41 @@ TEST_CASE("CppWinRTAuthoringTests::InStruct", "[property]")
     test.Prop2(22)(33);
     REQUIRE(test.Prop2() == 33);
 }
+
+struct my_dependency_properties
+{
+    winrt::Windows::Foundation::IInspectable GetValue(winrt::Windows::UI::Xaml::DependencyProperty const&) const
+    {
+        // Stub
+        return nullptr;
+    }
+    void SetValue(winrt::Windows::UI::Xaml::DependencyProperty const&, winrt::Windows::Foundation::IInspectable const&) const
+    {
+        // Stub
+    }
+
+    WIL_DEFINE_DP(int, MyProperty);
+};
+
+// TODO: export
+#define REQUIRE_FAILFAST_MSG(hr, lambda) \
+    REQUIRE(VerifyResult(__LINE__, EType::FailFastMacro | EType::Msg, hr, [&] { \
+        auto fn = (lambda); \
+        fn(); \
+        return hr; \
+    }))
+
+TEST_CASE("CppWinRTAuthoringTests::DependencyProperties", "[property]")
+{
+    // Throws if not registered
+    auto obj = my_dependency_properties{};
+    //REQUIRE_FAILFAST_MSG(E_NOTIMPL, [&obj] { obj.MyProperty(); });
+    //REQUIRE_FAILFAST_MSG(E_NOTIMPL, [&obj] { obj.MyProperty(42); });
+
+    // Register the dependency property
+
+}
+
 
 #ifdef WINRT_Windows_Foundation_H
 TEST_CASE("CppWinRTAuthoringTests::Events", "[property]")
