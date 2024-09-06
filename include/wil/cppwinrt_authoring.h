@@ -356,10 +356,10 @@ namespace details
             nullptr);
     }
 
-    template <typename PropertyType, typename OwnerType, typename T = PropertyType>
+    template <typename PropertyType, typename OwnerType, typename DefaultValueType = PropertyType>
     inline Xaml_DependencyProperty register_dependency_property(
         const std::wstring_view& propertyNameString,
-        const T& defaultValue = nullptr,
+        const DefaultValueType& defaultValue,
         const Xaml_PropertyChangedCallback& propertyChangedCallback = nullptr)
     {
         // TODO: assert T and PropertyType are compatible

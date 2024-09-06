@@ -197,6 +197,7 @@ struct my_dependency_properties : mock_dependency_object
 {
     WIL_DEFINE_DP(my_dependency_properties, int32_t, MyProperty);
     WIL_DEFINE_DP_WITH_DEFAULT_VALUE_AND_CALLBACK(my_dependency_properties, int32_t, MyPropertyWithDefault, 42, nullptr);
+    WIL_DEFINE_DP(my_dependency_properties, winrt::hstring, MyStringProperty);
 };
 
 namespace winrt
@@ -217,11 +218,14 @@ TEST_CASE("CppWinRTAuthoringTests::DependencyProperties", "[property]")
     // REQUIRE_FAILFAST_MSG(E_NOTIMPL, [&obj] { obj.MyProperty(); });
     // REQUIRE_FAILFAST_MSG(E_NOTIMPL, [&obj] { obj.MyProperty(42); });
     // REQUIRE_FAILFAST_MSG(E_NOTIMPL, [&obj] { obj.MyPropertyWithDefault(); });
-    //  REQUIRE_FAILFAST_MSG(E_NOTIMPL, [&obj] { obj.MyPropertyWithDefault(42); });
+    // REQUIRE_FAILFAST_MSG(E_NOTIMPL, [&obj] { obj.MyPropertyWithDefault(42); });
+    // REQUIRE_FAILFAST_MSG(E_NOTIMPL, [&obj] { obj.MyStringProperty(); });
+    // REQUIRE_FAILFAST_MSG(E_NOTIMPL, [&obj] { obj.MyStringProperty(L"foo"); });
 
     // Register the dependency property
     my_dependency_properties::EnsureMyPropertyProperty();
     my_dependency_properties::EnsureMyPropertyWithDefaultProperty();
+    my_dependency_properties::EnsureMyStringPropertyProperty();
 
     // Now it should work
     obj.MyProperty(42);
@@ -231,6 +235,9 @@ TEST_CASE("CppWinRTAuthoringTests::DependencyProperties", "[property]")
     // REQUIRE(obj.MyPropertyWithDefault() == 42);
     obj.MyPropertyWithDefault(43);
     REQUIRE(obj.MyPropertyWithDefault() == 43);
+
+    obj.MyStringProperty(L"foo");
+    REQUIRE(obj.MyStringProperty() == L"foo");
 }
 
 #ifdef WINRT_Windows_Foundation_H
