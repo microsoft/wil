@@ -10,6 +10,7 @@
 #include <winrt/Windows.UI.Xaml.h>
 #include <winrt/Windows.UI.Xaml.Data.h>
 #include <winrt/Windows.UI.Xaml.Input.h>
+#include <winrt/Windows.UI.Xaml.Interop.h>
 #endif
 
 #include <wil/cppwinrt_authoring.h>
@@ -186,26 +187,33 @@ struct my_dependency_properties
         // Stub
     }
 
-    WIL_DEFINE_DP(int, MyProperty);
+    WIL_DEFINE_DP(my_dependency_properties, int32_t, MyProperty);
 };
 
-// TODO: export
-#define REQUIRE_FAILFAST_MSG(hr, lambda) \
-    REQUIRE(VerifyResult(__LINE__, EType::FailFastMacro | EType::Msg, hr, [&] { \
-        auto fn = (lambda); \
-        fn(); \
-        return hr; \
-    }))
+namespace winrt
+{
+    // Fake the xaml_typename specialization
+    template<>
+    inline Windows::UI::Xaml::Interop::TypeName xaml_typename<my_dependency_properties>()
+    {
+        static const Windows::UI::Xaml::Interop::TypeName name{hstring{L"my_dependency_properties"}, Windows::UI::Xaml::Interop::TypeKind::Custom};
+        return name;
+    }
+}
 
 TEST_CASE("CppWinRTAuthoringTests::DependencyProperties", "[property]")
 {
-    // Throws if not registered
+    // Throws if not ensured (?)
     auto obj = my_dependency_properties{};
     //REQUIRE_FAILFAST_MSG(E_NOTIMPL, [&obj] { obj.MyProperty(); });
     //REQUIRE_FAILFAST_MSG(E_NOTIMPL, [&obj] { obj.MyProperty(42); });
 
     // Register the dependency property
+    my_dependency_properties::EnsureMyPropertyProperty();
 
+    // Now it should work
+    obj.MyProperty(42);
+    REQUIRE(obj.MyProperty() == 42);
 }
 
 
