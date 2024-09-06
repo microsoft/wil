@@ -175,19 +175,28 @@ TEST_CASE("CppWinRTAuthoringTests::InStruct", "[property]")
     REQUIRE(test.Prop2() == 33);
 }
 
-struct my_dependency_properties
+// Simple mock of GetValue & SetValue for testing dependency properties.
+struct mock_dependency_object
 {
-    winrt::Windows::Foundation::IInspectable GetValue(winrt::Windows::UI::Xaml::DependencyProperty const&) const
+    winrt::Windows::Foundation::IInspectable GetValue(winrt::Windows::UI::Xaml::DependencyProperty const& dp) const
     {
-        // Stub
-        return nullptr;
+        return m_values.at(dp);
     }
-    void SetValue(winrt::Windows::UI::Xaml::DependencyProperty const&, winrt::Windows::Foundation::IInspectable const&) const
+    void SetValue(winrt::Windows::UI::Xaml::DependencyProperty dp, winrt::Windows::Foundation::IInspectable const& value) const
     {
-        // Stub
+        // We have to do a const_cast because ordinarily SetValue is const---
+        // it's delegated to WinRT, and C++/WinRT marks most of its functions
+        // const.
+        const_cast<mock_dependency_object*>(this)->m_values[dp] = value;
     }
 
+    std::map<winrt::Windows::UI::Xaml::DependencyProperty, winrt::Windows::Foundation::IInspectable> m_values{};
+};
+
+struct my_dependency_properties : mock_dependency_object
+{
     WIL_DEFINE_DP(my_dependency_properties, int32_t, MyProperty);
+    WIL_DEFINE_DP_WITH_DEFAULT_VALUE_AND_CALLBACK(my_dependency_properties, int32_t, MyPropertyWithDefault, 42, nullptr);
 };
 
 namespace winrt
@@ -205,17 +214,24 @@ TEST_CASE("CppWinRTAuthoringTests::DependencyProperties", "[property]")
 {
     // Throws if not ensured (?)
     auto obj = my_dependency_properties{};
-    //REQUIRE_FAILFAST_MSG(E_NOTIMPL, [&obj] { obj.MyProperty(); });
-    //REQUIRE_FAILFAST_MSG(E_NOTIMPL, [&obj] { obj.MyProperty(42); });
+    // REQUIRE_FAILFAST_MSG(E_NOTIMPL, [&obj] { obj.MyProperty(); });
+    // REQUIRE_FAILFAST_MSG(E_NOTIMPL, [&obj] { obj.MyProperty(42); });
+    // REQUIRE_FAILFAST_MSG(E_NOTIMPL, [&obj] { obj.MyPropertyWithDefault(); });
+    //  REQUIRE_FAILFAST_MSG(E_NOTIMPL, [&obj] { obj.MyPropertyWithDefault(42); });
 
     // Register the dependency property
     my_dependency_properties::EnsureMyPropertyProperty();
+    my_dependency_properties::EnsureMyPropertyWithDefaultProperty();
 
     // Now it should work
     obj.MyProperty(42);
     REQUIRE(obj.MyProperty() == 42);
-}
 
+    // TODO: handle defaults
+    // REQUIRE(obj.MyPropertyWithDefault() == 42);
+    obj.MyPropertyWithDefault(43);
+    REQUIRE(obj.MyPropertyWithDefault() == 43);
+}
 
 #ifdef WINRT_Windows_Foundation_H
 TEST_CASE("CppWinRTAuthoringTests::Events", "[property]")

@@ -422,5 +422,25 @@ namespace details
         name##Property(); \
     }
 
+#define WIL_DEFINE_DP_WITH_DEFAULT_VALUE_AND_CALLBACK(baseClass, type, name, defaultValue, propertyChangedCallback) \
+    static wil::details::Xaml_DependencyProperty name##Property() \
+    { \
+        static wil::details::Xaml_DependencyProperty s_##name##Property = \
+            wil::details::register_dependency_property<type, baseClass>(L"" #name, defaultValue, propertyChangedCallback); \
+        return s_##name##Property; \
+    } \
+    auto name() const \
+    { \
+        return winrt::unbox_value<type>(GetValue(name##Property())); \
+    } \
+    void name(type value) const \
+    { \
+        SetValue(name##Property(), winrt::box_value(value)); \
+    } \
+    static void Ensure##name##Property() \
+    { \
+        name##Property(); \
+    }
+
 #endif // !defined(__WIL_CPPWINRT_AUTHORING_INCLUDED_XAML_DATA) && (defined(WINRT_Microsoft_UI_Xaml_Data_H) || defined(WINRT_Windows_UI_Xaml_Data_H))
 } // namespace wil
