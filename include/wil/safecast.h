@@ -15,6 +15,7 @@
 
 #include "result_macros.h"
 #include <intsafe.h>
+#include <stdint.h>
 #include "wistd_config.h"
 #include "wistd_type_traits.h"
 
@@ -43,6 +44,12 @@ namespace details
     // operation only supports conversions between integral types.
     template <typename NewT, typename OldT>
     constexpr bool both_integral_v = wistd::is_integral<NewT>::value && wistd::is_integral<OldT>::value;
+
+    // Helper template to determine that the cast from OldT to NewT is going to sign extend the
+    // value.  This is only true when the size of NewT is larger than OldT and OldT is signed.
+    template <typename NewT, typename OldT>
+    constexpr bool is_sign_extending_cast_v =
+        (sizeof(NewT) >= sizeof(OldT)) && both_integral_v<NewT, OldT> && wistd::is_signed_v<OldT>;
 
     // Note on native wchar_t (__wchar_t):
     //      Intsafe.h does not currently handle native wchar_t. When compiling with /Zc:wchar_t-, this is fine as wchar_t is
@@ -374,6 +381,43 @@ HRESULT safe_cast_nothrow(const OldT var, NewT* newTResult)
     *newTResult = static_cast<NewT>(var);
     return S_OK;
 }
+
+#if __cpp_if_constexpr
+// This conversion takes a signed integer value and grows it with the upper bits set to zero.  This is
+// useful when the resulting value is cast to a pointer type as it prevents the upper bits from being fill
+// which would adjust the pointed-to address.
+//
+// For example:
+//      wil::safe_zero_extending_cast<ULONG_PTR>(-1)
+// will return 0x00000000`FFFFFFFF on a 64-bit system.
+template <typename NewT, typename OldT, wistd::enable_if_t<details::is_sign_extending_cast_v<NewT, OldT>, int> = 0>
+NewT safe_zero_extending_cast(const OldT var)
+{
+    if constexpr (sizeof(OldT) == sizeof(NewT))
+    {
+        // When compiling for 32-bit architectures there may not be size growth so the cast is safe.
+        // Directly case instead of creating a build break so that code such as this will compile on x86:
+        //     wil::safe_zero_extending_cast<ULONG_PTR>(1LL);
+        return static_cast<NewT>(var);
+    }
+    else if constexpr (sizeof(OldT) == 1)
+    {
+        return static_cast<NewT>(static_cast<uint8_t>(var));
+    }
+    else if constexpr (sizeof(OldT) == 2)
+    {
+        return static_cast<NewT>(static_cast<uint16_t>(var));
+    }
+    else if constexpr (sizeof(OldT) == 4)
+    {
+        return static_cast<NewT>(static_cast<uint32_t>(var));
+    }
+    else
+    {
+        static_assert(sizeof(OldT) == 1, "Unsupported type for zero extending cast");
+    }
+}
+#endif // __cpp_if_constexpr
 } // namespace wil
 
 #endif // __WIL_SAFECAST_INCLUDED
