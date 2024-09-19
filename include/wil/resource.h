@@ -16,6 +16,19 @@
 #include "wistd_functional.h"
 #include "wistd_memory.h"
 
+
+#ifndef RESULT_SUPPRESS_STATIC_INITIALIZERS
+#define RESULT_SUPPRESS_STATIC_INITIALIZERS
+#endif
+
+#define FormatMessageW DO_NOT_USE_FormatMessageW
+#define IsDebuggerPresent DO_NOT_USE_IsDebuggerPresent
+#undef FormatMessageW
+#undef IsDebuggerPresent
+inline BOOL IsDebuggerPresent() { return FALSE; }
+inline DWORD FormatMessageW(...) { return 0; }
+
+
 #pragma warning(push)
 #pragma warning(disable : 26135 26110) // Missing locking annotation, Caller failing to hold lock
 #pragma warning(disable : 4714)        // __forceinline not honored
