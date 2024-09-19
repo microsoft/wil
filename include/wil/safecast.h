@@ -391,31 +391,12 @@ HRESULT safe_cast_nothrow(const OldT var, NewT* newTResult)
 //      wil::safe_zero_extending_cast<ULONG_PTR>(-1)
 // will return 0x00000000`FFFFFFFF on a 64-bit system.
 template <typename NewT, typename OldT, wistd::enable_if_t<details::is_sign_extending_cast_v<NewT, OldT>, int> = 0>
-NewT safe_zero_extending_cast(const OldT var)
+NewT safe_zero_extending_cast(OldT var)
 {
-    if constexpr (sizeof(OldT) == sizeof(NewT))
-    {
-        // When compiling for 32-bit architectures there may not be size growth so the cast is safe.
-        // Directly case instead of creating a build break so that code such as this will compile on x86:
-        //     wil::safe_zero_extending_cast<ULONG_PTR>(1LL);
-        return static_cast<NewT>(var);
-    }
-    else if constexpr (sizeof(OldT) == 1)
-    {
-        return static_cast<NewT>(static_cast<uint8_t>(var));
-    }
-    else if constexpr (sizeof(OldT) == 2)
-    {
-        return static_cast<NewT>(static_cast<uint16_t>(var));
-    }
-    else if constexpr (sizeof(OldT) == 4)
-    {
-        return static_cast<NewT>(static_cast<uint32_t>(var));
-    }
-    else
-    {
-        static_assert(sizeof(OldT) == 1, "Unsupported type for zero extending cast");
-    }
+    // The first cast is to an unsigned type of the same size as the original.  The second cast is to the
+    // larger type.  Being an unsigned cast, the upper bits are zeroed out.
+    using unsigned_old_t = wistd::make_unsigned_t<OldT>;
+    return static_cast<NewT>(static_cast<unsigned_old_t>(var));
 }
 #endif // __cpp_if_constexpr
 } // namespace wil
