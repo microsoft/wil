@@ -382,7 +382,6 @@ HRESULT safe_cast_nothrow(const OldT var, NewT* newTResult)
     return S_OK;
 }
 
-#if __cpp_if_constexpr
 // This conversion takes a signed integer value and grows it with the upper bits set to zero.  This is
 // useful when the resulting value is cast to a pointer type as it prevents the upper bits from being fill
 // which would adjust the pointed-to address.
@@ -391,14 +390,13 @@ HRESULT safe_cast_nothrow(const OldT var, NewT* newTResult)
 //      wil::safe_zero_extending_cast<ULONG_PTR>(-1)
 // will return 0x00000000`FFFFFFFF on a 64-bit system.
 template <typename NewT, typename OldT, wistd::enable_if_t<details::is_sign_extending_cast_v<NewT, OldT>, int> = 0>
-NewT safe_zero_extending_cast(OldT var)
+NewT safe_zero_extending_cast(const OldT var)
 {
     // The first cast is to an unsigned type of the same size as the original.  The second cast is to the
     // larger type.  Being an unsigned cast, the upper bits are zeroed out.
     using unsigned_old_t = wistd::make_unsigned_t<OldT>;
     return static_cast<NewT>(static_cast<unsigned_old_t>(var));
 }
-#endif // __cpp_if_constexpr
 } // namespace wil
 
 #endif // __WIL_SAFECAST_INCLUDED

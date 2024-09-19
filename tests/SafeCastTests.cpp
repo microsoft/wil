@@ -571,7 +571,6 @@ TEST_CASE("SafeCastTests::SafeCastExpectFailFast", "[safecast]")
 }
 #endif
 
-#if __cpp_if_constexpr
 TEST_CASE("SafeCastTests::ZeroExtendingCast", "[safecast]")
 {
     constexpr uint32_t c_expected8To32Extension = 0x000000FF;
@@ -600,4 +599,3 @@ TEST_CASE("SafeCastTests::ZeroExtendingCast", "[safecast]")
         REQUIRE(wil::safe_zero_extending_cast<uint64_t>(orig) == c_expected32To64Extension);
     }
 }
-#endif // __cpp_if_constexpr
