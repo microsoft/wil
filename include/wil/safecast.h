@@ -15,7 +15,6 @@
 
 #include "result_macros.h"
 #include <intsafe.h>
-#include <stdint.h>
 #include "wistd_config.h"
 #include "wistd_type_traits.h"
 
