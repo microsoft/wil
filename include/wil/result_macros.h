@@ -1689,6 +1689,19 @@ enum class ErrorReturn
     None
 };
 
+/// @cond
+namespace details
+{
+    // 'FARPROC' is declared in such a way that it cannot safely be assumed cast-able to other function pointer types.
+    // This function helps alleviate warnings that can arise from this
+    template <typename FuncPtr>
+    inline FuncPtr GetProcAddress(_In_ HMODULE module, _In_ LPCSTR procName) WI_NOEXCEPT
+    {
+        return reinterpret_cast<FuncPtr>(reinterpret_cast<void(*)()>(::GetProcAddress(module, procName)));
+    }
+}
+/// @endcond
+
 // [optionally] Plug in error logging
 // Note:  This callback is deprecated.  Please use SetResultTelemetryFallback for telemetry or
 // SetResultLoggingCallback for observation.
@@ -2025,8 +2038,8 @@ namespace details
         {
             if (auto ntdllModule = ::GetModuleHandleW(L"ntdll.dll"))
             {
-                pfnRtlDisownModuleHeapAllocation = reinterpret_cast<decltype(pfnRtlDisownModuleHeapAllocation)>(
-                    ::GetProcAddress(ntdllModule, "RtlDisownModuleHeapAllocation"));
+                pfnRtlDisownModuleHeapAllocation =
+                    details::GetProcAddress<decltype(pfnRtlDisownModuleHeapAllocation)>(ntdllModule, "RtlDisownModuleHeapAllocation");
             }
             fetchedRtlDisownModuleHeapAllocation = true;
 
@@ -2612,7 +2625,7 @@ namespace details
         auto k32handle = GetModuleHandleW(L"kernelbase.dll");
         _Analysis_assume_(k32handle != nullptr);
         auto pfnRaiseFailFastException =
-            reinterpret_cast<decltype(WilDynamicLoadRaiseFailFastException)*>(GetProcAddress(k32handle, "RaiseFailFastException"));
+            details::GetProcAddress<decltype(WilDynamicLoadRaiseFailFastException)*>(k32handle, "RaiseFailFastException");
         if (pfnRaiseFailFastException)
         {
             pfnRaiseFailFastException(er, cr, flags);
