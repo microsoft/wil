@@ -15,6 +15,7 @@
 
 #include "result_macros.h"
 
+#include <new>
 #include <objbase.h>
 
 namespace wil
@@ -219,16 +220,16 @@ public:
 
 private:
     template <typename AllocT = Alloc>
-    static auto has_allocate_hint(int)
+    static auto deduce_has_allocate_hint(int)
         -> details::first_t<wistd::true_type, decltype(wistd::declval<AllocT>().allocate(0, wistd::declval<const_void_pointer>()))>;
     template <typename AllocT = Alloc>
-    static wistd::false_type has_allocate_hint(...);
+    static wistd::false_type deduce_has_allocate_hint(...);
 public:
     // NOTE: Ideally we should determine which 'allocate' function we'll call and set 'noexcept' based off that, however this
     // should be fine for most, if not all, scenarios
     static constexpr pointer allocate(Alloc& alloc, size_type count, const_void_pointer hint) noexcept(noexcept(alloc.allocate(count)))
     {
-        if constexpr (decltype(has_allocate_hint(0))::value)
+        if constexpr (decltype(deduce_has_allocate_hint(0))::value)
         {
             return alloc.allocate(count, hint);
         }
@@ -245,17 +246,17 @@ public:
 
 private:
     template <typename AllocT, typename T, typename... Args>
-    static auto has_construct(int)
+    static auto deduce_has_construct(int)
         -> details::first_t<wistd::true_type, decltype(wistd::declval<AllocT>().construct(wistd::declval<T*>(), wistd::declval<Args>()...))>;
     template <typename AllocT, typename T, typename... Args>
-    static wistd::false_type has_construct(...);
+    static wistd::false_type deduce_has_construct(...);
 public:
     // NOTE: Ideally we should determine if we'll call 'construct' and use that to set 'noexcept when present, however this should
     // be fine for most, if not all, scenarios
     template <typename T, typename... Args>
     static constexpr void construct(Alloc& alloc, T* ptr, Args&&... args) noexcept(wistd::is_nothrow_constructible_v<T, Args...>)
     {
-        if constexpr (decltype(has_construct<Alloc, T, Args...>(0))::value)
+        if constexpr (decltype(deduce_has_construct<Alloc, T, Args...>(0))::value)
         {
             alloc.construct(ptr, wistd::forward<Args>(args)...);
         }
@@ -268,16 +269,16 @@ public:
 
 private:
     template <typename AllocT, typename T>
-    static auto has_destroy(int) -> details::first_t<wistd::true_type, decltype(wistd::declval<AllocT>().destroy(wistd::declval<T*>()))>;
+    static auto deduce_has_destroy(int) -> details::first_t<wistd::true_type, decltype(wistd::declval<AllocT>().destroy(wistd::declval<T*>()))>;
     template <typename AllocT, typename T>
-    static wistd::false_type has_destroy(...);
+    static wistd::false_type deduce_has_destroy(...);
 public:
     // NOTE: Ideally we should determine if we'll call 'destroy' and use that to set 'noexcept when present, however this should
     // be fine for most, if not all, scenarios
     template <typename T>
     static constexpr void destroy(Alloc& alloc, T* ptr) noexcept(wistd::is_nothrow_destructible_v<T>)
     {
-        if constexpr (decltype(has_destroy<Alloc, T>(0))::value)
+        if constexpr (decltype(deduce_has_destroy<Alloc, T>(0))::value)
         {
             alloc.destroy(ptr);
         }
@@ -290,13 +291,13 @@ public:
 
 private:
     template <typename AllocT = Alloc>
-    static auto has_max_size(int) -> details::first_t<wistd::true_type, decltype(wistd::declval<const AllocT>().max_size())>;
+    static auto deduce_has_max_size(int) -> details::first_t<wistd::true_type, decltype(wistd::declval<const AllocT>().max_size())>;
     template <typename AllocT = Alloc>
-    static wistd::false_type has_max_size(...);
+    static wistd::false_type deduce_has_max_size(...);
 public:
     static constexpr size_type max_size(const Alloc& alloc) noexcept
     {
-        if constexpr (decltype(has_max_size(0))::value)
+        if constexpr (decltype(deduce_has_max_size(0))::value)
         {
             return alloc.max_size();
         }
@@ -310,14 +311,14 @@ public:
 
 private:
     template <typename AllocT = Alloc>
-    static auto has_select_on_container_copy_construction(int)
+    static auto deduce_has_select_on_container_copy_construction(int)
         -> details::first_t<wistd::true_type, decltype(wistd::declval<const AllocT>().select_on_container_copy_construction())>;
     template <typename AllocT = Alloc>
-    static wistd::false_type has_select_on_container_copy_construction(...);
+    static wistd::false_type deduce_has_select_on_container_copy_construction(...);
 public:
     static constexpr Alloc select_on_container_copy_construction(const Alloc& alloc) // TODO: noexcept?
     {
-        if constexpr (decltype(has_select_on_container_copy_construction(0))::value)
+        if constexpr (decltype(deduce_has_select_on_container_copy_construction(0))::value)
         {
             return alloc.select_on_container_copy_construction();
         }
@@ -351,7 +352,6 @@ namespace details
     {
     private:
         using Allocator = Alloc<T, ErrPolicy>;
-        using ErrTraits = wil::err_policy_traits<ErrPolicy>;
 
     public:
         using err_policy = ErrPolicy;
@@ -359,7 +359,7 @@ namespace details
         using size_type = size_t;
         using difference_type = ptrdiff_t;
 
-        constexpr T* allocate(size_type count) noexcept(ErrTraits::is_nothrow)
+        constexpr T* allocate(size_type count) noexcept(err_policy_traits<ErrPolicy>::is_nothrow)
         {
             T* result = nullptr;
 
@@ -369,7 +369,8 @@ namespace details
                 result = static_cast<Allocator*>(this)->do_allocate(count);
             }
 
-            ErrTraits::Pointer(result);
+            // NOTE: May return a value; intentionally ignoring as we want to return null on failure when we don't throw/failfast
+            (void)err_policy_traits<ErrPolicy>::Pointer(result);
             return result;
         }
     };
@@ -402,7 +403,6 @@ namespace details
 }
 /// @endcond
 
-#ifdef WIL_ENABLE_EXCEPTIONS
 // Basically std::allocaotr, but we can refer to it directly even when STL use cannot be assumed
 template <typename T, typename ErrPolicy = err_exception_policy>
 struct new_delete_allocator_t : details::stateless_allocator_impl_t<new_delete_allocator_t, T, ErrPolicy>
@@ -427,13 +427,14 @@ public:
     }
 };
 
+#ifdef WIL_ENABLE_EXCEPTIONS
 template <typename T>
 using new_delete_allocator = new_delete_allocator_t<T, err_exception_policy>;
+#endif
 template <typename T>
 using new_delete_allocator_nothrow = new_delete_allocator_t<T, err_returncode_policy>;
 template <typename T>
 using new_delete_allocator_failfast = new_delete_allocator_t<T, err_failfast_policy>;
-#endif
 
 template <typename T, typename ErrPolicy = err_exception_policy>
 struct cotaskmem_allocator_t : details::stateless_allocator_impl_t<cotaskmem_allocator_t, T, ErrPolicy>

@@ -53,6 +53,7 @@ namespace details
 {
     constexpr const size_t npos = static_cast<size_t>(0) - 1;
 
+    // Lookup table to quickly see if a character belongs to a source string. Only works with characters in the range 0-255
     struct character_bitmask
     {
         bool set(const wchar_t* chars, size_t count) noexcept
@@ -99,7 +100,7 @@ namespace details
         WCharT* m_data = nullptr;
         size_t m_length = 0;
 
-        void swap_storage(non_owning_path_base& other) noexcept
+        void storage_swap(non_owning_path_base& other) noexcept
         {
             wistd::swap_wil(m_data, other.m_data);
             wistd::swap_wil(m_length, other.m_length);
@@ -142,40 +143,8 @@ namespace details
             wchar_t* pointer;
         } m_data;
 
-        constexpr void swap_storage(allocated_path_base& other) noexcept
+        constexpr void storage_swap(allocated_path_base& other) noexcept
         {
-            // TODO: Remove this nonsense
-            // auto thisAllocated = m_capacity > small_buffer_len;
-            // auto otherAllocated = other.m_capacity > small_buffer_len;
-
-            // if (thisAllocated && otherAllocated)
-            // {
-            //     // Easy case; swap pointers
-            //     wistd::swap_wil(m_data.pointer, other.m_data.pointer);
-            // }
-            // else if (thisAllocated)
-            // {
-            //     // Semi-easy; just need to copy from other's buffer to ours
-            //     auto ptr = m_data.pointer;
-            //     ::wmemcpy(m_data.buffer, other.m_data.buffer, other.m_length);
-            //     other.m_data.pointer = ptr;
-            // }
-            // else if (otherAllocated)
-            // {
-            //     // Same as above, but copy from our buffer to other's
-            //     auto ptr = other.m_data.pointer;
-            //     ::wmemcpy(other.m_data.buffer, m_data.buffer, m_length);
-            //     m_data.pointer = ptr;
-            // }
-            // else
-            // {
-            //     // Trickiest case; need a temp buffer
-            //     wchar_t temp[small_buffer_len];
-            //     ::wmemcpy(temp, m_data.buffer, m_length);
-            //     ::wmemcpy(m_data.buffer, other.m_data.buffer, other.m_length);
-            //     ::wmemcpy(other.m_data.buffer, temp, m_length);
-            // }
-
             wistd::swap_wil(m_length, other.m_length);
             wistd::swap_wil(m_capacity, other.m_capacity);
             wistd::swap_wil(m_data, other.m_data);
@@ -186,22 +155,22 @@ namespace details
             return m_capacity != small_buffer_len;
         }
 
-        constexpr wchar_t* get_pointer() noexcept
+        wchar_t* storage_data() const noexcept
         {
             return is_allocated() ? m_data.pointer : m_data.buffer;
         }
 
-        constexpr const wchar_t* get_pointer() const noexcept
+        size_t storage_length() const noexcept
         {
-            return is_allocated() ? m_data.pointer : m_data.buffer;
+            return m_length;
         }
 
-        allocator_result assign_storage(const wchar_t* data, size_t length) // TODO: noexcept
+        allocator_result storage_assign(const wchar_t* data, size_t length) // TODO: noexcept
         {
             wchar_t* dest;
             if ((length + 1) <= m_capacity)
             {
-                dest = get_pointer();
+                dest = storage_data();
             }
             else
             {
@@ -232,6 +201,11 @@ namespace details
             return err_policy_traits<allocator_err_policy>::OK();
         }
 
+        allocator_result ensure_capacity(size_t length) // TODO: noexcept
+        {
+
+        }
+
     public:
 
         constexpr allocated_path_base() noexcept = default;
@@ -242,7 +216,7 @@ namespace details
         constexpr allocated_path_base(const wchar_t* data, size_t length) // TODO: noexcept
         {
             static_assert(wistd::is_same_v<allocator_result, void>, "Construction from pointer requires exceptions or failfast");
-            assign_storage(data, length);
+            storage_assign(data, length);
         }
 
         ~allocated_path_base()
@@ -370,7 +344,7 @@ namespace details
         constexpr void swap(path_base& other) noexcept
         {
             // TODO: This likely needs to be on the derived class?
-            this->swap_storage(other);
+            this->storage_swap(other);
         }
 
         // FUTURE: Can be made 'constexpr' by deducing presence of __builtin_memcpy or future MSVC equivalent, though there's no
@@ -945,7 +919,9 @@ inline /*constexpr*/ bool operator>=(path_view_t<ErrPolicy> lhs, wistd::type_ide
     return lhs.compare(rhs) >= 0;
 }
 
+#ifdef WIL_ENABLE_EXCEPTIONS
 using path_view = path_view_t<err_exception_policy>;
+#endif
 using path_view_nothrow = path_view_t<err_returncode_policy>;
 using path_view_failfast = path_view_t<err_failfast_policy>;
 
@@ -1033,12 +1009,14 @@ public:
     }
 };
 
+#ifdef WIL_ENABLE_EXCEPTIONS
 using path_ref = path_ref_t<err_exception_policy>;
+#endif
 using path_ref_nothrow = path_ref_t<err_returncode_policy>;
 using path_ref_failfast = path_ref_t<err_failfast_policy>;
 
 template <typename ErrPolicy, typename Alloc>
-class path_t : public details::path_base<wchar_t, ErrPolicy>
+class path_t : public details::path_base<details::allocated_path_base<Alloc>, ErrPolicy>
 {
     using BaseT = details::path_base<wchar_t, ErrPolicy>;
 
@@ -1064,7 +1042,9 @@ private:
     size_t m_capacity = small_buffer_size;
 };
 
+#ifdef WIL_ENABLE_EXCEPTIONS
 using path = path_t<err_exception_policy>;
+#endif
 using path_nothrow = path_t<err_returncode_policy>;
 using path_failfast = path_t<err_failfast_policy>;
 }

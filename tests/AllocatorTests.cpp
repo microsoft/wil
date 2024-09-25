@@ -517,12 +517,10 @@ static void DoAllocatorTests()
     }
 }
 
-#ifdef WIL_ENABLE_EXCEPTIONS
 TEST_CASE("AllocatorTests::NewDeleteAllocator")
 {
     DoAllocatorTests<wil::new_delete_allocator_t>();
 }
-#endif
 
 TEST_CASE("AllocatorTests::CoTaskMemAllocator")
 {
