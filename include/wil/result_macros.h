@@ -1697,9 +1697,9 @@ namespace details
     template <typename FuncPtr>
     inline FuncPtr GetProcAddress(_In_ HMODULE module, _In_ LPCSTR procName) WI_NOEXCEPT
     {
-        return reinterpret_cast<FuncPtr>(reinterpret_cast<void(*)()>(::GetProcAddress(module, procName)));
+        return reinterpret_cast<FuncPtr>(reinterpret_cast<void (*)()>(::GetProcAddress(module, procName)));
     }
-}
+} // namespace details
 /// @endcond
 
 // [optionally] Plug in error logging
