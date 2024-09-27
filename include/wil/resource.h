@@ -3710,6 +3710,33 @@ WI_NODISCARD inline secure_zero_memory_scope_exit SecureZeroMemory_scope_exit(_I
     return SecureZeroMemory_scope_exit(static_cast<void*>(initializedString), wcslen(initializedString) * sizeof(initializedString[0]));
 }
 
+/// @cond
+namespace details
+{
+    inline void __stdcall FreeProcessHeap(_Pre_opt_valid_ _Frees_ptr_opt_ void* p)
+    {
+        ::HeapFree(::GetProcessHeap(), 0, p);
+    }
+
+    struct heap_allocator
+    {
+        static _Ret_opt_bytecap_(size) void* allocate(size_t size) WI_NOEXCEPT
+        {
+            return ::HeapAlloc(::GetProcessHeap(), HEAP_ZERO_MEMORY, size);
+        }
+    };
+} // namespace details
+/// @endcond
+
+struct process_heap_deleter
+{
+    template <typename T>
+    void operator()(_Pre_valid_ _Frees_ptr_ T* p) const
+    {
+        details::FreeProcessHeap(p);
+    }
+};
+
 struct virtualalloc_deleter
 {
     template <typename T>
@@ -4029,35 +4056,8 @@ typedef weak_any<shared_hfind_change> weak_hfind_change;
 #define __WIL__WIL_HEAP_API
 /// @endcond
 
-/// @cond
-namespace details
-{
-    inline void __stdcall FreeProcessHeap(_Pre_opt_valid_ _Frees_ptr_opt_ void* p)
-    {
-        ::HeapFree(::GetProcessHeap(), 0, p);
-    }
-
-    struct heap_allocator
-    {
-        static _Ret_opt_bytecap_(size) void* allocate(size_t size) WI_NOEXCEPT
-        {
-            return ::HeapAlloc(::GetProcessHeap(), HEAP_ZERO_MEMORY, size);
-        }
-    };
-
-    struct process_heap_deleter
-    {
-        template <typename T>
-        void operator()(_Pre_valid_ _Frees_ptr_ T* p) const
-        {
-            details::FreeProcessHeap(p);
-        }
-    };
-}
-/// @endcond
-
 template <typename T = void>
-using unique_process_heap_ptr = wistd::unique_ptr<details::ensure_trivially_destructible_t<T>, details::process_heap_deleter>;
+using unique_process_heap_ptr = wistd::unique_ptr<details::ensure_trivially_destructible_t<T>, process_heap_deleter>;
 typedef unique_any<void*, decltype(&details::FreeProcessHeap), details::FreeProcessHeap> unique_process_heap;
 typedef unique_any<PWSTR, decltype(&details::FreeProcessHeap), details::FreeProcessHeap> unique_process_heap_string;
 
