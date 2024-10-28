@@ -72,6 +72,43 @@ void InitTestAddresses()
         nullptr);
 }
 
+TEST_CASE("SocketTests::Verifying_wsastartup_cleanup", "[sockets]")
+{
+    // verify socket APIs fail without having called WSAStartup
+    const auto socket_test = ::socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    const auto gle = ::WSAGetLastError();
+    REQUIRE(socket_test == INVALID_SOCKET);
+    REQUIRE(gle == WSANOTINITIALISED);
+
+    SECTION("Verifying _nothrow")
+    {
+        const auto cleanup = wil::networking::WSAStartup_nothrow();
+        const auto bool succeeded = socket_test;
+        REQUIRE(succeeded);
+        const auto socket_test = ::socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+        REQUIRE(socket_test != INVALID_SOCKET);
+        ::closesocket(socket_test);
+    }
+
+    SECTION("Verifying _failfast")
+    {
+        const auto cleanup = wil::networking::WSAStartup_failfast();
+        const auto socket_test = ::socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+        REQUIRE(socket_test != INVALID_SOCKET);
+        ::closesocket(socket_test);
+    }
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+    SECTION("Verifying throwing")
+    {
+        const auto cleanup = wil::networking::WSAStartup();
+        const auto socket_test = ::socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+        REQUIRE(socket_test != INVALID_SOCKET);
+        ::closesocket(socket_test);
+    }
+#endif
+}
+
 TEST_CASE("SocketTests::Verifying_in_addr_interactions", "[sockets]")
 {
     InitTestAddresses();

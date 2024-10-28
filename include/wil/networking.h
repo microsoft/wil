@@ -72,6 +72,7 @@ namespace networking
 #ifdef WIL_ENABLE_EXCEPTIONS
     WI_NODISCARD inline unique_wsacleanup_call WSAStartup()
     {
+        WSADATA unused_data{};
         THROW_IF_WIN32_ERROR(::WSAStartup(WINSOCK_VERSION, &unused_data));
         return {};
     }
@@ -168,6 +169,10 @@ namespace networking
 
     private:
         friend addr_info resolve_name_nothrow(_In_ PCWSTR name) WI_NOEXCEPT;
+#ifdef WIL_ENABLE_EXCEPTIONS
+        friend addr_info resolve_name(_In_ PCWSTR name);
+#endif
+
         addr_info(_In_ ADDRINFOW* addrResult, int error) : m_addrResult{addrResult}, m_lastError{error}
         {
         }
@@ -176,17 +181,37 @@ namespace networking
         int m_lastError{};
     };
 
-    inline ::wil::networking::addr_info resolve_name_nothrow(_In_ PCWSTR name, const ADDRINFOW* addrInfoHints = nullptr) WI_NOEXCEPT
+    inline ::wil::networking::addr_info resolve_name_nothrow(_In_ PCWSTR name) WI_NOEXCEPT
     {
         int lastError = 0;
         ADDRINFOW* addrResult{};
-        if (0 != ::GetAddrInfoW(name, nullptr, addrInfoHints, &addrResult))
+        if (0 != ::GetAddrInfoW(name, nullptr, nullptr, &addrResult))
         {
             lastError = ::WSAGetLastError();
         }
 
         return {addrResult, lastError};
     }
+
+    inline ::wil::networking::addr_info resolve_local_addresses_nothrow() WI_NOEXCEPT
+    {
+        return ::wil::networking::resolve_name_nothrow(L"");
+    }
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+    inline ::wil::networking::addr_info resolve_name(_In_ PCWSTR name)
+    {
+        ADDRINFOW* addrResult{};
+        THROW_IF_WIN32_ERROR(::GetAddrInfoW(name, nullptr, nullptr, &addrResult));
+        return {addrResult, 0};
+    }
+
+    inline ::wil::networking::addr_info resolve_local_addresses() WI_NOEXCEPT
+    {
+        return ::wil::networking::resolve_name(L"");
+    }
+
+#endif
 
     // INET6_ADDRSTRLEN is guaranteed to be larger than INET_ADDRSTRLEN for IPv4 addresses
     typedef WCHAR socket_address_wstring[INET6_ADDRSTRLEN];
@@ -790,13 +815,10 @@ namespace networking
         {
         case AF_UNSPEC:
             return 0;
-
         case AF_INET:
             return ntohs(m_sockaddr.Ipv4.sin_port);
-
         case AF_INET6:
             return ntohs(m_sockaddr.Ipv6.sin6_port);
-
         default:
             WI_ASSERT_MSG(false, "Unknown address family");
             return 0;
@@ -808,14 +830,11 @@ namespace networking
         switch (family())
         {
         case AF_UNSPEC:
-            return 0;
-
+            // fallthrough
         case AF_INET:
             return 0;
-
         case AF_INET6:
             return m_sockaddr.Ipv6.sin6_flowinfo;
-
         default:
             WI_ASSERT_MSG(false, "Unknown address family");
             return 0;
@@ -827,14 +846,11 @@ namespace networking
         switch (family())
         {
         case AF_UNSPEC:
-            return 0;
-
+            // fallthrough
         case AF_INET:
             return 0;
-
         case AF_INET6:
             return m_sockaddr.Ipv6.sin6_scope_id;
-
         default:
             WI_ASSERT_MSG(false, "Unknown address family");
             return 0;
