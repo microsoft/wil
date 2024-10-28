@@ -23,7 +23,7 @@
 // define _SECURE_SOCKET_TYPES_DEFINED_ at the project level to have access to SocketSecurity* APIs
 
 #if !defined(_WINSOCK2API_) && defined(_WINSOCKAPI_)
-#error The Winsock 1.1 winsock.h header was included before the Winsock 2 winsock2.h header - define WIN32_LEAN_AND_MEAN to avoid it included with Windows.h
+#error The Winsock 1.1 winsock.h header was included before the Winsock 2 winsock2.h header - define WIN32_LEAN_AND_MEAN to avoid winsock.h included with Windows.h
 #endif
 
 #include <WinSock2.h>
@@ -40,6 +40,42 @@ namespace wil
 //! Functions and classes that support network sockets operations and structures
 namespace sockets
 {
+    //! A type that calls WSACleanup on destruction (or reset()).
+    using unique_wsacleanup_call = unique_call<decltype(&::WSACleanup), ::WSACleanup>;
+
+    //! Calls WSAStartup; returns an RAII object that reverts, the RAII object will resolve to bool 'false' if failed
+    WI_NODISCARD inline unique_wsacleanup_call WSAStartup_nothrow()
+    {
+        WSADATA unused_data{};
+        const auto error = ::WSAStartup(WINSOCK_VERSION, &unused_data);
+        LOG_IF_WIN32_ERROR(error);
+
+        unique_wsacleanup_call return_cleanup{};
+        if (error != 0)
+        {
+            // internally set m_call to false
+            // so the caller can check the return object against its operator bool
+            // to determine if it succeeded
+            return_cleanup.release();
+        }
+        return return_cleanup;
+    }
+
+    //! Calls WSAStartup and fail-fasts if it fails; returns an RAII object that reverts
+    WI_NODISCARD inline unique_wsacleanup_call WSAStartup_failfast()
+    {
+        WSADATA unused_data{};
+        FAIL_FAST_IF_FAILED(::WSAStartup(WINSOCK_VERSION, &unused_data));
+        return {};
+    }
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+    WI_NODISCARD inline unique_wsacleanup_call WSAStartup()
+    {
+        THROW_IF_WIN32_ERROR(::WSAStartup(WINSOCK_VERSION, &unused_data));
+        return {};
+    }
+#endif
 
     // encapsulates working with the sockaddr datatype
     //
@@ -59,28 +95,32 @@ namespace sockets
     // Commonly used sockaddr* types that are using with TCPIP networking:
     //
     // sockaddr_storage / SOCKADDR_STORAGE
-    // - a sockaddr* derived type that is guaranteed to be large enough to hold any possible socket address
+    //   - a sockaddr* derived type that is guaranteed to be large enough to hold any possible socket address
     //
     // sockaddr_in / SOCKADDR_IN
-    // - a sockaddr* derived type designed to contain an IPv4 address and port number
+    //   - a sockaddr* derived type designed to contain an IPv4 address and port number
     // sockaddr_in6 / SOCKADDR_IN6
-    // - a sockaddr* derived type designed to contain an IPv6 address, port, scope id, and flow info
+    //   - a sockaddr* derived type designed to contain an IPv6 address, port, scope id, and flow info
     // SOCKADDR_INET
-    // - a union of sockaddr_in and sockaddr_in6 -- i.e., large enough to contain any TCPIP address
+    //   - a union of sockaddr_in and sockaddr_in6 -- i.e., large enough to contain any TCPIP address
     //
     // in_addr (IN_ADDR)
-    // - the raw address portion of a sockaddr_in
+    //   - the raw address portion of a sockaddr_in
     // in6_addr (IN6_ADDR)
-    // - the raw address portion of a sockaddr_in6
+    //   - the raw address portion of a sockaddr_in6
     //
     // SOCKET_ADDRESS
-    // - not a derived sockaddr* type
-    // - a structure containing both a sockaddr* and its length fields
+    //   - not a derived sockaddr* type
+    //   - a structure containing both a sockaddr* and its length fields
     //
     // SOCKADDR_DL... data-link
 
     class addr_info;
     addr_info resolve_name_nothrow(_In_ PCWSTR name) WI_NOEXCEPT;
+
+    // class addr_info encapsulates the ADDRINFO structure
+    // this structure contains a linked list of addresses returned from resolving a name via GetAddrInfo
+    // exposes iterator semantics to safely access these addresses
     class addr_info
     {
     public:
@@ -92,7 +132,7 @@ namespace sockets
         iterator begin();
         iterator end();
 
-        [[nodiscard]] int last_error() const WI_NOEXCEPT
+        [[nodiscard]] int get_last_error() const WI_NOEXCEPT
         {
             return m_lastError;
         }
@@ -136,11 +176,11 @@ namespace sockets
         int m_lastError{};
     };
 
-    inline addr_info resolve_name_nothrow(_In_ PCWSTR name) WI_NOEXCEPT
+    inline ::wil::sockets::addr_info resolve_name_nothrow(_In_ PCWSTR name, const ADDRINFOW* addrInfoHints = nullptr) WI_NOEXCEPT
     {
-        ADDRINFOW* addrResult{};
         int lastError = 0;
-        if (0 != ::GetAddrInfoW(name, nullptr, nullptr, &addrResult))
+        ADDRINFOW* addrResult{};
+        if (0 != ::GetAddrInfoW(name, nullptr, addrInfoHints, &addrResult))
         {
             lastError = ::WSAGetLastError();
         }
@@ -162,8 +202,8 @@ namespace sockets
         explicit socket_address(const SOCKADDR_IN6*) WI_NOEXCEPT;
         explicit socket_address(const SOCKADDR_INET*) WI_NOEXCEPT;
         explicit socket_address(const SOCKET_ADDRESS*) WI_NOEXCEPT;
-        explicit socket_address(const IN_ADDR*, uint16_t port = 0) WI_NOEXCEPT;
-        explicit socket_address(const IN6_ADDR*, uint16_t port = 0) WI_NOEXCEPT;
+        explicit socket_address(const IN_ADDR*, unsigned short port = 0) WI_NOEXCEPT;
+        explicit socket_address(const IN6_ADDR*, unsigned short port = 0) WI_NOEXCEPT;
 
         ~socket_address() = default;
         socket_address(const socket_address&) WI_NOEXCEPT = default;
@@ -504,7 +544,7 @@ namespace sockets
 
     inline void socket_address::set_port(USHORT port) WI_NOEXCEPT
     {
-        // port values in sockaddr's are always in network-byte order
+        // port values in a sockaddr are always in network-byte order
         USHORT port_network_byte_order = htons(port);
         switch (family())
         {
@@ -521,21 +561,21 @@ namespace sockets
         }
     }
 
-    inline void socket_address::set_scope_id(ULONG scopeid) WI_NOEXCEPT
+    inline void socket_address::set_scope_id(ULONG scopeId) WI_NOEXCEPT
     {
         WI_ASSERT(family() == AF_INET6);
         if (family() == AF_INET6)
         {
-            m_sockaddr.Ipv6.sin6_scope_id = scopeid;
+            m_sockaddr.Ipv6.sin6_scope_id = scopeId;
         }
     }
 
-    inline void socket_address::set_flow_info(ULONG flowinfo) WI_NOEXCEPT
+    inline void socket_address::set_flow_info(ULONG flowInfo) WI_NOEXCEPT
     {
         WI_ASSERT(family() == AF_INET6);
         if (family() == AF_INET6)
         {
-            m_sockaddr.Ipv6.sin6_flowinfo = flowinfo;
+            m_sockaddr.Ipv6.sin6_flowinfo = flowInfo;
         }
     }
 
