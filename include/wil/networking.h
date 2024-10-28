@@ -11,8 +11,8 @@
 //! @file
 //! Helpers for using BSD sockets and Windows Winsock APIs and structures.
 //! Does not require the use of the STL or C++ exceptions (see _nothrow functions)
-#ifndef __WIL_SOCKETS_INCLUDED
-#define __WIL_SOCKETS_INCLUDED
+#ifndef __WIL_NETWORKING_INCLUDED
+#define __WIL_NETWORKING_INCLUDED
 
 #ifdef _KERNEL_MODE
 #error This header is not supported in kernel-mode.
@@ -37,8 +37,8 @@
 
 namespace wil
 {
-//! Functions and classes that support network sockets operations and structures
-namespace sockets
+//! Functions and classes that support networking operations and structures
+namespace networking
 {
     //! A type that calls WSACleanup on destruction (or reset()).
     using unique_wsacleanup_call = unique_call<decltype(&::WSACleanup), ::WSACleanup>;
@@ -176,7 +176,7 @@ namespace sockets
         int m_lastError{};
     };
 
-    inline ::wil::sockets::addr_info resolve_name_nothrow(_In_ PCWSTR name, const ADDRINFOW* addrInfoHints = nullptr) WI_NOEXCEPT
+    inline ::wil::networking::addr_info resolve_name_nothrow(_In_ PCWSTR name, const ADDRINFOW* addrInfoHints = nullptr) WI_NOEXCEPT
     {
         int lastError = 0;
         ADDRINFOW* addrResult{};
@@ -900,7 +900,7 @@ namespace sockets
     {
         return &m_sockaddr.Ipv6.sin6_addr;
     }
-} // namespace sockets
+} // namespace networking
 } // namespace wil
 
 #endif
