@@ -381,9 +381,9 @@ check fails as opposed to the invalid parameter handler that the STL invokes. Th
 // Uses the __has_include macro, if available. Otherwise uses a user-provided fallback. E.g. the fallback could always
 // default to true or false, or it could do something like a C++ standard version check
 #ifdef __has_include
-#define WI_HAS_INCLUDE(header, fallback)    __has_include(header)
+#define WI_HAS_INCLUDE(header, fallback) __has_include(header)
 #else
-#define WI_HAS_INCLUDE(header, fallback)    (fallback)
+#define WI_HAS_INCLUDE(header, fallback) (fallback)
 #endif
 /// @endcond
 
