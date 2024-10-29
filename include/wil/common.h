@@ -372,19 +372,19 @@ check fails as opposed to the invalid parameter handler that the STL invokes. Th
 #endif
 
 /// @cond
-#if (__cplusplus >= 201703) || (_MSVC_LANG >= 201703)
-#define WIL_HAS_CXX_17 1
-#else
-#define WIL_HAS_CXX_17 0
-#endif
-
 // Until we'll have C++17 enabled in our code base, we're falling back to SAL
 #define WI_NODISCARD __WI_LIBCPP_NODISCARD_ATTRIBUTE
-/// @endcond
 
-/// @cond
 #define __R_ENABLE_IF_IS_CLASS(ptrType) wistd::enable_if_t<wistd::is_class<ptrType>::value, void*> = nullptr
 #define __R_ENABLE_IF_IS_NOT_CLASS(ptrType) wistd::enable_if_t<!wistd::is_class<ptrType>::value, void*> = nullptr
+
+// Uses the __has_include macro, if available. Otherwise uses a user-provided fallback. E.g. the fallback could always
+// default to true or false, or it could do something like a C++ standard version check
+#ifdef __has_include
+#define WI_HAS_INCLUDE(header, fallback)    __has_include(header)
+#else
+#define WI_HAS_INCLUDE(header, fallback)    (fallback)
+#endif
 /// @endcond
 
 //! @defgroup bitwise Bitwise Inspection and Manipulation

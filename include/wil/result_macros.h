@@ -123,7 +123,7 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 // It would appear as though the C++17 "noexcept is part of the type system" update in MSVC has "infected" the behavior
 // when compiling with C++14 (the default...), however the updated behavior for decltype understanding noexcept is _not_
 // present... So, work around it
-#if __WI_LIBCPP_STD_VER >= 17
+#if __cpp_noexcept_function_type >= 201510L
 #define WI_PFN_NOEXCEPT WI_NOEXCEPT
 #else
 #define WI_PFN_NOEXCEPT
