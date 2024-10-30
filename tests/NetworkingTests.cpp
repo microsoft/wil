@@ -25,7 +25,7 @@ in6_addr Test_any_in6_addr{};
 
 constexpr uint16_t TestPort = 12345;
 
-INIT_ONCE SocketTestInit{INIT_ONCE_STATIC_INIT};
+INIT_ONCE SocketTestInit = INIT_ONCE_STATIC_INIT;
 void InitTestAddresses()
 {
     InitOnceExecuteOnce(
@@ -66,6 +66,18 @@ void InitTestAddresses()
                 return FALSE;
             }
 
+            error = RtlIpv4StringToAddressW(Test_any_in_addr_string, TRUE, &terminator, &Test_any_in_addr);
+            if (error != ERROR_SUCCESS)
+            {
+                return FALSE;
+            }
+
+            error = RtlIpv6StringToAddressW(Test_any_in6_addr_string, &terminator, &Test_any_in6_addr);
+            if (error != ERROR_SUCCESS)
+            {
+                return FALSE;
+            }
+
             return TRUE;
         },
         nullptr,
@@ -83,7 +95,7 @@ TEST_CASE("SocketTests::Verifying_wsastartup_cleanup", "[sockets]")
     SECTION("Verifying _nothrow")
     {
         const auto cleanup = wil::networking::WSAStartup_nothrow();
-        const auto bool succeeded = socket_test;
+        const bool succeeded = !!cleanup;
         REQUIRE(succeeded);
         const auto socket_test = ::socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
         REQUIRE(socket_test != INVALID_SOCKET);
@@ -112,29 +124,29 @@ TEST_CASE("SocketTests::Verifying_wsastartup_cleanup", "[sockets]")
 TEST_CASE("SocketTests::Verifying_in_addr_interactions", "[sockets]")
 {
     InitTestAddresses();
-    REQUIRE(wil::sockets::socket_address::length() == sizeof(SOCKADDR_INET));
+    REQUIRE(wil::networking::socket_address::length() == sizeof(SOCKADDR_INET));
 
-    wil::sockets::socket_address default_addr{};
+    wil::networking::socket_address default_addr{};
 
-    wil::sockets::socket_address test_v4_addr{&Test_in_addr};
-    wil::sockets::socket_address test_v4_addr2{&Test_in_addr2};
-    wil::sockets::socket_address test_v4_addr_with_port{&Test_in_addr, TestPort};
+    wil::networking::socket_address test_v4_addr{&Test_in_addr};
+    wil::networking::socket_address test_v4_addr2{&Test_in_addr2};
+    wil::networking::socket_address test_v4_addr_with_port{&Test_in_addr, TestPort};
 
-    wil::sockets::socket_address test_v6_addr{&Test_in6_addr};
-    wil::sockets::socket_address test_v6_addr2{&Test_in6_addr2};
-    wil::sockets::socket_address test_v6_addr_with_port{&Test_in6_addr, TestPort};
+    wil::networking::socket_address test_v6_addr{&Test_in6_addr};
+    wil::networking::socket_address test_v6_addr2{&Test_in6_addr2};
+    wil::networking::socket_address test_v6_addr_with_port{&Test_in6_addr, TestPort};
 
-    wil::sockets::socket_address test_v4_linklocal_addr{&Test_linklocal_in_addr};
-    wil::sockets::socket_address test_v4_linklocal_addr_with_port{&Test_linklocal_in_addr, TestPort};
+    wil::networking::socket_address test_v4_linklocal_addr{&Test_linklocal_in_addr};
+    wil::networking::socket_address test_v4_linklocal_addr_with_port{&Test_linklocal_in_addr, TestPort};
 
-    wil::sockets::socket_address test_v6_linklocal_addr{&Test_linklocal_in6_addr};
-    wil::sockets::socket_address test_v6_linklocal_addr_with_port{&Test_linklocal_in6_addr, TestPort};
+    wil::networking::socket_address test_v6_linklocal_addr{&Test_linklocal_in6_addr};
+    wil::networking::socket_address test_v6_linklocal_addr_with_port{&Test_linklocal_in6_addr, TestPort};
 
-    wil::sockets::socket_address test_v4_any_addr{&Test_any_in_addr};
-    wil::sockets::socket_address test_v4_any_addr_with_port{&Test_any_in_addr, TestPort};
+    wil::networking::socket_address test_v4_any_addr{&Test_any_in_addr};
+    wil::networking::socket_address test_v4_any_addr_with_port{&Test_any_in_addr, TestPort};
 
-    wil::sockets::socket_address test_v6_any_addr{&Test_any_in6_addr};
-    wil::sockets::socket_address test_v6_any_addr_with_port{&Test_any_in6_addr, TestPort};
+    wil::networking::socket_address test_v6_any_addr{&Test_any_in6_addr};
+    wil::networking::socket_address test_v6_any_addr_with_port{&Test_any_in6_addr, TestPort};
 
     SECTION("Default socket address properties")
     {

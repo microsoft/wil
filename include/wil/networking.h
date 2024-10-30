@@ -23,7 +23,7 @@
 // define _SECURE_SOCKET_TYPES_DEFINED_ at the project level to have access to SocketSecurity* APIs
 
 #if !defined(_WINSOCK2API_) && defined(_WINSOCKAPI_)
-#error The Winsock 1.1 winsock.h header was included before the Winsock 2 winsock2.h header - define WIN32_LEAN_AND_MEAN to avoid winsock.h included with Windows.h
+#error The Winsock 1.1 winsock.h header was included before the Winsock 2 winsock2.h header - define WIN32_LEAN_AND_MEAN to avoid winsock.h included with windows.h
 #endif
 
 #include <WinSock2.h>
@@ -65,7 +65,7 @@ namespace networking
     WI_NODISCARD inline unique_wsacleanup_call WSAStartup_failfast()
     {
         WSADATA unused_data{};
-        FAIL_FAST_IF_FAILED(::WSAStartup(WINSOCK_VERSION, &unused_data));
+        FAIL_FAST_IF_WIN32_ERROR(::WSAStartup(WINSOCK_VERSION, &unused_data));
         return {};
     }
 
@@ -655,7 +655,8 @@ namespace networking
             auto original_port = m_sockaddr.Ipv6.sin6_port;
             ::ZeroMemory(&m_sockaddr, c_sockaddr_size);
             m_sockaddr.Ipv6.sin6_port = original_port;
-            m_sockaddr.Ipv6.sin6_addr = IN6ADDR_LOOPBACK_INIT;
+            // some compilers will not allow assignment of IN6ADDR_LOOPBACK_INIT
+            IN6_SET_ADDR_LOOPBACK(&m_sockaddr.Ipv6.sin6_addr);
             break;
         }
 
