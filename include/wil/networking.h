@@ -26,11 +26,12 @@
 #error The Winsock 1.1 winsock.h header was included before the Winsock 2 winsock2.h header - define WIN32_LEAN_AND_MEAN to avoid winsock.h included with windows.h
 #endif
 
-#include <WinSock2.h>
+#include <winsock2.h>
 #include <ws2def.h>
 #include <ws2ipdef.h>
 #include <mstcpip.h>
 #include <ws2tcpip.h>
+#include <iphlpapi.h>
 
 // wil headers
 #include "resource.h"
@@ -41,6 +42,9 @@ namespace wil
 namespace networking
 {
     //! A type that calls WSACleanup on destruction (or reset()).
+    //! WSAStartup must be called for the lifetime of all Winsock APIs (synchronous and asynchronous)
+    //! WSACleanup will unload the full Winsock catalog - all the libraries - with the final reference
+    //! which can lead to crashes if socket APIs are still being used after the final WSACleanup is called
     using unique_wsacleanup_call = unique_call<decltype(&::WSACleanup), ::WSACleanup>;
 
     //! Calls WSAStartup; returns an RAII object that reverts, the RAII object will resolve to bool 'false' if failed
@@ -267,7 +271,9 @@ namespace networking
         // set_address* preserves the existing address family and port in the object
 
         void set_address_any() WI_NOEXCEPT;
+        void set_address_any(ADDRESS_FAMILY family) WI_NOEXCEPT;
         void set_address_loopback() WI_NOEXCEPT;
+        void set_address_loopback(ADDRESS_FAMILY family) WI_NOEXCEPT;
         void set_address(const IN_ADDR*) WI_NOEXCEPT;
         void set_address(const IN6_ADDR*) WI_NOEXCEPT;
         [[nodiscard]] HRESULT set_address_nothrow(SOCKET) WI_NOEXCEPT;
@@ -606,13 +612,13 @@ namespace networking
 
     inline void socket_address::set_address_any() WI_NOEXCEPT
     {
-        const auto original_family = family();
-        switch (original_family)
-        {
-        case AF_UNSPEC:
-            ::ZeroMemory(&m_sockaddr, c_sockaddr_size);
-            break;
+        set_address_any(family());
+    }
 
+    inline void socket_address::set_address_any(ADDRESS_FAMILY family) WI_NOEXCEPT
+    {
+        switch (family)
+        {
         case AF_INET:
         {
             auto original_port = m_sockaddr.Ipv4.sin_port;
@@ -630,16 +636,20 @@ namespace networking
         }
 
         default:
-            FAIL_FAST_MSG("Unknown family (%d)", original_family);
+            FAIL_FAST_MSG("Unknown family (%d)", family);
         }
 
-        m_sockaddr.si_family = original_family;
+        m_sockaddr.si_family = family;
     }
 
     inline void socket_address::set_address_loopback() WI_NOEXCEPT
     {
-        const auto original_family = family();
-        switch (original_family)
+        set_address_loopback(family());
+    }
+
+    inline void socket_address::set_address_loopback(ADDRESS_FAMILY family) WI_NOEXCEPT
+    {
+        switch (family)
         {
         case AF_INET:
         {
@@ -653,18 +663,17 @@ namespace networking
         case AF_INET6:
         {
             auto original_port = m_sockaddr.Ipv6.sin6_port;
-            ::ZeroMemory(&m_sockaddr, c_sockaddr_size);
-            m_sockaddr.Ipv6.sin6_port = original_port;
             // some compilers will not allow assignment of IN6ADDR_LOOPBACK_INIT
             IN6_SET_ADDR_LOOPBACK(&m_sockaddr.Ipv6.sin6_addr);
+            m_sockaddr.Ipv6.sin6_port = original_port;
             break;
         }
 
         default:
-            FAIL_FAST_MSG("Unknown family to create a loopback socket address (%d)", original_family);
+            FAIL_FAST_MSG("Unknown family (%d)", family);
         }
 
-        m_sockaddr.si_family = original_family;
+        m_sockaddr.si_family = family;
     }
 
     inline void socket_address::set_address(const IN_ADDR* addr) WI_NOEXCEPT

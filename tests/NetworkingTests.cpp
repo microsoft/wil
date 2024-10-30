@@ -84,7 +84,7 @@ void InitTestAddresses()
         nullptr);
 }
 
-TEST_CASE("SocketTests::Verifying_wsastartup_cleanup", "[sockets]")
+TEST_CASE("NetworkingTests::Verifying_wsastartup_cleanup", "[networking]")
 {
     // verify socket APIs fail without having called WSAStartup
     const auto socket_test = ::socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
@@ -121,7 +121,7 @@ TEST_CASE("SocketTests::Verifying_wsastartup_cleanup", "[sockets]")
 #endif
 }
 
-TEST_CASE("SocketTests::Verifying_in_addr_interactions", "[sockets]")
+TEST_CASE("NetworkingTests::Verifying_in_addr_interactions", "[networking]")
 {
     InitTestAddresses();
     REQUIRE(wil::networking::socket_address::length() == sizeof(SOCKADDR_INET));
@@ -452,5 +452,100 @@ TEST_CASE("SocketTests::Verifying_in_addr_interactions", "[sockets]")
         REQUIRE(test_v6_any_addr_with_port != test_v4_any_addr);
         REQUIRE(test_v6_any_addr_with_port != test_v4_any_addr_with_port);
         REQUIRE(test_v6_any_addr_with_port != test_v6_any_addr);
+    }
+}
+
+TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
+{
+    InitTestAddresses();
+    REQUIRE(wil::networking::socket_address::length() == sizeof(SOCKADDR_INET));
+
+    wil::networking::socket_address default_addr{};
+
+    wil::networking::socket_address test_v4_addr{&Test_in_addr};
+    wil::networking::socket_address test_v4_addr2{&Test_in_addr2};
+    wil::networking::socket_address test_v4_addr_with_port{&Test_in_addr, TestPort};
+
+    wil::networking::socket_address test_v6_addr{&Test_in6_addr};
+    wil::networking::socket_address test_v6_addr2{&Test_in6_addr2};
+    wil::networking::socket_address test_v6_addr_with_port{&Test_in6_addr, TestPort};
+
+    wil::networking::socket_address test_v4_linklocal_addr{&Test_linklocal_in_addr};
+    wil::networking::socket_address test_v4_linklocal_addr_with_port{&Test_linklocal_in_addr, TestPort};
+
+    wil::networking::socket_address test_v6_linklocal_addr{&Test_linklocal_in6_addr};
+    wil::networking::socket_address test_v6_linklocal_addr_with_port{&Test_linklocal_in6_addr, TestPort};
+
+    wil::networking::socket_address test_v4_any_addr{&Test_any_in_addr};
+    wil::networking::socket_address test_v4_any_addr_with_port{&Test_any_in_addr, TestPort};
+
+    wil::networking::socket_address test_v6_any_addr{&Test_any_in6_addr};
+    wil::networking::socket_address test_v6_any_addr_with_port{&Test_any_in6_addr, TestPort};
+
+    SECTION("verify set_address_any")
+    {
+        wil::networking::socket_address v4_address;
+        v4_address.set_address_any(AF_INET);
+        REQUIRE(v4_address.family() == AF_INET);
+        REQUIRE(v4_address.port() == 0);
+        REQUIRE(v4_address.is_address_any());
+        REQUIRE(!v4_address.is_address_linklocal());
+        REQUIRE(!v4_address.is_address_loopback());
+        REQUIRE(NlatUnspecified == v4_address.get_address_type());
+        REQUIRE(v4_address == test_v4_any_addr);
+
+        v4_address.set_port(TestPort);
+        REQUIRE(v4_address.family() == AF_INET);
+        REQUIRE(v4_address.port() == TestPort);
+        REQUIRE(v4_address.is_address_any());
+        REQUIRE(v4_address == test_v4_any_addr_with_port);
+
+        wil::networking::socket_address v6_address;
+        v6_address.set_address_any(AF_INET6);
+        REQUIRE(v6_address.family() == AF_INET6);
+        REQUIRE(v6_address.port() == 0);
+        REQUIRE(v6_address.is_address_any());
+        REQUIRE(!v6_address.is_address_linklocal());
+        REQUIRE(!v6_address.is_address_loopback());
+        REQUIRE(NlatUnspecified == v6_address.get_address_type());
+        REQUIRE(v6_address == test_v6_any_addr);
+
+        v6_address.set_port(TestPort);
+        REQUIRE(v6_address.family() == AF_INET6);
+        REQUIRE(v6_address.port() == TestPort);
+        REQUIRE(v6_address.is_address_any());
+        REQUIRE(v6_address == test_v6_any_addr_with_port);
+
+        wil::networking::socket_address defaulted_v4_address{AF_INET};
+        defaulted_v4_address.set_address_any();
+        REQUIRE(defaulted_v4_address.family() == AF_INET);
+        REQUIRE(defaulted_v4_address.port() == 0);
+        REQUIRE(defaulted_v4_address.is_address_any());
+        REQUIRE(!defaulted_v4_address.is_address_linklocal());
+        REQUIRE(!defaulted_v4_address.is_address_loopback());
+        REQUIRE(NlatUnspecified == defaulted_v4_address.get_address_type());
+        REQUIRE(defaulted_v4_address == test_v4_any_addr);
+
+        defaulted_v4_address.set_port(TestPort);
+        REQUIRE(defaulted_v4_address.family() == AF_INET);
+        REQUIRE(defaulted_v4_address.port() == TestPort);
+        REQUIRE(defaulted_v4_address.is_address_any());
+        REQUIRE(defaulted_v4_address == test_v4_any_addr_with_port);
+
+        wil::networking::socket_address defaulted_v6_address;
+        defaulted_v6_address.set_address_any(AF_INET6);
+        REQUIRE(defaulted_v6_address.family() == AF_INET6);
+        REQUIRE(defaulted_v6_address.port() == 0);
+        REQUIRE(defaulted_v6_address.is_address_any());
+        REQUIRE(!defaulted_v6_address.is_address_linklocal());
+        REQUIRE(!defaulted_v6_address.is_address_loopback());
+        REQUIRE(NlatUnspecified == defaulted_v6_address.get_address_type());
+        REQUIRE(defaulted_v6_address == test_v6_any_addr);
+
+        defaulted_v6_address.set_port(TestPort);
+        REQUIRE(defaulted_v6_address.family() == AF_INET6);
+        REQUIRE(defaulted_v6_address.port() == TestPort);
+        REQUIRE(defaulted_v6_address.is_address_any());
+        REQUIRE(defaulted_v6_address == test_v6_any_addr_with_port);
     }
 }
