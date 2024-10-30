@@ -500,6 +500,13 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         REQUIRE(v4_address.is_address_any());
         REQUIRE(v4_address == test_v4_any_addr_with_port);
 
+        // verify changing families
+        v4_address.set_address_any(AF_INET6);
+        REQUIRE(v4_address.family() == AF_INET6);
+        REQUIRE(v4_address.port() == TestPort); // TODO: I'm seriously debating having set_address* clear the port
+        REQUIRE(v4_address.is_address_any());
+        REQUIRE(v4_address == test_v6_any_addr_with_port);
+
         wil::networking::socket_address v6_address;
         v6_address.set_address_any(AF_INET6);
         REQUIRE(v6_address.family() == AF_INET6);
@@ -515,6 +522,13 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         REQUIRE(v6_address.port() == TestPort);
         REQUIRE(v6_address.is_address_any());
         REQUIRE(v6_address == test_v6_any_addr_with_port);
+
+        // verify changing families
+        v6_address.set_address_any(AF_INET);
+        REQUIRE(v6_address.family() == AF_INET);
+        REQUIRE(v6_address.port() == TestPort); // TODO: I'm seriously debating having set_address* clear the port
+        REQUIRE(v6_address.is_address_any());
+        REQUIRE(v6_address == test_v4_any_addr_with_port);
 
         wil::networking::socket_address defaulted_v4_address{AF_INET};
         defaulted_v4_address.set_address_any();
