@@ -19,10 +19,10 @@
 #include "win32_helpers.h"
 #include "resource.h" // last to ensure _COMBASEAPI_H_ protected definitions are available
 
-#if __has_include(<tuple>)
+#if WI_HAS_INCLUDE(<tuple>, 1) // Tuple is C++11... assume available
 #include <tuple>
 #endif
-#if __has_include(<type_traits>)
+#if WI_HAS_INCLUDE(<type_traits>, 1) // Type traits is old... assume available
 #include <type_traits>
 #endif
 
@@ -2113,7 +2113,7 @@ wil::com_ptr_nothrow<Interface> CoGetClassObjectNoThrow(DWORD dwClsContext = CLS
     return CoGetClassObjectNoThrow<Interface>(__uuidof(Class), dwClsContext);
 }
 
-#if __cpp_lib_apply && __has_include(<type_traits>)
+#if __cpp_lib_apply && WI_HAS_INCLUDE(<type_traits>, 1)
 /// @cond
 namespace details
 {
@@ -2247,7 +2247,7 @@ auto try_com_multi_query(IUnknown* obj)
 }
 #endif
 
-#endif // __cpp_lib_apply && __has_include(<type_traits>)
+#endif // __cpp_lib_apply && WI_HAS_INCLUDE(<type_traits>, 1)
 
 #pragma endregion
 
@@ -3136,8 +3136,7 @@ void for_each_site(_In_opt_ IUnknown* siteInput, TLambda&& callback)
 
 #endif // __IObjectWithSite_INTERFACE_DEFINED__
 
-// if C++17 or greater
-#if WIL_HAS_CXX_17
+#if __cpp_deduction_guides >= 201703L
 #ifdef WIL_ENABLE_EXCEPTIONS
 /// @cond
 namespace details
@@ -3323,7 +3322,7 @@ WI_NODISCARD auto make_range(IEnumXxx* enumPtr)
     return iterator_range(enumPtr);
 }
 
-#endif // WIL_HAS_CXX_17
+#endif // __cpp_deduction_guides >= 201703L
 #endif // WIL_ENABLE_EXCEPTIONS
 
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)

@@ -20,11 +20,11 @@
 #include <winreg.h>
 #include <objbase.h>
 
+#include "common.h"
+
 // detect std::bit_cast
-#ifdef __has_include
-#if (__cplusplus >= 202002L || _MSVC_LANG >= 202002L) && __has_include(<bit>)
+#if (__WI_LIBCPP_STD_VER >= 20) && WI_HAS_INCLUDE(<bit>, 1) // Assume present if C++20
 #include <bit>
-#endif
 #endif
 
 /// @cond
@@ -41,10 +41,10 @@
 #include "wistd_type_traits.h"
 
 /// @cond
-#if _HAS_CXX20 && defined(_STRING_VIEW_) && defined(_COMPARE_)
+#if (__WI_LIBCPP_STD_VER >= 20) && defined(_STRING_VIEW_) && defined(_COMPARE_)
 // If we're using c++20, then <compare> must be included to use the string ordinal functions
 #define __WI_DEFINE_STRING_ORDINAL_FUNCTIONS
-#elif !_HAS_CXX20 && defined(_STRING_VIEW_)
+#elif (__WI_LIBCPP_STD_VER < 20) && defined(_STRING_VIEW_)
 #define __WI_DEFINE_STRING_ORDINAL_FUNCTIONS
 #endif
 /// @endcond
@@ -54,11 +54,11 @@ namespace wistd
 {
 #if defined(__WI_DEFINE_STRING_ORDINAL_FUNCTIONS)
 
-#if _HAS_CXX20
+#if __WI_LIBCPP_STD_VER >= 20
 
 using weak_ordering = std::weak_ordering;
 
-#else // _HAS_CXX20
+#else // __WI_LIBCPP_STD_VER >= 20
 
 struct weak_ordering
 {
@@ -133,7 +133,7 @@ inline constexpr weak_ordering weak_ordering::less{static_cast<signed char>(-1)}
 inline constexpr weak_ordering weak_ordering::equivalent{static_cast<signed char>(0)};
 inline constexpr weak_ordering weak_ordering::greater{static_cast<signed char>(1)};
 
-#endif // !_HAS_CXX20
+#endif // __WI_LIBCPP_STD_VER < 20
 
 #endif // defined(__WI_DEFINE_STRING_ORDINAL_FUNCTIONS)
 } // namespace wistd

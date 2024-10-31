@@ -2272,7 +2272,7 @@ TEST_CASE("ComTests::VerifyCoGetClassObject", "[com][CoGetClassObject]")
 }
 #endif
 
-#if defined(__IBackgroundCopyManager_INTERFACE_DEFINED__) && (__WI_LIBCPP_STD_VER >= 17)
+#if defined(__IBackgroundCopyManager_INTERFACE_DEFINED__)
 TEST_CASE("ComTests::VerifyCoCreateEx", "[com][CoCreateInstance]")
 {
     auto init = wil::CoInitializeEx_failfast();
@@ -2839,7 +2839,7 @@ TEST_CASE("StreamTests::Saver", "[com][IStream]")
         REQUIRE(250ULL == second.Position);
     }
 }
-#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && WIL_HAS_CXX_17
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 
 template <typename T>
 struct EnumT : IUnknown
@@ -3058,7 +3058,7 @@ TEST_CASE("COMEnumerator", "[com][enumerator]")
     }
 }
 #pragma warning(pop)
-#endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && WIL_HAS_CXX_17
+#endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
 #if (NTDDI_VERSION >= NTDDI_WINBLUE)

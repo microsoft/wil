@@ -13,9 +13,7 @@ struct dummy
     char value;
 };
 
-#if _HAS_CXX17
 using namespace wil::literals;
-#endif // _HAS_CXX17
 
 // Specialize std::allocator<> so that we don't actually allocate/deallocate memory
 dummy g_memoryBuffer[256];
@@ -50,8 +48,6 @@ TEST_CASE("StlTests::TestSecureAllocator", "[stl][secure_allocator]")
         wil::secure_vector<dummy> sensitiveBytes(32, dummy{'a'});
     }
 }
-
-#if __WI_LIBCPP_STD_VER >= 17
 
 struct CustomNoncopyableString
 {
@@ -216,4 +212,3 @@ TEST_CASE("StlTests::TestZWStringView", "[stl][zstring_view]")
     wil::zwstring_view fromCustomString(customString);
     REQUIRE(fromCustomString == (PCWSTR)customString);
 }
-#endif

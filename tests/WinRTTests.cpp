@@ -8,13 +8,7 @@
 #include <vector>
 #endif
 
-// detect std::wstring_view
-#ifdef __has_include
-#if (__cplusplus >= 201606L || _MSVC_LANG >= 201606L) && __has_include(<string_view>)
-#define __WI_HAS_STD_WSTRING_VIEW
 #include <string_view>
-#endif
-#endif
 
 // Required for pinterface template specializations that we depend on in this test
 #include <Windows.ApplicationModel.Chat.h>
@@ -179,7 +173,7 @@ void DoHStringSameValueComparisonTest(const wchar_t (&lhs)[Size], const wchar_t 
     DoHStringComparisonTest<InhibitArrayReferences, IgnoreCase>(lhsWstr, rhsHstr, 0);
     DoHStringComparisonTest<InhibitArrayReferences, IgnoreCase>(lhsWstr, rhsUniqueStr, 0);
 #endif
-#ifdef __WI_HAS_STD_WSTRING_VIEW
+
     std::wstring_view lhsWstrview(lhs, Size - 1);
     std::wstring_view rhsWstrview(rhs, Size - 1);
     DoHStringComparisonTest<InhibitArrayReferences, IgnoreCase>(lhsWstrview, rhsWstrview, 0);
@@ -190,7 +184,6 @@ void DoHStringSameValueComparisonTest(const wchar_t (&lhs)[Size], const wchar_t 
     DoHStringComparisonTest<InhibitArrayReferences, IgnoreCase>(lhsWstrview, rhsStr, 0);
     DoHStringComparisonTest<InhibitArrayReferences, IgnoreCase>(lhsWstrview, rhsHstr, 0);
     DoHStringComparisonTest<InhibitArrayReferences, IgnoreCase>(lhsWstrview, rhsUniqueStr, 0);
-#endif
 }
 
 // It's expected that the first argument (lhs) compares greater than the second argument (rhs)
@@ -273,7 +266,7 @@ void DoHStringDifferentValueComparisonTest(const wchar_t (&lhs)[LhsSize], const 
     DoHStringComparisonTest<InhibitArrayReferences, IgnoreCase>(lhsWstr, rhsHstr, 1);
     DoHStringComparisonTest<InhibitArrayReferences, IgnoreCase>(lhsWstr, rhsUniqueStr, 1);
 #endif
-#ifdef __WI_HAS_STD_WSTRING_VIEW
+
     std::wstring_view lhsWstrview(lhs, LhsSize - 1);
     std::wstring_view rhsWstrview(rhs, RhsSize - 1);
     DoHStringComparisonTest<InhibitArrayReferences, IgnoreCase>(lhsWstrview, rhsWstrview, 1);
@@ -284,7 +277,6 @@ void DoHStringDifferentValueComparisonTest(const wchar_t (&lhs)[LhsSize], const 
     DoHStringComparisonTest<InhibitArrayReferences, IgnoreCase>(lhsWstrview, rhsStr, 1);
     DoHStringComparisonTest<InhibitArrayReferences, IgnoreCase>(lhsWstrview, rhsHstr, 1);
     DoHStringComparisonTest<InhibitArrayReferences, IgnoreCase>(lhsWstrview, rhsUniqueStr, 1);
-#endif
 }
 
 TEST_CASE("WinRTTests::HStringComparison", "[winrt][hstring_compare]")
@@ -362,7 +354,7 @@ TEST_CASE("WinRTTests::HStringComparison", "[winrt][hstring_compare]")
         DoHStringComparisonTest<false, false>(wstr, str.Get(), 0);
         DoHStringComparisonTest<false, false>(wstr, nullHstr, 0);
 #endif
-#ifdef __WI_HAS_STD_WSTRING_VIEW
+
         std::wstring_view wstrview;
         DoHStringComparisonTest<false, false>(wstrview, wstrview, 0);
         DoHStringComparisonTest<false, false>(wstrview, constArray, 0);
@@ -371,7 +363,6 @@ TEST_CASE("WinRTTests::HStringComparison", "[winrt][hstring_compare]")
         DoHStringComparisonTest<false, false>(wstrview, nullCstr, 0);
         DoHStringComparisonTest<false, false>(wstrview, str.Get(), 0);
         DoHStringComparisonTest<false, false>(wstrview, nullHstr, 0);
-#endif
     }
 }
 
@@ -426,9 +417,7 @@ TEST_CASE("WinRTTests::HStringMapTest", "[winrt][hstring_compare]")
 
     HStringReference ref(constArray);
     std::wstring wstr(constArray, 7);
-#ifdef __WI_HAS_STD_WSTRING_VIEW
     std::wstring_view wstrview(wstr);
-#endif
 
     auto verifyFunc = [&](int expectedValue, auto&& keyValue) {
         auto itr = hstringMap.find(std::forward<decltype(keyValue)>(keyValue));
@@ -443,9 +432,7 @@ TEST_CASE("WinRTTests::HStringMapTest", "[winrt][hstring_compare]")
     verifyFunc(expectedValue, key.Get());
     verifyFunc(expectedValue, ref);
     verifyFunc(expectedValue, wstr);
-#ifdef __WI_HAS_STD_WSTRING_VIEW
     verifyFunc(expectedValue, wstrview);
-#endif
 
     // Arrays/strings should not deduce length and should therefore find "foo"
     expectedValue = wstringMap[L"foo"];
@@ -466,9 +453,7 @@ TEST_CASE("WinRTTests::HStringMapTest", "[winrt][hstring_compare]")
     HSTRING nullHstr = nullptr;
 
     std::wstring emptyWstr;
-#ifdef __WI_HAS_STD_WSTRING_VIEW
     std::wstring_view emptywstrview;
-#endif
 
     expectedValue = wstringMap[L""];
     verifyFunc(expectedValue, constEmptyArray);
@@ -478,9 +463,7 @@ TEST_CASE("WinRTTests::HStringMapTest", "[winrt][hstring_compare]")
     verifyFunc(expectedValue, emptyStr);
     verifyFunc(expectedValue, nullHstr);
     verifyFunc(expectedValue, emptyWstr);
-#ifdef __WI_HAS_STD_WSTRING_VIEW
     verifyFunc(expectedValue, emptywstrview);
-#endif
 }
 
 TEST_CASE("WinRTTests::HStringCaseInsensitiveMapTest", "[winrt][hstring_compare]")
@@ -519,9 +502,7 @@ TEST_CASE("WinRTTests::HStringCaseInsensitiveMapTest", "[winrt][hstring_compare]
 
     HStringReference ref(constArray);
     std::wstring wstr(constArray, 7);
-#ifdef __WI_HAS_STD_WSTRING_VIEW
     std::wstring_view wstrview(wstr);
-#endif
 
     auto verifyFunc = [&](int expectedValue, auto&& key) {
         auto itr = hstringMap.find(std::forward<decltype(key)>(key));
@@ -535,9 +516,7 @@ TEST_CASE("WinRTTests::HStringCaseInsensitiveMapTest", "[winrt][hstring_compare]
     verifyFunc(foobarValue, key.Get());
     verifyFunc(foobarValue, ref);
     verifyFunc(foobarValue, wstr);
-#ifdef __WI_HAS_STD_WSTRING_VIEW
     verifyFunc(foobarValue, wstrview);
-#endif
 
     // Arrays/strings should not deduce length and should therefore find "foo"
     verifyFunc(fooValue, constArray);

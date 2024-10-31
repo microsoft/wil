@@ -30,14 +30,11 @@
 
 /// @cond
 #if defined(WIL_ENABLE_EXCEPTIONS) && !defined(__WI_HAS_STD_LESS)
-#ifdef __has_include
-#if __has_include(<functional>)
 #define __WI_HAS_STD_LESS 1
+#if WI_HAS_INCLUDE(<functional>, 1) // Functional header available since C++11... fall back to assume present
 #include <functional>
-#endif // Otherwise, not using STL; don't specialize std::less
 #else
 // Fall back to the old way of forward declaring std::less
-#define __WI_HAS_STD_LESS 1
 #pragma warning(push)
 #pragma warning(disable : 4643) // Forward declaring '...' in namespace std is not permitted by the C++ Standard.
 namespace std
@@ -48,11 +45,10 @@ struct less;
 #pragma warning(pop)
 #endif
 #endif
-#if defined(WIL_ENABLE_EXCEPTIONS) && defined(__has_include)
-#if __has_include(<vector>)
+
+#if defined(WIL_ENABLE_EXCEPTIONS) && WI_HAS_INCLUDE(<vector>, 1) // Vector has been around forever... fall back to assume present
 #define __WI_HAS_STD_VECTOR 1
 #include <vector>
-#endif
 #endif
 /// @endcond
 
