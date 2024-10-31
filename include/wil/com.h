@@ -3328,6 +3328,14 @@ WI_NODISCARD auto make_range(IEnumXxx* enumPtr)
 
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
 
+namespace details
+{
+    inline void CoDisableCallCancellationNull()
+    {
+        ::CoDisableCallCancellation(nullptr);
+    }
+} // namespace details
+
 /** RAII support for making cross-apartment (or cross process) COM calls with a timeout applied to them.
  * When this is active any timed out calls will fail with an RPC error code such as RPC_E_CALL_CANCELED.
  * This is a shared timeout that applies to all calls made on the current thread for the lifetime of
@@ -3349,10 +3357,12 @@ class com_timeout_t
 public:
     com_timeout_t(DWORD timeoutInMilliseconds) : m_threadId(GetCurrentThreadId())
     {
-        m_cancelEnablementResult = CoEnableCallCancellation(nullptr);
-        err_policy::HResult(m_cancelEnablementResult);
-        if (SUCCEEDED(m_cancelEnablementResult))
+        const HRESULT cancelEnablementResult = CoEnableCallCancellation(nullptr);
+        err_policy::HResult(cancelEnablementResult);
+        if (SUCCEEDED(cancelEnablementResult))
         {
+            m_ensureDisable.activate();
+
             m_timer.reset(CreateThreadpoolTimer(&com_timeout_t::timer_callback, this, nullptr));
             err_policy::LastErrorIfFalse(static_cast<bool>(m_timer));
             if (m_timer)
@@ -3361,16 +3371,6 @@ public:
                 ft = filetime::add(ft, filetime::convert_msec_to_100ns(timeoutInMilliseconds));
                 SetThreadpoolTimer(m_timer.get(), &ft, timeoutInMilliseconds, 0);
             }
-        }
-    }
-
-    ~com_timeout_t()
-    {
-        m_timer.reset();
-
-        if (SUCCEEDED(m_cancelEnablementResult))
-        {
-            CoDisableCallCancellation(nullptr);
         }
     }
 
@@ -3390,6 +3390,10 @@ private:
     void* operator new(size_t) = delete;
     void* operator new[](size_t) = delete;
 
+    // not copyable or movable because the timer_callback receives "this"
+    com_timeout_t(com_timeout_t const&) = delete;
+    void operator=(com_timeout_t const&) = delete;
+
     static void __stdcall timer_callback(PTP_CALLBACK_INSTANCE /*instance*/, PVOID context, PTP_TIMER /*timer*/)
     {
         // The timer is waited upon during destruction so it is safe to rely on the this pointer in context.
@@ -3400,7 +3404,7 @@ private:
         }
     }
 
-    HRESULT m_cancelEnablementResult{};
+    wil::unique_call<decltype(&details::CoDisableCallCancellationNull), details::CoDisableCallCancellationNull, false> m_ensureDisable{};
     DWORD m_threadId{};
     bool m_timedOut{};
 
