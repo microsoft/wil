@@ -23,17 +23,22 @@
 // define _SECURE_SOCKET_TYPES_DEFINED_ at the project level to have access to SocketSecurity* APIs
 
 #if !defined(_WINSOCK2API_) && defined(_WINSOCKAPI_)
-#error The Winsock 1.1 winsock.h header was included before the Winsock 2 winsock2.h header - define WIN32_LEAN_AND_MEAN to avoid winsock.h included with windows.h
+#error The Winsock 1.1 winsock.h header was included before the Winsock 2 winsock2.h header - this will cause compilation errors - define WIN32_LEAN_AND_MEAN to avoid winsock.h included by windows.h
 #endif
 
+//! Link libs: ws2_32.lib, ntdll.lib
+
+//! Adding related networking headers in this specific sequence
+//! These headers have intra-header dependencies
+//! This specific sequence should compile correctly and give access to #ifdef'd functions and types
 #include <winsock2.h>
 #include <ws2def.h>
 #include <ws2ipdef.h>
 #include <mstcpip.h>
 #include <ws2tcpip.h>
 #include <iphlpapi.h>
+#include <netioapi.h>
 
-// wil headers
 #include "resource.h"
 
 namespace wil
@@ -65,7 +70,7 @@ namespace networking
         return return_cleanup;
     }
 
-    //! Calls WSAStartup and fail-fasts if it fails; returns an RAII object that reverts
+    //! Calls WSAStartup and fail-fasts on error; returns an RAII object that reverts
     WI_NODISCARD inline unique_wsacleanup_call WSAStartup_failfast()
     {
         WSADATA unused_data{};
@@ -74,6 +79,7 @@ namespace networking
     }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
+    //! Calls WSAStartup and throws on error; returns an RAII object that reverts
     WI_NODISCARD inline unique_wsacleanup_call WSAStartup()
     {
         WSADATA unused_data{};
@@ -218,6 +224,7 @@ namespace networking
 #endif
 
     // INET6_ADDRSTRLEN is guaranteed to be larger than INET_ADDRSTRLEN for IPv4 addresses
+    static_assert(INET6_ADDRSTRLEN > INET_ADDRSTRLEN);
     typedef WCHAR socket_address_wstring[INET6_ADDRSTRLEN];
     typedef CHAR socket_address_string[INET6_ADDRSTRLEN];
 
@@ -233,7 +240,9 @@ namespace networking
         explicit socket_address(const SOCKET_ADDRESS*) WI_NOEXCEPT;
         explicit socket_address(const IN_ADDR*, unsigned short port = 0) WI_NOEXCEPT;
         explicit socket_address(const IN6_ADDR*, unsigned short port = 0) WI_NOEXCEPT;
-
+#ifdef WIL_ENABLE_EXCEPTIONS
+        explicit socket_address(const PCWSTR, unsigned short port = 0) WI_NOEXCEPT;
+#endif
         ~socket_address() = default;
         socket_address(const socket_address&) WI_NOEXCEPT = default;
         socket_address& operator=(const socket_address&) WI_NOEXCEPT = default;
@@ -268,7 +277,8 @@ namespace networking
         void set_scope_id(ULONG) WI_NOEXCEPT;
         void set_flow_info(ULONG) WI_NOEXCEPT;
 
-        // set_address* preserves the existing address family and port in the object
+        // set_address* preserves the existing port set on the address.
+        // the address family is preserved unless it is specified as an argument
 
         void set_address_any() WI_NOEXCEPT;
         void set_address_any(ADDRESS_FAMILY family) WI_NOEXCEPT;
@@ -276,11 +286,11 @@ namespace networking
         void set_address_loopback(ADDRESS_FAMILY family) WI_NOEXCEPT;
         void set_address(const IN_ADDR*) WI_NOEXCEPT;
         void set_address(const IN6_ADDR*) WI_NOEXCEPT;
+
+        // these set_address_nothrow functions do not preserve any existing fields like port
         [[nodiscard]] HRESULT set_address_nothrow(SOCKET) WI_NOEXCEPT;
         [[nodiscard]] HRESULT set_address_nothrow(_In_ PCWSTR) WI_NOEXCEPT;
-#ifdef _WINSOCK_DEPRECATED_NO_WARNINGS // ANSI functions are deprecated
         [[nodiscard]] HRESULT set_address_nothrow(_In_ PCSTR) WI_NOEXCEPT;
-#endif
 
         // write_address prints the IP address portion, not the scope id or port
 #if defined(_STRING_) || defined(WIL_DOXYGEN)
@@ -328,8 +338,8 @@ namespace networking
         SOCKADDR_INET m_sockaddr{};
     };
 
-    // for dual-mode sockets, when needing to explicitly connect to the target IPv4 address,
-    // - one must map the IPv4 address to its mapped IPv6 address
+    // When using dual-mode sockets, one might need to connect to a target IPv4 address.
+    // Since dual-mode socket types are IPv6, one must map that IPv4 address to its 'mapped' IPv6 address
     inline socket_address map_dual_mode_4to6(const socket_address& inV4) WI_NOEXCEPT
     {
         constexpr IN6_ADDR v4MappedPrefix{{IN6ADDR_V4MAPPEDPREFIX_INIT}};
@@ -397,6 +407,13 @@ namespace networking
         set_port(port);
     }
 
+#ifdef WIL_ENABLE_EXCEPTIONS
+    inline socket_address::socket_address(const PCWSTR addr, unsigned short port) WI_NOEXCEPT
+    {
+        THROW_IF_FAILED(set_address_nothrow(addr));
+        set_port(port);
+    }
+#endif
     inline bool socket_address::operator==(const socket_address& rhs) const WI_NOEXCEPT
     {
         const auto& lhs = *this;
@@ -423,7 +440,6 @@ namespace networking
     inline bool socket_address::operator<(const socket_address& rhs) const WI_NOEXCEPT
     {
         const auto& lhs = *this;
-        // Follows the same documented comparison logic as GetTcpTable2 and GetTcp6Table2
         if (lhs.family() != rhs.family())
         {
             return lhs.family() < rhs.family();
@@ -431,10 +447,34 @@ namespace networking
 
         if (lhs.family() == AF_INET)
         {
-            // don't compare the padding at the end of the SOCKADDR_IN
-            return ::memcmp(&lhs.m_sockaddr.Ipv4, &rhs.m_sockaddr.Ipv4, sizeof(SOCKADDR_IN) - sizeof(SOCKADDR_IN::sin_zero)) < 0;
+            // compare the address-only first
+            auto comparison = ::memcmp(lhs.in_addr(), rhs.in_addr(), sizeof(IN_ADDR));
+            if (comparison != 0)
+            {
+                return comparison < 0;
+            }
+            // then compare the port (host-byte-order)
+            return lhs.port() < rhs.port();
         }
-        return ::memcmp(&lhs.m_sockaddr.Ipv6, &rhs.m_sockaddr.Ipv6, sizeof(SOCKADDR_IN6)) < 0;
+
+        // compare the address-only first
+        auto comparison = ::memcmp(lhs.in6_addr(), rhs.in6_addr(), sizeof(IN6_ADDR));
+        if (comparison != 0)
+        {
+            return comparison < 0;
+        }
+        // then compare the scope_id of the address
+        if (lhs.scope_id() != rhs.scope_id())
+        {
+            return lhs.scope_id() < rhs.scope_id();
+        }
+        // then compare flow_info
+        if (lhs.flow_info() != rhs.flow_info())
+        {
+            return lhs.flow_info() < rhs.flow_info();
+        }
+        // then compare the port (host-byte-order)
+        return lhs.port() < rhs.port();
     }
 
     inline bool socket_address::operator>(const socket_address& rhs) const WI_NOEXCEPT
@@ -485,7 +525,7 @@ namespace networking
     inline void socket_address::set_sockaddr(const SOCKET_ADDRESS* addr) WI_NOEXCEPT
     {
         FAIL_FAST_IF_MSG(
-            addr->iSockaddrLength > c_sockaddr_size,
+            addr->lpSockaddr && addr->iSockaddrLength > c_sockaddr_size,
             "SOCKET_ADDRESS contains an unsupported sockaddr type - larger than an IPv4 or IPv6 address (%d)",
             addr->iSockaddrLength);
 
@@ -575,21 +615,11 @@ namespace networking
 
     inline void socket_address::set_port(USHORT port) WI_NOEXCEPT
     {
+        WI_ASSERT(family() == AF_INET || family() == AF_INET6);
+        // the port value is at the exact same offset with both the IPv4 and IPv6 unions
+        static_assert(FIELD_OFFSET(SOCKADDR_INET, Ipv4.sin_port) == FIELD_OFFSET(SOCKADDR_INET, Ipv6.sin6_port));
         // port values in a sockaddr are always in network-byte order
-        USHORT port_network_byte_order = htons(port);
-        switch (family())
-        {
-        case AF_INET:
-            m_sockaddr.Ipv4.sin_port = port_network_byte_order;
-            break;
-
-        case AF_INET6:
-            m_sockaddr.Ipv6.sin6_port = port_network_byte_order;
-            break;
-
-        default:
-            WI_ASSERT_MSG(false, "Unknown address family");
-        }
+        m_sockaddr.Ipv4.sin_port = ::htons(port);
     }
 
     inline void socket_address::set_scope_id(ULONG scopeId) WI_NOEXCEPT
@@ -617,29 +647,12 @@ namespace networking
 
     inline void socket_address::set_address_any(ADDRESS_FAMILY family) WI_NOEXCEPT
     {
-        switch (family)
-        {
-        case AF_INET:
-        {
-            auto original_port = m_sockaddr.Ipv4.sin_port;
-            ::ZeroMemory(&m_sockaddr, c_sockaddr_size);
-            m_sockaddr.Ipv4.sin_port = original_port;
-            break;
-        }
-
-        case AF_INET6:
-        {
-            auto original_port = m_sockaddr.Ipv6.sin6_port;
-            ::ZeroMemory(&m_sockaddr, c_sockaddr_size);
-            m_sockaddr.Ipv6.sin6_port = original_port;
-            break;
-        }
-
-        default:
-            FAIL_FAST_MSG("Unknown family (%d)", family);
-        }
-
-        m_sockaddr.si_family = family;
+        // the port value is at the exact same offset with both the IPv4 and IPv6 unions
+        static_assert(FIELD_OFFSET(SOCKADDR_INET, Ipv4.sin_port) == FIELD_OFFSET(SOCKADDR_INET, Ipv6.sin6_port));
+        const auto original_port = m_sockaddr.Ipv4.sin_port;
+        WI_ASSERT(family == AF_INET || family == AF_INET6);
+        reset(family);
+        m_sockaddr.Ipv4.sin_port = original_port;
     }
 
     inline void socket_address::set_address_loopback() WI_NOEXCEPT
@@ -649,53 +662,45 @@ namespace networking
 
     inline void socket_address::set_address_loopback(ADDRESS_FAMILY family) WI_NOEXCEPT
     {
+        // the port value is at the exact same offset with both the IPv4 and IPv6 unions
+        static_assert(FIELD_OFFSET(SOCKADDR_INET, Ipv4.sin_port) == FIELD_OFFSET(SOCKADDR_INET, Ipv6.sin6_port));
+        const auto original_port = m_sockaddr.Ipv4.sin_port;
+        reset(family);
         switch (family)
         {
         case AF_INET:
-        {
-            auto original_port = m_sockaddr.Ipv4.sin_port;
-            ::ZeroMemory(&m_sockaddr, c_sockaddr_size);
-            m_sockaddr.Ipv4.sin_port = original_port;
             m_sockaddr.Ipv4.sin_addr.s_addr = INADDR_LOOPBACK;
             break;
-        }
-
         case AF_INET6:
-        {
-            auto original_port = m_sockaddr.Ipv6.sin6_port;
-            // some compilers will not allow assignment of IN6ADDR_LOOPBACK_INIT
-            IN6_SET_ADDR_LOOPBACK(&m_sockaddr.Ipv6.sin6_addr);
-            m_sockaddr.Ipv6.sin6_port = original_port;
+            m_sockaddr.Ipv6.sin6_addr = {{IN6ADDR_LOOPBACK_INIT}};
             break;
-        }
-
         default:
-            FAIL_FAST_MSG("Unknown family (%d)", family);
+            WI_ASSERT_MSG(false, "Unknown address family");
         }
-
-        m_sockaddr.si_family = family;
+        m_sockaddr.Ipv4.sin_port = original_port;
     }
 
     inline void socket_address::set_address(const IN_ADDR* addr) WI_NOEXCEPT
     {
-        WI_ASSERT(family() == AF_INET);
         const auto original_port = m_sockaddr.Ipv4.sin_port;
+        WI_ASSERT(family() == AF_INET);
         reset(AF_INET);
-        m_sockaddr.Ipv4.sin_port = original_port;
         m_sockaddr.Ipv4.sin_addr.s_addr = addr->s_addr;
+        m_sockaddr.Ipv4.sin_port = original_port;
     }
 
     inline void socket_address::set_address(const IN6_ADDR* addr) WI_NOEXCEPT
     {
+        const auto original_port = m_sockaddr.Ipv6.sin6_port;
         WI_ASSERT(family() == AF_INET6);
-        const auto original_port = m_sockaddr.Ipv4.sin_port;
         reset(AF_INET6);
-        m_sockaddr.Ipv6.sin6_port = original_port;
         m_sockaddr.Ipv6.sin6_addr = *addr;
+        m_sockaddr.Ipv6.sin6_port = original_port;
     }
 
     inline HRESULT socket_address::set_address_nothrow(SOCKET s) WI_NOEXCEPT
     {
+        reset(AF_UNSPEC);
         auto nameLength = length();
         auto error = ::getsockname(s, sockaddr(), &nameLength);
         if (error != 0)
@@ -708,37 +713,39 @@ namespace networking
 
     inline HRESULT socket_address::set_address_nothrow(_In_ PCWSTR wszAddr) WI_NOEXCEPT
     {
-        ADDRINFOW hints{};
-        hints.ai_flags = AI_NUMERICHOST;
-
-        ADDRINFOW* pResult{};
-        const auto error = ::GetAddrInfoW(wszAddr, nullptr, &hints, &pResult);
-        if (0 == error)
+        reset(AF_UNSPEC);
+        PCWSTR terminator_unused;
+        constexpr BOOLEAN strict_string = TRUE;
+        if (RtlIpv4StringToAddressW(wszAddr, strict_string, &terminator_unused, in_addr()) == 0)
         {
-            set_sockaddr(pResult->ai_addr, pResult->ai_addrlen);
-            ::FreeAddrInfoW(pResult);
+            m_sockaddr.si_family = AF_INET;
             return S_OK;
         }
-        RETURN_WIN32(error);
+        if (RtlIpv6StringToAddressW(wszAddr, &terminator_unused, in6_addr()) == 0)
+        {
+            m_sockaddr.si_family = AF_INET6;
+            return S_OK;
+        }
+        return E_INVALIDARG;
     }
 
-// the Winsock headers require having set this #define to access ANSI-string versions of the Winsock API
-#ifdef _WINSOCK_DEPRECATED_NO_WARNINGS
     inline HRESULT socket_address::set_address_nothrow(_In_ PCSTR szAddr) WI_NOEXCEPT
     {
-        ADDRINFOA hints{};
-        hints.ai_flags = AI_NUMERICHOST;
-
-        ADDRINFOA* pResult{};
-        const auto error = ::GetAddrInfoA(szAddr, nullptr, &hints, &pResult) if (0 == error)
+        reset(AF_UNSPEC);
+        PCSTR terminator_unused;
+        constexpr BOOLEAN strict_string = TRUE;
+        if (RtlIpv4StringToAddressA(szAddr, strict_string, &terminator_unused, in_addr()) == 0)
         {
-            set_sockaddr(pResult->ai_addr, pResult->ai_addrlen);
-            FreeAddrInfoA(pResult);
+            m_sockaddr.si_family = AF_INET;
             return S_OK;
         }
-        RETURN_WIN32(error);
+        if (RtlIpv6StringToAddressA(szAddr, &terminator_unused, in6_addr()) == 0)
+        {
+            m_sockaddr.si_family = AF_INET6;
+            return S_OK;
+        }
+        return E_INVALIDARG;
     }
-#endif
 
 #if defined(_STRING_) || defined(WIL_DOXYGEN)
     inline std::wstring socket_address::write_address() const

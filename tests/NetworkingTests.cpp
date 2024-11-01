@@ -455,6 +455,42 @@ TEST_CASE("NetworkingTests::Verifying_in_addr_interactions", "[networking]")
     }
 }
 
+TEST_CASE("NetworkingTests::Verifying_operators", "[networking]")
+{
+#ifdef WIL_ENABLE_EXCEPTIONS
+    using wil::networking::socket_address;
+    REQUIRE(socket_address{L"1.1.1.1"} > socket_address{L"1.1.1.1"});
+    REQUIRE(!(socket_address{L"1.1.1.1"} < socket_address{L"1.1.1.1"}));
+    REQUIRE(socket_address{L"1.1.1.1"} == socket_address{L"1.1.1.1"});
+    REQUIRE(!(socket_address{L"1.1.1.1"} != socket_address{L"1.1.1.1"}));
+
+    REQUIRE(socket_address{L"1.1.1.1"} < socket_address{L"1.1.1.2"});
+    REQUIRE(!(socket_address{L"1.1.1.1"} > socket_address{L"1.1.1.2"}));
+    REQUIRE(socket_address{L"1.1.1.1"} != socket_address{L"1.1.1.2"});
+    REQUIRE(!(socket_address{L"1.1.1.1"} == socket_address{L"1.1.1.2"}));
+
+    REQUIRE(socket_address{L"1.1.1.1"} < socket_address{L"2.1.1.1"});
+    REQUIRE(!(socket_address{L"1.1.1.1"} > socket_address{L"2.1.1.1"}));
+    REQUIRE(socket_address{L"1.1.1.1"} != socket_address{L"2.1.1.1"});
+    REQUIRE(!(socket_address{L"1.1.1.1"} == socket_address{L"2.1.1.1"}));
+
+    REQUIRE(socket_address{L"1.1.1.1"} > socket_address{L"0.0.0.1"});
+    REQUIRE(!(socket_address{L"1.1.1.1"} < socket_address{L"0.0.0.1"}));
+    REQUIRE(socket_address{L"1.1.1.1"} != socket_address{L"0.0.0.1"});
+    REQUIRE(!(socket_address{L"1.1.1.1"} == socket_address{L"0.0.0.1"}));
+
+    REQUIRE(socket_address{L"1.1.1.1", 1} < socket_address{L"1.1.1.1", 2});
+    REQUIRE(!(socket_address{L"1.1.1.1", 1} > socket_address{L"1.1.1.1", 2}));
+    REQUIRE(socket_address{L"1.1.1.1", 1} != socket_address{L"1.1.1.1", 2});
+    REQUIRE(!(socket_address{L"1.1.1.1", 1} == socket_address{L"1.1.1.1", 2}));
+
+    REQUIRE(socket_address{L"1.1.1.1", 1} > socket_address{L"0.0.0.0", 65535});
+    REQUIRE(!(socket_address{L"1.1.1.1", 1} < socket_address{L"0.0.0.0", 65535}));
+    REQUIRE(socket_address{L"1.1.1.1", 1} != socket_address{L"0.0.0.0", 65535});
+    REQUIRE(!(socket_address{L"1.1.1.1", 1} == socket_address{L"0.0.0.0", 65535}));
+#endif
+}
+
 TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
 {
     InitTestAddresses();
