@@ -4114,6 +4114,10 @@ static void DoArgvToCommandLineTest(std::initializer_list<const char*> argv, con
 
 TEST_CASE("WindowsInternalTests::ArgvToCommandLine", "[win32_helpers]")
 {
+    // NOTE: CommandLineToArgvW makes the assumption that the first argument is an executable name, and thefefore must
+    // be a valid NTFS path. This enables special handling when the first argument is a quoted string since NTFS paths
+    // cannot contain embedded quotation characters.
+
     DoArgvToCommandLineTest({"SingleNoSpaces"}, "SingleNoSpaces", R"("SingleNoSpaces")");
     DoArgvToCommandLineTest({"multiple", "no", "spaces"}, "multiple no spaces", R"("multiple" "no" "spaces")");
     DoArgvToCommandLineTest({"single with spaces"}, R"("single with spaces")", R"("single with spaces")");
