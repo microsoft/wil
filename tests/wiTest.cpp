@@ -1,5 +1,15 @@
 #include "pch.h"
 
+#include <wil/common.h>
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+#include <memory>
+#include <set>
+#include <string_view>
+#include <thread>
+#include <unordered_set>
+#endif
+
 #include <wil/result.h>
 #include <wil/resource.h>
 #include <wil/win32_helpers.h>
@@ -8,13 +18,6 @@
 #include <wil/wrl.h>
 #endif
 #include <wil/com.h>
-
-#ifdef WIL_ENABLE_EXCEPTIONS
-#include <memory>
-#include <set>
-#include <thread>
-#include <unordered_set>
-#endif
 
 // Do not include most headers until after the WIL headers to ensure that we're not inadvertently adding any unnecessary
 // dependencies to STL, WRL, or indirectly retrieved headers
@@ -25,6 +28,9 @@
 #endif
 
 #include <wrl/implements.h>
+
+#include <windows.h>
+#include <shellapi.h>
 
 // Include Resource.h a second time after including other headers
 #include <wil/resource.h>
@@ -4058,6 +4064,70 @@ TEST_CASE("WindowsInternalTests::VerifyModuleReferencesForThread", "[win32_helpe
         FAIL();
     }).join();
     REQUIRE(success);
+}
+#endif
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+static void VerifyArgvRoundTrip(const std::wstring& cmdline, const std::vector<std::wstring>& expected)
+{
+    int argc;
+    wil::unique_hlocal_ptr<wchar_t*[]> argv{::CommandLineToArgvW(cmdline.c_str(), &argc)};
+
+    REQUIRE(argc == static_cast<int>(expected.size()));
+    for (std::size_t i = 0; i < expected.size(); ++i)
+    {
+        REQUIRE(argv[i] == expected[i]);
+    }
+}
+
+static void DoArgvToCommandLineTest(std::initializer_list<const char*> argv, const char* expectedNoQuotes, const char* expectedWithQuotes)
+{
+    // First do non-wide tests
+    auto noQuotes = wil::ArgvToCommandLine(argv, wil::ArgvToCommandLineFlags::None);
+    REQUIRE(noQuotes == expectedNoQuotes);
+
+    auto withQuotes = wil::ArgvToCommandLine(static_cast<int>(argv.size()), argv.begin(), wil::ArgvToCommandLineFlags::ForceQuotes);
+    REQUIRE(withQuotes == expectedWithQuotes);
+
+    // Now do wide tests; all characters should be ASCII, so this is a direct copy
+    std::vector<std::wstring> wideArgv;
+    for (auto ptr : argv)
+    {
+        wideArgv.push_back(std::wstring(ptr, ptr + ::strlen(ptr)));
+    }
+
+    auto wideNoQuotes = wil::ArgvToCommandLine(wideArgv, wil::ArgvToCommandLineFlags::None);
+    REQUIRE(wideNoQuotes == std::wstring(expectedNoQuotes, expectedNoQuotes + ::strlen(expectedNoQuotes)));
+    VerifyArgvRoundTrip(wideNoQuotes, wideArgv);
+
+    std::vector<wchar_t*> nonConstArgv;
+    for (auto& str : wideArgv)
+    {
+        nonConstArgv.push_back(str.data());
+    }
+
+    auto wideWithQuotes =
+        wil::ArgvToCommandLine(static_cast<int>(nonConstArgv.size()), nonConstArgv.data(), wil::ArgvToCommandLineFlags::ForceQuotes);
+    REQUIRE(wideWithQuotes == std::wstring(expectedWithQuotes, expectedWithQuotes + ::strlen(expectedWithQuotes)));
+    VerifyArgvRoundTrip(wideWithQuotes, wideArgv);
+}
+
+TEST_CASE("WindowsInternalTests::ArgvToCommandLine", "[win32_helpers]")
+{
+    DoArgvToCommandLineTest({"SingleNoSpaces"}, "SingleNoSpaces", R"("SingleNoSpaces")");
+    DoArgvToCommandLineTest({"multiple", "no", "spaces"}, "multiple no spaces", R"("multiple" "no" "spaces")");
+    DoArgvToCommandLineTest({"single with spaces"}, R"("single with spaces")", R"("single with spaces")");
+    DoArgvToCommandLineTest({"multiple with", "some spaces"}, R"("multiple with" "some spaces")", R"("multiple with" "some spaces")");
+
+    // NOTE: Should only escape backslashes when at the end of a string and followed by quote
+    __debugbreak();
+    DoArgvToCommandLineTest({R"(\single\with\backslashes\)"}, R"(\single\with\backslashes\)", R"("\single\with\backslashes\\")");
+    DoArgvToCommandLineTest(
+        {R"(multiple\)", R"(wi\th)", R"(\backslashes)"}, R"(multiple\ wi\th \backslashes)", R"("multiple\\" "wi\th" "\backslashes")");
+
+    DoArgvToCommandLineTest({R"("single"with"quotes")"}, R"(\"single\"with\"quotes\")", R"("\"single\"with\"quotes\"")");
+    DoArgvToCommandLineTest(
+        {R"(multiple")", R"(wi"th)", R"("quotes)"}, R"(multiple\" wi\"th \"quotes)", R"("multiple\"" "wi\"th" "\"quotes")");
 }
 #endif
 

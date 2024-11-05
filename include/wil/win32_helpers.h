@@ -40,6 +40,10 @@
 #include "wistd_functional.h"
 #include "wistd_type_traits.h"
 
+#if defined(WIL_ENABLE_EXCEPTIONS) && (__cpp_lib_string_view >= 201606L)
+#include <string>
+#endif
+
 /// @cond
 #if _HAS_CXX20 && defined(_STRING_VIEW_) && defined(_COMPARE_)
 // If we're using c++20, then <compare> must be included to use the string ordinal functions
@@ -894,6 +898,185 @@ bool init_once(_Inout_ INIT_ONCE& initOnce, T func)
     }
 }
 #endif // WIL_ENABLE_EXCEPTIONS
+
+#if defined(WIL_ENABLE_EXCEPTIONS) && (__cpp_lib_string_view >= 201606L)
+/// @cond
+namespace details
+{
+    template <typename RangeT>
+    struct deduce_char_type_from_range
+    {
+        
+        template <typename T = RangeT>
+        static auto deduce(T& range)
+        {
+            using std::begin;
+            return (*begin(range))[0];
+        }
+
+        using type = decltype(deduce(wistd::declval<RangeT&>()));
+    };
+
+    template <typename RangeT>
+    using deduce_char_type_from_range_t = typename deduce_char_type_from_range<RangeT>::type;
+
+    // Internal helper span-like type for passing arrays as an iterable collection
+    template <typename T>
+    struct iterable_span
+    {
+        T* pointer;
+        size_t size;
+
+        constexpr T* begin() const noexcept
+        {
+            return pointer;
+        }
+
+        constexpr T* end() const noexcept
+        {
+            return pointer + size;
+        }
+    };
+}
+/// @endcond
+
+//! Flags that control the behavior of `ArgvToCommandLine`
+enum class ArgvToCommandLineFlags : uint8_t
+{
+    None = 0,
+
+    //! By default, arguments are only surrounded by quotes when necessary (i.e. the argument contains a space). When
+    //! this flag is specified, all arguments are surrounded with quotes, regardless of whether or not they contain
+    //! space(s). This is an optimization as it means that we are not required to search for spaces in each argument and
+    //! we don't need to potentially go back and insert a quotation character in the middle of the string after we've
+    //! already written part of the argument to the result. That said, wrapping all arguments with quotes can have some
+    //! adverse effects with some applications, most notably cmd.exe, which do their own command line processing.
+    ForceQuotes = 0x01 << 0,
+};
+DEFINE_ENUM_FLAG_OPERATORS(ArgvToCommandLineFlags);
+
+template <typename RangeT, typename CharT = details::deduce_char_type_from_range_t<RangeT>>
+inline std::basic_string<CharT> ArgvToCommandLine(RangeT&& range, ArgvToCommandLineFlags flags = ArgvToCommandLineFlags::None)
+{
+    using string_type = std::basic_string<CharT>;
+    using string_view_type = std::basic_string_view<CharT>;
+
+    // Somewhat of a hack to avoid the fact that we can't conditionalize a string literal on a template
+    static constexpr const CharT empty_string[] = {'\0'};
+    static constexpr const CharT single_quote_string[] = {'"', '\0'};
+    static constexpr const CharT space_string[] = {' ', '\0'};
+    static constexpr const CharT quoted_space_string[] = {'"', ' ', '"', '\0'};
+
+    static constexpr const CharT search_string_no_space[] = {'\\', '"', '\0'};
+    static constexpr const CharT search_string_with_space[] = {'\\', '"', ' ', '\0'};
+
+    const bool forceQuotes = WI_IsFlagSet(flags, ArgvToCommandLineFlags::ForceQuotes);
+    const CharT* const initialSearchString = forceQuotes ? search_string_no_space : search_string_with_space;
+    const CharT* prefix = forceQuotes ? single_quote_string : empty_string;
+    const CharT* const nextPrefix = forceQuotes ? quoted_space_string : space_string;
+
+    string_type result;
+    for (auto&& strRaw : range)
+    {
+        result += prefix;
+
+        const CharT* searchString = initialSearchString;
+
+        // Info just in case we need to come back and insert quotes
+        auto startPos = result.size();
+        bool terminateWithQuotes = false; // With forceQuotes == true, this is baked into the prefix
+
+        // We need to escape any quotes and CONDITIONALLY any backslashes
+        string_view_type str(strRaw);
+        size_t pos = 0;
+        while (pos < str.size())
+        {
+            auto nextPos = str.find_first_of(searchString, pos);
+            if ((nextPos != str.npos) && (str[nextPos] == ' '))
+            {
+                // Insert the quote now since we'll need to otherwise stomp over data we're just about to write
+                WI_ASSERT(!forceQuotes);
+                searchString = search_string_no_space; // We're already adding a space; don't do it again
+                result.insert(startPos, 1, '"');
+                terminateWithQuotes = true;
+            }
+
+            result.append(str, pos, nextPos - pos);
+            pos = nextPos;
+            if (pos == str.npos)
+                break;
+
+            if (str[pos] == '"')
+            {
+                // Kinda easy case; just escape the quotes
+                result.append({'\\', '"'});
+                ++pos;
+            }
+            else if (str[pos] == '\\')
+            {
+                // More complex case... Only need to escape if followed by 0+ backslashes and then either a quote or
+                // the end of the string and we're adding quotes
+                nextPos = str.find_first_not_of(L'\\', pos);
+
+                // NOTE: This is an optimization taking advantage of the fact that doing a double append of 1+
+                // backslashes will be functionally equivalent to escaping each one
+                result.append(str, pos, nextPos - pos);
+
+                if ((nextPos != str.npos) && (str[nextPos] != L'"'))
+                {
+                    // Simplest case... 1+ backslashes we don't need to escape
+                    pos = nextPos;
+                    continue;
+                }
+
+                // If this is the end of the string and we're not appending a quotation to the end, we're in the
+                // same boat as the above where we don't need to escape
+                if ((nextPos == str.npos) && !forceQuotes && !terminateWithQuotes)
+                {
+                    pos = nextPos;
+                    continue;
+                }
+
+                // Otherwise, we need to escape all backslashes. See above; this can be done with another append
+                result.append(str, pos, nextPos - pos);
+                pos = nextPos;
+                if (pos != str.npos)
+                {
+                    // Must be followed by a quote; make sure we escape it, too
+                    WI_ASSERT(str[pos] == '"');
+                    result.append({'\\', '"'});
+                    ++pos;
+                }
+            }
+            // Otherwise space, which we handled above. Note that we don't need to manually insert a space and increment
+            // 'pos' since we've changed the search string and therefore won't "find" the space again
+        }
+
+        if (terminateWithQuotes)
+        {
+            result.push_back('"');
+        }
+
+        prefix = nextPrefix;
+    }
+
+    // NOTE: We optimize the force quotes case by including them in the prefix string. We're not appending a prefix
+    // anymore, so we need to make sure we close off the string
+    if (forceQuotes)
+    {
+        result.push_back(L'\"');
+    }
+
+    return result;
+}
+
+template <typename CharT>
+inline std::basic_string<wistd::remove_cv_t<CharT>> ArgvToCommandLine(
+    int argc, CharT* const* argv, ArgvToCommandLineFlags flags = ArgvToCommandLineFlags::None)
+{
+    return ArgvToCommandLine(details::iterable_span<CharT* const>{ argv, static_cast<size_t>(argc) }, flags);
+}
+#endif
 } // namespace wil
 
 // Macro for calling GetProcAddress(), with type safety for C++ clients
