@@ -1688,6 +1688,45 @@ TEST_CASE("WindowsInternalTests::HandleWrappers", "[resource][unique_any]")
     REQUIRE(wcscmp(L"", unique_cotaskmem_string_range3.get()) == 0);
 #endif
 
+    auto unique_process_heap_string_failfast1 = wil::make_process_heap_string_failfast(L"Foo");
+    REQUIRE(wcscmp(L"Foo", unique_process_heap_string_failfast1.get()) == 0);
+
+    auto unique_process_heap_string_nothrow1 = wil::make_process_heap_string_nothrow(L"Foo");
+    REQUIRE(wcscmp(L"Foo", unique_process_heap_string_nothrow1.get()) == 0);
+
+    auto unique_process_heap_string_nothrow2 = wil::make_process_heap_string_nothrow(L"");
+    REQUIRE(wcscmp(L"", unique_process_heap_string_nothrow2.get()) == 0);
+
+#ifndef WIL_NO_ANSI_STRINGS
+    auto unique_process_heap_ansistring_failfast1 = wil::make_process_heap_ansistring_failfast("Foo");
+    REQUIRE(strcmp("Foo", unique_process_heap_ansistring_failfast1.get()) == 0);
+
+    auto unique_process_heap_ansistring_nothrow1 = wil::make_process_heap_ansistring_nothrow("Foo");
+    REQUIRE(strcmp("Foo", unique_process_heap_ansistring_nothrow1.get()) == 0);
+
+    auto unique_process_heap_ansistring_nothrow2 = wil::make_process_heap_ansistring_nothrow("");
+    REQUIRE(strcmp("", unique_process_heap_ansistring_nothrow2.get()) == 0);
+#endif // WIL_NO_ANSI_STRINGS
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+    auto unique_process_heap_ansistring_te1 = wil::make_process_heap_ansistring("Foo");
+    REQUIRE(strcmp("Foo", unique_process_heap_ansistring_te1.get()) == 0);
+
+    auto unique_process_heap_ansistring_te2 = wil::make_process_heap_ansistring("");
+    REQUIRE(strcmp("", unique_process_heap_ansistring_te2.get()) == 0);
+
+    auto unique_process_heap_ansistring_range1 = wil::make_process_heap_ansistring("Foo", 2);
+    REQUIRE(strcmp("Fo", unique_process_heap_ansistring_range1.get()) == 0);
+
+    auto unique_process_heap_ansistring_range2 = wil::make_process_heap_ansistring(nullptr, 2);
+    unique_process_heap_ansistring_range2.get()[0] = 'F';
+    unique_process_heap_ansistring_range2.get()[1] = 'o';
+    REQUIRE(strcmp("Fo", unique_process_heap_ansistring_range2.get()) == 0);
+
+    auto unique_process_heap_ansistring_range3 = wil::make_process_heap_ansistring(nullptr, 0);
+    REQUIRE(strcmp("", unique_process_heap_ansistring_range3.get()) == 0);
+#endif // WIL_ENABLE_EXCEPTIONS
+
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
     {
         witest::detoured_thread_function<&::CoTaskMemFree> detour;
@@ -1814,15 +1853,6 @@ TEST_CASE("WindowsInternalTests::HandleWrappers", "[resource][unique_any]")
         REQUIRE(wcscmp(L"", unique_hlocal_string_secure_te2.get()) == 0);
 #endif
     }
-
-    auto unique_process_heap_string_failfast1 = wil::make_process_heap_string_failfast(L"Foo");
-    REQUIRE(wcscmp(L"Foo", unique_process_heap_string_failfast1.get()) == 0);
-
-    auto unique_process_heap_string_nothrow1 = wil::make_process_heap_string_nothrow(L"Foo");
-    REQUIRE(wcscmp(L"Foo", unique_process_heap_string_nothrow1.get()) == 0);
-
-    auto unique_process_heap_string_nothrow2 = wil::make_process_heap_string_nothrow(L"");
-    REQUIRE(wcscmp(L"", unique_process_heap_string_nothrow2.get()) == 0);
 
 #ifdef WIL_ENABLE_EXCEPTIONS
     auto unique_process_heap_string_te1 = wil::make_process_heap_string(L"Foo");

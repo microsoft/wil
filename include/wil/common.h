@@ -69,15 +69,14 @@
 
 /// @cond
 #if defined(_MSVC_LANG)
-#define __WI_SUPPRESS_4127_S \
-    __pragma(warning(push)) __pragma(warning(disable : 4127)) __pragma(warning(disable : 26498)) __pragma(warning(disable : 4245))
-#define __WI_SUPPRESS_4127_E __pragma(warning(pop))
-#define __WI_SUPPRESS_NULLPTR_ANALYSIS __pragma(warning(suppress : 28285)) __pragma(warning(suppress : 6504))
+#define __WI_SUPPRESS_BREAKING_WARNINGS_S __pragma(warning(push)) __pragma(warning(disable : 4127 26498 4245 26814))
+#define __WI_SUPPRESS_BREAKING_WARNINGS_E __pragma(warning(pop))
+#define __WI_SUPPRESS_NULLPTR_ANALYSIS __pragma(warning(suppress : 28285 6504))
 #define __WI_SUPPRESS_NONINIT_ANALYSIS __pragma(warning(suppress : 26495))
 #define __WI_SUPPRESS_NOEXCEPT_ANALYSIS __pragma(warning(suppress : 26439))
 #else
-#define __WI_SUPPRESS_4127_S
-#define __WI_SUPPRESS_4127_E
+#define __WI_SUPPRESS_BREAKING_WARNINGS_S
+#define __WI_SUPPRESS_BREAKING_WARNINGS_E
 #define __WI_SUPPRESS_NULLPTR_ANALYSIS
 #define __WI_SUPPRESS_NONINIT_ANALYSIS
 #define __WI_SUPPRESS_NOEXCEPT_ANALYSIS
@@ -373,19 +372,19 @@ check fails as opposed to the invalid parameter handler that the STL invokes. Th
 #endif
 
 /// @cond
-#if (__cplusplus >= 201703) || (_MSVC_LANG >= 201703)
-#define WIL_HAS_CXX_17 1
-#else
-#define WIL_HAS_CXX_17 0
-#endif
-
 // Until we'll have C++17 enabled in our code base, we're falling back to SAL
 #define WI_NODISCARD __WI_LIBCPP_NODISCARD_ATTRIBUTE
-/// @endcond
 
-/// @cond
 #define __R_ENABLE_IF_IS_CLASS(ptrType) wistd::enable_if_t<wistd::is_class<ptrType>::value, void*> = nullptr
 #define __R_ENABLE_IF_IS_NOT_CLASS(ptrType) wistd::enable_if_t<!wistd::is_class<ptrType>::value, void*> = nullptr
+
+// Uses the __has_include macro, if available. Otherwise uses a user-provided fallback. E.g. the fallback could always
+// default to true or false, or it could do something like a C++ standard version check
+#ifdef __has_include
+#define WI_HAS_INCLUDE(header, fallback) __has_include(header)
+#else
+#define WI_HAS_INCLUDE(header, fallback) (fallback)
+#endif
 /// @endcond
 
 //! @defgroup bitwise Bitwise Inspection and Manipulation

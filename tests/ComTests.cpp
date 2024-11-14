@@ -2,6 +2,7 @@
 
 #include <ocidl.h> // Bring in IObjectWithSite
 
+#include <wil/win32_helpers.h>
 #include <wil/com.h>
 #include <wrl/implements.h>
 
@@ -11,6 +12,7 @@
 #include <ShlObj_core.h>
 #endif
 #include <Bits.h>
+#include <thread>
 
 using namespace Microsoft::WRL;
 
@@ -2270,7 +2272,7 @@ TEST_CASE("ComTests::VerifyCoGetClassObject", "[com][CoGetClassObject]")
 }
 #endif
 
-#if defined(__IBackgroundCopyManager_INTERFACE_DEFINED__) && (__WI_LIBCPP_STD_VER >= 17)
+#if defined(__IBackgroundCopyManager_INTERFACE_DEFINED__)
 TEST_CASE("ComTests::VerifyCoCreateEx", "[com][CoCreateInstance]")
 {
     auto init = wil::CoInitializeEx_failfast();
@@ -2837,7 +2839,7 @@ TEST_CASE("StreamTests::Saver", "[com][IStream]")
         REQUIRE(250ULL == second.Position);
     }
 }
-#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && WIL_HAS_CXX_17
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 
 template <typename T>
 struct EnumT : IUnknown
@@ -3056,6 +3058,167 @@ TEST_CASE("COMEnumerator", "[com][enumerator]")
     }
 }
 #pragma warning(pop)
-#endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && WIL_HAS_CXX_17
+#endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
+#if (NTDDI_VERSION >= NTDDI_WINBLUE)
+#if defined(__cpp_impl_coroutine) || defined(__cpp_coroutines) || defined(_RESUMABLE_FUNCTIONS_SUPPORTED)
+
+#include <winrt/windows.foundation.h>
+#include <windows.foundation.h>
+
+TEST_CASE("com_timeout", "[com][com_timeout]")
+{
+    auto init = wil::CoInitializeEx_failfast();
+
+    // These test cases require calling a COM server via proxy, so that we can exercise cancellation through
+    // the COM runtime..  Additionally, this server needs to support the ability to control if it hangs
+    // or returns quickly.  The following class provides that functionality, using some global events to
+    // provide deterministic ordering of operations.
+    //
+    // To ensure the call goes through a proxy, the object must be non-agile and the call must cross between
+    // apartments (MTA -> STA in this case)
+    struct COMTimeoutTestObject : winrt::implements<COMTimeoutTestObject, winrt::Windows::Foundation::IStringable, winrt::non_agile>
+    {
+        wil::shared_event _hangHandle;
+        wil::shared_event _doneHangingHandle;
+        std::shared_ptr<bool> _shouldHang;
+        COMTimeoutTestObject(wil::shared_event hangHandle, wil::shared_event doneHangingHandle, std::shared_ptr<bool> shouldHang) :
+            _hangHandle(hangHandle), _doneHangingHandle(doneHangingHandle), _shouldHang(shouldHang)
+        {
+        }
+
+        winrt::hstring ToString()
+        {
+            // If the test wants to block, then use the hang handles.
+            if (*(_shouldHang.get()))
+            {
+                // Pump messages so this STA thread is healthy while we wait.  If this wait fails that means
+                // the cancel did not work.
+                HANDLE handles[1] = {_hangHandle.get()};
+                DWORD index;
+                REQUIRE_SUCCEEDED(CoWaitForMultipleObjects(
+                    CWMO_DISPATCH_CALLS | CWMO_DISPATCH_WINDOW_MESSAGES, 10000, ARRAYSIZE(handles), handles, &index));
+
+                if (_doneHangingHandle)
+                {
+                    _doneHangingHandle.SetEvent();
+                }
+            }
+
+            return L"COMTimeoutTestObject";
+        }
+    };
+
+    // The COM server thread needs an event that is signaled when we want it to stop pumping messages and
+    // exit.
+    wil::shared_event comServerEvent;
+    comServerEvent.create();
+
+    wil::shared_event agileReferencePopulated;
+    agileReferencePopulated.create();
+
+    // These handles are used to coordinate with the COM server thread.  The first one causes it to block.  The
+    // done hanging event lets us know that it is done blocking and we can proceed with a second call that should
+    // avoid reentering.
+    wil::shared_event hangingHandle;
+    hangingHandle.create();
+    wil::shared_event doneHangingHandle;
+    doneHangingHandle.create();
+
+    auto shouldHang = std::make_shared<bool>(false);
+
+    wil::com_agile_ref agileStringable;
+
+    auto comServerThread =
+        std::thread([comServerEvent, agileReferencePopulated, hangingHandle, doneHangingHandle, &agileStringable, shouldHang] {
+            // This thread must be STA to pull RPC in as mediator between threads.
+            auto init = wil::CoInitializeEx_failfast(COINIT_APARTMENTTHREADED);
+
+            const auto stringable = winrt::make<COMTimeoutTestObject>(hangingHandle, doneHangingHandle, shouldHang);
+            agileStringable = wil::com_agile_query(stringable.as<ABI::Windows::Foundation::IStringable>().get());
+
+            agileReferencePopulated.SetEvent();
+
+            // Pump messages so this STA thread is healthy.
+            HANDLE handles[1] = {comServerEvent.get()};
+            DWORD index;
+            REQUIRE_SUCCEEDED(CoWaitForMultipleObjects(
+                CWMO_DISPATCH_CALLS | CWMO_DISPATCH_WINDOW_MESSAGES, INFINITE, ARRAYSIZE(handles), handles, &index));
+        });
+
+    auto makeSureComServerThreadExits = wil::scope_exit([comServerEvent, &comServerThread] {
+        // We are done testing.  Tell the STA thread to exit and then block until it is done.
+        comServerEvent.SetEvent();
+
+        comServerThread.join();
+    });
+
+    REQUIRE_SUCCEEDED(agileReferencePopulated.wait(5000));
+
+    SECTION("Basic construction nothrow")
+    {
+        wil::com_timeout_nothrow timeout{5000};
+        REQUIRE(static_cast<bool>(timeout));
+        REQUIRE(!timeout.timed_out());
+    }
+    SECTION("Basic construction throwing")
+    {
+        wil::com_timeout timeout{5000};
+        REQUIRE(static_cast<bool>(timeout));
+        REQUIRE(!timeout.timed_out());
+    }
+    SECTION("Basic construction failfast")
+    {
+        wil::com_timeout_failfast timeout{5000};
+        REQUIRE(static_cast<bool>(timeout));
+        REQUIRE(!timeout.timed_out());
+    }
+    SECTION("RPC timeout test")
+    {
+        wil::com_timeout timeout{100};
+
+        *(shouldHang.get()) = true;
+
+        // The timeout is now in place.  The blocking call should cancel in a timely manner and fail with RPC_E_CALL_CANCELED.
+        wil::com_ptr<ABI::Windows::Foundation::IStringable> localServer =
+            agileStringable.query<ABI::Windows::Foundation::IStringable>();
+        wil::unique_hstring value;
+        auto localServerResult = localServer->ToString(&value);
+        REQUIRE(static_cast<bool>(localServerResult == RPC_E_CALL_CANCELED));
+        REQUIRE(timeout.timed_out());
+
+        hangingHandle.SetEvent();
+        REQUIRE(doneHangingHandle.wait(5000));
+
+        hangingHandle.ResetEvent();
+
+        // Make a second blocking call within the lifetime of the same com_timeout instance.  This second call should also
+        // cancel and return.
+        localServerResult = localServer->ToString(&value);
+        REQUIRE(static_cast<bool>(localServerResult == RPC_E_CALL_CANCELED));
+        REQUIRE(timeout.timed_out());
+
+        hangingHandle.SetEvent();
+        REQUIRE(doneHangingHandle.wait(5000));
+
+        *(shouldHang.get()) = false;
+    }
+    SECTION("Non-timeout unaffected test")
+    {
+        wil::com_timeout timeout{100};
+
+        // g_hangHandle is not set so this call will not block.  It should not be affected by the timeout.
+        wil::com_ptr<ABI::Windows::Foundation::IStringable> localServer =
+            agileStringable.query<ABI::Windows::Foundation::IStringable>();
+        wil::unique_hstring value;
+        REQUIRE_SUCCEEDED(localServer->ToString(&value));
+        REQUIRE(!timeout.timed_out());
+        REQUIRE(std::wstring_view{L"COMTimeoutTestObject"} == WindowsGetStringRawBuffer(value.get(), nullptr));
+    }
+}
+#endif // defined(__cpp_impl_coroutine) || defined(__cpp_coroutines) || defined(_RESUMABLE_FUNCTIONS_SUPPORTED)
+#endif // (NTDDI_VERSION >= NTDDI_WINBLUE)
+#endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
 
 #endif // WIL_ENABLE_EXCEPTIONS

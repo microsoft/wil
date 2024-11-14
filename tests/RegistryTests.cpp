@@ -3,9 +3,7 @@
 #include <memory>
 #include <string>
 #include <vector>
-#if _HAS_CXX17
 #include <optional>
-#endif
 #include <array>
 
 #include <windows.h>
