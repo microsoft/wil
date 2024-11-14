@@ -206,7 +206,7 @@ namespace filetime_duration
     long long const one_minute = 10000000LL * 60;        // 600000000    or 600000000LL
     long long const one_hour = 10000000LL * 60 * 60;     // 36000000000  or 36000000000LL
     long long const one_day = 10000000LL * 60 * 60 * 24; // 864000000000 or 864000000000LL
-};                                                       // namespace filetime_duration
+} // namespace filetime_duration
 
 namespace filetime
 {

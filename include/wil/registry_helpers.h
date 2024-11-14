@@ -1052,7 +1052,7 @@ namespace reg
             {
                 return REG_SZ;
             }
-#endif    // #if defined(__WIL_OBJBASE_H_STL)
+#endif // #if defined(__WIL_OBJBASE_H_STL)
         } // namespace reg_value_type_info
 
         template <typename err_policy = ::wil::err_exception_policy>
@@ -1286,8 +1286,8 @@ namespace reg
 #if defined(WIL_ENABLE_EXCEPTIONS)
         using reg_view = ::wil::reg::reg_view_details::reg_view_t<::wil::err_exception_policy>;
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS)
-    }  // namespace reg_view_details
-       /// @endcond
+    } // namespace reg_view_details
+      /// @endcond
 
     /// @cond
     namespace reg_iterator_details
@@ -1418,8 +1418,8 @@ namespace reg
             return ::wil::unique_bstr{::SysAllocStringLen(name.get(), static_cast<UINT>(length))};
         }
 #endif // #if defined(__WIL_OLEAUTO_H_)
-    }  // namespace reg_iterator_details
-       /// @endcond
+    } // namespace reg_iterator_details
+      /// @endcond
 
     // forward declaration to allow friend-ing the template iterator class
 #if defined(WIL_ENABLE_EXCEPTIONS)

@@ -138,11 +138,11 @@ _Always_(_Post_satisfies_(return < 0)) __declspec(noinline) inline NTSTATUS Stat
 namespace details
 {
     template <FailureType>
-    __declspec(noinline) inline NTSTATUS
-        ReportStatus_CaughtException(__R_FN_PARAMS_FULL, SupportedExceptions supported = SupportedExceptions::Default);
+    __declspec(noinline) inline NTSTATUS ReportStatus_CaughtException(
+        __R_FN_PARAMS_FULL, SupportedExceptions supported = SupportedExceptions::Default);
     template <FailureType>
-    __declspec(noinline) inline NTSTATUS
-        ReportStatus_CaughtExceptionMsg(__R_FN_PARAMS_FULL, _Printf_format_string_ PCSTR formatString, va_list argList);
+    __declspec(noinline) inline NTSTATUS ReportStatus_CaughtExceptionMsg(
+        __R_FN_PARAMS_FULL, _Printf_format_string_ PCSTR formatString, va_list argList);
 
     namespace __R_NS_NAME
     {
@@ -191,8 +191,7 @@ namespace details
     }
 
     template <FailureType T>
-    __declspec(noinline) inline NTSTATUS
-        ReportStatus_CaughtExceptionMsg(__R_FN_PARAMS_FULL, _Printf_format_string_ PCSTR formatString, va_list argList)
+    __declspec(noinline) inline NTSTATUS ReportStatus_CaughtExceptionMsg(__R_FN_PARAMS_FULL, _Printf_format_string_ PCSTR formatString, va_list argList)
     {
         // Pre-populate the buffer with our message, the exception message will be added to it...
         wchar_t message[2048];
