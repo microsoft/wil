@@ -3419,7 +3419,7 @@ public:
     }
 
     //! Returns the failed HRESULT that this exception represents.
-    _Always_(_Post_satisfies_(return < 0)) WI_NODISCARD HRESULT GetErrorCode() const WI_NOEXCEPT
+    WI_NODISCARD _Always_(_Post_satisfies_(return < 0)) HRESULT GetErrorCode() const WI_NOEXCEPT
     {
         HRESULT const hr = m_failure.GetFailureInfo().hr;
         __analysis_assume(hr < 0);
@@ -3427,7 +3427,7 @@ public:
     }
 
     //! Returns the failed NTSTATUS that this exception represents.
-    _Always_(_Post_satisfies_(return < 0)) WI_NODISCARD NTSTATUS GetStatusCode() const WI_NOEXCEPT
+    WI_NODISCARD _Always_(_Post_satisfies_(return < 0)) NTSTATUS GetStatusCode() const WI_NOEXCEPT
     {
         NTSTATUS const status = m_failure.GetFailureInfo().status;
         __analysis_assume(status < 0);
