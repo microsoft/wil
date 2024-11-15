@@ -65,7 +65,7 @@
 #define _wiltlg_STRINGIZE_imp(x) #x
 #define _wiltlg_LSTRINGIZE(x) _wiltlg_LSTRINGIZE_imp1(x)
 #define _wiltlg_LSTRINGIZE_imp1(x) _wiltlg_LSTRINGIZE_imp2(#x)
-#define _wiltlg_LSTRINGIZE_imp2(s) L##s
+#define _wiltlg_LSTRINGIZE_imp2(s) L"" #s
 
 /*
 Macro __TRACELOGGING_DEFINE_PROVIDER_STORAGE_LINK(name1, name2):
