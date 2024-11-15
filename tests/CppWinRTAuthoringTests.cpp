@@ -19,8 +19,8 @@ struct my_async_status : winrt::implements<my_async_status, winrt::Windows::Foun
     wil::single_threaded_property<winrt::hresult> ErrorCode;
     wil::single_threaded_property<uint32_t> Id{16};
 
-    void Cancel() {};
-    void Close() {};
+    void Cancel(){};
+    void Close(){};
 };
 
 // This type has a settable property
