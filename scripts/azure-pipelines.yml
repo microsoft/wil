@@ -32,7 +32,7 @@ jobs:
         echo        may be a false positive. If you believe that to be the case ^(e.g. none of the above resulted in modifications
         echo        to the code you have changed^), please note this in your PR.
         echo ----------------------------------------------
-        echo See below for the file(s) that have changed:
+        echo See below for the file^(s^) that have changed:
         git status
         exit /b 1
       )
