@@ -33,7 +33,7 @@ jobs:
         echo        to the code you have changed^), please note this in your PR.
         echo ----------------------------------------------
         echo See below for the file^(s^) that have changed:
-        git status
+        git diff
         exit /b 1
       )
     displayName: 'Check Formatting of Changes'
