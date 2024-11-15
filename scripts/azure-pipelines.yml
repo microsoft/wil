@@ -11,6 +11,12 @@ jobs:
 
   steps:
   - script: |
+      choco upgrade llvm -y
+      if %ERRORLEVEL% NEQ 0 goto :eof
+      echo ##vso[task.setvariable variable=PATH]%PATH%;C:\Program Files\LLVM\bin
+    displayName: 'Install Clang'
+
+  - script: |
       :: The architecture is not important; we just need VCINSTALLDIR set
       call scripts\call-vcvars.cmd x64
       call scripts\format-changes.cmd origin/master
