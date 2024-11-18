@@ -151,7 +151,7 @@ TEST_CASE("NetworkingTests::Verifying_in_addr_interactions", "[networking]")
     SECTION("Default socket address properties")
     {
         REQUIRE(default_addr.family() == AF_UNSPEC);
-        REQUIRE(!default_addr.is_address_any());
+        REQUIRE(default_addr.get_address_type() == NlatUnspecified);
         REQUIRE(!default_addr.is_address_linklocal());
         REQUIRE(!default_addr.is_address_loopback());
         REQUIRE(NlatUnspecified == default_addr.get_address_type());
@@ -162,7 +162,7 @@ TEST_CASE("NetworkingTests::Verifying_in_addr_interactions", "[networking]")
     SECTION("IPv4 in_addr properties")
     {
         REQUIRE(test_v4_addr.family() == AF_INET);
-        REQUIRE(!test_v4_addr.is_address_any());
+        REQUIRE(test_v4_addr.get_address_type() == NlatUnicast);
         REQUIRE(!test_v4_addr.is_address_linklocal());
         REQUIRE(!test_v4_addr.is_address_loopback());
         REQUIRE(NlatUnicast == test_v4_addr.get_address_type());
@@ -185,7 +185,7 @@ TEST_CASE("NetworkingTests::Verifying_in_addr_interactions", "[networking]")
     SECTION("IPv4 in_addr with port properties")
     {
         REQUIRE(test_v4_addr_with_port.family() == AF_INET);
-        REQUIRE(!test_v4_addr_with_port.is_address_any());
+        REQUIRE(test_v4_addr_with_port.get_address_type() == NlatUnicast);
         REQUIRE(!test_v4_addr_with_port.is_address_linklocal());
         REQUIRE(!test_v4_addr_with_port.is_address_loopback());
         REQUIRE(NlatUnicast == test_v4_addr_with_port.get_address_type());
@@ -200,14 +200,14 @@ TEST_CASE("NetworkingTests::Verifying_in_addr_interactions", "[networking]")
         REQUIRE(test_v4_addr_with_port != default_addr);
         REQUIRE(test_v4_addr_with_port != test_v4_addr);
         REQUIRE(test_v4_addr_with_port > test_v4_addr);
-        REQUIRE(test_v4_addr_with_port > test_v4_addr2);
+        REQUIRE(test_v4_addr_with_port < test_v4_addr2);
         REQUIRE(test_v4_addr_with_port > default_addr);
     }
 
     SECTION("IPv6 in6_addr properties")
     {
         REQUIRE(test_v6_addr.family() == AF_INET6);
-        REQUIRE(!test_v6_addr.is_address_any());
+        REQUIRE(test_v6_addr.get_address_type() == NlatUnicast);
         REQUIRE(!test_v6_addr.is_address_linklocal());
         REQUIRE(!test_v6_addr.is_address_loopback());
         REQUIRE(NlatUnicast == test_v6_addr.get_address_type());
@@ -232,7 +232,7 @@ TEST_CASE("NetworkingTests::Verifying_in_addr_interactions", "[networking]")
     SECTION("IPv6 in6_addr with port properties")
     {
         REQUIRE(test_v6_addr_with_port.family() == AF_INET6);
-        REQUIRE(!test_v6_addr_with_port.is_address_any());
+        REQUIRE(test_v6_addr_with_port.get_address_type() == NlatUnicast);
         REQUIRE(!test_v6_addr_with_port.is_address_linklocal());
         REQUIRE(!test_v6_addr_with_port.is_address_loopback());
         REQUIRE(NlatUnicast == test_v6_addr_with_port.get_address_type());
@@ -249,7 +249,7 @@ TEST_CASE("NetworkingTests::Verifying_in_addr_interactions", "[networking]")
         REQUIRE(test_v6_addr_with_port != test_v6_addr);
         REQUIRE(test_v6_addr_with_port != test_v6_addr2);
         REQUIRE(test_v6_addr_with_port > test_v6_addr);
-        REQUIRE(test_v6_addr_with_port > test_v6_addr2);
+        REQUIRE(test_v6_addr_with_port < test_v6_addr2);
         REQUIRE(test_v6_addr_with_port != default_addr);
         REQUIRE(test_v6_addr_with_port > default_addr);
     }
@@ -257,7 +257,7 @@ TEST_CASE("NetworkingTests::Verifying_in_addr_interactions", "[networking]")
     SECTION("IPv4 link-local in_addr properties")
     {
         REQUIRE(test_v4_linklocal_addr.family() == AF_INET);
-        REQUIRE(!test_v4_linklocal_addr.is_address_any());
+        REQUIRE(test_v4_linklocal_addr.get_address_type() == NlatUnicast);
         REQUIRE(test_v4_linklocal_addr.is_address_linklocal());
         REQUIRE(!test_v4_linklocal_addr.is_address_loopback());
         REQUIRE(NlatUnicast == test_v4_linklocal_addr.get_address_type());
@@ -278,7 +278,7 @@ TEST_CASE("NetworkingTests::Verifying_in_addr_interactions", "[networking]")
     SECTION("IPv4 link-local in_addr with port properties")
     {
         REQUIRE(test_v4_linklocal_addr_with_port.family() == AF_INET);
-        REQUIRE(!test_v4_linklocal_addr_with_port.is_address_any());
+        REQUIRE(test_v4_linklocal_addr_with_port.get_address_type() == NlatUnicast);
         REQUIRE(test_v4_linklocal_addr_with_port.is_address_linklocal());
         REQUIRE(!test_v4_linklocal_addr_with_port.is_address_loopback());
         REQUIRE(NlatUnicast == test_v4_linklocal_addr_with_port.get_address_type());
@@ -301,7 +301,7 @@ TEST_CASE("NetworkingTests::Verifying_in_addr_interactions", "[networking]")
     SECTION("IPv6 link-local in6_addr properties")
     {
         REQUIRE(test_v6_linklocal_addr.family() == AF_INET6);
-        REQUIRE(!test_v6_linklocal_addr.is_address_any());
+        REQUIRE(test_v6_linklocal_addr.get_address_type() == NlatUnicast);
         REQUIRE(test_v6_linklocal_addr.is_address_linklocal());
         REQUIRE(!test_v6_linklocal_addr.is_address_loopback());
         REQUIRE(NlatUnicast == test_v6_linklocal_addr.get_address_type());
@@ -324,7 +324,7 @@ TEST_CASE("NetworkingTests::Verifying_in_addr_interactions", "[networking]")
     SECTION("IPv6 link-local in6_addr with port properties")
     {
         REQUIRE(test_v6_linklocal_addr_with_port.family() == AF_INET6);
-        REQUIRE(!test_v6_linklocal_addr_with_port.is_address_any());
+        REQUIRE(test_v6_linklocal_addr_with_port.get_address_type() == NlatUnicast);
         REQUIRE(test_v6_linklocal_addr_with_port.is_address_linklocal());
         REQUIRE(!test_v6_linklocal_addr_with_port.is_address_loopback());
         REQUIRE(NlatUnicast == test_v6_linklocal_addr_with_port.get_address_type());
@@ -349,7 +349,7 @@ TEST_CASE("NetworkingTests::Verifying_in_addr_interactions", "[networking]")
     SECTION("IPv4 any-addr in_addr properties")
     {
         REQUIRE(test_v4_any_addr.family() == AF_INET);
-        REQUIRE(test_v4_any_addr.is_address_any());
+        REQUIRE(test_v4_any_addr.get_address_type() == NlatUnspecified);
         REQUIRE(!test_v4_any_addr.is_address_linklocal());
         REQUIRE(!test_v4_any_addr.is_address_loopback());
         REQUIRE(NlatUnspecified == test_v4_any_addr.get_address_type());
@@ -374,7 +374,7 @@ TEST_CASE("NetworkingTests::Verifying_in_addr_interactions", "[networking]")
     SECTION("IPv4 any-addr in_addr with port properties")
     {
         REQUIRE(test_v4_any_addr_with_port.family() == AF_INET);
-        REQUIRE(test_v4_any_addr_with_port.is_address_any());
+        REQUIRE(test_v4_any_addr_with_port.get_address_type() == NlatUnspecified);
         REQUIRE(!test_v4_any_addr_with_port.is_address_linklocal());
         REQUIRE(!test_v4_any_addr_with_port.is_address_loopback());
         REQUIRE(NlatUnspecified == test_v4_any_addr_with_port.get_address_type());
@@ -401,7 +401,7 @@ TEST_CASE("NetworkingTests::Verifying_in_addr_interactions", "[networking]")
     SECTION("IPv6 any-addr in6_addr properties")
     {
         REQUIRE(test_v6_any_addr.family() == AF_INET6);
-        REQUIRE(test_v6_any_addr.is_address_any());
+        REQUIRE(test_v6_any_addr.get_address_type() == NlatUnspecified);
         REQUIRE(!test_v6_any_addr.is_address_linklocal());
         REQUIRE(!test_v6_any_addr.is_address_loopback());
         REQUIRE(NlatUnspecified == test_v6_any_addr.get_address_type());
@@ -428,7 +428,7 @@ TEST_CASE("NetworkingTests::Verifying_in_addr_interactions", "[networking]")
     SECTION("IPv6 any-addr in6_addr with port properties")
     {
         REQUIRE(test_v6_any_addr_with_port.family() == AF_INET6);
-        REQUIRE(test_v6_any_addr_with_port.is_address_any());
+        REQUIRE(test_v6_any_addr_with_port.get_address_type() == NlatUnspecified);
         REQUIRE(!test_v6_any_addr_with_port.is_address_linklocal());
         REQUIRE(!test_v6_any_addr_with_port.is_address_loopback());
         REQUIRE(NlatUnspecified == test_v6_any_addr_with_port.get_address_type());
@@ -524,7 +524,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         v4_address.set_address_any(AF_INET);
         REQUIRE(v4_address.family() == AF_INET);
         REQUIRE(v4_address.port() == 0);
-        REQUIRE(v4_address.is_address_any());
+        REQUIRE(v4_address.get_address_type() == NlatUnspecified);
         REQUIRE(!v4_address.is_address_linklocal());
         REQUIRE(!v4_address.is_address_loopback());
         REQUIRE(NlatUnspecified == v4_address.get_address_type());
@@ -533,21 +533,21 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         v4_address.set_port(TestPort);
         REQUIRE(v4_address.family() == AF_INET);
         REQUIRE(v4_address.port() == TestPort);
-        REQUIRE(v4_address.is_address_any());
+        REQUIRE(v4_address.get_address_type() == NlatUnspecified);
         REQUIRE(v4_address == test_v4_any_addr_with_port);
 
         // verify changing families
         v4_address.set_address_any(AF_INET6);
         REQUIRE(v4_address.family() == AF_INET6);
-        REQUIRE(v4_address.port() == TestPort); // TODO: I'm seriously debating having set_address* clear the port
-        REQUIRE(v4_address.is_address_any());
+        REQUIRE(v4_address.port() == TestPort);
+        REQUIRE(v4_address.get_address_type() == NlatUnspecified);
         REQUIRE(v4_address == test_v6_any_addr_with_port);
 
         wil::networking::socket_address v6_address;
         v6_address.set_address_any(AF_INET6);
         REQUIRE(v6_address.family() == AF_INET6);
         REQUIRE(v6_address.port() == 0);
-        REQUIRE(v6_address.is_address_any());
+        REQUIRE(v6_address.get_address_type() == NlatUnspecified);
         REQUIRE(!v6_address.is_address_linklocal());
         REQUIRE(!v6_address.is_address_loopback());
         REQUIRE(NlatUnspecified == v6_address.get_address_type());
@@ -556,21 +556,21 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         v6_address.set_port(TestPort);
         REQUIRE(v6_address.family() == AF_INET6);
         REQUIRE(v6_address.port() == TestPort);
-        REQUIRE(v6_address.is_address_any());
+        REQUIRE(v6_address.get_address_type() == NlatUnspecified);
         REQUIRE(v6_address == test_v6_any_addr_with_port);
 
         // verify changing families
         v6_address.set_address_any(AF_INET);
         REQUIRE(v6_address.family() == AF_INET);
-        REQUIRE(v6_address.port() == TestPort); // TODO: I'm seriously debating having set_address* clear the port
-        REQUIRE(v6_address.is_address_any());
+        REQUIRE(v6_address.port() == TestPort);
+        REQUIRE(v6_address.get_address_type() == NlatUnspecified);
         REQUIRE(v6_address == test_v4_any_addr_with_port);
 
         wil::networking::socket_address defaulted_v4_address{AF_INET};
         defaulted_v4_address.set_address_any();
         REQUIRE(defaulted_v4_address.family() == AF_INET);
         REQUIRE(defaulted_v4_address.port() == 0);
-        REQUIRE(defaulted_v4_address.is_address_any());
+        REQUIRE(defaulted_v4_address.get_address_type() == NlatUnspecified);
         REQUIRE(!defaulted_v4_address.is_address_linklocal());
         REQUIRE(!defaulted_v4_address.is_address_loopback());
         REQUIRE(NlatUnspecified == defaulted_v4_address.get_address_type());
@@ -579,14 +579,14 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         defaulted_v4_address.set_port(TestPort);
         REQUIRE(defaulted_v4_address.family() == AF_INET);
         REQUIRE(defaulted_v4_address.port() == TestPort);
-        REQUIRE(defaulted_v4_address.is_address_any());
+        REQUIRE(defaulted_v4_address.get_address_type() == NlatUnspecified);
         REQUIRE(defaulted_v4_address == test_v4_any_addr_with_port);
 
         wil::networking::socket_address defaulted_v6_address;
         defaulted_v6_address.set_address_any(AF_INET6);
         REQUIRE(defaulted_v6_address.family() == AF_INET6);
         REQUIRE(defaulted_v6_address.port() == 0);
-        REQUIRE(defaulted_v6_address.is_address_any());
+        REQUIRE(defaulted_v6_address.get_address_type() == NlatUnspecified);
         REQUIRE(!defaulted_v6_address.is_address_linklocal());
         REQUIRE(!defaulted_v6_address.is_address_loopback());
         REQUIRE(NlatUnspecified == defaulted_v6_address.get_address_type());
@@ -595,7 +595,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         defaulted_v6_address.set_port(TestPort);
         REQUIRE(defaulted_v6_address.family() == AF_INET6);
         REQUIRE(defaulted_v6_address.port() == TestPort);
-        REQUIRE(defaulted_v6_address.is_address_any());
+        REQUIRE(defaulted_v6_address.get_address_type() == NlatUnspecified);
         REQUIRE(defaulted_v6_address == test_v6_any_addr_with_port);
     }
 }

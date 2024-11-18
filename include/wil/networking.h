@@ -9,7 +9,7 @@
 //
 //*********************************************************
 //! @file
-//! Helpers for using BSD sockets and Windows Winsock APIs and structures.
+//! Helpers for using BSD sockets and Winsock functions and structures.
 //! Does not require the use of the STL or C++ exceptions (see _nothrow functions)
 #ifndef __WIL_NETWORKING_INCLUDED
 #define __WIL_NETWORKING_INCLUDED
@@ -18,26 +18,33 @@
 #error This header is not supported in kernel-mode.
 #endif
 
-// including winsock2.h before windows.h, to prevent inclusion of the older Winsock 1.1. header winsock.h in windows.h
-// alternatively, one can define WIN32_LEAN_AND_MEAN to avoid windows.h including any sockets headers
-// define _SECURE_SOCKET_TYPES_DEFINED_ at the project level to have access to SocketSecurity* APIs
+//! define WIN32_LEAN_AND_MEAN at the project level to avoid windows.h including older winsock 1.1 headers from winsock.h
+//! as including both the Winsock 1.1 header winsock.h and the Winsock 2 header winsock2.h will create compiler errors
+//! alternatively, including winsock2.h before windows.h to prevent inclusion of the Winsock 1.1 winsock.h header from within windows.h
+//! note, winsock2.h will include windows.h if not already included
+//!
+//! define _SECURE_SOCKET_TYPES_DEFINED_ at the project level to have access to SocketSecurity* functions in ws2tcpip.h
+//!
+//! define INCL_WINSOCK_API_TYPEDEFS at the project level to make function typedefs available across various networking headers
+//! note, winsock2.h defaults is to not include function typedefs - but these can be necessary when supporting multiple OS versions
+//!
+//! Link libs for functions referenced in this file: ws2_32.lib, ntdll.lib, and Fwpuclnt.lib (for secure socket functions)
 
 #if !defined(_WINSOCK2API_) && defined(_WINSOCKAPI_)
 #error The Winsock 1.1 winsock.h header was included before the Winsock 2 winsock2.h header - this will cause compilation errors - define WIN32_LEAN_AND_MEAN to avoid winsock.h included by windows.h
 #endif
 
-//! Link libs: ws2_32.lib, ntdll.lib
-
 //! Adding related networking headers in this specific sequence
-//! These headers have intra-header dependencies
-//! This specific sequence should compile correctly and give access to #ifdef'd functions and types
+//! These headers have many inter-header dependencies
+//! This specific sequence should compile correctly and give access to all available #ifdef'd functions and types
 #include <winsock2.h>
 #include <ws2def.h>
 #include <ws2ipdef.h>
+#include <mswsock.h>
 #include <mstcpip.h>
 #include <ws2tcpip.h>
+#include <windns.h>
 #include <iphlpapi.h>
-#include <netioapi.h>
 
 #include "resource.h"
 
@@ -53,7 +60,7 @@ namespace networking
     using unique_wsacleanup_call = unique_call<decltype(&::WSACleanup), ::WSACleanup>;
 
     //! Calls WSAStartup; returns an RAII object that reverts, the RAII object will resolve to bool 'false' if failed
-    WI_NODISCARD inline unique_wsacleanup_call WSAStartup_nothrow()
+    WI_NODISCARD inline unique_wsacleanup_call WSAStartup_nothrow() WI_NOEXCEPT
     {
         WSADATA unused_data{};
         const auto error = ::WSAStartup(WINSOCK_VERSION, &unused_data);
@@ -71,7 +78,7 @@ namespace networking
     }
 
     //! Calls WSAStartup and fail-fasts on error; returns an RAII object that reverts
-    WI_NODISCARD inline unique_wsacleanup_call WSAStartup_failfast()
+    WI_NODISCARD inline unique_wsacleanup_call WSAStartup_failfast() WI_NOEXCEPT
     {
         WSADATA unused_data{};
         FAIL_FAST_IF_WIN32_ERROR(::WSAStartup(WINSOCK_VERSION, &unused_data));
@@ -88,6 +95,241 @@ namespace networking
     }
 #endif
 
+    struct WINSOCK_EXTENSION_FUNCTION_TABLE
+    {
+        LPFN_ACCEPTEX AcceptEx{nullptr};
+        LPFN_CONNECTEX ConnectEx{nullptr};
+        LPFN_DISCONNECTEX DisconnectEx{nullptr};
+        LPFN_GETACCEPTEXSOCKADDRS GetAcceptExSockaddrs{nullptr};
+        LPFN_TRANSMITFILE TransmitFile{nullptr};
+        LPFN_TRANSMITPACKETS TransmitPackets{nullptr};
+        LPFN_WSARECVMSG WSARecvMsg{nullptr};
+        LPFN_WSASENDMSG WSASendMsg{nullptr};
+    };
+    struct winsock_extension_function_table
+    {
+        static winsock_extension_function_table load() WI_NOEXCEPT;
+
+        ~winsock_extension_function_table() WI_NOEXCEPT = default;
+
+        // can copy, but the new object needs its own WSA refcount
+        winsock_extension_function_table(const winsock_extension_function_table& rhs) WI_NOEXCEPT : wsa_refcount{WSAStartup_nothrow()}
+        {
+            if (!wsa_refcount || !rhs.wsa_refcount)
+            {
+                ::ZeroMemory(&f, sizeof(f));
+                successfully_loaded = false;
+            }
+            else
+            {
+                ::memcpy(&f, &rhs.f, sizeof(f));
+                successfully_loaded = rhs.successfully_loaded;
+            }
+        }
+        winsock_extension_function_table& operator=(const winsock_extension_function_table& rhs) WI_NOEXCEPT
+        {
+            if (!wsa_refcount || !rhs.wsa_refcount)
+            {
+                ::ZeroMemory(&f, sizeof(f));
+                successfully_loaded = false;
+            }
+            else
+            {
+                ::memcpy(&f, &rhs.f, sizeof(f));
+                successfully_loaded = rhs.successfully_loaded;
+            }
+
+            return *this;
+        }
+
+        WINSOCK_EXTENSION_FUNCTION_TABLE f{};
+        bool successfully_loaded{};
+
+    private:
+        // constructed via load()
+        winsock_extension_function_table() WI_NOEXCEPT : wsa_refcount{WSAStartup_nothrow()}
+        {
+            successfully_loaded = static_cast<bool>(wsa_refcount);
+        }
+
+        // must guarantee Winsock does not unload while we have dynamically loaded function pointers
+        const unique_wsacleanup_call wsa_refcount;
+    };
+
+    struct rio_extension_function_table
+    {
+        static rio_extension_function_table load() WI_NOEXCEPT;
+
+        ~rio_extension_function_table() WI_NOEXCEPT = default;
+
+        // can copy, but the new object needs its own WSA refcount
+        rio_extension_function_table(const rio_extension_function_table& rhs) WI_NOEXCEPT : wsa_refcount{WSAStartup_nothrow()}
+        {
+            if (!wsa_refcount || !rhs.wsa_refcount)
+            {
+                // the only time we must make wsa_refcount not actually const
+                const_cast<unique_wsacleanup_call*>(&wsa_refcount)->release();
+                successfully_loaded = false;
+            }
+            else
+            {
+                ::memcpy(&f, &rhs.f, sizeof(f));
+                successfully_loaded = rhs.successfully_loaded;
+            }
+        }
+        rio_extension_function_table& operator=(const rio_extension_function_table& rhs) WI_NOEXCEPT
+        {
+            if (!wsa_refcount || !rhs.wsa_refcount)
+            {
+                // the only time we must make wsa_refcount not actually const
+                const_cast<unique_wsacleanup_call*>(&wsa_refcount)->release();
+                successfully_loaded = false;
+            }
+            else
+            {
+                ::memcpy(&f, &rhs.f, sizeof(f));
+                successfully_loaded = rhs.successfully_loaded;
+            }
+
+            return *this;
+        }
+
+        RIO_EXTENSION_FUNCTION_TABLE f{};
+        bool successfully_loaded{false};
+
+    private:
+        // constructed via load()
+        rio_extension_function_table() WI_NOEXCEPT : wsa_refcount{WSAStartup_nothrow()}
+        {
+            successfully_loaded = static_cast<bool>(wsa_refcount);
+        }
+        // must guarantee Winsock does not unload while we have dynamically loaded function pointers
+        const unique_wsacleanup_call wsa_refcount;
+    };
+
+    inline winsock_extension_function_table winsock_extension_function_table::load() WI_NOEXCEPT
+    {
+        winsock_extension_function_table table{};
+        if (!table.successfully_loaded)
+        {
+            return table;
+        }
+
+        // we need a temp socket to load the function table
+        const wil::unique_socket localSocket{::socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)};
+        if (INVALID_SOCKET == localSocket.get())
+        {
+            table.successfully_loaded = false;
+            return table;
+        }
+
+        table.successfully_loaded = true;
+
+        // walk WINSOCK_EXTENSION_FUNCTION_TABLE to load each function pointer
+        constexpr auto function_table_length = sizeof(table.f) / sizeof(void*);
+        for (auto fnLoop = 0ul; fnLoop < function_table_length; ++fnLoop)
+        {
+            void* functionPtr{};
+            const GUID* extensionGuid{};
+
+            switch (fnLoop)
+            {
+            case 0:
+            {
+                functionPtr = &table.f.AcceptEx;
+                constexpr GUID acceptex_guid = WSAID_ACCEPTEX;
+                extensionGuid = &acceptex_guid;
+                break;
+            }
+            case 1:
+            {
+                functionPtr = &table.f.ConnectEx;
+                constexpr GUID connectex_guid = WSAID_CONNECTEX;
+                extensionGuid = &connectex_guid;
+                break;
+            }
+            case 2:
+            {
+                functionPtr = &table.f.DisconnectEx;
+                constexpr GUID disconnectex_guid = WSAID_DISCONNECTEX;
+                extensionGuid = &disconnectex_guid;
+                break;
+            }
+            case 3:
+            {
+                functionPtr = &table.f.GetAcceptExSockaddrs;
+                constexpr GUID getacceptexsockaddrs_guid = WSAID_GETACCEPTEXSOCKADDRS;
+                extensionGuid = &getacceptexsockaddrs_guid;
+                break;
+            }
+            case 4:
+            {
+                functionPtr = &table.f.TransmitFile;
+                constexpr GUID transmitfile_guid = WSAID_TRANSMITFILE;
+                extensionGuid = &transmitfile_guid;
+                break;
+            }
+            case 5:
+            {
+                functionPtr = &table.f.TransmitPackets;
+                constexpr GUID transmitpackets_guid = WSAID_TRANSMITPACKETS;
+                extensionGuid = &transmitpackets_guid;
+                break;
+            }
+            case 6:
+            {
+                functionPtr = &table.f.WSARecvMsg;
+                constexpr GUID wsarecvmsg_guid = WSAID_WSARECVMSG;
+                extensionGuid = &wsarecvmsg_guid;
+                break;
+            }
+            case 7:
+            {
+                functionPtr = &table.f.WSASendMsg;
+                constexpr GUID wsasendmsg_guid = WSAID_WSASENDMSG;
+                extensionGuid = &wsasendmsg_guid;
+                break;
+            }
+            }
+
+            constexpr DWORD controlCode{SIO_GET_EXTENSION_FUNCTION_POINTER};
+            constexpr DWORD bytes{sizeof(void*)};
+            DWORD unused_bytes;
+            if (0 !=
+                ::WSAIoctl(localSocket.get(), controlCode, &extensionGuid, DWORD{sizeof(GUID)}, functionPtr, bytes, &unused_bytes, nullptr, nullptr))
+            {
+                table.successfully_loaded = false;
+            }
+        }
+
+        return table;
+    }
+
+    rio_extension_function_table rio_extension_function_table::load() WI_NOEXCEPT
+    {
+        rio_extension_function_table table{};
+        if (table.successfully_loaded)
+        {
+            // we need a temp socket to load the function table
+            const wil::unique_socket localSocket{::socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)};
+            if (localSocket)
+            {
+                constexpr DWORD controlCode{SIO_GET_MULTIPLE_EXTENSION_FUNCTION_POINTER};
+                constexpr DWORD bytes{sizeof(table.f)};
+
+                GUID rioGuid = WSAID_MULTIPLE_RIO;
+                ::ZeroMemory(&table.f, bytes);
+                table.f.cbSize = bytes;
+                DWORD unused_bytes;
+                if (0 == ::WSAIoctl(localSocket.get(), controlCode, &rioGuid, DWORD{sizeof(rioGuid)}, &table.f, bytes, &unused_bytes, nullptr, nullptr))
+                {
+                    table.successfully_loaded = true;
+                }
+            }
+        }
+        return table;
+    }
+    //
     // encapsulates working with the sockaddr datatype
     //
     // sockaddr is a generic type - similar to a base class, but designed for C with BSD sockets (1983-ish)
@@ -124,8 +366,9 @@ namespace networking
     //   - not a derived sockaddr* type
     //   - a structure containing both a sockaddr* and its length fields
     //
+    // TODO: what to do with this oddball
     // SOCKADDR_DL... data-link
-
+    //
     class addr_info;
     addr_info resolve_name_nothrow(_In_ PCWSTR name) WI_NOEXCEPT;
 
@@ -223,7 +466,6 @@ namespace networking
 
 #endif
 
-    // INET6_ADDRSTRLEN is guaranteed to be larger than INET_ADDRSTRLEN for IPv4 addresses
     static_assert(INET6_ADDRSTRLEN > INET_ADDRSTRLEN);
     typedef WCHAR socket_address_wstring[INET6_ADDRSTRLEN];
     typedef CHAR socket_address_string[INET6_ADDRSTRLEN];
@@ -243,6 +485,7 @@ namespace networking
 #ifdef WIL_ENABLE_EXCEPTIONS
         explicit socket_address(const PCWSTR, unsigned short port = 0) WI_NOEXCEPT;
 #endif
+
         ~socket_address() = default;
         socket_address(const socket_address&) WI_NOEXCEPT = default;
         socket_address& operator=(const socket_address&) WI_NOEXCEPT = default;
@@ -258,7 +501,6 @@ namespace networking
         void reset(ADDRESS_FAMILY family = AF_UNSPEC) WI_NOEXCEPT;
 
         // set_sockaddr overwrites the entire sockaddr in the object
-
         template <typename T>
         void set_sockaddr(_In_reads_bytes_(inLength) const SOCKADDR* addr, T inLength) WI_NOEXCEPT;
         void set_sockaddr(const SOCKADDR_IN*) WI_NOEXCEPT;
@@ -266,20 +508,19 @@ namespace networking
         void set_sockaddr(const SOCKADDR_INET*) WI_NOEXCEPT;
         void set_sockaddr(const SOCKET_ADDRESS*) WI_NOEXCEPT;
 
-        [[nodiscard]] bool is_address_any() const WI_NOEXCEPT;
         [[nodiscard]] bool is_address_linklocal() const WI_NOEXCEPT;
         [[nodiscard]] bool is_address_loopback() const WI_NOEXCEPT;
 
-        // returns NlatUnspecified ('any'), NlatUnicast, NlatAnycast, NlatMulticast, NlatBroadcast,
+        // returns NlatUnspecified ('any'), NlatUnicast, NlatAnycast, NlatMulticast, NlatBroadcast, NlatInvalid
         [[nodiscard]] NL_ADDRESS_TYPE get_address_type() const WI_NOEXCEPT;
 
         void set_port(USHORT) WI_NOEXCEPT;
         void set_scope_id(ULONG) WI_NOEXCEPT;
         void set_flow_info(ULONG) WI_NOEXCEPT;
 
-        // set_address* preserves the existing port set on the address.
-        // the address family is preserved unless it is specified as an argument
-
+        // set_address* preserves the existing port set on the address
+        // - so that one can call set_port() and set_address() in any order with expected results
+        // - the address family is preserved unless it is specified (or inferred) as an argument
         void set_address_any() WI_NOEXCEPT;
         void set_address_any(ADDRESS_FAMILY family) WI_NOEXCEPT;
         void set_address_loopback() WI_NOEXCEPT;
@@ -295,18 +536,14 @@ namespace networking
         // write_address prints the IP address portion, not the scope id or port
 #if defined(_STRING_) || defined(WIL_DOXYGEN)
         [[nodiscard]] std::wstring write_address() const;
+        [[nodiscard]] std::wstring write_complete_address() const;
 #endif
         HRESULT write_address_nothrow(socket_address_wstring& address) const WI_NOEXCEPT;
         HRESULT write_address_nothrow(socket_address_string& address) const WI_NOEXCEPT;
 
-        // write_complete_address prints the IP address, scope id, and port
-#if defined(_STRING_) || defined(WIL_DOXYGEN)
-        [[nodiscard]] std::wstring write_complete_address() const;
-#endif
+        // write_complete_address_nothrow() prints the IP address as well as the scope id and port values
         HRESULT write_complete_address_nothrow(socket_address_wstring& address) const WI_NOEXCEPT;
-#ifdef _WINSOCK_DEPRECATED_NO_WARNINGS // ANSI functions are deprecated
         HRESULT write_complete_address_nothrow(socket_address_string& address) const WI_NOEXCEPT;
-#endif
 
         // Accessors
         [[nodiscard]] ADDRESS_FAMILY family() const WI_NOEXCEPT;
@@ -534,29 +771,6 @@ namespace networking
         {
             ::CopyMemory(&m_sockaddr, addr->lpSockaddr, addr->iSockaddrLength);
         }
-    }
-
-    inline bool socket_address::is_address_any() const WI_NOEXCEPT
-    {
-        if (scope_id() != 0)
-        {
-            return false;
-        }
-
-        switch (family())
-        {
-        case AF_UNSPEC:
-            return false;
-
-        case AF_INET:
-            return ::IN4_IS_ADDR_UNSPECIFIED(in_addr());
-
-        case AF_INET6:
-            return ::IN6_IS_ADDR_UNSPECIFIED(in6_addr());
-        }
-
-        WI_ASSERT_MSG(false, "Unknown address family");
-        return false;
     }
 
     inline bool socket_address::is_address_linklocal() const WI_NOEXCEPT
@@ -936,4 +1150,4 @@ namespace networking
 } // namespace networking
 } // namespace wil
 
-#endif
+#endif // __WIL_NETWORKING_INCLUDED
