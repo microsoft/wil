@@ -4116,22 +4116,58 @@ TEST_CASE("WindowsInternalTests::ArgvToCommandLine", "[win32_helpers]")
 {
     // NOTE: CommandLineToArgvW makes the assumption that the first argument is an executable name, and thefefore must
     // be a valid NTFS path. This enables special handling when the first argument is a quoted string since NTFS paths
-    // cannot contain embedded quotation characters.
+    // cannot contain embedded quotation characters. This allows CommandLineToArgvW to make an optimization for the
+    // first argument as backslash escaping is not necessary. For the tests below, we need to ensure we don't
+    // accidentally pass invalid input as the first argument.
 
-    DoArgvToCommandLineTest({"SingleNoSpaces"}, "SingleNoSpaces", R"("SingleNoSpaces")");
-    DoArgvToCommandLineTest({"multiple", "no", "spaces"}, "multiple no spaces", R"("multiple" "no" "spaces")");
-    DoArgvToCommandLineTest({"single with spaces"}, R"("single with spaces")", R"("single with spaces")");
-    DoArgvToCommandLineTest({"multiple with", "some spaces"}, R"("multiple with" "some spaces")", R"("multiple with" "some spaces")");
+    // No embedded special characters
+    DoArgvToCommandLineTest({"test.exe", "SingleNoSpaces"}, "test.exe SingleNoSpaces", R"("test.exe" "SingleNoSpaces")");
+    DoArgvToCommandLineTest({"test.exe", "multiple", "no", "spaces"}, "test.exe multiple no spaces", R"("test.exe" "multiple" "no" "spaces")");
+    DoArgvToCommandLineTest({"test.exe", "single with spaces"}, R"(test.exe "single with spaces")", R"("test.exe" "single with spaces")");
+    DoArgvToCommandLineTest(
+        {"test.exe", "multiple with", "some spaces"}, R"(test.exe "multiple with" "some spaces")", R"("test.exe" "multiple with" "some spaces")");
 
+    // Just backslashes
     // NOTE: Should only escape backslashes when at the end of a string and followed by quote
-    __debugbreak();
-    DoArgvToCommandLineTest({R"(\single\with\backslashes\)"}, R"(\single\with\backslashes\)", R"("\single\with\backslashes\\")");
     DoArgvToCommandLineTest(
-        {R"(multiple\)", R"(wi\th)", R"(\backslashes)"}, R"(multiple\ wi\th \backslashes)", R"("multiple\\" "wi\th" "\backslashes")");
+        {"test.exe", R"(\single\with\backslashes\)"}, R"(test.exe \single\with\backslashes\)", R"("test.exe" "\single\with\backslashes\\")");
+    DoArgvToCommandLineTest(
+        {"test.exe", R"(multiple\)", R"(wi\th)", R"(\backslashes)"},
+        R"(test.exe multiple\ wi\th \backslashes)",
+        R"("test.exe" "multiple\\" "wi\th" "\backslashes")");
+    DoArgvToCommandLineTest({"test.exe", R"(TerminateEven\\)"}, R"(test.exe TerminateEven\\)", R"("test.exe" "TerminateEven\\\\")");
 
-    DoArgvToCommandLineTest({R"("single"with"quotes")"}, R"(\"single\"with\"quotes\")", R"("\"single\"with\"quotes\"")");
+    // Just quotes
     DoArgvToCommandLineTest(
-        {R"(multiple")", R"(wi"th)", R"("quotes)"}, R"(multiple\" wi\"th \"quotes)", R"("multiple\"" "wi\"th" "\"quotes")");
+        {"test.exe", R"("single"with"quotes")"}, R"(test.exe \"single\"with\"quotes\")", R"("test.exe" "\"single\"with\"quotes\"")");
+    DoArgvToCommandLineTest(
+        {"test.exe", R"(multiple")", R"(wi"th)", R"("quotes)"},
+        R"(test.exe multiple\" wi\"th \"quotes)",
+        R"("test.exe" "multiple\"" "wi\"th" "\"quotes")");
+
+    // Embedded quotes and backslashes
+    DoArgvToCommandLineTest(
+        {"test.exe", R"(TerminateOdd\")", R"(TerminateEven\\")"},
+        R"(test.exe TerminateOdd\\\" TerminateEven\\\\\")",
+        R"("test.exe" "TerminateOdd\\\"" "TerminateEven\\\\\"")");
+    DoArgvToCommandLineTest(
+        {"test.exe", R"(TerminateOdd"\)", R"(TerminateEven"\\)"},
+        R"(test.exe TerminateOdd\"\ TerminateEven\"\\)",
+        R"("test.exe" "TerminateOdd\"\\" "TerminateEven\"\\\\")");
+    DoArgvToCommandLineTest(
+        {"test.exe", R"(Embedded\"Odd)", R"(Embedded\\"Even)"},
+        R"(test.exe Embedded\\\"Odd Embedded\\\\\"Even)",
+        R"("test.exe" "Embedded\\\"Odd" "Embedded\\\\\"Even")");
+
+    DoArgvToCommandLineTest(
+        {R"(C:\path\to\test.exe)", R"(\")", R"("\)", R"(\\")", R"("\\)", R"(\"")", R"(""\)", R"(\\"")", R"(""\\)", R"(\"\")", R"("\"\)", R"(\""\)", R"("\\")"},
+        R"(C:\path\to\test.exe \\\" \"\ \\\\\" \"\\ \\\"\" \"\"\ \\\\\"\" \"\"\\ \\\"\\\" \"\\\"\ \\\"\"\ \"\\\\\")",
+        R"("C:\path\to\test.exe" "\\\"" "\"\\" "\\\\\"" "\"\\\\" "\\\"\"" "\"\"\\" "\\\\\"\"" "\"\"\\\\" "\\\"\\\"" "\"\\\"\\" "\\\"\"\\" "\"\\\\\"")");
+    DoArgvToCommandLineTest(
+        {R"(C:\path to\test.exe)", R"(\" "\)", R"(\\" \"\ "\\)", R"(\"" "\" ""\)", R"(\\"" \""\ ""\\ \"\" "\"\)"},
+        R"()",
+        R"()"
+    );
 }
 #endif
 

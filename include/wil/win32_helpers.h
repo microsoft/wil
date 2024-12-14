@@ -952,6 +952,14 @@ enum class ArgvToCommandLineFlags : uint8_t
     //! already written part of the argument to the result. That said, wrapping all arguments with quotes can have some
     //! adverse effects with some applications, most notably cmd.exe, which do their own command line processing.
     ForceQuotes = 0x01 << 0,
+
+    //! `CommandLineToArgvW` has an "optimization" that assumes that the first argument is the path to an executable.
+    //! Because valid NTFS paths cannot contain quotation characters, `CommandLineToArgvW` disables its quote escaping
+    //! logic for the first argument. By default, `ArgvToCommandLine` aims to ensure that an argv array can "round trip"
+    //! to a string and back, meaning it tries to replicate this logic in reverse. This flag disables this logic and
+    //! escapes backslashes and quotes the same for all arguments, including the first one. This is useful if the output
+    //! string is only an intermediate command line string (e.g. if the executable path is prepended later).
+    FirstArgumentIsNotPath = 0x01 << 1,
 };
 DEFINE_ENUM_FLAG_OPERATORS(ArgvToCommandLineFlags);
 
@@ -976,8 +984,10 @@ inline std::basic_string<CharT> ArgvToCommandLine(RangeT&& range, ArgvToCommandL
     const CharT* const nextPrefix = forceQuotes ? quoted_space_string : space_string;
 
     string_type result;
+    int index = 0;
     for (auto&& strRaw : range)
     {
+        auto currentIndex = index++;
         result += prefix;
 
         const CharT* searchString = initialSearchString;
@@ -1008,8 +1018,23 @@ inline std::basic_string<CharT> ArgvToCommandLine(RangeT&& range, ArgvToCommandL
 
             if (str[pos] == '"')
             {
-                // Kinda easy case; just escape the quotes
-                result.append({'\\', '"'});
+                // Kinda easy case; just escape the quotes, *unless* this is the first argument and we assume a path
+                if ((currentIndex > 0) || WI_IsFlagSet(flags, ArgvToCommandLineFlags::FirstArgumentIsNotPath))
+                {
+                    result.append({'\\', '"'}); // Escape case
+                }
+                else
+                {
+                    // Realistically, this likely signals a bug since paths cannot contain quotes. That said, the
+                    // behavior of CommandLineToArgvW is to just preserve "interior" quotes, so we do that.
+                    // NOTE: 'CommandLineToArgvW' treats "interior" quotes as terminating quotes when the executable
+                    // path begins with a quote, even if the next character is not a space. This assert won't catch all
+                    // of such issues as we may detect a space, and therefore the need to surroud the argument with
+                    // quotes, later in the string; this is best effort. Such arguments wouldn't be valid and are not
+                    // representable anyway
+                    WI_ASSERT((pos > 0) && !WI_IsFlagSet(flags, ArgvToCommandLineFlags::ForceQuotes) && !terminateWithQuotes);
+                    result.push_back('"'); // Not escaping case
+                }
                 ++pos;
             }
             else if (str[pos] == '\\')
@@ -1021,6 +1046,13 @@ inline std::basic_string<CharT> ArgvToCommandLine(RangeT&& range, ArgvToCommandL
                 // NOTE: This is an optimization taking advantage of the fact that doing a double append of 1+
                 // backslashes will be functionally equivalent to escaping each one
                 result.append(str, pos, nextPos - pos);
+
+                // If this is the first argument and is being interpreted as a path, we never escape slashes
+                if ((currentIndex == 0) && !WI_IsFlagSet(flags, ArgvToCommandLineFlags::FirstArgumentIsNotPath))
+                {
+                    pos = nextPos;
+                    continue;
+                }
 
                 if ((nextPos != str.npos) && (str[nextPos] != L'"'))
                 {
