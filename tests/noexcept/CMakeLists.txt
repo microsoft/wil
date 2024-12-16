@@ -12,6 +12,8 @@ endif()
 
 target_compile_definitions(witest.noexcept PRIVATE
     -DCATCH_CONFIG_DISABLE_EXCEPTIONS
+    # No exceptions means we will deduce STL usage to false, however the tests still want to test things that use the STL
+    -DWIL_USE_STL=1
     )
 
 # Catch2 has a no exceptions mode (configured above), however still includes STL headers which contain try...catch
