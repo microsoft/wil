@@ -19,10 +19,10 @@
 #include "win32_helpers.h"
 #include "resource.h" // last to ensure _COMBASEAPI_H_ protected definitions are available
 
-#if WI_HAS_INCLUDE(<tuple>, 1) // Tuple is C++11... assume available
+#if WIL_USE_STL && WI_HAS_INCLUDE(<tuple>, 1) // Tuple is C++11... assume available
 #include <tuple>
 #endif
-#if WI_HAS_INCLUDE(<type_traits>, 1) // Type traits is old... assume available
+#if WIL_USE_STL && WI_HAS_INCLUDE(<type_traits>, 1) // Type traits is old... assume available
 #include <type_traits>
 #endif
 
@@ -2113,7 +2113,7 @@ wil::com_ptr_nothrow<Interface> CoGetClassObjectNoThrow(DWORD dwClsContext = CLS
     return CoGetClassObjectNoThrow<Interface>(__uuidof(Class), dwClsContext);
 }
 
-#if __cpp_lib_apply && WI_HAS_INCLUDE(<type_traits>, 1)
+#if __cpp_lib_apply && WIL_USE_STL && WI_HAS_INCLUDE(<type_traits>, 1)
 /// @cond
 namespace details
 {

@@ -16,6 +16,10 @@
 #include "wistd_functional.h"
 #include "wistd_memory.h"
 
+#if WIL_USE_STL
+#include <iterator>
+#endif
+
 #pragma warning(push)
 #pragma warning(disable : 26135 26110) // Missing locking annotation, Caller failing to hold lock
 #pragma warning(disable : 4714)        // __forceinline not honored
@@ -7346,7 +7350,7 @@ namespace details
 
         struct iterator
         {
-#if defined(_XUTILITY_) || defined(WIL_DOXYGEN)
+#if WIL_USE_STL || defined(WIL_DOXYGEN)
             // muse be input_iterator_tag as use of one instance invalidates the other.
             typedef ::std::input_iterator_tag iterator_category;
 #endif
