@@ -119,10 +119,11 @@ namespace networking
         // (getting a WSA reference count should be no-fail once the first reference it taken)
         //
         // IF the target could not get a WSA reference count
-        // OR
+        //   OR
         // IF we couldn't get our own WSA reference count
-        // (this should never happen the caller has a reference, but we failed to get a WSA reference)
-        // THEN this object cannot carry forward any function pointers - it must show successfully_loaded == false
+        //   (this should never happen the caller has a reference, but we failed to get a WSA reference)
+        // THEN
+        //   this object cannot carry forward any function pointers - it must show successfully loaded == false
         winsock_extension_function_table(const winsock_extension_function_table& rhs) WI_NOEXCEPT :
             wsa_reference_count{WSAStartup_nothrow()}
         {
@@ -179,10 +180,11 @@ namespace networking
         // (getting a WSA reference count should be no-fail once the first reference it taken)
         //
         // IF the target could not get a WSA reference count
-        // OR
+        //   OR
         // IF we couldn't get our own WSA reference count
-        // (this should never happen the caller has a reference, but we failed to get a WSA reference)
-        // THEN this object cannot carry forward any function pointers - it must show successfully_loaded == false
+        //   (this should never happen the caller has a reference, but we failed to get a WSA reference)
+        // THEN
+        //   this object cannot carry forward any function pointers - it must show successfully loaded == false
         rio_extension_function_table(const rio_extension_function_table& rhs) WI_NOEXCEPT :
             wsa_reference_count{WSAStartup_nothrow()}
         {
@@ -230,40 +232,40 @@ namespace networking
     };
 
     //
-    // encapsulates working with the sockaddr datatype
-    //
-    // sockaddr is a generic type - similar to a base class, but designed for C with BSD sockets (1983-ish)
-    // 'derived' structures are cast back to sockaddr* (so the initial struct members must be aligned)
-    //
-    // this data type was built to be 'extensible' so new network types could create their own address structures
-    // - appending fields to the initial fields of the sockaddr
-    //
-    // note that the address and port fields of TCPIP sockaddr* types were designed to be encoded in network-byte order
-    // - hence the common use of "host-to-network" and "network-to-host" APIs, e.g. htons(), htonl(), ntohs(), ntohl()
-    //
-    // Socket APIs that accept a socket address will accept 2 fields:
-    // - the sockaddr* (the address of the derived sockaddr type, cast down to a sockaddr*)
-    // - the length of the 'derived' socket address structure referenced by the sockaddr*
-    //
-    // Commonly used sockaddr* types that are using with TCPIP networking:
-    //
-    // sockaddr_storage / SOCKADDR_STORAGE
-    //   - a sockaddr* derived type that is guaranteed to be large enough to hold any possible socket address
-    // sockaddr_in / SOCKADDR_IN
-    //   - a sockaddr* derived type designed to contain an IPv4 address and port number
-    // sockaddr_in6 / SOCKADDR_IN6
-    //   - a sockaddr* derived type designed to contain an IPv6 address, port, scope id, and flow info
-    // SOCKADDR_INET
-    //   - a union of sockaddr_in and sockaddr_in6 -- i.e., large enough to contain any TCPIP address
-    // in_addr / IN_ADDR
-    //   - the raw address portion of a sockaddr_in
-    // in6_addr / IN6_ADDR
-    //   - the raw address portion of a sockaddr_in6
-    //
-    // SOCKET_ADDRESS
-    //   - not a derived sockaddr* type
-    //   - a structure containing both a sockaddr* and its length fields, returned from some networking functions
-    //
+    //! encapsulates working with the sockaddr datatype
+    //!
+    //! sockaddr is a generic type - similar to a base class, but designed for C with BSD sockets (1983-ish)
+    //! 'derived' structures are cast back to sockaddr* (so the initial struct members must be aligned)
+    //!
+    //! this data type was built to be 'extensible' so new network types could create their own address structures
+    //! - appending fields to the initial fields of the sockaddr
+    //!
+    //! note that the address and port fields of TCPIP sockaddr* types were designed to be encoded in network-byte order
+    //! - hence the common use of "host-to-network" and "network-to-host" APIs, e.g. htons(), htonl(), ntohs(), ntohl()
+    //!
+    //! Socket APIs that accept a socket address will accept 2 fields:
+    //! - the sockaddr* (the address of the derived sockaddr type, cast down to a sockaddr*)
+    //! - the length of the 'derived' socket address structure referenced by the sockaddr*
+    //!
+    //! Commonly used sockaddr* types that are using with TCPIP networking:
+    //!
+    //! sockaddr_storage / SOCKADDR_STORAGE
+    //!   - a sockaddr* derived type that is guaranteed to be large enough to hold any possible socket address
+    //! sockaddr_in / SOCKADDR_IN
+    //!   - a sockaddr* derived type designed to contain an IPv4 address and port number
+    //! sockaddr_in6 / SOCKADDR_IN6
+    //!   - a sockaddr* derived type designed to contain an IPv6 address, port, scope id, and flow info
+    //! SOCKADDR_INET
+    //!   - a union of sockaddr_in and sockaddr_in6 -- i.e., large enough to contain any TCPIP address
+    //! in_addr / IN_ADDR
+    //!   - the raw address portion of a sockaddr_in
+    //! in6_addr / IN6_ADDR
+    //!   - the raw address portion of a sockaddr_in6
+    //!
+    //! SOCKET_ADDRESS
+    //!   - not a derived sockaddr* type
+    //!   - a structure containing both a sockaddr* and its length fields, returned from some networking functions
+    //!
 
     [[nodiscard]] inline bool equals(const in_addr& lhs, const in_addr& rhs) WI_NOEXCEPT
     {
