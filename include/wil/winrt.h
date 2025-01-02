@@ -29,25 +29,9 @@
 #endif
 
 /// @cond
-#if defined(WIL_ENABLE_EXCEPTIONS) && !defined(__WI_HAS_STD_LESS)
-#define __WI_HAS_STD_LESS 1
-#if WI_HAS_INCLUDE(<functional>, 1) // Functional header available since C++11... fall back to assume present
+#if WIL_USE_STL
 #include <functional>
-#else
-// Fall back to the old way of forward declaring std::less
-#pragma warning(push)
-#pragma warning(disable : 4643) // Forward declaring '...' in namespace std is not permitted by the C++ Standard.
-namespace std
-{
-template <class _Ty>
-struct less;
-}
-#pragma warning(pop)
-#endif
-#endif
-
-#if defined(WIL_ENABLE_EXCEPTIONS) && WI_HAS_INCLUDE(<vector>, 1) // Vector has been around forever... fall back to assume present
-#define __WI_HAS_STD_VECTOR 1
+#include <iterator>
 #include <vector>
 #endif
 /// @endcond
@@ -604,7 +588,7 @@ public:
     class vector_iterator
     {
     public:
-#if defined(_XUTILITY_) || defined(WIL_DOXYGEN)
+#if WIL_USE_STL || defined(WIL_DOXYGEN)
         // could be random_access_iterator_tag but missing some features
         typedef ::std::bidirectional_iterator_tag iterator_category;
 #endif
@@ -795,7 +779,7 @@ public:
     class vector_iterator_nothrow
     {
     public:
-#if defined(_XUTILITY_) || defined(WIL_DOXYGEN)
+#if WIL_USE_STL || defined(WIL_DOXYGEN)
         // must be input_iterator_tag as use (via ++, --, etc.) of one invalidates the other.
         typedef ::std::input_iterator_tag iterator_category;
 #endif
@@ -965,7 +949,7 @@ public:
     class iterable_iterator
     {
     public:
-#if defined(_XUTILITY_) || defined(WIL_DOXYGEN)
+#if WIL_USE_STL || defined(WIL_DOXYGEN)
         typedef ::std::forward_iterator_tag iterator_category;
 #endif
         typedef TSmart value_type;
@@ -1075,7 +1059,7 @@ private:
 };
 #pragma endregion
 
-#if defined(__WI_HAS_STD_VECTOR) || defined(WIL_DOXYGEN)
+#if (WIL_USE_STL && defined(WIL_ENABLE_EXCEPTIONS)) || defined(WIL_DOXYGEN)
 /** Converts WinRT vectors to std::vector by requesting the collection's data in a single
 operation. This can be more efficient in terms of IPC cost than iteratively processing it.
 @code
@@ -1170,7 +1154,7 @@ public:
     class iterable_iterator_nothrow
     {
     public:
-#if defined(_XUTILITY_) || defined(WIL_DOXYGEN)
+#if WIL_USE_STL || defined(WIL_DOXYGEN)
         // muse be input_iterator_tag as use of one instance invalidates the other.
         typedef ::std::input_iterator_tag iterator_category;
 #endif
@@ -2492,7 +2476,7 @@ struct ABI::Windows::Foundation::IAsyncOperationWithProgressCompletedHandler<ABI
 #pragma pop_macro("ABI")
 #endif
 
-#if __WI_HAS_STD_LESS
+#if WIL_USE_STL
 
 namespace std
 {

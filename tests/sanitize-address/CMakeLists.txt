@@ -23,6 +23,11 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         target_compile_options(witest.asan PRIVATE -fno-exceptions)
     endif()
 
+    # Since we're disabling exceptions, we also need to explicitly enable use of the STL since some tests rely on it
+    target_compile_definitions(witest.asan PRIVATE
+        -DWIL_USE_STL=1
+        )
+
     if ($ENV{Platform} STREQUAL "x86")
         target_link_libraries(witest.asan PRIVATE
             clang_rt.asan_dynamic-i386.lib
