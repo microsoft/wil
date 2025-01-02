@@ -3331,7 +3331,7 @@ namespace details
 {
     inline void CoDisableCallCancellationNull()
     {
-        ::CoDisableCallCancellation(nullptr);
+        (void)::CoDisableCallCancellation(nullptr);
     }
 } // namespace details
 
