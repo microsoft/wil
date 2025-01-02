@@ -17,6 +17,7 @@
     <file src="..\..\ThirdPartyNotices.txt"/>
     <file src="..\..\include\**" target="include\" />
     <file src="..\..\natvis\wil.natvis" target="natvis\" />
+    <file src="..\..\natvis\wil.natstepfilter" target="natvis\" />
     <file src="Microsoft.Windows.ImplementationLibrary.targets" target="build\native\" />
   </files>
 </package>
