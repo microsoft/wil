@@ -6444,7 +6444,13 @@ namespace details
 
                     if (*lastNamespaceNode)
                     {
-                        root.swap((*lastNamespaceNode)->next);
+                        // Delete everything from the current root to the lastNamespaceNode
+                        // (inclusive), considering the possibility that they are the same. Continue
+                        // processing from the node following lastNamespaceNode, if any. root will
+                        // be made to point to that.
+                        auto newRoot = wistd::move((*lastNamespaceNode)->next);
+                        const auto toDelete = wistd::move(root);
+                        root = wistd::move(newRoot);
                     }
                     else
                     {
