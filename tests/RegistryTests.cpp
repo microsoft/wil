@@ -3,9 +3,7 @@
 #include <memory>
 #include <string>
 #include <vector>
-#if _HAS_CXX17
 #include <optional>
-#endif
 #include <array>
 
 #include <windows.h>
@@ -1486,7 +1484,6 @@ TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
         REQUIRE_SUCCEEDED(deleteHr);
     }
 
-#if defined(_VECTOR_)
     SECTION("get_value_nothrow with non-null-terminated string: with opened key")
     {
         wil::unique_hkey hkey;
@@ -1556,7 +1553,6 @@ TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
         const std::wstring result{wil::reg::get_value_string(HKEY_CURRENT_USER, testSubkey, stringValueName)};
         REQUIRE(result.empty());
     }
-#endif
 
     SECTION("set_value_nothrow/get_value_string_nothrow: into buffers with open key")
     {
@@ -3084,7 +3080,7 @@ void verify_cotaskmem_array_nothrow(
 }
 #endif
 
-#if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
+#ifdef WIL_ENABLE_EXCEPTIONS
 namespace
 {
 // Test byte vectors/binary getters. These tests are very similar to the
@@ -3311,7 +3307,7 @@ TEST_CASE("BasicRegistryTests::vector-bytes", "[registry]")
     }
 #endif // #if defined(__cpp_lib_optional)
 }
-#endif // #if defined(_VECTOR_) && defined(WIL_ENABLE_EXCEPTIONS)
+#endif
 
 #if defined(__WIL_OBJBASE_H_)
 TEST_CASE("BasicRegistryTests::cotaskmem_array-bytes", "[registry]")
@@ -3355,7 +3351,6 @@ TEST_CASE("BasicRegistryTests::cotaskmem_array-bytes", "[registry]")
 #endif // #if defined(__WIL_OBJBASE_H_)
 
 #if defined(WIL_ENABLE_EXCEPTIONS)
-#if defined(_STRING_)
 TEST_CASE("BasicRegistryTests::value_iterator", "[registry]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
@@ -3940,7 +3935,6 @@ TEST_CASE("BasicRegistryTests::key_iterator", "[registry]")
         }
     }
 }
-#endif // #if !defined(_STRING_)
 
 #if defined(__WIL_OLEAUTO_H_)
 TEST_CASE("BasicRegistryTests::value_bstr_iterator", "[registry]")

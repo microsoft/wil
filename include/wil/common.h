@@ -305,6 +305,29 @@ static_assert(WIL_EXCEPTION_MODE <= 2, "Invalid exception mode");
 #error Must enable exceptions when WIL_EXCEPTION_MODE == 1
 #endif
 
+#ifdef WIL_DOXYGEN
+/** This define is used to control whether or not WIL assumes safe access to the STL.
+This define can be set manually (1 to enable, 0 to disable), otherwise heuristics will be applied in an attempt to
+deduce whether or not the STL is available and can be safely used.
+ */
+#define WIL_USE_STL 1
+#elif !defined(WIL_USE_STL)
+#if !defined(WIL_ENABLE_EXCEPTIONS) || !defined(__has_include)
+// Assume it's not safe to use the STL when:
+//      * Exceptions are not enabled, OR
+//      * We can't check for header presence
+#define WIL_USE_STL 0
+#else
+// Check for several STL headers that have been around since the dawn of time
+#if __has_include(<algorithm>) && __has_include(<exception>) && __has_include(<iterator>) && __has_include(<new>) && \
+    __has_include(<string>) && __has_include(<utility>) && __has_include(<vector>)
+#define WIL_USE_STL 1
+#else
+#define WIL_USE_STL 0
+#endif
+#endif
+#endif
+
 /// @cond
 #ifndef WIL_ITERATOR_DEBUG_LEVEL
 // NOTE: See the definition of 'RESULT_DEBUG' for commentary on the use of 'WIL_KERNEL_MODE' below
@@ -372,19 +395,19 @@ check fails as opposed to the invalid parameter handler that the STL invokes. Th
 #endif
 
 /// @cond
-#if (__cplusplus >= 201703) || (_MSVC_LANG >= 201703)
-#define WIL_HAS_CXX_17 1
-#else
-#define WIL_HAS_CXX_17 0
-#endif
-
 // Until we'll have C++17 enabled in our code base, we're falling back to SAL
 #define WI_NODISCARD __WI_LIBCPP_NODISCARD_ATTRIBUTE
-/// @endcond
 
-/// @cond
 #define __R_ENABLE_IF_IS_CLASS(ptrType) wistd::enable_if_t<wistd::is_class<ptrType>::value, void*> = nullptr
 #define __R_ENABLE_IF_IS_NOT_CLASS(ptrType) wistd::enable_if_t<!wistd::is_class<ptrType>::value, void*> = nullptr
+
+// Uses the __has_include macro, if available. Otherwise uses a user-provided fallback. E.g. the fallback could always
+// default to true or false, or it could do something like a C++ standard version check
+#ifdef __has_include
+#define WI_HAS_INCLUDE(header, fallback) __has_include(header)
+#else
+#define WI_HAS_INCLUDE(header, fallback) (fallback)
+#endif
 /// @endcond
 
 //! @defgroup bitwise Bitwise Inspection and Manipulation

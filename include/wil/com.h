@@ -19,10 +19,10 @@
 #include "win32_helpers.h"
 #include "resource.h" // last to ensure _COMBASEAPI_H_ protected definitions are available
 
-#if __has_include(<tuple>)
+#if WIL_USE_STL && WI_HAS_INCLUDE(<tuple>, 1) // Tuple is C++11... assume available
 #include <tuple>
 #endif
-#if __has_include(<type_traits>)
+#if WIL_USE_STL && WI_HAS_INCLUDE(<type_traits>, 1) // Type traits is old... assume available
 #include <type_traits>
 #endif
 
@@ -2113,7 +2113,7 @@ wil::com_ptr_nothrow<Interface> CoGetClassObjectNoThrow(DWORD dwClsContext = CLS
     return CoGetClassObjectNoThrow<Interface>(__uuidof(Class), dwClsContext);
 }
 
-#if __cpp_lib_apply && __has_include(<type_traits>)
+#if __cpp_lib_apply && WIL_USE_STL && WI_HAS_INCLUDE(<type_traits>, 1)
 /// @cond
 namespace details
 {
@@ -2247,7 +2247,7 @@ auto try_com_multi_query(IUnknown* obj)
 }
 #endif
 
-#endif // __cpp_lib_apply && __has_include(<type_traits>)
+#endif // __cpp_lib_apply && WI_HAS_INCLUDE(<type_traits>, 1)
 
 #pragma endregion
 
@@ -3136,8 +3136,7 @@ void for_each_site(_In_opt_ IUnknown* siteInput, TLambda&& callback)
 
 #endif // __IObjectWithSite_INTERFACE_DEFINED__
 
-// if C++17 or greater
-#if WIL_HAS_CXX_17
+#if __cpp_deduction_guides >= 201703L
 #ifdef WIL_ENABLE_EXCEPTIONS
 /// @cond
 namespace details
@@ -3323,10 +3322,18 @@ WI_NODISCARD auto make_range(IEnumXxx* enumPtr)
     return iterator_range(enumPtr);
 }
 
-#endif // WIL_HAS_CXX_17
+#endif // __cpp_deduction_guides >= 201703L
 #endif // WIL_ENABLE_EXCEPTIONS
 
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
+
+namespace details
+{
+    inline void CoDisableCallCancellationNull()
+    {
+        ::CoDisableCallCancellation(nullptr);
+    }
+} // namespace details
 
 /** RAII support for making cross-apartment (or cross process) COM calls with a timeout applied to them.
  * When this is active any timed out calls will fail with an RPC error code such as RPC_E_CALL_CANCELED.
@@ -3349,10 +3356,12 @@ class com_timeout_t
 public:
     com_timeout_t(DWORD timeoutInMilliseconds) : m_threadId(GetCurrentThreadId())
     {
-        m_cancelEnablementResult = CoEnableCallCancellation(nullptr);
-        err_policy::HResult(m_cancelEnablementResult);
-        if (SUCCEEDED(m_cancelEnablementResult))
+        const HRESULT cancelEnablementResult = CoEnableCallCancellation(nullptr);
+        err_policy::HResult(cancelEnablementResult);
+        if (SUCCEEDED(cancelEnablementResult))
         {
+            m_ensureDisable.activate();
+
             m_timer.reset(CreateThreadpoolTimer(&com_timeout_t::timer_callback, this, nullptr));
             err_policy::LastErrorIfFalse(static_cast<bool>(m_timer));
             if (m_timer)
@@ -3361,16 +3370,6 @@ public:
                 ft = filetime::add(ft, filetime::convert_msec_to_100ns(timeoutInMilliseconds));
                 SetThreadpoolTimer(m_timer.get(), &ft, timeoutInMilliseconds, 0);
             }
-        }
-    }
-
-    ~com_timeout_t()
-    {
-        m_timer.reset();
-
-        if (SUCCEEDED(m_cancelEnablementResult))
-        {
-            CoDisableCallCancellation(nullptr);
         }
     }
 
@@ -3390,6 +3389,10 @@ private:
     void* operator new(size_t) = delete;
     void* operator new[](size_t) = delete;
 
+    // not copyable or movable because the timer_callback receives "this"
+    com_timeout_t(com_timeout_t const&) = delete;
+    void operator=(com_timeout_t const&) = delete;
+
     static void __stdcall timer_callback(PTP_CALLBACK_INSTANCE /*instance*/, PVOID context, PTP_TIMER /*timer*/)
     {
         // The timer is waited upon during destruction so it is safe to rely on the this pointer in context.
@@ -3400,7 +3403,7 @@ private:
         }
     }
 
-    HRESULT m_cancelEnablementResult{};
+    wil::unique_call<decltype(&details::CoDisableCallCancellationNull), details::CoDisableCallCancellationNull, false> m_ensureDisable{};
     DWORD m_threadId{};
     bool m_timedOut{};
 
