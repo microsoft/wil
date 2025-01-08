@@ -37,7 +37,7 @@
 #endif
 
 /// @cond
-#if __cpp_lib_bit_cast >= 201806L
+#if WIL_USE_STL && (__cpp_lib_bit_cast >= 201806L)
 #define __WI_CONSTEXPR_BIT_CAST constexpr
 #else
 #define __WI_CONSTEXPR_BIT_CAST inline
@@ -206,7 +206,7 @@ namespace filetime
 {
     constexpr unsigned long long to_int64(const FILETIME& ft) WI_NOEXCEPT
     {
-#if __cpp_lib_bit_cast >= 201806L
+#if WIL_USE_STL && (__cpp_lib_bit_cast >= 201806L)
         return std::bit_cast<unsigned long long>(ft);
 #else
         // Cannot reinterpret_cast FILETIME* to unsigned long long*
@@ -217,7 +217,7 @@ namespace filetime
 
     __WI_CONSTEXPR_BIT_CAST FILETIME from_int64(unsigned long long i64) WI_NOEXCEPT
     {
-#if __cpp_lib_bit_cast >= 201806L
+#if WIL_USE_STL && (__cpp_lib_bit_cast >= 201806L)
         return std::bit_cast<FILETIME>(i64);
 #else
         static_assert(sizeof(i64) == sizeof(FILETIME), "sizes don't match");
