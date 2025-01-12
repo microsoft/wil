@@ -1149,8 +1149,8 @@ namespace network
         }
 
         const void* const pAddr{family() == AF_INET
-                                      ? static_cast<const void*>(&m_sockaddr.Ipv4.sin_addr)
-                                      : static_cast<const void*>(&m_sockaddr.Ipv6.sin6_addr)};
+                                    ? static_cast<const void*>(&m_sockaddr.Ipv4.sin_addr)
+                                    : static_cast<const void*>(&m_sockaddr.Ipv6.sin6_addr)};
 
         // the last param to InetNtopA is # of characters, not bytes
         const auto* error_value{::InetNtopA(family(), pAddr, address, INET6_ADDRSTRLEN)};
@@ -1345,12 +1345,9 @@ namespace network
         return &m_sockaddr.Ipv6.sin6_addr;
     }
 
-    //
-    // definitions for winsock_extension_function_table
-    //
     inline winsock_extension_function_table winsock_extension_function_table::load() WI_NOEXCEPT
     {
-        winsock_extension_function_table table{};
+        winsock_extension_function_table table;
         // if WSAStartup failed, immediately exit
         if (!table.wsa_reference_count)
         {
@@ -1358,106 +1355,42 @@ namespace network
         }
 
         // we need a temporary socket for the IOCTL to load the functions
-        const ::wil::unique_socket localSocket{::socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)};
+        const wil::unique_socket localSocket{::socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)};
         if (INVALID_SOCKET == localSocket.get())
         {
             return table;
         }
 
-        // walk WINSOCK_EXTENSION_FUNCTION_TABLE to load each function pointer
-        constexpr auto function_table_length{sizeof(table.f) / sizeof(void*)};
-        static_assert(function_table_length == 8);
-
-        bool successfully_loaded{true};
-        for (auto fnLoop = 0ul; successfully_loaded && fnLoop < function_table_length; ++fnLoop)
-        {
-            void* functionPtr{};
-            GUID extensionGuid{};
-
-            switch (fnLoop)
-            {
-            case 0:
-            {
-                constexpr GUID acceptex_guid = WSAID_ACCEPTEX;
-                extensionGuid = acceptex_guid;
-                functionPtr = &table.f.AcceptEx;
-                break;
-            }
-            case 1:
-            {
-                constexpr GUID connectex_guid = WSAID_CONNECTEX;
-                extensionGuid = connectex_guid;
-                functionPtr = &table.f.ConnectEx;
-                break;
-            }
-            case 2:
-            {
-                constexpr GUID disconnectex_guid = WSAID_DISCONNECTEX;
-                extensionGuid = disconnectex_guid;
-                functionPtr = &table.f.DisconnectEx;
-                break;
-            }
-            case 3:
-            {
-                constexpr GUID getacceptexsockaddrs_guid = WSAID_GETACCEPTEXSOCKADDRS;
-                extensionGuid = getacceptexsockaddrs_guid;
-                functionPtr = &table.f.GetAcceptExSockaddrs;
-                break;
-            }
-            case 4:
-            {
-                constexpr GUID transmitfile_guid = WSAID_TRANSMITFILE;
-                extensionGuid = transmitfile_guid;
-                functionPtr = &table.f.TransmitFile;
-                break;
-            }
-            case 5:
-            {
-                constexpr GUID transmitpackets_guid = WSAID_TRANSMITPACKETS;
-                extensionGuid = transmitpackets_guid;
-                functionPtr = &table.f.TransmitPackets;
-                break;
-            }
-            case 6:
-            {
-                constexpr GUID wsarecvmsg_guid = WSAID_WSARECVMSG;
-                extensionGuid = wsarecvmsg_guid;
-                functionPtr = &table.f.WSARecvMsg;
-                break;
-            }
-            case 7:
-            {
-                constexpr GUID wsasendmsg_guid = WSAID_WSASENDMSG;
-                extensionGuid = wsasendmsg_guid;
-                functionPtr = &table.f.WSASendMsg;
-                break;
-            }
-
-            default:
-                FAIL_FAST();
-            }
-
+        const auto load_function_pointer = [](SOCKET localSocket, GUID extensionGuid, void* functionPtr) WI_NOEXCEPT {
             constexpr DWORD controlCode{SIO_GET_EXTENSION_FUNCTION_POINTER};
-            constexpr DWORD bytes{sizeof(void*)};
+            constexpr DWORD bytes{sizeof(functionPtr)};
             DWORD unused_bytes{};
-            if (::WSAIoctl(
-                    localSocket.get(),
-                    controlCode,
-                    &extensionGuid,
-                    DWORD{sizeof(extensionGuid)},
-                    functionPtr,
-                    bytes,
-                    &unused_bytes,
-                    nullptr,
-                    nullptr) != 0)
-            {
-                LOG_IF_WIN32_ERROR(::WSAGetLastError());
+            const auto error{::WSAIoctl(
+                localSocket,
+                controlCode,
+                &extensionGuid,
+                DWORD{sizeof(extensionGuid)},
+                functionPtr,
+                bytes,
+                &unused_bytes,
+                nullptr,
+                nullptr)};
+            return error == 0 ? S_OK : HRESULT_FROM_WIN32(::WSAGetLastError());
+        };
 
-                // if any failed to be found, something is very broken
-                // all should load, or all should fail
-                ::memset(&table.f, 0, sizeof(table.f));
-                successfully_loaded = false;
-            }
+        // Load the functions into the table
+        if (FAILED_LOG(load_function_pointer(localSocket.get(), WSAID_ACCEPTEX, &table.f.AcceptEx)) ||
+            FAILED_LOG(load_function_pointer(localSocket.get(), WSAID_CONNECTEX, &table.f.ConnectEx)) ||
+            FAILED_LOG(load_function_pointer(localSocket.get(), WSAID_DISCONNECTEX, &table.f.DisconnectEx)) ||
+            FAILED_LOG(load_function_pointer(localSocket.get(), WSAID_GETACCEPTEXSOCKADDRS, &table.f.GetAcceptExSockaddrs)) ||
+            FAILED_LOG(load_function_pointer(localSocket.get(), WSAID_TRANSMITFILE, &table.f.TransmitFile)) ||
+            FAILED_LOG(load_function_pointer(localSocket.get(), WSAID_TRANSMITPACKETS, &table.f.TransmitPackets)) ||
+            FAILED_LOG(load_function_pointer(localSocket.get(), WSAID_WSARECVMSG, &table.f.WSARecvMsg)) ||
+            FAILED_LOG(load_function_pointer(localSocket.get(), WSAID_WSASENDMSG, &table.f.WSASendMsg)))
+        {
+            // if any failed to be found, something is very broken
+            // all should load, or all should fail
+            ::memset(&table.f, 0, sizeof(table.f));
         }
 
         return table;
