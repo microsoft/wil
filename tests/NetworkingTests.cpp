@@ -8,6 +8,7 @@
 
 // set this to give access to all functions
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
+#define WI_NETWORK_TEST
 #include <wil/network.h>
 
 #include "common.h"
@@ -1697,9 +1698,9 @@ TEST_CASE("NetworkingTests::Verifying_failure_paths", "[networking]")
 
         wil::network::socket_address_string string_address;
         REQUIRE(SUCCEEDED(af_unspec_address.write_address_nothrow(string_address)));
-        REQUIRE(L'\0' == wstring_address[0]);
+        REQUIRE('\0' == string_address[0]);
         REQUIRE(SUCCEEDED(af_unspec_address.write_complete_address_nothrow(string_address)));
-        REQUIRE(L'\0' == wstring_address[0]);
+        REQUIRE('\0' == string_address[0]);
 
         wil::network::socket_address_wstring wstring_address;
         REQUIRE(SUCCEEDED(af_unspec_address.write_address_nothrow(wstring_address)));
@@ -1711,7 +1712,7 @@ TEST_CASE("NetworkingTests::Verifying_failure_paths", "[networking]")
         std::wstring test_string = af_unspec_address.write_address();
         REQUIRE(test_string.empty());
 
-        std::wstring test_string = af_unspec_address.write_complete_address();
+        test_string = af_unspec_address.write_complete_address();
         REQUIRE(test_string.empty());
 #endif
     }
