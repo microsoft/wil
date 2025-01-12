@@ -1439,7 +1439,7 @@ namespace network
 
             constexpr DWORD controlCode{SIO_GET_EXTENSION_FUNCTION_POINTER};
             constexpr DWORD bytes{sizeof(void*)};
-            DWORD unused_bytes;
+            DWORD unused_bytes{};
             if (::WSAIoctl(
                     localSocket.get(),
                     controlCode,
@@ -1489,7 +1489,7 @@ namespace network
         ::memset(&table.f, 0, bytes);
         table.f.cbSize = bytes;
 
-        DWORD unused_bytes;
+        DWORD unused_bytes{};
         if (::WSAIoctl(
                 localSocket.get(),
                 controlCode,
