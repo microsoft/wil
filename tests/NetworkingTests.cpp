@@ -8,7 +8,7 @@
 
 // set this to give access to all functions
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
-#include <wil/networking.h>
+#include <wil/network.h>
 
 #include "common.h"
 
@@ -134,7 +134,7 @@ TEST_CASE("NetworkingTests::Verifying_wsastartup_cleanup", "[networking]")
 
     SECTION("Verifying _nothrow")
     {
-        const auto cleanup = wil::networking::WSAStartup_nothrow();
+        const auto cleanup = wil::network::WSAStartup_nothrow();
         const bool succeeded = !!cleanup;
         REQUIRE(succeeded);
         const auto socket_test = ::socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
@@ -144,7 +144,7 @@ TEST_CASE("NetworkingTests::Verifying_wsastartup_cleanup", "[networking]")
 
     SECTION("Verifying _failfast")
     {
-        const auto cleanup = wil::networking::WSAStartup_failfast();
+        const auto cleanup = wil::network::WSAStartup_failfast();
         const auto socket_test = ::socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
         REQUIRE(socket_test != INVALID_SOCKET);
         ::closesocket(socket_test);
@@ -153,7 +153,7 @@ TEST_CASE("NetworkingTests::Verifying_wsastartup_cleanup", "[networking]")
 #ifdef WIL_ENABLE_EXCEPTIONS
     SECTION("Verifying throwing")
     {
-        const auto cleanup = wil::networking::WSAStartup();
+        const auto cleanup = wil::network::WSAStartup();
         const auto socket_test = ::socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
         REQUIRE(socket_test != INVALID_SOCKET);
         ::closesocket(socket_test);
@@ -163,7 +163,7 @@ TEST_CASE("NetworkingTests::Verifying_wsastartup_cleanup", "[networking]")
 
 TEST_CASE("NetworkingTests::Verifying_constructors", "[networking]")
 {
-    using wil::networking::socket_address;
+    using wil::network::socket_address;
     InitTestAddresses();
 
     SECTION("socket_address(ADDRESS_FAMILY)")
@@ -377,31 +377,31 @@ TEST_CASE("NetworkingTests::Verifying_constructors", "[networking]")
 TEST_CASE("NetworkingTests::Verifying_in_addr_interactions", "[networking]")
 {
     InitTestAddresses();
-    REQUIRE(wil::networking::socket_address::length == sizeof(SOCKADDR_INET));
+    REQUIRE(wil::network::socket_address::length == sizeof(SOCKADDR_INET));
 
-    wil::networking::socket_address default_addr{};
+    wil::network::socket_address default_addr{};
 
-    wil::networking::socket_address test_v4_addr{&Test_in_addr};
-    wil::networking::socket_address test_v4_addr2{&Test_in_addr2};
-    wil::networking::socket_address test_v4_addr_with_port{&Test_in_addr, TestPort};
+    wil::network::socket_address test_v4_addr{&Test_in_addr};
+    wil::network::socket_address test_v4_addr2{&Test_in_addr2};
+    wil::network::socket_address test_v4_addr_with_port{&Test_in_addr, TestPort};
 
-    wil::networking::socket_address test_v6_addr{&Test_in6_addr};
-    wil::networking::socket_address test_v6_addr2{&Test_in6_addr2};
-    wil::networking::socket_address test_v6_addr_with_port{&Test_in6_addr, TestPort};
+    wil::network::socket_address test_v6_addr{&Test_in6_addr};
+    wil::network::socket_address test_v6_addr2{&Test_in6_addr2};
+    wil::network::socket_address test_v6_addr_with_port{&Test_in6_addr, TestPort};
 
-    wil::networking::socket_address test_v4_linklocal_addr{&Test_linklocal_in_addr};
-    wil::networking::socket_address test_v4_linklocal_addr_with_port{&Test_linklocal_in_addr, TestPort};
+    wil::network::socket_address test_v4_linklocal_addr{&Test_linklocal_in_addr};
+    wil::network::socket_address test_v4_linklocal_addr_with_port{&Test_linklocal_in_addr, TestPort};
 
-    wil::networking::socket_address test_v6_linklocal_addr{&Test_linklocal_in6_addr};
-    wil::networking::socket_address test_v6_linklocal_addr_with_port{&Test_linklocal_in6_addr, TestPort};
+    wil::network::socket_address test_v6_linklocal_addr{&Test_linklocal_in6_addr};
+    wil::network::socket_address test_v6_linklocal_addr_with_port{&Test_linklocal_in6_addr, TestPort};
 
-    wil::networking::socket_address test_v4_any_addr{&Test_any_in_addr};
-    wil::networking::socket_address test_v4_any_addr_with_port{&Test_any_in_addr, TestPort};
+    wil::network::socket_address test_v4_any_addr{&Test_any_in_addr};
+    wil::network::socket_address test_v4_any_addr_with_port{&Test_any_in_addr, TestPort};
 
-    wil::networking::socket_address test_v6_any_addr{&Test_any_in6_addr};
-    wil::networking::socket_address test_v6_any_addr_with_port{&Test_any_in6_addr, TestPort};
+    wil::network::socket_address test_v6_any_addr{&Test_any_in6_addr};
+    wil::network::socket_address test_v6_any_addr_with_port{&Test_any_in6_addr, TestPort};
 
-    using wil::networking::equals;
+    using wil::network::equals;
 
     SECTION("IPv4 in_addr properties")
     {
@@ -692,10 +692,10 @@ TEST_CASE("NetworkingTests::Verifying_in_addr_interactions", "[networking]")
 
 TEST_CASE("NetworkingTests::Verifying_operators", "[networking]")
 {
-    using wil::networking::equals;
+    using wil::network::equals;
 
 #ifdef WIL_ENABLE_EXCEPTIONS
-    using wil::networking::socket_address;
+    using wil::network::socket_address;
     SECTION("verify v4 address comparisons")
     {
         // equal will be considered less-than
@@ -787,46 +787,46 @@ TEST_CASE("NetworkingTests::Verifying_operators", "[networking]")
 TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
 {
     InitTestAddresses();
-    REQUIRE(wil::networking::socket_address::length == sizeof(SOCKADDR_INET));
+    REQUIRE(wil::network::socket_address::length == sizeof(SOCKADDR_INET));
 
-    wil::networking::socket_address default_addr{};
+    wil::network::socket_address default_addr{};
 
-    wil::networking::socket_address test_v4_addr{&Test_in_addr};
-    wil::networking::socket_address test_v4_addr2{&Test_in_addr2};
-    wil::networking::socket_address test_v4_addr_with_port{&Test_in_addr, TestPort};
+    wil::network::socket_address test_v4_addr{&Test_in_addr};
+    wil::network::socket_address test_v4_addr2{&Test_in_addr2};
+    wil::network::socket_address test_v4_addr_with_port{&Test_in_addr, TestPort};
 
-    wil::networking::socket_address test_v6_addr{&Test_in6_addr};
-    wil::networking::socket_address test_v6_addr2{&Test_in6_addr2};
-    wil::networking::socket_address test_v6_addr_with_port{&Test_in6_addr, TestPort};
+    wil::network::socket_address test_v6_addr{&Test_in6_addr};
+    wil::network::socket_address test_v6_addr2{&Test_in6_addr2};
+    wil::network::socket_address test_v6_addr_with_port{&Test_in6_addr, TestPort};
 
-    wil::networking::socket_address test_v4_linklocal_addr{&Test_linklocal_in_addr};
-    wil::networking::socket_address test_v4_linklocal_addr_with_port{&Test_linklocal_in_addr, TestPort};
+    wil::network::socket_address test_v4_linklocal_addr{&Test_linklocal_in_addr};
+    wil::network::socket_address test_v4_linklocal_addr_with_port{&Test_linklocal_in_addr, TestPort};
 
-    wil::networking::socket_address test_v6_linklocal_addr{&Test_linklocal_in6_addr};
-    wil::networking::socket_address test_v6_linklocal_addr_with_port{&Test_linklocal_in6_addr, TestPort};
+    wil::network::socket_address test_v6_linklocal_addr{&Test_linklocal_in6_addr};
+    wil::network::socket_address test_v6_linklocal_addr_with_port{&Test_linklocal_in6_addr, TestPort};
 
-    wil::networking::socket_address test_v4_any_addr{&Test_any_in_addr};
-    wil::networking::socket_address test_v4_any_addr_with_port{&Test_any_in_addr, TestPort};
+    wil::network::socket_address test_v4_any_addr{&Test_any_in_addr};
+    wil::network::socket_address test_v4_any_addr_with_port{&Test_any_in_addr, TestPort};
 
-    wil::networking::socket_address test_v6_any_addr{&Test_any_in6_addr};
-    wil::networking::socket_address test_v6_any_addr_with_port{&Test_any_in6_addr, TestPort};
+    wil::network::socket_address test_v6_any_addr{&Test_any_in6_addr};
+    wil::network::socket_address test_v6_any_addr_with_port{&Test_any_in6_addr, TestPort};
 
-    wil::networking::socket_address test_v4_loopback_addr{&Test_loopback_in_addr};
-    wil::networking::socket_address test_v4_loopback_addr_with_port{&Test_loopback_in_addr, TestPort};
+    wil::network::socket_address test_v4_loopback_addr{&Test_loopback_in_addr};
+    wil::network::socket_address test_v4_loopback_addr_with_port{&Test_loopback_in_addr, TestPort};
 
-    wil::networking::socket_address test_v6_loopback_addr{&Test_loopback_in6_addr};
-    wil::networking::socket_address test_v6_loopback_addr_with_port{&Test_loopback_in6_addr, TestPort};
+    wil::network::socket_address test_v6_loopback_addr{&Test_loopback_in6_addr};
+    wil::network::socket_address test_v6_loopback_addr_with_port{&Test_loopback_in6_addr, TestPort};
 
     // need WSAStartup called for some functions below
-    auto wsa_startup_tracking = wil::networking::WSAStartup_nothrow();
+    auto wsa_startup_tracking = wil::network::WSAStartup_nothrow();
     REQUIRE(static_cast<bool>(wsa_startup_tracking));
 
-    using wil::networking::equals;
+    using wil::network::equals;
 
     SECTION("verify set_address_any")
     {
-        const auto VerifyV4AnyAddress = [&](const wil::networking::socket_address& v4_address, bool with_port) {
-            wil::networking::socket_address_wstring any_address_test_string{};
+        const auto VerifyV4AnyAddress = [&](const wil::network::socket_address& v4_address, bool with_port) {
+            wil::network::socket_address_wstring any_address_test_string{};
             REQUIRE(SUCCEEDED(v4_address.write_address_nothrow(any_address_test_string)));
             REQUIRE(0 == memcmp(Test_any_in_addr_string, any_address_test_string, sizeof(Test_any_in_addr_string)));
 #ifdef WIL_ENABLE_EXCEPTIONS
@@ -852,7 +852,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
             }
 
             // also char* versions
-            wil::networking::socket_address_string any_address_test_char_string{};
+            wil::network::socket_address_string any_address_test_char_string{};
             REQUIRE(SUCCEEDED(v4_address.write_address_nothrow(any_address_test_char_string)));
             REQUIRE(0 == memcmp(Test_any_in_addr_char_string, any_address_test_char_string, sizeof(Test_any_in_addr_char_string)));
 
@@ -869,8 +869,8 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
             }
         };
 
-        const auto VerifyV6AnyAddress = [&](const wil::networking::socket_address& v6_address, bool with_port) {
-            wil::networking::socket_address_wstring any_address_test_string{};
+        const auto VerifyV6AnyAddress = [&](const wil::network::socket_address& v6_address, bool with_port) {
+            wil::network::socket_address_wstring any_address_test_string{};
             REQUIRE(SUCCEEDED(v6_address.write_address_nothrow(any_address_test_string)));
             REQUIRE(0 == memcmp(Test_any_in6_addr_string, any_address_test_string, sizeof(Test_any_in6_addr_string)));
 #ifdef WIL_ENABLE_EXCEPTIONS
@@ -896,7 +896,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
             }
 
             // also char* versions
-            wil::networking::socket_address_string any_address_test_char_string{};
+            wil::network::socket_address_string any_address_test_char_string{};
             REQUIRE(SUCCEEDED(v6_address.write_address_nothrow(any_address_test_char_string)));
             REQUIRE(0 == memcmp(Test_any_in6_addr_char_string, any_address_test_char_string, sizeof(Test_any_in6_addr_char_string)));
 
@@ -913,7 +913,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
             }
         };
 
-        wil::networking::socket_address v4_address;
+        wil::network::socket_address v4_address;
         v4_address.set_address_any(AF_INET);
         REQUIRE(v4_address.family() == AF_INET);
         REQUIRE(v4_address.port() == 0);
@@ -942,7 +942,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         REQUIRE(v4_address == test_v6_any_addr_with_port);
         VerifyV6AnyAddress(v4_address, true);
 
-        wil::networking::socket_address v6_address;
+        wil::network::socket_address v6_address;
         v6_address.set_address_any(AF_INET6);
         REQUIRE(v6_address.family() == AF_INET6);
         REQUIRE(v6_address.port() == 0);
@@ -971,7 +971,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         REQUIRE(v6_address == test_v4_any_addr_with_port);
         VerifyV4AnyAddress(v6_address, true);
 
-        wil::networking::socket_address defaulted_v4_address{AF_INET};
+        wil::network::socket_address defaulted_v4_address{AF_INET};
         defaulted_v4_address.set_address_any();
         REQUIRE(defaulted_v4_address.family() == AF_INET);
         REQUIRE(defaulted_v4_address.port() == 0);
@@ -990,7 +990,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         REQUIRE(defaulted_v4_address == test_v4_any_addr_with_port);
         VerifyV4AnyAddress(defaulted_v4_address, true);
 
-        wil::networking::socket_address defaulted_v6_address{AF_INET6};
+        wil::network::socket_address defaulted_v6_address{AF_INET6};
         defaulted_v6_address.set_address_any();
         REQUIRE(defaulted_v6_address.family() == AF_INET6);
         REQUIRE(defaulted_v6_address.port() == 0);
@@ -1012,8 +1012,8 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
 
     SECTION("verify set_address_loopback")
     {
-        const auto VerifyV4LoopbackAddress = [&](const wil::networking::socket_address& v4_address, bool with_port) {
-            wil::networking::socket_address_wstring loopback_address_test_string{};
+        const auto VerifyV4LoopbackAddress = [&](const wil::network::socket_address& v4_address, bool with_port) {
+            wil::network::socket_address_wstring loopback_address_test_string{};
             REQUIRE(SUCCEEDED(v4_address.write_address_nothrow(loopback_address_test_string)));
             REQUIRE(0 == memcmp(Test_loopback_in_addr_string, loopback_address_test_string, sizeof(Test_loopback_in_addr_string)));
 #ifdef WIL_ENABLE_EXCEPTIONS
@@ -1039,8 +1039,8 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
             }
         };
 
-        const auto VerifyV6LoopbackAddress = [&](const wil::networking::socket_address& v6_address, bool with_port) {
-            wil::networking::socket_address_wstring loopback_address_test_string{};
+        const auto VerifyV6LoopbackAddress = [&](const wil::network::socket_address& v6_address, bool with_port) {
+            wil::network::socket_address_wstring loopback_address_test_string{};
             REQUIRE(SUCCEEDED(v6_address.write_address_nothrow(loopback_address_test_string)));
             REQUIRE(0 == memcmp(Test_loopback_in6_addr_string, loopback_address_test_string, sizeof(Test_loopback_in6_addr_string)));
 #ifdef WIL_ENABLE_EXCEPTIONS
@@ -1066,7 +1066,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
             }
         };
 
-        wil::networking::socket_address v4_address;
+        wil::network::socket_address v4_address;
         v4_address.set_address_loopback(AF_INET);
         REQUIRE(v4_address.family() == AF_INET);
         REQUIRE(v4_address.port() == 0);
@@ -1095,7 +1095,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         REQUIRE(v4_address == test_v6_loopback_addr_with_port);
         VerifyV6LoopbackAddress(v4_address, true);
 
-        wil::networking::socket_address v6_address;
+        wil::network::socket_address v6_address;
         v6_address.set_address_loopback(AF_INET6);
         REQUIRE(v6_address.family() == AF_INET6);
         REQUIRE(v6_address.port() == 0);
@@ -1124,7 +1124,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         REQUIRE(v6_address == test_v4_loopback_addr_with_port);
         VerifyV4LoopbackAddress(v6_address, true);
 
-        wil::networking::socket_address defaulted_v4_address{AF_INET};
+        wil::network::socket_address defaulted_v4_address{AF_INET};
         defaulted_v4_address.set_address_loopback();
         REQUIRE(defaulted_v4_address.family() == AF_INET);
         REQUIRE(defaulted_v4_address.port() == 0);
@@ -1143,7 +1143,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         REQUIRE(defaulted_v4_address == test_v4_loopback_addr_with_port);
         VerifyV4LoopbackAddress(defaulted_v4_address, true);
 
-        wil::networking::socket_address defaulted_v6_address{AF_INET6};
+        wil::network::socket_address defaulted_v6_address{AF_INET6};
         defaulted_v6_address.set_address_loopback();
         REQUIRE(defaulted_v6_address.family() == AF_INET6);
         REQUIRE(defaulted_v6_address.port() == 0);
@@ -1165,7 +1165,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
 
     SECTION("verify v4 set_sockaddr_nothrow")
     {
-        wil::networking::socket_address v4_address;
+        wil::network::socket_address v4_address;
         v4_address.set_address_loopback(AF_INET);
         v4_address.set_port(TestPort);
         REQUIRE(v4_address.address_type() == NlatUnicast);
@@ -1178,7 +1178,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         REQUIRE(v4_address.address_type() == NlatUnicast);
         REQUIRE(!v4_address.is_address_loopback());
 
-        wil::networking::socket_address_wstring v4_address_string{};
+        wil::network::socket_address_wstring v4_address_string{};
         REQUIRE(SUCCEEDED(v4_address.write_address_nothrow(v4_address_string)));
         REQUIRE(0 == memcmp(Test_in_addr_string, v4_address_string, sizeof(Test_in_addr_string)));
 
@@ -1197,7 +1197,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         REQUIRE(v4_address.address_type() == NlatUnicast);
         REQUIRE(!v4_address.is_address_loopback());
 
-        wil::networking::socket_address_string v4_address_char_string{};
+        wil::network::socket_address_string v4_address_char_string{};
         REQUIRE(SUCCEEDED(v4_address.write_address_nothrow(v4_address_char_string)));
         REQUIRE(0 == memcmp(Test_in_addr_char_string, v4_address_char_string, sizeof(Test_in_addr_char_string)));
 
@@ -1211,14 +1211,14 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         REQUIRE(0 == memcmp(Test_in_addr_char_string2, v4_address_char_string, sizeof(Test_in_addr_char_string2)));
 
         // set_sockaddr via a SOCKET bound to an address
-        ::wil::unique_socket test_socket{::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)};
+        wil::unique_socket test_socket{::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)};
         REQUIRE(test_socket.get() != INVALID_SOCKET);
-        ::wil::networking::socket_address test_address;
+        wil::network::socket_address test_address;
         test_address.set_address_loopback(AF_INET);
         test_address.set_port(TestPort);
 
         int gle = 0;
-        auto bind_error = ::bind(test_socket.get(), test_address.sockaddr(), ::wil::networking::socket_address::length);
+        auto bind_error = ::bind(test_socket.get(), test_address.sockaddr(), wil::network::socket_address::length);
         if (bind_error != 0)
         {
             gle = ::WSAGetLastError();
@@ -1244,7 +1244,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
     SECTION("verify v4 set_sockaddr throwing version")
     {
 #ifdef WIL_ENABLE_EXCEPTIONS
-        wil::networking::socket_address v4_address;
+        wil::network::socket_address v4_address;
         v4_address.set_address_loopback(AF_INET);
         v4_address.set_port(TestPort);
         REQUIRE(v4_address.address_type() == NlatUnicast);
@@ -1289,14 +1289,14 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         REQUIRE(v4_address_string == Test_in_addr_string2);
 
         // set_sockaddr via a SOCKET bound to an address
-        ::wil::unique_socket test_socket{::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)};
+        wil::unique_socket test_socket{::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)};
         REQUIRE(test_socket.get() != INVALID_SOCKET);
-        ::wil::networking::socket_address test_address;
+        wil::network::socket_address test_address;
         test_address.set_address_loopback(AF_INET);
         test_address.set_port(TestPort);
 
         int gle = 0;
-        auto bind_error = ::bind(test_socket.get(), test_address.sockaddr(), ::wil::networking::socket_address::length);
+        auto bind_error = ::bind(test_socket.get(), test_address.sockaddr(), wil::network::socket_address::length);
         if (bind_error != 0)
         {
             gle = ::WSAGetLastError();
@@ -1322,7 +1322,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
 
     SECTION("verify v6 set_sockaddr_nothrow")
     {
-        wil::networking::socket_address v6_address;
+        wil::network::socket_address v6_address;
         v6_address.set_address_loopback(AF_INET6);
         v6_address.set_port(TestPort);
         REQUIRE(v6_address.address_type() == NlatUnicast);
@@ -1335,7 +1335,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         REQUIRE(v6_address.address_type() == NlatUnicast);
         REQUIRE(!v6_address.is_address_loopback());
 
-        wil::networking::socket_address_wstring v6_address_string{};
+        wil::network::socket_address_wstring v6_address_string{};
         REQUIRE(SUCCEEDED(v6_address.write_address_nothrow(v6_address_string)));
         REQUIRE(0 == memcmp(Test_in6_addr_string, v6_address_string, sizeof(Test_in6_addr_string)));
 
@@ -1354,7 +1354,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         REQUIRE(v6_address.address_type() == NlatUnicast);
         REQUIRE(!v6_address.is_address_loopback());
 
-        wil::networking::socket_address_string v6_address_char_string{};
+        wil::network::socket_address_string v6_address_char_string{};
         REQUIRE(SUCCEEDED(v6_address.write_address_nothrow(v6_address_char_string)));
         REQUIRE(0 == memcmp(Test_in6_addr_char_string, v6_address_char_string, sizeof(Test_in6_addr_char_string)));
 
@@ -1368,14 +1368,14 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         REQUIRE(0 == memcmp(Test_in6_addr_char_string2, v6_address_char_string, sizeof(Test_in6_addr_char_string2)));
 
         // set_sockaddr via a SOCKET bound to an address
-        ::wil::unique_socket test_socket{::socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP)};
+        wil::unique_socket test_socket{::socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP)};
         REQUIRE(test_socket.get() != INVALID_SOCKET);
-        ::wil::networking::socket_address test_address;
+        wil::network::socket_address test_address;
         test_address.set_address_loopback(AF_INET6);
         test_address.set_port(TestPort);
 
         int gle = 0;
-        auto bind_error = ::bind(test_socket.get(), test_address.sockaddr(), ::wil::networking::socket_address::length);
+        auto bind_error = ::bind(test_socket.get(), test_address.sockaddr(), wil::network::socket_address::length);
         if (bind_error != 0)
         {
             gle = ::WSAGetLastError();
@@ -1401,7 +1401,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
     SECTION("verify v6 set_sockaddr throwing version")
     {
 #ifdef WIL_ENABLE_EXCEPTIONS
-        wil::networking::socket_address v6_address;
+        wil::network::socket_address v6_address;
         v6_address.set_address_loopback(AF_INET6);
         v6_address.set_port(TestPort);
         REQUIRE(v6_address.address_type() == NlatUnicast);
@@ -1446,14 +1446,14 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         REQUIRE(v6_address_string == Test_in6_addr_string2);
 
         // set_sockaddr via a SOCKET bound to an address
-        ::wil::unique_socket test_socket{::socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP)};
+        wil::unique_socket test_socket{::socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP)};
         REQUIRE(test_socket.get() != INVALID_SOCKET);
-        ::wil::networking::socket_address test_address;
+        wil::network::socket_address test_address;
         test_address.set_address_loopback(AF_INET6);
         test_address.set_port(TestPort);
 
         int gle = 0;
-        auto bind_error = ::bind(test_socket.get(), test_address.sockaddr(), ::wil::networking::socket_address::length);
+        auto bind_error = ::bind(test_socket.get(), test_address.sockaddr(), wil::network::socket_address::length);
         if (bind_error != 0)
         {
             gle = ::WSAGetLastError();
@@ -1484,7 +1484,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         v4_test_sockaddr.sin_port = htons(TestPort); // the raw value is in network byte order
         memcpy(&v4_test_sockaddr.sin_addr, &Test_linklocal_in_addr, sizeof(in_addr));
 
-        ::wil::networking::socket_address v4_addr{&v4_test_sockaddr};
+        wil::network::socket_address v4_addr{&v4_test_sockaddr};
         REQUIRE(v4_addr.family() == AF_INET);
         REQUIRE(v4_addr.address_type() == NlatUnicast);
         REQUIRE(v4_addr.is_address_linklocal());
@@ -1507,7 +1507,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         v6_test_sockaddr.sin6_scope_id = htonl(234567);
         memcpy(&v6_test_sockaddr.sin6_addr, &Test_linklocal_in6_addr, sizeof(in6_addr));
 
-        ::wil::networking::socket_address v6_addr{&v6_test_sockaddr};
+        wil::network::socket_address v6_addr{&v6_test_sockaddr};
         REQUIRE(v6_addr.family() == AF_INET6);
         REQUIRE(v6_addr.address_type() == NlatUnicast);
         REQUIRE(v6_addr.is_address_linklocal());
@@ -1537,7 +1537,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         v4_test_sockaddr.sin_port = htons(TestPort); // the raw value is in network byte order
         memcpy(&v4_test_sockaddr.sin_addr, &Test_linklocal_in_addr, sizeof(in_addr));
 
-        ::wil::networking::socket_address v4_addr{&v4_test_sockaddr};
+        wil::network::socket_address v4_addr{&v4_test_sockaddr};
         REQUIRE(v4_addr.family() == AF_INET);
         REQUIRE(v4_addr.address_type() == NlatUnicast);
         REQUIRE(v4_addr.is_address_linklocal());
@@ -1555,7 +1555,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         v6_test_sockaddr.sin6_scope_id = htonl(234567);
         memcpy(&v6_test_sockaddr.sin6_addr, &Test_linklocal_in6_addr, sizeof(in6_addr));
 
-        ::wil::networking::socket_address v6_addr{&v6_test_sockaddr};
+        wil::network::socket_address v6_addr{&v6_test_sockaddr};
         REQUIRE(v6_addr.family() == AF_INET6);
         REQUIRE(v6_addr.address_type() == NlatUnicast);
         REQUIRE(v6_addr.is_address_linklocal());
@@ -1568,7 +1568,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
 #endif
 
         // swap v4 and v6
-        wil::networking::swap(v4_addr, v6_addr);
+        wil::network::swap(v4_addr, v6_addr);
 
         // verify each has the others' properties
         REQUIRE(v6_addr.family() == AF_INET);
@@ -1601,9 +1601,9 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         v4_test_sockaddr.sin_port = htons(TestPort); // the raw value is in network byte order
         memcpy(&v4_test_sockaddr.sin_addr, &Test_in_addr, sizeof(in_addr));
 
-        ::wil::networking::socket_address v4_addr{&v4_test_sockaddr};
+        wil::network::socket_address v4_addr{&v4_test_sockaddr};
 
-        ::wil::networking::socket_address mapped_addr = ::wil::networking::map_dual_mode_4to6(v4_addr);
+        wil::network::socket_address mapped_addr = wil::network::map_dual_mode_4to6(v4_addr);
         REQUIRE(mapped_addr.family() == AF_INET6);
         REQUIRE(IN6_IS_ADDR_V4MAPPED(mapped_addr.in6_addr()));
 #ifdef WIL_ENABLE_EXCEPTIONS
@@ -1617,17 +1617,17 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
 TEST_CASE("NetworkingTests::Verifying_failure_paths", "[networking]")
 {
     InitTestAddresses();
-    auto wsa_startup_tracking = wil::networking::WSAStartup_nothrow();
+    auto wsa_startup_tracking = wil::network::WSAStartup_nothrow();
     REQUIRE(static_cast<bool>(wsa_startup_tracking));
 
     SECTION("verify set_sockaddr socket failure path")
     {
 
         // set_sockaddr via a SOCKET bound to an address - but this time do not call bind
-        ::wil::unique_socket test_socket{::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)};
+        wil::unique_socket test_socket{::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)};
         REQUIRE(test_socket.get() != INVALID_SOCKET);
 
-        ::wil::networking::socket_address test_address;
+        wil::network::socket_address test_address;
         REQUIRE(FAILED(test_address.set_sockaddr_nothrow(test_socket.get())));
 
 #ifdef WIL_ENABLE_EXCEPTIONS
@@ -1651,7 +1651,7 @@ TEST_CASE("NetworkingTests::Verifying_failure_paths", "[networking]")
 
     SECTION("verify set_sockaddr_nothrow bad-address-string failure path")
     {
-        ::wil::networking::socket_address test_address;
+        wil::network::socket_address test_address;
         REQUIRE(FAILED(test_address.set_sockaddr_nothrow(L"abcdefg")));
         REQUIRE(FAILED(test_address.set_sockaddr_nothrow("abcdefg")));
 
@@ -1690,12 +1690,39 @@ TEST_CASE("NetworkingTests::Verifying_failure_paths", "[networking]")
 #endif
     }
 
+    SECTION("verify write_address_nothrow AF_UNSPEC")
+    {
+        wil::network::socket_address af_unspec_address;
+        af_unspec_address.reset(AF_UNSPEC);
+
+        wil::network::socket_address_string string_address;
+        REQUIRE(SUCCEEDED(af_unspec_address.write_address_nothrow(string_address)));
+        REQUIRE(L'\0' == wstring_address[0]);
+        REQUIRE(SUCCEEDED(af_unspec_address.write_complete_address_nothrow(string_address)));
+        REQUIRE(L'\0' == wstring_address[0]);
+
+        wil::network::socket_address_wstring wstring_address;
+        REQUIRE(SUCCEEDED(af_unspec_address.write_address_nothrow(wstring_address)));
+        REQUIRE(L'\0' == wstring_address[0]);
+        REQUIRE(SUCCEEDED(af_unspec_address.write_complete_address_nothrow(wstring_address)));
+        REQUIRE(L'\0' == wstring_address[0]);
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+        std::wstring test_string = af_unspec_address.write_address();
+        REQUIRE(test_string.empty());
+
+        std::wstring test_string = af_unspec_address.write_complete_address();
+        REQUIRE(test_string.empty());
+#endif
+    }
+
     SECTION("verify write_address_nothrow failure path")
     {
-        ::wil::networking::socket_address test_address;
-        test_address.reset(AF_UNSPEC);
+        wil::network::socket_address test_address;
+        // set an unsupported family for verifying failure paths
+        test_address.reset(AF_APPLETALK);
 
-        ::wil::networking::socket_address_wstring wstring_address;
+        wil::network::socket_address_wstring wstring_address;
         REQUIRE(FAILED(test_address.write_address_nothrow(wstring_address)));
         REQUIRE(FAILED(test_address.write_complete_address_nothrow(wstring_address)));
 
@@ -1737,7 +1764,7 @@ TEST_CASE("NetworkingTests::Verifying_failure_paths", "[networking]")
         REQUIRE(exception_thrown);
 #endif
 
-        ::wil::networking::socket_address_string string_address;
+        wil::network::socket_address_string string_address;
         REQUIRE(FAILED(test_address.write_address_nothrow(string_address)));
         REQUIRE(FAILED(test_address.write_complete_address_nothrow(string_address)));
     }
@@ -1745,13 +1772,13 @@ TEST_CASE("NetworkingTests::Verifying_failure_paths", "[networking]")
     SECTION("verify write_address_nothrow maximum string size")
     {
         {
-            ::wil::networking::socket_address test_mapped_address;
+            wil::network::socket_address test_mapped_address;
             REQUIRE(SUCCEEDED(test_mapped_address.set_sockaddr_nothrow(L"0000:0000:0000:0000:0000:ffff:255.255.255.255")));
             test_mapped_address.set_port(std::numeric_limits<USHORT>::max());
             test_mapped_address.set_scope_id(std::numeric_limits<ULONG>::max());
             test_mapped_address.set_flow_info(std::numeric_limits<ULONG>::max());
 
-            ::wil::networking::socket_address_wstring test_mapped_address_string;
+            wil::network::socket_address_wstring test_mapped_address_string;
             REQUIRE(SUCCEEDED(test_mapped_address.write_address_nothrow(test_mapped_address_string)));
             REQUIRE(SUCCEEDED(test_mapped_address.write_complete_address_nothrow(test_mapped_address_string)));
 #ifdef WIL_ENABLE_EXCEPTIONS
@@ -1762,13 +1789,13 @@ TEST_CASE("NetworkingTests::Verifying_failure_paths", "[networking]")
         }
 
         {
-            ::wil::networking::socket_address test_max_v6_address;
+            wil::network::socket_address test_max_v6_address;
             REQUIRE(SUCCEEDED(test_max_v6_address.set_sockaddr_nothrow(L"ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff")));
             test_max_v6_address.set_port(std::numeric_limits<USHORT>::max());
             test_max_v6_address.set_scope_id(std::numeric_limits<ULONG>::max());
             test_max_v6_address.set_flow_info(std::numeric_limits<ULONG>::max());
 
-            ::wil::networking::socket_address_wstring test_max_v6_address_string;
+            wil::network::socket_address_wstring test_max_v6_address_string;
             REQUIRE(SUCCEEDED(test_max_v6_address.write_address_nothrow(test_max_v6_address_string)));
             REQUIRE(SUCCEEDED(test_max_v6_address.write_complete_address_nothrow(test_max_v6_address_string)));
 #ifdef WIL_ENABLE_EXCEPTIONS
@@ -1782,12 +1809,12 @@ TEST_CASE("NetworkingTests::Verifying_failure_paths", "[networking]")
 
 TEST_CASE("NetworkingTests::Verifying_function_tables", "[networking]")
 {
-    using wil::networking::equals;
+    using wil::network::equals;
 
     SECTION("verify winsock_extension_function_table")
     {
         // verify the first 3 function pointers are calling through correctly to confirm the function table is correct
-        ::wil::networking::winsock_extension_function_table test_table = ::wil::networking::winsock_extension_function_table::load();
+        wil::network::winsock_extension_function_table test_table = wil::network::winsock_extension_function_table::load();
         REQUIRE(static_cast<bool>(test_table));
         REQUIRE(test_table.f.AcceptEx);
         REQUIRE(test_table.f.ConnectEx);
@@ -1799,14 +1826,14 @@ TEST_CASE("NetworkingTests::Verifying_function_tables", "[networking]")
         REQUIRE(test_table.f.WSASendMsg);
 
         // create a listening socket and post an AcceptEx on it
-        ::wil::unique_socket listeningSocket{::socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP)};
+        wil::unique_socket listeningSocket{::socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP)};
         REQUIRE(listeningSocket.get() != INVALID_SOCKET);
-        ::wil::networking::socket_address listenAddress{AF_INET6};
+        wil::network::socket_address listenAddress{AF_INET6};
         listenAddress.set_address_loopback();
         listenAddress.set_port(TestPort);
 
         int gle = 0;
-        auto bind_error = ::bind(listeningSocket.get(), listenAddress.sockaddr(), ::wil::networking::socket_address::length);
+        auto bind_error = ::bind(listeningSocket.get(), listenAddress.sockaddr(), wil::network::socket_address::length);
         if (bind_error != 0)
         {
             gle = ::WSAGetLastError();
@@ -1824,13 +1851,13 @@ TEST_CASE("NetworkingTests::Verifying_function_tables", "[networking]")
         REQUIRE(listen_error == 0);
 
         // the buffer to supply to AcceptEx to capture the address information
-        static constexpr size_t singleAddressOutputBufferSize = ::wil::networking::socket_address::length + 16;
+        static constexpr size_t singleAddressOutputBufferSize = wil::network::socket_address::length + 16;
         char acceptex_output_buffer[singleAddressOutputBufferSize * 2]{};
-        ::wil::unique_socket acceptSocket{::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)};
+        wil::unique_socket acceptSocket{::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)};
         REQUIRE(acceptSocket.get() != INVALID_SOCKET);
 
         DWORD acceptex_bytes_received{};
-        ::wil::unique_event_nothrow acceptex_overlapped_event{};
+        wil::unique_event_nothrow acceptex_overlapped_event{};
         REQUIRE(SUCCEEDED(acceptex_overlapped_event.create()));
         REQUIRE(acceptex_overlapped_event.get() != nullptr);
         OVERLAPPED acceptex_overlapped{};
@@ -1855,7 +1882,7 @@ TEST_CASE("NetworkingTests::Verifying_function_tables", "[networking]")
         REQUIRE(gle == ERROR_IO_PENDING);
         // ensure that if this test function fails (returns) before AcceptEx completes asynchronously
         // that we wait for this async (overlapped) call to complete
-        const auto ensure_acceptex_overlapped_completes = ::wil::scope_exit([&] {
+        const auto ensure_acceptex_overlapped_completes = wil::scope_exit([&] {
             // close the sockets to cancel any pended IO
             acceptSocket.reset();
             listeningSocket.reset();
@@ -1864,21 +1891,21 @@ TEST_CASE("NetworkingTests::Verifying_function_tables", "[networking]")
         });
 
         // now create a socket to connect to it
-        ::wil::unique_event_nothrow connectex_overlapped_event{};
+        wil::unique_event_nothrow connectex_overlapped_event{};
         REQUIRE(SUCCEEDED(connectex_overlapped_event.create()));
         REQUIRE(connectex_overlapped_event.get() != nullptr);
         OVERLAPPED connectex_overlapped{};
         connectex_overlapped.hEvent = connectex_overlapped_event.get();
 
-        ::wil::unique_socket connectingSocket{::socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP)};
+        wil::unique_socket connectingSocket{::socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP)};
         REQUIRE(connectingSocket.get() != INVALID_SOCKET);
         // ConnectEx requires a bound socket
-        ::wil::networking::socket_address connecting_from_address{AF_INET6};
+        wil::network::socket_address connecting_from_address{AF_INET6};
         connecting_from_address.set_address_loopback();
         connecting_from_address.set_port(0); // just an ephemeral port, ConnectEx will find a port
 
         gle = 0;
-        bind_error = ::bind(connectingSocket.get(), connecting_from_address.sockaddr(), ::wil::networking::socket_address::length);
+        bind_error = ::bind(connectingSocket.get(), connecting_from_address.sockaddr(), wil::network::socket_address::length);
         if (bind_error != 0)
         {
             gle = ::WSAGetLastError();
@@ -1888,7 +1915,7 @@ TEST_CASE("NetworkingTests::Verifying_function_tables", "[networking]")
 
         gle = 0;
         auto connectex_return = test_table.f.ConnectEx(
-            connectingSocket.get(), listenAddress.sockaddr(), ::wil::networking::socket_address::length, nullptr, 0, nullptr, &connectex_overlapped);
+            connectingSocket.get(), listenAddress.sockaddr(), wil::network::socket_address::length, nullptr, 0, nullptr, &connectex_overlapped);
         if (!connectex_return)
         {
             gle = ::WSAGetLastError();
@@ -1898,7 +1925,7 @@ TEST_CASE("NetworkingTests::Verifying_function_tables", "[networking]")
         REQUIRE(gle == ERROR_IO_PENDING);
         // ensure that if this test function fails (returns) before ConnectEx completes asynchronously
         // that we wait for this async (overlapped) call to complete
-        const auto ensure_connectex_overlapped_completes = ::wil::scope_exit([&] {
+        const auto ensure_connectex_overlapped_completes = wil::scope_exit([&] {
             // close the socket to cancel any pended IO
             connectingSocket.reset();
             // now wait for our async call
@@ -1937,7 +1964,7 @@ TEST_CASE("NetworkingTests::Verifying_function_tables", "[networking]")
         REQUIRE(acceptex_overlapped_result == TRUE);
 
         // issue a DisconnectEx from the client
-        ::wil::unique_event_nothrow disconnectex_overlapped_event{};
+        wil::unique_event_nothrow disconnectex_overlapped_event{};
         REQUIRE(SUCCEEDED(disconnectex_overlapped_event.create()));
         REQUIRE(disconnectex_overlapped_event.get() != nullptr);
         OVERLAPPED disconnectex_overlapped{};
@@ -1974,7 +2001,7 @@ TEST_CASE("NetworkingTests::Verifying_function_tables", "[networking]")
     SECTION("verify rio_extension_function_table")
     {
         // verify 2 function pointers are calling through correctly to confirm the function table is correct
-        ::wil::networking::rio_extension_function_table test_table = ::wil::networking::rio_extension_function_table::load();
+        wil::network::rio_extension_function_table test_table = wil::network::rio_extension_function_table::load();
         REQUIRE(static_cast<bool>(test_table));
         REQUIRE(test_table.f.cbSize > 0);
         REQUIRE(test_table.f.RIOReceive);
@@ -1991,7 +2018,7 @@ TEST_CASE("NetworkingTests::Verifying_function_tables", "[networking]")
         REQUIRE(test_table.f.RIOResizeCompletionQueue);
         REQUIRE(test_table.f.RIOResizeRequestQueue);
 
-        ::wil::unique_event_nothrow rio_completion_notification_event{};
+        wil::unique_event_nothrow rio_completion_notification_event{};
         REQUIRE(SUCCEEDED(rio_completion_notification_event.create()));
         REQUIRE(rio_completion_notification_event.get() != nullptr);
 
@@ -2017,15 +2044,15 @@ TEST_CASE("NetworkingTests::Verifying_function_tables", "[networking]")
 
 TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
 {
-    using wil::networking::addr_info;
-    using wil::networking::equals;
+    using wil::network::addr_info;
+    using wil::network::equals;
 
-    const auto cleanup = wil::networking::WSAStartup_nothrow();
+    const auto cleanup = wil::network::WSAStartup_nothrow();
     InitTestAddresses();
 
     SECTION("verify resolve_local_addresses")
     {
-        addr_info test_addr = wil::networking::resolve_local_addresses_nothrow();
+        addr_info test_addr = wil::network::resolve_local_addresses_nothrow();
         REQUIRE(test_addr.get_last_error() == 0);
         REQUIRE(test_addr.begin() != test_addr.end());
 
@@ -2035,14 +2062,14 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
             REQUIRE((family == AF_INET || family == AF_INET6));
             REQUIRE(!address.is_address_loopback());
 
-            wil::networking::socket_address_wstring address_string;
+            wil::network::socket_address_wstring address_string;
             REQUIRE(SUCCEEDED(address.write_address_nothrow(address_string)));
             // wprintf(L"... resolve_local_addresses_nothrow : %ws\n", address_string);
         }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
         {
-            test_addr = wil::networking::resolve_local_addresses();
+            test_addr = wil::network::resolve_local_addresses();
             REQUIRE(test_addr.get_last_error() == 0);
             REQUIRE(test_addr.begin() != test_addr.end());
 
@@ -2061,7 +2088,7 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
 
     SECTION("verify resolve_localhost_addresses")
     {
-        addr_info test_addr = wil::networking::resolve_localhost_addresses_nothrow();
+        addr_info test_addr = wil::network::resolve_localhost_addresses_nothrow();
         REQUIRE(test_addr.get_last_error() == 0);
         REQUIRE(test_addr.begin() != test_addr.end());
         // verify operator->
@@ -2087,14 +2114,14 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
                 REQUIRE(false);
             }
 
-            wil::networking::socket_address_wstring address_string;
+            wil::network::socket_address_wstring address_string;
             REQUIRE(SUCCEEDED(address.write_address_nothrow(address_string)));
             // wprintf(L"... resolve_localhost_addresses_nothrow : %ws\n", address_string);
         }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
         {
-            test_addr = wil::networking::resolve_localhost_addresses();
+            test_addr = wil::network::resolve_localhost_addresses();
             REQUIRE(test_addr.get_last_error() == 0);
             REQUIRE(test_addr.begin() != test_addr.end());
             // verify operator->
@@ -2129,7 +2156,7 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
 
     SECTION("verify resolve_name")
     {
-        addr_info test_addr = wil::networking::resolve_name_nothrow(L"..localmachine");
+        addr_info test_addr = wil::network::resolve_name_nothrow(L"..localmachine");
         REQUIRE(test_addr.get_last_error() == 0);
         REQUIRE(test_addr.begin() != test_addr.end());
 
@@ -2139,14 +2166,14 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
             REQUIRE((family == AF_INET || family == AF_INET6));
             REQUIRE(!address.is_address_loopback());
 
-            wil::networking::socket_address_wstring address_string;
+            wil::network::socket_address_wstring address_string;
             REQUIRE(SUCCEEDED(address.write_address_nothrow(address_string)));
             // wprintf(L"... resolve_name_nothrow(..localmachine) : %ws\n", address_string);
         }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
         {
-            test_addr = wil::networking::resolve_name(L"..localmachine");
+            test_addr = wil::network::resolve_name(L"..localmachine");
             REQUIRE(test_addr.get_last_error() == 0);
             REQUIRE(test_addr.begin() != test_addr.end());
 
@@ -2165,7 +2192,7 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
 
     SECTION("verify const addr_info iterators")
     {
-        const addr_info test_addr = wil::networking::resolve_name_nothrow(L"localhost");
+        const addr_info test_addr = wil::network::resolve_name_nothrow(L"localhost");
         REQUIRE(test_addr.begin() != test_addr.end());
 
         const addr_info::iterator test_iterator = test_addr.begin();
@@ -2177,7 +2204,7 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
 
     SECTION("verify addr_info iterator increment")
     {
-        const addr_info initial_addr = wil::networking::resolve_name_nothrow(L"localhost");
+        const addr_info initial_addr = wil::network::resolve_name_nothrow(L"localhost");
         REQUIRE(initial_addr.begin() != initial_addr.end());
 
         auto total_count = 0;
@@ -2186,7 +2213,7 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
             ++total_count;
         }
 
-        addr_info test_addr = wil::networking::resolve_name_nothrow(L"localhost");
+        addr_info test_addr = wil::network::resolve_name_nothrow(L"localhost");
         REQUIRE(initial_addr.begin() != initial_addr.end());
 
         addr_info::iterator test_iterator = test_addr.begin();
@@ -2196,7 +2223,7 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
 
     SECTION("verify addr_info iterator move behavior")
     {
-        addr_info moved_from_addr = wil::networking::resolve_name_nothrow(L"..localmachine");
+        addr_info moved_from_addr = wil::network::resolve_name_nothrow(L"..localmachine");
         REQUIRE(moved_from_addr.get_last_error() == 0);
         REQUIRE(moved_from_addr.begin() != moved_from_addr.end());
 
@@ -2213,7 +2240,7 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
             REQUIRE((family == AF_INET || family == AF_INET6));
             REQUIRE(!address.is_address_loopback());
 
-            wil::networking::socket_address_wstring address_string;
+            wil::network::socket_address_wstring address_string;
             REQUIRE(SUCCEEDED(address.write_address_nothrow(address_string)));
             // wprintf(L"... moved resolve_name_nothrow(..localmachine) : %ws\n", address_string);
         }
@@ -2221,11 +2248,11 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
 
     SECTION("verify addr_info iterator move assignment behavior")
     {
-        addr_info moved_from_addr = wil::networking::resolve_name_nothrow(L"..localmachine");
+        addr_info moved_from_addr = wil::network::resolve_name_nothrow(L"..localmachine");
         REQUIRE(moved_from_addr.get_last_error() == 0);
         REQUIRE(moved_from_addr.begin() != moved_from_addr.end());
 
-        addr_info moved_to_addr{wil::networking::resolve_local_addresses_nothrow()};
+        addr_info moved_to_addr{wil::network::resolve_local_addresses_nothrow()};
         moved_to_addr = std::move(moved_from_addr);
 
         // moved_from_addr should be end() now
@@ -2244,14 +2271,14 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
             REQUIRE((family == AF_INET || family == AF_INET6));
             REQUIRE(!address.is_address_loopback());
 
-            wil::networking::socket_address_wstring address_string;
+            wil::network::socket_address_wstring address_string;
             REQUIRE(SUCCEEDED(address.write_address_nothrow(address_string)));
         }
     }
 
     SECTION("verify addr_info resolve_name failure")
     {
-        addr_info test_addr = wil::networking::resolve_name_nothrow(L"...xyz.xyz...");
+        addr_info test_addr = wil::network::resolve_name_nothrow(L"...xyz.xyz...");
         REQUIRE(test_addr.get_last_error() == WSAHOST_NOT_FOUND);
         REQUIRE(test_addr.begin() == test_addr.end());
 
@@ -2259,7 +2286,7 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
         bool exception_thrown = false;
         try
         {
-            test_addr = wil::networking::resolve_name(L"...xyz.xyz...");
+            test_addr = wil::network::resolve_name(L"...xyz.xyz...");
         }
         catch (const wil::ResultException& e)
         {
