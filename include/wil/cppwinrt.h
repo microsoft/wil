@@ -136,7 +136,7 @@ inline HRESULT __stdcall ResultFromCaughtException_CppWinRt(
         {
             *isNormalized = true;
             MaybeGetExceptionString(exception, debugString, debugStringChars);
-            return exception.GetErrorCode();
+            return winrt::hresult_error(exception.GetErrorCode(), debugString).to_abi();
         }
         catch (const winrt::hresult_error& exception)
         {
@@ -146,17 +146,17 @@ inline HRESULT __stdcall ResultFromCaughtException_CppWinRt(
         catch (const std::bad_alloc& exception)
         {
             MaybeGetExceptionString(exception, debugString, debugStringChars);
-            return E_OUTOFMEMORY;
+            return winrt::hresult_error(E_OUTOFMEMORY, debugString).to_abi();
         }
         catch (const std::out_of_range& exception)
         {
             MaybeGetExceptionString(exception, debugString, debugStringChars);
-            return E_BOUNDS;
+            return winrt::hresult_error(E_BOUNDS, debugString).to_abi();
         }
         catch (const std::invalid_argument& exception)
         {
             MaybeGetExceptionString(exception, debugString, debugStringChars);
-            return E_INVALIDARG;
+            return winrt::hresult_error(E_INVALIDARG, debugString).to_abi();
         }
         catch (...)
         {
@@ -177,7 +177,7 @@ inline HRESULT __stdcall ResultFromCaughtException_CppWinRt(
         {
             *isNormalized = true;
             MaybeGetExceptionString(exception, debugString, debugStringChars);
-            return exception.GetErrorCode();
+            return winrt::hresult_error(exception.GetErrorCode(), debugString).to_abi();
         }
         catch (const winrt::hresult_error& exception)
         {
@@ -187,22 +187,22 @@ inline HRESULT __stdcall ResultFromCaughtException_CppWinRt(
         catch (const std::bad_alloc& exception)
         {
             MaybeGetExceptionString(exception, debugString, debugStringChars);
-            return E_OUTOFMEMORY;
+            return winrt::hresult_error(E_OUTOFMEMORY, debugString).to_abi();
         }
         catch (const std::out_of_range& exception)
         {
             MaybeGetExceptionString(exception, debugString, debugStringChars);
-            return E_BOUNDS;
+            return winrt::hresult_error(E_BOUNDS, debugString).to_abi();
         }
         catch (const std::invalid_argument& exception)
         {
             MaybeGetExceptionString(exception, debugString, debugStringChars);
-            return E_INVALIDARG;
+            return winrt::hresult_error(E_INVALIDARG, debugString).to_abi();
         }
         catch (const std::exception& exception)
         {
             MaybeGetExceptionString(exception, debugString, debugStringChars);
-            return HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION);
+            return winrt::hresult_error(ERROR_UNHANDLED_EXCEPTION, debugString).to_abi();
         }
         catch (...)
         {
