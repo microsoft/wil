@@ -121,6 +121,20 @@ inline void MaybeGetExceptionString(
     }
 }
 
+inline HRESULT CppWinRtHResultFromCode(HRESULT hr, PCWSTR debugString)
+{
+    if (FAILED(hr))
+    {
+        // Use winrt::hresult_error::to_abi() to save the debugString so it can later be retrieved by C++/WinRT
+        if (debugString)
+        {
+            return winrt::hresult_error(hr, debugString).to_abi();
+        }
+        return winrt::hresult_error(hr).to_abi();
+    }
+    return hr;
+}
+
 inline HRESULT __stdcall ResultFromCaughtException_CppWinRt(
     _Inout_updates_opt_(debugStringChars) PWSTR debugString,
     _When_(debugString != nullptr, _Pre_satisfies_(debugStringChars > 0)) size_t debugStringChars,
@@ -136,34 +150,34 @@ inline HRESULT __stdcall ResultFromCaughtException_CppWinRt(
         {
             *isNormalized = true;
             MaybeGetExceptionString(exception, debugString, debugStringChars);
-            return winrt::hresult_error(exception.GetErrorCode(), debugString).to_abi();
+            return CppWinRtHResultFromCode(exception.GetErrorCode(), debugString);
         }
         catch (const winrt::hresult_error& exception)
         {
             MaybeGetExceptionString(exception, debugString, debugStringChars);
-            return exception.to_abi();
+            return CppWinRtHResultFromCode(exception.code(), debugString);
         }
         catch (const std::bad_alloc& exception)
         {
             MaybeGetExceptionString(exception, debugString, debugStringChars);
-            return winrt::hresult_error(E_OUTOFMEMORY, debugString).to_abi();
+            return CppWinRtHResultFromCode(E_OUTOFMEMORY, debugString);
         }
         catch (const std::out_of_range& exception)
         {
             MaybeGetExceptionString(exception, debugString, debugStringChars);
-            return winrt::hresult_error(E_BOUNDS, debugString).to_abi();
+            return CppWinRtHResultFromCode(E_BOUNDS, debugString);
         }
         catch (const std::invalid_argument& exception)
         {
             MaybeGetExceptionString(exception, debugString, debugStringChars);
-            return winrt::hresult_error(E_INVALIDARG, debugString).to_abi();
+            return CppWinRtHResultFromCode(E_INVALIDARG, debugString);
         }
         catch (...)
         {
             auto hr = RecognizeCaughtExceptionFromCallback(debugString, debugStringChars);
             if (FAILED(hr))
             {
-                return hr;
+                return CppWinRtHResultFromCode(hr, debugString);
             }
         }
     }
@@ -177,32 +191,32 @@ inline HRESULT __stdcall ResultFromCaughtException_CppWinRt(
         {
             *isNormalized = true;
             MaybeGetExceptionString(exception, debugString, debugStringChars);
-            return winrt::hresult_error(exception.GetErrorCode(), debugString).to_abi();
+            return CppWinRtHResultFromCode(exception.GetErrorCode(), debugString);
         }
         catch (const winrt::hresult_error& exception)
         {
             MaybeGetExceptionString(exception, debugString, debugStringChars);
-            return exception.to_abi();
+            return CppWinRtHResultFromCode(exception.code(), debugString);
         }
         catch (const std::bad_alloc& exception)
         {
             MaybeGetExceptionString(exception, debugString, debugStringChars);
-            return winrt::hresult_error(E_OUTOFMEMORY, debugString).to_abi();
+            return CppWinRtHResultFromCode(E_OUTOFMEMORY, debugString);
         }
         catch (const std::out_of_range& exception)
         {
             MaybeGetExceptionString(exception, debugString, debugStringChars);
-            return winrt::hresult_error(E_BOUNDS, debugString).to_abi();
+            return CppWinRtHResultFromCode(E_BOUNDS, debugString);
         }
         catch (const std::invalid_argument& exception)
         {
             MaybeGetExceptionString(exception, debugString, debugStringChars);
-            return winrt::hresult_error(E_INVALIDARG, debugString).to_abi();
+            return CppWinRtHResultFromCode(E_INVALIDARG, debugString);
         }
         catch (const std::exception& exception)
         {
             MaybeGetExceptionString(exception, debugString, debugStringChars);
-            return winrt::hresult_error(ERROR_UNHANDLED_EXCEPTION, debugString).to_abi();
+            return CppWinRtHResultFromCode(ERROR_UNHANDLED_EXCEPTION, debugString);
         }
         catch (...)
         {
