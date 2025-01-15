@@ -40,6 +40,18 @@ struct BuggyServer : winrt::implements<BuggyServer, winrt::Windows::Foundation::
     }
 };
 
+struct BuggyServerWithMessage : winrt::implements<BuggyServerWithMessage, winrt::Windows::Foundation::IStringable>
+{
+    BuggyServerWithMessage()
+    {
+        THROW_HR_MSG(E_ACCESSDENIED, "Custom message");
+    }
+    winrt::hstring ToString()
+    {
+        return L"BuggyServer from Server";
+    }
+};
+
 auto create_my_server_instance()
 {
     return winrt::create_instance<winrt::Windows::Foundation::IStringable>(winrt::guid_of<MyServer>(), CLSCTX_LOCAL_SERVER);
@@ -101,6 +113,33 @@ TEST_CASE("CppWinRTComServerTests::RegisterComServerThrowIsSafe", "[cppwinrt_com
         catch (winrt::hresult_error const& e)
         {
             REQUIRE(e.code() == E_ACCESSDENIED);
+        }
+    }
+}
+
+TEST_CASE("CppWinRTComServerTests::RegisterComServerThrowWithMessage", "[cppwinrt_com_server]")
+{
+    winrt::init_apartment();
+
+    {
+        auto revoker = wil::register_com_server<BuggyServerWithMessage>();
+        try
+        {
+            auto instance = winrt::create_instance<winrt::Windows::Foundation::IStringable>(
+                winrt::guid_of<BuggyServerWithMessage>(), CLSCTX_LOCAL_SERVER);
+            REQUIRE(false);
+        }
+        catch (winrt::hresult_error const& e)
+        {
+            REQUIRE(e.code() == E_ACCESSDENIED);
+
+            // When throwing with THROW_HR_MSG and using cppwinrt.h, the rich WIL debug string is retained with the original
+            // custom message. It looks like this:
+            //
+            // D:\repos\wil\tests\CppWinRTComServerTests.cpp(47)\witest.cppwinrt-com-server.exe!00007FF6D1140FCB: (caller:
+            // 00007FF6D11447E4) Exception(1) tid(696c) 80070005 Access is denied.
+            //     Msg:[Custom message] [BuggyServerWithMessage::BuggyServerWithMessage (E_ACCESSDENIED)]
+            REQUIRE(std::wstring(e.message().c_str()).find(L"Custom message") != std::wstring::npos);
         }
     }
 }
