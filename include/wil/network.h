@@ -423,38 +423,27 @@ namespace network
     //! class addr_info encapsulates the ADDRINFO structure
     //! this structure contains a linked list of addresses returned from resolving a name via GetAddrInfo
     //! iterator semantics are supported to safely access these addresses
-    class addr_info
+    //! supports all addrinfo types: ADDRINFOA, ADDRINFOW, ADDRINFOEXA, ADDRINFOEXW
+template <typename T>
+    class addr_info_t
     {
     public:
-        addr_info(_In_ ADDRINFOW* addrResult, int error) WI_NOEXCEPT :
-            m_addrResult{addrResult},
-            m_lastError{error}
+        addr_info_t(_In_ T* addrResult) WI_NOEXCEPT : m_addrResult{addrResult}
         {
         }
 
-        [[nodiscard]] int get_last_error() const WI_NOEXCEPT
-        {
-            return m_lastError;
-        }
+        // the d'tor calls the free function matching the addrinfo* type T
+        ~addr_info_t() WI_NOEXCEPT;
+        addr_info_t(const addr_info_t&) = delete;
+        addr_info_t& operator=(const addr_info_t&) = delete;
 
-        ~addr_info() WI_NOEXCEPT
-        {
-            if (m_addrResult)
-            {
-                ::FreeAddrInfoW(m_addrResult);
-            }
-        }
-
-        addr_info(const addr_info&) = delete;
-        addr_info& operator=(const addr_info&) = delete;
-
-        addr_info(addr_info&& rhs) WI_NOEXCEPT
+        addr_info_t(addr_info_t&& rhs) WI_NOEXCEPT
         {
             m_addrResult = rhs.m_addrResult;
             rhs.m_addrResult = nullptr;
         }
 
-        addr_info& operator=(addr_info&& rhs) WI_NOEXCEPT
+        addr_info_t& operator=(addr_info_t&& rhs) WI_NOEXCEPT
         {
             if (this != &rhs)
             {
@@ -485,8 +474,8 @@ namespace network
             using pointer = wil::network::socket_address*;
             using reference = wil::network::socket_address&;
 
-            iterator(const ADDRINFOW* addr_info) WI_NOEXCEPT :
-                m_addr_info(const_cast<ADDRINFOW*>(addr_info))
+            iterator(const ADDRINFOW* addrinfo) WI_NOEXCEPT :
+                m_addr_info(const_cast<ADDRINFOW*>(addrinfo))
             {
                 // must const cast so we can re-use this pointer as we walk the list
                 if (m_addr_info)
@@ -531,15 +520,20 @@ namespace network
                 return !(*this == rhs);
             }
 
-            // pre-increment
             iterator& operator++() WI_NOEXCEPT
             {
                 this->operator+=(1);
                 return *this;
             }
 
-            // increment by integer
-            iterator& operator+=(size_t offset)
+            iterator operator++(int) WI_NOEXCEPT
+            {
+                auto return_value = *this;
+                this->operator+=(1);
+                return return_value;
+            }
+
+            iterator& operator+=(size_t offset) WI_NOEXCEPT
             {
                 for (size_t count = 0; count < offset; ++count)
                 {
@@ -561,12 +555,9 @@ namespace network
                 return *this;
             }
 
-            // not supporting post-increment - which would require copy-construction
-            iterator operator++(int) = delete;
-
         private:
             // non-ownership of this pointer - the parent class must outlive the iterator
-            ADDRINFOW* m_addr_info{nullptr};
+            T* m_addr_info{nullptr};
             wil::network::socket_address m_socket_address{};
         };
 
@@ -581,43 +572,49 @@ namespace network
         }
 
     private:
-        ADDRINFOW* m_addrResult{};
-        int m_lastError{};
+        T* m_addrResult{};
     };
 
-    //! wil function to capture resolving a name to a set of IP addresses
-    //! returning an RAII object containing the results
-    //! the returned RAII object exposes iterator semantics to walk the results
-    //! the returned RAII object exposes get_last_error() to check for errors
-    inline ::wil::network::addr_info resolve_name_nothrow(_In_ PCWSTR name) WI_NOEXCEPT
+    typedef network::addr_info_t<ADDRINFOA> addr_info_a;
+    template<>
+    inline addr_info_t<ADDRINFOA>::~addr_info_t() WI_NOEXCEPT
     {
-        int lastError{0};
-        ADDRINFOW* addrResult{};
-        if (0 != ::GetAddrInfoW(name, nullptr, nullptr, &addrResult))
+        if (m_addrResult)
         {
-            lastError = ::WSAGetLastError();
+            ::freeaddrinfo(m_addrResult);
         }
-
-        return {addrResult, lastError};
     }
-
-    //! wil function to capture resolving the local machine to its set of IP addresses
-    //! returning an RAII object containing the results
-    //! the returned RAII object exposes iterator semantics to walk the results
-    //! the returned RAII object exposes get_last_error() to check for errors
-    inline ::wil::network::addr_info resolve_local_addresses_nothrow() WI_NOEXCEPT
+    typedef network::addr_info_t<ADDRINFOW> addr_info;
+    template<>
+    inline addr_info_t<ADDRINFOW>::~addr_info_t() WI_NOEXCEPT
     {
-        return ::wil::network::resolve_name_nothrow(L"");
+        if (m_addrResult)
+        {
+            ::FreeAddrInfoW(m_addrResult);
+        }
+    }
+    // the Winsock headers require having set this #define to access ANSI-string versions of the Winsock API
+#if defined(_WINSOCK_DEPRECATED_NO_WARNINGS)
+    typedef network::addr_info_t<ADDRINFOEXA> addr_info_exa;
+    template<>
+    inline addr_info_t<ADDRINFOEXA>::~addr_info_t() WI_NOEXCEPT
+    {
+        if (m_addrResult)
+        {
+            ::FreeAddrInfoEx(m_addrResult);
+        }
+    }
+#endif
+    typedef network::addr_info_t<ADDRINFOEXW> addr_infoex;
+    template<>
+    inline addr_info_t<ADDRINFOEXW>::~addr_info_t() WI_NOEXCEPT
+    {
+        if (m_addrResult)
+        {
+            ::FreeAddrInfoExW(m_addrResult);
+        }
     }
 
-    //! wil function to capture resolving the local-host addresses
-    //! returning an RAII object containing the results
-    //! the returned RAII object exposes iterator semantics to walk the results
-    //! the returned RAII object exposes get_last_error() to check for errors
-    inline ::wil::network::addr_info resolve_localhost_addresses_nothrow() WI_NOEXCEPT
-    {
-        return ::wil::network::resolve_name_nothrow(L"localhost");
-    }
 
 #if defined(WIL_ENABLE_EXCEPTIONS)
     //! wil function to capture resolving a name to a set of IP addresses, throwing on error
@@ -631,7 +628,7 @@ namespace network
             THROW_WIN32(::WSAGetLastError());
         }
 
-        return {addrResult, NO_ERROR};
+        return {addrResult};
     }
 
     //! wil function to capture resolving the local machine to its set of IP addresses, throwing on error
@@ -1361,12 +1358,12 @@ namespace network
             return table;
         }
 
-        const auto load_function_pointer = [](SOCKET localSocket, GUID extensionGuid, void* functionPtr) WI_NOEXCEPT {
+        const auto load_function_pointer = [](SOCKET lambdaSocket, GUID extensionGuid, void* functionPtr) WI_NOEXCEPT {
             constexpr DWORD controlCode{SIO_GET_EXTENSION_FUNCTION_POINTER};
             constexpr DWORD bytes{sizeof(functionPtr)};
             DWORD unused_bytes{};
             const auto error{::WSAIoctl(
-                localSocket,
+                lambdaSocket,
                 controlCode,
                 &extensionGuid,
                 DWORD{sizeof(extensionGuid)},
