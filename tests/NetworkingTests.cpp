@@ -378,9 +378,9 @@ TEST_CASE("NetworkingTests::Verifying_constructors", "[networking]")
 TEST_CASE("NetworkingTests::Verifying_in_addr_interactions", "[networking]")
 {
     InitTestAddresses();
-    REQUIRE(wil::network::socket_address::length == sizeof(SOCKADDR_INET));
 
     wil::network::socket_address default_addr{};
+    REQUIRE(default_addr.length() == sizeof(SOCKADDR_INET));
 
     wil::network::socket_address test_v4_addr{&Test_in_addr};
     wil::network::socket_address test_v4_addr2{&Test_in_addr2};
@@ -788,9 +788,9 @@ TEST_CASE("NetworkingTests::Verifying_operators", "[networking]")
 TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
 {
     InitTestAddresses();
-    REQUIRE(wil::network::socket_address::length == sizeof(SOCKADDR_INET));
 
     wil::network::socket_address default_addr{};
+    REQUIRE(default_addr.length() == sizeof(SOCKADDR_INET));
 
     wil::network::socket_address test_v4_addr{&Test_in_addr};
     wil::network::socket_address test_v4_addr2{&Test_in_addr2};
@@ -1219,7 +1219,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         test_address.set_port(TestPort);
 
         int gle = 0;
-        auto bind_error = ::bind(test_socket.get(), test_address.sockaddr(), wil::network::socket_address::length);
+        auto bind_error = ::bind(test_socket.get(), test_address.sockaddr(), test_address.length());
         if (bind_error != 0)
         {
             gle = ::WSAGetLastError();
@@ -1297,7 +1297,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         test_address.set_port(TestPort);
 
         int gle = 0;
-        auto bind_error = ::bind(test_socket.get(), test_address.sockaddr(), wil::network::socket_address::length);
+        auto bind_error = ::bind(test_socket.get(), test_address.sockaddr(), test_address.length());
         if (bind_error != 0)
         {
             gle = ::WSAGetLastError();
@@ -1376,7 +1376,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         test_address.set_port(TestPort);
 
         int gle = 0;
-        auto bind_error = ::bind(test_socket.get(), test_address.sockaddr(), wil::network::socket_address::length);
+        auto bind_error = ::bind(test_socket.get(), test_address.sockaddr(), test_address.length());
         if (bind_error != 0)
         {
             gle = ::WSAGetLastError();
@@ -1454,7 +1454,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         test_address.set_port(TestPort);
 
         int gle = 0;
-        auto bind_error = ::bind(test_socket.get(), test_address.sockaddr(), wil::network::socket_address::length);
+        auto bind_error = ::bind(test_socket.get(), test_address.sockaddr(), test_address.length());
         if (bind_error != 0)
         {
             gle = ::WSAGetLastError();
@@ -1834,7 +1834,7 @@ TEST_CASE("NetworkingTests::Verifying_function_tables", "[networking]")
         listenAddress.set_port(TestPort);
 
         int gle = 0;
-        auto bind_error = ::bind(listeningSocket.get(), listenAddress.sockaddr(), wil::network::socket_address::length);
+        auto bind_error = ::bind(listeningSocket.get(), listenAddress.sockaddr(), listenAddress.length());
         if (bind_error != 0)
         {
             gle = ::WSAGetLastError();
@@ -1852,7 +1852,7 @@ TEST_CASE("NetworkingTests::Verifying_function_tables", "[networking]")
         REQUIRE(listen_error == 0);
 
         // the buffer to supply to AcceptEx to capture the address information
-        static constexpr size_t singleAddressOutputBufferSize = wil::network::socket_address::length + 16;
+        static constexpr size_t singleAddressOutputBufferSize = listenAddress.length() + 16;
         char acceptex_output_buffer[singleAddressOutputBufferSize * 2]{};
         wil::unique_socket acceptSocket{::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)};
         REQUIRE(acceptSocket.get() != INVALID_SOCKET);
@@ -1906,7 +1906,7 @@ TEST_CASE("NetworkingTests::Verifying_function_tables", "[networking]")
         connecting_from_address.set_port(0); // just an ephemeral port, ConnectEx will find a port
 
         gle = 0;
-        bind_error = ::bind(connectingSocket.get(), connecting_from_address.sockaddr(), wil::network::socket_address::length);
+        bind_error = ::bind(connectingSocket.get(), connecting_from_address.sockaddr(), connecting_from_address.length());
         if (bind_error != 0)
         {
             gle = ::WSAGetLastError();
@@ -1916,7 +1916,7 @@ TEST_CASE("NetworkingTests::Verifying_function_tables", "[networking]")
 
         gle = 0;
         auto connectex_return = test_table.f.ConnectEx(
-            connectingSocket.get(), listenAddress.sockaddr(), wil::network::socket_address::length, nullptr, 0, nullptr, &connectex_overlapped);
+            connectingSocket.get(), listenAddress.sockaddr(), listenAddress.length(), nullptr, 0, nullptr, &connectex_overlapped);
         if (!connectex_return)
         {
             gle = ::WSAGetLastError();
@@ -2053,9 +2053,9 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
 
     SECTION("verify resolve_local_addresses")
     {
-#ifdef WIL_ENABLE_EXCEPTIONS
+#if (defined(WIL_ENABLE_EXCEPTIONS))
         const wil::unique_addrinfo test_addr = wil::network::resolve_local_addresses();
-        REQUIRE(test_addr.begin() != test_addr.end());
+        REQUIRE(addr_info_iterator::begin(test_addr.get()) != addr_info_iterator::end());
 
         // verify operator->
         const addr_info_iterator test_addr_iterator{test_addr.get()};
@@ -2070,7 +2070,7 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
 
             wil::network::socket_address_wstring address_string;
             REQUIRE(SUCCEEDED(address.write_address_nothrow(address_string)));
-            wprintf(L"... resolve_local_addresses : %ws\n", address_string.c_str());
+            wprintf(L"... resolve_local_addresses : %ws\n", address_string);
             ++count;
         }
 
@@ -2080,7 +2080,7 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
 
     SECTION("verify resolve_localhost_addresses")
     {
-#ifdef WIL_ENABLE_EXCEPTIONS
+#if (defined(WIL_ENABLE_EXCEPTIONS))
         const wil::unique_addrinfo test_addr = wil::network::resolve_localhost_addresses();
         REQUIRE(addr_info_iterator::begin(test_addr.get()) != addr_info_iterator::end());
 
@@ -2111,7 +2111,7 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
 
             wil::network::socket_address_wstring address_string;
             REQUIRE(SUCCEEDED(address.write_address_nothrow(address_string)));
-            wprintf(L"... resolve_localhost_addresses : %ws\n", address_string.c_str());
+            wprintf(L"... resolve_localhost_addresses : %ws\n", address_string);
             ++count;
         }
 
@@ -2121,7 +2121,7 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
 
     SECTION("verify resolve_name")
     {
-#ifdef WIL_ENABLE_EXCEPTIONS
+#if (defined(WIL_ENABLE_EXCEPTIONS))
         const wil::unique_addrinfo test_addr = wil::network::resolve_name(L"..localmachine");
         REQUIRE(addr_info_iterator::begin(test_addr.get()) != addr_info_iterator::end());
 
@@ -2134,7 +2134,7 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
 
             wil::network::socket_address_wstring address_string;
             REQUIRE(SUCCEEDED(address.write_address_nothrow(address_string)));
-            wprintf(L"... resolve_name(..localmachine) : %ws\n", address_string.c_str());
+            wprintf(L"... resolve_name(..localmachine) : %ws\n", address_string);
             ++count;
         }
 
@@ -2142,24 +2142,24 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
 #endif
     }
 
-    SECTION("verify const addr_info iterators")
+    SECTION("verify const addr_info_iterator")
     {
-#ifdef WIL_ENABLE_EXCEPTIONS
+#if (defined(WIL_ENABLE_EXCEPTIONS) && defined(_STRING_))
         const wil::unique_addrinfo test_addr = wil::network::resolve_name(L"localhost");
         REQUIRE(addr_info_iterator::begin(test_addr.get()) != addr_info_iterator::end());
 
         const addr_info_iterator test_addr_iterator{test_addr.get()};
         REQUIRE(test_addr_iterator->is_address_loopback());
 
-        const auto& test_address_reference = *test_iterator;
+        const auto& test_address_reference = *test_addr_iterator;
         REQUIRE(test_address_reference.is_address_loopback());
 #endif
     }
 
-    SECTION("verify addr_info iterator increment")
+    SECTION("verify addr_info_iterator increment")
     {
-#ifdef WIL_ENABLE_EXCEPTIONS
-        const addr_info initial_addr = wil::network::resolve_name(L"localhost");
+#if (defined(WIL_ENABLE_EXCEPTIONS) && defined(_STRING_))
+        const wil::unique_addrinfo initial_addr = wil::network::resolve_name(L"localhost");
         REQUIRE(addr_info_iterator::begin(initial_addr.get()) != addr_info_iterator::end());
 
         auto total_count = 0;
@@ -2177,9 +2177,9 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
 #endif
     }
 
-    SECTION("verify addr_info iterator move behavior")
+    SECTION("verify addr_info_iterator move behavior")
     {
-#ifdef WIL_ENABLE_EXCEPTIONS
+#if (defined(WIL_ENABLE_EXCEPTIONS))
         wil::unique_addrinfo moved_from_addr = wil::network::resolve_name(L"..localmachine");
         REQUIRE(addr_info_iterator::begin(moved_from_addr.get()) != addr_info_iterator::end());
 
@@ -2201,9 +2201,9 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
 #endif
     }
 
-    SECTION("verify addr_info iterator move assignment behavior")
+    SECTION("verify addr_info_iterator move assignment behavior")
     {
-#ifdef WIL_ENABLE_EXCEPTIONS
+#if (defined(WIL_ENABLE_EXCEPTIONS))
         wil::unique_addrinfo moved_from_addr = wil::network::resolve_name(L"..localmachine");
         REQUIRE(addr_info_iterator::begin(moved_from_addr.get()) != addr_info_iterator::end());
 
@@ -2211,14 +2211,14 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
         moved_to_addr = std::move(moved_from_addr);
 
         // moved_from_addr should be end() now
-        REQUIRE(moved_from_addr.begin() == moved_from_addr.end());
-        REQUIRE(moved_to_addr.begin() != moved_to_addr.end());
+        REQUIRE(addr_info_iterator::begin(moved_from_addr.get()) == addr_info_iterator::end());
+        REQUIRE(addr_info_iterator::begin(moved_to_addr.get()) != addr_info_iterator::end());
 
         // move to self
         moved_to_addr = std::move(moved_to_addr);
-        REQUIRE(moved_to_addr.begin() != moved_to_addr.end());
+        REQUIRE(addr_info_iterator::begin(moved_to_addr.get()) != addr_info_iterator::end());
 
-        for (const auto& address : moved_to_addr)
+        for (const auto& address : wil::network::make_range(moved_to_addr))
         {
             const auto family = address.family();
             REQUIRE((family == AF_INET || family == AF_INET6));
@@ -2232,7 +2232,7 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
 
     SECTION("verify addr_info resolve_name failure")
     {
-#ifdef WIL_ENABLE_EXCEPTIONS
+#if (defined(WIL_ENABLE_EXCEPTIONS))
         bool exception_thrown = false;
         try
         {

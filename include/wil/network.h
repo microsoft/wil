@@ -109,11 +109,17 @@ namespace network
         LPFN_WSASENDMSG WSASendMsg{nullptr};
     };
 
-    struct winsock_extension_function_table
-    {
-        static winsock_extension_function_table load() WI_NOEXCEPT;
+    template <typename F>
+    struct socket_extension_function_table_t;
+    using winsock_extension_function_table = socket_extension_function_table_t<WINSOCK_EXTENSION_FUNCTION_TABLE>;
+    using rio_extension_function_table = socket_extension_function_table_t<RIO_EXTENSION_FUNCTION_TABLE>;
 
-        ~winsock_extension_function_table() WI_NOEXCEPT = default;
+    template <typename F>
+    struct socket_extension_function_table_t
+    {
+        static socket_extension_function_table_t load() WI_NOEXCEPT;
+
+        ~socket_extension_function_table_t() WI_NOEXCEPT = default;
 
         // can copy, but the new object needs its own WSA reference count
         // (getting a WSA reference count should be no-fail once the first reference it taken)
@@ -124,7 +130,7 @@ namespace network
         //   (this should never happen the caller has a reference, but we failed to get a WSA reference)
         // THEN
         //   this object cannot carry forward any function pointers - it must show successfully loaded == false
-        winsock_extension_function_table(const winsock_extension_function_table& rhs) WI_NOEXCEPT :
+        socket_extension_function_table_t(const socket_extension_function_table_t& rhs) WI_NOEXCEPT :
             wsa_reference_count{WSAStartup_nothrow()}
         {
             if (!wsa_reference_count || !rhs.wsa_reference_count)
@@ -137,7 +143,7 @@ namespace network
             }
         }
 
-        winsock_extension_function_table& operator=(const winsock_extension_function_table& rhs) WI_NOEXCEPT
+        socket_extension_function_table_t& operator=(const socket_extension_function_table_t& rhs) WI_NOEXCEPT
         {
             if (!wsa_reference_count || !rhs.wsa_reference_count)
             {
@@ -152,16 +158,13 @@ namespace network
         }
 
         //! Returns true if all functions were loaded, holding a WSAStartup reference
-        WI_NODISCARD explicit operator bool() const WI_NOEXCEPT
-        {
-            return f.AcceptEx != nullptr;
-        }
+        WI_NODISCARD explicit operator bool() const WI_NOEXCEPT;
 
-        ::wil::network::WINSOCK_EXTENSION_FUNCTION_TABLE f{};
+        F f{};
 
     private:
         // constructed via load()
-        winsock_extension_function_table() WI_NOEXCEPT :
+        socket_extension_function_table_t() WI_NOEXCEPT :
             wsa_reference_count{WSAStartup_nothrow()}
         {
         }
@@ -170,66 +173,141 @@ namespace network
         const ::wil::network::unique_wsacleanup_call wsa_reference_count;
     };
 
-    struct rio_extension_function_table
+    //
+    // explicit specializations for socket_extension_function_table_t
+    //
+    template <>
+    inline
+    socket_extension_function_table_t<WINSOCK_EXTENSION_FUNCTION_TABLE>::operator bool() const WI_NOEXCEPT
     {
-        static rio_extension_function_table load() WI_NOEXCEPT;
+        return f.AcceptEx != nullptr;
+    }
 
-        ~rio_extension_function_table() WI_NOEXCEPT = default;
+    template <>
+    inline
+    socket_extension_function_table_t<RIO_EXTENSION_FUNCTION_TABLE>::operator bool() const WI_NOEXCEPT
+    {
+        return f.RIOReceive != nullptr;
+    }
 
-        // can copy, but the new object needs its own WSA reference count
-        // (getting a WSA reference count should be no-fail once the first reference it taken)
-        //
-        // IF the target could not get a WSA reference count
-        //   OR
-        // IF we couldn't get our own WSA reference count
-        //   (this should never happen the caller has a reference, but we failed to get a WSA reference)
-        // THEN
-        //   this object cannot carry forward any function pointers - it must show successfully loaded == false
-        rio_extension_function_table(const rio_extension_function_table& rhs) WI_NOEXCEPT :
-            wsa_reference_count{WSAStartup_nothrow()}
+    template <>
+    inline
+    winsock_extension_function_table socket_extension_function_table_t<WINSOCK_EXTENSION_FUNCTION_TABLE>::load() WI_NOEXCEPT
+    {
+        winsock_extension_function_table table;
+        // if WSAStartup failed, immediately exit
+        if (!table.wsa_reference_count)
         {
-            if (!wsa_reference_count || !rhs.wsa_reference_count)
-            {
-                ::memset(&f, 0, sizeof(f));
-            }
-            else
-            {
-                ::memcpy_s(&f, sizeof(f), &rhs.f, sizeof(rhs.f));
-            }
+            return table;
         }
 
-        rio_extension_function_table& operator=(const rio_extension_function_table& rhs) WI_NOEXCEPT
+        // we need a temporary socket for the IOCTL to load the functions
+        const ::wil::unique_socket localSocket{::socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)};
+        if (INVALID_SOCKET == localSocket.get())
         {
-            if (!wsa_reference_count || !rhs.wsa_reference_count)
-            {
-                ::memset(&f, 0, sizeof(f));
-            }
-            else
-            {
-                ::memcpy_s(&f, sizeof(f), &rhs.f, sizeof(rhs.f));
-            }
-
-            return *this;
+            return table;
         }
 
-        //! Returns true if all functions were loaded, holding a WSAStartup reference
-        WI_NODISCARD explicit operator bool() const WI_NOEXCEPT
+        const auto load_function_pointer = [](SOCKET lambdaSocket, GUID extensionGuid, void* functionPtr) WI_NOEXCEPT {
+            constexpr DWORD controlCode{SIO_GET_EXTENSION_FUNCTION_POINTER};
+            constexpr DWORD bytes{sizeof(functionPtr)};
+            DWORD unused_bytes{};
+            const auto error{::WSAIoctl(
+                lambdaSocket,
+                controlCode,
+                &extensionGuid,
+                DWORD{sizeof(extensionGuid)},
+                functionPtr,
+                bytes,
+                &unused_bytes,
+                nullptr,
+                nullptr)};
+            return error == 0 ? S_OK : HRESULT_FROM_WIN32(::WSAGetLastError());
+        };
+
+        if (FAILED_LOG(load_function_pointer(localSocket.get(), WSAID_ACCEPTEX, &table.f.AcceptEx)) ||
+            FAILED_LOG(load_function_pointer(localSocket.get(), WSAID_CONNECTEX, &table.f.ConnectEx)) ||
+            FAILED_LOG(load_function_pointer(localSocket.get(), WSAID_DISCONNECTEX, &table.f.DisconnectEx)) ||
+            FAILED_LOG(load_function_pointer(localSocket.get(), WSAID_GETACCEPTEXSOCKADDRS, &table.f.GetAcceptExSockaddrs)) ||
+            FAILED_LOG(load_function_pointer(localSocket.get(), WSAID_TRANSMITFILE, &table.f.TransmitFile)) ||
+            FAILED_LOG(load_function_pointer(localSocket.get(), WSAID_TRANSMITPACKETS, &table.f.TransmitPackets)) ||
+            FAILED_LOG(load_function_pointer(localSocket.get(), WSAID_WSARECVMSG, &table.f.WSARecvMsg)) ||
+            FAILED_LOG(load_function_pointer(localSocket.get(), WSAID_WSASENDMSG, &table.f.WSASendMsg)))
         {
-            return f.RIOReceive != nullptr;
+            // if any failed to be found, something is very broken
+            // all should load, or all should fail
+            ::memset(&table.f, 0, sizeof(table.f));
         }
 
-        ::RIO_EXTENSION_FUNCTION_TABLE f{};
+        return table;
+    }
 
-    private:
-        // constructed via load()
-        rio_extension_function_table() WI_NOEXCEPT :
-            wsa_reference_count{WSAStartup_nothrow()}
+    template <>
+    inline
+    rio_extension_function_table socket_extension_function_table_t<RIO_EXTENSION_FUNCTION_TABLE>::load() WI_NOEXCEPT
+    {
+        rio_extension_function_table table{};
+        // if WSAStartup failed, immediately exit
+        if (!table.wsa_reference_count)
         {
+            return table;
         }
 
-        // must guarantee Winsock does not unload while we have dynamically loaded function pointers
-        const ::wil::network::unique_wsacleanup_call wsa_reference_count;
-    };
+        // we need a temporary socket for the IOCTL to load the functions
+        const ::wil::unique_socket localSocket{::socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)};
+        if (INVALID_SOCKET == localSocket.get())
+        {
+            return table;
+        }
+
+        constexpr DWORD controlCode{SIO_GET_MULTIPLE_EXTENSION_FUNCTION_POINTER};
+        constexpr DWORD bytes{sizeof(table.f)};
+        GUID rioGuid = WSAID_MULTIPLE_RIO;
+
+        ::memset(&table.f, 0, bytes);
+        table.f.cbSize = bytes;
+
+        DWORD unused_bytes{};
+        if (::WSAIoctl(
+                localSocket.get(),
+                controlCode,
+                &rioGuid,
+                DWORD{sizeof(rioGuid)},
+                &table.f,
+                bytes,
+                &unused_bytes,
+                nullptr,
+                nullptr) != 0)
+        {
+            LOG_IF_WIN32_ERROR(::WSAGetLastError());
+
+            ::memset(&table.f, 0, bytes);
+        }
+        return table;
+    }
+
+    //
+    // utility functions to compare inaddr types
+    //
+    [[nodiscard]] inline bool equals(const ::in_addr& lhs, const ::in_addr& rhs) WI_NOEXCEPT
+    {
+        return lhs.s_addr == rhs.s_addr;
+    }
+
+    [[nodiscard]] inline bool not_equals(const ::in_addr& lhs, const ::in_addr& rhs) WI_NOEXCEPT
+    {
+        return !equals(lhs, rhs);
+    }
+
+    [[nodiscard]] inline bool equals(const ::in6_addr& lhs, const ::in6_addr& rhs) WI_NOEXCEPT
+    {
+        return 0 == ::memcmp(&lhs, &rhs, sizeof(::in6_addr));
+    }
+
+    [[nodiscard]] inline bool not_equals(const ::in6_addr& lhs, const ::in6_addr& rhs) WI_NOEXCEPT
+    {
+        return !equals(lhs, rhs);
+    }
 
     //
     //! encapsulates working with the sockaddr datatype
@@ -267,26 +345,6 @@ namespace network
     //!   - a structure containing both a sockaddr* and its length fields, returned from some networking functions
     //!
 
-    [[nodiscard]] inline bool equals(const in_addr& lhs, const in_addr& rhs) WI_NOEXCEPT
-    {
-        return lhs.s_addr == rhs.s_addr;
-    }
-
-    [[nodiscard]] inline bool not_equals(const in_addr& lhs, const in_addr& rhs) WI_NOEXCEPT
-    {
-        return lhs.s_addr != rhs.s_addr;
-    }
-
-    [[nodiscard]] inline bool equals(const in6_addr& lhs, const in6_addr& rhs) WI_NOEXCEPT
-    {
-        return 0 == ::memcmp(&lhs, &rhs, sizeof(in6_addr));
-    }
-
-    [[nodiscard]] inline bool not_equals(const in6_addr& lhs, const in6_addr& rhs) WI_NOEXCEPT
-    {
-        return 0 != ::memcmp(&lhs, &rhs, sizeof(in6_addr));
-    }
-
     // declaring char-arrays large enough for any IPv4 or IPv6 address + optional fields
     static_assert(INET6_ADDRSTRLEN > INET_ADDRSTRLEN);
     typedef WCHAR socket_address_wstring[INET6_ADDRSTRLEN];
@@ -297,7 +355,7 @@ namespace network
     public:
         explicit socket_address(ADDRESS_FAMILY family = AF_UNSPEC) WI_NOEXCEPT;
         template <typename T>
-        explicit socket_address(_In_reads_bytes_(inLength) const SOCKADDR* addr, T inLength) WI_NOEXCEPT;
+        explicit socket_address(_In_reads_bytes_(addr_size) const SOCKADDR* addr, T addr_size) WI_NOEXCEPT;
         explicit socket_address(const SOCKADDR_IN*) WI_NOEXCEPT;
         explicit socket_address(const SOCKADDR_IN6*) WI_NOEXCEPT;
         explicit socket_address(const SOCKADDR_INET*) WI_NOEXCEPT;
@@ -322,9 +380,9 @@ namespace network
         void swap(socket_address&) WI_NOEXCEPT;
         void reset(ADDRESS_FAMILY family = AF_UNSPEC) WI_NOEXCEPT;
 
-        // set_sockaddr overwrites the entire sockaddr in the object
+        // set_sockaddr overwrites the entire sockaddr in the object (including address family)
         template <typename T>
-        void set_sockaddr(_In_reads_bytes_(inLength) const SOCKADDR* addr, T inLength) WI_NOEXCEPT;
+        void set_sockaddr(_In_reads_bytes_(addr_size) const SOCKADDR* addr, T addr_size) WI_NOEXCEPT;
         void set_sockaddr(const SOCKADDR_IN*) WI_NOEXCEPT;
         void set_sockaddr(const SOCKADDR_IN6*) WI_NOEXCEPT;
         void set_sockaddr(const SOCKADDR_INET*) WI_NOEXCEPT;
@@ -338,19 +396,19 @@ namespace network
         [[nodiscard]] HRESULT set_sockaddr_nothrow(PCWSTR) WI_NOEXCEPT;
         [[nodiscard]] HRESULT set_sockaddr_nothrow(PCSTR) WI_NOEXCEPT;
 
-        void set_port(USHORT) WI_NOEXCEPT;
-        void set_scope_id(ULONG) WI_NOEXCEPT;
-        void set_flow_info(ULONG) WI_NOEXCEPT;
-
         // set_address* preserves the existing port set on the address
         // - so that one can call set_port() and set_address() in any order with expected results
-        // - the address family is preserved unless it is specified (or inferred) as an argument
+        // the address family is preserved unless it is specified (or inferred) as an argument
         void set_address_any() WI_NOEXCEPT;
         void set_address_any(ADDRESS_FAMILY family) WI_NOEXCEPT;
         void set_address_loopback() WI_NOEXCEPT;
         void set_address_loopback(ADDRESS_FAMILY family) WI_NOEXCEPT;
         void set_address(const IN_ADDR*) WI_NOEXCEPT;
         void set_address(const IN6_ADDR*) WI_NOEXCEPT;
+
+        void set_port(USHORT) WI_NOEXCEPT;
+        void set_scope_id(ULONG) WI_NOEXCEPT;
+        void set_flow_info(ULONG) WI_NOEXCEPT;
 
         // write_address prints the IP address, not the scope id or port
         HRESULT write_address_nothrow(socket_address_wstring& address) const WI_NOEXCEPT;
@@ -370,7 +428,6 @@ namespace network
         [[nodiscard]] bool is_address_linklocal() const WI_NOEXCEPT;
         [[nodiscard]] bool is_address_loopback() const WI_NOEXCEPT;
 
-        // Accessors
         [[nodiscard]] ADDRESS_FAMILY family() const WI_NOEXCEPT;
         [[nodiscard]] USHORT port() const WI_NOEXCEPT;
         [[nodiscard]] ULONG flow_info() const WI_NOEXCEPT;
@@ -390,7 +447,10 @@ namespace network
         [[nodiscard]] const IN_ADDR* in_addr() const WI_NOEXCEPT;
         [[nodiscard]] const IN6_ADDR* in6_addr() const WI_NOEXCEPT;
 
-        static constexpr int length{sizeof(::SOCKADDR_INET)};
+        constexpr int length() const
+        {
+            return sizeof(m_sockaddr);
+        }
 
     private:
         SOCKADDR_INET m_sockaddr{};
@@ -398,26 +458,26 @@ namespace network
 
     // When using dual-mode sockets, one might need to connect to a target IPv4 address.
     // Since dual-mode socket types are IPv6, one must map that IPv4 address to its 'mapped' IPv6 address
-    inline wil::network::socket_address map_dual_mode_4to6(const wil::network::socket_address& inV4) WI_NOEXCEPT
+    inline ::wil::network::socket_address map_dual_mode_4to6(const ::wil::network::socket_address& ipv4_address) WI_NOEXCEPT
     {
-        constexpr IN6_ADDR v4MappedPrefix{{IN6ADDR_V4MAPPEDPREFIX_INIT}};
+        constexpr IN6_ADDR ipv4MappedPrefix{{IN6ADDR_V4MAPPEDPREFIX_INIT}};
 
-        wil::network::socket_address outV6{&v4MappedPrefix, inV4.port()};
+        ::wil::network::socket_address return_ipv6_address{&ipv4MappedPrefix, ipv4_address.port()};
 
-        auto* const pIn6Addr{outV6.in6_addr()};
-        const auto* const pIn4Addr{inV4.in_addr()};
-        pIn6Addr->u.Byte[12] = pIn4Addr->S_un.S_un_b.s_b1;
-        pIn6Addr->u.Byte[13] = pIn4Addr->S_un.S_un_b.s_b2;
-        pIn6Addr->u.Byte[14] = pIn4Addr->S_un.S_un_b.s_b3;
-        pIn6Addr->u.Byte[15] = pIn4Addr->S_un.S_un_b.s_b4;
+        auto* const return_in6_addr{return_ipv6_address.in6_addr()};
+        const auto* const ipv4_inaddr{ipv4_address.in_addr()};
+        return_in6_addr->u.Byte[12] = ipv4_inaddr->S_un.S_un_b.s_b1;
+        return_in6_addr->u.Byte[13] = ipv4_inaddr->S_un.S_un_b.s_b2;
+        return_in6_addr->u.Byte[14] = ipv4_inaddr->S_un.S_un_b.s_b3;
+        return_in6_addr->u.Byte[15] = ipv4_inaddr->S_un.S_un_b.s_b4;
 
-        return outV6;
+        return return_ipv6_address;
     }
 
     //
     // non-member swap
     //
-    inline void swap(wil::network::socket_address& lhs, wil::network::socket_address& rhs) WI_NOEXCEPT
+    inline void swap(::wil::network::socket_address& lhs, ::wil::network::socket_address& rhs) WI_NOEXCEPT
     {
         lhs.swap(rhs);
     }
@@ -428,23 +488,24 @@ namespace network
     template <typename T>
     class addr_info_iterator_t;
 
-    using addr_info_ansi_iterator = wil::network::addr_info_iterator_t<ADDRINFOA>;
-    using addr_info_iterator = wil::network::addr_info_iterator_t<ADDRINFOW>;
+    using addr_info_ansi_iterator = addr_info_iterator_t<ADDRINFOA>;
+    using addr_info_iterator = addr_info_iterator_t<ADDRINFOW>;
     // not defining a type for ADDRINFOEXA as that type is formally __declspec(deprecated)
-    using addr_infoex_iterator = wil::network::addr_info_iterator_t<ADDRINFOEXW>;
+    using addr_infoex_iterator = addr_info_iterator_t<ADDRINFOEXW>;
 
     // template T supports all wil addrinfo types: ADDRINFOA, ADDRINFOW, ADDRINFOEXW,
     template <typename T>
     class addr_info_iterator_t
     {
     public:
-        static addr_info_iterator_t begin(T* addrinfo_ptr) WI_NOEXCEPT
+        static addr_info_iterator_t begin(const T* addrinfo_ptr) WI_NOEXCEPT
         {
-            return {addrinfo_ptr};
+            return addr_info_iterator_t{addrinfo_ptr};
         }
+
         static addr_info_iterator_t end() WI_NOEXCEPT
         {
-            return {nullptr};
+            return addr_info_iterator_t{nullptr};
         }
 
         // defining iterator_traits allows STL <algorithm> functions to be used with this iterator class.
@@ -454,13 +515,17 @@ namespace network
 #if defined(_ITERATOR_) || defined(WIL_DOXYGEN)
         using iterator_category = ::std::forward_iterator_tag;
 #endif
-        using value_type = wil::network::socket_address;
+        using value_type = ::wil::network::socket_address;
         using difference_type = size_t;
         using distance_type = size_t;
-        using pointer = wil::network::socket_address*;
-        using reference = wil::network::socket_address&;
+        using pointer = ::wil::network::socket_address*;
+        using reference = ::wil::network::socket_address&;
 
-        addr_info_iterator_t(const T* addrinfo) WI_NOEXCEPT :
+        explicit addr_info_iterator_t(nullptr_t) WI_NOEXCEPT
+        {
+        }
+
+        explicit addr_info_iterator_t(const T* addrinfo) WI_NOEXCEPT :
             // must const cast so we can re-use this pointer as we walk the list
             m_addrinfo_ptr(const_cast<T*>(addrinfo))
         {
@@ -476,22 +541,22 @@ namespace network
         addr_info_iterator_t(addr_info_iterator_t&&) WI_NOEXCEPT = default;
         addr_info_iterator_t& operator=(addr_info_iterator_t&&) WI_NOEXCEPT = default;
 
-        const wil::network::socket_address& operator*() const WI_NOEXCEPT
+        const ::wil::network::socket_address& operator*() const WI_NOEXCEPT
         {
             return m_socket_address;
         }
 
-        const wil::network::socket_address& operator*() WI_NOEXCEPT
+        const ::wil::network::socket_address& operator*() WI_NOEXCEPT
         {
             return m_socket_address;
         }
 
-        const wil::network::socket_address* operator->() const WI_NOEXCEPT
+        const ::wil::network::socket_address* operator->() const WI_NOEXCEPT
         {
             return &m_socket_address;
         }
 
-        const wil::network::socket_address* operator->() WI_NOEXCEPT
+        const ::wil::network::socket_address* operator->() WI_NOEXCEPT
         {
             return &m_socket_address;
         }
@@ -527,6 +592,7 @@ namespace network
                 if (m_addrinfo_ptr)
                 {
                     m_addrinfo_ptr = m_addrinfo_ptr->ai_next;
+
                     if (m_addrinfo_ptr)
                     {
                         m_socket_address.set_sockaddr(m_addrinfo_ptr->ai_addr, m_addrinfo_ptr->ai_addrlen);
@@ -544,8 +610,23 @@ namespace network
     private:
         // non-ownership of this pointer - the parent class must outlive the iterator
         T* m_addrinfo_ptr{nullptr};
-        wil::network::socket_address m_socket_address{};
+        ::wil::network::socket_address m_socket_address{};
     }; // class addr_info_iterator_t
+
+    inline auto make_range(const ::wil::unique_addrinfo_ansi& addrinfo)
+    {
+        return ::wil::make_range(addr_info_ansi_iterator{addrinfo.get()}, addr_info_ansi_iterator{nullptr});
+    }
+
+    inline auto make_range(const ::wil::unique_addrinfo& addrinfo)
+    {
+        return ::wil::make_range(addr_info_iterator{addrinfo.get()}, addr_info_iterator{nullptr});
+    }
+
+    inline auto make_range(const ::wil::unique_addrinfoex& addrinfo)
+    {
+        return ::wil::make_range(addr_infoex_iterator{addrinfo.get()}, addr_infoex_iterator{nullptr});
+    }
 
 #if defined(WIL_ENABLE_EXCEPTIONS)
     //! wil function to capture resolving a name to a set of IP addresses, throwing on error
@@ -553,12 +634,12 @@ namespace network
     inline ::wil::unique_addrinfo resolve_name(_In_ PCWSTR name)
     {
         ADDRINFOW* addrResult{};
-        if (0 != ::GetAddrInfoW(name, nullptr, nullptr, &addrResult))
+        if (::GetAddrInfoW(name, nullptr, nullptr, &addrResult) != 0)
         {
             THROW_WIN32(::WSAGetLastError());
         }
 
-        return {addrResult};
+        return ::wil::unique_addrinfo{addrResult};
     }
 
     //! wil function to capture resolving the local machine to its set of IP addresses, throwing on error
@@ -579,45 +660,45 @@ namespace network
     //
     // socket_address definitions
     //
-    inline wil::network::socket_address::socket_address(ADDRESS_FAMILY family) WI_NOEXCEPT
+    inline socket_address::socket_address(ADDRESS_FAMILY family) WI_NOEXCEPT
     {
         reset(family);
     }
 
     template <typename T>
-    wil::network::socket_address::socket_address(_In_reads_bytes_(inLength) const SOCKADDR* addr, T inLength) WI_NOEXCEPT
+    socket_address::socket_address(_In_reads_bytes_(addr_size) const SOCKADDR* addr, T addr_size) WI_NOEXCEPT
     {
-        set_sockaddr(addr, inLength);
+        set_sockaddr(addr, addr_size);
     }
 
-    inline wil::network::socket_address::socket_address(const SOCKADDR_IN* addr) WI_NOEXCEPT
-    {
-        set_sockaddr(addr);
-    }
-
-    inline wil::network::socket_address::socket_address(const SOCKADDR_IN6* addr) WI_NOEXCEPT
+    inline socket_address::socket_address(const SOCKADDR_IN* addr) WI_NOEXCEPT
     {
         set_sockaddr(addr);
     }
 
-    inline wil::network::socket_address::socket_address(const SOCKADDR_INET* addr) WI_NOEXCEPT
+    inline socket_address::socket_address(const SOCKADDR_IN6* addr) WI_NOEXCEPT
     {
         set_sockaddr(addr);
     }
 
-    inline wil::network::socket_address::socket_address(const SOCKET_ADDRESS* addr) WI_NOEXCEPT
+    inline socket_address::socket_address(const SOCKADDR_INET* addr) WI_NOEXCEPT
     {
         set_sockaddr(addr);
     }
 
-    inline wil::network::socket_address::socket_address(const IN_ADDR* addr, unsigned short port) WI_NOEXCEPT
+    inline socket_address::socket_address(const SOCKET_ADDRESS* addr) WI_NOEXCEPT
+    {
+        set_sockaddr(addr);
+    }
+
+    inline socket_address::socket_address(const IN_ADDR* addr, unsigned short port) WI_NOEXCEPT
     {
         reset(AF_INET);
         set_address(addr);
         set_port(port);
     }
 
-    inline wil::network::socket_address::socket_address(const IN6_ADDR* addr, unsigned short port) WI_NOEXCEPT
+    inline socket_address::socket_address(const IN6_ADDR* addr, unsigned short port) WI_NOEXCEPT
     {
         reset(AF_INET6);
         set_address(addr);
@@ -625,13 +706,13 @@ namespace network
     }
 
 #if defined(WIL_ENABLE_EXCEPTIONS)
-    inline wil::network::socket_address::socket_address(PCWSTR addr, unsigned short port)
+    inline socket_address::socket_address(PCWSTR addr, unsigned short port)
     {
         set_sockaddr(addr);
         set_port(port);
     }
 #endif
-    inline bool wil::network::socket_address::operator==(const wil::network::socket_address& rhs) const WI_NOEXCEPT
+    inline bool socket_address::operator==(const ::wil::network::socket_address& rhs) const WI_NOEXCEPT
     {
         const auto& lhs{*this};
 
@@ -650,12 +731,12 @@ namespace network
         return ::memcmp(&lhs.m_sockaddr.Ipv6, &rhs.m_sockaddr.Ipv6, sizeof(SOCKADDR_IN6)) == 0;
     }
 
-    inline bool wil::network::socket_address::operator!=(const wil::network::socket_address& rhs) const WI_NOEXCEPT
+    inline bool socket_address::operator!=(const ::wil::network::socket_address& rhs) const WI_NOEXCEPT
     {
         return !(*this == rhs);
     }
 
-    inline bool wil::network::socket_address::operator<(const wil::network::socket_address& rhs) const WI_NOEXCEPT
+    inline bool socket_address::operator<(const ::wil::network::socket_address& rhs) const WI_NOEXCEPT
     {
         const auto& lhs{*this};
 
@@ -734,12 +815,12 @@ namespace network
         }
     }
 
-    inline bool wil::network::socket_address::operator>(const wil::network::socket_address& rhs) const WI_NOEXCEPT
+    inline bool socket_address::operator>(const ::wil::network::socket_address& rhs) const WI_NOEXCEPT
     {
         return !(*this < rhs);
     }
 
-    inline void wil::network::socket_address::swap(socket_address& addr) WI_NOEXCEPT
+    inline void socket_address::swap(socket_address& addr) WI_NOEXCEPT
     {
         SOCKADDR_INET tempAddr{};
         ::memcpy_s(&tempAddr, sizeof(tempAddr), &addr.m_sockaddr, sizeof(addr.m_sockaddr));
@@ -747,60 +828,60 @@ namespace network
         ::memcpy_s(&m_sockaddr, sizeof(m_sockaddr), &tempAddr, sizeof(tempAddr));
     }
 
-    inline void wil::network::socket_address::reset(ADDRESS_FAMILY family) WI_NOEXCEPT
+    inline void socket_address::reset(ADDRESS_FAMILY family) WI_NOEXCEPT
     {
-#ifndef WI_NETWORK_TEST
+#if (!defined(WI_NETWORK_TEST))
         WI_ASSERT(family == AF_UNSPEC || family == AF_INET || family == AF_INET6);
 #endif
-        ::memset(&m_sockaddr, 0, wil::network::socket_address::length);
+        ::memset(&m_sockaddr, 0, length());
         m_sockaddr.si_family = family;
     }
 
     template <typename T>
-    void wil::network::socket_address::set_sockaddr(_In_reads_bytes_(inLength) const SOCKADDR* addr, T inLength) WI_NOEXCEPT
+    void socket_address::set_sockaddr(_In_reads_bytes_(addr_size) const SOCKADDR* addr, T addr_size) WI_NOEXCEPT
     {
-        WI_ASSERT(static_cast<size_t>(inLength) <= wil::network::socket_address::length);
+        WI_ASSERT(static_cast<size_t>(addr_size) <= static_cast<size_t>(length()));
 
-        ::memset(&m_sockaddr, 0, wil::network::socket_address::length);
+        ::memset(&m_sockaddr, 0, length());
         if (addr)
         {
-            ::memcpy_s(&m_sockaddr, sizeof(m_sockaddr), addr, inLength);
+            ::memcpy_s(&m_sockaddr, sizeof(m_sockaddr), addr, addr_size);
         }
     }
 
-    inline void wil::network::socket_address::set_sockaddr(const SOCKADDR_IN* addr) WI_NOEXCEPT
+    inline void socket_address::set_sockaddr(const SOCKADDR_IN* addr) WI_NOEXCEPT
     {
-        ::memset(&m_sockaddr, 0, wil::network::socket_address::length);
+        ::memset(&m_sockaddr, 0, length());
         ::memcpy_s(&m_sockaddr.Ipv4, sizeof(m_sockaddr.Ipv4), addr, sizeof(*addr));
     }
 
-    inline void wil::network::socket_address::set_sockaddr(const SOCKADDR_IN6* addr) WI_NOEXCEPT
+    inline void socket_address::set_sockaddr(const SOCKADDR_IN6* addr) WI_NOEXCEPT
     {
-        ::memset(&m_sockaddr, 0, wil::network::socket_address::length);
+        ::memset(&m_sockaddr, 0, length());
         ::memcpy_s(&m_sockaddr.Ipv6, sizeof(m_sockaddr.Ipv6), addr, sizeof(*addr));
     }
 
-    inline void wil::network::socket_address::set_sockaddr(const SOCKADDR_INET* addr) WI_NOEXCEPT
+    inline void socket_address::set_sockaddr(const SOCKADDR_INET* addr) WI_NOEXCEPT
     {
-        ::memset(&m_sockaddr, 0, wil::network::socket_address::length);
+        ::memset(&m_sockaddr, 0, length());
         ::memcpy_s(&m_sockaddr, sizeof(m_sockaddr), addr, sizeof(*addr));
     }
 
-    inline void wil::network::socket_address::set_sockaddr(const SOCKET_ADDRESS* addr) WI_NOEXCEPT
+    inline void socket_address::set_sockaddr(const SOCKET_ADDRESS* addr) WI_NOEXCEPT
     {
         FAIL_FAST_IF_MSG(
-            addr->lpSockaddr && addr->iSockaddrLength > wil::network::socket_address::length,
+            addr->lpSockaddr && addr->iSockaddrLength > length(),
             "SOCKET_ADDRESS contains an unsupported sockaddr type - larger than an IPv4 or IPv6 address (%d)",
             addr->iSockaddrLength);
 
-        ::memset(&m_sockaddr, 0, wil::network::socket_address::length);
+        ::memset(&m_sockaddr, 0, length());
         if (addr->lpSockaddr)
         {
             ::memcpy_s(&m_sockaddr, sizeof(m_sockaddr), addr->lpSockaddr, addr->iSockaddrLength);
         }
     }
 
-    inline bool wil::network::socket_address::is_address_linklocal() const WI_NOEXCEPT
+    inline bool socket_address::is_address_linklocal() const WI_NOEXCEPT
     {
         switch (family())
         {
@@ -819,7 +900,7 @@ namespace network
         }
     }
 
-    inline bool wil::network::socket_address::is_address_loopback() const WI_NOEXCEPT
+    inline bool socket_address::is_address_loopback() const WI_NOEXCEPT
     {
         switch (family())
         {
@@ -838,7 +919,7 @@ namespace network
         }
     }
 
-    inline NL_ADDRESS_TYPE wil::network::socket_address::address_type() const WI_NOEXCEPT
+    inline NL_ADDRESS_TYPE socket_address::address_type() const WI_NOEXCEPT
     {
         switch (family())
         {
@@ -857,7 +938,7 @@ namespace network
         }
     }
 
-    inline void wil::network::socket_address::set_port(USHORT port) WI_NOEXCEPT
+    inline void socket_address::set_port(USHORT port) WI_NOEXCEPT
     {
         WI_ASSERT(family() == AF_INET || family() == AF_INET6);
 
@@ -868,7 +949,7 @@ namespace network
         m_sockaddr.Ipv4.sin_port = ::htons(port);
     }
 
-    inline void wil::network::socket_address::set_scope_id(ULONG scopeId) WI_NOEXCEPT
+    inline void socket_address::set_scope_id(ULONG scopeId) WI_NOEXCEPT
     {
         WI_ASSERT(family() == AF_INET6);
 
@@ -878,7 +959,7 @@ namespace network
         }
     }
 
-    inline void wil::network::socket_address::set_flow_info(ULONG flowInfo) WI_NOEXCEPT
+    inline void socket_address::set_flow_info(ULONG flowInfo) WI_NOEXCEPT
     {
         WI_ASSERT(family() == AF_INET6);
 
@@ -888,12 +969,12 @@ namespace network
         }
     }
 
-    inline void wil::network::socket_address::set_address_any() WI_NOEXCEPT
+    inline void socket_address::set_address_any() WI_NOEXCEPT
     {
         set_address_any(family());
     }
 
-    inline void wil::network::socket_address::set_address_any(ADDRESS_FAMILY family) WI_NOEXCEPT
+    inline void socket_address::set_address_any(ADDRESS_FAMILY family) WI_NOEXCEPT
     {
         WI_ASSERT(family == AF_INET || family == AF_INET6);
 
@@ -905,12 +986,12 @@ namespace network
         m_sockaddr.Ipv4.sin_port = original_port;
     }
 
-    inline void wil::network::socket_address::set_address_loopback() WI_NOEXCEPT
+    inline void socket_address::set_address_loopback() WI_NOEXCEPT
     {
         set_address_loopback(family());
     }
 
-    inline void wil::network::socket_address::set_address_loopback(ADDRESS_FAMILY family) WI_NOEXCEPT
+    inline void socket_address::set_address_loopback(ADDRESS_FAMILY family) WI_NOEXCEPT
     {
         // the port value is at the exact same offset with both the IPv4 and IPv6 unions
         static_assert(FIELD_OFFSET(SOCKADDR_INET, Ipv4.sin_port) == FIELD_OFFSET(SOCKADDR_INET, Ipv6.sin6_port));
@@ -931,7 +1012,7 @@ namespace network
         m_sockaddr.Ipv4.sin_port = original_port;
     }
 
-    inline void wil::network::socket_address::set_address(const IN_ADDR* addr) WI_NOEXCEPT
+    inline void socket_address::set_address(const IN_ADDR* addr) WI_NOEXCEPT
     {
         WI_ASSERT(family() == AF_INET);
 
@@ -941,7 +1022,7 @@ namespace network
         m_sockaddr.Ipv4.sin_port = original_port;
     }
 
-    inline void wil::network::socket_address::set_address(const IN6_ADDR* addr) WI_NOEXCEPT
+    inline void socket_address::set_address(const IN6_ADDR* addr) WI_NOEXCEPT
     {
         WI_ASSERT(family() == AF_INET6);
 
@@ -952,27 +1033,27 @@ namespace network
     }
 
 #if defined(WIL_ENABLE_EXCEPTIONS)
-    inline void wil::network::socket_address::set_sockaddr(SOCKET s)
+    inline void socket_address::set_sockaddr(SOCKET s)
     {
         THROW_IF_FAILED(set_sockaddr_nothrow(s));
     }
 
-    inline void wil::network::socket_address::set_sockaddr(PCWSTR address)
+    inline void socket_address::set_sockaddr(PCWSTR address)
     {
         THROW_IF_FAILED(set_sockaddr_nothrow(address));
     }
 
-    inline void wil::network::socket_address::set_sockaddr(PCSTR address)
+    inline void socket_address::set_sockaddr(PCSTR address)
     {
         THROW_IF_FAILED(set_sockaddr_nothrow(address));
     }
 #endif
 
-    inline HRESULT wil::network::socket_address::set_sockaddr_nothrow(SOCKET s) WI_NOEXCEPT
+    inline HRESULT socket_address::set_sockaddr_nothrow(SOCKET s) WI_NOEXCEPT
     {
         reset(AF_UNSPEC);
 
-        auto nameLength{wil::network::socket_address::length};
+        auto nameLength{length()};
         auto error{::getsockname(s, sockaddr(), &nameLength)};
         if (error != 0)
         {
@@ -982,7 +1063,7 @@ namespace network
         return S_OK;
     }
 
-    inline HRESULT wil::network::socket_address::set_sockaddr_nothrow(PCWSTR address) WI_NOEXCEPT
+    inline HRESULT socket_address::set_sockaddr_nothrow(PCWSTR address) WI_NOEXCEPT
     {
         PCWSTR terminator_unused;
 
@@ -1005,7 +1086,7 @@ namespace network
         return E_INVALIDARG;
     }
 
-    inline HRESULT wil::network::socket_address::set_sockaddr_nothrow(PCSTR address) WI_NOEXCEPT
+    inline HRESULT socket_address::set_sockaddr_nothrow(PCSTR address) WI_NOEXCEPT
     {
         PCSTR terminator_unused;
 
@@ -1029,16 +1110,16 @@ namespace network
     }
 
 #if defined(WIL_ENABLE_EXCEPTIONS) && (defined(_STRING_) || defined(WIL_DOXYGEN))
-    inline ::std::wstring wil::network::socket_address::write_address() const
+    inline ::std::wstring socket_address::write_address() const
     {
-        wil::network::socket_address_wstring returnString{};
+        ::wil::network::socket_address_wstring returnString{};
         THROW_IF_FAILED(write_address_nothrow(returnString));
         returnString[INET6_ADDRSTRLEN - 1] = L'\0';
         return returnString;
     }
 #endif
 
-    inline HRESULT wil::network::socket_address::write_address_nothrow(socket_address_wstring& address) const WI_NOEXCEPT
+    inline HRESULT socket_address::write_address_nothrow(socket_address_wstring& address) const WI_NOEXCEPT
     {
         ::memset(address, 0, sizeof(socket_address_wstring));
 
@@ -1063,7 +1144,7 @@ namespace network
         return S_OK;
     }
 
-    inline HRESULT wil::network::socket_address::write_address_nothrow(socket_address_string& address) const WI_NOEXCEPT
+    inline HRESULT socket_address::write_address_nothrow(socket_address_string& address) const WI_NOEXCEPT
     {
         ::memset(address, 0, sizeof(socket_address_string));
 
@@ -1089,16 +1170,16 @@ namespace network
     }
 
 #if defined(WIL_ENABLE_EXCEPTIONS) && (defined(_STRING_) || defined(WIL_DOXYGEN))
-    inline ::std::wstring wil::network::socket_address::write_complete_address() const
+    inline ::std::wstring socket_address::write_complete_address() const
     {
-        wil::network::socket_address_wstring returnString{};
+        ::wil::network::socket_address_wstring returnString{};
         THROW_IF_FAILED(write_complete_address_nothrow(returnString));
         returnString[INET6_ADDRSTRLEN - 1] = L'\0';
         return returnString;
     }
 #endif
 
-    inline HRESULT wil::network::socket_address::write_complete_address_nothrow(socket_address_wstring& address) const WI_NOEXCEPT
+    inline HRESULT socket_address::write_complete_address_nothrow(socket_address_wstring& address) const WI_NOEXCEPT
     {
         ::memset(address, 0, sizeof(socket_address_wstring));
 
@@ -1113,7 +1194,7 @@ namespace network
         DWORD addressLength{INET6_ADDRSTRLEN};
         if (::WSAAddressToStringW(
                 const_cast<SOCKADDR*>(sockaddr()),
-                wil::network::socket_address::length,
+                length(),
                 nullptr,
                 address,
                 &addressLength) != 0)
@@ -1125,7 +1206,7 @@ namespace network
 
     // the Winsock headers require having set this #define to access ANSI-string versions of the Winsock API
 #if defined(_WINSOCK_DEPRECATED_NO_WARNINGS)
-    inline HRESULT wil::network::socket_address::write_complete_address_nothrow(socket_address_string& address) const WI_NOEXCEPT
+    inline HRESULT socket_address::write_complete_address_nothrow(socket_address_string& address) const WI_NOEXCEPT
     {
         ::memset(address, 0, sizeof(socket_address_string));
 
@@ -1138,7 +1219,7 @@ namespace network
 
         DWORD addressLength{INET6_ADDRSTRLEN};
         if (::WSAAddressToStringA(
-                const_cast<SOCKADDR*>(sockaddr()), wil::network::socket_address::length, nullptr, address, &addressLength) != 0)
+                const_cast<SOCKADDR*>(sockaddr()), length(), nullptr, address, &addressLength) != 0)
         {
             RETURN_WIN32(::WSAGetLastError());
         }
@@ -1146,12 +1227,12 @@ namespace network
     }
 #endif
 
-    inline ADDRESS_FAMILY wil::network::socket_address::family() const WI_NOEXCEPT
+    inline ADDRESS_FAMILY socket_address::family() const WI_NOEXCEPT
     {
         return m_sockaddr.si_family;
     }
 
-    inline USHORT wil::network::socket_address::port() const WI_NOEXCEPT
+    inline USHORT socket_address::port() const WI_NOEXCEPT
     {
         switch (family())
         {
@@ -1167,7 +1248,7 @@ namespace network
         }
     }
 
-    inline ULONG wil::network::socket_address::flow_info() const WI_NOEXCEPT
+    inline ULONG socket_address::flow_info() const WI_NOEXCEPT
     {
         switch (family())
         {
@@ -1183,7 +1264,7 @@ namespace network
         }
     }
 
-    inline ULONG wil::network::socket_address::scope_id() const WI_NOEXCEPT
+    inline ULONG socket_address::scope_id() const WI_NOEXCEPT
     {
         switch (family())
         {
@@ -1199,170 +1280,73 @@ namespace network
         }
     }
 
-    inline SOCKADDR* wil::network::socket_address::sockaddr() WI_NOEXCEPT
+    inline SOCKADDR* socket_address::sockaddr() WI_NOEXCEPT
     {
         return reinterpret_cast<SOCKADDR*>(&m_sockaddr);
     }
 
-    inline SOCKADDR_IN* wil::network::socket_address::sockaddr_in() WI_NOEXCEPT
+    inline SOCKADDR_IN* socket_address::sockaddr_in() WI_NOEXCEPT
     {
         WI_ASSERT(family() == AF_INET);
         return &m_sockaddr.Ipv4;
     }
 
-    inline SOCKADDR_IN6* wil::network::socket_address::sockaddr_in6() WI_NOEXCEPT
+    inline SOCKADDR_IN6* socket_address::sockaddr_in6() WI_NOEXCEPT
     {
         WI_ASSERT(family() == AF_INET6);
         return &m_sockaddr.Ipv6;
     }
 
-    inline SOCKADDR_INET* wil::network::socket_address::sockaddr_inet() WI_NOEXCEPT
+    inline SOCKADDR_INET* socket_address::sockaddr_inet() WI_NOEXCEPT
     {
         return &m_sockaddr;
     }
 
-    inline IN_ADDR* wil::network::socket_address::in_addr() WI_NOEXCEPT
+    inline IN_ADDR* socket_address::in_addr() WI_NOEXCEPT
     {
         WI_ASSERT(family() == AF_INET);
         return &m_sockaddr.Ipv4.sin_addr;
     }
 
-    inline IN6_ADDR* wil::network::socket_address::in6_addr() WI_NOEXCEPT
+    inline IN6_ADDR* socket_address::in6_addr() WI_NOEXCEPT
     {
         WI_ASSERT(family() == AF_INET6);
         return &m_sockaddr.Ipv6.sin6_addr;
     }
 
-    inline const SOCKADDR* wil::network::socket_address::sockaddr() const WI_NOEXCEPT
+    inline const SOCKADDR* socket_address::sockaddr() const WI_NOEXCEPT
     {
         return reinterpret_cast<const SOCKADDR*>(&m_sockaddr);
     }
 
-    inline const SOCKADDR_IN* wil::network::socket_address::sockaddr_in() const WI_NOEXCEPT
+    inline const SOCKADDR_IN* socket_address::sockaddr_in() const WI_NOEXCEPT
     {
         WI_ASSERT(family() == AF_INET);
         return &m_sockaddr.Ipv4;
     }
 
-    inline const SOCKADDR_IN6* wil::network::socket_address::sockaddr_in6() const WI_NOEXCEPT
+    inline const SOCKADDR_IN6* socket_address::sockaddr_in6() const WI_NOEXCEPT
     {
         WI_ASSERT(family() == AF_INET6);
         return &m_sockaddr.Ipv6;
     }
 
-    inline const SOCKADDR_INET* wil::network::socket_address::sockaddr_inet() const WI_NOEXCEPT
+    inline const SOCKADDR_INET* socket_address::sockaddr_inet() const WI_NOEXCEPT
     {
         return &m_sockaddr;
     }
 
-    inline const IN_ADDR* wil::network::socket_address::in_addr() const WI_NOEXCEPT
+    inline const IN_ADDR* socket_address::in_addr() const WI_NOEXCEPT
     {
         WI_ASSERT(family() == AF_INET);
         return &m_sockaddr.Ipv4.sin_addr;
     }
 
-    inline const IN6_ADDR* wil::network::socket_address::in6_addr() const WI_NOEXCEPT
+    inline const IN6_ADDR* socket_address::in6_addr() const WI_NOEXCEPT
     {
         WI_ASSERT(family() == AF_INET6);
         return &m_sockaddr.Ipv6.sin6_addr;
     }
-
-    inline winsock_extension_function_table winsock_extension_function_table::load() WI_NOEXCEPT
-    {
-        winsock_extension_function_table table;
-        // if WSAStartup failed, immediately exit
-        if (!table.wsa_reference_count)
-        {
-            return table;
-        }
-
-        // we need a temporary socket for the IOCTL to load the functions
-        const wil::unique_socket localSocket{::socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)};
-        if (INVALID_SOCKET == localSocket.get())
-        {
-            return table;
-        }
-
-        const auto load_function_pointer = [](SOCKET lambdaSocket, GUID extensionGuid, void* functionPtr) WI_NOEXCEPT {
-            constexpr DWORD controlCode{SIO_GET_EXTENSION_FUNCTION_POINTER};
-            constexpr DWORD bytes{sizeof(functionPtr)};
-            DWORD unused_bytes{};
-            const auto error{::WSAIoctl(
-                lambdaSocket,
-                controlCode,
-                &extensionGuid,
-                DWORD{sizeof(extensionGuid)},
-                functionPtr,
-                bytes,
-                &unused_bytes,
-                nullptr,
-                nullptr)};
-            return error == 0 ? S_OK : HRESULT_FROM_WIN32(::WSAGetLastError());
-        };
-
-        // Load the functions into the table
-        if (FAILED_LOG(load_function_pointer(localSocket.get(), WSAID_ACCEPTEX, &table.f.AcceptEx)) ||
-            FAILED_LOG(load_function_pointer(localSocket.get(), WSAID_CONNECTEX, &table.f.ConnectEx)) ||
-            FAILED_LOG(load_function_pointer(localSocket.get(), WSAID_DISCONNECTEX, &table.f.DisconnectEx)) ||
-            FAILED_LOG(load_function_pointer(localSocket.get(), WSAID_GETACCEPTEXSOCKADDRS, &table.f.GetAcceptExSockaddrs)) ||
-            FAILED_LOG(load_function_pointer(localSocket.get(), WSAID_TRANSMITFILE, &table.f.TransmitFile)) ||
-            FAILED_LOG(load_function_pointer(localSocket.get(), WSAID_TRANSMITPACKETS, &table.f.TransmitPackets)) ||
-            FAILED_LOG(load_function_pointer(localSocket.get(), WSAID_WSARECVMSG, &table.f.WSARecvMsg)) ||
-            FAILED_LOG(load_function_pointer(localSocket.get(), WSAID_WSASENDMSG, &table.f.WSASendMsg)))
-        {
-            // if any failed to be found, something is very broken
-            // all should load, or all should fail
-            ::memset(&table.f, 0, sizeof(table.f));
-        }
-
-        return table;
-    }
-
-    //
-    // definitions for rio_extension_function_table
-    //
-    inline rio_extension_function_table rio_extension_function_table::load() WI_NOEXCEPT
-    {
-        rio_extension_function_table table{};
-        // if WSAStartup failed, immediately exit
-        if (!table.wsa_reference_count)
-        {
-            return table;
-        }
-
-        // we need a temporary socket for the IOCTL to load the functions
-        const ::wil::unique_socket localSocket{::socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)};
-        if (INVALID_SOCKET == localSocket.get())
-        {
-            return table;
-        }
-
-        constexpr DWORD controlCode{SIO_GET_MULTIPLE_EXTENSION_FUNCTION_POINTER};
-        constexpr DWORD bytes{sizeof(table.f)};
-        GUID rioGuid = WSAID_MULTIPLE_RIO;
-
-        ::memset(&table.f, 0, bytes);
-        table.f.cbSize = bytes;
-
-        DWORD unused_bytes{};
-        if (::WSAIoctl(
-                localSocket.get(),
-                controlCode,
-                &rioGuid,
-                DWORD{sizeof(rioGuid)},
-                &table.f,
-                bytes,
-                &unused_bytes,
-                nullptr,
-                nullptr) != 0)
-        {
-            LOG_IF_WIN32_ERROR(::WSAGetLastError());
-
-            ::memset(&table.f, 0, bytes);
-        }
-        return table;
-    }
-
 } // namespace network
 } // namespace wil
 

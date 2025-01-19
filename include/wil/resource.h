@@ -5081,7 +5081,7 @@ typedef shared_any<unique_socket> shared_socket;
 typedef weak_any<shared_socket> weak_socket;
 #endif // __WIL_WINSOCKAPI_STL
 
-#if (defined _WS2TCPIP_H_)  && !defined(__WIL_WS2TCPIP_H_)) || defined(WIL_DOXYGEN)
+#if (defined(_WS2TCPIP_H_) && !defined(__WIL_WS2TCPIP_H_)) || defined(WIL_DOXYGEN)
 /// @cond
 #define __WIL_WS2TCPIP_H_
 /// @endcond
