@@ -46,7 +46,8 @@
 #include <windns.h>
 #include <iphlpapi.h>
 
-// the wil header for RAII types
+// required wil headers
+#include "wistd_type_traits.h"
 #include "resource.h"
 
 namespace wil
@@ -351,17 +352,18 @@ namespace network
         void set_address(const IN_ADDR*) WI_NOEXCEPT;
         void set_address(const IN6_ADDR*) WI_NOEXCEPT;
 
-        // write_address prints the IP address portion, not the scope id or port
-#if defined(WIL_ENABLE_EXCEPTIONS) && (defined(_STRING_) || defined(WIL_DOXYGEN))
-        [[nodiscard]] ::std::wstring write_address() const;
-        [[nodiscard]] ::std::wstring write_complete_address() const;
-#endif
+        // write_address prints the IP address, not the scope id or port
         HRESULT write_address_nothrow(socket_address_wstring& address) const WI_NOEXCEPT;
         HRESULT write_address_nothrow(socket_address_string& address) const WI_NOEXCEPT;
 
         // write_complete_address_nothrow() prints the IP address as well as the scope id and port values
         HRESULT write_complete_address_nothrow(socket_address_wstring& address) const WI_NOEXCEPT;
         HRESULT write_complete_address_nothrow(socket_address_string& address) const WI_NOEXCEPT;
+
+#if defined(WIL_ENABLE_EXCEPTIONS) && (defined(_STRING_) || defined(WIL_DOXYGEN))
+        [[nodiscard]] ::std::wstring write_address() const;
+        [[nodiscard]] ::std::wstring write_complete_address() const;
+#endif
 
         // type: NlatUnspecified ('any'), NlatUnicast, NlatAnycast, NlatMulticast, NlatBroadcast, NlatInvalid
         [[nodiscard]] NL_ADDRESS_TYPE address_type() const WI_NOEXCEPT;
@@ -423,204 +425,132 @@ namespace network
     //! class addr_info encapsulates the ADDRINFO structure
     //! this structure contains a linked list of addresses returned from resolving a name via GetAddrInfo
     //! iterator semantics are supported to safely access these addresses
-    //! supports all addrinfo types: ADDRINFOA, ADDRINFOW, ADDRINFOEXA, ADDRINFOEXW
-template <typename T>
-    class addr_info_t
+    template <typename T>
+    class addr_info_iterator_t;
+
+    using addr_info_ansi_iterator = wil::network::addr_info_iterator_t<ADDRINFOA>;
+    using addr_info_iterator = wil::network::addr_info_iterator_t<ADDRINFOW>;
+    // not defining a type for ADDRINFOEXA as that type is formally __declspec(deprecated)
+    using addr_infoex_iterator = wil::network::addr_info_iterator_t<ADDRINFOEXW>;
+
+    // template T supports all wil addrinfo types: ADDRINFOA, ADDRINFOW, ADDRINFOEXW,
+    template <typename T>
+    class addr_info_iterator_t
     {
     public:
-        addr_info_t(_In_ T* addrResult) WI_NOEXCEPT : m_addrResult{addrResult}
+        static addr_info_iterator_t begin(T* addrinfo_ptr) WI_NOEXCEPT
         {
+            return {addrinfo_ptr};
+        }
+        static addr_info_iterator_t end() WI_NOEXCEPT
+        {
+            return {nullptr};
         }
 
-        // the d'tor calls the free function matching the addrinfo* type T
-        ~addr_info_t() WI_NOEXCEPT;
-        addr_info_t(const addr_info_t&) = delete;
-        addr_info_t& operator=(const addr_info_t&) = delete;
+        // defining iterator_traits allows STL <algorithm> functions to be used with this iterator class.
+        // Notice this is a forward_iterator
+        // - does not support random-access (e.g. vector::iterator)
+        // - does not support bidirectional access (e.g. list::iterator)
+#if defined(_ITERATOR_) || defined(WIL_DOXYGEN)
+        using iterator_category = ::std::forward_iterator_tag;
+#endif
+        using value_type = wil::network::socket_address;
+        using difference_type = size_t;
+        using distance_type = size_t;
+        using pointer = wil::network::socket_address*;
+        using reference = wil::network::socket_address&;
 
-        addr_info_t(addr_info_t&& rhs) WI_NOEXCEPT
+        addr_info_iterator_t(const T* addrinfo) WI_NOEXCEPT :
+            // must const cast so we can re-use this pointer as we walk the list
+            m_addrinfo_ptr(const_cast<T*>(addrinfo))
         {
-            m_addrResult = rhs.m_addrResult;
-            rhs.m_addrResult = nullptr;
-        }
-
-        addr_info_t& operator=(addr_info_t&& rhs) WI_NOEXCEPT
-        {
-            if (this != &rhs)
+            if (m_addrinfo_ptr)
             {
-                if (m_addrResult)
+                m_socket_address.set_sockaddr(m_addrinfo_ptr->ai_addr, m_addrinfo_ptr->ai_addrlen);
+            }
+        }
+
+        ~addr_info_iterator_t() WI_NOEXCEPT = default;
+        addr_info_iterator_t(const addr_info_iterator_t&) WI_NOEXCEPT = default;
+        addr_info_iterator_t& operator=(const addr_info_iterator_t&) WI_NOEXCEPT = default;
+        addr_info_iterator_t(addr_info_iterator_t&&) WI_NOEXCEPT = default;
+        addr_info_iterator_t& operator=(addr_info_iterator_t&&) WI_NOEXCEPT = default;
+
+        const wil::network::socket_address& operator*() const WI_NOEXCEPT
+        {
+            return m_socket_address;
+        }
+
+        const wil::network::socket_address& operator*() WI_NOEXCEPT
+        {
+            return m_socket_address;
+        }
+
+        const wil::network::socket_address* operator->() const WI_NOEXCEPT
+        {
+            return &m_socket_address;
+        }
+
+        const wil::network::socket_address* operator->() WI_NOEXCEPT
+        {
+            return &m_socket_address;
+        }
+
+        [[nodiscard]] bool operator==(const addr_info_iterator_t& rhs) const WI_NOEXCEPT
+        {
+            return m_addrinfo_ptr == rhs.m_addrinfo_ptr;
+        }
+
+        [[nodiscard]] bool operator!=(const addr_info_iterator_t& rhs) const WI_NOEXCEPT
+        {
+            return !(*this == rhs);
+        }
+
+        addr_info_iterator_t& operator++() WI_NOEXCEPT
+        {
+            this->operator+=(1);
+            return *this;
+        }
+
+        addr_info_iterator_t operator++(int) WI_NOEXCEPT
+        {
+            auto return_value = *this;
+            this->operator+=(1);
+            return return_value;
+        }
+
+        addr_info_iterator_t& operator+=(size_t offset) WI_NOEXCEPT
+        {
+            for (size_t count = 0; count < offset; ++count)
+            {
+                WI_ASSERT(m_addrinfo_ptr);
+                if (m_addrinfo_ptr)
                 {
-                    ::FreeAddrInfoW(m_addrResult);
+                    m_addrinfo_ptr = m_addrinfo_ptr->ai_next;
+                    if (m_addrinfo_ptr)
+                    {
+                        m_socket_address.set_sockaddr(m_addrinfo_ptr->ai_addr, m_addrinfo_ptr->ai_addrlen);
+                    }
+                    else
+                    {
+                        m_socket_address.reset();
+                    }
                 }
-                m_addrResult = rhs.m_addrResult;
-                rhs.m_addrResult = nullptr;
             }
 
             return *this;
         }
 
-        class iterator
-        {
-        public:
-            // defining iterator_traits allows STL <algorithm> functions to be used with this iterator class.
-            // Notice this is a forward_iterator
-            // - does not support random-access (e.g. vector::iterator)
-            // - does not support bidirectional access (e.g. list::iterator)
-#if defined(_ITERATOR_) || defined(WIL_DOXYGEN)
-            using iterator_category = ::std::forward_iterator_tag;
-#endif
-            using value_type = wil::network::socket_address;
-            using difference_type = size_t;
-            using distance_type = size_t;
-            using pointer = wil::network::socket_address*;
-            using reference = wil::network::socket_address&;
-
-            iterator(const ADDRINFOW* addrinfo) WI_NOEXCEPT :
-                m_addr_info(const_cast<ADDRINFOW*>(addrinfo))
-            {
-                // must const cast so we can re-use this pointer as we walk the list
-                if (m_addr_info)
-                {
-                    m_socket_address.set_sockaddr(m_addr_info->ai_addr, m_addr_info->ai_addrlen);
-                }
-            }
-
-            ~iterator() WI_NOEXCEPT = default;
-            iterator(const iterator&) WI_NOEXCEPT = default;
-            iterator& operator=(const iterator&) WI_NOEXCEPT = default;
-            iterator(iterator&&) WI_NOEXCEPT = default;
-            iterator& operator=(iterator&&) WI_NOEXCEPT = default;
-
-            const wil::network::socket_address& operator*() const WI_NOEXCEPT
-            {
-                return m_socket_address;
-            }
-
-            const wil::network::socket_address& operator*() WI_NOEXCEPT
-            {
-                return m_socket_address;
-            }
-
-            const wil::network::socket_address* operator->() const WI_NOEXCEPT
-            {
-                return &m_socket_address;
-            }
-
-            const wil::network::socket_address* operator->() WI_NOEXCEPT
-            {
-                return &m_socket_address;
-            }
-
-            [[nodiscard]] bool operator==(const iterator& rhs) const WI_NOEXCEPT
-            {
-                return m_addr_info == rhs.m_addr_info;
-            }
-
-            [[nodiscard]] bool operator!=(const iterator& rhs) const WI_NOEXCEPT
-            {
-                return !(*this == rhs);
-            }
-
-            iterator& operator++() WI_NOEXCEPT
-            {
-                this->operator+=(1);
-                return *this;
-            }
-
-            iterator operator++(int) WI_NOEXCEPT
-            {
-                auto return_value = *this;
-                this->operator+=(1);
-                return return_value;
-            }
-
-            iterator& operator+=(size_t offset) WI_NOEXCEPT
-            {
-                for (size_t count = 0; count < offset; ++count)
-                {
-                    WI_ASSERT(m_addr_info);
-                    if (m_addr_info)
-                    {
-                        m_addr_info = m_addr_info->ai_next;
-                        if (m_addr_info)
-                        {
-                            m_socket_address.set_sockaddr(m_addr_info->ai_addr, m_addr_info->ai_addrlen);
-                        }
-                        else
-                        {
-                            m_socket_address.reset();
-                        }
-                    }
-                }
-
-                return *this;
-            }
-
-        private:
-            // non-ownership of this pointer - the parent class must outlive the iterator
-            T* m_addr_info{nullptr};
-            wil::network::socket_address m_socket_address{};
-        };
-
-        iterator begin() const WI_NOEXCEPT
-        {
-            return {m_addrResult};
-        }
-
-        iterator end() const WI_NOEXCEPT
-        {
-            return {nullptr};
-        }
-
     private:
-        T* m_addrResult{};
-    };
-
-    typedef network::addr_info_t<ADDRINFOA> addr_info_a;
-    template<>
-    inline addr_info_t<ADDRINFOA>::~addr_info_t() WI_NOEXCEPT
-    {
-        if (m_addrResult)
-        {
-            ::freeaddrinfo(m_addrResult);
-        }
-    }
-    typedef network::addr_info_t<ADDRINFOW> addr_info;
-    template<>
-    inline addr_info_t<ADDRINFOW>::~addr_info_t() WI_NOEXCEPT
-    {
-        if (m_addrResult)
-        {
-            ::FreeAddrInfoW(m_addrResult);
-        }
-    }
-    // the Winsock headers require having set this #define to access ANSI-string versions of the Winsock API
-#if defined(_WINSOCK_DEPRECATED_NO_WARNINGS)
-    typedef network::addr_info_t<ADDRINFOEXA> addr_info_exa;
-    template<>
-    inline addr_info_t<ADDRINFOEXA>::~addr_info_t() WI_NOEXCEPT
-    {
-        if (m_addrResult)
-        {
-            ::FreeAddrInfoEx(m_addrResult);
-        }
-    }
-#endif
-    typedef network::addr_info_t<ADDRINFOEXW> addr_infoex;
-    template<>
-    inline addr_info_t<ADDRINFOEXW>::~addr_info_t() WI_NOEXCEPT
-    {
-        if (m_addrResult)
-        {
-            ::FreeAddrInfoExW(m_addrResult);
-        }
-    }
-
+        // non-ownership of this pointer - the parent class must outlive the iterator
+        T* m_addrinfo_ptr{nullptr};
+        wil::network::socket_address m_socket_address{};
+    }; // class addr_info_iterator_t
 
 #if defined(WIL_ENABLE_EXCEPTIONS)
     //! wil function to capture resolving a name to a set of IP addresses, throwing on error
     //! returning an RAII object containing the results
-    //! the returned RAII object exposes iterator semantics to walk the results
-    inline ::wil::network::addr_info resolve_name(_In_ PCWSTR name)
+    inline ::wil::unique_addrinfo resolve_name(_In_ PCWSTR name)
     {
         ADDRINFOW* addrResult{};
         if (0 != ::GetAddrInfoW(name, nullptr, nullptr, &addrResult))
@@ -633,16 +563,14 @@ template <typename T>
 
     //! wil function to capture resolving the local machine to its set of IP addresses, throwing on error
     //! returning an RAII object containing the results
-    //! the returned RAII object exposes iterator semantics to walk the results
-    inline ::wil::network::addr_info resolve_local_addresses() WI_NOEXCEPT
+    inline ::wil::unique_addrinfo resolve_local_addresses() WI_NOEXCEPT
     {
         return ::wil::network::resolve_name(L"");
     }
 
     //! wil function to capture resolving the local-host addresses, throwing on error
     //! returning an RAII object containing the results
-    //! the returned RAII object exposes iterator semantics to walk the results
-    inline ::wil::network::addr_info resolve_localhost_addresses() WI_NOEXCEPT
+    inline ::wil::unique_addrinfo resolve_localhost_addresses() WI_NOEXCEPT
     {
         return ::wil::network::resolve_name(L"localhost");
     }
@@ -1121,9 +1049,10 @@ template <typename T>
             return S_OK;
         }
 
-        const void* const pAddr{family() == AF_INET
-                                    ? static_cast<const void*>(&m_sockaddr.Ipv4.sin_addr)
-                                    : static_cast<const void*>(&m_sockaddr.Ipv6.sin6_addr)};
+        const void* const pAddr{
+            family() == AF_INET
+                ? static_cast<const void*>(&m_sockaddr.Ipv4.sin_addr)
+                : static_cast<const void*>(&m_sockaddr.Ipv6.sin6_addr)};
 
         // the last param to InetNtopW is # of characters, not bytes
         const auto* error_value{::InetNtopW(family(), pAddr, address, INET6_ADDRSTRLEN)};
@@ -1145,9 +1074,10 @@ template <typename T>
             return S_OK;
         }
 
-        const void* const pAddr{family() == AF_INET
-                                    ? static_cast<const void*>(&m_sockaddr.Ipv4.sin_addr)
-                                    : static_cast<const void*>(&m_sockaddr.Ipv6.sin6_addr)};
+        const void* const pAddr{
+            family() == AF_INET
+                ? static_cast<const void*>(&m_sockaddr.Ipv4.sin_addr)
+                : static_cast<const void*>(&m_sockaddr.Ipv6.sin6_addr)};
 
         // the last param to InetNtopA is # of characters, not bytes
         const auto* error_value{::InetNtopA(family(), pAddr, address, INET6_ADDRSTRLEN)};
@@ -1168,8 +1098,7 @@ template <typename T>
     }
 #endif
 
-    inline HRESULT wil::network::socket_address::write_complete_address_nothrow(
-        socket_address_wstring& address) const WI_NOEXCEPT
+    inline HRESULT wil::network::socket_address::write_complete_address_nothrow(socket_address_wstring& address) const WI_NOEXCEPT
     {
         ::memset(address, 0, sizeof(socket_address_wstring));
 
@@ -1209,11 +1138,7 @@ template <typename T>
 
         DWORD addressLength{INET6_ADDRSTRLEN};
         if (::WSAAddressToStringA(
-            const_cast<SOCKADDR*>(sockaddr()),
-            wil::network::socket_address::length,
-            nullptr,
-            address,
-            &addressLength) != 0)
+                const_cast<SOCKADDR*>(sockaddr()), wil::network::socket_address::length, nullptr, address, &addressLength) != 0)
         {
             RETURN_WIN32(::WSAGetLastError());
         }

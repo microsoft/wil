@@ -5081,6 +5081,27 @@ typedef shared_any<unique_socket> shared_socket;
 typedef weak_any<shared_socket> weak_socket;
 #endif // __WIL_WINSOCKAPI_STL
 
+#if (defined _WS2TCPIP_H_)  && !defined(__WIL_WS2TCPIP_H_)) || defined(WIL_DOXYGEN)
+/// @cond
+#define __WIL_WS2TCPIP_H_
+/// @endcond
+typedef unique_any<PADDRINFOA, decltype(&::freeaddrinfo), ::freeaddrinfo> unique_addrinfo_ansi;
+typedef unique_any<PADDRINFOW, decltype(&::FreeAddrInfoW), ::FreeAddrInfoW> unique_addrinfo;
+// not defining a type for FreeAddrInfoEx(PADDRINFOEXA) as that API is formally __declspec(deprecated) 
+typedef unique_any<PADDRINFOEXW, decltype(&::FreeAddrInfoExW), ::FreeAddrInfoExW> unique_addrinfoex;
+#endif // __WIL_WS2TCPIP_H_
+#if (defined(__WIL_WS2TCPIP_H_) && !defined(__WIL_WS2TCPIP_H_STL) && defined(WIL_RESOURCE_STL)) || defined(WIL_DOXYGEN)
+/// @cond
+#define __WIL_WS2TCPIP_H_STL
+/// @endcond
+typedef shared_any<unique_addrinfo_ansi> shared_addrinfo_ansi;
+typedef weak_any<unique_addrinfo_ansi> weak_addrinfo_ansi;
+typedef shared_any<unique_addrinfo> shared_addrinfo;
+typedef weak_any<unique_addrinfo> weak_addrinfo;
+typedef shared_any<unique_addrinfoex> shared_addrinfoex;
+typedef weak_any<unique_addrinfoex> weak_addrinfoex;
+#endif // __WIL_WS2TCPIP_H_STL
+
 #if (defined(_WINGDI_) && !defined(__WIL_WINGDI_) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && !defined(NOGDI) && !defined(WIL_KERNEL_MODE)) || \
     defined(WIL_DOXYGEN)
 /// @cond
