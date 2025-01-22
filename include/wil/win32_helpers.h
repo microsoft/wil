@@ -50,10 +50,6 @@
 #include "wistd_functional.h"
 #include "wistd_type_traits.h"
 
-#if defined(WIL_ENABLE_EXCEPTIONS) && (__cpp_lib_string_view >= 201606L)
-#include <string>
-#endif
-
 /// @cond
 namespace wistd
 {
