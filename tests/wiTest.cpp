@@ -4068,6 +4068,7 @@ TEST_CASE("WindowsInternalTests::VerifyModuleReferencesForThread", "[win32_helpe
 #endif
 
 #ifdef WIL_ENABLE_EXCEPTIONS
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_GAMES)
 static void VerifyArgvRoundTrip(const std::wstring& cmdline, const std::vector<std::wstring>& expected)
 {
     int argc;
@@ -4079,37 +4080,64 @@ static void VerifyArgvRoundTrip(const std::wstring& cmdline, const std::vector<s
         REQUIRE(argv[i] == expected[i]);
     }
 }
+#endif
 
-static void DoArgvToCommandLineTest(std::initializer_list<const char*> argv, const char* expectedNoQuotes, const char* expectedWithQuotes)
+static void DoWideArgvToCommandLineTest(
+    const std::vector<std::wstring>& wideArgv,
+    const std::wstring expectedNoQuotes,
+    const std::wstring& expectedWithQuotes,
+    wil::ArgvToCommandLineFlags baseFlags = wil::ArgvToCommandLineFlags::None)
+{
+    auto wideNoQuotes = wil::ArgvToCommandLine(wideArgv, baseFlags);
+    REQUIRE(wideNoQuotes == expectedNoQuotes);
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_GAMES)
+    if (!WI_IsFlagSet(baseFlags, wil::ArgvToCommandLineFlags::FirstArgumentIsNotPath))
+    {
+        VerifyArgvRoundTrip(wideNoQuotes, wideArgv);
+    }
+#endif
+
+    std::vector<wchar_t*> nonConstArgv;
+    for (auto& str : wideArgv)
+    {
+        // const_cast okay... these are just std::wstrings after all. We're not even modifying them
+        nonConstArgv.push_back(const_cast<wchar_t*>(str.data()));
+    }
+
+    auto wideWithQuotes = wil::ArgvToCommandLine(nonConstArgv, baseFlags | wil::ArgvToCommandLineFlags::ForceQuotes);
+    REQUIRE(wideWithQuotes == expectedWithQuotes);
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_GAMES)
+    if (!WI_IsFlagSet(baseFlags, wil::ArgvToCommandLineFlags::FirstArgumentIsNotPath))
+    {
+        VerifyArgvRoundTrip(wideWithQuotes, wideArgv);
+    }
+#endif
+}
+
+static void DoArgvToCommandLineTest(
+    std::initializer_list<const char*> argv,
+    const char* expectedNoQuotes,
+    const char* expectedWithQuotes,
+    wil::ArgvToCommandLineFlags baseFlags = wil::ArgvToCommandLineFlags::None)
 {
     // First do non-wide tests
-    auto noQuotes = wil::ArgvToCommandLine(argv, wil::ArgvToCommandLineFlags::None);
+    auto noQuotes = wil::ArgvToCommandLine(argv, baseFlags);
     REQUIRE(noQuotes == expectedNoQuotes);
 
-    auto withQuotes = wil::ArgvToCommandLine(static_cast<int>(argv.size()), argv.begin(), wil::ArgvToCommandLineFlags::ForceQuotes);
+    auto withQuotes =
+        wil::ArgvToCommandLine(static_cast<int>(argv.size()), argv.begin(), baseFlags | wil::ArgvToCommandLineFlags::ForceQuotes);
     REQUIRE(withQuotes == expectedWithQuotes);
 
     // Now do wide tests; all characters should be ASCII, so this is a direct copy
+    std::wstring expectedNoQuotesWide(expectedNoQuotes, expectedNoQuotes + ::strlen(expectedNoQuotes));
+    std::wstring expectedWithQuotesWide(expectedWithQuotes, expectedWithQuotes + ::strlen(expectedWithQuotes));
+
     std::vector<std::wstring> wideArgv;
     for (auto ptr : argv)
     {
         wideArgv.push_back(std::wstring(ptr, ptr + ::strlen(ptr)));
     }
-
-    auto wideNoQuotes = wil::ArgvToCommandLine(wideArgv, wil::ArgvToCommandLineFlags::None);
-    REQUIRE(wideNoQuotes == std::wstring(expectedNoQuotes, expectedNoQuotes + ::strlen(expectedNoQuotes)));
-    VerifyArgvRoundTrip(wideNoQuotes, wideArgv);
-
-    std::vector<wchar_t*> nonConstArgv;
-    for (auto& str : wideArgv)
-    {
-        nonConstArgv.push_back(str.data());
-    }
-
-    auto wideWithQuotes =
-        wil::ArgvToCommandLine(static_cast<int>(nonConstArgv.size()), nonConstArgv.data(), wil::ArgvToCommandLineFlags::ForceQuotes);
-    REQUIRE(wideWithQuotes == std::wstring(expectedWithQuotes, expectedWithQuotes + ::strlen(expectedWithQuotes)));
-    VerifyArgvRoundTrip(wideWithQuotes, wideArgv);
+    DoWideArgvToCommandLineTest(wideArgv, expectedNoQuotesWide, expectedWithQuotesWide, baseFlags);
 }
 
 TEST_CASE("WindowsInternalTests::ArgvToCommandLine", "[win32_helpers]")
@@ -4159,15 +4187,40 @@ TEST_CASE("WindowsInternalTests::ArgvToCommandLine", "[win32_helpers]")
         R"(test.exe Embedded\\\"Odd Embedded\\\\\"Even)",
         R"("test.exe" "Embedded\\\"Odd" "Embedded\\\\\"Even")");
 
+    // Now with embedded spaces
     DoArgvToCommandLineTest(
         {R"(C:\path\to\test.exe)", R"(\")", R"("\)", R"(\\")", R"("\\)", R"(\"")", R"(""\)", R"(\\"")", R"(""\\)", R"(\"\")", R"("\"\)", R"(\""\)", R"("\\")"},
         R"(C:\path\to\test.exe \\\" \"\ \\\\\" \"\\ \\\"\" \"\"\ \\\\\"\" \"\"\\ \\\"\\\" \"\\\"\ \\\"\"\ \"\\\\\")",
         R"("C:\path\to\test.exe" "\\\"" "\"\\" "\\\\\"" "\"\\\\" "\\\"\"" "\"\"\\" "\\\\\"\"" "\"\"\\\\" "\\\"\\\"" "\"\\\"\\" "\\\"\"\\" "\"\\\\\"")");
     DoArgvToCommandLineTest(
         {R"(C:\path to\test.exe)", R"(\" "\)", R"(\\" \"\ "\\)", R"(\"" "\" ""\)", R"(\\"" \""\ ""\\ \"\" "\"\)"},
-        R"()",
-        R"()"
-    );
+        R"("C:\path to\test.exe" "\\\" \"\\" "\\\\\" \\\"\ \"\\\\" "\\\"\" \"\\\" \"\"\\" "\\\\\"\" \\\"\"\ \"\"\\ \\\"\\\" \"\\\"\\")",
+        R"("C:\path to\test.exe" "\\\" \"\\" "\\\\\" \\\"\ \"\\\\" "\\\"\" \"\\\" \"\"\\" "\\\\\"\" \\\"\"\ \"\"\\ \\\"\\\" \"\\\"\\")");
+
+    // Test space placement, specifically front and end of strings
+    DoArgvToCommandLineTest(
+        {"test.exe", " front", "mid dle", "end ", " every where "},
+        R"(test.exe " front" "mid dle" "end " " every where ")",
+        R"("test.exe" " front" "mid dle" "end " " every where ")");
+
+    // CommandLineToArgvW treats tab characters the same as spaces; test that here
+    DoArgvToCommandLineTest(
+        {"test.exe", "\tfront", "mid\tdle", "end\t", "\tevery\twhere\t"},
+        "test.exe \"\tfront\" \"mid\tdle\" \"end\t\" \"\tevery\twhere\t\"",
+        "\"test.exe\" \"\tfront\" \"mid\tdle\" \"end\t\" \"\tevery\twhere\t\"");
+
+    // Behave as if the first argument is not an executable path, and therefore gets "normal" escaping
+    DoArgvToCommandLineTest(
+        {R"(This"Is\"Not"\An\"\Executable"\"Path)", R"(This"Is\"Not"\A\"\Path"\"Either)"},
+        R"(This\"Is\\\"Not\"\An\\\"\Executable\"\\\"Path This\"Is\\\"Not\"\A\\\"\Path\"\\\"Either)",
+        R"("This\"Is\\\"Not\"\An\\\"\Executable\"\\\"Path" "This\"Is\\\"Not\"\A\\\"\Path\"\\\"Either")",
+        wil::ArgvToCommandLineFlags::FirstArgumentIsNotPath);
+
+    // Various whitespace characters that are not space (\u0020)
+    DoWideArgvToCommandLineTest(
+        {L"test", L"This\u00A0string\u180Ehas\u2000no\u2001space\u2002characters\u2003even\u2004though\u2005it\u2006contains\u2007characters\u2008that\u2009look\u200Athe\u200Bsame\u200Cor\u200Dare\u202Fsometimes\u205Ftreated\u2060the\u2800same\u3000as\u3164whitespace"},
+        L"test This\u00A0string\u180Ehas\u2000no\u2001space\u2002characters\u2003even\u2004though\u2005it\u2006contains\u2007characters\u2008that\u2009look\u200Athe\u200Bsame\u200Cor\u200Dare\u202Fsometimes\u205Ftreated\u2060the\u2800same\u3000as\u3164whitespace",
+        L"\"test\" \"This\u00A0string\u180Ehas\u2000no\u2001space\u2002characters\u2003even\u2004though\u2005it\u2006contains\u2007characters\u2008that\u2009look\u200Athe\u200Bsame\u200Cor\u200Dare\u202Fsometimes\u205Ftreated\u2060the\u2800same\u3000as\u3164whitespace\"");
 }
 #endif
 

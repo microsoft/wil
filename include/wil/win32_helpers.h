@@ -23,6 +23,7 @@
 #include "common.h"
 
 #if WIL_USE_STL
+#include <string>
 #if (__WI_LIBCPP_STD_VER >= 17) && WI_HAS_INCLUDE(<string_view>, 1) // Assume present if C++17
 #include <string_view>
 #endif
@@ -893,14 +894,13 @@ bool init_once(_Inout_ INIT_ONCE& initOnce, T func)
 }
 #endif // WIL_ENABLE_EXCEPTIONS
 
-#if defined(WIL_ENABLE_EXCEPTIONS) && (__cpp_lib_string_view >= 201606L)
+#if WIL_USE_STL && defined(WIL_ENABLE_EXCEPTIONS) && (__cpp_lib_string_view >= 201606L)
 /// @cond
 namespace details
 {
     template <typename RangeT>
-    struct deduce_char_type_from_range
+    struct deduce_char_type_from_string_range
     {
-        
         template <typename T = RangeT>
         static auto deduce(T& range)
         {
@@ -912,7 +912,7 @@ namespace details
     };
 
     template <typename RangeT>
-    using deduce_char_type_from_range_t = typename deduce_char_type_from_range<RangeT>::type;
+    using deduce_char_type_from_string_range_t = typename deduce_char_type_from_string_range<RangeT>::type;
 
     // Internal helper span-like type for passing arrays as an iterable collection
     template <typename T>
@@ -931,7 +931,7 @@ namespace details
             return pointer + size;
         }
     };
-}
+} // namespace details
 /// @endcond
 
 //! Flags that control the behavior of `ArgvToCommandLine`
@@ -957,7 +957,21 @@ enum class ArgvToCommandLineFlags : uint8_t
 };
 DEFINE_ENUM_FLAG_OPERATORS(ArgvToCommandLineFlags);
 
-template <typename RangeT, typename CharT = details::deduce_char_type_from_range_t<RangeT>>
+//! Performs the reverse operation of CommandLineToArgvW.
+//! Converts an argv array to a command line string that is guaranteed to "round trip" with CommandLineToArgvW. That is,
+//! a call to wil::ArgvToCommandLine followed by a call to ArgvToCommandLineW will produce the same array that was
+//! passed to wil::ArgvToCommandLine. Note that the reverse is not true. I.e. calling ArgvToCommandLineW followed by
+//! wil::ArgvToCommandLine will not produce the original string due to the optionality of of quotes in the command line
+//! string. This functionality is useful in a number of scenarios, most notably:
+//!     1.  When implementing a "driver" application. That is, an application that consumes some command line arguments,
+//!         translates others into new arguments, and preserves the rest, "forwarding" the resulting command line to a
+//!         separate application.
+//!     2.  When reading command line arguments from some data storage, e.g. from a JSON array, which then need to get
+//!         compiled into a command line string that's used for creating a new process.
+//! Unlike CommandLineToArgvW, this function accepts both "narrow" and "wide" strings to support calling both
+//! CreateProcessW and CreateProcessA with the result. See the values in @ref wil::ArgvToCommandLineFlags for more
+//! information on how to control the behavior of this function as well as scenarios when you may want to use each one.
+template <typename RangeT, typename CharT = details::deduce_char_type_from_string_range_t<RangeT>>
 inline std::basic_string<CharT> ArgvToCommandLine(RangeT&& range, ArgvToCommandLineFlags flags = ArgvToCommandLineFlags::None)
 {
     using string_type = std::basic_string<CharT>;
@@ -970,7 +984,7 @@ inline std::basic_string<CharT> ArgvToCommandLine(RangeT&& range, ArgvToCommandL
     static constexpr const CharT quoted_space_string[] = {'"', ' ', '"', '\0'};
 
     static constexpr const CharT search_string_no_space[] = {'\\', '"', '\0'};
-    static constexpr const CharT search_string_with_space[] = {'\\', '"', ' ', '\0'};
+    static constexpr const CharT search_string_with_space[] = {'\\', '"', ' ', '\t', '\0'};
 
     const bool forceQuotes = WI_IsFlagSet(flags, ArgvToCommandLineFlags::ForceQuotes);
     const CharT* const initialSearchString = forceQuotes ? search_string_no_space : search_string_with_space;
@@ -996,10 +1010,12 @@ inline std::basic_string<CharT> ArgvToCommandLine(RangeT&& range, ArgvToCommandL
         while (pos < str.size())
         {
             auto nextPos = str.find_first_of(searchString, pos);
-            if ((nextPos != str.npos) && (str[nextPos] == ' '))
+            if ((nextPos != str.npos) && ((str[nextPos] == ' ') || (str[nextPos] == '\t')))
             {
-                // Insert the quote now since we'll need to otherwise stomp over data we're just about to write
-                WI_ASSERT(!forceQuotes);
+                // Insert the quote now since we'll need to otherwise stomp over data we're about to write
+                // NOTE: By updating the search string here, we don't need to worry about manually inserting the
+                // character later since we'll just include it in our next iteration
+                WI_ASSERT(!forceQuotes);               // Otherwise, shouldn't be part of our search string
                 searchString = search_string_no_space; // We're already adding a space; don't do it again
                 result.insert(startPos, 1, '"');
                 terminateWithQuotes = true;
@@ -1029,7 +1045,7 @@ inline std::basic_string<CharT> ArgvToCommandLine(RangeT&& range, ArgvToCommandL
                     WI_ASSERT((pos > 0) && !WI_IsFlagSet(flags, ArgvToCommandLineFlags::ForceQuotes) && !terminateWithQuotes);
                     result.push_back('"'); // Not escaping case
                 }
-                ++pos;
+                ++pos; // Skip past quote on next search
             }
             else if (str[pos] == '\\')
             {
@@ -1038,7 +1054,8 @@ inline std::basic_string<CharT> ArgvToCommandLine(RangeT&& range, ArgvToCommandL
                 nextPos = str.find_first_not_of(L'\\', pos);
 
                 // NOTE: This is an optimization taking advantage of the fact that doing a double append of 1+
-                // backslashes will be functionally equivalent to escaping each one
+                // backslashes will be functionally equivalent to escaping each one. This copies all of the backslashes
+                // once. We _might_ do it again later
                 result.append(str, pos, nextPos - pos);
 
                 // If this is the first argument and is being interpreted as a path, we never escape slashes
@@ -1050,7 +1067,7 @@ inline std::basic_string<CharT> ArgvToCommandLine(RangeT&& range, ArgvToCommandL
 
                 if ((nextPos != str.npos) && (str[nextPos] != L'"'))
                 {
-                    // Simplest case... 1+ backslashes we don't need to escape
+                    // Simplest case... don't need to escape when followed by a non-quote character
                     pos = nextPos;
                     continue;
                 }
@@ -1068,14 +1085,18 @@ inline std::basic_string<CharT> ArgvToCommandLine(RangeT&& range, ArgvToCommandL
                 pos = nextPos;
                 if (pos != str.npos)
                 {
-                    // Must be followed by a quote; make sure we escape it, too
+                    // Must be followed by a quote; make sure we escape it, too. NOTE: We should have already early
+                    // exited if this argument is being interpreted as an executable path
                     WI_ASSERT(str[pos] == '"');
                     result.append({'\\', '"'});
                     ++pos;
                 }
             }
-            // Otherwise space, which we handled above. Note that we don't need to manually insert a space and increment
-            // 'pos' since we've changed the search string and therefore won't "find" the space again
+            else
+            {
+                // Otherwise space, which we handled above
+                WI_ASSERT((str[pos] == ' ') || (str[pos] == '\t'));
+            }
         }
 
         if (terminateWithQuotes)
@@ -1100,7 +1121,7 @@ template <typename CharT>
 inline std::basic_string<wistd::remove_cv_t<CharT>> ArgvToCommandLine(
     int argc, CharT* const* argv, ArgvToCommandLineFlags flags = ArgvToCommandLineFlags::None)
 {
-    return ArgvToCommandLine(details::iterable_span<CharT* const>{ argv, static_cast<size_t>(argc) }, flags);
+    return ArgvToCommandLine(details::iterable_span<CharT* const>{argv, static_cast<size_t>(argc)}, flags);
 }
 #endif
 } // namespace wil
