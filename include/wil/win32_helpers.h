@@ -1012,7 +1012,7 @@ inline std::basic_string<CharT> ArgvToCommandLine(RangeT&& range, ArgvToCommandL
                 // NOTE: By updating the search string here, we don't need to worry about manually inserting the
                 // character later since we'll just include it in our next iteration
                 WI_ASSERT(!forceQuotes);               // Otherwise, shouldn't be part of our search string
-                searchString = search_string_no_space; // We're already adding a space; don't do it again
+                searchString = search_string_no_space; // We're already adding a quote; don't do it again
                 result.insert(startPos, 1, '"');
                 terminateWithQuotes = true;
             }
