@@ -1,15 +1,5 @@
 #include "pch.h"
 
-#include <wil/common.h>
-
-#ifdef WIL_ENABLE_EXCEPTIONS
-#include <memory>
-#include <set>
-#include <string_view>
-#include <thread>
-#include <unordered_set>
-#endif
-
 #include <wil/result.h>
 #include <wil/resource.h>
 #include <wil/win32_helpers.h>
@@ -18,6 +8,13 @@
 #include <wil/wrl.h>
 #endif
 #include <wil/com.h>
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+#include <memory>
+#include <set>
+#include <thread>
+#include <unordered_set>
+#endif
 
 // Do not include most headers until after the WIL headers to ensure that we're not inadvertently adding any unnecessary
 // dependencies to STL, WRL, or indirectly retrieved headers
