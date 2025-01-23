@@ -1,7 +1,7 @@
 #include "common.h"
 #include <wil/windowing.h>
 
-#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && WIL_HAS_CXX_17
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 TEST_CASE("EnumWindows", "[windowing]")
 {
     // lambda can return a bool

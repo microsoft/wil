@@ -2019,7 +2019,6 @@ PREDEFINED             = WIL_DOXYGEN \
                          _MSVC_LANG=202302L \
                          __WI_CPLUSPLUS=202302L \
                          __WI_LIBCPP_STD_VER=23 \
-                         WIL_HAS_CXX_17=1 \
                          _HAS_CXX17 \
                          _HAS_CXX20 \
                          __declspec(x)= \

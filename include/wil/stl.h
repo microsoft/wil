@@ -19,7 +19,7 @@
 #include <string>
 #include <vector>
 #include <utility>
-#if _HAS_CXX17
+#if (__WI_LIBCPP_STD_VER >= 17) && WI_HAS_INCLUDE(<string_view>, 1) // Assume present if C++17
 #include <string_view>
 #endif
 
@@ -132,7 +132,7 @@ inline PCWSTR str_raw_ptr(const std::wstring& str)
     return str.c_str();
 }
 
-#if _HAS_CXX17
+#if __cpp_lib_string_view >= 201606L
 /**
     zstring_view. A zstring_view is identical to a std::string_view except it is always nul-terminated (unless empty).
     * zstring_view can be used for storing string literals without "forgetting" the length or that it is nul-terminated.
@@ -224,7 +224,7 @@ inline namespace literals
     }
 } // namespace literals
 
-#endif // _HAS_CXX17
+#endif // __cpp_lib_string_view >= 201606L
 
 } // namespace wil
 
