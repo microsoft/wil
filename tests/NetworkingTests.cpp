@@ -452,11 +452,15 @@ TEST_CASE("NetworkingTests::Verifying_in_addr_interactions", "[networking]")
         REQUIRE(test_v4_addr.flow_info() == 0);
 
         REQUIRE(test_v4_addr == test_v4_addr);
+        REQUIRE(!(test_v4_addr != test_v4_addr));
+        REQUIRE(!(test_v4_addr < test_v4_addr));
+        REQUIRE(!(test_v4_addr > test_v4_addr));
         REQUIRE(test_v4_addr != test_v4_addr2);
         REQUIRE(test_v4_addr < test_v4_addr2);
         REQUIRE(test_v4_addr2 > test_v4_addr);
         REQUIRE(test_v4_addr != default_addr);
         REQUIRE(test_v4_addr > default_addr);
+        REQUIRE(default_addr < test_v4_addr);
     }
 
     SECTION("IPv4 in_addr with port properties")
@@ -474,11 +478,15 @@ TEST_CASE("NetworkingTests::Verifying_in_addr_interactions", "[networking]")
         REQUIRE(test_v4_addr_with_port.flow_info() == 0);
 
         REQUIRE(test_v4_addr_with_port == test_v4_addr_with_port);
+        REQUIRE(!(test_v4_addr_with_port != test_v4_addr_with_port));
+        REQUIRE(!(test_v4_addr_with_port < test_v4_addr_with_port));
+        REQUIRE(!(test_v4_addr_with_port > test_v4_addr_with_port));
         REQUIRE(test_v4_addr_with_port != default_addr);
         REQUIRE(test_v4_addr_with_port != test_v4_addr);
         REQUIRE(test_v4_addr_with_port > test_v4_addr);
         REQUIRE(test_v4_addr_with_port < test_v4_addr2);
         REQUIRE(test_v4_addr_with_port > default_addr);
+        REQUIRE(default_addr < test_v4_addr_with_port);
     }
 
     SECTION("IPv6 in6_addr properties")
@@ -496,13 +504,18 @@ TEST_CASE("NetworkingTests::Verifying_in_addr_interactions", "[networking]")
         REQUIRE(test_v6_addr.flow_info() == 0);
 
         REQUIRE(test_v6_addr == test_v6_addr);
+        REQUIRE(!(test_v6_addr != test_v6_addr));
+        REQUIRE(!(test_v6_addr < test_v6_addr));
+        REQUIRE(!(test_v6_addr > test_v6_addr));
         REQUIRE(test_v6_addr != test_v6_addr2);
         REQUIRE(test_v6_addr < test_v6_addr2);
         REQUIRE(test_v6_addr2 > test_v6_addr);
         REQUIRE(test_v6_addr != test_v4_addr);
         REQUIRE(test_v6_addr > test_v4_addr);
+        REQUIRE(test_v4_addr < test_v6_addr);
         REQUIRE(test_v6_addr != default_addr);
         REQUIRE(test_v6_addr > default_addr);
+        REQUIRE(default_addr < test_v6_addr);
     }
 
     SECTION("IPv6 in6_addr with port properties")
@@ -520,7 +533,12 @@ TEST_CASE("NetworkingTests::Verifying_in_addr_interactions", "[networking]")
         REQUIRE(test_v6_addr_with_port.flow_info() == 0);
 
         REQUIRE(test_v6_addr_with_port == test_v6_addr_with_port);
+        REQUIRE(!(test_v6_addr_with_port != test_v6_addr_with_port));
+        REQUIRE(!(test_v6_addr_with_port < test_v6_addr_with_port));
+        REQUIRE(!(test_v6_addr_with_port > test_v6_addr_with_port));
         REQUIRE(test_v6_addr_with_port != test_v4_addr);
+        REQUIRE(test_v6_addr_with_port > test_v4_addr);
+        REQUIRE(test_v4_addr < test_v6_addr_with_port);
         REQUIRE(test_v6_addr_with_port != test_v4_addr_with_port);
         REQUIRE(test_v6_addr_with_port != test_v6_addr);
         REQUIRE(test_v6_addr_with_port != test_v6_addr2);
@@ -528,6 +546,7 @@ TEST_CASE("NetworkingTests::Verifying_in_addr_interactions", "[networking]")
         REQUIRE(test_v6_addr_with_port < test_v6_addr2);
         REQUIRE(test_v6_addr_with_port != default_addr);
         REQUIRE(test_v6_addr_with_port > default_addr);
+        REQUIRE(default_addr < test_v6_addr_with_port);
     }
 
     SECTION("IPv4 link-local in_addr properties")
@@ -543,6 +562,9 @@ TEST_CASE("NetworkingTests::Verifying_in_addr_interactions", "[networking]")
         REQUIRE(test_v4_linklocal_addr.flow_info() == 0);
 
         REQUIRE(test_v4_linklocal_addr == test_v4_linklocal_addr);
+        REQUIRE(!(test_v4_linklocal_addr != test_v4_linklocal_addr));
+        REQUIRE(!(test_v4_linklocal_addr < test_v4_linklocal_addr));
+        REQUIRE(!(test_v4_linklocal_addr > test_v4_linklocal_addr));
         REQUIRE(test_v4_linklocal_addr != default_addr);
         REQUIRE(test_v4_linklocal_addr != test_v4_addr);
         REQUIRE(test_v4_linklocal_addr != test_v4_addr_with_port);
@@ -564,6 +586,9 @@ TEST_CASE("NetworkingTests::Verifying_in_addr_interactions", "[networking]")
         REQUIRE(test_v4_linklocal_addr_with_port.flow_info() == 0);
 
         REQUIRE(test_v4_linklocal_addr_with_port == test_v4_linklocal_addr_with_port);
+        REQUIRE(!(test_v4_linklocal_addr_with_port != test_v4_linklocal_addr_with_port));
+        REQUIRE(!(test_v4_linklocal_addr_with_port < test_v4_linklocal_addr_with_port));
+        REQUIRE(!(test_v4_linklocal_addr_with_port > test_v4_linklocal_addr_with_port));
         REQUIRE(test_v4_linklocal_addr_with_port != default_addr);
         REQUIRE(test_v4_linklocal_addr_with_port != test_v4_addr);
         REQUIRE(test_v4_linklocal_addr_with_port != test_v4_addr_with_port);
@@ -585,6 +610,9 @@ TEST_CASE("NetworkingTests::Verifying_in_addr_interactions", "[networking]")
         REQUIRE(test_v6_linklocal_addr.flow_info() == 0);
 
         REQUIRE(test_v6_linklocal_addr == test_v6_linklocal_addr);
+        REQUIRE(!(test_v6_linklocal_addr != test_v6_linklocal_addr));
+        REQUIRE(!(test_v6_linklocal_addr < test_v6_linklocal_addr));
+        REQUIRE(!(test_v6_linklocal_addr > test_v6_linklocal_addr));
         REQUIRE(test_v6_linklocal_addr != default_addr);
         REQUIRE(test_v6_linklocal_addr != test_v4_addr);
         REQUIRE(test_v6_linklocal_addr != test_v4_addr_with_port);
@@ -608,6 +636,9 @@ TEST_CASE("NetworkingTests::Verifying_in_addr_interactions", "[networking]")
         REQUIRE(test_v6_linklocal_addr_with_port.flow_info() == 0);
 
         REQUIRE(test_v6_linklocal_addr_with_port == test_v6_linklocal_addr_with_port);
+        REQUIRE(!(test_v6_linklocal_addr_with_port != test_v6_linklocal_addr_with_port));
+        REQUIRE(!(test_v6_linklocal_addr_with_port < test_v6_linklocal_addr_with_port));
+        REQUIRE(!(test_v6_linklocal_addr_with_port > test_v6_linklocal_addr_with_port));
         REQUIRE(test_v6_linklocal_addr_with_port != default_addr);
         REQUIRE(test_v6_linklocal_addr_with_port != test_v4_addr);
         REQUIRE(test_v6_linklocal_addr_with_port != test_v4_addr_with_port);
@@ -631,6 +662,9 @@ TEST_CASE("NetworkingTests::Verifying_in_addr_interactions", "[networking]")
         REQUIRE(test_v4_any_addr.flow_info() == 0);
 
         REQUIRE(test_v4_any_addr == test_v4_any_addr);
+        REQUIRE(!(test_v4_any_addr != test_v4_any_addr));
+        REQUIRE(!(test_v4_any_addr < test_v4_any_addr));
+        REQUIRE(!(test_v4_any_addr > test_v4_any_addr));
         REQUIRE(test_v4_any_addr != default_addr);
         REQUIRE(test_v4_any_addr != test_v4_addr);
         REQUIRE(test_v4_any_addr != test_v4_addr_with_port);
@@ -656,6 +690,9 @@ TEST_CASE("NetworkingTests::Verifying_in_addr_interactions", "[networking]")
         REQUIRE(test_v4_any_addr_with_port.flow_info() == 0);
 
         REQUIRE(test_v4_any_addr_with_port == test_v4_any_addr_with_port);
+        REQUIRE(!(test_v4_any_addr_with_port != test_v4_any_addr_with_port));
+        REQUIRE(!(test_v4_any_addr_with_port < test_v4_any_addr_with_port));
+        REQUIRE(!(test_v4_any_addr_with_port > test_v4_any_addr_with_port));
         REQUIRE(test_v4_any_addr_with_port != default_addr);
         REQUIRE(test_v4_any_addr_with_port != test_v4_addr);
         REQUIRE(test_v4_any_addr_with_port != test_v4_addr_with_port);
@@ -681,6 +718,9 @@ TEST_CASE("NetworkingTests::Verifying_in_addr_interactions", "[networking]")
         REQUIRE(test_v6_any_addr.flow_info() == 0);
 
         REQUIRE(test_v6_any_addr == test_v6_any_addr);
+        REQUIRE(!(test_v6_any_addr != test_v6_any_addr));
+        REQUIRE(!(test_v6_any_addr < test_v6_any_addr));
+        REQUIRE(!(test_v6_any_addr > test_v6_any_addr));
         REQUIRE(test_v6_any_addr != default_addr);
         REQUIRE(test_v6_any_addr != test_v4_addr);
         REQUIRE(test_v6_any_addr != test_v4_addr_with_port);
@@ -708,6 +748,9 @@ TEST_CASE("NetworkingTests::Verifying_in_addr_interactions", "[networking]")
         REQUIRE(test_v6_any_addr_with_port.flow_info() == 0);
 
         REQUIRE(test_v6_any_addr_with_port == test_v6_any_addr_with_port);
+        REQUIRE(!(test_v6_any_addr_with_port != test_v6_any_addr_with_port));
+        REQUIRE(!(test_v6_any_addr_with_port < test_v6_any_addr_with_port));
+        REQUIRE(!(test_v6_any_addr_with_port > test_v6_any_addr_with_port));
         REQUIRE(test_v6_any_addr_with_port != default_addr);
         REQUIRE(test_v6_any_addr_with_port != test_v4_addr);
         REQUIRE(test_v6_any_addr_with_port != test_v4_addr_with_port);
@@ -731,8 +774,7 @@ TEST_CASE("NetworkingTests::Verifying_operators", "[networking]")
     using wil::network::socket_address;
     SECTION("verify v4 address comparisons")
     {
-        // equal will be considered less-than
-        REQUIRE(socket_address{L"1.1.1.1"} < socket_address{L"1.1.1.1"});
+        REQUIRE(!(socket_address{L"1.1.1.1"} < socket_address{L"1.1.1.1"}));
         REQUIRE(!(socket_address{L"1.1.1.1"} > socket_address{L"1.1.1.1"}));
         REQUIRE(socket_address{L"1.1.1.1"} == socket_address{L"1.1.1.1"});
         REQUIRE(!(socket_address{L"1.1.1.1"} != socket_address{L"1.1.1.1"}));
@@ -770,8 +812,7 @@ TEST_CASE("NetworkingTests::Verifying_operators", "[networking]")
 
     SECTION("verify v6 address comparisons")
     {
-        // equal will be considered less-than
-        REQUIRE(socket_address{L"2001::1002"} < socket_address{L"2001::1002"});
+        REQUIRE(!(socket_address{L"2001::1002"} < socket_address{L"2001::1002"}));
         REQUIRE(!(socket_address{L"2001::1002"} > socket_address{L"2001::1002"}));
         REQUIRE(socket_address{L"2001::1002"} == socket_address{L"2001::1002"});
         REQUIRE(!(socket_address{L"2001::1002"} != socket_address{L"2001::1002"}));
@@ -800,6 +841,7 @@ TEST_CASE("NetworkingTests::Verifying_operators", "[networking]")
         lhs_scope_id_test.set_scope_id(10000);
         socket_address rhs_scope_id_test{L"2001::1002", 1};
         rhs_scope_id_test.set_scope_id(100000);
+        REQUIRE(lhs_scope_id_test != rhs_scope_id_test);
         REQUIRE(lhs_scope_id_test < rhs_scope_id_test);
         REQUIRE(!(lhs_scope_id_test > rhs_scope_id_test));
         REQUIRE(lhs_scope_id_test != rhs_scope_id_test);
@@ -809,6 +851,7 @@ TEST_CASE("NetworkingTests::Verifying_operators", "[networking]")
         lhs_flow_info_test.set_flow_info(10000);
         socket_address rhs_flow_info_test{L"2001::1002", 1};
         rhs_flow_info_test.set_flow_info(100000);
+        REQUIRE(lhs_flow_info_test != rhs_flow_info_test);
         REQUIRE(lhs_flow_info_test < rhs_flow_info_test);
         REQUIRE(!(lhs_flow_info_test > rhs_flow_info_test));
         REQUIRE(lhs_flow_info_test != rhs_flow_info_test);

@@ -8,9 +8,9 @@
 //    PARTICULAR PURPOSE AND NONINFRINGEMENT.
 //
 //*********************************************************
-//! @file
-//! Helpers for using BSD sockets and Winsock functions and structures.
-//! Does not require the use of the STL or C++ exceptions (see _nothrow functions)
+// @file
+// Helpers for using BSD sockets and Winsock functions and structures.
+// Does not require the use of the STL or C++ exceptions (see _nothrow functions)
 #ifndef __WIL_NETWORK_INCLUDED
 #define __WIL_NETWORK_INCLUDED
 
@@ -18,25 +18,25 @@
 #error This header is not supported in kernel-mode.
 #endif
 
-//! define WIN32_LEAN_AND_MEAN at the project level to avoid windows.h including older winsock 1.1 headers from winsock.h
-//! as including both the Winsock 1.1 header 'winsock.h' and the Winsock 2 header 'winsock2.h' will create compiler errors
-//! alternatively, including winsock2.h before windows.h to prevent inclusion of the Winsock 1.1 winsock.h header from within windows.h
-//! note: winsock2.h will include windows.h if not already included
-//!
-//! define _SECURE_SOCKET_TYPES_DEFINED_ at the project level to have access to SocketSecurity* functions in ws2tcpip.h
-//!
-//! define INCL_WINSOCK_API_TYPEDEFS at the project level to make function typedefs available across various networking headers
-//! note, winsock2.h defaults is to not include function typedefs - but these can be necessary when supporting multiple OS versions
-//!
-//! Link libs for functions referenced in this file: ws2_32.lib, ntdll.lib, and Fwpuclnt.lib (for secure socket functions)
+// define WIN32_LEAN_AND_MEAN at the project level to avoid windows.h including older winsock 1.1 headers from winsock.h
+// as including both the Winsock 1.1 header 'winsock.h' and the Winsock 2 header 'winsock2.h' will create compiler errors
+// alternatively, including winsock2.h before windows.h to prevent inclusion of the Winsock 1.1 winsock.h header from within windows.h
+// note: winsock2.h will include windows.h if not already included
+//
+// define _SECURE_SOCKET_TYPES_DEFINED_ at the project level to have access to SocketSecurity* functions in ws2tcpip.h
+//
+// define INCL_WINSOCK_API_TYPEDEFS at the project level to make function typedefs available across various networking headers
+// note, winsock2.h defaults is to not include function typedefs - but these can be necessary when supporting multiple OS versions
+//
+// Link libs for functions referenced in this file: ws2_32.lib, ntdll.lib, and Fwpuclnt.lib (for secure socket functions)
 
 #if !defined(_WINSOCK2API_) && defined(_WINSOCKAPI_)
 #error The Winsock 1.1 winsock.h header was included before the Winsock 2 winsock2.h header - this will cause compilation errors - define WIN32_LEAN_AND_MEAN to avoid winsock.h included by windows.h, or include winsock2.h before windows.h
 #endif
 
-//! Including Winsock and networking headers in the below specific sequence
-//! These headers have many intra-header dependencies, creating difficulties when needing access to various functions and types
-//! This specific sequence should compile correctly to give access to all available functions and types
+// Including Winsock and networking headers in the below specific sequence
+// These headers have many intra-header dependencies, creating difficulties when needing access to various functions and types
+// This specific sequence should compile correctly to give access to all available functions and types
 #include <winsock2.h>
 #include <ws2def.h>
 #include <ws2ipdef.h>
@@ -52,16 +52,16 @@
 
 namespace wil
 {
-//! Functions and classes that support networking operations and structures
+// Functions and classes that support networking operations and structures
 namespace network
 {
-    //! A type that calls WSACleanup on destruction (or reset()).
-    //! WSAStartup must be called for the lifetime of all Winsock APIs (synchronous and asynchronous)
-    //! WSACleanup will unload the full Winsock catalog - all the libraries - with the final reference
-    //! which can lead to crashes if socket APIs are still being used after the final WSACleanup is called
+    // A type that calls WSACleanup on destruction (or reset()).
+    // WSAStartup must be called for the lifetime of all Winsock APIs (synchronous and asynchronous)
+    // WSACleanup will unload the full Winsock catalog - all the libraries - with the final reference
+    // which can lead to crashes if socket APIs are still being used after the final WSACleanup is called
     using unique_wsacleanup_call = ::wil::unique_call<decltype(&::WSACleanup), ::WSACleanup>;
 
-    //! Calls WSAStartup; returns an RAII object that reverts, the RAII object will resolve to bool 'false' if failed
+    // Calls WSAStartup; returns an RAII object that reverts, the RAII object will resolve to bool 'false' if failed
     WI_NODISCARD inline ::wil::network::unique_wsacleanup_call WSAStartup_nothrow() WI_NOEXCEPT
     {
         WSADATA unused_data{};
@@ -79,7 +79,7 @@ namespace network
         return return_cleanup;
     }
 
-    //! Calls WSAStartup and fail-fasts on error; returns an RAII object that reverts
+    // Calls WSAStartup and fail-fasts on error; returns an RAII object that reverts
     WI_NODISCARD inline ::wil::network::unique_wsacleanup_call WSAStartup_failfast() WI_NOEXCEPT
     {
         WSADATA unused_data{};
@@ -88,7 +88,7 @@ namespace network
     }
 
 #if defined(WIL_ENABLE_EXCEPTIONS)
-    //! Calls WSAStartup and throws on error; returns an RAII object that reverts
+    // Calls WSAStartup and throws on error; returns an RAII object that reverts
     WI_NODISCARD inline ::wil::network::unique_wsacleanup_call WSAStartup()
     {
         WSADATA unused_data{};
@@ -121,40 +121,40 @@ namespace network
     }
 
     //
-    //! encapsulates working with the sockaddr datatype
-    //!
-    //! sockaddr is a generic type - similar to a base class, but designed for C with BSD sockets (1983-ish)
-    //! 'derived' structures are cast back to sockaddr* (so the initial struct members must be aligned)
-    //!
-    //! this data type was built to be 'extensible' so new network types could create their own address structures
-    //! - appending fields to the initial fields of the sockaddr
-    //!
-    //! note that the address and port fields of TCPIP sockaddr* types were designed to be encoded in network-byte order
-    //! - hence the common use of "host-to-network" and "network-to-host" APIs, e.g. htons(), htonl(), ntohs(), ntohl()
-    //!
-    //! Socket APIs that accept a socket address will accept 2 fields:
-    //! - the sockaddr* (the address of the derived sockaddr type, cast down to a sockaddr*)
-    //! - the length of the 'derived' socket address structure referenced by the sockaddr*
-    //!
-    //! Commonly used sockaddr* types that are using with TCPIP networking:
-    //!
-    //! sockaddr_storage / SOCKADDR_STORAGE
-    //!   - a sockaddr* derived type that is guaranteed to be large enough to hold any possible socket address (not just TCPIP related)
-    //! sockaddr_in / SOCKADDR_IN
-    //!   - a sockaddr* derived type designed to contain an IPv4 address and port number
-    //! sockaddr_in6 / SOCKADDR_IN6
-    //!   - a sockaddr* derived type designed to contain an IPv6 address, port, scope id, and flow info
-    //! SOCKADDR_INET
-    //!   - a union of sockaddr_in and sockaddr_in6 -- i.e., large enough to contain any TCPIP IPv4 or IPV6 address
-    //! in_addr / IN_ADDR
-    //!   - the raw address portion of a sockaddr_in
-    //! in6_addr / IN6_ADDR
-    //!   - the raw address portion of a sockaddr_in6
-    //!
-    //! SOCKET_ADDRESS
-    //!   - not a derived sockaddr* type
-    //!   - a structure containing both a sockaddr* and its length fields, returned from some networking functions
-    //!
+    // encapsulates working with the sockaddr datatype
+    //
+    // sockaddr is a generic type - similar to a base class, but designed for C with BSD sockets (1983-ish)
+    // 'derived' structures are cast back to sockaddr* (so the initial struct members must be aligned)
+    //
+    // this data type was built to be 'extensible' so new network types could create their own address structures
+    // - appending fields to the initial fields of the sockaddr
+    //
+    // note that the address and port fields of TCPIP sockaddr* types were designed to be encoded in network-byte order
+    // - hence the common use of "host-to-network" and "network-to-host" APIs, e.g. htons(), htonl(), ntohs(), ntohl()
+    //
+    // Socket APIs that accept a socket address will accept 2 fields:
+    // - the sockaddr* (the address of the derived sockaddr type, cast down to a sockaddr*)
+    // - the length of the 'derived' socket address structure referenced by the sockaddr*
+    //
+    // Commonly used sockaddr* types that are using with TCPIP networking:
+    //
+    // sockaddr_storage / SOCKADDR_STORAGE
+    //   - a sockaddr* derived type that is guaranteed to be large enough to hold any possible socket address (not just TCPIP related)
+    // sockaddr_in / SOCKADDR_IN
+    //   - a sockaddr* derived type designed to contain an IPv4 address and port number
+    // sockaddr_in6 / SOCKADDR_IN6
+    //   - a sockaddr* derived type designed to contain an IPv6 address, port, scope id, and flow info
+    // SOCKADDR_INET
+    //   - a union of sockaddr_in and sockaddr_in6 -- i.e., large enough to contain any TCPIP IPv4 or IPV6 address
+    // in_addr / IN_ADDR
+    //   - the raw address portion of a sockaddr_in
+    // in6_addr / IN6_ADDR
+    //   - the raw address portion of a sockaddr_in6
+    //
+    // SOCKET_ADDRESS
+    //   - not a derived sockaddr* type
+    //   - a structure containing both a sockaddr* and its length fields, returned from some networking functions
+    //
 
     // declaring char-arrays large enough for any IPv4 or IPv6 address + optional fields
     static_assert(INET6_ADDRSTRLEN > INET_ADDRSTRLEN);
@@ -230,7 +230,7 @@ namespace network
         HRESULT write_complete_address_nothrow(socket_address_wstring& address) const WI_NOEXCEPT;
         HRESULT write_complete_address_nothrow(socket_address_string& address) const WI_NOEXCEPT;
 
-#if defined(WIL_ENABLE_EXCEPTIONS) && (defined(_STRING_) || defined(WIL_DOXYGEN))
+#if (WIL_USE_STL && defined(WIL_ENABLE_EXCEPTIONS)) || defined(WIL_DOXYGEN)
         [[nodiscard]] ::std::wstring write_address() const;
         [[nodiscard]] ::std::wstring write_complete_address() const;
 #endif
@@ -288,15 +288,15 @@ namespace network
         return return_ipv6_address;
     }
 
-    //! non-member swap
+    // non-member swap
     inline void swap(::wil::network::socket_address& lhs, ::wil::network::socket_address& rhs) WI_NOEXCEPT
     {
         lhs.swap(rhs);
     }
 
-    //! class addr_info encapsulates the ADDRINFO-related structures returned from the socket functions
-    //! getaddrinfo, GetAddrInfoW, GetAddrInfoWEx
-    //! iterator semantics are supported to safely access these addresses
+    // class addr_info encapsulates the ADDRINFO-related structures returned from the socket functions
+    // getaddrinfo, GetAddrInfoW, GetAddrInfoWEx
+    // iterator semantics are supported to safely access these addresses
     // ! template T supports pointers to the 3 address structures: ADDRINFOA*, ADDRINFOW*, ADDRINFOEXW*
     template <typename T>
     class addr_info_iterator_t
@@ -311,7 +311,7 @@ namespace network
         // Notice this is a forward_iterator
         // - does not support random-access (e.g. vector::iterator)
         // - does not support bidirectional access (e.g. list::iterator)
-#if defined(_ITERATOR_) || defined(WIL_DOXYGEN)
+#if WIL_USE_STL || defined(WIL_DOXYGEN)
         using iterator_category = ::std::forward_iterator_tag;
 #endif
         using value_type = ::wil::network::socket_address;
@@ -416,9 +416,9 @@ namespace network
     using addr_infoex_iterator = addr_info_iterator_t<ADDRINFOEXW>;
 
 #if defined(WIL_ENABLE_EXCEPTIONS)
-    //! wil function to capture resolving IP addresses assigned to the local machine, throwing on error
-    //! returning an RAII object containing the results
-    inline ::wil::unique_addrinfo resolve_local_addresses() WI_NOEXCEPT
+    // wil function to capture resolving IP addresses assigned to the local machine, throwing on error
+    // returning an RAII object containing the results
+    inline ::wil::unique_addrinfo resolve_local_addresses()
     {
         constexpr auto* local_address_name_string = L"";
         ADDRINFOW* addrResult{};
@@ -430,9 +430,9 @@ namespace network
         return ::wil::unique_addrinfo{addrResult};
     }
 
-    //! wil function to capture resolving the local-host (loopback) addresses, throwing on error
-    //! returning an RAII object containing the results
-    inline ::wil::unique_addrinfo resolve_localhost_addresses() WI_NOEXCEPT
+    // wil function to capture resolving the local-host (loopback) addresses, throwing on error
+    // returning an RAII object containing the results
+    inline ::wil::unique_addrinfo resolve_localhost_addresses()
     {
         constexpr auto* localhost_address_name_string = L"localhost";
         ADDRINFOW* addrResult{};
@@ -505,7 +505,7 @@ namespace network
             return *this;
         }
 
-        //! Returns true if all functions were loaded, holding a WSAStartup reference
+        // Returns true if all functions were loaded, holding a WSAStartup reference
         WI_NODISCARD explicit operator bool() const WI_NOEXCEPT;
 
         F f{};
@@ -742,7 +742,8 @@ namespace network
                 return lhs_port < rhs_port;
             }
 
-            return true;
+            // must be exactly equal, so not less-than
+            return false;
         }
 
         case AF_INET6:
@@ -779,7 +780,8 @@ namespace network
                 return lhs_flow_info < rhs_flow_info;
             }
 
-            return true;
+            // must be exactly equal, so not less-than
+            return false;
         }
 
         default:
@@ -791,6 +793,10 @@ namespace network
 
     inline bool socket_address::operator>(const ::wil::network::socket_address& rhs) const WI_NOEXCEPT
     {
+        if (*this == rhs)
+        {
+            return false;
+        }
         return !(*this < rhs);
     }
 
@@ -1083,7 +1089,7 @@ namespace network
         return E_INVALIDARG;
     }
 
-#if defined(WIL_ENABLE_EXCEPTIONS) && (defined(_STRING_) || defined(WIL_DOXYGEN))
+#if (WIL_USE_STL && defined(WIL_ENABLE_EXCEPTIONS)) || defined(WIL_DOXYGEN)
     inline ::std::wstring socket_address::write_address() const
     {
         ::wil::network::socket_address_wstring returnString{};
@@ -1143,7 +1149,7 @@ namespace network
         return S_OK;
     }
 
-#if defined(WIL_ENABLE_EXCEPTIONS) && (defined(_STRING_) || defined(WIL_DOXYGEN))
+#if (WIL_USE_STL && defined(WIL_ENABLE_EXCEPTIONS)) || defined(WIL_DOXYGEN)
     inline ::std::wstring socket_address::write_complete_address() const
     {
         ::wil::network::socket_address_wstring returnString{};
