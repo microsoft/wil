@@ -2123,6 +2123,8 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
     using wil::network::addr_info_ansi_iterator;
     using wil::network::addr_info_iterator;
     using wil::network::addr_infoex_iterator;
+    using wil::network::begin;
+    using wil::network::end;
     using wil::network::equals;
 
     const auto cleanup = wil::network::WSAStartup_nothrow();
@@ -2131,27 +2133,29 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
     SECTION("verify resolve_local_addresses")
     {
 #if (defined(WIL_ENABLE_EXCEPTIONS))
-        const wil::unique_addrinfo test_addr = wil::network::resolve_local_addresses();
-        REQUIRE(addr_info_iterator{test_addr.get()} != addr_info_iterator::end());
-
-        // verify operator->
-        const addr_info_iterator test_addr_iterator{test_addr.get()};
-        REQUIRE(!test_addr_iterator->is_address_loopback());
-
-        uint32_t count = 0;
-        for (const auto& address : wil::make_range(addr_info_iterator{test_addr.get()}, addr_info_iterator::end()))
         {
-            const auto family = address.family();
-            REQUIRE((family == AF_INET || family == AF_INET6));
-            REQUIRE(!address.is_address_loopback());
+            const wil::unique_addrinfo test_addr = wil::network::resolve_local_addresses();
+            REQUIRE(begin(addr_info_iterator{test_addr.get()}) != end(addr_info_iterator{}));
 
-            wil::network::socket_address_wstring address_string;
-            REQUIRE(SUCCEEDED(address.write_address_nothrow(address_string)));
-            wprintf(L"... resolve_local_addresses : %ws\n", address_string);
-            ++count;
+            // verify operator->
+            const addr_info_iterator test_addr_iterator{test_addr.get()};
+            REQUIRE(!test_addr_iterator->is_address_loopback());
+
+            uint32_t count = 0;
+            for (const auto& address : addr_info_iterator(test_addr.get()))
+            {
+                const auto family = address.family();
+                REQUIRE((family == AF_INET || family == AF_INET6));
+                REQUIRE(!address.is_address_loopback());
+
+                wil::network::socket_address_wstring address_string;
+                REQUIRE(SUCCEEDED(address.write_address_nothrow(address_string)));
+                wprintf(L"... resolve_local_addresses : %ws\n", address_string);
+                ++count;
+            }
+
+            REQUIRE(count > 0);
         }
-
-        REQUIRE(count > 0);
 #endif
     }
 
@@ -2159,14 +2163,14 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
     {
 #if (defined(WIL_ENABLE_EXCEPTIONS))
         const wil::unique_addrinfo test_addr = wil::network::resolve_localhost_addresses();
-        REQUIRE(addr_info_iterator{test_addr.get()} != addr_info_iterator::end());
+        REQUIRE(begin(addr_info_iterator{test_addr.get()}) != end(addr_info_iterator{}));
 
         // verify operator->
         const addr_info_iterator test_addr_iterator{test_addr.get()};
         REQUIRE(test_addr_iterator->is_address_loopback());
 
         uint32_t count = 0;
-        for (const auto& address : wil::make_range(addr_info_iterator{test_addr.get()}, addr_info_iterator::end()))
+        for (const auto& address : wil::make_range(begin(addr_info_iterator{test_addr.get()}), end(addr_info_iterator{})))
         {
             const auto family = address.family();
             REQUIRE((family == AF_INET || family == AF_INET6));
@@ -2198,51 +2202,62 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
 
     SECTION("verify const addr_info_iterator")
     {
-#if (defined(WIL_ENABLE_EXCEPTIONS) && defined(_STRING_))
-        const wil::unique_addrinfo test_addr = wil::network::resolve_localhost_addresses();
-        REQUIRE(addr_info_iterator{test_addr.get()} != addr_info_iterator::end());
+        constexpr auto* local_address_name_string = L"localhost";
+        ADDRINFOW* addrResult{};
+        REQUIRE(::GetAddrInfoW(local_address_name_string, nullptr, nullptr, &addrResult) == 0);
+
+        const wil::unique_addrinfo test_addr{addrResult};
+        REQUIRE(begin(addr_info_iterator{test_addr.get()}) != end(addr_info_iterator{}));
 
         const addr_info_iterator test_addr_iterator{test_addr.get()};
         REQUIRE(test_addr_iterator->is_address_loopback());
 
         const auto& test_address_reference = *test_addr_iterator;
         REQUIRE(test_address_reference.is_address_loopback());
-#endif
     }
 
     SECTION("verify addr_info_iterator increment")
     {
-#if (defined(WIL_ENABLE_EXCEPTIONS) && defined(_STRING_))
-        const wil::unique_addrinfo initial_addr = wil::network::resolve_localhost_addresses();
-        REQUIRE(addr_info_iterator{initial_addr.get()} != addr_info_iterator::end());
+        constexpr auto* local_address_name_string = L"localhost";
+        ADDRINFOW* addrResult{};
+        REQUIRE(::GetAddrInfoW(local_address_name_string, nullptr, nullptr, &addrResult) == 0);
+
+        const wil::unique_addrinfo initial_addr{addrResult};
+        REQUIRE(begin(addr_info_iterator{initial_addr.get()}) != end(addr_info_iterator{}));
 
         auto total_count = 0;
-        for (auto it = addr_info_iterator{initial_addr.get()}; it != addr_info_iterator::end(); ++it)
+        for (auto it = begin(addr_info_iterator{initial_addr.get()}); it != end(addr_info_iterator{}); ++it)
         {
             ++total_count;
         }
 
-        const wil::unique_addrinfo test_addr = wil::network::resolve_localhost_addresses();
-        REQUIRE(addr_info_iterator{test_addr.get()} != addr_info_iterator::end());
+        ADDRINFOW* testAddrResult{};
+        REQUIRE(::GetAddrInfoW(local_address_name_string, nullptr, nullptr, &testAddrResult) == 0);
+        const wil::unique_addrinfo test_addr{testAddrResult};
+        REQUIRE(addr_info_iterator{test_addr.get()} != end(addr_info_iterator{}));
 
         addr_info_iterator test_iterator = addr_info_iterator{test_addr.get()};
         test_iterator += total_count;
-        REQUIRE(test_iterator == addr_info_iterator::end());
-#endif
+        REQUIRE(test_iterator == end(addr_info_iterator{}));
     }
 
     SECTION("verify addr_info_iterator move behavior")
     {
-#if (defined(WIL_ENABLE_EXCEPTIONS))
-        wil::unique_addrinfo moved_from_addr = wil::network::resolve_local_addresses();
-        REQUIRE(addr_info_iterator{moved_from_addr.get()} != addr_info_iterator::end());
+        constexpr auto* local_address_name_string = L"";
+        ADDRINFOW* addrResult{};
+        REQUIRE(::GetAddrInfoW(local_address_name_string, nullptr, nullptr, &addrResult) == 0);
+
+        wil::unique_addrinfo moved_from_addr{addrResult};
+        REQUIRE(begin(addr_info_iterator{moved_from_addr.get()}) != end(addr_info_iterator{}));
 
         const wil::unique_addrinfo moved_to_addr = std::move(moved_from_addr);
-        // moved_from_addr should be end() now
-        REQUIRE(addr_info_iterator{moved_from_addr.get()} == addr_info_iterator::end());
-        REQUIRE(addr_info_iterator{moved_to_addr.get()} != addr_info_iterator::end());
+        REQUIRE(moved_to_addr != moved_from_addr);
 
-        for (const auto& address : wil::make_range(addr_info_iterator{moved_to_addr.get()}, addr_info_iterator::end()))
+        // moved_from_addr should be end() now
+        REQUIRE(addr_info_iterator{moved_from_addr.get()} == end(addr_info_iterator{}));
+        REQUIRE(addr_info_iterator{moved_to_addr.get()} != end(addr_info_iterator{}));
+
+        for (const auto& address : wil::make_range(addr_info_iterator{moved_to_addr.get()}, end(addr_info_iterator{})))
         {
             const auto family = address.family();
             REQUIRE((family == AF_INET || family == AF_INET6));
@@ -2252,27 +2267,33 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
             REQUIRE(SUCCEEDED(address.write_address_nothrow(address_string)));
             wprintf(L"... moved resolve_local_addresses : %ws\n", address_string);
         }
-#endif
     }
 
     SECTION("verify addr_info_iterator move assignment behavior")
     {
-#if (defined(WIL_ENABLE_EXCEPTIONS))
-        wil::unique_addrinfo moved_from_addr = wil::network::resolve_local_addresses();
-        REQUIRE(addr_info_iterator{moved_from_addr.get()} != addr_info_iterator::end());
+        constexpr auto* local_address_name_string = L"";
+        ADDRINFOW* addrResult{};
+        REQUIRE(::GetAddrInfoW(local_address_name_string, nullptr, nullptr, &addrResult) == 0);
 
-        wil::unique_addrinfo moved_to_addr{wil::network::resolve_local_addresses()};
+        wil::unique_addrinfo moved_from_addr{addrResult};
+        REQUIRE(begin(addr_info_iterator{moved_from_addr.get()}) != end(addr_info_iterator{}));
+
+        ADDRINFOW* moveToAddrResult{};
+        REQUIRE(::GetAddrInfoW(local_address_name_string, nullptr, nullptr, &moveToAddrResult) == 0);
+
+        wil::unique_addrinfo moved_to_addr{moveToAddrResult};
         moved_to_addr = std::move(moved_from_addr);
+        REQUIRE(moved_to_addr != moved_from_addr);
 
         // moved_from_addr should be end() now
-        REQUIRE(addr_info_iterator{moved_from_addr.get()} == addr_info_iterator::end());
-        REQUIRE(addr_info_iterator{moved_to_addr.get()} != addr_info_iterator::end());
+        REQUIRE(addr_info_iterator{moved_from_addr.get()} == end(addr_info_iterator{}));
+        REQUIRE(addr_info_iterator{moved_to_addr.get()} != end(addr_info_iterator{}));
 
         // move to self
         moved_to_addr = std::move(moved_to_addr);
-        REQUIRE(addr_info_iterator{moved_to_addr.get()} != addr_info_iterator::end());
+        REQUIRE(addr_info_iterator{moved_to_addr.get()} != end(addr_info_iterator{}));
 
-        for (const auto& address : wil::make_range(addr_info_iterator{moved_to_addr.get()}, addr_info_iterator::end()))
+        for (const auto& address : addr_info_iterator{moved_to_addr.get()})
         {
             const auto family = address.family();
             REQUIRE((family == AF_INET || family == AF_INET6));
@@ -2282,7 +2303,6 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
             REQUIRE(SUCCEEDED(address.write_address_nothrow(address_string)));
             wprintf(L"... move assignment resolve_local_addresses : %ws\n", address_string);
         }
-#endif
     }
 
     // retest with unique_addrinfo_ansi
@@ -2290,35 +2310,37 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
     {
         wil::unique_addrinfo_ansi initial_addr;
         REQUIRE(0 == getaddrinfo("localhost", nullptr, nullptr, initial_addr.addressof()));
-        REQUIRE(addr_info_ansi_iterator{initial_addr.get()} != addr_info_ansi_iterator::end());
+        REQUIRE(addr_info_ansi_iterator{initial_addr.get()} != end(addr_info_ansi_iterator{}));
 
         auto total_count = 0;
-        for (auto it = addr_info_ansi_iterator{initial_addr.get()}; it != addr_info_ansi_iterator::end(); ++it)
+        for (auto it = begin(addr_info_ansi_iterator{initial_addr.get()}); it != end(addr_info_ansi_iterator{}); ++it)
         {
             ++total_count;
         }
 
         wil::unique_addrinfo_ansi test_addr;
         REQUIRE(0 == getaddrinfo("localhost", nullptr, nullptr, test_addr.addressof()));
-        REQUIRE(addr_info_ansi_iterator{test_addr.get()} != addr_info_ansi_iterator::end());
+        REQUIRE(addr_info_ansi_iterator{test_addr.get()} != end(addr_info_ansi_iterator{}));
 
         addr_info_ansi_iterator test_iterator = addr_info_ansi_iterator{test_addr.get()};
         test_iterator += total_count;
-        REQUIRE(test_iterator == addr_info_ansi_iterator::end());
+        REQUIRE(test_iterator == end(addr_info_ansi_iterator{}));
     }
 
     SECTION("verify addr_info_ansi_iterator move behavior")
     {
         wil::unique_addrinfo_ansi moved_from_addr;
         REQUIRE(0 == getaddrinfo("", nullptr, nullptr, moved_from_addr.addressof()));
-        REQUIRE(addr_info_ansi_iterator{moved_from_addr.get()} != addr_info_ansi_iterator::end());
+        REQUIRE(addr_info_ansi_iterator{moved_from_addr.get()} != end(addr_info_ansi_iterator{}));
 
         const wil::unique_addrinfo_ansi moved_to_addr = std::move(moved_from_addr);
-        // moved_from_addr should be end() now
-        REQUIRE(addr_info_ansi_iterator{moved_from_addr.get()} == addr_info_ansi_iterator::end());
-        REQUIRE(addr_info_ansi_iterator{moved_to_addr.get()} != addr_info_ansi_iterator::end());
+        REQUIRE(moved_to_addr != moved_from_addr);
 
-        for (const auto& address : wil::make_range(addr_info_ansi_iterator{moved_to_addr.get()}, addr_info_ansi_iterator::end()))
+        // moved_from_addr should be end() now
+        REQUIRE(addr_info_ansi_iterator{moved_from_addr.get()} == end(addr_info_ansi_iterator{}));
+        REQUIRE(addr_info_ansi_iterator{moved_to_addr.get()} != end(addr_info_ansi_iterator{}));
+
+        for (const auto& address : wil::make_range(begin(addr_info_ansi_iterator{moved_to_addr.get()}), end(addr_info_ansi_iterator{})))
         {
             const auto family = address.family();
             REQUIRE((family == AF_INET || family == AF_INET6));
@@ -2334,21 +2356,22 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
     {
         wil::unique_addrinfo_ansi moved_from_addr;
         REQUIRE(0 == getaddrinfo("", nullptr, nullptr, moved_from_addr.addressof()));
-        REQUIRE(addr_info_ansi_iterator{moved_from_addr.get()} != addr_info_ansi_iterator::end());
+        REQUIRE(addr_info_ansi_iterator{moved_from_addr.get()} != end(addr_info_ansi_iterator{}));
 
         wil::unique_addrinfo_ansi moved_to_addr;
         REQUIRE(0 == getaddrinfo("", nullptr, nullptr, moved_to_addr.addressof()));
         moved_to_addr = std::move(moved_from_addr);
+        REQUIRE(moved_to_addr != moved_from_addr);
 
         // moved_from_addr should be end() now
-        REQUIRE(addr_info_ansi_iterator{moved_from_addr.get()} == addr_info_ansi_iterator::end());
-        REQUIRE(addr_info_ansi_iterator{moved_to_addr.get()} != addr_info_ansi_iterator::end());
+        REQUIRE(addr_info_ansi_iterator{moved_from_addr.get()} == end(addr_info_ansi_iterator{}));
+        REQUIRE(addr_info_ansi_iterator{moved_to_addr.get()} != end(addr_info_ansi_iterator{}));
 
         // move to self
         moved_to_addr = std::move(moved_to_addr);
-        REQUIRE(addr_info_ansi_iterator{moved_to_addr.get()} != addr_info_ansi_iterator::end());
+        REQUIRE(addr_info_ansi_iterator{moved_to_addr.get()} != end(addr_info_ansi_iterator{}));
 
-        for (const auto& address : wil::make_range(addr_info_ansi_iterator{moved_to_addr.get()}, addr_info_ansi_iterator::end()))
+        for (const auto& address : addr_info_ansi_iterator{moved_to_addr.get()})
         {
             const auto family = address.family();
             REQUIRE((family == AF_INET || family == AF_INET6));
@@ -2365,35 +2388,37 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
     {
         wil::unique_addrinfoex initial_addr;
         REQUIRE(0 == GetAddrInfoExW(L"localhost", nullptr, NS_ALL, nullptr, nullptr, initial_addr.addressof(), nullptr, nullptr, nullptr, nullptr));
-        REQUIRE(addr_infoex_iterator{initial_addr.get()} != addr_infoex_iterator::end());
+        REQUIRE(begin(addr_infoex_iterator{initial_addr.get()}) != end(addr_infoex_iterator{}));
 
         auto total_count = 0;
-        for (auto it = addr_infoex_iterator{initial_addr.get()}; it != addr_infoex_iterator::end(); ++it)
+        for (auto it = begin(addr_infoex_iterator{initial_addr.get()}); it != end(addr_infoex_iterator{}); ++it)
         {
             ++total_count;
         }
 
         wil::unique_addrinfoex test_addr;
         REQUIRE(0 == GetAddrInfoExW(L"localhost", nullptr, NS_ALL, nullptr, nullptr, test_addr.addressof(), nullptr, nullptr, nullptr, nullptr));
-        REQUIRE(addr_infoex_iterator{test_addr.get()} != addr_infoex_iterator::end());
+        REQUIRE(addr_infoex_iterator{test_addr.get()} != wil::network::end(addr_infoex_iterator{}));
 
         addr_infoex_iterator test_iterator = addr_infoex_iterator{test_addr.get()};
         test_iterator += total_count;
-        REQUIRE(test_iterator == addr_infoex_iterator::end());
+        REQUIRE(test_iterator == wil::network::end(addr_infoex_iterator{}));
     }
 
     SECTION("verify addr_infoex_iterator move behavior")
     {
         wil::unique_addrinfoex moved_from_addr;
         REQUIRE(0 == GetAddrInfoExW(L"", nullptr, NS_ALL, nullptr, nullptr, moved_from_addr.addressof(), nullptr, nullptr, nullptr, nullptr));
-        REQUIRE(addr_infoex_iterator{moved_from_addr.get()} != addr_infoex_iterator::end());
+        REQUIRE(addr_infoex_iterator{moved_from_addr.get()} != end(addr_infoex_iterator{}));
 
         const wil::unique_addrinfoex moved_to_addr = std::move(moved_from_addr);
-        // moved_from_addr should be end() now
-        REQUIRE(addr_infoex_iterator{moved_from_addr.get()} == addr_infoex_iterator::end());
-        REQUIRE(addr_infoex_iterator{moved_to_addr.get()} != addr_infoex_iterator::end());
+        REQUIRE(moved_to_addr != moved_from_addr);
 
-        for (const auto& address : wil::make_range(addr_infoex_iterator{moved_to_addr.get()}, addr_infoex_iterator::end()))
+        // moved_from_addr should be end() now
+        REQUIRE(addr_infoex_iterator{moved_from_addr.get()} == end(addr_infoex_iterator{}));
+        REQUIRE(addr_infoex_iterator{moved_to_addr.get()} != end(addr_infoex_iterator{}));
+
+        for (const auto& address : addr_infoex_iterator{moved_to_addr.get()})
         {
             const auto family = address.family();
             REQUIRE((family == AF_INET || family == AF_INET6));
@@ -2409,21 +2434,22 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
     {
         wil::unique_addrinfoex moved_from_addr;
         REQUIRE(0 == GetAddrInfoExW(L"", nullptr, NS_ALL, nullptr, nullptr, moved_from_addr.addressof(), nullptr, nullptr, nullptr, nullptr));
-        REQUIRE(addr_infoex_iterator{moved_from_addr.get()} != addr_infoex_iterator::end());
+        REQUIRE(addr_infoex_iterator{moved_from_addr.get()} != end(addr_infoex_iterator{}));
 
         wil::unique_addrinfoex moved_to_addr;
         REQUIRE(0 == GetAddrInfoExW(L"", nullptr, NS_ALL, nullptr, nullptr, moved_to_addr.addressof(), nullptr, nullptr, nullptr, nullptr));
         moved_to_addr = std::move(moved_from_addr);
+        REQUIRE(moved_to_addr != moved_from_addr);
 
         // moved_from_addr should be end() now
-        REQUIRE(addr_infoex_iterator{moved_from_addr.get()} == addr_infoex_iterator::end());
-        REQUIRE(addr_infoex_iterator{moved_to_addr.get()} != addr_infoex_iterator::end());
+        REQUIRE(addr_infoex_iterator{moved_from_addr.get()} == end(addr_infoex_iterator{}));
+        REQUIRE(addr_infoex_iterator{moved_to_addr.get()} != end(addr_infoex_iterator{}));
 
         // move to self
         moved_to_addr = std::move(moved_to_addr);
-        REQUIRE(addr_infoex_iterator{moved_to_addr.get()} != addr_infoex_iterator::end());
+        REQUIRE(addr_infoex_iterator{moved_to_addr.get()} != end(addr_infoex_iterator{}));
 
-        for (const auto& address : wil::make_range(addr_infoex_iterator{moved_to_addr.get()}, addr_infoex_iterator::end()))
+        for (const auto& address : wil::make_range(begin(addr_infoex_iterator{moved_to_addr.get()}), end(addr_infoex_iterator{})))
         {
             const auto family = address.family();
             REQUIRE((family == AF_INET || family == AF_INET6));

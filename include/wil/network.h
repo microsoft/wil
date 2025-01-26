@@ -302,11 +302,6 @@ namespace network
     class addr_info_iterator_t
     {
     public:
-        static constexpr addr_info_iterator_t end() WI_NOEXCEPT
-        {
-            return addr_info_iterator_t<T>{};
-        }
-
         // defining iterator_traits allows STL <algorithm> functions to be used with this iterator class.
         // Notice this is a forward_iterator
         // - does not support random-access (e.g. vector::iterator)
@@ -409,6 +404,20 @@ namespace network
         T* m_addrinfo_ptr{nullptr};
         ::wil::network::socket_address m_socket_address{};
     }; // class addr_info_iterator_t
+
+    // begin() and end() support - enabling range-based for loop
+    template <typename T>
+    constexpr
+    addr_info_iterator_t<T> end(addr_info_iterator_t<T>) WI_NOEXCEPT
+    {
+        return {};
+    }
+
+    template <typename T>
+    addr_info_iterator_t<T> begin(addr_info_iterator_t<T> addrinfo) WI_NOEXCEPT
+    {
+        return addrinfo;
+    }
 
     using addr_info_ansi_iterator = addr_info_iterator_t<ADDRINFOA>;
     using addr_info_iterator = addr_info_iterator_t<ADDRINFOW>;
