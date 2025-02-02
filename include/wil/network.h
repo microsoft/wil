@@ -614,7 +614,6 @@ namespace network
         if (::WSAIoctl(localSocket.get(), controlCode, &rioGuid, DWORD{sizeof(rioGuid)}, &table.f, bytes, &unused_bytes, nullptr, nullptr) != 0)
         {
             LOG_IF_WIN32_ERROR(::WSAGetLastError());
-
             ::memset(&table.f, 0, bytes);
         }
         return table;
