@@ -53,74 +53,72 @@ constexpr uint16_t TestPort = 12345;
 
 static INIT_ONCE SocketTestInit = INIT_ONCE_STATIC_INIT;
 
+static BOOL WINAPI InitializeAllStrings(PINIT_ONCE, PVOID, PVOID*)
+{
+    LPCWSTR terminator{};
+    auto error = RtlIpv4StringToAddressW(Test_in_addr_string, TRUE, &terminator, &Test_in_addr);
+    if (error != ERROR_SUCCESS)
+    {
+        return FALSE;
+    }
+    error = RtlIpv4StringToAddressW(Test_in_addr_string2, TRUE, &terminator, &Test_in_addr2);
+    if (error != ERROR_SUCCESS)
+    {
+        return FALSE;
+    }
+
+    error = RtlIpv6StringToAddressW(Test_in6_addr_string, &terminator, &Test_in6_addr);
+    if (error != ERROR_SUCCESS)
+    {
+        return FALSE;
+    }
+    error = RtlIpv6StringToAddressW(Test_in6_addr_string2, &terminator, &Test_in6_addr2);
+    if (error != ERROR_SUCCESS)
+    {
+        return FALSE;
+    }
+
+    error = RtlIpv4StringToAddressW(Test_linklocal_in_addr_string, TRUE, &terminator, &Test_linklocal_in_addr);
+    if (error != ERROR_SUCCESS)
+    {
+        return FALSE;
+    }
+
+    error = RtlIpv6StringToAddressW(Test_linklocal_in6_addr_string, &terminator, &Test_linklocal_in6_addr);
+    if (error != ERROR_SUCCESS)
+    {
+        return FALSE;
+    }
+
+    error = RtlIpv4StringToAddressW(Test_any_in_addr_string, TRUE, &terminator, &Test_any_in_addr);
+    if (error != ERROR_SUCCESS)
+    {
+        return FALSE;
+    }
+
+    error = RtlIpv6StringToAddressW(Test_any_in6_addr_string, &terminator, &Test_any_in6_addr);
+    if (error != ERROR_SUCCESS)
+    {
+        return FALSE;
+    }
+
+    error = RtlIpv4StringToAddressW(Test_loopback_in_addr_string, TRUE, &terminator, &Test_loopback_in_addr);
+    if (error != ERROR_SUCCESS)
+    {
+        return FALSE;
+    }
+
+    error = RtlIpv6StringToAddressW(Test_loopback_in6_addr_string, &terminator, &Test_loopback_in6_addr);
+    if (error != ERROR_SUCCESS)
+    {
+        return FALSE;
+    }
+
+    return TRUE;
+}
 static void InitTestAddresses()
 {
-    InitOnceExecuteOnce(
-        &SocketTestInit,
-        [](PINIT_ONCE, PVOID, PVOID*) -> BOOL {
-            LPCWSTR terminator{};
-            auto error = RtlIpv4StringToAddressW(Test_in_addr_string, TRUE, &terminator, &Test_in_addr);
-            if (error != ERROR_SUCCESS)
-            {
-                return FALSE;
-            }
-            error = RtlIpv4StringToAddressW(Test_in_addr_string2, TRUE, &terminator, &Test_in_addr2);
-            if (error != ERROR_SUCCESS)
-            {
-                return FALSE;
-            }
-
-            error = RtlIpv6StringToAddressW(Test_in6_addr_string, &terminator, &Test_in6_addr);
-            if (error != ERROR_SUCCESS)
-            {
-                return FALSE;
-            }
-            error = RtlIpv6StringToAddressW(Test_in6_addr_string2, &terminator, &Test_in6_addr2);
-            if (error != ERROR_SUCCESS)
-            {
-                return FALSE;
-            }
-
-            error = RtlIpv4StringToAddressW(Test_linklocal_in_addr_string, TRUE, &terminator, &Test_linklocal_in_addr);
-            if (error != ERROR_SUCCESS)
-            {
-                return FALSE;
-            }
-
-            error = RtlIpv6StringToAddressW(Test_linklocal_in6_addr_string, &terminator, &Test_linklocal_in6_addr);
-            if (error != ERROR_SUCCESS)
-            {
-                return FALSE;
-            }
-
-            error = RtlIpv4StringToAddressW(Test_any_in_addr_string, TRUE, &terminator, &Test_any_in_addr);
-            if (error != ERROR_SUCCESS)
-            {
-                return FALSE;
-            }
-
-            error = RtlIpv6StringToAddressW(Test_any_in6_addr_string, &terminator, &Test_any_in6_addr);
-            if (error != ERROR_SUCCESS)
-            {
-                return FALSE;
-            }
-
-            error = RtlIpv4StringToAddressW(Test_loopback_in_addr_string, TRUE, &terminator, &Test_loopback_in_addr);
-            if (error != ERROR_SUCCESS)
-            {
-                return FALSE;
-            }
-
-            error = RtlIpv6StringToAddressW(Test_loopback_in6_addr_string, &terminator, &Test_loopback_in6_addr);
-            if (error != ERROR_SUCCESS)
-            {
-                return FALSE;
-            }
-
-            return TRUE;
-        },
-        nullptr,
-        nullptr);
+    InitOnceExecuteOnce(&SocketTestInit, InitializeAllStrings, nullptr, nullptr);
 }
 
 TEST_CASE("NetworkingTests::Verifying_wsastartup_cleanup", "[networking]")
