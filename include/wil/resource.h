@@ -5091,7 +5091,7 @@ typedef weak_any<shared_socket> weak_socket;
 /// @endcond
 typedef unique_any<ADDRINFOA*, decltype(&::freeaddrinfo), ::freeaddrinfo> unique_addrinfo_ansi;
 typedef unique_any<ADDRINFOW*, decltype(&::FreeAddrInfoW), ::FreeAddrInfoW> unique_addrinfo;
-// not defining a type for FreeAddrInfoEx(ADDRINFOEXA*) as that API is formally __declspec(deprecated) 
+// not defining a type for FreeAddrInfoEx(ADDRINFOEXA*) as that API is formally __declspec(deprecated)
 typedef unique_any<ADDRINFOEXW*, decltype(&::FreeAddrInfoExW), ::FreeAddrInfoExW> unique_addrinfoex;
 #endif // __WIL_WS2TCPIP_H_
 #if (defined(__WIL_WS2TCPIP_H_) && !defined(__WIL_WS2TCPIP_H_STL) && defined(WIL_RESOURCE_STL)) || defined(WIL_DOXYGEN)

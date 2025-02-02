@@ -168,41 +168,42 @@ namespace details
         }
 
         template <typename LhsT, typename RhsT>
-        static auto equals(LhsT&& lhs, RhsT&& rhs) WI_NOEXCEPT->decltype(compare(wistd::forward<LhsT>(lhs), wistd::forward<RhsT>(rhs)), bool())
+        static auto equals(LhsT&& lhs, RhsT&& rhs)
+            WI_NOEXCEPT -> decltype(compare(wistd::forward<LhsT>(lhs), wistd::forward<RhsT>(rhs)), bool())
         {
             return compare(wistd::forward<LhsT>(lhs), wistd::forward<RhsT>(rhs)) == CSTR_EQUAL;
         }
 
         template <typename LhsT, typename RhsT>
         static auto not_equals(LhsT&& lhs, RhsT&& rhs)
-            WI_NOEXCEPT->decltype(compare(wistd::forward<LhsT>(lhs), wistd::forward<RhsT>(rhs)), bool())
+            WI_NOEXCEPT -> decltype(compare(wistd::forward<LhsT>(lhs), wistd::forward<RhsT>(rhs)), bool())
         {
             return compare(wistd::forward<LhsT>(lhs), wistd::forward<RhsT>(rhs)) != CSTR_EQUAL;
         }
 
         template <typename LhsT, typename RhsT>
-        static auto less(LhsT&& lhs, RhsT&& rhs) WI_NOEXCEPT->decltype(compare(wistd::forward<LhsT>(lhs), wistd::forward<RhsT>(rhs)), bool())
+        static auto less(LhsT&& lhs, RhsT&& rhs) WI_NOEXCEPT -> decltype(compare(wistd::forward<LhsT>(lhs), wistd::forward<RhsT>(rhs)), bool())
         {
             return compare(wistd::forward<LhsT>(lhs), wistd::forward<RhsT>(rhs)) == CSTR_LESS_THAN;
         }
 
         template <typename LhsT, typename RhsT>
         static auto less_equals(LhsT&& lhs, RhsT&& rhs)
-            WI_NOEXCEPT->decltype(compare(wistd::forward<LhsT>(lhs), wistd::forward<RhsT>(rhs)), bool())
+            WI_NOEXCEPT -> decltype(compare(wistd::forward<LhsT>(lhs), wistd::forward<RhsT>(rhs)), bool())
         {
             return compare(wistd::forward<LhsT>(lhs), wistd::forward<RhsT>(rhs)) != CSTR_GREATER_THAN;
         }
 
         template <typename LhsT, typename RhsT>
         static auto greater(LhsT&& lhs, RhsT&& rhs)
-            WI_NOEXCEPT->decltype(compare(wistd::forward<LhsT>(lhs), wistd::forward<RhsT>(rhs)), bool())
+            WI_NOEXCEPT -> decltype(compare(wistd::forward<LhsT>(lhs), wistd::forward<RhsT>(rhs)), bool())
         {
             return compare(wistd::forward<LhsT>(lhs), wistd::forward<RhsT>(rhs)) == CSTR_GREATER_THAN;
         }
 
         template <typename LhsT, typename RhsT>
         static auto greater_equals(LhsT&& lhs, RhsT&& rhs)
-            WI_NOEXCEPT->decltype(compare(wistd::forward<LhsT>(lhs), wistd::forward<RhsT>(rhs)), bool())
+            WI_NOEXCEPT -> decltype(compare(wistd::forward<LhsT>(lhs), wistd::forward<RhsT>(rhs)), bool())
         {
             return compare(wistd::forward<LhsT>(lhs), wistd::forward<RhsT>(rhs)) != CSTR_LESS_THAN;
         }
@@ -1386,7 +1387,7 @@ namespace Windows
                 return typename wil::iterable_range<X>::iterable_iterator();
             }
         } // namespace Collections
-    }     // namespace Foundation
+    } // namespace Foundation
 } // namespace Windows
 #if defined(MIDL_NS_PREFIX) || defined(____x_ABI_CWindows_CFoundation_CIClosable_FWD_DEFINED__)
 } // namespace ABI

@@ -20,8 +20,8 @@
 
 // define WIN32_LEAN_AND_MEAN at the project level to avoid windows.h including older winsock 1.1 headers from winsock.h
 // as including both the Winsock 1.1 header 'winsock.h' and the Winsock 2 header 'winsock2.h' will create compiler errors
-// alternatively, including winsock2.h before windows.h to prevent inclusion of the Winsock 1.1 winsock.h header from within windows.h
-// note: winsock2.h will include windows.h if not already included
+// alternatively, including winsock2.h before windows.h to prevent inclusion of the Winsock 1.1 winsock.h header from within
+// windows.h note: winsock2.h will include windows.h if not already included
 //
 // define _SECURE_SOCKET_TYPES_DEFINED_ at the project level to have access to SocketSecurity* functions in ws2tcpip.h
 //
@@ -407,8 +407,7 @@ namespace network
 
     // begin() and end() support - enabling range-based for loop
     template <typename T>
-    constexpr
-    addr_info_iterator_t<T> end(addr_info_iterator_t<T>) WI_NOEXCEPT
+    constexpr addr_info_iterator_t<T> end(addr_info_iterator_t<T>) WI_NOEXCEPT
     {
         return {};
     }
@@ -487,8 +486,8 @@ namespace network
         //   (this should never happen the caller has a reference, but we failed to get a WSA reference)
         // THEN
         //   this object cannot carry forward any function pointers - it must show successfully loaded == false
-        socket_extension_function_table_t(const socket_extension_function_table_t& rhs) WI_NOEXCEPT :
-            wsa_reference_count{WSAStartup_nothrow()}
+        socket_extension_function_table_t(const socket_extension_function_table_t& rhs) WI_NOEXCEPT
+            : wsa_reference_count{WSAStartup_nothrow()}
         {
             if (!wsa_reference_count || !rhs.wsa_reference_count)
             {
@@ -521,8 +520,7 @@ namespace network
 
     private:
         // constructed via load()
-        socket_extension_function_table_t() WI_NOEXCEPT :
-            wsa_reference_count{WSAStartup_nothrow()}
+        socket_extension_function_table_t() WI_NOEXCEPT : wsa_reference_count{WSAStartup_nothrow()}
         {
         }
 
@@ -546,8 +544,7 @@ namespace network
     }
 
     template <>
-    inline winsock_extension_function_table socket_extension_function_table_t<
-        WINSOCK_EXTENSION_FUNCTION_TABLE>::load() WI_NOEXCEPT
+    inline winsock_extension_function_table socket_extension_function_table_t<WINSOCK_EXTENSION_FUNCTION_TABLE>::load() WI_NOEXCEPT
     {
         winsock_extension_function_table table;
         // if WSAStartup failed, immediately exit
@@ -568,15 +565,7 @@ namespace network
             constexpr DWORD bytes{sizeof(functionPtr)};
             DWORD unused_bytes{};
             const auto error{::WSAIoctl(
-                lambdaSocket,
-                controlCode,
-                &extensionGuid,
-                DWORD{sizeof(extensionGuid)},
-                functionPtr,
-                bytes,
-                &unused_bytes,
-                nullptr,
-                nullptr)};
+                lambdaSocket, controlCode, &extensionGuid, DWORD{sizeof(extensionGuid)}, functionPtr, bytes, &unused_bytes, nullptr, nullptr)};
             return error == 0 ? S_OK : HRESULT_FROM_WIN32(::WSAGetLastError());
         };
 
@@ -622,16 +611,7 @@ namespace network
         table.f.cbSize = bytes;
 
         DWORD unused_bytes{};
-        if (::WSAIoctl(
-                localSocket.get(),
-                controlCode,
-                &rioGuid,
-                DWORD{sizeof(rioGuid)},
-                &table.f,
-                bytes,
-                &unused_bytes,
-                nullptr,
-                nullptr) != 0)
+        if (::WSAIoctl(localSocket.get(), controlCode, &rioGuid, DWORD{sizeof(rioGuid)}, &table.f, bytes, &unused_bytes, nullptr, nullptr) != 0)
         {
             LOG_IF_WIN32_ERROR(::WSAGetLastError());
 
@@ -1120,9 +1100,8 @@ namespace network
         }
 
         const void* const pAddr{
-            family() == AF_INET
-                ? static_cast<const void*>(&m_sockaddr.Ipv4.sin_addr)
-                : static_cast<const void*>(&m_sockaddr.Ipv6.sin6_addr)};
+            family() == AF_INET ? static_cast<const void*>(&m_sockaddr.Ipv4.sin_addr)
+                                : static_cast<const void*>(&m_sockaddr.Ipv6.sin6_addr)};
 
         // the last param to InetNtopW is # of characters, not bytes
         const auto* error_value{::InetNtopW(family(), pAddr, address, INET6_ADDRSTRLEN)};
@@ -1145,9 +1124,8 @@ namespace network
         }
 
         const void* const pAddr{
-            family() == AF_INET
-                ? static_cast<const void*>(&m_sockaddr.Ipv4.sin_addr)
-                : static_cast<const void*>(&m_sockaddr.Ipv6.sin6_addr)};
+            family() == AF_INET ? static_cast<const void*>(&m_sockaddr.Ipv4.sin_addr)
+                                : static_cast<const void*>(&m_sockaddr.Ipv6.sin6_addr)};
 
         // the last param to InetNtopA is # of characters, not bytes
         const auto* error_value{::InetNtopA(family(), pAddr, address, INET6_ADDRSTRLEN)};

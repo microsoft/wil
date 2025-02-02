@@ -842,7 +842,7 @@ namespace details
         : sizeof(val) == 2 ? static_cast<unsigned short>(val) \
         : sizeof(val) == 4 ? static_cast<unsigned long>(val) \
                            : static_cast<unsigned long long>(val)) __pragma(warning(pop)))
-#define __WI_IS_UNSIGNED_SINGLE_FLAG_SET(val) ((val) && !((val) & ((val)-1)))
+#define __WI_IS_UNSIGNED_SINGLE_FLAG_SET(val) ((val) && !((val) & ((val) - 1)))
 #define __WI_IS_SINGLE_FLAG_SET(val) __WI_IS_UNSIGNED_SINGLE_FLAG_SET(__WI_MAKE_UNSIGNED(val))
 
     template <typename TVal, typename TFlags>
