@@ -3074,7 +3074,7 @@ TEST_CASE("com_timeout", "[com][com_timeout]")
     auto init = wil::CoInitializeEx_failfast();
 
     // These test cases require calling a COM server via proxy, so that we can exercise cancellation through
-    // the COM runtime..  Additionally, this server needs to support the ability to control if it hangs
+    // the COM runtime.  Additionally, this server needs to support the ability to control if it hangs
     // or returns quickly.  The following class provides that functionality, using some global events to
     // provide deterministic ordering of operations.
     //
@@ -3101,7 +3101,8 @@ TEST_CASE("com_timeout", "[com][com_timeout]")
                 DWORD index;
                 REQUIRE_SUCCEEDED(CoWaitForMultipleObjects(
                     CWMO_DISPATCH_CALLS | CWMO_DISPATCH_WINDOW_MESSAGES, 10000, ARRAYSIZE(handles), handles, &index));
-
+                // if this fails with -2147417835 (0x80010115), that's the error RPC_S_CALLPENDING
+                // i.e., the CoWaitForMultipleObjects call timed out before the handle was signaled
                 if (_doneHangingHandle)
                 {
                     _doneHangingHandle.SetEvent();
@@ -3121,7 +3122,7 @@ TEST_CASE("com_timeout", "[com][com_timeout]")
     agileReferencePopulated.create();
 
     // These handles are used to coordinate with the COM server thread.  The first one causes it to block.  The
-    // done hanging event lets us know that it is done blocking and we can proceed with a second call that should
+    // done hanging event lets us know that it is done blocking, and we can proceed with a second call that should
     // avoid reentering.
     wil::shared_event hangingHandle;
     hangingHandle.create();
