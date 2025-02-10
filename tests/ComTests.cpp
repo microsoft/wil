@@ -3179,35 +3179,29 @@ TEST_CASE("com_timeout", "[com][com_timeout]")
     }
     SECTION("RPC timeout test")
     {
+        *(shouldHang.get()) = true;
         hangingHandle.ResetEvent();
         doneHangingHandle.ResetEvent();
-        *(shouldHang.get()) = true;
 
-        wil::com_timeout timeout{100};
+        wil::com_timeout timeout{1000};
         REQUIRE(static_cast<bool>(timeout));
-        // The timeout is now in place.  The blocking call should cancel in a timely manner and fail with RPC_E_CALL_CANCELED.
+
         wil::com_ptr<ABI::Windows::Foundation::IStringable> localServer =
             agileStringable.query<ABI::Windows::Foundation::IStringable>();
+
+        // The timeout is now in place.  The blocking call should cancel in a timely manner and fail with RPC_E_CALL_CANCELED.
         wil::unique_hstring value;
         auto localServerResult = localServer->ToString(&value);
         REQUIRE(static_cast<bool>(localServerResult == RPC_E_CALL_CANCELED));
-        REQUIRE(timeout.timed_out());
 
-        hangingHandle.SetEvent();
-        REQUIRE(doneHangingHandle.wait(5000));
-
-        /* The timeout has already expired - this isn't doing what it says it's doing
-        // Make a second blocking call within the lifetime of the same com_timeout instance.  This second call should also
-        // cancel and return.
+        // Make a second blocking call within the lifetime of the same com_timeout instance.
+        // This second call should also cancel and return.
         localServerResult = localServer->ToString(&value);
         REQUIRE(static_cast<bool>(localServerResult == RPC_E_CALL_CANCELED));
-        REQUIRE(timeout.timed_out());
 
+        REQUIRE(timeout.timed_out());
         hangingHandle.SetEvent();
         REQUIRE(doneHangingHandle.wait(5000));
-
-        *(shouldHang.get()) = false;
-        */
     }
     SECTION("Non-timeout unaffected test")
     {
