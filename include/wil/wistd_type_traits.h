@@ -86,9 +86,7 @@ using conditional_t = typename conditional<_Bp, _If, _Then>::type;
 #endif
 
 template <bool, class _Tp>
-struct __WI_LIBCPP_TEMPLATE_VIS __lazy_enable_if
-{
-};
+struct __WI_LIBCPP_TEMPLATE_VIS __lazy_enable_if{};
 template <class _Tp>
 struct __WI_LIBCPP_TEMPLATE_VIS __lazy_enable_if<true, _Tp>
 {
@@ -96,9 +94,7 @@ struct __WI_LIBCPP_TEMPLATE_VIS __lazy_enable_if<true, _Tp>
 };
 
 template <bool, class _Tp = void>
-struct __WI_LIBCPP_TEMPLATE_VIS enable_if
-{
-};
+struct __WI_LIBCPP_TEMPLATE_VIS enable_if{};
 template <class _Tp>
 struct __WI_LIBCPP_TEMPLATE_VIS enable_if<true, _Tp>
 {
@@ -2278,9 +2274,7 @@ struct __WI_LIBCPP_TEMPLATE_VIS common_type<_Tp, _Up, void>
 // bullet 1 - sizeof...(Tp) == 0
 
 template <class... _Tp>
-struct __WI_LIBCPP_TEMPLATE_VIS common_type
-{
-};
+struct __WI_LIBCPP_TEMPLATE_VIS common_type{};
 
 // bullet 2 - sizeof...(Tp) == 1
 

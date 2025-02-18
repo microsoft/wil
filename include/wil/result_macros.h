@@ -5517,8 +5517,7 @@ namespace details
         }
 
         template <__R_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_CLASS(PointerT)>
-        __R_CONDITIONAL_TEMPLATE_METHOD(void, Log_IfNullAlloc)
-        (__R_CONDITIONAL_FN_PARAMS const PointerT& pointer) WI_NOEXCEPT
+        __R_CONDITIONAL_TEMPLATE_METHOD(void, Log_IfNullAlloc)(__R_CONDITIONAL_FN_PARAMS const PointerT& pointer) WI_NOEXCEPT
         {
             if (pointer == nullptr)
             {
@@ -5559,8 +5558,7 @@ namespace details
         }
 
         template <__R_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_CLASS(PointerT)>
-        __R_CONDITIONAL_TEMPLATE_METHOD(void, Log_HrIfNull)
-        (__R_CONDITIONAL_FN_PARAMS HRESULT hr, _In_opt_ const PointerT& pointer) WI_NOEXCEPT
+        __R_CONDITIONAL_TEMPLATE_METHOD(void, Log_HrIfNull)(__R_CONDITIONAL_FN_PARAMS HRESULT hr, _In_opt_ const PointerT& pointer) WI_NOEXCEPT
         {
             if (pointer == nullptr)
             {
@@ -5601,8 +5599,7 @@ namespace details
         }
 
         template <__R_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_CLASS(PointerT)>
-        __R_CONDITIONAL_TEMPLATE_METHOD(void, Log_GetLastErrorIfNull)
-        (__R_CONDITIONAL_FN_PARAMS _In_opt_ const PointerT& pointer) WI_NOEXCEPT
+        __R_CONDITIONAL_TEMPLATE_METHOD(void, Log_GetLastErrorIfNull)(__R_CONDITIONAL_FN_PARAMS _In_opt_ const PointerT& pointer) WI_NOEXCEPT
         {
             if (pointer == nullptr)
             {
@@ -5781,8 +5778,8 @@ namespace details
         }
 
         template <__R_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_CLASS(PointerT)>
-        __R_CONDITIONAL_NOINLINE_TEMPLATE_METHOD(void, Log_IfNullAllocMsg)
-        (__R_CONDITIONAL_FN_PARAMS const PointerT& pointer, _Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT
+        __R_CONDITIONAL_NOINLINE_TEMPLATE_METHOD(void, Log_IfNullAllocMsg)(
+            __R_CONDITIONAL_FN_PARAMS const PointerT& pointer, _Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT
         {
             if (pointer == nullptr)
             {
@@ -5831,8 +5828,8 @@ namespace details
         }
 
         template <__R_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_CLASS(PointerT)>
-        __R_CONDITIONAL_NOINLINE_TEMPLATE_METHOD(void, Log_HrIfNullMsg)
-        (__R_CONDITIONAL_FN_PARAMS HRESULT hr, _In_opt_ const PointerT& pointer, _Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT
+        __R_CONDITIONAL_NOINLINE_TEMPLATE_METHOD(void, Log_HrIfNullMsg)(
+            __R_CONDITIONAL_FN_PARAMS HRESULT hr, _In_opt_ const PointerT& pointer, _Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT
         {
             if (pointer == nullptr)
             {
@@ -5880,8 +5877,8 @@ namespace details
         }
 
         template <__R_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_CLASS(PointerT)>
-        __R_CONDITIONAL_NOINLINE_TEMPLATE_METHOD(void, Log_GetLastErrorIfNullMsg)
-        (__R_CONDITIONAL_FN_PARAMS _In_opt_ const PointerT& pointer, _Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT
+        __R_CONDITIONAL_NOINLINE_TEMPLATE_METHOD(void, Log_GetLastErrorIfNullMsg)(
+            __R_CONDITIONAL_FN_PARAMS _In_opt_ const PointerT& pointer, _Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT
         {
             if (pointer == nullptr)
             {
@@ -6040,8 +6037,7 @@ namespace details
 
         // Should be decorated WI_NOEXCEPT, but conflicts with forceinline.
         template <__RFF_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_CLASS(PointerT)>
-        __RFF_CONDITIONAL_TEMPLATE_METHOD(void, FailFast_IfNullAlloc)
-        (__RFF_CONDITIONAL_FN_PARAMS const PointerT& pointer)
+        __RFF_CONDITIONAL_TEMPLATE_METHOD(void, FailFast_IfNullAlloc)(__RFF_CONDITIONAL_FN_PARAMS const PointerT& pointer)
         {
             if (pointer == nullptr)
             {
@@ -6084,8 +6080,7 @@ namespace details
 
         // Should be decorated WI_NOEXCEPT, but conflicts with forceinline.
         template <__RFF_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_CLASS(PointerT)>
-        __RFF_CONDITIONAL_TEMPLATE_METHOD(void, FailFast_HrIfNull)
-        (__RFF_CONDITIONAL_FN_PARAMS HRESULT hr, _In_opt_ const PointerT& pointer)
+        __RFF_CONDITIONAL_TEMPLATE_METHOD(void, FailFast_HrIfNull)(__RFF_CONDITIONAL_FN_PARAMS HRESULT hr, _In_opt_ const PointerT& pointer)
         {
             if (pointer == nullptr)
             {
@@ -6128,8 +6123,7 @@ namespace details
 
         // Should be decorated WI_NOEXCEPT, but conflicts with forceinline.
         template <__RFF_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_CLASS(PointerT)>
-        __RFF_CONDITIONAL_TEMPLATE_METHOD(void, FailFast_GetLastErrorIfNull)
-        (__RFF_CONDITIONAL_FN_PARAMS _In_opt_ const PointerT& pointer)
+        __RFF_CONDITIONAL_TEMPLATE_METHOD(void, FailFast_GetLastErrorIfNull)(__RFF_CONDITIONAL_FN_PARAMS _In_opt_ const PointerT& pointer)
         {
             if (pointer == nullptr)
             {
@@ -6315,8 +6309,8 @@ namespace details
         }
 
         template <__RFF_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_CLASS(PointerT)>
-        __RFF_CONDITIONAL_NOINLINE_TEMPLATE_METHOD(void, FailFast_IfNullAllocMsg)
-        (__RFF_CONDITIONAL_FN_PARAMS const PointerT& pointer, _Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT
+        __RFF_CONDITIONAL_NOINLINE_TEMPLATE_METHOD(void, FailFast_IfNullAllocMsg)(
+            __RFF_CONDITIONAL_FN_PARAMS const PointerT& pointer, _Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT
         {
             if (pointer == nullptr)
             {
@@ -6371,8 +6365,8 @@ namespace details
         }
 
         template <__RFF_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_CLASS(PointerT)>
-        __RFF_CONDITIONAL_NOINLINE_TEMPLATE_METHOD(void, FailFast_HrIfNullMsg)
-        (__RFF_CONDITIONAL_FN_PARAMS HRESULT hr, _In_opt_ const PointerT& pointer, _Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT
+        __RFF_CONDITIONAL_NOINLINE_TEMPLATE_METHOD(void, FailFast_HrIfNullMsg)(
+            __RFF_CONDITIONAL_FN_PARAMS HRESULT hr, _In_opt_ const PointerT& pointer, _Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT
         {
             if (pointer == nullptr)
             {
@@ -6427,8 +6421,8 @@ namespace details
         }
 
         template <__RFF_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_CLASS(PointerT)>
-        __RFF_CONDITIONAL_NOINLINE_TEMPLATE_METHOD(void, FailFast_GetLastErrorIfNullMsg)
-        (__RFF_CONDITIONAL_FN_PARAMS _In_opt_ const PointerT& pointer, _Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT
+        __RFF_CONDITIONAL_NOINLINE_TEMPLATE_METHOD(void, FailFast_GetLastErrorIfNullMsg)(
+            __RFF_CONDITIONAL_FN_PARAMS _In_opt_ const PointerT& pointer, _Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT
         {
             if (pointer == nullptr)
             {
@@ -6569,8 +6563,8 @@ namespace details
         }
 
         template <__RFF_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_CLASS(PointerT)>
-        __RFF_CONDITIONAL_NOINLINE_TEMPLATE_METHOD(void, FailFast_IfNullMsg)
-        (__RFF_CONDITIONAL_FN_PARAMS _In_opt_ const PointerT& pointer, _Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT
+        __RFF_CONDITIONAL_NOINLINE_TEMPLATE_METHOD(void, FailFast_IfNullMsg)(
+            __RFF_CONDITIONAL_FN_PARAMS _In_opt_ const PointerT& pointer, _Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT
         {
             if (pointer == nullptr)
             {
@@ -6640,8 +6634,7 @@ namespace details
 
         // Should be decorated WI_NOEXCEPT, but conflicts with forceinline.
         template <__RFF_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_CLASS(PointerT)>
-        __RFF_CONDITIONAL_TEMPLATE_METHOD(void, FailFastImmediate_IfNull)
-        (_In_opt_ const PointerT& pointer)
+        __RFF_CONDITIONAL_TEMPLATE_METHOD(void, FailFastImmediate_IfNull)(_In_opt_ const PointerT& pointer)
         {
             if (pointer == nullptr)
             {
@@ -6790,8 +6783,7 @@ namespace details
         }
 
         template <__R_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_CLASS(PointerT)>
-        __R_CONDITIONAL_TEMPLATE_METHOD(void, Throw_IfNullAlloc)
-        (__R_CONDITIONAL_FN_PARAMS const PointerT& pointer)
+        __R_CONDITIONAL_TEMPLATE_METHOD(void, Throw_IfNullAlloc)(__R_CONDITIONAL_FN_PARAMS const PointerT& pointer)
         {
             if (pointer == nullptr)
             {
@@ -6832,8 +6824,7 @@ namespace details
         }
 
         template <__R_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_CLASS(PointerT)>
-        __R_CONDITIONAL_TEMPLATE_METHOD(void, Throw_HrIfNull)
-        (__R_CONDITIONAL_FN_PARAMS HRESULT hr, _In_opt_ const PointerT& pointer)
+        __R_CONDITIONAL_TEMPLATE_METHOD(void, Throw_HrIfNull)(__R_CONDITIONAL_FN_PARAMS HRESULT hr, _In_opt_ const PointerT& pointer)
         {
             if (pointer == nullptr)
             {
@@ -6884,8 +6875,7 @@ namespace details
         }
 
         template <__R_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_CLASS(PointerT)>
-        __R_CONDITIONAL_TEMPLATE_METHOD(void, Throw_GetLastErrorIfNull)
-        (__R_CONDITIONAL_FN_PARAMS _In_opt_ const PointerT& pointer)
+        __R_CONDITIONAL_TEMPLATE_METHOD(void, Throw_GetLastErrorIfNull)(__R_CONDITIONAL_FN_PARAMS _In_opt_ const PointerT& pointer)
         {
             if (pointer == nullptr)
             {
