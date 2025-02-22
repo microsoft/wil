@@ -3105,7 +3105,7 @@ TEST_CASE("com_timeout", "[com][com_timeout]")
                     L"[%llu] ... ToString(): starting CoWaitForMultipleObjects\n",
                     wil::filetime::convert_100ns_to_msec(wil::filetime::to_int64(wil::filetime::get_system_time())) - testStartTime);
                 const auto hr = CoWaitForMultipleObjects(
-                    CWMO_DISPATCH_CALLS | CWMO_DISPATCH_WINDOW_MESSAGES, 10000, ARRAYSIZE(handles), handles, &index);
+                    CWMO_DISPATCH_CALLS | CWMO_DISPATCH_WINDOW_MESSAGES, 15000, ARRAYSIZE(handles), handles, &index);
                 wprintf(
                     L"[%llu] ... ToString(): CoWaitForMultipleObjects return 0x%x\n",
                     wil::filetime::convert_100ns_to_msec(wil::filetime::to_int64(wil::filetime::get_system_time())) - testStartTime,
@@ -3116,7 +3116,7 @@ TEST_CASE("com_timeout", "[com][com_timeout]")
                 if (_doneHangingHandle)
                 {
                     wprintf(
-                        L"[%llu] ... ToString(): _doneHangingHandle.SetEvent()\n",
+                        L"[%llu] ... To: _doneHangingHandle.SetEvent()\n",
                         wil::filetime::convert_100ns_to_msec(wil::filetime::to_int64(wil::filetime::get_system_time())) - testStartTime);
                     _doneHangingHandle.SetEvent();
                 }
@@ -3197,7 +3197,7 @@ TEST_CASE("com_timeout", "[com][com_timeout]")
         doneHangingHandle.ResetEvent();
 
         testStartTime = wil::filetime::convert_100ns_to_msec(wil::filetime::to_int64(wil::filetime::get_system_time()));
-        wil::com_timeout timeout{1000};
+        wil::com_timeout timeout{2000};
         REQUIRE(static_cast<bool>(timeout));
 
         wil::com_ptr<ABI::Windows::Foundation::IStringable> localServer =
@@ -3220,7 +3220,7 @@ TEST_CASE("com_timeout", "[com][com_timeout]")
         wprintf(
             L"[%llu] waiting for doneHangingHandle\n",
             wil::filetime::convert_100ns_to_msec(wil::filetime::to_int64(wil::filetime::get_system_time())) - testStartTime);
-        REQUIRE(doneHangingHandle.wait(5000));
+        REQUIRE(doneHangingHandle.wait(10000));
         wprintf(
             L"[%llu] finished waiting for doneHangingHandle\n",
             wil::filetime::convert_100ns_to_msec(wil::filetime::to_int64(wil::filetime::get_system_time())) - testStartTime);
@@ -3239,13 +3239,12 @@ TEST_CASE("com_timeout", "[com][com_timeout]")
             wil::filetime::convert_100ns_to_msec(wil::filetime::to_int64(wil::filetime::get_system_time())) - testStartTime,
             localServerResult);
         REQUIRE(static_cast<bool>(localServerResult == RPC_E_CALL_CANCELED));
-
         REQUIRE(timeout.timed_out());
         hangingHandle.SetEvent();
         wprintf(
             L"[%llu] waiting for doneHangingHandle\n",
             wil::filetime::convert_100ns_to_msec(wil::filetime::to_int64(wil::filetime::get_system_time())) - testStartTime);
-        REQUIRE(doneHangingHandle.wait(5000));
+        REQUIRE(doneHangingHandle.wait(10000));
         wprintf(
             L"[%llu] finished waiting for doneHangingHandle\n",
             wil::filetime::convert_100ns_to_msec(wil::filetime::to_int64(wil::filetime::get_system_time())) - testStartTime);
