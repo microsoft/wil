@@ -1991,8 +1991,7 @@ namespace details
     __declspec(selectany) void(__stdcall* g_pfnRaiseFailFastException)(PEXCEPTION_RECORD, PCONTEXT, DWORD) = nullptr;
 
     // Exception-based compiled additions
-    __declspec(selectany)
-        HRESULT(__stdcall* g_pfnRunFunctorWithExceptionFilter)(IFunctor& functor, IFunctorHost& host, void* returnAddress) = nullptr;
+    __declspec(selectany) HRESULT(__stdcall* g_pfnRunFunctorWithExceptionFilter)(IFunctor& functor, IFunctorHost& host, void* returnAddress) = nullptr;
     __declspec(selectany) void(__stdcall* g_pfnRethrow)() = nullptr;
     __declspec(selectany) void(__stdcall* g_pfnThrowResultException)(const FailureInfo& failure) = nullptr;
     extern "C" __declspec(selectany) ResultStatus(__stdcall* g_pfnResultFromCaughtExceptionInternal)(
@@ -2213,8 +2212,8 @@ namespace details
     template <FailureType>
     __declspec(noinline) inline void ReportFailure_Hr(__R_FN_PARAMS_FULL, HRESULT hr, FailureFlags flags = FailureFlags::None);
     template <FailureType>
-    __declspec(noinline) inline HRESULT
-        ReportFailure_CaughtException(__R_FN_PARAMS_FULL, SupportedExceptions supported = SupportedExceptions::Default);
+    __declspec(noinline) inline HRESULT ReportFailure_CaughtException(
+        __R_FN_PARAMS_FULL, SupportedExceptions supported = SupportedExceptions::Default);
 
 //*****************************************************************************
 // Fail fast helpers (for use only internally to WIL)
@@ -3133,7 +3132,7 @@ namespace details
         g_pfnRaiseFailFastException = ::RaiseFailFastException;
         return 1;
     });
-}
+} // namespace details
 #endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
 
 //*****************************************************************************
@@ -4119,8 +4118,7 @@ namespace details
         }
     }
 
-    __declspec(noinline) inline HRESULT
-        ResultFromException(const DiagnosticsInfo& diagnostics, SupportedExceptions supported, IFunctor& functor) WI_NOEXCEPT
+    __declspec(noinline) inline HRESULT ResultFromException(const DiagnosticsInfo& diagnostics, SupportedExceptions supported, IFunctor& functor) WI_NOEXCEPT
     {
 #ifdef RESULT_DEBUG
         // We can't do debug SEH handling if the caller also wants a shot at mapping the exceptions
@@ -4140,8 +4138,8 @@ namespace details
         }
     }
 
-    __declspec(noinline) inline HRESULT
-        ResultFromExceptionDebug(const DiagnosticsInfo& diagnostics, SupportedExceptions supported, IFunctor& functor) WI_NOEXCEPT
+    __declspec(noinline) inline HRESULT ResultFromExceptionDebug(
+        const DiagnosticsInfo& diagnostics, SupportedExceptions supported, IFunctor& functor) WI_NOEXCEPT
     {
         return wil::details::ResultFromExceptionSeh(diagnostics, _ReturnAddress(), supported, functor);
     }
@@ -4579,8 +4577,8 @@ namespace details
     }
 
     template <FailureType T>
-    inline __declspec(noinline) RESULT_NORETURN
-        void ReportFailure_NoReturn(__R_FN_PARAMS_FULL, const ResultStatus& resultPair, PCWSTR message, ReportFailureOptions options)
+    inline __declspec(noinline) RESULT_NORETURN void ReportFailure_NoReturn(
+        __R_FN_PARAMS_FULL, const ResultStatus& resultPair, PCWSTR message, ReportFailureOptions options)
     {
         bool needPlatformException =
             ((T == FailureType::Exception) && WI_IsFlagClear(options, ReportFailureOptions::MayRethrow) &&
@@ -4814,15 +4812,13 @@ namespace details
     }
 
     template <>
-    __declspec(noinline) inline RESULT_NORETURN
-        void ReportFailure_Hr<FailureType::FailFast>(__R_FN_PARAMS_FULL, HRESULT hr, FailureFlags)
+    __declspec(noinline) inline RESULT_NORETURN void ReportFailure_Hr<FailureType::FailFast>(__R_FN_PARAMS_FULL, HRESULT hr, FailureFlags)
     {
         ReportFailure_Base<FailureType::FailFast>(__R_FN_CALL_FULL, ResultStatus::FromResult(hr));
     }
 
     template <>
-    __declspec(noinline) inline RESULT_NORETURN
-        void ReportFailure_Hr<FailureType::Exception>(__R_FN_PARAMS_FULL, HRESULT hr, FailureFlags)
+    __declspec(noinline) inline RESULT_NORETURN void ReportFailure_Hr<FailureType::Exception>(__R_FN_PARAMS_FULL, HRESULT hr, FailureFlags)
     {
         ReportFailure_Base<FailureType::Exception>(__R_FN_CALL_FULL, ResultStatus::FromResult(hr));
     }
@@ -4973,7 +4969,7 @@ namespace details
 
     template <>
     __declspec(noinline) inline RESULT_NORETURN HRESULT
-        ReportFailure_CaughtException<FailureType::FailFast>(__R_FN_PARAMS_FULL, SupportedExceptions supported)
+    ReportFailure_CaughtException<FailureType::FailFast>(__R_FN_PARAMS_FULL, SupportedExceptions supported)
     {
         wchar_t message[2048]{};
         RESULT_NORETURN_RESULT(
@@ -4982,7 +4978,7 @@ namespace details
 
     template <>
     __declspec(noinline) inline RESULT_NORETURN HRESULT
-        ReportFailure_CaughtException<FailureType::Exception>(__R_FN_PARAMS_FULL, SupportedExceptions supported)
+    ReportFailure_CaughtException<FailureType::Exception>(__R_FN_PARAMS_FULL, SupportedExceptions supported)
     {
         wchar_t message[2048]{};
         RESULT_NORETURN_RESULT(
@@ -4996,15 +4992,15 @@ namespace details
     }
 
     template <>
-    __declspec(noinline) inline RESULT_NORETURN
-        void ReportFailure_HrMsg<FailureType::FailFast>(__R_FN_PARAMS_FULL, HRESULT hr, _Printf_format_string_ PCSTR formatString, va_list argList)
+    __declspec(noinline) inline RESULT_NORETURN void ReportFailure_HrMsg<FailureType::FailFast>(
+        __R_FN_PARAMS_FULL, HRESULT hr, _Printf_format_string_ PCSTR formatString, va_list argList)
     {
         ReportFailure_Msg<FailureType::FailFast>(__R_FN_CALL_FULL, ResultStatus::FromResult(hr), formatString, argList);
     }
 
     template <>
-    __declspec(noinline) inline RESULT_NORETURN
-        void ReportFailure_HrMsg<FailureType::Exception>(__R_FN_PARAMS_FULL, HRESULT hr, _Printf_format_string_ PCSTR formatString, va_list argList)
+    __declspec(noinline) inline RESULT_NORETURN void ReportFailure_HrMsg<FailureType::Exception>(
+        __R_FN_PARAMS_FULL, HRESULT hr, _Printf_format_string_ PCSTR formatString, va_list argList)
     {
         ReportFailure_Msg<FailureType::Exception>(__R_FN_CALL_FULL, ResultStatus::FromResult(hr), formatString, argList);
     }
@@ -5012,8 +5008,7 @@ namespace details
     template <FailureType T>
     _Success_(true)
     _Translates_Win32_to_HRESULT_(err)
-    __declspec(noinline) inline HRESULT
-        ReportFailure_Win32Msg(__R_FN_PARAMS_FULL, DWORD err, _Printf_format_string_ PCSTR formatString, va_list argList)
+    __declspec(noinline) inline HRESULT ReportFailure_Win32Msg(__R_FN_PARAMS_FULL, DWORD err, _Printf_format_string_ PCSTR formatString, va_list argList)
     {
         auto hr = __HRESULT_FROM_WIN32(err);
         ReportFailure_Msg<T>(__R_FN_CALL_FULL, ResultStatus::FromResult(hr), formatString, argList);
@@ -5043,8 +5038,7 @@ namespace details
     }
 
     template <FailureType T>
-    __declspec(noinline) inline DWORD
-        ReportFailure_GetLastErrorMsg(__R_FN_PARAMS_FULL, _Printf_format_string_ PCSTR formatString, va_list argList)
+    __declspec(noinline) inline DWORD ReportFailure_GetLastErrorMsg(__R_FN_PARAMS_FULL, _Printf_format_string_ PCSTR formatString, va_list argList)
     {
         auto err = GetLastErrorFail(__R_FN_CALL_FULL);
         auto hr = __HRESULT_FROM_WIN32(err);
@@ -5054,8 +5048,8 @@ namespace details
     }
 
     template <>
-    __declspec(noinline) inline RESULT_NORETURN DWORD ReportFailure_GetLastErrorMsg<FailureType::FailFast>(
-        __R_FN_PARAMS_FULL, _Printf_format_string_ PCSTR formatString, va_list argList)
+    __declspec(noinline) inline RESULT_NORETURN DWORD
+    ReportFailure_GetLastErrorMsg<FailureType::FailFast>(__R_FN_PARAMS_FULL, _Printf_format_string_ PCSTR formatString, va_list argList)
     {
         auto err = GetLastErrorFail(__R_FN_CALL_FULL);
         auto hr = __HRESULT_FROM_WIN32(err);
@@ -5076,8 +5070,7 @@ namespace details
     template <FailureType T>
     _Success_(true)
     _Translates_last_error_to_HRESULT_
-    __declspec(noinline) inline HRESULT
-        ReportFailure_GetLastErrorHrMsg(__R_FN_PARAMS_FULL, _Printf_format_string_ PCSTR formatString, va_list argList)
+    __declspec(noinline) inline HRESULT ReportFailure_GetLastErrorHrMsg(__R_FN_PARAMS_FULL, _Printf_format_string_ PCSTR formatString, va_list argList)
     {
         auto hr = GetLastErrorFailHr(__R_FN_CALL_FULL);
         ReportFailure_Msg<T>(__R_FN_CALL_FULL, ResultStatus::FromResult(hr), formatString, argList);
@@ -5109,8 +5102,8 @@ namespace details
     template <FailureType T>
     _Success_(true)
     _Translates_NTSTATUS_to_HRESULT_(status)
-    __declspec(noinline) inline HRESULT
-        ReportFailure_NtStatusMsg(__R_FN_PARAMS_FULL, NTSTATUS status, _Printf_format_string_ PCSTR formatString, va_list argList)
+    __declspec(noinline) inline HRESULT ReportFailure_NtStatusMsg(
+        __R_FN_PARAMS_FULL, NTSTATUS status, _Printf_format_string_ PCSTR formatString, va_list argList)
     {
         const auto resultPair = ResultStatus::FromStatus(status);
         ReportFailure_Msg<T>(__R_FN_CALL_FULL, resultPair, formatString, argList);
@@ -5140,8 +5133,7 @@ namespace details
     }
 
     template <FailureType T>
-    __declspec(noinline) inline HRESULT
-        ReportFailure_CaughtExceptionMsg(__R_FN_PARAMS_FULL, _Printf_format_string_ PCSTR formatString, va_list argList)
+    __declspec(noinline) inline HRESULT ReportFailure_CaughtExceptionMsg(__R_FN_PARAMS_FULL, _Printf_format_string_ PCSTR formatString, va_list argList)
     {
         // Pre-populate the buffer with our message, the exception message will be added to it...
         wchar_t message[2048];
@@ -5250,8 +5242,8 @@ namespace details
     }
 
     template <typename T>
-    __declspec(noinline) RESULT_NORETURN
-        inline void ReportFailure_CustomExceptionMsg(__R_FN_PARAMS _In_ T exception, _In_ _Printf_format_string_ PCSTR formatString, ...)
+    __declspec(noinline) RESULT_NORETURN inline void ReportFailure_CustomExceptionMsg(
+        __R_FN_PARAMS _In_ T exception, _In_ _Printf_format_string_ PCSTR formatString, ...)
     {
         va_list argList;
         va_start(argList, formatString);
@@ -5525,8 +5517,7 @@ namespace details
         }
 
         template <__R_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_CLASS(PointerT)>
-        __R_CONDITIONAL_TEMPLATE_METHOD(void, Log_IfNullAlloc)
-        (__R_CONDITIONAL_FN_PARAMS const PointerT& pointer) WI_NOEXCEPT
+        __R_CONDITIONAL_TEMPLATE_METHOD(void, Log_IfNullAlloc)(__R_CONDITIONAL_FN_PARAMS const PointerT& pointer) WI_NOEXCEPT
         {
             if (pointer == nullptr)
             {
@@ -5567,8 +5558,7 @@ namespace details
         }
 
         template <__R_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_CLASS(PointerT)>
-        __R_CONDITIONAL_TEMPLATE_METHOD(void, Log_HrIfNull)
-        (__R_CONDITIONAL_FN_PARAMS HRESULT hr, _In_opt_ const PointerT& pointer) WI_NOEXCEPT
+        __R_CONDITIONAL_TEMPLATE_METHOD(void, Log_HrIfNull)(__R_CONDITIONAL_FN_PARAMS HRESULT hr, _In_opt_ const PointerT& pointer) WI_NOEXCEPT
         {
             if (pointer == nullptr)
             {
@@ -5609,8 +5599,7 @@ namespace details
         }
 
         template <__R_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_CLASS(PointerT)>
-        __R_CONDITIONAL_TEMPLATE_METHOD(void, Log_GetLastErrorIfNull)
-        (__R_CONDITIONAL_FN_PARAMS _In_opt_ const PointerT& pointer) WI_NOEXCEPT
+        __R_CONDITIONAL_TEMPLATE_METHOD(void, Log_GetLastErrorIfNull)(__R_CONDITIONAL_FN_PARAMS _In_opt_ const PointerT& pointer) WI_NOEXCEPT
         {
             if (pointer == nullptr)
             {
@@ -5789,8 +5778,8 @@ namespace details
         }
 
         template <__R_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_CLASS(PointerT)>
-        __R_CONDITIONAL_NOINLINE_TEMPLATE_METHOD(void, Log_IfNullAllocMsg)
-        (__R_CONDITIONAL_FN_PARAMS const PointerT& pointer, _Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT
+        __R_CONDITIONAL_NOINLINE_TEMPLATE_METHOD(void, Log_IfNullAllocMsg)(
+            __R_CONDITIONAL_FN_PARAMS const PointerT& pointer, _Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT
         {
             if (pointer == nullptr)
             {
@@ -5839,8 +5828,8 @@ namespace details
         }
 
         template <__R_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_CLASS(PointerT)>
-        __R_CONDITIONAL_NOINLINE_TEMPLATE_METHOD(void, Log_HrIfNullMsg)
-        (__R_CONDITIONAL_FN_PARAMS HRESULT hr, _In_opt_ const PointerT& pointer, _Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT
+        __R_CONDITIONAL_NOINLINE_TEMPLATE_METHOD(void, Log_HrIfNullMsg)(
+            __R_CONDITIONAL_FN_PARAMS HRESULT hr, _In_opt_ const PointerT& pointer, _Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT
         {
             if (pointer == nullptr)
             {
@@ -5888,8 +5877,8 @@ namespace details
         }
 
         template <__R_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_CLASS(PointerT)>
-        __R_CONDITIONAL_NOINLINE_TEMPLATE_METHOD(void, Log_GetLastErrorIfNullMsg)
-        (__R_CONDITIONAL_FN_PARAMS _In_opt_ const PointerT& pointer, _Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT
+        __R_CONDITIONAL_NOINLINE_TEMPLATE_METHOD(void, Log_GetLastErrorIfNullMsg)(
+            __R_CONDITIONAL_FN_PARAMS _In_opt_ const PointerT& pointer, _Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT
         {
             if (pointer == nullptr)
             {
@@ -6048,8 +6037,7 @@ namespace details
 
         // Should be decorated WI_NOEXCEPT, but conflicts with forceinline.
         template <__RFF_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_CLASS(PointerT)>
-        __RFF_CONDITIONAL_TEMPLATE_METHOD(void, FailFast_IfNullAlloc)
-        (__RFF_CONDITIONAL_FN_PARAMS const PointerT& pointer)
+        __RFF_CONDITIONAL_TEMPLATE_METHOD(void, FailFast_IfNullAlloc)(__RFF_CONDITIONAL_FN_PARAMS const PointerT& pointer)
         {
             if (pointer == nullptr)
             {
@@ -6092,8 +6080,7 @@ namespace details
 
         // Should be decorated WI_NOEXCEPT, but conflicts with forceinline.
         template <__RFF_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_CLASS(PointerT)>
-        __RFF_CONDITIONAL_TEMPLATE_METHOD(void, FailFast_HrIfNull)
-        (__RFF_CONDITIONAL_FN_PARAMS HRESULT hr, _In_opt_ const PointerT& pointer)
+        __RFF_CONDITIONAL_TEMPLATE_METHOD(void, FailFast_HrIfNull)(__RFF_CONDITIONAL_FN_PARAMS HRESULT hr, _In_opt_ const PointerT& pointer)
         {
             if (pointer == nullptr)
             {
@@ -6136,8 +6123,7 @@ namespace details
 
         // Should be decorated WI_NOEXCEPT, but conflicts with forceinline.
         template <__RFF_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_CLASS(PointerT)>
-        __RFF_CONDITIONAL_TEMPLATE_METHOD(void, FailFast_GetLastErrorIfNull)
-        (__RFF_CONDITIONAL_FN_PARAMS _In_opt_ const PointerT& pointer)
+        __RFF_CONDITIONAL_TEMPLATE_METHOD(void, FailFast_GetLastErrorIfNull)(__RFF_CONDITIONAL_FN_PARAMS _In_opt_ const PointerT& pointer)
         {
             if (pointer == nullptr)
             {
@@ -6323,8 +6309,8 @@ namespace details
         }
 
         template <__RFF_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_CLASS(PointerT)>
-        __RFF_CONDITIONAL_NOINLINE_TEMPLATE_METHOD(void, FailFast_IfNullAllocMsg)
-        (__RFF_CONDITIONAL_FN_PARAMS const PointerT& pointer, _Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT
+        __RFF_CONDITIONAL_NOINLINE_TEMPLATE_METHOD(void, FailFast_IfNullAllocMsg)(
+            __RFF_CONDITIONAL_FN_PARAMS const PointerT& pointer, _Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT
         {
             if (pointer == nullptr)
             {
@@ -6379,8 +6365,8 @@ namespace details
         }
 
         template <__RFF_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_CLASS(PointerT)>
-        __RFF_CONDITIONAL_NOINLINE_TEMPLATE_METHOD(void, FailFast_HrIfNullMsg)
-        (__RFF_CONDITIONAL_FN_PARAMS HRESULT hr, _In_opt_ const PointerT& pointer, _Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT
+        __RFF_CONDITIONAL_NOINLINE_TEMPLATE_METHOD(void, FailFast_HrIfNullMsg)(
+            __RFF_CONDITIONAL_FN_PARAMS HRESULT hr, _In_opt_ const PointerT& pointer, _Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT
         {
             if (pointer == nullptr)
             {
@@ -6435,8 +6421,8 @@ namespace details
         }
 
         template <__RFF_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_CLASS(PointerT)>
-        __RFF_CONDITIONAL_NOINLINE_TEMPLATE_METHOD(void, FailFast_GetLastErrorIfNullMsg)
-        (__RFF_CONDITIONAL_FN_PARAMS _In_opt_ const PointerT& pointer, _Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT
+        __RFF_CONDITIONAL_NOINLINE_TEMPLATE_METHOD(void, FailFast_GetLastErrorIfNullMsg)(
+            __RFF_CONDITIONAL_FN_PARAMS _In_opt_ const PointerT& pointer, _Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT
         {
             if (pointer == nullptr)
             {
@@ -6577,8 +6563,8 @@ namespace details
         }
 
         template <__RFF_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_CLASS(PointerT)>
-        __RFF_CONDITIONAL_NOINLINE_TEMPLATE_METHOD(void, FailFast_IfNullMsg)
-        (__RFF_CONDITIONAL_FN_PARAMS _In_opt_ const PointerT& pointer, _Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT
+        __RFF_CONDITIONAL_NOINLINE_TEMPLATE_METHOD(void, FailFast_IfNullMsg)(
+            __RFF_CONDITIONAL_FN_PARAMS _In_opt_ const PointerT& pointer, _Printf_format_string_ PCSTR formatString, ...) WI_NOEXCEPT
         {
             if (pointer == nullptr)
             {
@@ -6648,8 +6634,7 @@ namespace details
 
         // Should be decorated WI_NOEXCEPT, but conflicts with forceinline.
         template <__RFF_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_CLASS(PointerT)>
-        __RFF_CONDITIONAL_TEMPLATE_METHOD(void, FailFastImmediate_IfNull)
-        (_In_opt_ const PointerT& pointer)
+        __RFF_CONDITIONAL_TEMPLATE_METHOD(void, FailFastImmediate_IfNull)(_In_opt_ const PointerT& pointer)
         {
             if (pointer == nullptr)
             {
@@ -6798,8 +6783,7 @@ namespace details
         }
 
         template <__R_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_CLASS(PointerT)>
-        __R_CONDITIONAL_TEMPLATE_METHOD(void, Throw_IfNullAlloc)
-        (__R_CONDITIONAL_FN_PARAMS const PointerT& pointer)
+        __R_CONDITIONAL_TEMPLATE_METHOD(void, Throw_IfNullAlloc)(__R_CONDITIONAL_FN_PARAMS const PointerT& pointer)
         {
             if (pointer == nullptr)
             {
@@ -6840,8 +6824,7 @@ namespace details
         }
 
         template <__R_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_CLASS(PointerT)>
-        __R_CONDITIONAL_TEMPLATE_METHOD(void, Throw_HrIfNull)
-        (__R_CONDITIONAL_FN_PARAMS HRESULT hr, _In_opt_ const PointerT& pointer)
+        __R_CONDITIONAL_TEMPLATE_METHOD(void, Throw_HrIfNull)(__R_CONDITIONAL_FN_PARAMS HRESULT hr, _In_opt_ const PointerT& pointer)
         {
             if (pointer == nullptr)
             {
@@ -6892,8 +6875,7 @@ namespace details
         }
 
         template <__R_CONDITIONAL_PARTIAL_TEMPLATE typename PointerT, __R_ENABLE_IF_IS_CLASS(PointerT)>
-        __R_CONDITIONAL_TEMPLATE_METHOD(void, Throw_GetLastErrorIfNull)
-        (__R_CONDITIONAL_FN_PARAMS _In_opt_ const PointerT& pointer)
+        __R_CONDITIONAL_TEMPLATE_METHOD(void, Throw_GetLastErrorIfNull)(__R_CONDITIONAL_FN_PARAMS _In_opt_ const PointerT& pointer)
         {
             if (pointer == nullptr)
             {

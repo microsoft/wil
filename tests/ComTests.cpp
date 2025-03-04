@@ -638,8 +638,9 @@ interface __declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20a05")) IAlways : pub
     STDMETHOD_(void, Always)() = 0;
 };
 
-class __declspec(empty_bases) __declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20b00")) // non-implemented to allow QI for the class to be attempted (and fail)
-    ComObject
+class __declspec(empty_bases)
+__declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20b00")) // non-implemented to allow QI for the class to be attempted (and fail)
+ComObject
     : witest::AllocatedObject,
       public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::RuntimeClassType::ClassicCom>, Microsoft::WRL::ChainInterfaces<IDerivedTest, ITest>, IAlways>
 {
@@ -655,8 +656,9 @@ public:
     }
 };
 
-class __declspec(empty_bases) __declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20b01")) // non-implemented to allow QI for the class to be attempted (and fail)
-    WinRtObject
+class __declspec(empty_bases)
+__declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20b01")) // non-implemented to allow QI for the class to be attempted (and fail)
+WinRtObject
     : witest::AllocatedObject,
       public Microsoft::WRL::
           RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::RuntimeClassType::WinRtClassicComMix>, ITest, IDerivedTest, ITestInspectable, IDerivedTestInspectable, IAlways, Microsoft::WRL::FtmBase>
@@ -2876,8 +2878,6 @@ struct EnumT : IUnknown
     int m_nextIndex = 0;
     T m_mockValue;
 };
-
-
 
 // msvc raises an unreachable code warning when early-returning in a range-based for loop, which turns into an error
 // https://developercommunity.visualstudio.com/t/warning-C4702-for-Range-based-for-loop/859129
