@@ -15,7 +15,6 @@
 
 #include <WeakReference.h>
 #include <combaseapi.h>
-#include <ShObjIdl_core.h>
 #include "result.h"
 #include "win32_helpers.h"
 #include "resource.h" // last to ensure _COMBASEAPI_H_ protected definitions are available
