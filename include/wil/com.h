@@ -3330,6 +3330,7 @@ auto make_range(const wil::com_ptr<TEnum>& e)
     return wil::make_range<Enumerated>(e.get());
 }
 
+#ifdef __IShellItemArray_INTERFACE_DEFINED__
 inline auto make_range(IShellItemArray* sia)
 {
     wil::com_ptr<IEnumShellItems> enumShellItems;
@@ -3341,6 +3342,7 @@ inline auto make_range(const wil::com_ptr<IShellItemArray>& sia)
 {
     return make_range(sia.get());
 }
+#endif // __IShellItemArray_INTERFACE_DEFINED__
 
 #endif // __cpp_deduction_guides >= 201703L
 #endif // WIL_ENABLE_EXCEPTIONS
