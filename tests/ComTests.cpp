@@ -1,16 +1,16 @@
 #include "pch.h"
 
 #include <ocidl.h> // Bring in IObjectWithSite
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+#include <ShObjIdl_core.h>
+#include <ShlObj_core.h>
+#endif
 
 #include <wil/win32_helpers.h>
 #include <wil/com.h>
 #include <wrl/implements.h>
 
 #include "common.h"
-#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
-#include <ShObjIdl_core.h>
-#include <ShlObj_core.h>
-#endif
 #include <Bits.h>
 #include <thread>
 
@@ -3058,6 +3058,7 @@ TEST_CASE("COMEnumerator", "[com][enumerator]")
         }
         REQUIRE(count > 0);
     }
+#ifdef __IShellItemArray_INTERFACE_DEFINED__
     SECTION("Enumerate an IShellItemArray")
     {
         wil::com_ptr<IShellItem> folderItem;
@@ -3112,6 +3113,7 @@ TEST_CASE("COMEnumerator", "[com][enumerator]")
         }
         REQUIRE(count > 0);
     }
+#endif // __IShellItemArray_INTERFACE_DEFINED__
 }
 #pragma warning(pop)
 #endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
