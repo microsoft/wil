@@ -2877,6 +2877,8 @@ struct EnumT : IUnknown
     T m_mockValue;
 };
 
+
+
 // msvc raises an unreachable code warning when early-returning in a range-based for loop, which turns into an error
 // https://developercommunity.visualstudio.com/t/warning-C4702-for-Range-based-for-loop/859129
 #pragma warning(push)
@@ -3051,6 +3053,60 @@ TEST_CASE("COMEnumerator", "[com][enumerator]")
         for (auto& pidl : wil::make_range<unique_idlist>(enumIDList.get()))
         {
             REQUIRE(pidl);
+            count++;
+            break;
+        }
+        REQUIRE(count > 0);
+    }
+    SECTION("Enumerate an IShellItemArray")
+    {
+        wil::com_ptr<IShellItem> folderItem;
+        REQUIRE_SUCCEEDED(::SHCreateItemInKnownFolder(FOLDERID_Windows, 0, nullptr, IID_PPV_ARGS(&folderItem)));
+
+        wil::com_ptr<IShellItemArray> shellItemArray;
+        REQUIRE_SUCCEEDED(SHCreateShellItemArrayFromShellItem(folderItem.get(), IID_PPV_ARGS(&shellItemArray)));
+        REQUIRE(shellItemArray);
+
+        auto count = 0;
+        wil::com_ptr<IEnumShellItems> enumerator;
+        REQUIRE_SUCCEEDED(shellItemArray->EnumItems(&enumerator));
+
+        for (const auto& shellItem : wil::make_range<wil::com_ptr<IShellItem>>(enumerator.get()))
+        {
+            REQUIRE(shellItem);
+            count++;
+            break;
+        }
+        REQUIRE(count > 0);
+
+        using range_simple = decltype(wil::make_range(enumerator));
+        using enum_simple = decltype(std::declval<range_simple>().begin());
+        using elem_simple = decltype(*std::declval<enum_simple>());
+        static_assert(std::is_same_v<elem_simple, wil::com_ptr<IShellItem>&>);
+
+        REQUIRE_SUCCEEDED(enumerator->Reset());
+        count = 0;
+        for (const auto& shellItem : wil::make_range(enumerator))
+        {
+            REQUIRE(shellItem);
+            count++;
+            break;
+        }
+        REQUIRE(count > 0);
+
+        count = 0;
+        for (const auto& shellItem : wil::make_range(shellItemArray.get()))
+        {
+            REQUIRE(shellItem);
+            count++;
+            break;
+        }
+        REQUIRE(count > 0);
+
+        count = 0;
+        for (const auto& shellItem : wil::make_range(shellItemArray))
+        {
+            REQUIRE(shellItem);
             count++;
             break;
         }
