@@ -35,7 +35,6 @@
 #endif
 #endif
 #endif
-#include <sstream>
 
 /// @cond
 #if __cpp_lib_bit_cast >= 201806L
