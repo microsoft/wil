@@ -4061,4 +4061,17 @@ TEST_CASE("WindowsInternalTests::VerifyModuleReferencesForThread", "[win32_helpe
 }
 #endif
 
+TEST_CASE("WindowsInternalTests::EnumProcesses", "[win32_helpers]")
+{
+    int32_t count = 0;
+    for (auto process : wil::process_iterator(L"svchost.exe"))
+    {
+        REQUIRE(process.ProcessName == L"svchost.exe");
+        REQUIRE(process.ProcessID != 0);
+        REQUIRE(process.ThreadCount != 0);
+        count++;
+    }
+    REQUIRE(count > 0);
+}
+
 #pragma warning(pop)
