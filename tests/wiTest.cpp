@@ -4063,7 +4063,7 @@ TEST_CASE("WindowsInternalTests::VerifyModuleReferencesForThread", "[win32_helpe
 }
 #endif
 
-#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+#ifdef __WIL_PROCESS_ITERATOR
 TEST_CASE("WindowsInternalTests::EnumProcesses", "[win32_helpers]")
 {
     int32_t count = 0;
@@ -4076,6 +4076,6 @@ TEST_CASE("WindowsInternalTests::EnumProcesses", "[win32_helpers]")
     }
     REQUIRE(count > 0);
 }
-#endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+#endif // __WIL_PROCESS_ITERATOR
 
 #pragma warning(pop)

@@ -25,6 +25,8 @@
 #include <string>
 #include <TlHelp32.h>
 
+#define __WIL_PROCESS_ITERATOR
+
 namespace wil
 {
 // Process enumeration
