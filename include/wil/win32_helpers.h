@@ -20,9 +20,6 @@
 #include <winreg.h>
 #include <objbase.h>
 
-#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
-#endif
-
 #include "common.h"
 
 #if WIL_USE_STL
@@ -890,7 +887,6 @@ bool init_once(_Inout_ INIT_ONCE& initOnce, T func)
         return false;
     }
 }
-
 #endif // WIL_ENABLE_EXCEPTIONS
 } // namespace wil
 
