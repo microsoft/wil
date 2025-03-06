@@ -36,7 +36,7 @@ namespace wil
         // for (auto process : process_iterator(L"ProcessName.exe"))
         // {
         //     // Do something with process, e.g.
-        //     // wil::unique_handle hProcess(::OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, process.th32ProcessID));
+        //     // wil::unique_handle hProcess(::OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, process.ProcessID));
         // }
         struct process_entry
         {
