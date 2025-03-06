@@ -9,7 +9,7 @@
 //
 //*********************************************************
 //! @file
-//! Various types and helpers for interfacing with various Win32 APIs
+//! Helpers for interfacing with process snapshots (e.g. enumerating processes)
 #ifndef __WIL_PROCESS_HELPERS_INCLUDED
 #define __WIL_PROCESS_HELPERS_INCLUDED
 
