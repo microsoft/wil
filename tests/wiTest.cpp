@@ -34,6 +34,8 @@
 
 #include <optional>
 
+#include <wil/process_helpers.h>
+
 #pragma warning(push)
 #pragma warning(disable : 4702) // Unreachable code
 
@@ -4060,5 +4062,20 @@ TEST_CASE("WindowsInternalTests::VerifyModuleReferencesForThread", "[win32_helpe
     REQUIRE(success);
 }
 #endif
+
+#ifdef __WIL_PROCESS_ITERATOR
+TEST_CASE("WindowsInternalTests::EnumProcesses", "[win32_helpers]")
+{
+    int32_t count = 0;
+    for (auto process : wil::process_iterator(L"svchost.exe"))
+    {
+        REQUIRE(process.ProcessName == L"svchost.exe");
+        REQUIRE(process.ProcessID != 0);
+        REQUIRE(process.ThreadCount != 0);
+        count++;
+    }
+    REQUIRE(count > 0);
+}
+#endif // __WIL_PROCESS_ITERATOR
 
 #pragma warning(pop)
