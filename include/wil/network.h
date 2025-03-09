@@ -57,7 +57,6 @@
 #include <string>
 #endif
 
-
 namespace wil
 {
 // Functions and classes that support networking operations and structures
@@ -412,7 +411,6 @@ namespace network
         T* m_addrinfo_ptr{nullptr};
         ::wil::network::socket_address m_socket_address{};
     }; // class addr_info_iterator_t
-
 
     // begin() and end() enable range-based for loops after resolving a name
     //
