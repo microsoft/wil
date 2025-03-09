@@ -46,9 +46,17 @@
 #include <windns.h>
 #include <iphlpapi.h>
 
-// required wil headers
+// wil headers
 #include "wistd_type_traits.h"
 #include "resource.h"
+
+// Callers who are using the STL by pulling in other STL headers
+// might not have included <string>, which is required in network.h when WIL_USE_STL is defined
+// ensuring it's included so callers don't have to include <string> just for network.h
+#if (WIL_USE_STL && defined(WIL_ENABLE_EXCEPTIONS)) || defined(WIL_DOXYGEN)
+#include <string>
+#endif
+
 
 namespace wil
 {
@@ -297,7 +305,7 @@ namespace network
     // class addr_info encapsulates the ADDRINFO-related structures returned from the socket functions
     // getaddrinfo, GetAddrInfoW, GetAddrInfoWEx
     // iterator semantics are supported to safely access these addresses
-    // ! template T supports pointers to the 3 address structures: ADDRINFOA*, ADDRINFOW*, ADDRINFOEXW*
+    // template T supports pointers to the 3 address structures: ADDRINFOA*, ADDRINFOW*, ADDRINFOEXW*
     template <typename T>
     class addr_info_iterator_t
     {
@@ -405,17 +413,29 @@ namespace network
         ::wil::network::socket_address m_socket_address{};
     }; // class addr_info_iterator_t
 
-    // begin() and end() support - enabling range-based for loop
-    template <typename T>
-    constexpr addr_info_iterator_t<T> end(addr_info_iterator_t<T>) WI_NOEXCEPT
-    {
-        return {};
-    }
+
+    // begin() and end() enable range-based for loops after resolving a name
+    //
+    // For example:
+    //     wil::unique_addrinfo resolved_addr;
+    //     if (0 == GetAddrInfoW(L"name_to_resolve.xyz", nullptr, nullptr, resolved_addr.addressof()))
+    //     {
+    //         for (const auto& address : wil::network::addr_info_iterator{resolved_addr.get()})
+    //         {
+    //             // address == a wil::network::socket_address containing a resolved IP address
+    //         }
+    //     }
 
     template <typename T>
     addr_info_iterator_t<T> begin(addr_info_iterator_t<T> addrinfo) WI_NOEXCEPT
     {
         return addrinfo;
+    }
+
+    template <typename T>
+    constexpr addr_info_iterator_t<T> end(addr_info_iterator_t<T>) WI_NOEXCEPT
+    {
+        return {};
     }
 
     using addr_info_ansi_iterator = addr_info_iterator_t<ADDRINFOA>;
@@ -1077,16 +1097,6 @@ namespace network
         return E_INVALIDARG;
     }
 
-#if (WIL_USE_STL && defined(WIL_ENABLE_EXCEPTIONS)) || defined(WIL_DOXYGEN)
-    inline ::std::wstring socket_address::write_address() const
-    {
-        ::wil::network::socket_address_wstring returnString{};
-        THROW_IF_FAILED(write_address_nothrow(returnString));
-        returnString[INET6_ADDRSTRLEN - 1] = L'\0';
-        return returnString;
-    }
-#endif
-
     inline HRESULT socket_address::write_address_nothrow(socket_address_wstring& address) const WI_NOEXCEPT
     {
         ::memset(address, 0, sizeof(socket_address_wstring));
@@ -1136,10 +1146,10 @@ namespace network
     }
 
 #if (WIL_USE_STL && defined(WIL_ENABLE_EXCEPTIONS)) || defined(WIL_DOXYGEN)
-    inline ::std::wstring socket_address::write_complete_address() const
+    inline ::std::wstring socket_address::write_address() const
     {
         ::wil::network::socket_address_wstring returnString{};
-        THROW_IF_FAILED(write_complete_address_nothrow(returnString));
+        THROW_IF_FAILED(write_address_nothrow(returnString));
         returnString[INET6_ADDRSTRLEN - 1] = L'\0';
         return returnString;
     }
@@ -1184,6 +1194,16 @@ namespace network
             RETURN_WIN32(::WSAGetLastError());
         }
         return S_OK;
+    }
+#endif
+
+#if (WIL_USE_STL && defined(WIL_ENABLE_EXCEPTIONS)) || defined(WIL_DOXYGEN)
+    inline std::wstring socket_address::write_complete_address() const
+    {
+        ::wil::network::socket_address_wstring returnString{};
+        THROW_IF_FAILED(write_complete_address_nothrow(returnString));
+        returnString[INET6_ADDRSTRLEN - 1] = L'\0';
+        return returnString;
     }
 #endif
 
