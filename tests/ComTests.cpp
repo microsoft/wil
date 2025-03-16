@@ -3125,7 +3125,8 @@ TEST_CASE("COMEnumerator", "[com][enumerator]")
 #include <winrt/windows.foundation.h>
 #include <windows.foundation.h>
 
-TEST_CASE("com_timeout", "[com][com_timeout]")
+// This fails with 'RPC_S_CALLPENDING' on the CI machines, so disable there, but still run locally
+TEST_CASE("com_timeout", "[com][com_timeout][LocalOnly]")
 {
     auto init = wil::CoInitializeEx_failfast();
 
