@@ -1008,7 +1008,7 @@ private:
 
     void call_init(wistd::true_type)
     {
-        RtlZeroMemory(this, sizeof(*this));
+        RtlZeroMemory(static_cast<struct_t*>(this), sizeof(struct_t));
     }
 
     void call_init(wistd::false_type)
