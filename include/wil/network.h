@@ -229,17 +229,17 @@ namespace network
         void set_scope_id(ULONG) WI_NOEXCEPT;
         void set_flow_info(ULONG) WI_NOEXCEPT;
 
-        // write_address prints the IP address, not the scope id or port
-        HRESULT write_address_nothrow(socket_address_wstring& address) const WI_NOEXCEPT;
-        HRESULT write_address_nothrow(socket_address_string& address) const WI_NOEXCEPT;
+        // format_address prints the IP address, not the scope id or port
+        HRESULT format_address_nothrow(socket_address_wstring& address) const WI_NOEXCEPT;
+        HRESULT format_address_nothrow(socket_address_string& address) const WI_NOEXCEPT;
 
-        // write_complete_address_nothrow() prints the IP address as well as the scope id and port values
-        HRESULT write_complete_address_nothrow(socket_address_wstring& address) const WI_NOEXCEPT;
-        HRESULT write_complete_address_nothrow(socket_address_string& address) const WI_NOEXCEPT;
+        // format_complete_address_nothrow() prints the IP address as well as the scope id and port values
+        HRESULT format_complete_address_nothrow(socket_address_wstring& address) const WI_NOEXCEPT;
+        HRESULT format_complete_address_nothrow(socket_address_string& address) const WI_NOEXCEPT;
 
 #if (WIL_USE_STL && defined(WIL_ENABLE_EXCEPTIONS)) || defined(WIL_DOXYGEN)
-        [[nodiscard]] ::std::wstring write_address() const;
-        [[nodiscard]] ::std::wstring write_complete_address() const;
+        [[nodiscard]] ::std::wstring format_address() const;
+        [[nodiscard]] ::std::wstring format_complete_address() const;
 #endif
 
         // type: NlatUnspecified ('any'), NlatUnicast, NlatAnycast, NlatMulticast, NlatBroadcast, NlatInvalid
@@ -1095,7 +1095,7 @@ namespace network
         return E_INVALIDARG;
     }
 
-    inline HRESULT socket_address::write_address_nothrow(socket_address_wstring& address) const WI_NOEXCEPT
+    inline HRESULT socket_address::format_address_nothrow(socket_address_wstring& address) const WI_NOEXCEPT
     {
         ::memset(address, 0, sizeof(socket_address_wstring));
 
@@ -1119,7 +1119,7 @@ namespace network
         return S_OK;
     }
 
-    inline HRESULT socket_address::write_address_nothrow(socket_address_string& address) const WI_NOEXCEPT
+    inline HRESULT socket_address::format_address_nothrow(socket_address_string& address) const WI_NOEXCEPT
     {
         ::memset(address, 0, sizeof(socket_address_string));
 
@@ -1144,16 +1144,16 @@ namespace network
     }
 
 #if (WIL_USE_STL && defined(WIL_ENABLE_EXCEPTIONS)) || defined(WIL_DOXYGEN)
-    inline ::std::wstring socket_address::write_address() const
+    inline ::std::wstring socket_address::format_address() const
     {
         ::wil::network::socket_address_wstring returnString{};
-        THROW_IF_FAILED(write_address_nothrow(returnString));
+        THROW_IF_FAILED(format_address_nothrow(returnString));
         returnString[INET6_ADDRSTRLEN - 1] = L'\0';
         return returnString;
     }
 #endif
 
-    inline HRESULT socket_address::write_complete_address_nothrow(socket_address_wstring& address) const WI_NOEXCEPT
+    inline HRESULT socket_address::format_complete_address_nothrow(socket_address_wstring& address) const WI_NOEXCEPT
     {
         ::memset(address, 0, sizeof(socket_address_wstring));
 
@@ -1175,7 +1175,7 @@ namespace network
 
     // the Winsock headers require having set this #define to access ANSI-string versions of the Winsock API
 #if defined(_WINSOCK_DEPRECATED_NO_WARNINGS)
-    inline HRESULT socket_address::write_complete_address_nothrow(socket_address_string& address) const WI_NOEXCEPT
+    inline HRESULT socket_address::format_complete_address_nothrow(socket_address_string& address) const WI_NOEXCEPT
     {
         ::memset(address, 0, sizeof(socket_address_string));
 
@@ -1196,10 +1196,10 @@ namespace network
 #endif
 
 #if (WIL_USE_STL && defined(WIL_ENABLE_EXCEPTIONS)) || defined(WIL_DOXYGEN)
-    inline std::wstring socket_address::write_complete_address() const
+    inline std::wstring socket_address::format_complete_address() const
     {
         ::wil::network::socket_address_wstring returnString{};
-        THROW_IF_FAILED(write_complete_address_nothrow(returnString));
+        THROW_IF_FAILED(format_complete_address_nothrow(returnString));
         returnString[INET6_ADDRSTRLEN - 1] = L'\0';
         return returnString;
     }

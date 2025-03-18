@@ -180,7 +180,7 @@ TEST_CASE("NetworkingTests::Verifying_constructors", "[networking]")
         REQUIRE(!v4_addr.is_address_loopback());
         REQUIRE(v4_addr.port() == 0);
 #ifdef WIL_ENABLE_EXCEPTIONS
-        REQUIRE(Test_any_in_addr_string == v4_addr.write_address());
+        REQUIRE(Test_any_in_addr_string == v4_addr.format_address());
 #endif
 
         SOCKADDR_STORAGE v4_addr_storage = v4_addr.sockaddr_storage();
@@ -194,7 +194,7 @@ TEST_CASE("NetworkingTests::Verifying_constructors", "[networking]")
         REQUIRE(!v6_addr.is_address_loopback());
         REQUIRE(v6_addr.port() == 0);
 #ifdef WIL_ENABLE_EXCEPTIONS
-        REQUIRE(Test_any_in6_addr_string == v6_addr.write_address());
+        REQUIRE(Test_any_in6_addr_string == v6_addr.format_address());
 #endif
 
         SOCKADDR_STORAGE v6_addr_storage = v6_addr.sockaddr_storage();
@@ -216,7 +216,7 @@ TEST_CASE("NetworkingTests::Verifying_constructors", "[networking]")
         REQUIRE(!v4_addr.is_address_loopback());
         REQUIRE(v4_addr.port() == TestPort);
 #ifdef WIL_ENABLE_EXCEPTIONS
-        REQUIRE(Test_linklocal_in_addr_string == v4_addr.write_address());
+        REQUIRE(Test_linklocal_in_addr_string == v4_addr.format_address());
 #endif
 
         SOCKADDR_STORAGE v4_addr_storage = v4_addr.sockaddr_storage();
@@ -240,7 +240,7 @@ TEST_CASE("NetworkingTests::Verifying_constructors", "[networking]")
         REQUIRE(v6_addr.flow_info() == ULONG_MAX - 1);
         REQUIRE(v6_addr.scope_id() == ULONG_MAX - 1);
 #ifdef WIL_ENABLE_EXCEPTIONS
-        REQUIRE(Test_linklocal_in6_addr_string == v6_addr.write_address());
+        REQUIRE(Test_linklocal_in6_addr_string == v6_addr.format_address());
 #endif
 
         SOCKADDR_STORAGE v6_addr_storage = v6_addr.sockaddr_storage();
@@ -262,7 +262,7 @@ TEST_CASE("NetworkingTests::Verifying_constructors", "[networking]")
         REQUIRE(!v4_addr.is_address_loopback());
         REQUIRE(v4_addr.port() == TestPort);
 #ifdef WIL_ENABLE_EXCEPTIONS
-        REQUIRE(Test_linklocal_in_addr_string == v4_addr.write_address());
+        REQUIRE(Test_linklocal_in_addr_string == v4_addr.format_address());
 #endif
 
         SOCKADDR_STORAGE v4_addr_storage = v4_addr.sockaddr_storage();
@@ -289,7 +289,7 @@ TEST_CASE("NetworkingTests::Verifying_constructors", "[networking]")
         REQUIRE(v6_addr.flow_info() == ULONG_MAX - 1);
         REQUIRE(v6_addr.scope_id() == ULONG_MAX - 1);
 #ifdef WIL_ENABLE_EXCEPTIONS
-        REQUIRE(Test_linklocal_in6_addr_string == v6_addr.write_address());
+        REQUIRE(Test_linklocal_in6_addr_string == v6_addr.format_address());
 #endif
 
         SOCKADDR_STORAGE v6_addr_storage = v6_addr.sockaddr_storage();
@@ -314,7 +314,7 @@ TEST_CASE("NetworkingTests::Verifying_constructors", "[networking]")
         REQUIRE(!v4_addr.is_address_loopback());
         REQUIRE(v4_addr.port() == TestPort);
 #ifdef WIL_ENABLE_EXCEPTIONS
-        REQUIRE(Test_linklocal_in_addr_string == v4_addr.write_address());
+        REQUIRE(Test_linklocal_in_addr_string == v4_addr.format_address());
 #endif
         REQUIRE(0 == memcmp(&v4_inet_addr, v4_addr.sockaddr_inet(), sizeof(SOCKADDR_INET)));
 
@@ -342,7 +342,7 @@ TEST_CASE("NetworkingTests::Verifying_constructors", "[networking]")
         REQUIRE(v6_addr.flow_info() == ULONG_MAX - 1);
         REQUIRE(v6_addr.scope_id() == ULONG_MAX - 1);
 #ifdef WIL_ENABLE_EXCEPTIONS
-        REQUIRE(Test_linklocal_in6_addr_string == v6_addr.write_address());
+        REQUIRE(Test_linklocal_in6_addr_string == v6_addr.format_address());
 #endif
         REQUIRE(0 == memcmp(&v6_inet_addr, v6_addr.sockaddr_inet(), sizeof(SOCKADDR_INET)));
 
@@ -376,7 +376,7 @@ TEST_CASE("NetworkingTests::Verifying_constructors", "[networking]")
         REQUIRE(!v4_addr.is_address_loopback());
         REQUIRE(v4_addr.port() == TestPort);
 #ifdef WIL_ENABLE_EXCEPTIONS
-        REQUIRE(Test_linklocal_in_addr_string == v4_addr.write_address());
+        REQUIRE(Test_linklocal_in_addr_string == v4_addr.format_address());
 #endif
 
         SOCKADDR_IN6 v6_test_sockaddr{};
@@ -400,7 +400,7 @@ TEST_CASE("NetworkingTests::Verifying_constructors", "[networking]")
         REQUIRE(v6_addr.flow_info() == ULONG_MAX - 1);
         REQUIRE(v6_addr.scope_id() == ULONG_MAX - 1);
 #ifdef WIL_ENABLE_EXCEPTIONS
-        REQUIRE(Test_linklocal_in6_addr_string == v6_addr.write_address());
+        REQUIRE(Test_linklocal_in6_addr_string == v6_addr.format_address());
 #endif
     }
 }
@@ -901,38 +901,38 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
     {
         const auto VerifyV4AnyAddress = [&](const wil::network::socket_address& v4_address, bool with_port) {
             wil::network::socket_address_wstring any_address_test_string{};
-            REQUIRE(SUCCEEDED(v4_address.write_address_nothrow(any_address_test_string)));
+            REQUIRE(SUCCEEDED(v4_address.format_address_nothrow(any_address_test_string)));
             REQUIRE(0 == memcmp(Test_any_in_addr_string, any_address_test_string, sizeof(Test_any_in_addr_string)));
 #ifdef WIL_ENABLE_EXCEPTIONS
-            REQUIRE(Test_any_in_addr_string == v4_address.write_address());
+            REQUIRE(Test_any_in_addr_string == v4_address.format_address());
 #endif
 
             ZeroMemory(any_address_test_string, sizeof(any_address_test_string));
 
-            REQUIRE(SUCCEEDED(v4_address.write_complete_address_nothrow(any_address_test_string)));
+            REQUIRE(SUCCEEDED(v4_address.format_complete_address_nothrow(any_address_test_string)));
             if (with_port)
             {
                 REQUIRE(0 == memcmp(Test_any_in_addr_string_with_port, any_address_test_string, sizeof(Test_any_in_addr_string_with_port)));
 #ifdef WIL_ENABLE_EXCEPTIONS
-                REQUIRE(Test_any_in_addr_string_with_port == v4_address.write_complete_address());
+                REQUIRE(Test_any_in_addr_string_with_port == v4_address.format_complete_address());
 #endif
             }
             else
             {
                 REQUIRE(0 == memcmp(Test_any_in_addr_string, any_address_test_string, sizeof(Test_any_in_addr_string)));
 #ifdef WIL_ENABLE_EXCEPTIONS
-                REQUIRE(Test_any_in_addr_string == v4_address.write_complete_address());
+                REQUIRE(Test_any_in_addr_string == v4_address.format_complete_address());
 #endif
             }
 
             // also char* versions
             wil::network::socket_address_string any_address_test_char_string{};
-            REQUIRE(SUCCEEDED(v4_address.write_address_nothrow(any_address_test_char_string)));
+            REQUIRE(SUCCEEDED(v4_address.format_address_nothrow(any_address_test_char_string)));
             REQUIRE(0 == memcmp(Test_any_in_addr_char_string, any_address_test_char_string, sizeof(Test_any_in_addr_char_string)));
 
             ZeroMemory(any_address_test_char_string, sizeof(any_address_test_char_string));
 
-            REQUIRE(SUCCEEDED(v4_address.write_complete_address_nothrow(any_address_test_char_string)));
+            REQUIRE(SUCCEEDED(v4_address.format_complete_address_nothrow(any_address_test_char_string)));
             if (with_port)
             {
                 REQUIRE(0 == memcmp(Test_any_in_addr_char_string_with_port, any_address_test_char_string, sizeof(Test_any_in_addr_char_string_with_port)));
@@ -945,38 +945,38 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
 
         const auto VerifyV6AnyAddress = [&](const wil::network::socket_address& v6_address, bool with_port) {
             wil::network::socket_address_wstring any_address_test_string{};
-            REQUIRE(SUCCEEDED(v6_address.write_address_nothrow(any_address_test_string)));
+            REQUIRE(SUCCEEDED(v6_address.format_address_nothrow(any_address_test_string)));
             REQUIRE(0 == memcmp(Test_any_in6_addr_string, any_address_test_string, sizeof(Test_any_in6_addr_string)));
 #ifdef WIL_ENABLE_EXCEPTIONS
-            REQUIRE(Test_any_in6_addr_string == v6_address.write_address());
+            REQUIRE(Test_any_in6_addr_string == v6_address.format_address());
 #endif
 
             ZeroMemory(any_address_test_string, sizeof(any_address_test_string));
 
-            REQUIRE(SUCCEEDED(v6_address.write_complete_address_nothrow(any_address_test_string)));
+            REQUIRE(SUCCEEDED(v6_address.format_complete_address_nothrow(any_address_test_string)));
             if (with_port)
             {
                 REQUIRE(0 == memcmp(Test_any_in6_addr_string_with_port, any_address_test_string, sizeof(Test_any_in6_addr_string_with_port)));
 #ifdef WIL_ENABLE_EXCEPTIONS
-                REQUIRE(Test_any_in6_addr_string_with_port == v6_address.write_complete_address());
+                REQUIRE(Test_any_in6_addr_string_with_port == v6_address.format_complete_address());
 #endif
             }
             else
             {
                 REQUIRE(0 == memcmp(Test_any_in6_addr_string, any_address_test_string, sizeof(Test_any_in6_addr_string)));
 #ifdef WIL_ENABLE_EXCEPTIONS
-                REQUIRE(Test_any_in6_addr_string == v6_address.write_complete_address());
+                REQUIRE(Test_any_in6_addr_string == v6_address.format_complete_address());
 #endif
             }
 
             // also char* versions
             wil::network::socket_address_string any_address_test_char_string{};
-            REQUIRE(SUCCEEDED(v6_address.write_address_nothrow(any_address_test_char_string)));
+            REQUIRE(SUCCEEDED(v6_address.format_address_nothrow(any_address_test_char_string)));
             REQUIRE(0 == memcmp(Test_any_in6_addr_char_string, any_address_test_char_string, sizeof(Test_any_in6_addr_char_string)));
 
             ZeroMemory(any_address_test_char_string, sizeof(any_address_test_char_string));
 
-            REQUIRE(SUCCEEDED(v6_address.write_complete_address_nothrow(any_address_test_char_string)));
+            REQUIRE(SUCCEEDED(v6_address.format_complete_address_nothrow(any_address_test_char_string)));
             if (with_port)
             {
                 REQUIRE(0 == memcmp(Test_any_in6_addr_char_string_with_port, any_address_test_char_string, sizeof(Test_any_in6_addr_char_string_with_port)));
@@ -1088,54 +1088,54 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
     {
         const auto VerifyV4LoopbackAddress = [&](const wil::network::socket_address& v4_address, bool with_port) {
             wil::network::socket_address_wstring loopback_address_test_string{};
-            REQUIRE(SUCCEEDED(v4_address.write_address_nothrow(loopback_address_test_string)));
+            REQUIRE(SUCCEEDED(v4_address.format_address_nothrow(loopback_address_test_string)));
             REQUIRE(0 == memcmp(Test_loopback_in_addr_string, loopback_address_test_string, sizeof(Test_loopback_in_addr_string)));
 #ifdef WIL_ENABLE_EXCEPTIONS
-            REQUIRE(Test_loopback_in_addr_string == v4_address.write_address());
+            REQUIRE(Test_loopback_in_addr_string == v4_address.format_address());
 #endif
 
             ZeroMemory(loopback_address_test_string, sizeof(loopback_address_test_string));
 
-            REQUIRE(SUCCEEDED(v4_address.write_complete_address_nothrow(loopback_address_test_string)));
+            REQUIRE(SUCCEEDED(v4_address.format_complete_address_nothrow(loopback_address_test_string)));
             if (with_port)
             {
                 REQUIRE(0 == memcmp(Test_loopback_in_addr_string_with_port, loopback_address_test_string, sizeof(Test_loopback_in_addr_string_with_port)));
 #ifdef WIL_ENABLE_EXCEPTIONS
-                REQUIRE(Test_loopback_in_addr_string_with_port == v4_address.write_complete_address());
+                REQUIRE(Test_loopback_in_addr_string_with_port == v4_address.format_complete_address());
 #endif
             }
             else
             {
                 REQUIRE(0 == memcmp(Test_loopback_in_addr_string, loopback_address_test_string, sizeof(Test_loopback_in_addr_string)));
 #ifdef WIL_ENABLE_EXCEPTIONS
-                REQUIRE(Test_loopback_in_addr_string == v4_address.write_complete_address());
+                REQUIRE(Test_loopback_in_addr_string == v4_address.format_complete_address());
 #endif
             }
         };
 
         const auto VerifyV6LoopbackAddress = [&](const wil::network::socket_address& v6_address, bool with_port) {
             wil::network::socket_address_wstring loopback_address_test_string{};
-            REQUIRE(SUCCEEDED(v6_address.write_address_nothrow(loopback_address_test_string)));
+            REQUIRE(SUCCEEDED(v6_address.format_address_nothrow(loopback_address_test_string)));
             REQUIRE(0 == memcmp(Test_loopback_in6_addr_string, loopback_address_test_string, sizeof(Test_loopback_in6_addr_string)));
 #ifdef WIL_ENABLE_EXCEPTIONS
-            REQUIRE(Test_loopback_in6_addr_string == v6_address.write_address());
+            REQUIRE(Test_loopback_in6_addr_string == v6_address.format_address());
 #endif
 
             ZeroMemory(loopback_address_test_string, sizeof(loopback_address_test_string));
 
-            REQUIRE(SUCCEEDED(v6_address.write_complete_address_nothrow(loopback_address_test_string)));
+            REQUIRE(SUCCEEDED(v6_address.format_complete_address_nothrow(loopback_address_test_string)));
             if (with_port)
             {
                 REQUIRE(0 == memcmp(Test_loopback_in6_addr_string_with_port, loopback_address_test_string, sizeof(Test_loopback_in6_addr_string_with_port)));
 #ifdef WIL_ENABLE_EXCEPTIONS
-                REQUIRE(Test_loopback_in6_addr_string_with_port == v6_address.write_complete_address());
+                REQUIRE(Test_loopback_in6_addr_string_with_port == v6_address.format_complete_address());
 #endif
             }
             else
             {
                 REQUIRE(0 == memcmp(Test_loopback_in6_addr_string, loopback_address_test_string, sizeof(Test_loopback_in6_addr_string)));
 #ifdef WIL_ENABLE_EXCEPTIONS
-                REQUIRE(Test_loopback_in6_addr_string == v6_address.write_complete_address());
+                REQUIRE(Test_loopback_in6_addr_string == v6_address.format_complete_address());
 #endif
             }
         };
@@ -1253,7 +1253,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         REQUIRE(!v4_address.is_address_loopback());
 
         wil::network::socket_address_wstring v4_address_string{};
-        REQUIRE(SUCCEEDED(v4_address.write_address_nothrow(v4_address_string)));
+        REQUIRE(SUCCEEDED(v4_address.format_address_nothrow(v4_address_string)));
         REQUIRE(0 == memcmp(Test_in_addr_string, v4_address_string, sizeof(Test_in_addr_string)));
 
         REQUIRE(SUCCEEDED(v4_address.set_sockaddr_nothrow(Test_in_addr_string2)));
@@ -1262,7 +1262,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         REQUIRE(v4_address.address_type() == NlatUnicast);
         REQUIRE(!v4_address.is_address_loopback());
 
-        REQUIRE(SUCCEEDED(v4_address.write_address_nothrow(v4_address_string)));
+        REQUIRE(SUCCEEDED(v4_address.format_address_nothrow(v4_address_string)));
         REQUIRE(0 == memcmp(Test_in_addr_string2, v4_address_string, sizeof(Test_in_addr_string2)));
 
         REQUIRE(SUCCEEDED(v4_address.set_sockaddr_nothrow(Test_in_addr_char_string)));
@@ -1272,7 +1272,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         REQUIRE(!v4_address.is_address_loopback());
 
         wil::network::socket_address_string v4_address_char_string{};
-        REQUIRE(SUCCEEDED(v4_address.write_address_nothrow(v4_address_char_string)));
+        REQUIRE(SUCCEEDED(v4_address.format_address_nothrow(v4_address_char_string)));
         REQUIRE(0 == memcmp(Test_in_addr_char_string, v4_address_char_string, sizeof(Test_in_addr_char_string)));
 
         REQUIRE(SUCCEEDED(v4_address.set_sockaddr_nothrow(Test_in_addr_char_string2)));
@@ -1281,7 +1281,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         REQUIRE(v4_address.address_type() == NlatUnicast);
         REQUIRE(!v4_address.is_address_loopback());
 
-        REQUIRE(SUCCEEDED(v4_address.write_address_nothrow(v4_address_char_string)));
+        REQUIRE(SUCCEEDED(v4_address.format_address_nothrow(v4_address_char_string)));
         REQUIRE(0 == memcmp(Test_in_addr_char_string2, v4_address_char_string, sizeof(Test_in_addr_char_string2)));
 
         // set_sockaddr via a SOCKET bound to an address
@@ -1311,7 +1311,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         REQUIRE(v4_address.is_address_loopback());
         REQUIRE(TestPort == v4_address.port());
 
-        REQUIRE(SUCCEEDED(v4_address.write_address_nothrow(v4_address_string)));
+        REQUIRE(SUCCEEDED(v4_address.format_address_nothrow(v4_address_string)));
         REQUIRE(0 == memcmp(Test_loopback_in_addr_string, v4_address_string, sizeof(Test_loopback_in_addr_string)));
     }
 
@@ -1332,7 +1332,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         REQUIRE(!v4_address.is_address_loopback());
 
         std::wstring v4_address_string;
-        v4_address_string = v4_address.write_address();
+        v4_address_string = v4_address.format_address();
         REQUIRE(v4_address_string == Test_in_addr_string);
 
         v4_address.set_sockaddr(Test_in_addr_string2);
@@ -1341,7 +1341,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         REQUIRE(v4_address.address_type() == NlatUnicast);
         REQUIRE(!v4_address.is_address_loopback());
 
-        v4_address_string = v4_address.write_address();
+        v4_address_string = v4_address.format_address();
         REQUIRE(v4_address_string == Test_in_addr_string2);
 
         v4_address.set_sockaddr(Test_in_addr_char_string);
@@ -1350,7 +1350,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         REQUIRE(v4_address.address_type() == NlatUnicast);
         REQUIRE(!v4_address.is_address_loopback());
 
-        v4_address_string = v4_address.write_address();
+        v4_address_string = v4_address.format_address();
         REQUIRE(v4_address_string == Test_in_addr_string);
 
         v4_address.set_sockaddr(Test_in_addr_char_string2);
@@ -1359,7 +1359,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         REQUIRE(v4_address.address_type() == NlatUnicast);
         REQUIRE(!v4_address.is_address_loopback());
 
-        v4_address_string = v4_address.write_address();
+        v4_address_string = v4_address.format_address();
         REQUIRE(v4_address_string == Test_in_addr_string2);
 
         // set_sockaddr via a SOCKET bound to an address
@@ -1389,7 +1389,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         REQUIRE(v4_address.is_address_loopback());
         REQUIRE(TestPort == v4_address.port());
 
-        v4_address_string = v4_address.write_address();
+        v4_address_string = v4_address.format_address();
         REQUIRE(v4_address_string == Test_loopback_in_addr_string);
 #endif
     }
@@ -1410,7 +1410,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         REQUIRE(!v6_address.is_address_loopback());
 
         wil::network::socket_address_wstring v6_address_string{};
-        REQUIRE(SUCCEEDED(v6_address.write_address_nothrow(v6_address_string)));
+        REQUIRE(SUCCEEDED(v6_address.format_address_nothrow(v6_address_string)));
         REQUIRE(0 == memcmp(Test_in6_addr_string, v6_address_string, sizeof(Test_in6_addr_string)));
 
         REQUIRE(SUCCEEDED(v6_address.set_sockaddr_nothrow(Test_in6_addr_string2)));
@@ -1419,7 +1419,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         REQUIRE(v6_address.address_type() == NlatUnicast);
         REQUIRE(!v6_address.is_address_loopback());
 
-        REQUIRE(SUCCEEDED(v6_address.write_address_nothrow(v6_address_string)));
+        REQUIRE(SUCCEEDED(v6_address.format_address_nothrow(v6_address_string)));
         REQUIRE(0 == memcmp(Test_in6_addr_string2, v6_address_string, sizeof(Test_in6_addr_string2)));
 
         REQUIRE(SUCCEEDED(v6_address.set_sockaddr_nothrow(Test_in6_addr_char_string)));
@@ -1429,7 +1429,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         REQUIRE(!v6_address.is_address_loopback());
 
         wil::network::socket_address_string v6_address_char_string{};
-        REQUIRE(SUCCEEDED(v6_address.write_address_nothrow(v6_address_char_string)));
+        REQUIRE(SUCCEEDED(v6_address.format_address_nothrow(v6_address_char_string)));
         REQUIRE(0 == memcmp(Test_in6_addr_char_string, v6_address_char_string, sizeof(Test_in6_addr_char_string)));
 
         REQUIRE(SUCCEEDED(v6_address.set_sockaddr_nothrow(Test_in6_addr_char_string2)));
@@ -1438,7 +1438,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         REQUIRE(v6_address.address_type() == NlatUnicast);
         REQUIRE(!v6_address.is_address_loopback());
 
-        REQUIRE(SUCCEEDED(v6_address.write_address_nothrow(v6_address_char_string)));
+        REQUIRE(SUCCEEDED(v6_address.format_address_nothrow(v6_address_char_string)));
         REQUIRE(0 == memcmp(Test_in6_addr_char_string2, v6_address_char_string, sizeof(Test_in6_addr_char_string2)));
 
         // set_sockaddr via a SOCKET bound to an address
@@ -1468,7 +1468,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         REQUIRE(v6_address.is_address_loopback());
         REQUIRE(TestPort == v6_address.port());
 
-        REQUIRE(SUCCEEDED(v6_address.write_address_nothrow(v6_address_string)));
+        REQUIRE(SUCCEEDED(v6_address.format_address_nothrow(v6_address_string)));
         REQUIRE(0 == memcmp(Test_loopback_in6_addr_string, v6_address_string, sizeof(Test_loopback_in6_addr_string)));
     }
 
@@ -1489,7 +1489,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         REQUIRE(!v6_address.is_address_loopback());
 
         std::wstring v6_address_string;
-        v6_address_string = v6_address.write_address();
+        v6_address_string = v6_address.format_address();
         REQUIRE(v6_address_string == Test_in6_addr_string);
 
         v6_address.set_sockaddr(Test_in6_addr_string2);
@@ -1498,7 +1498,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         REQUIRE(v6_address.address_type() == NlatUnicast);
         REQUIRE(!v6_address.is_address_loopback());
 
-        v6_address_string = v6_address.write_address();
+        v6_address_string = v6_address.format_address();
         REQUIRE(v6_address_string == Test_in6_addr_string2);
 
         v6_address.set_sockaddr(Test_in6_addr_char_string);
@@ -1507,7 +1507,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         REQUIRE(v6_address.address_type() == NlatUnicast);
         REQUIRE(!v6_address.is_address_loopback());
 
-        v6_address_string = v6_address.write_address();
+        v6_address_string = v6_address.format_address();
         REQUIRE(v6_address_string == Test_in6_addr_string);
 
         v6_address.set_sockaddr(Test_in6_addr_char_string2);
@@ -1516,7 +1516,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         REQUIRE(v6_address.address_type() == NlatUnicast);
         REQUIRE(!v6_address.is_address_loopback());
 
-        v6_address_string = v6_address.write_address();
+        v6_address_string = v6_address.format_address();
         REQUIRE(v6_address_string == Test_in6_addr_string2);
 
         // set_sockaddr via a SOCKET bound to an address
@@ -1546,7 +1546,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         REQUIRE(v6_address.is_address_loopback());
         REQUIRE(TestPort == v6_address.port());
 
-        v6_address_string = v6_address.write_address();
+        v6_address_string = v6_address.format_address();
         REQUIRE(v6_address_string == Test_loopback_in6_addr_string);
 #endif
     }
@@ -1565,7 +1565,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         REQUIRE(!v4_addr.is_address_loopback());
         REQUIRE(v4_addr.port() == TestPort);
 #ifdef WIL_ENABLE_EXCEPTIONS
-        REQUIRE(Test_linklocal_in_addr_string == v4_addr.write_address());
+        REQUIRE(Test_linklocal_in_addr_string == v4_addr.format_address());
 #endif
 
         v4_addr.set_port(TestPort + 1);
@@ -1590,7 +1590,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         REQUIRE(v6_addr.flow_info() == 123456);
         REQUIRE(v6_addr.scope_id() == 234567);
 #ifdef WIL_ENABLE_EXCEPTIONS
-        REQUIRE(Test_linklocal_in6_addr_string == v6_addr.write_address());
+        REQUIRE(Test_linklocal_in6_addr_string == v6_addr.format_address());
 #endif
 
         v6_addr.set_flow_info(345678);
@@ -1618,7 +1618,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         REQUIRE(!v4_addr.is_address_loopback());
         REQUIRE(v4_addr.port() == TestPort);
 #ifdef WIL_ENABLE_EXCEPTIONS
-        REQUIRE(Test_linklocal_in_addr_string == v4_addr.write_address());
+        REQUIRE(Test_linklocal_in_addr_string == v4_addr.format_address());
 #endif
 
         SOCKADDR_IN6 v6_test_sockaddr{};
@@ -1638,7 +1638,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         REQUIRE(v6_addr.flow_info() == 123456);
         REQUIRE(v6_addr.scope_id() == 234567);
 #ifdef WIL_ENABLE_EXCEPTIONS
-        REQUIRE(Test_linklocal_in6_addr_string == v6_addr.write_address());
+        REQUIRE(Test_linklocal_in6_addr_string == v6_addr.format_address());
 #endif
 
         // swap v4 and v6
@@ -1651,7 +1651,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         REQUIRE(!v6_addr.is_address_loopback());
         REQUIRE(v6_addr.port() == TestPort);
 #ifdef WIL_ENABLE_EXCEPTIONS
-        REQUIRE(Test_linklocal_in_addr_string == v6_addr.write_address());
+        REQUIRE(Test_linklocal_in_addr_string == v6_addr.format_address());
 #endif
 
         REQUIRE(v4_addr.family() == AF_INET6);
@@ -1662,7 +1662,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         REQUIRE(v4_addr.flow_info() == 123456);
         REQUIRE(v4_addr.scope_id() == 234567);
 #ifdef WIL_ENABLE_EXCEPTIONS
-        REQUIRE(Test_linklocal_in6_addr_string == v4_addr.write_address());
+        REQUIRE(Test_linklocal_in6_addr_string == v4_addr.format_address());
 #endif
     }
 
@@ -1681,7 +1681,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         REQUIRE(mapped_addr.family() == AF_INET6);
         REQUIRE(IN6_IS_ADDR_V4MAPPED(mapped_addr.in6_addr()));
 #ifdef WIL_ENABLE_EXCEPTIONS
-        REQUIRE(dual_mode_string == mapped_addr.write_address());
+        REQUIRE(dual_mode_string == mapped_addr.format_address());
 #else
         (void)dual_mode_string;
 #endif
@@ -1764,47 +1764,47 @@ TEST_CASE("NetworkingTests::Verifying_failure_paths", "[networking]")
 #endif
     }
 
-    SECTION("verify write_address_nothrow AF_UNSPEC")
+    SECTION("verify format_address_nothrow AF_UNSPEC")
     {
         wil::network::socket_address af_unspec_address;
         af_unspec_address.reset(AF_UNSPEC);
 
         wil::network::socket_address_string string_address;
-        REQUIRE(SUCCEEDED(af_unspec_address.write_address_nothrow(string_address)));
+        REQUIRE(SUCCEEDED(af_unspec_address.format_address_nothrow(string_address)));
         REQUIRE('\0' == string_address[0]);
-        REQUIRE(SUCCEEDED(af_unspec_address.write_complete_address_nothrow(string_address)));
+        REQUIRE(SUCCEEDED(af_unspec_address.format_complete_address_nothrow(string_address)));
         REQUIRE('\0' == string_address[0]);
 
         wil::network::socket_address_wstring wstring_address;
-        REQUIRE(SUCCEEDED(af_unspec_address.write_address_nothrow(wstring_address)));
+        REQUIRE(SUCCEEDED(af_unspec_address.format_address_nothrow(wstring_address)));
         REQUIRE(L'\0' == wstring_address[0]);
-        REQUIRE(SUCCEEDED(af_unspec_address.write_complete_address_nothrow(wstring_address)));
+        REQUIRE(SUCCEEDED(af_unspec_address.format_complete_address_nothrow(wstring_address)));
         REQUIRE(L'\0' == wstring_address[0]);
 
 #ifdef WIL_ENABLE_EXCEPTIONS
-        std::wstring test_string = af_unspec_address.write_address();
+        std::wstring test_string = af_unspec_address.format_address();
         REQUIRE(test_string.empty());
 
-        test_string = af_unspec_address.write_complete_address();
+        test_string = af_unspec_address.format_complete_address();
         REQUIRE(test_string.empty());
 #endif
     }
 
-    SECTION("verify write_address_nothrow failure path")
+    SECTION("verify format_address_nothrow failure path")
     {
         wil::network::socket_address test_address;
         // set an unsupported family for verifying failure paths
         test_address.reset(AF_APPLETALK);
 
         wil::network::socket_address_wstring wstring_address;
-        REQUIRE(FAILED(test_address.write_address_nothrow(wstring_address)));
-        REQUIRE(FAILED(test_address.write_complete_address_nothrow(wstring_address)));
+        REQUIRE(FAILED(test_address.format_address_nothrow(wstring_address)));
+        REQUIRE(FAILED(test_address.format_complete_address_nothrow(wstring_address)));
 
 #ifdef WIL_ENABLE_EXCEPTIONS
         bool exception_thrown = false;
         try
         {
-            std::wstring test_string = test_address.write_address();
+            std::wstring test_string = test_address.format_address();
             // should never get here
             REQUIRE(test_string.empty());
         }
@@ -1822,7 +1822,7 @@ TEST_CASE("NetworkingTests::Verifying_failure_paths", "[networking]")
         exception_thrown = false;
         try
         {
-            std::wstring test_string = test_address.write_complete_address();
+            std::wstring test_string = test_address.format_complete_address();
             // should never get here
             REQUIRE(test_string.empty());
         }
@@ -1839,11 +1839,11 @@ TEST_CASE("NetworkingTests::Verifying_failure_paths", "[networking]")
 #endif
 
         wil::network::socket_address_string string_address;
-        REQUIRE(FAILED(test_address.write_address_nothrow(string_address)));
-        REQUIRE(FAILED(test_address.write_complete_address_nothrow(string_address)));
+        REQUIRE(FAILED(test_address.format_address_nothrow(string_address)));
+        REQUIRE(FAILED(test_address.format_complete_address_nothrow(string_address)));
     }
 
-    SECTION("verify write_address_nothrow maximum string size")
+    SECTION("verify format_address_nothrow maximum string size")
     {
         {
             wil::network::socket_address test_mapped_address;
@@ -1853,10 +1853,10 @@ TEST_CASE("NetworkingTests::Verifying_failure_paths", "[networking]")
             test_mapped_address.set_flow_info(std::numeric_limits<ULONG>::max());
 
             wil::network::socket_address_wstring test_mapped_address_string;
-            REQUIRE(SUCCEEDED(test_mapped_address.write_address_nothrow(test_mapped_address_string)));
-            REQUIRE(SUCCEEDED(test_mapped_address.write_complete_address_nothrow(test_mapped_address_string)));
+            REQUIRE(SUCCEEDED(test_mapped_address.format_address_nothrow(test_mapped_address_string)));
+            REQUIRE(SUCCEEDED(test_mapped_address.format_complete_address_nothrow(test_mapped_address_string)));
 #ifdef WIL_ENABLE_EXCEPTIONS
-            std::wstring test_mapped_address_wstring = test_mapped_address.write_complete_address();
+            std::wstring test_mapped_address_wstring = test_mapped_address.format_complete_address();
             constexpr auto* expected_test_mapped_address_string = L"[::ffff:255.255.255.255%4294967295]:65535";
             REQUIRE(expected_test_mapped_address_string == test_mapped_address_wstring);
 #endif
@@ -1870,10 +1870,10 @@ TEST_CASE("NetworkingTests::Verifying_failure_paths", "[networking]")
             test_max_v6_address.set_flow_info(std::numeric_limits<ULONG>::max());
 
             wil::network::socket_address_wstring test_max_v6_address_string;
-            REQUIRE(SUCCEEDED(test_max_v6_address.write_address_nothrow(test_max_v6_address_string)));
-            REQUIRE(SUCCEEDED(test_max_v6_address.write_complete_address_nothrow(test_max_v6_address_string)));
+            REQUIRE(SUCCEEDED(test_max_v6_address.format_address_nothrow(test_max_v6_address_string)));
+            REQUIRE(SUCCEEDED(test_max_v6_address.format_complete_address_nothrow(test_max_v6_address_string)));
 #ifdef WIL_ENABLE_EXCEPTIONS
-            std::wstring test_max_v6_address_wstring = test_max_v6_address.write_complete_address();
+            std::wstring test_max_v6_address_wstring = test_max_v6_address.format_complete_address();
             constexpr auto* expected_test_max_v6_address_string = L"[ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff%4294967295]:65535";
             REQUIRE(expected_test_max_v6_address_string == test_max_v6_address_wstring);
 #endif
@@ -2147,7 +2147,7 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
                 REQUIRE(!address.is_address_loopback());
 
                 wil::network::socket_address_wstring address_string;
-                REQUIRE(SUCCEEDED(address.write_address_nothrow(address_string)));
+                REQUIRE(SUCCEEDED(address.format_address_nothrow(address_string)));
                 wprintf(L"... resolve_local_addresses : %ws\n", address_string);
                 ++count;
             }
@@ -2189,7 +2189,7 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
             }
 
             wil::network::socket_address_wstring address_string;
-            REQUIRE(SUCCEEDED(address.write_address_nothrow(address_string)));
+            REQUIRE(SUCCEEDED(address.format_address_nothrow(address_string)));
             wprintf(L"... resolve_localhost_addresses : %ws\n", address_string);
             ++count;
         }
@@ -2262,7 +2262,7 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
             REQUIRE(!address.is_address_loopback());
 
             wil::network::socket_address_wstring address_string;
-            REQUIRE(SUCCEEDED(address.write_address_nothrow(address_string)));
+            REQUIRE(SUCCEEDED(address.format_address_nothrow(address_string)));
             wprintf(L"... moved resolve_local_addresses : %ws\n", address_string);
         }
     }
@@ -2298,7 +2298,7 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
             REQUIRE(!address.is_address_loopback());
 
             wil::network::socket_address_wstring address_string;
-            REQUIRE(SUCCEEDED(address.write_address_nothrow(address_string)));
+            REQUIRE(SUCCEEDED(address.format_address_nothrow(address_string)));
             wprintf(L"... move assignment resolve_local_addresses : %ws\n", address_string);
         }
     }
@@ -2345,7 +2345,7 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
             REQUIRE(!address.is_address_loopback());
 
             wil::network::socket_address_wstring address_string;
-            REQUIRE(SUCCEEDED(address.write_address_nothrow(address_string)));
+            REQUIRE(SUCCEEDED(address.format_address_nothrow(address_string)));
             wprintf(L"... moved getaddrinfo(unique_addrinfo_ansi) : %ws\n", address_string);
         }
     }
@@ -2376,7 +2376,7 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
             REQUIRE(!address.is_address_loopback());
 
             wil::network::socket_address_wstring address_string;
-            REQUIRE(SUCCEEDED(address.write_address_nothrow(address_string)));
+            REQUIRE(SUCCEEDED(address.format_address_nothrow(address_string)));
             wprintf(L"... move assignment getaddrinfo(unique_addrinfo_ansi) : %ws\n", address_string);
         }
     }
@@ -2423,7 +2423,7 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
             REQUIRE(!address.is_address_loopback());
 
             wil::network::socket_address_wstring address_string;
-            REQUIRE(SUCCEEDED(address.write_address_nothrow(address_string)));
+            REQUIRE(SUCCEEDED(address.format_address_nothrow(address_string)));
             wprintf(L"... moved GetAddrInfoExW(unique_addrinfoex) : %ws\n", address_string);
         }
     }
@@ -2454,7 +2454,7 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
             REQUIRE(!address.is_address_loopback());
 
             wil::network::socket_address_wstring address_string;
-            REQUIRE(SUCCEEDED(address.write_address_nothrow(address_string)));
+            REQUIRE(SUCCEEDED(address.format_address_nothrow(address_string)));
             wprintf(L"... move assignment GetAddrInfoExW(unique_addrinfoex) : %ws\n", address_string);
         }
     }
