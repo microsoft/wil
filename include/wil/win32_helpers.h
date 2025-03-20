@@ -50,6 +50,8 @@
 #include "wistd_functional.h"
 #include "wistd_type_traits.h"
 
+EXTERN_C IMAGE_DOS_HEADER __ImageBase;
+
 /// @cond
 namespace wistd
 {
@@ -681,6 +683,7 @@ inline DWORD GetCurrentProcessExecutionOption(PCWSTR valueName, DWORD defaultVal
     return defaultValue;
 }
 
+#ifndef DebugBreak // Some code defines 'DebugBreak' to garbage to force build breaks in release builds
 // Waits for a debugger to attach to the current process based on registry configuration.
 //
 // Example:
@@ -712,6 +715,7 @@ inline void WaitForDebuggerPresent(bool checkRegistryConfig = true)
         Sleep(500);
     }
 }
+#endif
 #endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
 
 #endif
@@ -719,7 +723,6 @@ inline void WaitForDebuggerPresent(bool checkRegistryConfig = true)
 /** Retrieve the HINSTANCE for the current DLL or EXE using this symbol that
 the linker provides for every module. This avoids the need for a global HINSTANCE variable
 and provides access to this value for static libraries. */
-EXTERN_C IMAGE_DOS_HEADER __ImageBase;
 inline HINSTANCE GetModuleInstanceHandle() WI_NOEXCEPT
 {
     return reinterpret_cast<HINSTANCE>(&__ImageBase);
