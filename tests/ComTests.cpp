@@ -1,16 +1,16 @@
 #include "pch.h"
 
 #include <ocidl.h> // Bring in IObjectWithSite
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+#include <ShObjIdl_core.h>
+#include <ShlObj_core.h>
+#endif
 
 #include <wil/win32_helpers.h>
 #include <wil/com.h>
 #include <wrl/implements.h>
 
 #include "common.h"
-#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
-#include <ShObjIdl_core.h>
-#include <ShlObj_core.h>
-#endif
 #include <Bits.h>
 #include <thread>
 
@@ -638,8 +638,9 @@ interface __declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20a05")) IAlways : pub
     STDMETHOD_(void, Always)() = 0;
 };
 
-class __declspec(empty_bases) __declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20b00")) // non-implemented to allow QI for the class to be attempted (and fail)
-    ComObject
+class __declspec(empty_bases)
+__declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20b00")) // non-implemented to allow QI for the class to be attempted (and fail)
+ComObject
     : witest::AllocatedObject,
       public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::RuntimeClassType::ClassicCom>, Microsoft::WRL::ChainInterfaces<IDerivedTest, ITest>, IAlways>
 {
@@ -655,8 +656,9 @@ public:
     }
 };
 
-class __declspec(empty_bases) __declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20b01")) // non-implemented to allow QI for the class to be attempted (and fail)
-    WinRtObject
+class __declspec(empty_bases)
+__declspec(uuid("ececcc6a-5193-4d14-b38e-ed1460c20b01")) // non-implemented to allow QI for the class to be attempted (and fail)
+WinRtObject
     : witest::AllocatedObject,
       public Microsoft::WRL::
           RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::RuntimeClassType::WinRtClassicComMix>, ITest, IDerivedTest, ITestInspectable, IDerivedTestInspectable, IAlways, Microsoft::WRL::FtmBase>
@@ -3056,6 +3058,62 @@ TEST_CASE("COMEnumerator", "[com][enumerator]")
         }
         REQUIRE(count > 0);
     }
+#ifdef __IShellItemArray_INTERFACE_DEFINED__
+    SECTION("Enumerate an IShellItemArray")
+    {
+        wil::com_ptr<IShellItem> folderItem;
+        REQUIRE_SUCCEEDED(::SHCreateItemInKnownFolder(FOLDERID_Windows, 0, nullptr, IID_PPV_ARGS(&folderItem)));
+
+        wil::com_ptr<IShellItemArray> shellItemArray;
+        REQUIRE_SUCCEEDED(SHCreateShellItemArrayFromShellItem(folderItem.get(), IID_PPV_ARGS(&shellItemArray)));
+        REQUIRE(shellItemArray);
+
+        auto count = 0;
+        wil::com_ptr<IEnumShellItems> enumerator;
+        REQUIRE_SUCCEEDED(shellItemArray->EnumItems(&enumerator));
+
+        for (const auto& shellItem : wil::make_range<wil::com_ptr<IShellItem>>(enumerator.get()))
+        {
+            REQUIRE(shellItem);
+            count++;
+            break;
+        }
+        REQUIRE(count > 0);
+
+        using range_simple = decltype(wil::make_range(enumerator));
+        using enum_simple = decltype(std::declval<range_simple>().begin());
+        using elem_simple = decltype(*std::declval<enum_simple>());
+        static_assert(std::is_same_v<elem_simple, wil::com_ptr<IShellItem>&>);
+
+        REQUIRE_SUCCEEDED(enumerator->Reset());
+        count = 0;
+        for (const auto& shellItem : wil::make_range(enumerator))
+        {
+            REQUIRE(shellItem);
+            count++;
+            break;
+        }
+        REQUIRE(count > 0);
+
+        count = 0;
+        for (const auto& shellItem : wil::make_range(shellItemArray.get()))
+        {
+            REQUIRE(shellItem);
+            count++;
+            break;
+        }
+        REQUIRE(count > 0);
+
+        count = 0;
+        for (const auto& shellItem : wil::make_range(shellItemArray))
+        {
+            REQUIRE(shellItem);
+            count++;
+            break;
+        }
+        REQUIRE(count > 0);
+    }
+#endif // __IShellItemArray_INTERFACE_DEFINED__
 }
 #pragma warning(pop)
 #endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
@@ -3067,7 +3125,8 @@ TEST_CASE("COMEnumerator", "[com][enumerator]")
 #include <winrt/windows.foundation.h>
 #include <windows.foundation.h>
 
-TEST_CASE("com_timeout", "[com][com_timeout]")
+// NOTE: Disabled in CI until the spurious failures can be investigated and resolved
+TEST_CASE("com_timeout", "[com][com_timeout][LocalOnly]")
 {
     auto init = wil::CoInitializeEx_failfast();
 

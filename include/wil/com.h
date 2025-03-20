@@ -3303,14 +3303,14 @@ WI_NODISCARD auto make_range(IEnumXxx* enumPtr)
 
         using enumerator_type = com_iterator<TActualStoredType, IEnumXxx>;
 
-        IEnumXxx* m_enumerator{};
+        wil::com_ptr<IEnumXxx> m_enumerator{};
         iterator_range(IEnumXxx* enumPtr) : m_enumerator(enumPtr)
         {
         }
 
         WI_NODISCARD auto begin()
         {
-            return enumerator_type(m_enumerator);
+            return enumerator_type(m_enumerator.get());
         }
 
         WI_NODISCARD constexpr auto end() const noexcept
@@ -3321,6 +3321,27 @@ WI_NODISCARD auto make_range(IEnumXxx* enumPtr)
 
     return iterator_range(enumPtr);
 }
+
+template <typename TEnum, typename = std::enable_if_t<wil::details::has_next_v<TEnum*>>>
+auto make_range(const wil::com_ptr<TEnum>& e)
+{
+    using Enumerated = typename wil::details::com_enumerator_traits<TEnum>::smart_result;
+    return wil::make_range<Enumerated>(e.get());
+}
+
+#ifdef __IShellItemArray_INTERFACE_DEFINED__
+inline auto make_range(IShellItemArray* sia)
+{
+    wil::com_ptr<IEnumShellItems> enumShellItems;
+    THROW_IF_FAILED(sia->EnumItems(&enumShellItems));
+    return make_range(enumShellItems);
+}
+
+inline auto make_range(const wil::com_ptr<IShellItemArray>& sia)
+{
+    return make_range(sia.get());
+}
+#endif // __IShellItemArray_INTERFACE_DEFINED__
 
 #endif // __cpp_deduction_guides >= 201703L
 #endif // WIL_ENABLE_EXCEPTIONS
