@@ -261,7 +261,8 @@ namespace details
     public:
         StoredCallContextInfo() WI_NOEXCEPT
         {
-            ::ZeroMemory(this, sizeof(*this));
+            // Suppress '-Wnontrivial-memcall' with 'static_cast'
+            ::ZeroMemory(static_cast<void*>(this), sizeof(*this));
         }
 
         StoredCallContextInfo(StoredCallContextInfo&& other) WI_NOEXCEPT : StoredCallContextInfo()
