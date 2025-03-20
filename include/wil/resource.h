@@ -1008,7 +1008,8 @@ private:
 
     void call_init(wistd::true_type)
     {
-        RtlZeroMemory(this, sizeof(*this));
+        // Suppress '-Wnontrivial-memcall' with 'static_cast'
+        RtlZeroMemory(static_cast<void*>(this), sizeof(*this));
     }
 
     void call_init(wistd::false_type)

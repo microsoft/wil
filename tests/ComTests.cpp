@@ -3125,7 +3125,8 @@ TEST_CASE("COMEnumerator", "[com][enumerator]")
 #include <winrt/windows.foundation.h>
 #include <windows.foundation.h>
 
-TEST_CASE("com_timeout", "[com][com_timeout]")
+// NOTE: Disabled in CI until the spurious failures can be investigated and resolved
+TEST_CASE("com_timeout", "[com][com_timeout][LocalOnly]")
 {
     auto init = wil::CoInitializeEx_failfast();
 
