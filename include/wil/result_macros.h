@@ -2521,7 +2521,7 @@ namespace details
 #if __clang_major__ >= 13
     __WI_CLANG_DISABLE_WARNING(-Wunused-but-set-variable) // s_hrErrorLast used for debugging. We intentionally only assign to it
 #endif
-__WI_MSVC_DISABLE_WARNING(4746) // s_hrErrorLast' is subject to /volatile:<iso|ms> setting; consider using __iso_volatile_load/store intrinsic functions
+    __WI_MSVC_DISABLE_WARNING(4746) // s_hrErrorLast' is subject to /volatile:<iso|ms> setting; consider using __iso_volatile_load/store intrinsic functions
 
     __declspec(noinline) inline int RecordException(HRESULT hr) WI_NOEXCEPT
     {
