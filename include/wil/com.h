@@ -3322,7 +3322,7 @@ WI_NODISCARD auto make_range(IEnumXxx* enumPtr)
     return iterator_range(enumPtr);
 }
 
-template <typename TEnum, typename = std::enable_if_t<wil::details::has_next_v<TEnum*>>>
+template <typename TEnum, typename = wistd::enable_if_t<wil::details::has_next_v<TEnum*>>>
 auto make_range(const wil::com_ptr<TEnum>& e)
 {
     using Enumerated = typename wil::details::com_enumerator_traits<TEnum>::smart_result;

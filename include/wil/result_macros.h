@@ -2521,6 +2521,8 @@ namespace details
 #if __clang_major__ >= 13
     __WI_CLANG_DISABLE_WARNING(-Wunused-but-set-variable) // s_hrErrorLast used for debugging. We intentionally only assign to it
 #endif
+__WI_MSVC_DISABLE_WARNING(4746) // s_hrErrorLast' is subject to /volatile:<iso|ms> setting; consider using __iso_volatile_load/store intrinsic functions
+
     __declspec(noinline) inline int RecordException(HRESULT hr) WI_NOEXCEPT
     {
         static HRESULT volatile s_hrErrorLast = S_OK;
@@ -2602,6 +2604,8 @@ namespace details
         return true;
     }
 
+    __WI_PUSH_WARNINGS
+    __WI_MSVC_DISABLE_WARNING(4746) // s_fModuleValid' is subject to /volatile:<iso|ms> setting; consider using __iso_volatile_load/store intrinsic functions
     inline PCSTR __stdcall GetCurrentModuleName() WI_NOEXCEPT
     {
         static char s_szModule[64] = {};
@@ -2613,6 +2617,7 @@ namespace details
         }
         return s_szModule;
     }
+    __WI_POP_WARNINGS
 
     inline void __stdcall DebugBreak() WI_NOEXCEPT
     {
