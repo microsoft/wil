@@ -573,23 +573,23 @@ namespace network
             return table;
         }
 
-        const auto load_function_pointer = [](SOCKET lambdaSocket, GUID extensionGuid, void* functionPtr) WI_NOEXCEPT {
+        const auto load_function_pointer = [&](GUID extensionGuid, void* functionPtr) WI_NOEXCEPT {
             constexpr DWORD controlCode{SIO_GET_EXTENSION_FUNCTION_POINTER};
             constexpr DWORD bytes{sizeof(functionPtr)};
             DWORD unused_bytes{};
             const auto error{::WSAIoctl(
-                lambdaSocket, controlCode, &extensionGuid, DWORD{sizeof(extensionGuid)}, functionPtr, bytes, &unused_bytes, nullptr, nullptr)};
+                localSocket.get(), controlCode, &extensionGuid, DWORD{sizeof(extensionGuid)}, functionPtr, bytes, &unused_bytes, nullptr, nullptr)};
             return error == 0 ? S_OK : HRESULT_FROM_WIN32(::WSAGetLastError());
         };
 
-        if (FAILED_LOG(load_function_pointer(localSocket.get(), WSAID_ACCEPTEX, &table.f.AcceptEx)) ||
-            FAILED_LOG(load_function_pointer(localSocket.get(), WSAID_CONNECTEX, &table.f.ConnectEx)) ||
-            FAILED_LOG(load_function_pointer(localSocket.get(), WSAID_DISCONNECTEX, &table.f.DisconnectEx)) ||
-            FAILED_LOG(load_function_pointer(localSocket.get(), WSAID_GETACCEPTEXSOCKADDRS, &table.f.GetAcceptExSockaddrs)) ||
-            FAILED_LOG(load_function_pointer(localSocket.get(), WSAID_TRANSMITFILE, &table.f.TransmitFile)) ||
-            FAILED_LOG(load_function_pointer(localSocket.get(), WSAID_TRANSMITPACKETS, &table.f.TransmitPackets)) ||
-            FAILED_LOG(load_function_pointer(localSocket.get(), WSAID_WSARECVMSG, &table.f.WSARecvMsg)) ||
-            FAILED_LOG(load_function_pointer(localSocket.get(), WSAID_WSASENDMSG, &table.f.WSASendMsg)))
+        if (FAILED_LOG(load_function_pointer(WSAID_ACCEPTEX, &table.f.AcceptEx)) ||
+            FAILED_LOG(load_function_pointer(WSAID_CONNECTEX, &table.f.ConnectEx)) ||
+            FAILED_LOG(load_function_pointer(WSAID_DISCONNECTEX, &table.f.DisconnectEx)) ||
+            FAILED_LOG(load_function_pointer(WSAID_GETACCEPTEXSOCKADDRS, &table.f.GetAcceptExSockaddrs)) ||
+            FAILED_LOG(load_function_pointer(WSAID_TRANSMITFILE, &table.f.TransmitFile)) ||
+            FAILED_LOG(load_function_pointer(WSAID_TRANSMITPACKETS, &table.f.TransmitPackets)) ||
+            FAILED_LOG(load_function_pointer(WSAID_WSARECVMSG, &table.f.WSARecvMsg)) ||
+            FAILED_LOG(load_function_pointer(WSAID_WSASENDMSG, &table.f.WSASendMsg)))
         {
             // if any failed to be found, something is very broken
             // all should load, or all should fail
