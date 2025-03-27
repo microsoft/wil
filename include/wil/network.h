@@ -185,12 +185,6 @@ namespace network
         explicit socket_address(PCWSTR, unsigned short port = 0);
 #endif
 
-        ~socket_address() = default;
-        socket_address(const socket_address&) WI_NOEXCEPT = default;
-        socket_address& operator=(const socket_address&) WI_NOEXCEPT = default;
-        socket_address(socket_address&&) WI_NOEXCEPT = default;
-        socket_address& operator=(socket_address&&) WI_NOEXCEPT = default;
-
         bool operator==(const socket_address&) const WI_NOEXCEPT;
         bool operator!=(const socket_address&) const WI_NOEXCEPT;
         bool operator<(const socket_address&) const WI_NOEXCEPT;
