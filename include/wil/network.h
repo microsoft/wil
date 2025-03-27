@@ -319,8 +319,8 @@ namespace network
         using value_type = ::wil::network::socket_address;
         using difference_type = size_t;
         using distance_type = size_t;
-        using pointer = ::wil::network::socket_address*;
-        using reference = ::wil::network::socket_address&;
+        using pointer = const ::wil::network::socket_address*;
+        using reference = const ::wil::network::socket_address&;
 
         constexpr addr_info_iterator_t() WI_NOEXCEPT = default;
 
