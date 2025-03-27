@@ -413,7 +413,7 @@ namespace network
     using addr_infoex_iterator = addr_info_iterator_t<ADDRINFOEXW>;
 
 #if defined(WIL_ENABLE_EXCEPTIONS)
-    // wil function to capture resolving IP addresses assigned to the local machine, throwing on error
+    // function to capture resolving IP addresses assigned to the local machine, throwing on error
     // returning an RAII object containing the results
     inline ::wil::unique_addrinfo resolve_local_addresses()
     {
