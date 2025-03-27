@@ -820,7 +820,7 @@ namespace network
     inline void socket_address::reset(ADDRESS_FAMILY family) WI_NOEXCEPT
     {
 #if (!defined(WI_NETWORK_TEST))
-        WI_ASSERT(family == AF_INET || family == AF_INET6);
+        WI_ASSERT(family == AF_UNSPEC || family == AF_INET || family == AF_INET6);
 #endif
         ::memset(&m_sockaddr, 0, size());
         m_sockaddr.si_family = family;

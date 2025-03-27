@@ -2336,7 +2336,7 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
             ++test_iterator;
         }
 
-        test_iterator = addr_info_iterator{test_addr.get()};
+        test_iterator = addr_info_ansi_iterator{test_addr.get()};
         for (auto count = 0; count < total_count; ++count)
         {
             test_iterator++;
@@ -2423,7 +2423,7 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
             ++test_iterator;
         }
 
-        test_iterator = addr_info_iterator{test_addr.get()};
+        test_iterator = addr_infoex_iterator{test_addr.get()};
         for (auto count = 0; count < total_count; ++count)
         {
             test_iterator++;
