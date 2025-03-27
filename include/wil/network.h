@@ -268,7 +268,7 @@ namespace network
 
         [[nodiscard]] SOCKADDR_STORAGE sockaddr_storage() const WI_NOEXCEPT;
 
-        [[nodiscard]] constexpr int length() const
+        [[nodiscard]] constexpr int size() const WI_NOEXCEPT
         {
             return sizeof(m_sockaddr);
         }
