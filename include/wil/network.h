@@ -377,30 +377,6 @@ namespace network
             this->operator+=(1);
             return return_value;
         }
-
-        addr_info_iterator_t& operator+=(size_t offset) WI_NOEXCEPT
-        {
-            for (size_t count = 0; count < offset; ++count)
-            {
-                WI_ASSERT(m_addrinfo_ptr);
-                if (m_addrinfo_ptr)
-                {
-                    m_addrinfo_ptr = m_addrinfo_ptr->ai_next;
-
-                    if (m_addrinfo_ptr)
-                    {
-                        m_socket_address.set_sockaddr(m_addrinfo_ptr->ai_addr, m_addrinfo_ptr->ai_addrlen);
-                    }
-                    else
-                    {
-                        m_socket_address.reset();
-                    }
-                }
-            }
-
-            return *this;
-        }
-
     private:
         // non-ownership of this pointer - the parent class must outlive the iterator
         T* m_addrinfo_ptr{nullptr};
