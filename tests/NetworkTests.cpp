@@ -1890,14 +1890,14 @@ TEST_CASE("NetworkingTests::Verifying_function_tables", "[networking]")
         // verify the first 3 function pointers are calling through correctly to confirm the function table is correct
         wil::network::winsock_extension_function_table test_table = wil::network::winsock_extension_function_table::load();
         REQUIRE(static_cast<bool>(test_table));
-        REQUIRE(test_table.f.AcceptEx);
-        REQUIRE(test_table.f.ConnectEx);
-        REQUIRE(test_table.f.DisconnectEx);
-        REQUIRE(test_table.f.GetAcceptExSockaddrs);
-        REQUIRE(test_table.f.TransmitFile);
-        REQUIRE(test_table.f.TransmitPackets);
-        REQUIRE(test_table.f.WSARecvMsg);
-        REQUIRE(test_table.f.WSASendMsg);
+        REQUIRE(test_table.ft.AcceptEx);
+        REQUIRE(test_table.ft.ConnectEx);
+        REQUIRE(test_table.ft.DisconnectEx);
+        REQUIRE(test_table.ft.GetAcceptExSockaddrs);
+        REQUIRE(test_table.ft.TransmitFile);
+        REQUIRE(test_table.ft.TransmitPackets);
+        REQUIRE(test_table.ft.WSARecvMsg);
+        REQUIRE(test_table.ft.WSASendMsg);
 
         // create a listening socket and post an AcceptEx on it
         wil::unique_socket listeningSocket{::socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP)};
@@ -1938,7 +1938,7 @@ TEST_CASE("NetworkingTests::Verifying_function_tables", "[networking]")
         acceptex_overlapped.hEvent = acceptex_overlapped_event.get();
 
         gle = 0;
-        auto acceptex_return = test_table.f.AcceptEx(
+        auto acceptex_return = test_table.ft.AcceptEx(
             listeningSocket.get(),
             acceptSocket.get(),
             acceptex_output_buffer,
@@ -1988,7 +1988,7 @@ TEST_CASE("NetworkingTests::Verifying_function_tables", "[networking]")
         REQUIRE(bind_error == 0);
 
         gle = 0;
-        auto connectex_return = test_table.f.ConnectEx(
+        auto connectex_return = test_table.ft.ConnectEx(
             connectingSocket.get(), listenAddress.sockaddr(), listenAddress.size(), nullptr, 0, nullptr, &connectex_overlapped);
         if (!connectex_return)
         {
@@ -2044,7 +2044,7 @@ TEST_CASE("NetworkingTests::Verifying_function_tables", "[networking]")
         OVERLAPPED disconnectex_overlapped{};
         disconnectex_overlapped.hEvent = disconnectex_overlapped_event.get();
 
-        auto disconnectex_return = test_table.f.DisconnectEx(
+        auto disconnectex_return = test_table.ft.DisconnectEx(
             connectingSocket.get(),
             &disconnectex_overlapped,
             0, // not passing the reuse-socket flag
@@ -2077,20 +2077,20 @@ TEST_CASE("NetworkingTests::Verifying_function_tables", "[networking]")
         // verify 2 function pointers are calling through correctly to confirm the function table is correct
         wil::network::rio_extension_function_table test_table = wil::network::rio_extension_function_table::load();
         REQUIRE(static_cast<bool>(test_table));
-        REQUIRE(test_table.f.cbSize > 0);
-        REQUIRE(test_table.f.RIOReceive);
-        REQUIRE(test_table.f.RIOReceiveEx);
-        REQUIRE(test_table.f.RIOSend);
-        REQUIRE(test_table.f.RIOSendEx);
-        REQUIRE(test_table.f.RIOCloseCompletionQueue);
-        REQUIRE(test_table.f.RIOCreateCompletionQueue);
-        REQUIRE(test_table.f.RIOCreateRequestQueue);
-        REQUIRE(test_table.f.RIODequeueCompletion);
-        REQUIRE(test_table.f.RIODeregisterBuffer);
-        REQUIRE(test_table.f.RIONotify);
-        REQUIRE(test_table.f.RIORegisterBuffer);
-        REQUIRE(test_table.f.RIOResizeCompletionQueue);
-        REQUIRE(test_table.f.RIOResizeRequestQueue);
+        REQUIRE(test_table.ft.cbSize > 0);
+        REQUIRE(test_table.ft.RIOReceive);
+        REQUIRE(test_table.ft.RIOReceiveEx);
+        REQUIRE(test_table.ft.RIOSend);
+        REQUIRE(test_table.ft.RIOSendEx);
+        REQUIRE(test_table.ft.RIOCloseCompletionQueue);
+        REQUIRE(test_table.ft.RIOCreateCompletionQueue);
+        REQUIRE(test_table.ft.RIOCreateRequestQueue);
+        REQUIRE(test_table.ft.RIODequeueCompletion);
+        REQUIRE(test_table.ft.RIODeregisterBuffer);
+        REQUIRE(test_table.ft.RIONotify);
+        REQUIRE(test_table.ft.RIORegisterBuffer);
+        REQUIRE(test_table.ft.RIOResizeCompletionQueue);
+        REQUIRE(test_table.ft.RIOResizeRequestQueue);
 
         wil::unique_event_nothrow rio_completion_notification_event{};
         REQUIRE(SUCCEEDED(rio_completion_notification_event.create()));
@@ -2102,7 +2102,7 @@ TEST_CASE("NetworkingTests::Verifying_function_tables", "[networking]")
         rio_completion_notification.Event.NotifyReset = FALSE;
 
         int gle = 0;
-        const RIO_CQ rio_cq = test_table.f.RIOCreateCompletionQueue(
+        const RIO_CQ rio_cq = test_table.ft.RIOCreateCompletionQueue(
             10, // queue size
             &rio_completion_notification);
         if (rio_cq == RIO_INVALID_CQ)
@@ -2112,7 +2112,7 @@ TEST_CASE("NetworkingTests::Verifying_function_tables", "[networking]")
         REQUIRE(gle == 0);
         REQUIRE(rio_cq != RIO_INVALID_CQ);
 
-        test_table.f.RIOCloseCompletionQueue(rio_cq);
+        test_table.ft.RIOCloseCompletionQueue(rio_cq);
     }
 }
 
