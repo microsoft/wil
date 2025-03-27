@@ -355,11 +355,6 @@ namespace network
             return &m_socket_address;
         }
 
-        const ::wil::network::socket_address* operator->() WI_NOEXCEPT
-        {
-            return &m_socket_address;
-        }
-
         [[nodiscard]] bool operator==(const addr_info_iterator_t& rhs) const WI_NOEXCEPT
         {
             return m_addrinfo_ptr == rhs.m_addrinfo_ptr;
