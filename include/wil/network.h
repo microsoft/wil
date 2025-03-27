@@ -820,7 +820,7 @@ namespace network
     inline void socket_address::reset(ADDRESS_FAMILY family) WI_NOEXCEPT
     {
 #if (!defined(WI_NETWORK_TEST))
-        WI_ASSERT(family == AF_UNSPEC || family == AF_INET || family == AF_INET6);
+        WI_ASSERT(family == AF_INET || family == AF_INET6);
 #endif
         ::memset(&m_sockaddr, 0, size());
         m_sockaddr.si_family = family;
@@ -1054,7 +1054,7 @@ namespace network
 
     inline HRESULT socket_address::reset_address_nothrow(PCWSTR address) WI_NOEXCEPT
     {
-        PCWSTR terminator_unused{};
+        PCWSTR terminator_unused;
 
         reset(AF_INET);
         constexpr BOOLEAN strict_string{TRUE};
@@ -1077,7 +1077,7 @@ namespace network
 
     inline HRESULT socket_address::reset_address_nothrow(PCSTR address) WI_NOEXCEPT
     {
-        PCSTR terminator_unused{};
+        PCSTR terminator_unused;
 
         reset(AF_INET);
         constexpr BOOLEAN strict_string{TRUE};
