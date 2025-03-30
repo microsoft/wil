@@ -167,20 +167,20 @@ namespace network
         explicit socket_address(ADDRESS_FAMILY family) WI_NOEXCEPT;
         template <typename T>
         explicit socket_address(_In_reads_bytes_(addr_size) const SOCKADDR* addr, T addr_size) WI_NOEXCEPT;
-        explicit socket_address(const SOCKADDR_IN*) WI_NOEXCEPT;
-        explicit socket_address(const SOCKADDR_IN6*) WI_NOEXCEPT;
-        explicit socket_address(const SOCKADDR_INET*) WI_NOEXCEPT;
-        explicit socket_address(const SOCKET_ADDRESS*) WI_NOEXCEPT;
-        explicit socket_address(const IN_ADDR*, unsigned short port = 0) WI_NOEXCEPT;
-        explicit socket_address(const IN6_ADDR*, unsigned short port = 0) WI_NOEXCEPT;
+        explicit socket_address(const SOCKADDR_IN* addr) WI_NOEXCEPT;
+        explicit socket_address(const SOCKADDR_IN6* addr) WI_NOEXCEPT;
+        explicit socket_address(const SOCKADDR_INET* addr) WI_NOEXCEPT;
+        explicit socket_address(const SOCKET_ADDRESS* addr) WI_NOEXCEPT;
+        explicit socket_address(const IN_ADDR* addr, unsigned short port = 0) WI_NOEXCEPT;
+        explicit socket_address(const IN6_ADDR* addr, unsigned short port = 0) WI_NOEXCEPT;
 #if defined(WIL_ENABLE_EXCEPTIONS)
-        explicit socket_address(PCWSTR, unsigned short port = 0);
+        explicit socket_address(PCWSTR addr, unsigned short port = 0);
 #endif
 
-        bool operator==(const socket_address&) const WI_NOEXCEPT;
-        bool operator!=(const socket_address&) const WI_NOEXCEPT;
-        bool operator<(const socket_address&) const WI_NOEXCEPT;
-        bool operator>(const socket_address&) const WI_NOEXCEPT;
+        bool operator==(const socket_address& rhs) const WI_NOEXCEPT;
+        bool operator!=(const socket_address& rhs) const WI_NOEXCEPT;
+        bool operator<(const socket_address& rhs) const WI_NOEXCEPT;
+        bool operator>(const socket_address& rhs) const WI_NOEXCEPT;
 
         void swap(socket_address&) WI_NOEXCEPT;
 
@@ -189,31 +189,31 @@ namespace network
         void reset(ADDRESS_FAMILY family) WI_NOEXCEPT;
         template <typename T>
         void reset(_In_reads_bytes_(addr_size) const SOCKADDR* addr, T addr_size) WI_NOEXCEPT;
-        void reset(const SOCKADDR_IN*) WI_NOEXCEPT;
-        void reset(const SOCKADDR_IN6*) WI_NOEXCEPT;
-        void reset(const SOCKADDR_INET*) WI_NOEXCEPT;
-        void reset(const SOCKET_ADDRESS*) WI_NOEXCEPT;
+        void reset(const SOCKADDR_IN* addr) WI_NOEXCEPT;
+        void reset(const SOCKADDR_IN6* addr) WI_NOEXCEPT;
+        void reset(const SOCKADDR_INET* addr) WI_NOEXCEPT;
+        void reset(const SOCKET_ADDRESS* addr) WI_NOEXCEPT;
 
         void set_address_any() WI_NOEXCEPT;
         void set_address_any(ADDRESS_FAMILY family) WI_NOEXCEPT;
         void set_address_loopback() WI_NOEXCEPT;
         void set_address_loopback(ADDRESS_FAMILY family) WI_NOEXCEPT;
-        void set_address(const IN_ADDR*) WI_NOEXCEPT;
-        void set_address(const IN6_ADDR*) WI_NOEXCEPT;
+        void set_address(const IN_ADDR* addr) WI_NOEXCEPT;
+        void set_address(const IN6_ADDR* addr) WI_NOEXCEPT;
 
         #if defined(WIL_ENABLE_EXCEPTIONS)
-        void reset_address(SOCKET);
-        void reset_address(PCWSTR);
-        void reset_address(PCSTR);
+        void reset_address(SOCKET s);
+        void reset_address(PCWSTR address);
+        void reset_address(PCSTR address);
         #endif
 
-        WI_NODISCARD HRESULT reset_address_nothrow(SOCKET) WI_NOEXCEPT;
-        WI_NODISCARD HRESULT reset_address_nothrow(PCWSTR) WI_NOEXCEPT;
-        WI_NODISCARD HRESULT reset_address_nothrow(PCSTR) WI_NOEXCEPT;
+        WI_NODISCARD HRESULT reset_address_nothrow(SOCKET s) WI_NOEXCEPT;
+        WI_NODISCARD HRESULT reset_address_nothrow(PCWSTR address) WI_NOEXCEPT;
+        WI_NODISCARD HRESULT reset_address_nothrow(PCSTR address) WI_NOEXCEPT;
 
-        void set_port(USHORT) WI_NOEXCEPT;
-        void set_scope_id(ULONG) WI_NOEXCEPT;
-        void set_flow_info(ULONG) WI_NOEXCEPT;
+        void set_port(USHORT port) WI_NOEXCEPT;
+        void set_scope_id(ULONG scopeId) WI_NOEXCEPT;
+        void set_flow_info(ULONG flowInfo) WI_NOEXCEPT;
 
         // format_address prints the IP address, not the scope id or port
         HRESULT format_address_nothrow(socket_address_wstring& address) const WI_NOEXCEPT;
@@ -794,10 +794,7 @@ namespace network
 
     inline void socket_address::swap(socket_address& addr) WI_NOEXCEPT
     {
-        SOCKADDR_INET tempAddr{};
-        ::memcpy_s(&tempAddr, sizeof(tempAddr), &addr.m_sockaddr, sizeof(addr.m_sockaddr));
-        ::memcpy_s(&addr.m_sockaddr, sizeof(addr.m_sockaddr), &m_sockaddr, sizeof(m_sockaddr));
-        ::memcpy_s(&m_sockaddr, sizeof(m_sockaddr), &tempAddr, sizeof(tempAddr));
+        wistd::swap_wil(*this, addr);
     }
 
     inline void socket_address::reset() WI_NOEXCEPT
