@@ -75,7 +75,7 @@ namespace network
         const auto error{::WSAStartup(WINSOCK_VERSION, &unused_data)};
         LOG_IF_WIN32_ERROR(error);
 
-        return unique_wsacleanup_call{ error == 0 };
+        return unique_wsacleanup_call{error == 0};
     }
 
     // Calls WSAStartup and fail-fasts on error; returns an RAII object that reverts
@@ -165,8 +165,7 @@ namespace network
     public:
         constexpr socket_address() WI_NOEXCEPT = default;
         explicit socket_address(ADDRESS_FAMILY family) WI_NOEXCEPT;
-        template <typename T>
-        explicit socket_address(_In_reads_bytes_(addr_size) const SOCKADDR* addr, T addr_size) WI_NOEXCEPT;
+        explicit socket_address(_In_reads_bytes_(addr_size) const SOCKADDR* addr, size_t addr_size) WI_NOEXCEPT;
         explicit socket_address(const SOCKADDR_IN* addr) WI_NOEXCEPT;
         explicit socket_address(const SOCKADDR_IN6* addr) WI_NOEXCEPT;
         explicit socket_address(const SOCKADDR_INET* addr) WI_NOEXCEPT;
@@ -182,13 +181,14 @@ namespace network
         bool operator<(const socket_address& rhs) const WI_NOEXCEPT;
         bool operator>(const socket_address& rhs) const WI_NOEXCEPT;
 
+        // returns -1, 0, 1, following memcmp
+        int compare(const socket_address& rhs) const WI_NOEXCEPT;
         void swap(socket_address&) WI_NOEXCEPT;
 
         // reset overwrites the entire sockaddr in the object (including address family)
         void reset() WI_NOEXCEPT;
         void reset(ADDRESS_FAMILY family) WI_NOEXCEPT;
-        template <typename T>
-        void reset(_In_reads_bytes_(addr_size) const SOCKADDR* addr, T addr_size) WI_NOEXCEPT;
+        void reset(_In_reads_bytes_(addr_size) const SOCKADDR* addr, size_t addr_size) WI_NOEXCEPT;
         void reset(const SOCKADDR_IN* addr) WI_NOEXCEPT;
         void reset(const SOCKADDR_IN6* addr) WI_NOEXCEPT;
         void reset(const SOCKADDR_INET* addr) WI_NOEXCEPT;
@@ -201,11 +201,11 @@ namespace network
         void set_address(const IN_ADDR* addr) WI_NOEXCEPT;
         void set_address(const IN6_ADDR* addr) WI_NOEXCEPT;
 
-        #if defined(WIL_ENABLE_EXCEPTIONS)
+#if defined(WIL_ENABLE_EXCEPTIONS)
         void reset_address(SOCKET s);
         void reset_address(PCWSTR address);
         void reset_address(PCSTR address);
-        #endif
+#endif
 
         WI_NODISCARD HRESULT reset_address_nothrow(SOCKET s) WI_NOEXCEPT;
         WI_NODISCARD HRESULT reset_address_nothrow(PCWSTR address) WI_NOEXCEPT;
@@ -358,7 +358,7 @@ namespace network
             }
             else
             {
-                    m_socket_address.reset();
+                m_socket_address.reset();
             }
             return *this;
         }
@@ -380,6 +380,7 @@ namespace network
         {
             return {};
         }
+
     private:
         // non-ownership of this pointer - the parent class must outlive the iterator
         T* m_current_ptr{nullptr};
@@ -398,8 +399,8 @@ namespace network
     //     }
     //
     // If one can use exceptions:
-    //     const auto local_addresses = wil::network::resolve_address(local_address_name_string);
-    //     for (const auto& address : wil::network::addr_info_iterator{local_addresses.get()})
+    //     const auto addresses = wil::network::resolve_name(name_to_resolve.xyz);
+    //     for (const auto& address : wil::network::addr_info_iterator{addresses.get()})
     //     {
     //         // address == wil::network::socket_address containing a resolved IP address
     //     }
@@ -412,7 +413,7 @@ namespace network
 #if defined(WIL_ENABLE_EXCEPTIONS)
     // function to capture resolving IP addresses assigned to the local machine, throwing on error
     // returning an RAII object containing the results
-    inline ::wil::unique_addrinfo resolve_address(PCWSTR name)
+    inline ::wil::unique_addrinfo resolve_name(PCWSTR name)
     {
         ADDRINFOW* addrResult{};
         if (::GetAddrInfoW(name, nullptr, nullptr, &addrResult) != 0)
@@ -428,7 +429,7 @@ namespace network
     inline ::wil::unique_addrinfo resolve_local_addresses()
     {
         constexpr auto* local_address_name_string = L"";
-        return ::wil::network::resolve_address(local_address_name_string);
+        return ::wil::network::resolve_name(local_address_name_string);
     }
 
     // wil function to capture resolving the local-host (loopback) addresses, throwing on error
@@ -436,7 +437,7 @@ namespace network
     inline ::wil::unique_addrinfo resolve_localhost_addresses()
     {
         constexpr auto* localhost_address_name_string = L"localhost";
-        return ::wil::network::resolve_address(localhost_address_name_string);
+        return ::wil::network::resolve_name(localhost_address_name_string);
     }
 #endif
 
@@ -631,8 +632,7 @@ namespace network
         reset(family);
     }
 
-    template <typename T>
-    socket_address::socket_address(_In_reads_bytes_(addr_size) const SOCKADDR* addr, T addr_size) WI_NOEXCEPT
+    inline socket_address::socket_address(_In_reads_bytes_(addr_size) const SOCKADDR* addr, size_t addr_size) WI_NOEXCEPT
     {
         reset(addr, addr_size);
     }
@@ -678,73 +678,46 @@ namespace network
         set_port(port);
     }
 #endif
-    inline bool socket_address::operator==(const ::wil::network::socket_address& rhs) const WI_NOEXCEPT
-    {
-        const auto& lhs{*this};
 
-        // Follows the same documented comparison logic as GetTcpTable2 and GetTcp6Table2
-        if (lhs.family() != rhs.family())
-        {
-            return false;
-        }
-
-        if (lhs.family() == AF_INET)
-        {
-            // don't compare the padding at the end of the SOCKADDR_IN
-            return ::memcmp(&lhs.m_sockaddr.Ipv4, &rhs.m_sockaddr.Ipv4, sizeof(SOCKADDR_IN) - sizeof(SOCKADDR_IN::sin_zero)) == 0;
-        }
-
-        return ::memcmp(&lhs.m_sockaddr.Ipv6, &rhs.m_sockaddr.Ipv6, sizeof(SOCKADDR_IN6)) == 0;
-    }
-
-    inline bool socket_address::operator!=(const ::wil::network::socket_address& rhs) const WI_NOEXCEPT
-    {
-        return !(*this == rhs);
-    }
-
-    inline bool socket_address::operator<(const ::wil::network::socket_address& rhs) const WI_NOEXCEPT
+    inline int socket_address::compare(const ::wil::network::socket_address& rhs) const WI_NOEXCEPT
     {
         const auto& lhs{*this};
 
         if (lhs.family() != rhs.family())
         {
-            return lhs.family() < rhs.family();
+            return lhs.family() < rhs.family() ? -1 : 1;
         }
 
-        // for operator<, we cannot just memcmp the raw sockaddr values - as they are in network-byte order
-        // we have to first convert back to host-byte order to do comparisons
-        // else the user will see odd behavior, like 1.1.1.1 < 0.0.0.0 (which won't make senses)
         switch (lhs.family())
         {
         case AF_INET:
         {
             // compare the address first
-            auto comparison{::memcmp(lhs.in_addr(), rhs.in_addr(), sizeof(IN_ADDR))};
+            const auto comparison{::memcmp(lhs.in_addr(), rhs.in_addr(), sizeof(IN_ADDR))};
             if (comparison != 0)
             {
-                return comparison < 0;
+                return comparison;
             }
 
             // then compare the port (host-byte-order)
-            // only resolve the ntohs() once
             const auto lhs_port{lhs.port()};
             const auto rhs_port{rhs.port()};
             if (lhs_port != rhs_port)
             {
-                return lhs_port < rhs_port;
+                return lhs_port < rhs_port ? -1 : 1;
             }
 
-            // must be exactly equal, so not less-than
-            return false;
+            // must be exactly equal
+            return 0;
         }
 
         case AF_INET6:
         {
             // compare the address first
-            auto comparison{::memcmp(lhs.in6_addr(), rhs.in6_addr(), sizeof(IN6_ADDR))};
+            const auto comparison{::memcmp(lhs.in6_addr(), rhs.in6_addr(), sizeof(IN6_ADDR))};
             if (comparison != 0)
             {
-                return comparison < 0;
+                return comparison;
             }
 
             // then compare the port (host-byte-order)
@@ -753,7 +726,7 @@ namespace network
             const auto rhs_port{rhs.port()};
             if (lhs_port != rhs_port)
             {
-                return lhs_port < rhs_port;
+                return lhs_port < rhs_port ? -1 : 1;
             }
 
             // then compare the scope_id of the address
@@ -761,7 +734,7 @@ namespace network
             const auto rhs_scope_id{rhs.scope_id()};
             if (lhs_scope_id != rhs_scope_id)
             {
-                return lhs_scope_id < rhs_scope_id;
+                return lhs_scope_id < rhs_scope_id ? -1 : 1;
             }
 
             // then compare flow_info
@@ -769,11 +742,11 @@ namespace network
             const auto rhs_flow_info{rhs.flow_info()};
             if (lhs_flow_info != rhs_flow_info)
             {
-                return lhs_flow_info < rhs_flow_info;
+                return lhs_flow_info < rhs_flow_info ? -1 : 1;
             }
 
-            // must be exactly equal, so not less-than
-            return false;
+            // must be exactly equal
+            return 0;
         }
 
         default:
@@ -783,13 +756,24 @@ namespace network
         }
     }
 
+    inline bool socket_address::operator==(const ::wil::network::socket_address& rhs) const WI_NOEXCEPT
+    {
+        return compare(rhs)  == 0;
+    }
+
+    inline bool socket_address::operator!=(const ::wil::network::socket_address& rhs) const WI_NOEXCEPT
+    {
+        return compare(rhs) != 0;
+    }
+
+    inline bool socket_address::operator<(const ::wil::network::socket_address& rhs) const WI_NOEXCEPT
+    {
+        return compare(rhs) < 0;
+    }
+
     inline bool socket_address::operator>(const ::wil::network::socket_address& rhs) const WI_NOEXCEPT
     {
-        if (*this == rhs)
-        {
-            return false;
-        }
-        return !(*this < rhs);
+        return compare(rhs) > 0;
     }
 
     inline void socket_address::swap(socket_address& addr) WI_NOEXCEPT
@@ -811,8 +795,7 @@ namespace network
         m_sockaddr.si_family = family;
     }
 
-    template <typename T>
-    void socket_address::reset(_In_reads_bytes_(addr_size) const SOCKADDR* addr, T addr_size) WI_NOEXCEPT
+    inline void socket_address::reset(_In_reads_bytes_(addr_size) const SOCKADDR* addr, size_t addr_size) WI_NOEXCEPT
     {
         WI_ASSERT(static_cast<size_t>(addr_size) <= static_cast<size_t>(size()));
 

@@ -2252,7 +2252,7 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
         REQUIRE(count > 0);
 
         count = 0;
-        const auto localhost_addrinfo = wil::network::resolve_address(L"localhost");
+        const auto localhost_addrinfo = wil::network::resolve_name(L"localhost");
         for (const auto& address : wil::make_range(addr_info_iterator{localhost_addrinfo.get()}, addr_info_iterator{}))
         {
             const auto family = address.family();
@@ -2275,7 +2275,7 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
 
             wil::network::socket_address_wstring address_string;
             REQUIRE(SUCCEEDED(address.format_address_nothrow(address_string)));
-            wprintf(L"... wil::network::resolve_address : %ws\n", address_string);
+            wprintf(L"... wil::network::resolve_name : %ws\n", address_string);
             ++count;
         }
         REQUIRE(count > 0);
