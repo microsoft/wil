@@ -1887,8 +1887,182 @@ TEST_CASE("NetworkingTests::Verifying_function_tables", "[networking]")
 
     SECTION("verify winsock_extension_function_table")
     {
+        const auto verify_extension_table = [](const wil::network::winsock_extension_function_table& table) {
+            // create a listening socket and post an AcceptEx on it
+            wil::unique_socket listeningSocket{::socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP)};
+            REQUIRE(listeningSocket.get() != INVALID_SOCKET);
+            wil::network::socket_address listenAddress{AF_INET6};
+            listenAddress.set_address_loopback();
+            listenAddress.set_port(TestPort);
+
+            int gle = 0;
+            auto bind_error = ::bind(listeningSocket.get(), listenAddress.sockaddr(), listenAddress.size());
+            if (bind_error != 0)
+            {
+                gle = ::WSAGetLastError();
+            }
+            REQUIRE(gle == 0);
+            REQUIRE(bind_error == 0);
+
+            gle = 0;
+            auto listen_error = ::listen(listeningSocket.get(), 1);
+            if (listen_error != 0)
+            {
+                gle = ::WSAGetLastError();
+            }
+            REQUIRE(gle == 0);
+            REQUIRE(listen_error == 0);
+
+            // the buffer to supply to AcceptEx to capture the address information
+            static constexpr size_t singleAddressOutputBufferSize = listenAddress.size() + 16;
+            char acceptex_output_buffer[singleAddressOutputBufferSize * 2]{};
+            wil::unique_socket acceptSocket{::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)};
+            REQUIRE(acceptSocket.get() != INVALID_SOCKET);
+
+            DWORD acceptex_bytes_received{};
+            wil::unique_event_nothrow acceptex_overlapped_event{};
+            REQUIRE(SUCCEEDED(acceptex_overlapped_event.create()));
+            REQUIRE(acceptex_overlapped_event.get() != nullptr);
+            OVERLAPPED acceptex_overlapped{};
+            acceptex_overlapped.hEvent = acceptex_overlapped_event.get();
+
+            gle = 0;
+            auto acceptex_return = table->AcceptEx(
+                listeningSocket.get(),
+                acceptSocket.get(),
+                acceptex_output_buffer,
+                0,
+                singleAddressOutputBufferSize,
+                singleAddressOutputBufferSize,
+                &acceptex_bytes_received,
+                &acceptex_overlapped);
+            if (!acceptex_return)
+            {
+                gle = ::WSAGetLastError();
+            }
+            // should fail with ERROR_IO_PENDING
+            REQUIRE(!acceptex_return);
+            REQUIRE(gle == ERROR_IO_PENDING);
+            // ensure that if this test function fails (returns) before AcceptEx completes asynchronously
+            // that we wait for this async (overlapped) call to complete
+            const auto ensure_acceptex_overlapped_completes = wil::scope_exit([&] {
+                // close the sockets to cancel any pended IO
+                acceptSocket.reset();
+                listeningSocket.reset();
+                // now wait for our async call
+                acceptex_overlapped_event.wait();
+            });
+
+            // now create a socket to connect to it
+            wil::unique_event_nothrow connectex_overlapped_event{};
+            REQUIRE(SUCCEEDED(connectex_overlapped_event.create()));
+            REQUIRE(connectex_overlapped_event.get() != nullptr);
+            OVERLAPPED connectex_overlapped{};
+            connectex_overlapped.hEvent = connectex_overlapped_event.get();
+
+            wil::unique_socket connectingSocket{::socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP)};
+            REQUIRE(connectingSocket.get() != INVALID_SOCKET);
+            // ConnectEx requires a bound socket
+            wil::network::socket_address connecting_from_address{AF_INET6};
+            connecting_from_address.set_address_loopback();
+            connecting_from_address.set_port(0); // just an ephemeral port, ConnectEx will find a port
+
+            gle = 0;
+            bind_error = ::bind(connectingSocket.get(), connecting_from_address.sockaddr(), connecting_from_address.size());
+            if (bind_error != 0)
+            {
+                gle = ::WSAGetLastError();
+            }
+            REQUIRE(gle == 0);
+            REQUIRE(bind_error == 0);
+
+            gle = 0;
+            auto connectex_return = table->ConnectEx(
+                connectingSocket.get(), listenAddress.sockaddr(), listenAddress.size(), nullptr, 0, nullptr, &connectex_overlapped);
+            if (!connectex_return)
+            {
+                gle = ::WSAGetLastError();
+            }
+            // should fail with ERROR_IO_PENDING
+            REQUIRE(!connectex_return);
+            REQUIRE(gle == ERROR_IO_PENDING);
+            // ensure that if this test function fails (returns) before ConnectEx completes asynchronously
+            // that we wait for this async (overlapped) call to complete
+            const auto ensure_connectex_overlapped_completes = wil::scope_exit([&] {
+                // close the socket to cancel any pended IO
+                connectingSocket.reset();
+                // now wait for our async call
+                connectex_overlapped_event.wait();
+            });
+
+            // wait for both connect and accept to complete
+            DWORD transfer_unused{};
+            DWORD flags_unused{};
+            gle = 0;
+            auto connectex_overlapped_result = ::WSAGetOverlappedResult(
+                connectingSocket.get(),
+                &connectex_overlapped,
+                &transfer_unused,
+                TRUE, // should wait for connect to complete
+                &flags_unused);
+            if (!connectex_overlapped_result)
+            {
+                gle = ::WSAGetLastError();
+            }
+            REQUIRE(gle == 0);
+            REQUIRE(connectex_overlapped_result == TRUE);
+
+            gle = 0;
+            auto acceptex_overlapped_result = ::WSAGetOverlappedResult(
+                acceptSocket.get(),
+                &acceptex_overlapped,
+                &transfer_unused,
+                TRUE, // should wait for connect to complete
+                &flags_unused);
+            if (!acceptex_overlapped_result)
+            {
+                gle = ::WSAGetLastError();
+            }
+            REQUIRE(gle == 0);
+            REQUIRE(acceptex_overlapped_result == TRUE);
+
+            // issue a DisconnectEx from the client
+            wil::unique_event_nothrow disconnectex_overlapped_event{};
+            REQUIRE(SUCCEEDED(disconnectex_overlapped_event.create()));
+            REQUIRE(disconnectex_overlapped_event.get() != nullptr);
+            OVERLAPPED disconnectex_overlapped{};
+            disconnectex_overlapped.hEvent = disconnectex_overlapped_event.get();
+
+            auto disconnectex_return = table->DisconnectEx(
+                connectingSocket.get(),
+                &disconnectex_overlapped,
+                0, // not passing the reuse-socket flag
+                0);
+            if (!disconnectex_return)
+            {
+                gle = ::WSAGetLastError();
+            }
+            // should fail with ERROR_IO_PENDING
+            REQUIRE(!disconnectex_return);
+            REQUIRE(gle == ERROR_IO_PENDING);
+
+            gle = 0;
+            auto disconnectex_overlapped_result = ::WSAGetOverlappedResult(
+                connectingSocket.get(),
+                &disconnectex_overlapped,
+                &transfer_unused,
+                TRUE, // should wait for connect to complete
+                &flags_unused);
+            if (!disconnectex_overlapped_result)
+            {
+                gle = ::WSAGetLastError();
+            }
+            REQUIRE(gle == 0);
+            REQUIRE(disconnectex_overlapped_result == TRUE);
+        };
+
         // verify the first 3 function pointers are calling through correctly to confirm the function table is correct
-        wil::network::winsock_extension_function_table test_table = wil::network::winsock_extension_function_table::load();
+        wil::network::winsock_extension_function_table test_table;
         REQUIRE(static_cast<bool>(test_table));
         REQUIRE(test_table->AcceptEx);
         REQUIRE(test_table->ConnectEx);
@@ -1898,184 +2072,84 @@ TEST_CASE("NetworkingTests::Verifying_function_tables", "[networking]")
         REQUIRE(test_table->TransmitPackets);
         REQUIRE(test_table->WSARecvMsg);
         REQUIRE(test_table->WSASendMsg);
+        verify_extension_table(test_table);
 
-        // create a listening socket and post an AcceptEx on it
-        wil::unique_socket listeningSocket{::socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP)};
-        REQUIRE(listeningSocket.get() != INVALID_SOCKET);
-        wil::network::socket_address listenAddress{AF_INET6};
-        listenAddress.set_address_loopback();
-        listenAddress.set_port(TestPort);
+        // verify copy c'tor
+        wil::network::winsock_extension_function_table copied_test_table{test_table};
+        REQUIRE(static_cast<bool>(copied_test_table));
+        REQUIRE(copied_test_table->AcceptEx);
+        REQUIRE(copied_test_table->ConnectEx);
+        REQUIRE(copied_test_table->DisconnectEx);
+        REQUIRE(copied_test_table->GetAcceptExSockaddrs);
+        REQUIRE(copied_test_table->TransmitFile);
+        REQUIRE(copied_test_table->TransmitPackets);
+        REQUIRE(copied_test_table->WSARecvMsg);
+        REQUIRE(copied_test_table->WSASendMsg);
+        verify_extension_table(copied_test_table);
 
-        int gle = 0;
-        auto bind_error = ::bind(listeningSocket.get(), listenAddress.sockaddr(), listenAddress.size());
-        if (bind_error != 0)
-        {
-            gle = ::WSAGetLastError();
-        }
-        REQUIRE(gle == 0);
-        REQUIRE(bind_error == 0);
+        // verify copy assignment
+        copied_test_table = test_table;
+        REQUIRE(static_cast<bool>(copied_test_table));
+        REQUIRE(copied_test_table->AcceptEx);
+        REQUIRE(copied_test_table->ConnectEx);
+        REQUIRE(copied_test_table->DisconnectEx);
+        REQUIRE(copied_test_table->GetAcceptExSockaddrs);
+        REQUIRE(copied_test_table->TransmitFile);
+        REQUIRE(copied_test_table->TransmitPackets);
+        REQUIRE(copied_test_table->WSARecvMsg);
+        REQUIRE(copied_test_table->WSASendMsg);
+        verify_extension_table(copied_test_table);
 
-        gle = 0;
-        auto listen_error = ::listen(listeningSocket.get(), 1);
-        if (listen_error != 0)
-        {
-            gle = ::WSAGetLastError();
-        }
-        REQUIRE(gle == 0);
-        REQUIRE(listen_error == 0);
+        // verify move c'tor
+        wil::network::winsock_extension_function_table move_ctor_test_table{std::move(test_table)};
+        REQUIRE(!static_cast<bool>(test_table));
+        REQUIRE(!test_table->AcceptEx);
+        REQUIRE(!test_table->ConnectEx);
+        REQUIRE(!test_table->DisconnectEx);
+        REQUIRE(!test_table->GetAcceptExSockaddrs);
+        REQUIRE(!test_table->TransmitFile);
+        REQUIRE(!test_table->TransmitPackets);
+        REQUIRE(!test_table->WSARecvMsg);
+        REQUIRE(!test_table->WSASendMsg);
+        REQUIRE(static_cast<bool>(move_ctor_test_table));
+        REQUIRE(move_ctor_test_table->AcceptEx);
+        REQUIRE(move_ctor_test_table->ConnectEx);
+        REQUIRE(move_ctor_test_table->DisconnectEx);
+        REQUIRE(move_ctor_test_table->GetAcceptExSockaddrs);
+        REQUIRE(move_ctor_test_table->TransmitFile);
+        REQUIRE(move_ctor_test_table->TransmitPackets);
+        REQUIRE(move_ctor_test_table->WSARecvMsg);
+        REQUIRE(move_ctor_test_table->WSASendMsg);
+        verify_extension_table(move_ctor_test_table);
 
-        // the buffer to supply to AcceptEx to capture the address information
-        static constexpr size_t singleAddressOutputBufferSize = listenAddress.size() + 16;
-        char acceptex_output_buffer[singleAddressOutputBufferSize * 2]{};
-        wil::unique_socket acceptSocket{::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)};
-        REQUIRE(acceptSocket.get() != INVALID_SOCKET);
-
-        DWORD acceptex_bytes_received{};
-        wil::unique_event_nothrow acceptex_overlapped_event{};
-        REQUIRE(SUCCEEDED(acceptex_overlapped_event.create()));
-        REQUIRE(acceptex_overlapped_event.get() != nullptr);
-        OVERLAPPED acceptex_overlapped{};
-        acceptex_overlapped.hEvent = acceptex_overlapped_event.get();
-
-        gle = 0;
-        auto acceptex_return = test_table->AcceptEx(
-            listeningSocket.get(),
-            acceptSocket.get(),
-            acceptex_output_buffer,
-            0,
-            singleAddressOutputBufferSize,
-            singleAddressOutputBufferSize,
-            &acceptex_bytes_received,
-            &acceptex_overlapped);
-        if (!acceptex_return)
-        {
-            gle = ::WSAGetLastError();
-        }
-        // should fail with ERROR_IO_PENDING
-        REQUIRE(!acceptex_return);
-        REQUIRE(gle == ERROR_IO_PENDING);
-        // ensure that if this test function fails (returns) before AcceptEx completes asynchronously
-        // that we wait for this async (overlapped) call to complete
-        const auto ensure_acceptex_overlapped_completes = wil::scope_exit([&] {
-            // close the sockets to cancel any pended IO
-            acceptSocket.reset();
-            listeningSocket.reset();
-            // now wait for our async call
-            acceptex_overlapped_event.wait();
-        });
-
-        // now create a socket to connect to it
-        wil::unique_event_nothrow connectex_overlapped_event{};
-        REQUIRE(SUCCEEDED(connectex_overlapped_event.create()));
-        REQUIRE(connectex_overlapped_event.get() != nullptr);
-        OVERLAPPED connectex_overlapped{};
-        connectex_overlapped.hEvent = connectex_overlapped_event.get();
-
-        wil::unique_socket connectingSocket{::socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP)};
-        REQUIRE(connectingSocket.get() != INVALID_SOCKET);
-        // ConnectEx requires a bound socket
-        wil::network::socket_address connecting_from_address{AF_INET6};
-        connecting_from_address.set_address_loopback();
-        connecting_from_address.set_port(0); // just an ephemeral port, ConnectEx will find a port
-
-        gle = 0;
-        bind_error = ::bind(connectingSocket.get(), connecting_from_address.sockaddr(), connecting_from_address.size());
-        if (bind_error != 0)
-        {
-            gle = ::WSAGetLastError();
-        }
-        REQUIRE(gle == 0);
-        REQUIRE(bind_error == 0);
-
-        gle = 0;
-        auto connectex_return = test_table->ConnectEx(
-            connectingSocket.get(), listenAddress.sockaddr(), listenAddress.size(), nullptr, 0, nullptr, &connectex_overlapped);
-        if (!connectex_return)
-        {
-            gle = ::WSAGetLastError();
-        }
-        // should fail with ERROR_IO_PENDING
-        REQUIRE(!connectex_return);
-        REQUIRE(gle == ERROR_IO_PENDING);
-        // ensure that if this test function fails (returns) before ConnectEx completes asynchronously
-        // that we wait for this async (overlapped) call to complete
-        const auto ensure_connectex_overlapped_completes = wil::scope_exit([&] {
-            // close the socket to cancel any pended IO
-            connectingSocket.reset();
-            // now wait for our async call
-            connectex_overlapped_event.wait();
-        });
-
-        // wait for both connect and accept to complete
-        DWORD transfer_unused{};
-        DWORD flags_unused{};
-        gle = 0;
-        auto connectex_overlapped_result = ::WSAGetOverlappedResult(
-            connectingSocket.get(),
-            &connectex_overlapped,
-            &transfer_unused,
-            TRUE, // should wait for connect to complete
-            &flags_unused);
-        if (!connectex_overlapped_result)
-        {
-            gle = ::WSAGetLastError();
-        }
-        REQUIRE(gle == 0);
-        REQUIRE(connectex_overlapped_result == TRUE);
-
-        gle = 0;
-        auto acceptex_overlapped_result = ::WSAGetOverlappedResult(
-            acceptSocket.get(),
-            &acceptex_overlapped,
-            &transfer_unused,
-            TRUE, // should wait for connect to complete
-            &flags_unused);
-        if (!acceptex_overlapped_result)
-        {
-            gle = ::WSAGetLastError();
-        }
-        REQUIRE(gle == 0);
-        REQUIRE(acceptex_overlapped_result == TRUE);
-
-        // issue a DisconnectEx from the client
-        wil::unique_event_nothrow disconnectex_overlapped_event{};
-        REQUIRE(SUCCEEDED(disconnectex_overlapped_event.create()));
-        REQUIRE(disconnectex_overlapped_event.get() != nullptr);
-        OVERLAPPED disconnectex_overlapped{};
-        disconnectex_overlapped.hEvent = disconnectex_overlapped_event.get();
-
-        auto disconnectex_return = test_table->DisconnectEx(
-            connectingSocket.get(),
-            &disconnectex_overlapped,
-            0, // not passing the reuse-socket flag
-            0);
-        if (!disconnectex_return)
-        {
-            gle = ::WSAGetLastError();
-        }
-        // should fail with ERROR_IO_PENDING
-        REQUIRE(!disconnectex_return);
-        REQUIRE(gle == ERROR_IO_PENDING);
-
-        gle = 0;
-        auto disconnectex_overlapped_result = ::WSAGetOverlappedResult(
-            connectingSocket.get(),
-            &disconnectex_overlapped,
-            &transfer_unused,
-            TRUE, // should wait for connect to complete
-            &flags_unused);
-        if (!disconnectex_overlapped_result)
-        {
-            gle = ::WSAGetLastError();
-        }
-        REQUIRE(gle == 0);
-        REQUIRE(disconnectex_overlapped_result == TRUE);
-    }
+        // verify move assignment
+        wil::network::winsock_extension_function_table move_assignment_test_table;
+        move_assignment_test_table = std::move(move_ctor_test_table);
+        REQUIRE(!static_cast<bool>(move_ctor_test_table));
+        REQUIRE(!move_ctor_test_table->AcceptEx);
+        REQUIRE(!move_ctor_test_table->ConnectEx);
+        REQUIRE(!move_ctor_test_table->DisconnectEx);
+        REQUIRE(!move_ctor_test_table->GetAcceptExSockaddrs);
+        REQUIRE(!move_ctor_test_table->TransmitFile);
+        REQUIRE(!move_ctor_test_table->TransmitPackets);
+        REQUIRE(!move_ctor_test_table->WSARecvMsg);
+        REQUIRE(!move_ctor_test_table->WSASendMsg);
+        REQUIRE(static_cast<bool>(move_assignment_test_table));
+        REQUIRE(move_assignment_test_table->AcceptEx);
+        REQUIRE(move_assignment_test_table->ConnectEx);
+        REQUIRE(move_assignment_test_table->DisconnectEx);
+        REQUIRE(move_assignment_test_table->GetAcceptExSockaddrs);
+        REQUIRE(move_assignment_test_table->TransmitFile);
+        REQUIRE(move_assignment_test_table->TransmitPackets);
+        REQUIRE(move_assignment_test_table->WSARecvMsg);
+        REQUIRE(move_assignment_test_table->WSASendMsg);
+        verify_extension_table(move_assignment_test_table);
+}
 
     SECTION("verify rio_extension_function_table")
     {
         // verify 2 function pointers are calling through correctly to confirm the function table is correct
-        wil::network::rio_extension_function_table test_table = wil::network::rio_extension_function_table::load();
+        wil::network::rio_extension_function_table test_table;
         REQUIRE(static_cast<bool>(test_table));
         REQUIRE(test_table->cbSize > 0);
         REQUIRE(test_table->RIOReceive);
@@ -2494,7 +2568,7 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
             REQUIRE(SUCCEEDED(address.format_address_nothrow(address_string)));
             wprintf(L"... move assignment getaddrinfo(unique_addrinfo_ansi) : %ws\n", address_string);
         }
-}
+    }
 
     // retest with unique_addrinfoex
     SECTION("verify addr_info_ansi_iterator increment")

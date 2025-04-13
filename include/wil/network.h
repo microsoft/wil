@@ -11,6 +11,7 @@
 // @file
 // Helpers for using BSD sockets and Winsock functions and structures.
 // Does not require the use of the STL or C++ exceptions (see _nothrow functions)
+// ReSharper disable CppRedundantQualifier
 #ifndef __WIL_NETWORK_INCLUDED
 #define __WIL_NETWORK_INCLUDED
 
@@ -37,6 +38,7 @@
 // Including Winsock and networking headers in the below specific sequence
 // These headers have many intra-header dependencies, creating difficulties when needing access to various functions and types
 // This specific sequence should compile correctly to give access to all available functions and types
+#include <utility>
 #include <winsock2.h>
 #include <ws2def.h>
 #include <ws2ipdef.h>
@@ -71,17 +73,16 @@ namespace network
     // Calls WSAStartup; returns an RAII object that reverts, the RAII object will resolve to bool 'false' if failed
     WI_NODISCARD inline ::wil::network::unique_wsacleanup_call WSAStartup_nothrow() WI_NOEXCEPT
     {
-        WSADATA unused_data{};
+        WSADATA unused_data;
         const auto error{::WSAStartup(WINSOCK_VERSION, &unused_data)};
         LOG_IF_WIN32_ERROR(error);
-
         return unique_wsacleanup_call{error == 0};
     }
 
     // Calls WSAStartup and fail-fasts on error; returns an RAII object that reverts
     WI_NODISCARD inline ::wil::network::unique_wsacleanup_call WSAStartup_failfast() WI_NOEXCEPT
     {
-        WSADATA unused_data{};
+        WSADATA unused_data;
         FAIL_FAST_IF_WIN32_ERROR(::WSAStartup(WINSOCK_VERSION, &unused_data));
         return {};
     }
@@ -90,7 +91,7 @@ namespace network
     // Calls WSAStartup and throws on error; returns an RAII object that reverts
     WI_NODISCARD inline ::wil::network::unique_wsacleanup_call WSAStartup()
     {
-        WSADATA unused_data{};
+        WSADATA unused_data;
         THROW_IF_WIN32_ERROR(::WSAStartup(WINSOCK_VERSION, &unused_data));
         return {};
     }
@@ -461,7 +462,11 @@ namespace network
     template <typename F>
     struct socket_extension_function_table_t
     {
-        static socket_extension_function_table_t load() WI_NOEXCEPT;
+        socket_extension_function_table_t() WI_NOEXCEPT :
+            wsa_reference_count{WSAStartup_nothrow()}
+        {
+            load();
+        }
 
         // can copy, but the new object needs its own WSA reference count
         // (getting a WSA reference count should be no-fail once the first reference it taken)
@@ -499,6 +504,42 @@ namespace network
             return *this;
         }
 
+        // move constructor and assignment operators will take ownership of the WSA ref count
+        socket_extension_function_table_t(socket_extension_function_table_t&& rhs) WI_NOEXCEPT
+            // wsa_reference_count{::wistd::move(rhs.wsa_reference_count)} this fails to compile!
+        {
+            load(); // this shouldn't be called if move construction works correctly
+            if (!wsa_reference_count)
+            {
+                ::memset(&function_table, 0, sizeof(function_table));
+            }
+            else
+            {
+                ::memcpy_s(&function_table, sizeof(function_table), &rhs.function_table, sizeof(rhs.function_table));
+            }
+
+            // always have the moved-from function table zeroed
+            ::memset(&rhs.function_table, 0, sizeof(rhs.function_table));
+        }
+
+        socket_extension_function_table_t& operator=(socket_extension_function_table_t&& rhs) WI_NOEXCEPT
+        {
+            // wsa_reference_count = ::wistd::move(rhs.wsa_reference_count); // this fails to compile!
+            if (!wsa_reference_count)
+            {
+                ::memset(&function_table, 0, sizeof(function_table));
+            }
+            else
+            {
+                ::memcpy_s(&function_table, sizeof(function_table), &rhs.function_table, sizeof(rhs.function_table));
+            }
+
+            // always have the moved-from function table zeroed
+            ::memset(&rhs.function_table, 0, sizeof(rhs.function_table));
+
+            return *this;
+        }
+
         // Returns true if all functions were loaded, holding a WSAStartup reference
         WI_NODISCARD explicit operator bool() const WI_NOEXCEPT;
 
@@ -510,12 +551,7 @@ namespace network
     private:
         // function table
         F function_table{};
-
-        // constructed via load()
-        socket_extension_function_table_t() WI_NOEXCEPT :
-            wsa_reference_count{WSAStartup_nothrow()}
-        {
-        }
+        void load() WI_NOEXCEPT;
 
         // must guarantee Winsock does not unload while we have dynamically loaded function pointers
         const ::wil::network::unique_wsacleanup_call wsa_reference_count;
@@ -537,25 +573,23 @@ namespace network
     }
 
     template <>
-    inline winsock_extension_function_table socket_extension_function_table_t<
-        WINSOCK_EXTENSION_FUNCTION_TABLE>::load() WI_NOEXCEPT
+    inline void socket_extension_function_table_t<WINSOCK_EXTENSION_FUNCTION_TABLE>::load() WI_NOEXCEPT
     {
-        winsock_extension_function_table table;
         // if WSAStartup failed, immediately exit
-        if (!table.wsa_reference_count)
+        if (!wsa_reference_count)
         {
-            return table;
+            return;
         }
 
         // we need a temporary socket for the IOCTL to load the functions
         const ::wil::unique_socket localSocket{::socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)};
         if (INVALID_SOCKET == localSocket.get())
         {
-            return table;
+            return;
         }
 
         const auto load_function_pointer = [&](GUID extensionGuid, void* functionPtr) WI_NOEXCEPT {
-            DWORD unused_bytes{};
+            DWORD unused_bytes;
             const auto error{::WSAIoctl(
                 localSocket.get(),
                 SIO_GET_EXTENSION_FUNCTION_POINTER,
@@ -569,59 +603,55 @@ namespace network
             return error == 0 ? S_OK : HRESULT_FROM_WIN32(::WSAGetLastError());
         };
 
-        if (FAILED_LOG(load_function_pointer(WSAID_ACCEPTEX, &table.function_table.AcceptEx)) ||
-            FAILED_LOG(load_function_pointer(WSAID_CONNECTEX, &table.function_table.ConnectEx)) ||
-            FAILED_LOG(load_function_pointer(WSAID_DISCONNECTEX, &table.function_table.DisconnectEx)) ||
-            FAILED_LOG(load_function_pointer(WSAID_GETACCEPTEXSOCKADDRS, &table.function_table.GetAcceptExSockaddrs)) ||
-            FAILED_LOG(load_function_pointer(WSAID_TRANSMITFILE, &table.function_table.TransmitFile)) ||
-            FAILED_LOG(load_function_pointer(WSAID_TRANSMITPACKETS, &table.function_table.TransmitPackets)) ||
-            FAILED_LOG(load_function_pointer(WSAID_WSARECVMSG, &table.function_table.WSARecvMsg)) ||
-            FAILED_LOG(load_function_pointer(WSAID_WSASENDMSG, &table.function_table.WSASendMsg)))
+        if (FAILED_LOG(load_function_pointer(WSAID_ACCEPTEX, &function_table.AcceptEx)) ||
+            FAILED_LOG(load_function_pointer(WSAID_CONNECTEX, &function_table.ConnectEx)) ||
+            FAILED_LOG(load_function_pointer(WSAID_DISCONNECTEX, &function_table.DisconnectEx)) ||
+            FAILED_LOG(load_function_pointer(WSAID_GETACCEPTEXSOCKADDRS, &function_table.GetAcceptExSockaddrs)) ||
+            FAILED_LOG(load_function_pointer(WSAID_TRANSMITFILE, &function_table.TransmitFile)) ||
+            FAILED_LOG(load_function_pointer(WSAID_TRANSMITPACKETS, &function_table.TransmitPackets)) ||
+            FAILED_LOG(load_function_pointer(WSAID_WSARECVMSG, &function_table.WSARecvMsg)) ||
+            FAILED_LOG(load_function_pointer(WSAID_WSASENDMSG, &function_table.WSASendMsg)))
         {
             // if any failed to be found, something is very broken
             // all should load, or all should fail
-            ::memset(&table.function_table, 0, sizeof(table.function_table));
+            ::memset(&function_table, 0, sizeof(function_table));
         }
-
-        return table;
     }
 
     template <>
-    inline rio_extension_function_table socket_extension_function_table_t<RIO_EXTENSION_FUNCTION_TABLE>::load() WI_NOEXCEPT
+    inline void socket_extension_function_table_t<RIO_EXTENSION_FUNCTION_TABLE>::load() WI_NOEXCEPT
     {
-        rio_extension_function_table table{};
         // if WSAStartup failed, immediately exit
-        if (!table.wsa_reference_count)
+        if (!wsa_reference_count)
         {
-            return table;
+            return;
         }
 
         // we need a temporary socket for the IOCTL to load the functions
         const ::wil::unique_socket localSocket{::socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)};
         if (INVALID_SOCKET == localSocket.get())
         {
-            return table;
+            return;
         }
 
-        table.function_table.cbSize = DWORD{sizeof(table.function_table)};
+        function_table.cbSize = DWORD{sizeof(function_table)};
 
         GUID rioGuid = WSAID_MULTIPLE_RIO;
-        DWORD unused_bytes{};
+        DWORD unused_bytes;
         if (::WSAIoctl(
                 localSocket.get(),
                 SIO_GET_MULTIPLE_EXTENSION_FUNCTION_POINTER,
                 &rioGuid,
                 DWORD{sizeof(rioGuid)},
-                &table.function_table,
-                DWORD{sizeof(table.function_table)},
+                &function_table,
+                DWORD{sizeof(function_table)},
                 &unused_bytes,
                 nullptr,
                 nullptr) != 0)
         {
             LOG_IF_WIN32_ERROR(::WSAGetLastError());
-            ::memset(&table.function_table, 0, sizeof(table.function_table));
+            ::memset(&function_table, 0, sizeof(function_table));
         }
-        return table;
     }
 
     //
@@ -758,7 +788,7 @@ namespace network
 
     inline bool socket_address::operator==(const ::wil::network::socket_address& rhs) const WI_NOEXCEPT
     {
-        return compare(rhs)  == 0;
+        return compare(rhs) == 0;
     }
 
     inline bool socket_address::operator!=(const ::wil::network::socket_address& rhs) const WI_NOEXCEPT
@@ -797,7 +827,7 @@ namespace network
 
     inline void socket_address::reset(_In_reads_bytes_(addr_size) const SOCKADDR* addr, size_t addr_size) WI_NOEXCEPT
     {
-        WI_ASSERT(static_cast<size_t>(addr_size) <= static_cast<size_t>(size()));
+        WI_ASSERT(addr_size <= static_cast<size_t>(size()));
 
         ::memset(&m_sockaddr, 0, size());
         if (addr)
