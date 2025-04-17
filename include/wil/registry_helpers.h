@@ -1077,7 +1077,7 @@ namespace reg
             reg_view_t& operator=(reg_view_t&&) = delete;
 
             typename err_policy::result open_key(
-                _In_opt_ _In_opt_ PCWSTR subKey, _Out_ HKEY* hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) const
+                _In_opt_ PCWSTR subKey, _Out_ HKEY* hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) const
             {
                 constexpr DWORD zero_options{0};
                 return err_policy::HResult(
