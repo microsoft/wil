@@ -211,4 +211,15 @@ TEST_CASE("StlTests::TestZWStringView", "[stl][zstring_view]")
     CustomNoncopyableString customString;
     wil::zwstring_view fromCustomString(customString);
     REQUIRE(fromCustomString == (PCWSTR)customString);
+
+    // Test constructing from a type that has a c_str() method only
+    struct string_with_c_str
+    {
+        constexpr PCWSTR c_str() const
+        {
+            return L"hello";
+        }
+    };
+    string_with_c_str fake_path{};
+    REQUIRE(wil::zwstring_view(fake_path) == L"hello");
 }
