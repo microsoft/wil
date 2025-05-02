@@ -1,0 +1,60 @@
+{
+  "version": 3,
+    "configurePresets": [
+        {
+            "name": "debug-base",
+            "hidden": true,
+            "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
+        },
+        {
+            "name": "reldebinfo-base",
+            "hidden": true,
+            "cacheVariables": { "CMAKE_BUILD_TYPE": "RelWithDebInfo" }
+        },
+        {
+            "name": "x64-base",
+            "hidden": true,
+            "architecture": {
+                "value": "x64",
+                "strategy": "external"
+            }
+        },
+        {
+            "name": "x86-base",
+            "hidden": true,
+            "architecture": {
+                "value": "x86",
+                "strategy": "external"
+            }
+        },
+        {
+            "name": "windows-base",
+            "description": "Base build for Windows",
+            "hidden": true,
+            "generator": "Ninja Multi-Config",
+            "binaryDir": "${sourceDir}/out/build/${presetName}",
+            "installDir": "${sourceDir}/out/install/${presetName}",
+            "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+        },
+        {
+            "name": "x64-debug",
+            "displayName": "x64 Debug",
+            "inherits": [ "windows-base", "x64-base", "debug-base" ]
+        },
+        {
+            "name": "x64-release",
+            "displayName": "x64 Release",
+            "inherits": [ "windows-base", "x64-base", "reldebinfo-base" ]
+        },
+        {
+            "name": "x86-debug",
+            "displayName": "x86 Debug",
+            "inherits": [ "windows-base", "x86-base", "debug-base" ]
+        },
+        {
+            "name": "x86-release",
+            "displayName": "x86 Release",
+            "inherits": [ "windows-base", "x86-base", "reldebinfo-base" ]
+        }
+    ]
+}

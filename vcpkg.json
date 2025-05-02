@@ -1,7 +1,4 @@
 {
-  "dependencies": [
-    "detours",
-    "catch2"
-  ],
-  "builtin-baseline": "64e15f6669480b2d2bff1e5e815c571a8213421e"
+    "dependencies": ["detours", "catch2"],
+    "builtin-baseline": "61c70ce627a2a4ffff809f887e4188ff39ce0a14"
 }
