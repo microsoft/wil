@@ -1,60 +1,115 @@
 {
-  "version": 3,
+    "version": 3,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 29,
+        "patch": 0
+    },
     "configurePresets": [
         {
-            "name": "debug-base",
+            "name": "windows-msvc-base",
+            "description": "Base build for Windows MSVC",
             "hidden": true,
-            "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
+            "generator": "Ninja Multi-Config",
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "installDir": "${sourceDir}/build/install/${presetName}",
+            "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+            "cacheVariables": {
+                "CMAKE_CONFIGURATION_TYPES": "Release;Debug;RelWithDebInfo;MinSizeRel"
+            }
         },
         {
-            "name": "reldebinfo-base",
+            "name": "windows-clang-base",
+            "description": "Base build for Windows Clang",
             "hidden": true,
-            "cacheVariables": { "CMAKE_BUILD_TYPE": "RelWithDebInfo" }
+            "generator": "Ninja Multi-Config",
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "installDir": "${sourceDir}/build/install/${presetName}",
+            "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+            "cacheVariables": {
+                "CMAKE_CONFIGURATION_TYPES": "Release;Debug;RelWithDebInfo;MinSizeRel",
+                "CMAKE_C_COMPILER": "clang-cl",
+                "CMAKE_CXX_COMPILER": "clang-cl"
+            },
+            "vendor": {
+                "microsoft.com/VisualStudioSettings/CMake/1.0": {
+                    "intelliSenseMode": "windows-clang-x64"
+                }
+            }
         },
         {
-            "name": "x64-base",
-            "hidden": true,
+            "name": "x64-msvc",
             "architecture": {
                 "value": "x64",
                 "strategy": "external"
-            }
+            },
+            "inherits": "windows-msvc-base"
         },
         {
-            "name": "x86-base",
-            "hidden": true,
+            "name": "x86-msvc",
             "architecture": {
                 "value": "x86",
                 "strategy": "external"
-            }
+            },
+            "inherits": "windows-msvc-base"
         },
         {
-            "name": "windows-base",
-            "description": "Base build for Windows",
-            "hidden": true,
-            "generator": "Ninja Multi-Config",
-            "binaryDir": "${sourceDir}/out/build/${presetName}",
-            "installDir": "${sourceDir}/out/install/${presetName}",
-            "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+            "name": "arm64-msvc",
+            "architecture": {
+                "value": "arm64",
+                "strategy": "external"
+            },
+            "inherits": "windows-msvc-base"
         },
         {
-            "name": "x64-debug",
-            "displayName": "x64 Debug",
-            "inherits": [ "windows-base", "x64-base", "debug-base" ]
+            "name": "x64-clang",
+            "architecture": {
+                "value": "x64",
+                "strategy": "external"
+            },
+            "inherits": "windows-clang-base"
         },
         {
-            "name": "x64-release",
-            "displayName": "x64 Release",
-            "inherits": [ "windows-base", "x64-base", "reldebinfo-base" ]
+            "name": "x86-clang",
+            "architecture": {
+                "value": "x86",
+                "strategy": "external"
+            },
+            "inherits": "windows-clang-base"
         },
         {
-            "name": "x86-debug",
-            "displayName": "x86 Debug",
-            "inherits": [ "windows-base", "x86-base", "debug-base" ]
-        },
-        {
-            "name": "x86-release",
-            "displayName": "x86 Release",
-            "inherits": [ "windows-base", "x86-base", "reldebinfo-base" ]
+            "name": "arm64-clang",
+            "architecture": {
+                "value": "arm64",
+                "strategy": "external"
+            },
+            "inherits": "windows-clang-base"
         }
+    ],
+    "buildPresets": [
+        { "name": "x64-clang-debug", "configurePreset": "x64-clang", "configuration": "Debug" },
+        { "name": "x64-clang-relwithdebinfo", "configurePreset": "x64-clang", "configuration": "RelWithDebInfo" },
+        { "name": "x64-clang-release", "configurePreset": "x64-clang", "configuration": "Release" },
+        { "name": "x64-clang-minsizerel", "configurePreset": "x64-clang", "configuration": "MinSizeRel" },
+        { "name": "x86-clang-debug", "configurePreset": "x86-clang", "configuration": "Debug" },
+        { "name": "x86-clang-relwithdebinfo", "configurePreset": "x86-clang", "configuration": "RelWithDebInfo" },
+        { "name": "x86-clang-release", "configurePreset": "x86-clang", "configuration": "Release" },
+        { "name": "x86-clang-minsizerel", "configurePreset": "x86-clang", "configuration": "MinSizeRel" },
+        { "name": "arm64-clang-debug", "configurePreset": "arm64-clang", "configuration": "Debug" },
+        { "name": "arm64-clang-relwithdebinfo", "configurePreset": "arm64-clang", "configuration": "RelWithDebInfo" },
+        { "name": "arm64-clang-release", "configurePreset": "arm64-clang", "configuration": "Release" },
+        { "name": "arm64-clang-minsizerel", "configurePreset": "arm64-clang", "configuration": "MinSizeRel" },
+        { "name": "x64-msvc-debug", "configurePreset": "x64-msvc", "configuration": "Debug" },
+        { "name": "x64-msvc-relwithdebinfo", "configurePreset": "x64-msvc", "configuration": "RelWithDebInfo" },
+        { "name": "x64-msvc-release", "configurePreset": "x64-msvc", "configuration": "Release" },
+        { "name": "x64-msvc-minsizerel", "configurePreset": "x64-msvc", "configuration": "MinSizeRel" },
+        { "name": "x86-msvc-debug", "configurePreset": "x86-msvc", "configuration": "Debug" },
+        { "name": "x86-msvc-relwithdebinfo", "configurePreset": "x86-msvc", "configuration": "RelWithDebInfo" },
+        { "name": "x86-msvc-release", "configurePreset": "x86-msvc", "configuration": "Release" },
+        { "name": "x86-msvc-minsizerel", "configurePreset": "x86-msvc", "configuration": "MinSizeRel" },
+        { "name": "arm64-msvc-debug", 	"configurePreset": 	"arm64-msvc", "configuration": "Debug" },
+        { "name": "arm64-msvc-relwithdebinfo", "configurePreset": "arm64-msvc", "configuration": "RelWithDebInfo" },
+        { "name": "arm64-msvc-release", "configurePreset": "arm64-msvc", "configuration": "Release" },
+        { "name": "arm64-msvc-minsizerel", "configurePreset": "arm64-msvc", "configuration": "MinSizeRel" }
     ]
 }

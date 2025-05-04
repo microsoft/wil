@@ -11,61 +11,22 @@ set ASAN_OPTIONS=allocator_may_return_null=1:new_delete_type_mismatch=0
 
 set BUILD_ROOT=%~dp0\..\build
 
-set COMPILERS=clang msvc
-set BUILD_TYPES=debug release relwithdebinfo minsizerel
-
-:: The asan binaries are architecture specific, so we unfortunately must limit the tests we run by the architecture of
-:: the command window.
-if "%Platform%"=="x64" (
-    set ARCHITECTURES=64
-) else (
-    set ARCHITECTURES=32
-)
-
-for %%c in (%COMPILERS%) do (
-    for %%a in (%ARCHITECTURES%) do (
-        for %%b in (%BUILD_TYPES%) do (
-            call :execute_tests %%c%%a%%b
-            if !ERRORLEVEL! NEQ 0 ( goto :eof )
-        )
+for /f %%i in ('dir /s /b %BUILD_ROOT%\witest*.exe') do (
+    set TEST_ERROR=
+    call :runtest %%i
+    if !ERRORLEVEL! NEQ 0 (
+        set TEST_ERROR=1
+        echo ERROR: Test %1 failed with error code !ERRORLEVEL!
+        exit /b !ERRORLEVEL!
     )
 )
-
 goto :eof
 
-:execute_tests
-set BUILD_DIR=%BUILD_ROOT%\%1
-if not exist %BUILD_DIR% ( goto :eof )
-
-pushd %BUILD_DIR%
-echo Running tests from %CD%
-call :execute_test app witest.app.exe
-if %ERRORLEVEL% NEQ 0 ( goto :execute_tests_done )
-call :execute_test cpplatest witest.cpplatest.exe
-if %ERRORLEVEL% NEQ 0 ( goto :execute_tests_done )
-call :execute_test cppwinrt-com-server witest.cppwinrt-com-server.exe
-if %ERRORLEVEL% NEQ 0 ( goto :execute_tests_done )
-call :execute_test cppwinrt-com-server-custom-module-lock witest.cppwinrt-com-server-custom-module-lock.exe
-if %ERRORLEVEL% NEQ 0 ( goto :execute_tests_done )
-call :execute_test noexcept witest.noexcept.exe
-if %ERRORLEVEL% NEQ 0 ( goto :execute_tests_done )
-call :execute_test normal witest.exe
-if %ERRORLEVEL% NEQ 0 ( goto :execute_tests_done )
-call :execute_test sanitize-address witest.asan.exe
-if %ERRORLEVEL% NEQ 0 ( goto :execute_tests_done )
-call :execute_test sanitize-undefined-behavior witest.ubsan.exe
-if %ERRORLEVEL% NEQ 0 ( goto :execute_tests_done )
-call :execute_test win7 witest.win7.exe
-if %ERRORLEVEL% NEQ 0 ( goto :execute_tests_done )
-:: Fall through
-
-:execute_tests_done
-set EXIT_CODE=%ERRORLEVEL%
+:runtest
+set TESTDIR=%~dp1
+pushd %TESTDIR%
+echo Running %1
+call %1 %TEST_ARGS%
+set TEST_ERROR=%ERRORLEVEL%
 popd
-exit /B %EXIT_CODE%
-
-:execute_test
-if not exist tests\%1\%2 ( goto :eof )
-echo Running %1 tests...
-tests\%1\%2 %TEST_ARGS%
-goto :eof
+exit /B %TEST_ERROR%
