@@ -11,7 +11,7 @@ goto :init
     echo USAGE:
     echo     init.cmd [--help] [-c^|--compiler ^<clang^|msvc^>] [-g^|--generator ^<ninja^|msbuild^>]
     echo         [-b^|--build-type ^<debug^|release^|relwithdebinfo^|minsizerel^>] [-p^|--vcpkg path/to/vcpkg/root]
-    echo         [-v^|--version X.Y.Z] [--cppwinrt ^<version^>]
+    echo         [-v^|--version X.Y.Z] [--cppwinrt ^<version^>] [--fast]
     echo.
     echo ARGUMENTS
     echo     -c^|--compiler       Controls the compiler used, either 'clang' (the default) or 'msvc'
@@ -27,6 +27,9 @@ goto :init
     echo     -v^|--version        Specifies the version of the NuGet package produced. Primarily only used by the CI
     echo                         build and is typically not necessary when building locally
     echo     --cppwinrt          Manually specifies the version of C++/WinRT to use for generating headers
+    echo     --fast              Used to (slightly) reduce compile times and build output size. This is primarily
+    echo                         used by the CI build machines where resources are more constrained. This switch is
+    echo                         temporary and will be removed once https://github.com/microsoft/wil/issues/9 is fixed
     goto :eof
 
 :init
@@ -39,6 +42,7 @@ goto :init
     set VERSION=
     set VCPKG_ROOT_PATH=
     set CPPWINRT_VERSION=
+    set FAST_BUILD=0
 
 :parse
     if /I "%~1"=="" goto :execute
@@ -131,6 +135,13 @@ goto :init
         goto :parse
     )
 
+    if /I "%~1"=="--fast" (
+        if %FAST_BUILD% NEQ 0 echo ERROR: Fast build already specified
+        set FAST_BUILD=1
+        shift
+        goto :parse
+    )
+
     echo ERROR: Unrecognized argument %~1
     call :usage
     exit /B 1
@@ -196,6 +207,8 @@ goto :init
     if "%VERSION%" NEQ "" set CMAKE_ARGS=%CMAKE_ARGS% -DWIL_BUILD_VERSION=%VERSION%
 
     if "%CPPWINRT_VERSION%" NEQ "" set CMAKE_ARGS=%CMAKE_ARGS% -DCPPWINRT_VERSION=%CPPWINRT_VERSION%
+
+    if %FAST_BUILD%==1 set CMAKE_ARGS=%CMAKE_ARGS% -DFAST_BUILD=ON
 
     set CMAKE_ARGS=%CMAKE_ARGS% -DCMAKE_TOOLCHAIN_FILE="%VCPKG_ROOT_PATH%\scripts\buildsystems\vcpkg.cmake" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
