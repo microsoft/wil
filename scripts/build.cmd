@@ -99,8 +99,8 @@ setlocal EnableDelayedExpansion
 
     if "%DO_CMAKE_INIT%"=="1" (
         for %%c in (%COMPILER%) do (
-            echo INFO: Generating CMake cache for %COMPILER% %BUILD_ARCH% %BUILD_TYPE%
-            call %SOURCE_DIR%\scripts\init.cmd -c %COMPILER% -a %BUILD_ARCH%
+            echo INFO: Generating CMake cache for %%c %BUILD_ARCH% %BUILD_TYPE%
+            call %SOURCE_DIR%\scripts\init.cmd -c %%c -a %BUILD_ARCH%
             if !ERRORLEVEL! NEQ 0 ( goto :eof )
         )
     ) else (
