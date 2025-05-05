@@ -94,6 +94,8 @@ void __stdcall EmptyResultMacrosLoggingCallback(wil::FailureInfo*, PWSTR, size_t
 // Test Result Macros
 void TestErrorCallbacks()
 {
+    // Note - due to Catch2 not being thread safe, DO NOT add new uses of REQUIRE, CHECK, or any other
+    // Catch2 macro. Instead, populate the output structure
     {
         size_t callbackCount = 0;
         auto monitor = wil::ThreadFailureCallback([&](wil::FailureInfo const& failure) -> bool {
