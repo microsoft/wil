@@ -668,28 +668,28 @@ namespace details
         {
             const auto fileName = lastSlash + 1;
             wil::unique_cotaskmem_string keyPath;
-            RETURN_IF_FAILED(wil::str_concat_nothrow<wil::unique_cotaskmem_string>(keyPath,
-                LR"(SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\)", fileName));
+            RETURN_IF_FAILED(wil::str_concat_nothrow<wil::unique_cotaskmem_string>(
+                keyPath, LR"(SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\)", fileName));
             DWORD value{}, sizeofValue = sizeof(value);
             if (::RegGetValueW(
-                HKEY_LOCAL_MACHINE,
-                keyPath.get(),
-                valueName,
+                    HKEY_LOCAL_MACHINE,
+                    keyPath.get(),
+                    valueName,
 #ifdef RRF_SUBKEY_WOW6464KEY
-                RRF_RT_REG_DWORD | RRF_SUBKEY_WOW6464KEY,
+                    RRF_RT_REG_DWORD | RRF_SUBKEY_WOW6464KEY,
 #else
-                RRF_RT_REG_DWORD,
+                    RRF_RT_REG_DWORD,
 #endif
-                nullptr,
-                &value,
-                &sizeofValue) == ERROR_SUCCESS)
+                    nullptr,
+                    &value,
+                    &sizeofValue) == ERROR_SUCCESS)
             {
                 *result = value;
             }
         }
         return S_OK;
     }
-}
+} // namespace details
 
 #ifdef WIL_ENABLE_EXCEPTIONS
 inline DWORD GetCurrentProcessExecutionOption(PCWSTR valueName, DWORD defaultValue = 0)
@@ -710,7 +710,6 @@ inline DWORD GetCurrentProcessExecutionOptionNoThrow(PCWSTR valueName, DWORD def
     }
     return result;
 }
-
 
 inline DWORD GetCurrentProcessExecutionOptionFailFast(PCWSTR valueName, DWORD defaultValue = 0)
 {
@@ -763,7 +762,7 @@ namespace details
             Sleep(500);
         }
     }
-}
+} // namespace details
 
 #ifdef WIL_ENABLE_EXCEPTIONS
 inline void WaitForDebuggerPresent(bool checkRegistryConfig = true)
