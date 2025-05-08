@@ -651,20 +651,27 @@ string_type QueryFullProcessImageNameW(HANDLE processHandle = GetCurrentProcess(
     THROW_IF_FAILED((wil::QueryFullProcessImageNameW<string_type, stackBufferLength>(processHandle, flags, result)));
     return result;
 }
+#endif // WIL_ENABLE_EXCEPTIONS
 
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
 
-// Lookup a DWORD value under HKLM\...\Image File Execution Options\<current process name>
-inline DWORD GetCurrentProcessExecutionOption(PCWSTR valueName, DWORD defaultValue = 0)
+namespace details
 {
-    auto filePath = wil::GetModuleFileNameW<wil::unique_cotaskmem_string>();
-    if (auto lastSlash = wcsrchr(filePath.get(), L'\\'))
+    // Lookup a DWORD value under HKLM\...\Image File Execution Options\<current process name>
+    inline HRESULT GetCurrentProcessExecutionOptionNoThrow(PCWSTR valueName, DWORD defaultValue, DWORD* result)
     {
-        const auto fileName = lastSlash + 1;
-        auto keyPath = wil::str_concat<wil::unique_cotaskmem_string>(
-            LR"(SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\)", fileName);
-        DWORD value{}, sizeofValue = sizeof(value);
-        if (::RegGetValueW(
+        *result = defaultValue;
+
+        wil::unique_cotaskmem_string filePath;
+        RETURN_IF_FAILED(wil::GetModuleFileNameW<wil::unique_cotaskmem_string>(nullptr, filePath));
+        if (auto lastSlash = wcsrchr(filePath.get(), L'\\'))
+        {
+            const auto fileName = lastSlash + 1;
+            wil::unique_cotaskmem_string keyPath;
+            RETURN_IF_FAILED(wil::str_concat_nothrow<wil::unique_cotaskmem_string>(keyPath,
+                LR"(SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\)", fileName));
+            DWORD value{}, sizeofValue = sizeof(value);
+            if (::RegGetValueW(
                 HKEY_LOCAL_MACHINE,
                 keyPath.get(),
                 valueName,
@@ -676,11 +683,40 @@ inline DWORD GetCurrentProcessExecutionOption(PCWSTR valueName, DWORD defaultVal
                 nullptr,
                 &value,
                 &sizeofValue) == ERROR_SUCCESS)
-        {
-            return value;
+            {
+                *result = value;
+            }
         }
+        return S_OK;
     }
-    return defaultValue;
+}
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+inline DWORD GetCurrentProcessExecutionOption(PCWSTR valueName, DWORD defaultValue = 0)
+{
+    DWORD result{};
+    THROW_IF_FAILED(details::GetCurrentProcessExecutionOptionNoThrow(valueName, defaultValue, &result));
+    return result;
+}
+#endif // WIL_ENABLE_EXCEPTIONS
+
+// No easy return mechanism for err_returncode_policy so skipping it.
+inline DWORD GetCurrentProcessExecutionOptionNoThrow(PCWSTR valueName, DWORD defaultValue = 0)
+{
+    DWORD result{};
+    if (FAILED(details::GetCurrentProcessExecutionOptionNoThrow(valueName, defaultValue, &result)))
+    {
+        return defaultValue;
+    }
+    return result;
+}
+
+
+inline DWORD GetCurrentProcessExecutionOptionFailFast(PCWSTR valueName, DWORD defaultValue = 0)
+{
+    DWORD result{};
+    FAIL_FAST_IF_FAILED(details::GetCurrentProcessExecutionOptionNoThrow(valueName, defaultValue, &result));
+    return result;
 }
 
 #ifndef DebugBreak // Some code defines 'DebugBreak' to garbage to force build breaks in release builds
@@ -694,31 +730,60 @@ inline DWORD GetCurrentProcessExecutionOption(PCWSTR valueName, DWORD defaultVal
 //     missing or 0 -> don't break
 //     1 -> wait for the debugger, continue execution once it is attached
 //     2 -> wait for the debugger, break here once attached.
-inline void WaitForDebuggerPresent(bool checkRegistryConfig = true)
+namespace details
 {
-    for (;;)
+    template <typename error_policy>
+    inline void WaitForDebuggerPresent(bool checkRegistryConfig)
     {
-        auto configValue = checkRegistryConfig ? GetCurrentProcessExecutionOption(L"WaitForDebuggerPresent") : 1;
-        if (configValue == 0)
+        for (;;)
         {
-            return; // not configured, don't wait
-        }
-
-        if (IsDebuggerPresent())
-        {
-            if (configValue == 2)
+            DWORD configValue{1};
+            if (checkRegistryConfig)
             {
-                DebugBreak(); // debugger attached, SHIFT+F11 to return to the caller
+                DWORD registryConfigValue{};
+                // err_returncode_policy will continue running after this line on failure.  The default value of zero
+                // will apply in that case so we will still behave reasonably.
+                error_policy::HResult(details::GetCurrentProcessExecutionOptionNoThrow(L"WaitForDebuggerPresent", 0, &registryConfigValue));
+                configValue = registryConfigValue;
             }
-            return; // debugger now attached, continue executing
+
+            if (configValue == 0)
+            {
+                return; // not configured, don't wait
+            }
+
+            if (IsDebuggerPresent())
+            {
+                if (configValue == 2)
+                {
+                    DebugBreak(); // debugger attached, SHIFT+F11 to return to the caller
+                }
+                return; // debugger now attached, continue executing
+            }
+            Sleep(500);
         }
-        Sleep(500);
     }
 }
-#endif
-#endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
 
-#endif
+#ifdef WIL_ENABLE_EXCEPTIONS
+inline void WaitForDebuggerPresent(bool checkRegistryConfig = true)
+{
+    details::WaitForDebuggerPresent<err_exception_policy>(checkRegistryConfig);
+}
+#endif // WIL_ENABLE_EXCEPTIONS
+
+inline void WaitForDebuggerPresentNoThrow(bool checkRegistryConfig = true)
+{
+    (void)details::WaitForDebuggerPresent<err_returncode_policy>(checkRegistryConfig);
+}
+
+inline void WaitForDebuggerPresentFailFast(bool checkRegistryConfig = true)
+{
+    details::WaitForDebuggerPresent<err_failfast_policy>(checkRegistryConfig);
+}
+
+#endif // DebugBreak
+#endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
 
 /** Retrieve the HINSTANCE for the current DLL or EXE using this symbol that
 the linker provides for every module. This avoids the need for a global HINSTANCE variable
