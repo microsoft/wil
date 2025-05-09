@@ -4221,7 +4221,6 @@ TEST_CASE("WindowsInternalTests::ArgvToCommandLine", "[win32_helpers]")
 }
 #endif
 
-
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
 TEST_CASE("wil::WaitForDebuggerPresent", "[win32_helpers]")
 {
