@@ -739,11 +739,9 @@ namespace details
             DWORD configValue{1};
             if (checkRegistryConfig)
             {
-                DWORD registryConfigValue{};
                 // err_returncode_policy will continue running after this line on failure.  The default value of zero
                 // will apply in that case so we will still behave reasonably.
-                error_policy::HResult(details::GetCurrentProcessExecutionOptionNoThrow(L"WaitForDebuggerPresent", 0, &registryConfigValue));
-                configValue = registryConfigValue;
+                error_policy::HResult(details::GetCurrentProcessExecutionOptionNoThrow(L"WaitForDebuggerPresent", 0, &configValue));
             }
 
             if (configValue == 0)
