@@ -130,9 +130,9 @@ struct weak_ordering
     signed char m_value;
 };
 
-inline constexpr weak_ordering weak_ordering::less{static_cast<signed char>(-1)};
-inline constexpr weak_ordering weak_ordering::equivalent{static_cast<signed char>(0)};
-inline constexpr weak_ordering weak_ordering::greater{static_cast<signed char>(1)};
+__WI_LIBCPP_INLINE_VAR constexpr weak_ordering weak_ordering::less{static_cast<signed char>(-1)};
+__WI_LIBCPP_INLINE_VAR constexpr weak_ordering weak_ordering::equivalent{static_cast<signed char>(0)};
+__WI_LIBCPP_INLINE_VAR constexpr weak_ordering weak_ordering::greater{static_cast<signed char>(1)};
 
 #endif
 } // namespace wistd
