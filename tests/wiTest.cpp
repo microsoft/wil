@@ -2139,9 +2139,11 @@ TEST_CASE("WindowsInternalTests::WistdTests", "[resource][wistd]")
     spConstruct.reset();
     spConstruct.release();
 
+#if !defined(WITEST_ADDRESS_SANITIZER)
     auto spTooBig = wil::make_unique_nothrow<int[]>(static_cast<size_t>(-1));
     REQUIRE_FALSE(spTooBig);
     // REQUIRE_FAILFAST_UNSPECIFIED([]{ auto spTooBigFF = wil::make_unique_failfast<int[]>(static_cast<size_t>(-1)); });
+#endif
 
     object_counter_state state;
     count = 0;
