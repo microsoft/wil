@@ -1648,6 +1648,13 @@ namespace details
     HRESULT WaitForCompletion(_In_ TIOperation operation, _Out_ TIResults result, COWAIT_FLAGS flags, DWORD timeoutValue, _Out_opt_ bool* timedOut) WI_NOEXCEPT
     {
         RETURN_IF_FAILED_EXPECTED(details::WaitForCompletion(operation, flags, timeoutValue, timedOut));
+
+        // If the caller is listening for timedOut, and we actually timed out, return S_OK.
+        if (timedOut && *timedOut)
+        {
+            return S_OK;
+        }
+
         return operation->GetResults(result);
     }
 #endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
