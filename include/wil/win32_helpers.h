@@ -38,7 +38,7 @@
 #endif
 
 /// @cond
-#if __cpp_lib_bit_cast >= 201806L
+#if WIL_USE_STL && (__cpp_lib_bit_cast >= 201806L)
 #define __WI_CONSTEXPR_BIT_CAST constexpr
 #else
 #define __WI_CONSTEXPR_BIT_CAST inline
@@ -130,9 +130,9 @@ struct weak_ordering
     signed char m_value;
 };
 
-inline constexpr weak_ordering weak_ordering::less{static_cast<signed char>(-1)};
-inline constexpr weak_ordering weak_ordering::equivalent{static_cast<signed char>(0)};
-inline constexpr weak_ordering weak_ordering::greater{static_cast<signed char>(1)};
+__WI_LIBCPP_INLINE_VAR constexpr weak_ordering weak_ordering::less{static_cast<signed char>(-1)};
+__WI_LIBCPP_INLINE_VAR constexpr weak_ordering weak_ordering::equivalent{static_cast<signed char>(0)};
+__WI_LIBCPP_INLINE_VAR constexpr weak_ordering weak_ordering::greater{static_cast<signed char>(1)};
 
 #endif
 } // namespace wistd
@@ -209,7 +209,7 @@ namespace filetime
 {
     constexpr unsigned long long to_int64(const FILETIME& ft) WI_NOEXCEPT
     {
-#if __cpp_lib_bit_cast >= 201806L
+#if WIL_USE_STL && (__cpp_lib_bit_cast >= 201806L)
         return std::bit_cast<unsigned long long>(ft);
 #else
         // Cannot reinterpret_cast FILETIME* to unsigned long long*
@@ -220,7 +220,7 @@ namespace filetime
 
     __WI_CONSTEXPR_BIT_CAST FILETIME from_int64(unsigned long long i64) WI_NOEXCEPT
     {
-#if __cpp_lib_bit_cast >= 201806L
+#if WIL_USE_STL && (__cpp_lib_bit_cast >= 201806L)
         return std::bit_cast<FILETIME>(i64);
 #else
         static_assert(sizeof(i64) == sizeof(FILETIME), "sizes don't match");
@@ -651,36 +651,71 @@ string_type QueryFullProcessImageNameW(HANDLE processHandle = GetCurrentProcess(
     THROW_IF_FAILED((wil::QueryFullProcessImageNameW<string_type, stackBufferLength>(processHandle, flags, result)));
     return result;
 }
+#endif // WIL_ENABLE_EXCEPTIONS
 
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
 
-// Lookup a DWORD value under HKLM\...\Image File Execution Options\<current process name>
+namespace details
+{
+    // Lookup a DWORD value under HKLM\...\Image File Execution Options\<current process name>
+    inline HRESULT GetCurrentProcessExecutionOptionNoThrow(PCWSTR valueName, DWORD defaultValue, DWORD* result)
+    {
+        *result = defaultValue;
+
+        wil::unique_cotaskmem_string filePath;
+        RETURN_IF_FAILED(wil::GetModuleFileNameW<wil::unique_cotaskmem_string>(nullptr, filePath));
+        if (auto lastSlash = wcsrchr(filePath.get(), L'\\'))
+        {
+            const auto fileName = lastSlash + 1;
+            wil::unique_cotaskmem_string keyPath;
+            RETURN_IF_FAILED(wil::str_concat_nothrow<wil::unique_cotaskmem_string>(
+                keyPath, LR"(SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\)", fileName));
+            DWORD value{}, sizeofValue = sizeof(value);
+            if (::RegGetValueW(
+                    HKEY_LOCAL_MACHINE,
+                    keyPath.get(),
+                    valueName,
+#ifdef RRF_SUBKEY_WOW6464KEY
+                    RRF_RT_REG_DWORD | RRF_SUBKEY_WOW6464KEY,
+#else
+                    RRF_RT_REG_DWORD,
+#endif
+                    nullptr,
+                    &value,
+                    &sizeofValue) == ERROR_SUCCESS)
+            {
+                *result = value;
+            }
+        }
+        return S_OK;
+    }
+} // namespace details
+
+#ifdef WIL_ENABLE_EXCEPTIONS
 inline DWORD GetCurrentProcessExecutionOption(PCWSTR valueName, DWORD defaultValue = 0)
 {
-    auto filePath = wil::GetModuleFileNameW<wil::unique_cotaskmem_string>();
-    if (auto lastSlash = wcsrchr(filePath.get(), L'\\'))
+    DWORD result{};
+    THROW_IF_FAILED(details::GetCurrentProcessExecutionOptionNoThrow(valueName, defaultValue, &result));
+    return result;
+}
+#endif // WIL_ENABLE_EXCEPTIONS
+
+// No easy return mechanism for err_returncode_policy so skipping it.
+inline DWORD GetCurrentProcessExecutionOptionNoThrow(PCWSTR valueName, DWORD defaultValue = 0)
+{
+    DWORD result{};
+    if (FAILED(details::GetCurrentProcessExecutionOptionNoThrow(valueName, defaultValue, &result)))
     {
-        const auto fileName = lastSlash + 1;
-        auto keyPath = wil::str_concat<wil::unique_cotaskmem_string>(
-            LR"(SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\)", fileName);
-        DWORD value{}, sizeofValue = sizeof(value);
-        if (::RegGetValueW(
-                HKEY_LOCAL_MACHINE,
-                keyPath.get(),
-                valueName,
-#ifdef RRF_SUBKEY_WOW6464KEY
-                RRF_RT_REG_DWORD | RRF_SUBKEY_WOW6464KEY,
-#else
-                RRF_RT_REG_DWORD,
-#endif
-                nullptr,
-                &value,
-                &sizeofValue) == ERROR_SUCCESS)
-        {
-            return value;
-        }
+        return defaultValue;
     }
-    return defaultValue;
+    return result;
+}
+
+inline DWORD GetCurrentProcessExecutionOptionFailFast(PCWSTR valueName, DWORD defaultValue = 0)
+{
+    DWORD result{};
+    FAIL_FAST_IF_FAILED(details::GetCurrentProcessExecutionOptionNoThrow(valueName, defaultValue, &result));
+    return result;
 }
 
 #ifndef DebugBreak // Some code defines 'DebugBreak' to garbage to force build breaks in release builds
@@ -694,31 +729,58 @@ inline DWORD GetCurrentProcessExecutionOption(PCWSTR valueName, DWORD defaultVal
 //     missing or 0 -> don't break
 //     1 -> wait for the debugger, continue execution once it is attached
 //     2 -> wait for the debugger, break here once attached.
+namespace details
+{
+    template <typename error_policy>
+    inline void WaitForDebuggerPresent(bool checkRegistryConfig)
+    {
+        for (;;)
+        {
+            DWORD configValue{1};
+            if (checkRegistryConfig)
+            {
+                // err_returncode_policy will continue running after this line on failure.  The default value of zero
+                // will apply in that case so we will still behave reasonably.
+                error_policy::HResult(details::GetCurrentProcessExecutionOptionNoThrow(L"WaitForDebuggerPresent", 0, &configValue));
+            }
+
+            if (configValue == 0)
+            {
+                return; // not configured, don't wait
+            }
+
+            if (IsDebuggerPresent())
+            {
+                if (configValue == 2)
+                {
+                    DebugBreak(); // debugger attached, SHIFT+F11 to return to the caller
+                }
+                return; // debugger now attached, continue executing
+            }
+            Sleep(500);
+        }
+    }
+} // namespace details
+
+#ifdef WIL_ENABLE_EXCEPTIONS
 inline void WaitForDebuggerPresent(bool checkRegistryConfig = true)
 {
-    for (;;)
-    {
-        auto configValue = checkRegistryConfig ? GetCurrentProcessExecutionOption(L"WaitForDebuggerPresent") : 1;
-        if (configValue == 0)
-        {
-            return; // not configured, don't wait
-        }
-
-        if (IsDebuggerPresent())
-        {
-            if (configValue == 2)
-            {
-                DebugBreak(); // debugger attached, SHIFT+F11 to return to the caller
-            }
-            return; // debugger now attached, continue executing
-        }
-        Sleep(500);
-    }
+    details::WaitForDebuggerPresent<err_exception_policy>(checkRegistryConfig);
 }
-#endif
-#endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
+#endif // WIL_ENABLE_EXCEPTIONS
 
-#endif
+inline void WaitForDebuggerPresentNoThrow(bool checkRegistryConfig = true)
+{
+    (void)details::WaitForDebuggerPresent<err_returncode_policy>(checkRegistryConfig);
+}
+
+inline void WaitForDebuggerPresentFailFast(bool checkRegistryConfig = true)
+{
+    details::WaitForDebuggerPresent<err_failfast_policy>(checkRegistryConfig);
+}
+
+#endif // DebugBreak
+#endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
 
 /** Retrieve the HINSTANCE for the current DLL or EXE using this symbol that
 the linker provides for every module. This avoids the need for a global HINSTANCE variable

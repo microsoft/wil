@@ -11,6 +11,7 @@
 #include <wil/cppwinrt_helpers.h>
 #include <winrt/Windows.System.h>
 #include <wil/cppwinrt_helpers.h> // Verify can include a second time to unlock more features
+#include <wil/stl.h>
 
 using namespace winrt::Windows::ApplicationModel::Activation;
 
@@ -758,4 +759,10 @@ TEST_CASE("CppWinRTTests::ThrownExceptionWithMessage", "[cppwinrt]")
         CATCH_RETURN();
     }();
     witest::RequireRestrictedErrorInfo(E_INVALIDARG, L"The parameter is incorrect.\r\n");
+}
+
+TEST_CASE("CppWinRTTests::ZStringViewFromHString", "[cppwinrt]")
+{
+    winrt::hstring hstr = L"Hello";
+    REQUIRE(wil::zwstring_view(hstr) == hstr);
 }
