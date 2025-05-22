@@ -505,10 +505,9 @@ namespace network
         }
 
         // move constructor and assignment operators will take ownership of the WSA ref count
-        socket_extension_function_table_t(socket_extension_function_table_t&& rhs) WI_NOEXCEPT
-            // wsa_reference_count{::wistd::move(rhs.wsa_reference_count)} this fails to compile!
+        socket_extension_function_table_t(socket_extension_function_table_t&& rhs) WI_NOEXCEPT :
+            wsa_reference_count{WSAStartup_nothrow()}
         {
-            load(); // this shouldn't be called if move construction works correctly
             if (!wsa_reference_count)
             {
                 ::memset(&function_table, 0, sizeof(function_table));
@@ -524,7 +523,6 @@ namespace network
 
         socket_extension_function_table_t& operator=(socket_extension_function_table_t&& rhs) WI_NOEXCEPT
         {
-            // wsa_reference_count = ::wistd::move(rhs.wsa_reference_count); // this fails to compile!
             if (!wsa_reference_count)
             {
                 ::memset(&function_table, 0, sizeof(function_table));
@@ -874,13 +872,10 @@ namespace network
         {
         case AF_UNSPEC:
             return false;
-
         case AF_INET:
             return ::IN4_IS_ADDR_LINKLOCAL(in_addr());
-
         case AF_INET6:
             return ::IN6_IS_ADDR_LINKLOCAL(in6_addr());
-
         default:
             WI_ASSERT_MSG(false, "Unknown address family");
             return false;
@@ -893,13 +888,10 @@ namespace network
         {
         case AF_UNSPEC:
             return false;
-
         case AF_INET:
             return ::IN4_IS_ADDR_LOOPBACK(in_addr());
-
         case AF_INET6:
             return ::IN6_IS_ADDR_LOOPBACK(in6_addr());
-
         default:
             WI_ASSERT_MSG(false, "Unknown address family");
             return false;
@@ -912,13 +904,10 @@ namespace network
         {
         case AF_UNSPEC:
             return ::NlatUnspecified;
-
         case AF_INET:
             return ::Ipv4AddressType(reinterpret_cast<const UCHAR*>(in_addr()));
-
         case AF_INET6:
             return ::Ipv6AddressType(reinterpret_cast<const UCHAR*>(in6_addr()));
-
         default:
             WI_ASSERT_MSG(false, "Unknown address family");
             return ::NlatInvalid;
