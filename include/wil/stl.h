@@ -132,6 +132,16 @@ inline PCWSTR str_raw_ptr(const std::wstring& str)
     return str.c_str();
 }
 
+inline string_view_t view_from_string(std::wstring_view const& s)
+{
+    return string_view_t{s.data(), s.length()};
+}
+
+inline string_view_t view_from_string(std::wstring const& s)
+{
+    return string_view_t{s.data(), s.length()};
+}
+
 #if __cpp_lib_string_view >= 201606L
 /**
     zstring_view. A zstring_view is identical to a std::string_view except it is always nul-terminated (unless empty).
@@ -240,6 +250,19 @@ private:
 
 using zstring_view = basic_zstring_view<char>;
 using zwstring_view = basic_zstring_view<wchar_t>;
+
+// str_raw_ptr is an overloaded function that retrieves a const pointer to the first character in a string's buffer.
+// This is the overload for std::wstring.  Other overloads available in resource.h.
+template <typename TChar>
+inline auto str_raw_ptr(basic_zstring_view<TChar> str)
+{
+    return str.c_str();
+}
+
+inline string_view_t view_from_string(zwstring_view const& s)
+{
+    return string_view_t{s.data(), s.length()};
+}
 
 inline namespace literals
 {

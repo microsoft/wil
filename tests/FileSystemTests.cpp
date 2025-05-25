@@ -12,11 +12,20 @@
 // TODO: str_raw_ptr is not two-phase name lookup clean (https://github.com/Microsoft/wil/issues/8)
 namespace wil
 {
+struct string_view_t;
+
 PCWSTR str_raw_ptr(HSTRING);
+string_view_t view_from_string(HSTRING);
 #ifdef WIL_ENABLE_EXCEPTIONS
 PCWSTR str_raw_ptr(const std::wstring&);
+string_view_t view_from_string(std::wstring const&);
+string_view_t view_from_string(std::wstring_view const&);
 #endif
 } // namespace wil
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+#include <wil/stl.h>
+#endif
 
 #include <wil/resource.h>
 #include <wil/filesystem.h>
@@ -528,6 +537,19 @@ TEST_CASE("FileSystemTests::VerifyStrConcat", "[filesystem]")
         REQUIRE_SUCCEEDED(wil::str_concat_nothrow(combinedStringNT, test2.c_str(), test3));
         REQUIRE(CompareStringOrdinal(combinedStringNT.get(), -1, expectedStr, -1, TRUE) == CSTR_EQUAL);
     }
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+    SECTION("Concat with views of things")
+    {
+        auto part1 = std::wstring_view(L"Test2");
+        auto part2 = std::wstring(L"Test3");
+        auto part3 = wil::zwstring_view(L"Test4");
+        auto part4 = wil::make_unique_string_nothrow<wil::unique_cotaskmem_string>(L"Test5");
+        wil::unique_cotaskmem_string combinedStringNT = wil::make_unique_string_nothrow<wil::unique_cotaskmem_string>(L"Test1");
+        REQUIRE_SUCCEEDED(wil::str_concat_nothrow(combinedStringNT, part1, part2, part3, part4));
+        REQUIRE(CompareStringOrdinal(combinedStringNT.get(), -1, L"Test1Test2Test3Test4Test5", -1, TRUE) == CSTR_EQUAL);
+    }
+#endif
 }
 
 TEST_CASE("FileSystemTests::VerifyStrPrintf", "[filesystem]")
