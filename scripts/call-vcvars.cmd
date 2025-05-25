@@ -2,10 +2,20 @@
 
 :: NOTE: Intentionally not specifying 'setlocal' as we want the side-effects of calling 'vcvars' to affect the caller
 
-:: NOTE: This is primarily intended to be used by the build pipelines, hence the hard-coded paths, and might not be
-::       generally useful. The following check is intended to help diagnose such possible issues
-if NOT EXIST "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat" (
-    echo ERROR: Could not locate 'vcvars' batch file. This script is intended to be run from a build machine & exit /B 1
+:: Use vswhere.exe to find the Visual Studio installation path
+for /f "usebackq tokens=*" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do (
+    set VS_INSTALL_PATH=%%i
+)
+
+if "%VS_INSTALL_PATH%"=="" (
+    echo ERROR: Could not locate Visual Studio installation with required C++ tools using vswhere.exe
+    exit /B 1
+)
+
+set VCVARS_PATH=%VS_INSTALL_PATH%\VC\Auxiliary\Build\vcvarsall.bat
+if NOT EXIST "%VCVARS_PATH%" (
+    echo ERROR: Could not locate vcvarsall.bat at %VCVARS_PATH%
+    exit /B 1
 )
 
 set ARCH=%1
@@ -14,4 +24,4 @@ if /I "%ARCH%"=="x86" (
     set ARCH=x64_x86
 )
 
-call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" %ARCH%
+call "%VCVARS_PATH%" %ARCH%
