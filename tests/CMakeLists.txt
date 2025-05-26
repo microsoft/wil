@@ -117,8 +117,9 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
 elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     # Sanitizers are not available with debug libraries
     # Starting with Clang 17, there appears to be some issue where linking to the dynamic asan libraries seems to think that
-    # things like 'operator new' are present in the executable, but only for x64 for some reason
-    set(ASAN_AVAILABLE NOT ${DEBUG_BUILD} AND ${CMAKE_GENERATOR_PLATFORM} STREQUAL "x86")
+    # things like 'operator new' are present in the executable, but only for x64 for some reason. As there's no way to
+    # detect the target system architecture, use a good proxy
+    set(ASAN_AVAILABLE NOT ${DEBUG_BUILD} AND ${CMAKE_SIZEOF_VOID_P} EQUAL 4)
     set(UBSAN_AVAILABLE NOT ${DEBUG_BUILD})
 endif()
 
