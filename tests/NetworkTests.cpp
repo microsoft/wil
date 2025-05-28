@@ -1916,7 +1916,7 @@ TEST_CASE("NetworkingTests::Verifying_function_tables", "[networking]")
             // the buffer to supply to AcceptEx to capture the address information
             static constexpr size_t singleAddressOutputBufferSize = listenAddress.size() + 16;
             char acceptex_output_buffer[singleAddressOutputBufferSize * 2]{};
-            wil::unique_socket acceptSocket{::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)};
+            wil::unique_socket acceptSocket{::socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP)};
             REQUIRE(acceptSocket.get() != INVALID_SOCKET);
 
             DWORD acceptex_bytes_received{};
@@ -2187,6 +2187,52 @@ TEST_CASE("NetworkingTests::Verifying_function_tables", "[networking]")
         REQUIRE(rio_cq != RIO_INVALID_CQ);
 
         test_table->RIOCloseCompletionQueue(rio_cq);
+    }
+
+    SECTION("verify socket_notification_function_table")
+    {
+        wil::network::process_socket_notification_table test_table;
+        REQUIRE(static_cast<bool>(test_table));
+        REQUIRE(test_table->ProcessSocketNotifications);
+
+        wil::unique_socket listeningSocket{::socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP)};
+        REQUIRE(listeningSocket.get() != INVALID_SOCKET);
+        REQUIRE(!!listeningSocket);
+        wil::network::socket_address listeningAddress{AF_INET6};
+        listeningAddress.set_address_loopback();
+        listeningAddress.set_port(TestPort);
+
+        wil::unique_handle iocp{::CreateIoCompletionPort(INVALID_HANDLE_VALUE, nullptr, 0, 0)};
+        REQUIRE(iocp.get() != NULL);
+
+        SOCK_NOTIFY_REGISTRATION notification;
+        notification.socket = listeningSocket.get();;
+        notification.completionKey = nullptr;
+        notification.eventFilter = SOCK_NOTIFY_REGISTER_EVENTS_ALL;
+        notification.operation = SOCK_NOTIFY_OP_ENABLE;
+        notification.triggerFlags = SOCK_NOTIFY_TRIGGER_LEVEL;
+
+        OVERLAPPED_ENTRY completionEntry{};
+        UINT32 entryCount{};
+        DWORD notificationError = test_table->ProcessSocketNotifications(
+            iocp.get(),
+            1,
+            &notification,
+            0,
+            1,
+            &completionEntry,
+            &entryCount);
+        REQUIRE(notificationError == WAIT_TIMEOUT);
+    }
+
+    SECTION("verify unique_socket_invalid_value")
+    {
+        // verify operator bool only returns false on INVALID_SOCKET
+        wil::unique_socket test{NULL};
+        REQUIRE(static_cast<bool>(test) == true);
+        test.release(); // don't pass null to closesocket
+        test.reset(INVALID_SOCKET);
+        REQUIRE(static_cast<bool>(test) == false);
     }
 }
 

@@ -454,10 +454,26 @@ namespace network
         LPFN_WSASENDMSG WSASendMsg{nullptr};
     };
 
+    struct WINSOCK_SOCKET_NOTIFICATION_TABLE
+    {
+        using LPFN_PROCESS_SOCKET_NOTIFICATION =
+        DWORD(WSAAPI*)(
+            HANDLE completionPort,
+            UINT32 registrationCount,
+            _Inout_updates_opt_(registrationCount) SOCK_NOTIFY_REGISTRATION* registrationInfos,
+            UINT32 timeoutMs,
+            ULONG completionCount,
+            _Out_writes_to_opt_(completionCount, *receivedEntryCount) OVERLAPPED_ENTRY* completionPortEntries,
+            _Out_opt_ UINT32* receivedEntryCount);
+
+        LPFN_PROCESS_SOCKET_NOTIFICATION ProcessSocketNotifications{nullptr};
+    };
+
     template <typename F>
     struct socket_extension_function_table_t;
     using winsock_extension_function_table = socket_extension_function_table_t<WINSOCK_EXTENSION_FUNCTION_TABLE>;
     using rio_extension_function_table = socket_extension_function_table_t<RIO_EXTENSION_FUNCTION_TABLE>;
+    using process_socket_notification_table = socket_extension_function_table_t<WINSOCK_SOCKET_NOTIFICATION_TABLE>;
 
     template <typename F>
     struct socket_extension_function_table_t
@@ -570,6 +586,12 @@ namespace network
         return function_table.RIOReceive != nullptr;
     }
 
+        template <>
+    inline socket_extension_function_table_t<WINSOCK_SOCKET_NOTIFICATION_TABLE>::operator bool() const WI_NOEXCEPT
+    {
+        return function_table.ProcessSocketNotifications != nullptr;
+    }
+
     template <>
     inline void socket_extension_function_table_t<WINSOCK_EXTENSION_FUNCTION_TABLE>::load() WI_NOEXCEPT
     {
@@ -581,7 +603,7 @@ namespace network
 
         // we need a temporary socket for the IOCTL to load the functions
         const ::wil::unique_socket localSocket{::socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)};
-        if (INVALID_SOCKET == localSocket.get())
+        if (!localSocket)
         {
             return;
         }
@@ -627,7 +649,7 @@ namespace network
 
         // we need a temporary socket for the IOCTL to load the functions
         const ::wil::unique_socket localSocket{::socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)};
-        if (INVALID_SOCKET == localSocket.get())
+        if (!localSocket)
         {
             return;
         }
@@ -649,6 +671,30 @@ namespace network
         {
             LOG_IF_WIN32_ERROR(::WSAGetLastError());
             ::memset(&function_table, 0, sizeof(function_table));
+        }
+    }
+    
+    template <>
+    inline void socket_extension_function_table_t<WINSOCK_SOCKET_NOTIFICATION_TABLE>::load() WI_NOEXCEPT
+    {
+        // if WSAStartup failed, immediately exit
+        if (!wsa_reference_count)
+        {
+            return;
+        }
+
+        // directly LoadLibrary/GetProcAddress the function pointer - we don't need to hold the module handle
+        // since WSAStartup will keep the Winsock dll loaded
+        if (const ::wil::unique_hmodule ws2_32{LoadLibraryExW(L"ws2_32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32)})
+        {
+            if (auto* fn_ptr{GetProcAddress(ws2_32.get(), "ProcessSocketNotifications")})
+            {
+                // casting directly from GetProcAddress fails with -Wcast-function-type-mismatch
+                // clang allows this if we cast the return type to void first, then cast to the function pointer type
+                function_table.ProcessSocketNotifications =
+                    reinterpret_cast<WINSOCK_SOCKET_NOTIFICATION_TABLE::LPFN_PROCESS_SOCKET_NOTIFICATION>(
+                        reinterpret_cast<void (__stdcall *)()>(fn_ptr));
+            }
         }
     }
 

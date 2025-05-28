@@ -5076,7 +5076,7 @@ typedef weak_any<shared_winhttp_hinternet> weak_winhttp_hinternet;
 /// @cond
 #define __WIL_WINSOCKAPI_
 /// @endcond
-typedef unique_any<SOCKET, int(WINAPI*)(SOCKET), ::closesocket, details::pointer_access_all, SOCKET, SOCKET, INVALID_SOCKET, SOCKET> unique_socket;
+typedef unique_any<SOCKET, decltype(&::closesocket), ::closesocket, details::pointer_access_all, SOCKET, SOCKET, INVALID_SOCKET, SOCKET> unique_socket;
 #endif // __WIL_WINSOCKAPI_
 #if (defined(__WIL_WINSOCKAPI_) && !defined(__WIL_WINSOCKAPI_STL) && defined(WIL_RESOURCE_STL)) || defined(WIL_DOXYGEN)
 /// @cond
