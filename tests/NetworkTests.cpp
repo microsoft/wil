@@ -6,6 +6,10 @@
 #include <numeric>
 #include <string>
 
+// define this macro to printf sockaddr strings to the console
+// as tests are running to verify correctness by hand
+// #define PRINTF_SOCKET_ADDRESSES
+
 // set this to give access to all functions
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 #define WI_NETWORK_TEST
@@ -2198,9 +2202,6 @@ TEST_CASE("NetworkingTests::Verifying_function_tables", "[networking]")
         wil::unique_socket listeningSocket{::socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP)};
         REQUIRE(listeningSocket.get() != INVALID_SOCKET);
         REQUIRE(!!listeningSocket);
-        wil::network::socket_address listeningAddress{AF_INET6};
-        listeningAddress.set_address_loopback();
-        listeningAddress.set_port(TestPort);
 
         wil::unique_handle iocp{::CreateIoCompletionPort(INVALID_HANDLE_VALUE, nullptr, 0, 0)};
         REQUIRE(iocp.get() != NULL);
@@ -2274,7 +2275,9 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
 
                 wil::network::socket_address_wstring address_string;
                 REQUIRE(SUCCEEDED(address.format_address_nothrow(address_string)));
+#ifdef PRINTF_SOCKET_ADDRESSES
                 wprintf(L"... resolve_local_addresses : %ws\n", address_string);
+#endif
                 ++count;
             }
 
@@ -2290,7 +2293,9 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
 
                 wil::network::socket_address_wstring address_string;
                 REQUIRE(SUCCEEDED(address.format_address_nothrow(address_string)));
+#ifdef PRINTF_SOCKET_ADDRESSES
                 wprintf(L"... resolve_local_addresses : %ws\n", address_string);
+#endif
                 ++count;
             }
 
@@ -2306,7 +2311,9 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
 
                 wil::network::socket_address_wstring address_string;
                 REQUIRE(SUCCEEDED(address.format_address_nothrow(address_string)));
+#ifdef PRINTF_SOCKET_ADDRESSES
                 wprintf(L"... resolve_local_addresses : %ws\n", address_string);
+#endif
                 ++count;
             }
 
@@ -2322,7 +2329,9 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
 
                 wil::network::socket_address_wstring address_string;
                 REQUIRE(SUCCEEDED(address.format_address_nothrow(address_string)));
+#ifdef PRINTF_SOCKET_ADDRESSES
                 wprintf(L"... resolve_local_addresses (reusing iterator) : %ws\n", address_string);
+#endif
                 ++count;
             }
 
@@ -2365,7 +2374,9 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
 
             wil::network::socket_address_wstring address_string;
             REQUIRE(SUCCEEDED(address.format_address_nothrow(address_string)));
+#ifdef PRINTF_SOCKET_ADDRESSES
             wprintf(L"... resolve_localhost_addresses : %ws\n", address_string);
+#endif
             ++count;
         }
 
@@ -2395,7 +2406,9 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
 
             wil::network::socket_address_wstring address_string;
             REQUIRE(SUCCEEDED(address.format_address_nothrow(address_string)));
+#ifdef PRINTF_SOCKET_ADDRESSES
             wprintf(L"... wil::network::resolve_name : %ws\n", address_string);
+#endif
             ++count;
         }
         REQUIRE(count > 0);
@@ -2480,7 +2493,9 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
 
             wil::network::socket_address_wstring address_string;
             REQUIRE(SUCCEEDED(address.format_address_nothrow(address_string)));
+#ifdef PRINTF_SOCKET_ADDRESSES
             wprintf(L"... moved resolve_local_addresses : %ws\n", address_string);
+#endif
         }
     }
 
@@ -2520,7 +2535,9 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
 
             wil::network::socket_address_wstring address_string;
             REQUIRE(SUCCEEDED(address.format_address_nothrow(address_string)));
+#ifdef PRINTF_SOCKET_ADDRESSES
             wprintf(L"... move assignment resolve_local_addresses : %ws\n", address_string);
+#endif
         }
         REQUIRE(count > 0);
     }
@@ -2580,7 +2597,9 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
 
             wil::network::socket_address_wstring address_string;
             REQUIRE(SUCCEEDED(address.format_address_nothrow(address_string)));
+#ifdef PRINTF_SOCKET_ADDRESSES
             wprintf(L"... moved getaddrinfo(unique_addrinfo_ansi) : %ws\n", address_string);
+#endif
         }
     }
 
@@ -2612,7 +2631,9 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
 
             wil::network::socket_address_wstring address_string;
             REQUIRE(SUCCEEDED(address.format_address_nothrow(address_string)));
+#ifdef PRINTF_SOCKET_ADDRESSES
             wprintf(L"... move assignment getaddrinfo(unique_addrinfo_ansi) : %ws\n", address_string);
+#endif
         }
     }
 
@@ -2668,7 +2689,9 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
 
             wil::network::socket_address_wstring address_string;
             REQUIRE(SUCCEEDED(address.format_address_nothrow(address_string)));
+#ifdef PRINTF_SOCKET_ADDRESSES
             wprintf(L"... moved GetAddrInfoExW(unique_addrinfoex) : %ws\n", address_string);
+#endif
         }
     }
 
@@ -2699,7 +2722,9 @@ TEST_CASE("NetworkingTests::Verifying_addr_info", "[networking]")
 
             wil::network::socket_address_wstring address_string;
             REQUIRE(SUCCEEDED(address.format_address_nothrow(address_string)));
+#ifdef PRINTF_SOCKET_ADDRESSES
             wprintf(L"... move assignment GetAddrInfoExW(unique_addrinfoex) : %ws\n", address_string);
+#endif
         }
     }
 }
