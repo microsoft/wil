@@ -456,8 +456,7 @@ namespace network
 
     struct WINSOCK_SOCKET_NOTIFICATION_TABLE
     {
-        using LPFN_PROCESS_SOCKET_NOTIFICATION =
-        DWORD(WSAAPI*)(
+        using LPFN_PROCESS_SOCKET_NOTIFICATION = DWORD(WSAAPI*)(
             HANDLE completionPort,
             UINT32 registrationCount,
             _Inout_updates_opt_(registrationCount) SOCK_NOTIFY_REGISTRATION* registrationInfos,
@@ -478,8 +477,7 @@ namespace network
     template <typename F>
     struct socket_extension_function_table_t
     {
-        socket_extension_function_table_t() WI_NOEXCEPT :
-            wsa_reference_count{WSAStartup_nothrow()}
+        socket_extension_function_table_t() WI_NOEXCEPT : wsa_reference_count{WSAStartup_nothrow()}
         {
             load();
         }
@@ -493,8 +491,8 @@ namespace network
         //   (this should never happen the caller has a reference, but we failed to get a WSA reference)
         // THEN
         //   this object cannot carry forward any function pointers - it must show successfully loaded == false
-        socket_extension_function_table_t(const socket_extension_function_table_t& rhs) WI_NOEXCEPT :
-            wsa_reference_count{WSAStartup_nothrow()}
+        socket_extension_function_table_t(const socket_extension_function_table_t& rhs) WI_NOEXCEPT
+            : wsa_reference_count{WSAStartup_nothrow()}
         {
             if (!wsa_reference_count || !rhs.wsa_reference_count)
             {
@@ -521,8 +519,8 @@ namespace network
         }
 
         // move constructor and assignment operators will take ownership of the WSA ref count
-        socket_extension_function_table_t(socket_extension_function_table_t&& rhs) WI_NOEXCEPT :
-            wsa_reference_count{WSAStartup_nothrow()}
+        socket_extension_function_table_t(socket_extension_function_table_t&& rhs) WI_NOEXCEPT
+            : wsa_reference_count{WSAStartup_nothrow()}
         {
             if (!wsa_reference_count)
             {
@@ -586,7 +584,7 @@ namespace network
         return function_table.RIOReceive != nullptr;
     }
 
-        template <>
+    template <>
     inline socket_extension_function_table_t<WINSOCK_SOCKET_NOTIFICATION_TABLE>::operator bool() const WI_NOEXCEPT
     {
         return function_table.ProcessSocketNotifications != nullptr;
@@ -673,7 +671,7 @@ namespace network
             ::memset(&function_table, 0, sizeof(function_table));
         }
     }
-    
+
     template <>
     inline void socket_extension_function_table_t<WINSOCK_SOCKET_NOTIFICATION_TABLE>::load() WI_NOEXCEPT
     {
@@ -693,7 +691,7 @@ namespace network
                 // clang allows this if we cast the return type to void first, then cast to the function pointer type
                 function_table.ProcessSocketNotifications =
                     reinterpret_cast<WINSOCK_SOCKET_NOTIFICATION_TABLE::LPFN_PROCESS_SOCKET_NOTIFICATION>(
-                        reinterpret_cast<void (__stdcall *)()>(fn_ptr));
+                        reinterpret_cast<void(__stdcall*)()>(fn_ptr));
             }
         }
     }
@@ -1143,9 +1141,8 @@ namespace network
         }
 
         const void* const pAddr{
-            family() == AF_INET
-                ? static_cast<const void*>(&m_sockaddr.Ipv4.sin_addr)
-                : static_cast<const void*>(&m_sockaddr.Ipv6.sin6_addr)};
+            family() == AF_INET ? static_cast<const void*>(&m_sockaddr.Ipv4.sin_addr)
+                                : static_cast<const void*>(&m_sockaddr.Ipv6.sin6_addr)};
 
         // the last param to InetNtopW is # of characters, not bytes
         const auto* error_value{::InetNtopW(family(), pAddr, address, INET6_ADDRSTRLEN)};
@@ -1168,9 +1165,8 @@ namespace network
         }
 
         const void* const pAddr{
-            family() == AF_INET
-                ? static_cast<const void*>(&m_sockaddr.Ipv4.sin_addr)
-                : static_cast<const void*>(&m_sockaddr.Ipv6.sin6_addr)};
+            family() == AF_INET ? static_cast<const void*>(&m_sockaddr.Ipv4.sin_addr)
+                                : static_cast<const void*>(&m_sockaddr.Ipv6.sin6_addr)};
 
         // the last param to InetNtopA is # of characters, not bytes
         const auto* error_value{::InetNtopA(family(), pAddr, address, INET6_ADDRSTRLEN)};

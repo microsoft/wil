@@ -2148,7 +2148,7 @@ TEST_CASE("NetworkingTests::Verifying_function_tables", "[networking]")
         REQUIRE(move_assignment_test_table->WSARecvMsg);
         REQUIRE(move_assignment_test_table->WSASendMsg);
         verify_extension_table(move_assignment_test_table);
-}
+    }
 
     SECTION("verify rio_extension_function_table")
     {
@@ -2207,7 +2207,7 @@ TEST_CASE("NetworkingTests::Verifying_function_tables", "[networking]")
         REQUIRE(iocp.get() != NULL);
 
         SOCK_NOTIFY_REGISTRATION notification;
-        notification.socket = listeningSocket.get();;
+        notification.socket = listeningSocket.get();
         notification.completionKey = nullptr;
         notification.eventFilter = SOCK_NOTIFY_REGISTER_EVENTS_ALL;
         notification.operation = SOCK_NOTIFY_OP_ENABLE;
@@ -2215,14 +2215,8 @@ TEST_CASE("NetworkingTests::Verifying_function_tables", "[networking]")
 
         OVERLAPPED_ENTRY completionEntry{};
         UINT32 entryCount{};
-        DWORD notificationError = test_table->ProcessSocketNotifications(
-            iocp.get(),
-            1,
-            &notification,
-            0,
-            1,
-            &completionEntry,
-            &entryCount);
+        DWORD notificationError =
+            test_table->ProcessSocketNotifications(iocp.get(), 1, &notification, 0, 1, &completionEntry, &entryCount);
         REQUIRE(notificationError == WAIT_TIMEOUT);
     }
 
