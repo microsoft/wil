@@ -141,10 +141,13 @@ The `scripts/init_all.cmd` script will run the `init.cmd` script for all combina
 ## Inner loop
 
 In Visual Studio 2022, select a startup item (e.g. `witest.exe`) and use "Debug > Start Debugging". Targets will be
-rebuilt as needed.  Use "Build > Rebuild All" to rebuild all tests.
+rebuilt as needed.  Use "Build > Rebuild All" to rebuild all tests. Use the Visual Studio Test Explorer to run the
+tests.
 
 In VS Code, use "CMake: Set Launch/Debug Target" and select a target (e.g. `witest.exe`). Use "CMake: Debug" (default keybind `Shift-F5`)
-to run the selected test [in VS Code's debugger environment.](https://code.visualstudio.com/docs/cpp/cpp-debug)
+to run the selected test [in VS Code's debugger environment.](https://code.visualstudio.com/docs/cpp/cpp-debug).
+Switch to [VS Code's "testing" tab,](https://code.visualstudio.com/docs/debugtest/testing) and click the "Run Tests"
+option.
 
 For command-line CMake (configured with `cmake --preset ...`) build use, some examples:
 ```powershell
@@ -156,6 +159,9 @@ C:\wil> cmake --build --preset "msvc-release" --target "witest.noexcept"
 
 # Clean outputs, then build one target
 C:\wil> cmake --build --preset "msvc-release" --clean-first --target "witest"
+
+# Run tests
+C:\wil> ctest --preset "msvc-release"
 ```
 
 For command-line Ninja (configured with `init.cmd -c clang -b debug`) build use, some examples:
@@ -168,6 +174,12 @@ C:\wil> ninja -C build\clang64debug witest
 
 # Clean outputs, then build one target
 C:\wil> ninja -C build\clang64debug -j 0 clean witest.app
+
+# Run the tests (PowerShell)
+C:\wil> Get-ChildItem -Recurse -File build\clang64debug\witest*.exe | %{ Write-Host $_ ; & $_ }
+
+# Run the tests (cmd)
+C:\wil> for /F %f IN ('dir /s /b build\clang\tests\witest*.exe') do %f
 ```
 
 The output is a number of test executables. If you used the initialization script(s) mentioned above, or if you followed
@@ -175,6 +187,9 @@ the same directory naming convention of those scripts, you can use the [runtests
 which will execute any test executables that have been built, erroring out - and preserving the exit code - if any test
 fails. Note that MSBuild will modify the output directory names, so this script is only compatible with using Ninja as the
 generator.
+
+> **Note:** The `witest.app` test is significantly slower than the other tests. You can use Test Explorer or the Testing
+> tab to hide it while doing quick validation.
 
 ## Build everything
 

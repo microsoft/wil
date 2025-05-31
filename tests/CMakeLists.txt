@@ -37,6 +37,9 @@ endif()
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Turn on CTest support
+enable_testing()
+
 include_directories(BEFORE SYSTEM ${CMAKE_BINARY_DIR}/include)
 
 # The build pipelines have limitations that local development environments do not, so turn a few knobs
@@ -98,6 +101,14 @@ add_subdirectory(noexcept)
 add_subdirectory(normal)
 add_subdirectory(win7)
 
+add_test(NAME app COMMAND $<TARGET_FILE:witest.app>)
+add_test(NAME cpplatest COMMAND $<TARGET_FILE:witest.cpplatest>)
+add_test(NAME cppwinrt-com-server COMMAND $<TARGET_FILE:witest.cppwinrt-com-server>)
+add_test(NAME cppwinrt-com-server-custom-module-lock COMMAND $<TARGET_FILE:witest.cppwinrt-com-server-custom-module-lock>)
+add_test(NAME noexcept COMMAND $<TARGET_FILE:witest.noexcept>)
+add_test(NAME normal COMMAND $<TARGET_FILE:witest>)
+add_test(NAME win7 COMMAND $<TARGET_FILE:witest.win7>)
+
 set(DEBUG_BUILD FALSE)
 set(HAS_DEBUG_INFO FALSE)
 
@@ -125,6 +136,7 @@ endif()
 
 if (${ASAN_AVAILABLE})
     add_subdirectory(sanitize-address)
+    add_test(NAME sanitize-address COMMAND $<TARGET_FILE:witest.sanitize-address>)
 endif()
 
 if (${UBSAN_AVAILABLE})

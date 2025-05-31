@@ -60,5 +60,27 @@
             "configurePreset": "clang",
             "configuration": "RelWithDebInfo"
         }
+    ],
+    "testPresets": [
+        {
+            "name": "msvc-debug",
+            "configurePreset": "msvc",
+            "configuration": "Debug"
+        },
+        {
+            "name": "msvc-release",
+            "configurePreset": "msvc",
+            "configuration": "RelWithDebInfo"
+        },
+        {
+            "name": "clang-debug",
+            "configurePreset": "clang",
+            "configuration": "Debug"
+        },
+        {
+            "name": "clang-release",
+            "configurePreset": "clang",
+            "configuration": "RelWithDebInfo"
+        }
     ]
 }

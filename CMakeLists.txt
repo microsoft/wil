@@ -33,6 +33,8 @@ if (${WIL_BUILD_TESTS})
     add_subdirectory(docs)
     add_subdirectory(tests)
 
+    enable_testing()
+
     # Custom target for running clang-format
     add_custom_target(format
         WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
@@ -67,3 +69,10 @@ install(EXPORT ${PROJECT_NAME_LOWER}_targets
 
 # Install the headers at a standard cmake location.
 install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/wil" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
+
+#Configure testing
+#enable_testing()
+#add_test(
+#    NAME witest
+#    COMMAND witest
+#)
