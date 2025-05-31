@@ -7,10 +7,52 @@
     },
     "configurePresets": [
         {
-            "name": "default",
+            "name": "msvc",
+            "hidden": false,
             "binaryDir": "${sourceDir}/build/${presetName}",
+            "generator": "Ninja Multi-Config",
             "installDir": "${sourceDir}/build/install/${presetName}",
-            "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+            "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+            "cacheVariables": {
+                "CMAKE_CONFIGURATION_TYPES": "Debug;RelWithDebInfo",
+                "CMAKE_CXX_COMPILER": "cl",
+                "CMAKE_C_COMPILER": "cl"
+            }
+        },
+        {
+            "name": "clang",
+            "inherits": "msvc",
+            "hidden": false,
+            "vendor": {
+                "microsoft.com/VisualStudioSettings/CMake/1.0": {
+                    "intelliSenseMode": "windows-clang-x64"
+                }
+            },
+            "cacheVariables": {
+                "CMAKE_CXX_COMPILER": "clang-cl",
+                "CMAKE_C_COMPILER": "clang-cl"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "MSVC Debug",
+            "configurePreset": "msvc",
+            "configuration": "Debug"
+        },
+        {   "name": "MSVC Release (debuggable)",
+            "configurePreset": "msvc",
+            "configuration": "RelWithDebInfo"
+        },
+        {
+            "name": "clang Debug",
+            "configurePreset": "clang",
+            "configuration": "Debug"
+        },
+        {
+            "name": "clang Release (debuggable)",
+            "configurePreset": "clang",
+            "configuration": "RelWithDebInfo"
         }
     ]
 }
