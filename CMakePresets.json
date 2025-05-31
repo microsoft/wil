@@ -14,7 +14,8 @@
             "installDir": "${sourceDir}/build/install/${presetName}",
             "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
             "cacheVariables": {
-                "CMAKE_CONFIGURATION_TYPES": "Debug;RelWithDebInfo",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": true,
+                "CMAKE_CONFIGURATION_TYPES": "Debug;RelWithDebInfo;Release;MinSizeRel",
                 "CMAKE_CXX_COMPILER": "cl",
                 "CMAKE_C_COMPILER": "cl"
             }
@@ -36,21 +37,26 @@
     ],
     "buildPresets": [
         {
-            "name": "MSVC Debug",
+            "name": "msvc-debug",
+            "displayName": "MSVC Debug",
             "configurePreset": "msvc",
             "configuration": "Debug"
         },
-        {   "name": "MSVC Release (debuggable)",
+        {
+            "name": "msvc-release",
+            "displayName": "MSVC Release (debuggable)",
             "configurePreset": "msvc",
             "configuration": "RelWithDebInfo"
         },
         {
-            "name": "clang Debug",
+            "name": "clang-debug",
+            "displayName": "clang Debug",
             "configurePreset": "clang",
             "configuration": "Debug"
         },
         {
-            "name": "clang Release (debuggable)",
+            "name": "clang-release",
+            "displayName": "clang Release (debuggable)",
             "configurePreset": "clang",
             "configuration": "RelWithDebInfo"
         }
