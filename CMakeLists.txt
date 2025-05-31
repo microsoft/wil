@@ -69,10 +69,3 @@ install(EXPORT ${PROJECT_NAME_LOWER}_targets
 
 # Install the headers at a standard cmake location.
 install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/wil" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
-
-#Configure testing
-#enable_testing()
-#add_test(
-#    NAME witest
-#    COMMAND witest
-#)
