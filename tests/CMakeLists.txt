@@ -136,7 +136,7 @@ endif()
 
 if (${ASAN_AVAILABLE})
     add_subdirectory(sanitize-address)
-    add_test(NAME sanitize-address COMMAND $<TARGET_FILE:witest.sanitize-address>)
+    add_test(NAME witest.asan COMMAND $<TARGET_FILE:witest.asan>)
 endif()
 
 if (${UBSAN_AVAILABLE})
