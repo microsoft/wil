@@ -161,7 +161,7 @@ namespace details
     class agile_query_policy
     {
     public:
-        inline static HRESULT query(_In_ IAgileReference* ptr, REFIID riid, _COM_Outptr_ void** result)
+        inline static HRESULT query(_In_ IAgileReference* ptr, REFIID riid, _COM_Outptr_ void** result) WI_NOEXCEPT
         {
             WI_ASSERT_MSG(riid != __uuidof(IAgileReference), "Cannot resolve a agile reference to IAgileReference");
             auto hr = ptr->Resolve(riid, result);
@@ -170,7 +170,7 @@ namespace details
         }
 
         template <typename TResult>
-        static HRESULT query(_In_ IAgileReference* ptr, _COM_Outptr_ TResult** result)
+        static HRESULT query(_In_ IAgileReference* ptr, _COM_Outptr_ TResult** result) WI_NOEXCEPT
         {
             static_assert(!wistd::is_same<IAgileReference, TResult>::value, "Cannot resolve a agile reference to IAgileReference");
             return query(ptr, __uuidof(TResult), reinterpret_cast<void**>(result));
@@ -805,7 +805,7 @@ public:
     //!                     not specify the type directly to the template.
     //! @return             A `bool` indicating `true` of the query was successful (the returned parameter is non-null).
     template <class U>
-    _Success_return_ bool try_copy_to(_COM_Outptr_result_maybenull_ U** ptrResult) const
+    _Success_return_ bool try_copy_to(_COM_Outptr_result_maybenull_ U** ptrResult) const WI_NOEXCEPT
     {
         if (m_ptr)
         {
@@ -826,7 +826,7 @@ public:
     //!                     on failure or if the source pointer being queried is null.
     //! @return             A `bool` indicating `true` of the query was successful (the returned parameter is non-null).  Querying
     //!                     a null pointer will return `false` with a null result.
-    _Success_return_ bool try_copy_to(REFIID riid, _COM_Outptr_result_maybenull_ void** ptrResult) const
+    _Success_return_ bool try_copy_to(REFIID riid, _COM_Outptr_result_maybenull_ void** ptrResult) const WI_NOEXCEPT
     {
         if (m_ptr)
         {
@@ -3303,14 +3303,14 @@ WI_NODISCARD auto make_range(IEnumXxx* enumPtr)
 
         using enumerator_type = com_iterator<TActualStoredType, IEnumXxx>;
 
-        IEnumXxx* m_enumerator{};
+        wil::com_ptr<IEnumXxx> m_enumerator{};
         iterator_range(IEnumXxx* enumPtr) : m_enumerator(enumPtr)
         {
         }
 
         WI_NODISCARD auto begin()
         {
-            return enumerator_type(m_enumerator);
+            return enumerator_type(m_enumerator.get());
         }
 
         WI_NODISCARD constexpr auto end() const noexcept
@@ -3322,6 +3322,27 @@ WI_NODISCARD auto make_range(IEnumXxx* enumPtr)
     return iterator_range(enumPtr);
 }
 
+template <typename TEnum, typename = wistd::enable_if_t<wil::details::has_next_v<TEnum*>>>
+auto make_range(const wil::com_ptr<TEnum>& e)
+{
+    using Enumerated = typename wil::details::com_enumerator_traits<TEnum>::smart_result;
+    return wil::make_range<Enumerated>(e.get());
+}
+
+#ifdef __IShellItemArray_INTERFACE_DEFINED__
+inline auto make_range(IShellItemArray* sia)
+{
+    wil::com_ptr<IEnumShellItems> enumShellItems;
+    THROW_IF_FAILED(sia->EnumItems(&enumShellItems));
+    return make_range(enumShellItems);
+}
+
+inline auto make_range(const wil::com_ptr<IShellItemArray>& sia)
+{
+    return make_range(sia.get());
+}
+#endif // __IShellItemArray_INTERFACE_DEFINED__
+
 #endif // __cpp_deduction_guides >= 201703L
 #endif // WIL_ENABLE_EXCEPTIONS
 
@@ -3331,7 +3352,7 @@ namespace details
 {
     inline void CoDisableCallCancellationNull()
     {
-        ::CoDisableCallCancellation(nullptr);
+        (void)::CoDisableCallCancellation(nullptr);
     }
 } // namespace details
 

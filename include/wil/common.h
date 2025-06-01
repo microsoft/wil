@@ -712,32 +712,32 @@ boolean, BOOLEAN, and classes with an explicit bool cast.
 @param val The logical bool expression
 @return A C++ bool representing the evaluation of `val`. */
 template <typename T, __R_ENABLE_IF_IS_CLASS(T)>
-_Post_satisfies_(return == static_cast<bool>(val)) __forceinline constexpr bool verify_bool(const T& val) WI_NOEXCEPT
+_Post_satisfies_(return == static_cast<bool>(val)) inline constexpr bool verify_bool(const T& val) WI_NOEXCEPT
 {
     return static_cast<bool>(val);
 }
 
 template <typename T, __R_ENABLE_IF_IS_NOT_CLASS(T)>
-__forceinline constexpr bool verify_bool(T /*val*/) WI_NOEXCEPT
+inline constexpr bool verify_bool(T /*val*/) WI_NOEXCEPT
 {
     static_assert(!wistd::is_same<T, T>::value, "Wrong Type: bool/BOOL/BOOLEAN/boolean expected");
     return false;
 }
 
 template <>
-_Post_satisfies_(return == val) __forceinline constexpr bool verify_bool<bool>(bool val) WI_NOEXCEPT
+_Post_satisfies_(return == val) inline constexpr bool verify_bool<bool>(bool val) WI_NOEXCEPT
 {
     return val;
 }
 
 template <>
-_Post_satisfies_(return == (val != 0)) __forceinline constexpr bool verify_bool<int>(int val) WI_NOEXCEPT
+_Post_satisfies_(return == (val != 0)) inline constexpr bool verify_bool<int>(int val) WI_NOEXCEPT
 {
     return (val != 0);
 }
 
 template <>
-_Post_satisfies_(return == (val != 0)) __forceinline constexpr bool verify_bool<unsigned char>(unsigned char val) WI_NOEXCEPT
+_Post_satisfies_(return == (val != 0)) inline constexpr bool verify_bool<unsigned char>(unsigned char val) WI_NOEXCEPT
 {
     return (val != 0);
 }
@@ -748,7 +748,7 @@ accept any `int` value as long as that is the underlying typedef behind `BOOL`.
 @param val The Win32 BOOL returning expression
 @return A Win32 BOOL representing the evaluation of `val`. */
 template <typename T>
-_Post_satisfies_(return == val) __forceinline constexpr int verify_BOOL(T val) WI_NOEXCEPT
+_Post_satisfies_(return == val) inline constexpr int verify_BOOL(T val) WI_NOEXCEPT
 {
     // Note: Written in terms of 'int' as BOOL is actually:  typedef int BOOL;
     static_assert((wistd::is_same<T, int>::value), "Wrong Type: BOOL expected");
@@ -842,7 +842,7 @@ namespace details
         : sizeof(val) == 2 ? static_cast<unsigned short>(val) \
         : sizeof(val) == 4 ? static_cast<unsigned long>(val) \
                            : static_cast<unsigned long long>(val)) __pragma(warning(pop)))
-#define __WI_IS_UNSIGNED_SINGLE_FLAG_SET(val) ((val) && !((val) & ((val)-1)))
+#define __WI_IS_UNSIGNED_SINGLE_FLAG_SET(val) ((val) && !((val) & ((val) - 1)))
 #define __WI_IS_SINGLE_FLAG_SET(val) __WI_IS_UNSIGNED_SINGLE_FLAG_SET(__WI_MAKE_UNSIGNED(val))
 
     template <typename TVal, typename TFlags>

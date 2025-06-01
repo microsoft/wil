@@ -31,6 +31,9 @@ jobs:
         echo NOTE:  As an additional note, given that different versions of 'clang-format' may have different behaviors, this
         echo        may be a false positive. If you believe that to be the case ^(e.g. none of the above resulted in modifications
         echo        to the code you have changed^), please note this in your PR.
+        echo ----------------------------------------------
+        echo See below for the file^(s^) that have changed:
+        git diff
         exit /b 1
       )
     displayName: 'Check Formatting of Changes'

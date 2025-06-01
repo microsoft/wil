@@ -145,6 +145,26 @@ class basic_zstring_view : public std::basic_string_view<TChar>
 {
     using size_type = typename std::basic_string_view<TChar>::size_type;
 
+    template <typename T>
+    struct has_c_str
+    {
+        template <typename U>
+        static auto test(int) -> decltype(std::declval<U>().c_str(), std::true_type());
+        template <typename U>
+        static std::false_type test(...);
+        static constexpr bool value = decltype(test<T>(0))::value;
+    };
+
+    template <typename T>
+    struct has_size
+    {
+        template <typename U>
+        static auto test(int) -> decltype(std::declval<U>().size() == 1, std::true_type());
+        template <typename U>
+        static std::false_type test(...);
+        static constexpr bool value = decltype(test<T>(0))::value;
+    };
+
 public:
     constexpr basic_zstring_view() noexcept = default;
     constexpr basic_zstring_view(const basic_zstring_view&) noexcept = default;
@@ -174,6 +194,16 @@ public:
 
     constexpr basic_zstring_view(const std::basic_string<TChar>& str) noexcept :
         std::basic_string_view<TChar>(&str[0], str.size())
+    {
+    }
+
+    template <typename TSrc, std::enable_if_t<has_c_str<TSrc>::value && has_size<TSrc>::value>* = nullptr>
+    constexpr basic_zstring_view(TSrc const& src) noexcept : std::basic_string_view<TChar>(src.c_str(), src.size())
+    {
+    }
+
+    template <typename TSrc, std::enable_if_t<has_c_str<TSrc>::value && !has_size<TSrc>::value>* = nullptr>
+    constexpr basic_zstring_view(TSrc const& src) noexcept : std::basic_string_view<TChar>(src.c_str())
     {
     }
 
@@ -213,12 +243,12 @@ using zwstring_view = basic_zstring_view<wchar_t>;
 
 inline namespace literals
 {
-    constexpr zstring_view operator"" _zv(const char* str, std::size_t len) noexcept
+    constexpr zstring_view operator""_zv(const char* str, std::size_t len) noexcept
     {
         return zstring_view(str, len);
     }
 
-    constexpr zwstring_view operator"" _zv(const wchar_t* str, std::size_t len) noexcept
+    constexpr zwstring_view operator""_zv(const wchar_t* str, std::size_t len) noexcept
     {
         return zwstring_view(str, len);
     }

@@ -147,7 +147,7 @@ class __declspec(empty_bases) PointerTestObject
       public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::RuntimeClassType::ClassicCom>, ITest>
 {
 public:
-    STDMETHOD_(void, Test)(){};
+    STDMETHOD_(void, Test)() {};
 };
 
 TEST_CASE("ResourceTests::TestOperationsOnGenericSmartPointerClasses", "[resource]")
