@@ -258,6 +258,13 @@ inline namespace literals
 
 } // namespace wil
 
+#if defined(_FORMAT_)
+template <typename TChar>
+struct std::formatter<wil::basic_zstring_view<TChar>, TChar> : std::formatter<std::basic_string_view<TChar>, TChar>
+{
+};
+#endif
+
 #endif // WIL_ENABLE_EXCEPTIONS
 
 #endif // __WIL_STL_INCLUDED
