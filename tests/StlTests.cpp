@@ -157,7 +157,7 @@ TEST_CASE("StlTests::TestZStringView literal", "[stl][zstring_view]")
     }
 }
 
-#if defined(__cpp_lib_format) && (__cpp_lib_format > 201907L)
+#if __cpp_lib_format >= 201907L
 
 TEST_CASE("StlTests::TestZStringView formatting", "[stl][zstring_view]")
 {
