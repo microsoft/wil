@@ -347,15 +347,11 @@ namespace network
             if (m_current_ptr)
             {
                 m_current_ptr = m_current_ptr->ai_next;
+            }
 
-                if (m_current_ptr)
-                {
-                    m_socket_address.reset(m_current_ptr->ai_addr, m_current_ptr->ai_addrlen);
-                }
-                else
-                {
-                    m_socket_address.reset();
-                }
+            if (m_current_ptr)
+            {
+                m_socket_address.reset(m_current_ptr->ai_addr, m_current_ptr->ai_addrlen);
             }
             else
             {
@@ -482,6 +478,12 @@ namespace network
             load();
         }
 
+        ~socket_extension_function_table_t() WI_NOEXCEPT = default;
+
+        // assignments are not useful with this class as it is the same contents in each object
+        socket_extension_function_table_t& operator=(const socket_extension_function_table_t& rhs) = delete;
+        socket_extension_function_table_t& operator=(socket_extension_function_table_t&& rhs) = delete;
+
         // can copy, but the new object needs its own WSA reference count
         // (getting a WSA reference count should be no-fail once the first reference it taken)
         //
@@ -504,52 +506,17 @@ namespace network
             }
         }
 
-        socket_extension_function_table_t& operator=(const socket_extension_function_table_t& rhs) WI_NOEXCEPT
-        {
-            if (!wsa_reference_count || !rhs.wsa_reference_count)
-            {
-                ::memset(&function_table, 0, sizeof(function_table));
-            }
-            else
-            {
-                ::memcpy_s(&function_table, sizeof(function_table), &rhs.function_table, sizeof(rhs.function_table));
-            }
-
-            return *this;
-        }
-
-        // move constructor and assignment operators will take ownership of the WSA ref count
+        // the move constructor will take ownership of the WSA ref count
         socket_extension_function_table_t(socket_extension_function_table_t&& rhs) WI_NOEXCEPT
-            : wsa_reference_count{WSAStartup_nothrow()}
+            : wsa_reference_count{::wistd::move(rhs.wsa_reference_count)}
         {
-            if (!wsa_reference_count)
-            {
-                ::memset(&function_table, 0, sizeof(function_table));
-            }
-            else
+            if (wsa_reference_count)
             {
                 ::memcpy_s(&function_table, sizeof(function_table), &rhs.function_table, sizeof(rhs.function_table));
             }
 
             // always have the moved-from function table zeroed
             ::memset(&rhs.function_table, 0, sizeof(rhs.function_table));
-        }
-
-        socket_extension_function_table_t& operator=(socket_extension_function_table_t&& rhs) WI_NOEXCEPT
-        {
-            if (!wsa_reference_count)
-            {
-                ::memset(&function_table, 0, sizeof(function_table));
-            }
-            else
-            {
-                ::memcpy_s(&function_table, sizeof(function_table), &rhs.function_table, sizeof(rhs.function_table));
-            }
-
-            // always have the moved-from function table zeroed
-            ::memset(&rhs.function_table, 0, sizeof(rhs.function_table));
-
-            return *this;
         }
 
         // Returns true if all functions were loaded, holding a WSAStartup reference
@@ -566,7 +533,7 @@ namespace network
         void load() WI_NOEXCEPT;
 
         // must guarantee Winsock does not unload while we have dynamically loaded function pointers
-        const ::wil::network::unique_wsacleanup_call wsa_reference_count;
+        ::wil::network::unique_wsacleanup_call wsa_reference_count;
     };
 
     //
@@ -630,8 +597,9 @@ namespace network
             FAILED_LOG(load_function_pointer(WSAID_WSARECVMSG, &function_table.WSARecvMsg)) ||
             FAILED_LOG(load_function_pointer(WSAID_WSASENDMSG, &function_table.WSASendMsg)))
         {
-            // if any failed to be found, something is very broken
-            // all should load, or all should fail
+            // all should load successfully (they have been supported since Windows Vista)
+            // if any function failed to load, it's likely a 3rd party Winsock provider was installed
+            // which doesn't support these extension functions.
             ::memset(&function_table, 0, sizeof(function_table));
         }
     }

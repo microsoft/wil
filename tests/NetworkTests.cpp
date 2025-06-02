@@ -2091,19 +2091,6 @@ TEST_CASE("NetworkingTests::Verifying_function_tables", "[networking]")
         REQUIRE(copied_test_table->WSASendMsg);
         verify_extension_table(copied_test_table);
 
-        // verify copy assignment
-        copied_test_table = test_table;
-        REQUIRE(static_cast<bool>(copied_test_table));
-        REQUIRE(copied_test_table->AcceptEx);
-        REQUIRE(copied_test_table->ConnectEx);
-        REQUIRE(copied_test_table->DisconnectEx);
-        REQUIRE(copied_test_table->GetAcceptExSockaddrs);
-        REQUIRE(copied_test_table->TransmitFile);
-        REQUIRE(copied_test_table->TransmitPackets);
-        REQUIRE(copied_test_table->WSARecvMsg);
-        REQUIRE(copied_test_table->WSASendMsg);
-        verify_extension_table(copied_test_table);
-
         // verify move c'tor
         wil::network::winsock_extension_function_table move_ctor_test_table{std::move(test_table)};
         REQUIRE(!static_cast<bool>(test_table));
@@ -2125,29 +2112,6 @@ TEST_CASE("NetworkingTests::Verifying_function_tables", "[networking]")
         REQUIRE(move_ctor_test_table->WSARecvMsg);
         REQUIRE(move_ctor_test_table->WSASendMsg);
         verify_extension_table(move_ctor_test_table);
-
-        // verify move assignment
-        wil::network::winsock_extension_function_table move_assignment_test_table;
-        move_assignment_test_table = std::move(move_ctor_test_table);
-        REQUIRE(!static_cast<bool>(move_ctor_test_table));
-        REQUIRE(!move_ctor_test_table->AcceptEx);
-        REQUIRE(!move_ctor_test_table->ConnectEx);
-        REQUIRE(!move_ctor_test_table->DisconnectEx);
-        REQUIRE(!move_ctor_test_table->GetAcceptExSockaddrs);
-        REQUIRE(!move_ctor_test_table->TransmitFile);
-        REQUIRE(!move_ctor_test_table->TransmitPackets);
-        REQUIRE(!move_ctor_test_table->WSARecvMsg);
-        REQUIRE(!move_ctor_test_table->WSASendMsg);
-        REQUIRE(static_cast<bool>(move_assignment_test_table));
-        REQUIRE(move_assignment_test_table->AcceptEx);
-        REQUIRE(move_assignment_test_table->ConnectEx);
-        REQUIRE(move_assignment_test_table->DisconnectEx);
-        REQUIRE(move_assignment_test_table->GetAcceptExSockaddrs);
-        REQUIRE(move_assignment_test_table->TransmitFile);
-        REQUIRE(move_assignment_test_table->TransmitPackets);
-        REQUIRE(move_assignment_test_table->WSARecvMsg);
-        REQUIRE(move_assignment_test_table->WSASendMsg);
-        verify_extension_table(move_assignment_test_table);
     }
 
     SECTION("verify rio_extension_function_table")
