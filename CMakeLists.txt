@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.29)
 project(WIL)
 
 include(GNUInstallDirs)
@@ -32,6 +32,8 @@ endif()
 if (${WIL_BUILD_TESTS})
     add_subdirectory(docs)
     add_subdirectory(tests)
+
+    enable_testing()
 
     # Custom target for running clang-format
     add_custom_target(format
