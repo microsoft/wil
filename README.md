@@ -108,7 +108,8 @@ Use "Build > Build All" to compile all targets.
 Microsoft's [CMake Tools for Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cmake-tools) make working
 in VSCode easy.
 
-1. Open the repo's folder in VS Code.
+1. Start a "Native Tools Command Prompt" (see below)
+1. Launch VS Code from the prompt, giving it the path to this repo (like `code c:\wil`)
 3. Use "CMake: Select Configure Preset" to pick `clang`, then "CMake: Select Build Preset" to pick `clang Debug`, then "CMake: Select Build Target" and pick `all`
 4. Use "CMake: Build" to compile all targets
 
