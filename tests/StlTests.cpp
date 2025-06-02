@@ -176,7 +176,7 @@ TEST_CASE("StlTests::TestZStringView formatting", "[stl][zstring_view]")
     }
 }
 
-#endif // __WI_LIBCPP_STD_VER >= 20
+#endif
 
 TEST_CASE("StlTests::TestZWStringView", "[stl][zstring_view]")
 {
