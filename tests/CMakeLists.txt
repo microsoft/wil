@@ -91,7 +91,7 @@ find_package(Catch2 CONFIG REQUIRED)
 
 include_directories(${DETOURS_INCLUDE_DIRS})
 add_definitions(-DNOMINMAX)
-link_libraries(${DETOURS_LIBRARY} Catch2::Catch2WithMain)
+link_libraries(${DETOURS_LIBRARY} Catch2::Catch2WithMain ws2_32.lib ntdll.lib)
 
 add_subdirectory(app)
 add_subdirectory(cpplatest)

@@ -56,6 +56,8 @@ target_compile_definitions(witest.asan PRIVATE
 target_sources(witest.asan PUBLIC
     ${COMMON_SOURCES}
     ${EXTRA_SOURCES}
+    ${CMAKE_CURRENT_SOURCE_DIR}/../NetworkTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../RegistryTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../TokenHelpersTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../UniqueWinRTEventTokenTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../WatcherTests.cpp
