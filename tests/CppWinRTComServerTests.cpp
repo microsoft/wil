@@ -20,7 +20,8 @@ void notifier()
     _comExit.SetEvent();
 }
 
-struct MyServer : winrt::implements<MyServer, winrt::Windows::Foundation::IStringable>
+struct __declspec(uuid("8D0E7037-9855-4659-B48D-F5DBD50F7836")) MyServer
+    : winrt::implements<MyServer, winrt::Windows::Foundation::IStringable>
 {
     winrt::hstring ToString()
     {
@@ -28,7 +29,8 @@ struct MyServer : winrt::implements<MyServer, winrt::Windows::Foundation::IStrin
     }
 };
 
-struct BuggyServer : winrt::implements<BuggyServer, winrt::Windows::Foundation::IStringable>
+struct __declspec(uuid("EFC0EEE4-D9ED-45B2-8857-F2012C1E7618")) BuggyServer
+    : winrt::implements<BuggyServer, winrt::Windows::Foundation::IStringable>
 {
     BuggyServer()
     {
@@ -42,7 +44,7 @@ struct BuggyServer : winrt::implements<BuggyServer, winrt::Windows::Foundation::
 
 auto create_my_server_instance()
 {
-    return winrt::create_instance<winrt::Windows::Foundation::IStringable>(winrt::guid_of<MyServer>(), CLSCTX_LOCAL_SERVER);
+    return winrt::create_instance<winrt::Windows::Foundation::IStringable>(__uuidof(MyServer), CLSCTX_LOCAL_SERVER);
 }
 
 TEST_CASE("CppWinRTComServerTests::DefaultNotifiableModuleLock", "[cppwinrt_com_server]")
@@ -94,8 +96,7 @@ TEST_CASE("CppWinRTComServerTests::RegisterComServerThrowIsSafe", "[cppwinrt_com
         auto revoker = wil::register_com_server<BuggyServer>();
         try
         {
-            auto instance =
-                winrt::create_instance<winrt::Windows::Foundation::IStringable>(winrt::guid_of<BuggyServer>(), CLSCTX_LOCAL_SERVER);
+            auto instance = winrt::create_instance<winrt::Windows::Foundation::IStringable>(__uuidof(BuggyServer), CLSCTX_LOCAL_SERVER);
             REQUIRE(false);
         }
         catch (winrt::hresult_error const& e)
@@ -111,7 +112,7 @@ TEST_CASE("CppWinRTComServerTests::AnyRegisterFailureClearAllRegistrations", "[c
 
     witest::detoured_thread_function<&::CoRegisterClassObject> detour(
         [](REFCLSID clsid, LPUNKNOWN obj, DWORD ctxt, DWORD flags, LPDWORD cookie) mutable {
-            if (winrt::guid{clsid} == winrt::guid_of<BuggyServer>())
+            if (winrt::guid{clsid} == winrt::guid{__uuidof(BuggyServer)})
             {
                 *cookie = 0;
                 return E_UNEXPECTED;
