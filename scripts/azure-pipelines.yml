@@ -4,53 +4,81 @@ trigger:
 - master
 
 jobs:
-- job: BuildAndTest
-  timeoutInMinutes: 360
+- job: CheckFormatting
 
   pool:
     vmImage: 'windows-2022'
 
   steps:
   - script: |
-      choco install llvm
+      :: The architecture is not important; we just need VCINSTALLDIR set
+      call scripts\call-vcvars.cmd x64
+      call scripts\format-changes.cmd origin/master
+      if %ERRORLEVEL% neq 0 (
+        echo ##vso[task.logissue type=error]ERROR: This branch contains changes that have not been formatted with 'clang-format'
+        echo NOTE:  To resolve this issue, you can run 'clang-format' in the following ways:
+        echo        * Run `scripts/format-changes.cmd ^<branch^>` where '^<branch^>' is either 'origin/master' or 'upstream/master'
+        echo          depending on whether or not this is a fork. This will only format the changes you made relative to the
+        echo          master branch in the 'microsoft/wil' repo.
+        echo        * Run `scripts/run-clang-format.cmd` which will run 'clang-format' on _all_ source files. This script is
+        echo          simpler to run, however there's a chance it may touch additional files you never changed due to you having
+        echo          a mis-matched version of 'clang-format'. This may require you to manually revert changes made by
+        echo          'clang-format' to the locations where you made no code changes.
+        echo        * Build the 'format' target ^(e.g. `ninja format`^). This is equivalent to running the second option above.
+        echo.
+        echo        For more information, please see https://github.com/microsoft/wil?tab=readme-ov-file#formatting
+        echo.
+        echo NOTE:  As an additional note, given that different versions of 'clang-format' may have different behaviors, this
+        echo        may be a false positive. If you believe that to be the case ^(e.g. none of the above resulted in modifications
+        echo        to the code you have changed^), please note this in your PR.
+        echo ----------------------------------------------
+        echo See below for the file^(s^) that have changed:
+        git diff
+        exit /b 1
+      )
+    displayName: 'Check Formatting of Changes'
+
+- job: BuildAndTest
+  timeoutInMinutes: 90
+
+  variables:
+    compilers: 'clang,msvc'
+    architectures: 'x86,x64'
+    buildTypes: 'debug,relwithdebinfo'
+
+  strategy:
+    matrix:
+      ${{each compiler in split(variables.compilers, ',')}}:
+        ${{each arch in split(variables.architectures, ',')}}:
+          ${{each buildType in split(variables.buildTypes, ',')}}:
+            ${{compiler}}-${{arch}}-${{buildType}}:
+              compiler: ${{compiler}}
+              arch: ${{arch}}
+              build-type: ${{buildType}}
+
+  pool:
+    vmImage: 'windows-2022'
+
+  steps:
+  - script: |
+      choco upgrade llvm -y
       if %ERRORLEVEL% NEQ 0 goto :eof
       echo ##vso[task.setvariable variable=PATH]%PATH%;C:\Program Files\LLVM\bin
     displayName: 'Install Clang'
+    condition: eq(variables['compiler'], 'clang')
 
   - script: |
-      call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsamd64_x86.bat"
+      call scripts\call-vcvars.cmd $(arch)
       if %ERRORLEVEL% NEQ 0 goto :eof
       
-      call scripts\init_all.cmd --fast
-      if %ERRORLEVEL% NEQ 0 goto :eof
-      
-      call scripts\build_all.cmd
-    displayName: 'Build x86'
-
-  # NOTE: We run the tests in the 32-bit cross-tools window out of convenience as this adds all necessary directories to
-  # the PATH that are necessary for finding the ASan/UBSan DLLs
-  - script: |
-      call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsamd64_x86.bat""
-      call scripts\runtests.cmd ~[LocalOnly]
-    displayName: 'Run x86 Tests'
-
-  - script: |
-      rmdir /s /q build
-    displayName: 'Clean x86 Output'
-
-  - script: |
-      call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-      if %ERRORLEVEL% NEQ 0 goto :eof
-      
-      call scripts\init_all.cmd --fast
+      call scripts\init.cmd -c $(compiler) -b $(build-type) --fast
       if %ERRORLEVEL% NEQ 0 goto :eof
       
       call scripts\build_all.cmd
-    displayName: 'Build x64'
+    displayName: 'Build $(compiler) $(arch)$(build-type)'
 
-  # NOTE: We run the tests in the 32-bit cross-tools window out of convenience as this adds all necessary directories to
-  # the PATH that are necessary for finding the ASan/UBSan DLLs
   - script: |
-      call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsamd64_x86.bat""
+      call scripts\call-vcvars.cmd $(arch)
+      set ASAN_WIN_CONTINUE_ON_INTERCEPTION_FAILURE=1
       call scripts\runtests.cmd ~[LocalOnly]
-    displayName: 'Run x64 Tests'
+    displayName: 'Test $(compiler) $(arch)$(build-type)'

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<StepFilter xmlns="http://schemas.microsoft.com/vstudio/debugger/natstepfilter/2010">
+    <Function><Name>wil::unique_any_t&lt;.*&gt;::get</Name><Action>NoStepInto</Action></Function>
+    <Function><Name>wil::unique_any_t&lt;.*&gt;::operator.*</Name><Action>NoStepInto</Action></Function>
+    <Function><Name>wistd::unique_ptr&lt;.*&gt;::get</Name><Action>NoStepInto</Action></Function>
+    <Function><Name>wistd::forward&lt;.*</Name><Action>NoStepInto</Action></Function>
+    <Function><Name>wistd::move&lt;.*</Name><Action>NoStepInto</Action></Function>
+    <Function><Name>wistd::unique_ptr&lt;.*&gt;::operator.*</Name><Action>NoStepInto</Action></Function>
+    <Function><Name>wil::com_ptr_t&lt;.*&gt;::operator.*</Name><Action>NoStepInto</Action></Function>
+    <Function><Name>wil::com_ptr_t&lt;.*&gt;::get</Name><Action>NoStepInto</Action></Function>
+</StepFilter>

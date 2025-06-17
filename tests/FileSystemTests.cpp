@@ -1,3 +1,4 @@
+#include "pch.h"
 
 #include <windows.h>
 #include <winstring.h> // For wil::unique_hstring
@@ -5,17 +6,19 @@
 #include <wil/common.h>
 #ifdef WIL_ENABLE_EXCEPTIONS
 #include <string>
+#include <thread>
 #endif
 
 // TODO: str_raw_ptr is not two-phase name lookup clean (https://github.com/Microsoft/wil/issues/8)
 namespace wil
 {
-    PCWSTR str_raw_ptr(HSTRING);
+PCWSTR str_raw_ptr(HSTRING);
 #ifdef WIL_ENABLE_EXCEPTIONS
-    PCWSTR str_raw_ptr(const std::wstring&);
+PCWSTR str_raw_ptr(const std::wstring&);
 #endif
-}
+} // namespace wil
 
+#include <wil/resource.h>
 #include <wil/filesystem.h>
 
 #ifdef WIL_ENABLE_EXCEPTIONS
@@ -30,15 +33,14 @@ bool DirectoryExists(_In_ PCWSTR path)
 {
     DWORD dwAttrib = GetFileAttributesW(path);
 
-    return (dwAttrib != INVALID_FILE_ATTRIBUTES &&
-            (dwAttrib & FILE_ATTRIBUTE_DIRECTORY));
+    return (dwAttrib != INVALID_FILE_ATTRIBUTES && (dwAttrib & FILE_ATTRIBUTE_DIRECTORY));
 }
 
 bool FileExists(_In_ PCWSTR path)
 {
-  DWORD dwAttrib = GetFileAttributesW(path);
+    DWORD dwAttrib = GetFileAttributesW(path);
 
-  return (dwAttrib != INVALID_FILE_ATTRIBUTES);
+    return (dwAttrib != INVALID_FILE_ATTRIBUTES);
 }
 
 TEST_CASE("FileSystemTests::CreateDirectory", "[filesystem]")
@@ -51,8 +53,7 @@ TEST_CASE("FileSystemTests::CreateDirectory", "[filesystem]")
     REQUIRE(SUCCEEDED(wil::CreateDirectoryDeepNoThrow(basePath)));
     REQUIRE(DirectoryExists(basePath));
 
-    auto scopeGuard = wil::scope_exit([&]
-    {
+    auto scopeGuard = wil::scope_exit([&] {
         REQUIRE_SUCCEEDED(wil::RemoveDirectoryRecursiveNoThrow(basePath));
     });
 
@@ -89,8 +90,7 @@ TEST_CASE("FileSystemTests::CreateDirectory", "[filesystem]")
 
 TEST_CASE("FileSystemTests::VerifyRemoveDirectoryRecursiveDoesNotTraverseWithoutAHandle", "[filesystem]")
 {
-    auto CreateRelativePath = [](PCWSTR root, PCWSTR name)
-    {
+    auto CreateRelativePath = [](PCWSTR root, PCWSTR name) {
         wil::unique_hlocal_string path;
         REQUIRE_SUCCEEDED(PathAllocCombine(root, name, PATHCCH_ALLOW_LONG_PATHS, &path));
         return path;
@@ -101,8 +101,7 @@ TEST_CASE("FileSystemTests::VerifyRemoveDirectoryRecursiveDoesNotTraverseWithout
     const auto basePath = CreateRelativePath(tempPath.get(), L"FileSystemTests");
     REQUIRE_SUCCEEDED(wil::CreateDirectoryDeepNoThrow(basePath.get()));
 
-    auto scopeGuard = wil::scope_exit([&]
-    {
+    auto scopeGuard = wil::scope_exit([&] {
         wil::RemoveDirectoryRecursiveNoThrow(basePath.get());
     });
 
@@ -118,8 +117,8 @@ TEST_CASE("FileSystemTests::VerifyRemoveDirectoryRecursiveDoesNotTraverseWithout
 
     // Passing a 0 in share flags only allows metadata query on this file by other processes.
     // This should fail with a sharing violation error when any other action is taken.
-    wil::unique_hfile subFolderHandle(::CreateFileW(subfolderWithHandle.get(), GENERIC_ALL,
-        0, nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, nullptr));
+    wil::unique_hfile subFolderHandle(
+        ::CreateFileW(subfolderWithHandle.get(), GENERIC_ALL, 0, nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, nullptr));
     REQUIRE(subFolderHandle);
 
     REQUIRE(wil::RemoveDirectoryRecursiveNoThrow(folderToRecurse.get()) == HRESULT_FROM_WIN32(ERROR_SHARING_VIOLATION));
@@ -130,18 +129,14 @@ TEST_CASE("FileSystemTests::VerifyRemoveDirectoryRecursiveDoesNotTraverseWithout
 
 TEST_CASE("FileSystemTests::VerifyRemoveDirectoryRecursiveCanDeleteReadOnlyFiles", "[filesystem]")
 {
-    auto CreateRelativePath = [](PCWSTR root, PCWSTR name)
-    {
+    auto CreateRelativePath = [](PCWSTR root, PCWSTR name) {
         wil::unique_hlocal_string path;
         REQUIRE_SUCCEEDED(PathAllocCombine(root, name, PATHCCH_ALLOW_LONG_PATHS, &path));
         return path;
     };
 
-    auto CreateReadOnlyFile = [](PCWSTR path)
-    {
-        wil::unique_hfile fileHandle(CreateFileW(path, 0,
-            0, nullptr, CREATE_ALWAYS,
-            FILE_ATTRIBUTE_READONLY, nullptr));
+    auto CreateReadOnlyFile = [](PCWSTR path) {
+        wil::unique_hfile fileHandle(CreateFileW(path, 0, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_READONLY, nullptr));
         REQUIRE(fileHandle);
     };
 
@@ -150,8 +145,7 @@ TEST_CASE("FileSystemTests::VerifyRemoveDirectoryRecursiveCanDeleteReadOnlyFiles
     const auto basePath = CreateRelativePath(tempPath.get(), L"FileSystemTests");
     REQUIRE_SUCCEEDED(wil::CreateDirectoryDeepNoThrow(basePath.get()));
 
-    auto scopeGuard = wil::scope_exit([&]
-    {
+    auto scopeGuard = wil::scope_exit([&] {
         wil::RemoveDirectoryRecursiveNoThrow(basePath.get(), wil::RemoveDirectoryOptions::RemoveReadOnly);
     });
 
@@ -188,8 +182,7 @@ TEST_CASE("FileSystemTests::VerifyRemoveDirectoryRecursiveCanDeleteFoldersWithNo
 {
     // Extended length paths can access files with non-normalized names.
     // This function creates a path with that ability.
-    auto CreatePathThatCanAccessNonNormalizedNames = [](PCWSTR root, PCWSTR name)
-    {
+    auto CreatePathThatCanAccessNonNormalizedNames = [](PCWSTR root, PCWSTR name) {
         wil::unique_hlocal_string path;
         THROW_IF_FAILED(PathAllocCombine(root, name, PATHCCH_DO_NOT_NORMALIZE_SEGMENTS | PATHCCH_ENSURE_IS_EXTENDED_LENGTH_PATH, &path));
         REQUIRE(wil::is_extended_length_path(path.get()));
@@ -198,8 +191,7 @@ TEST_CASE("FileSystemTests::VerifyRemoveDirectoryRecursiveCanDeleteFoldersWithNo
 
     // Regular paths are normalized in the Win32 APIs thus can't address files in the non-normalized form.
     // This function creates a regular path form but preserves the non-normalized parts of the input (for testing)
-    auto CreateRegularPath = [](PCWSTR root, PCWSTR name)
-    {
+    auto CreateRegularPath = [](PCWSTR root, PCWSTR name) {
         wil::unique_hlocal_string path;
         THROW_IF_FAILED(PathAllocCombine(root, name, PATHCCH_DO_NOT_NORMALIZE_SEGMENTS, &path));
         REQUIRE_FALSE(wil::is_extended_length_path(path.get()));
@@ -218,23 +210,21 @@ TEST_CASE("FileSystemTests::VerifyRemoveDirectoryRecursiveCanDeleteFoldersWithNo
     PCWSTR NonNormalizedName = L"Foo."; // The dot at the end is what makes this non-normalized.
     const auto PathNotFoundError = HRESULT_FROM_WIN32(ERROR_PATH_NOT_FOUND);
 
-    TestCases tests[] =
-    {
-        { NormalizedName,       NormalizedName,     CreateRegularPath, S_OK },
-        { NonNormalizedName,    NormalizedName,     CreateRegularPath, PathNotFoundError },
-        { NormalizedName,       NonNormalizedName,  CreateRegularPath, S_OK },
-        { NonNormalizedName,    NonNormalizedName,  CreateRegularPath, PathNotFoundError },
-        { NormalizedName,       NormalizedName,     CreatePathThatCanAccessNonNormalizedNames, S_OK },
-        { NonNormalizedName,    NormalizedName,     CreatePathThatCanAccessNonNormalizedNames, PathNotFoundError },
-        { NormalizedName,       NonNormalizedName,  CreatePathThatCanAccessNonNormalizedNames, PathNotFoundError },
-        { NonNormalizedName,    NonNormalizedName,  CreatePathThatCanAccessNonNormalizedNames, S_OK },
+    TestCases tests[] = {
+        {NormalizedName, NormalizedName, CreateRegularPath, S_OK},
+        {NonNormalizedName, NormalizedName, CreateRegularPath, PathNotFoundError},
+        {NormalizedName, NonNormalizedName, CreateRegularPath, S_OK},
+        {NonNormalizedName, NonNormalizedName, CreateRegularPath, PathNotFoundError},
+        {NormalizedName, NormalizedName, CreatePathThatCanAccessNonNormalizedNames, S_OK},
+        {NonNormalizedName, NormalizedName, CreatePathThatCanAccessNonNormalizedNames, PathNotFoundError},
+        {NormalizedName, NonNormalizedName, CreatePathThatCanAccessNonNormalizedNames, PathNotFoundError},
+        {NonNormalizedName, NonNormalizedName, CreatePathThatCanAccessNonNormalizedNames, S_OK},
     };
 
     auto folderRoot = wil::ExpandEnvironmentStringsW(LR"(%TEMP%)");
     REQUIRE_FALSE(wil::is_extended_length_path(folderRoot.get()));
 
-    auto EnsureFolderWithNonCanonicalNameAndContentsExists = [&](const TestCases& test)
-    {
+    auto EnsureFolderWithNonCanonicalNameAndContentsExists = [&](const TestCases& test) {
         const auto enableNonNormalized = PATHCCH_ENSURE_IS_EXTENDED_LENGTH_PATH | PATHCCH_DO_NOT_NORMALIZE_SEGMENTS;
 
         wil::unique_hlocal_string targetFolder;
@@ -248,9 +238,14 @@ TEST_CASE("FileSystemTests::VerifyRemoveDirectoryRecursiveCanDeleteFoldersWithNo
         // Create a file in that folder with a non-normalized name (with the dot at the end).
         wil::unique_hlocal_string extendedFilePath;
         THROW_IF_FAILED(PathAllocCombine(targetFolder.get(), L"NonNormalized.", enableNonNormalized, &extendedFilePath));
-        wil::unique_hfile fileHandle(CreateFileW(extendedFilePath.get(), FILE_WRITE_ATTRIBUTES,
-            FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr,
-            CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr));
+        wil::unique_hfile fileHandle(CreateFileW(
+            extendedFilePath.get(),
+            FILE_WRITE_ATTRIBUTES,
+            FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+            nullptr,
+            CREATE_ALWAYS,
+            FILE_ATTRIBUTE_NORMAL,
+            nullptr));
         THROW_LAST_ERROR_IF(!fileHandle);
     };
 
@@ -307,9 +302,8 @@ TEST_CASE("FileSystemTests::VerifyGetFullPathName", "[filesystem]")
 
 TEST_CASE("FileSystemTests::VerifyGetFinalPathNameByHandle", "[filesystem]")
 {
-    wil::unique_hfile fileHandle(CreateFileW(c_expandedPath, FILE_READ_ATTRIBUTES,
-        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING,
-        FILE_FLAG_BACKUP_SEMANTICS, nullptr));
+    wil::unique_hfile fileHandle(CreateFileW(
+        c_expandedPath, FILE_READ_ATTRIBUTES, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, nullptr));
     THROW_LAST_ERROR_IF(!fileHandle);
 
     auto name = wil::GetFinalPathNameByHandleW(fileHandle.get());
@@ -321,9 +315,8 @@ TEST_CASE("FileSystemTests::VerifyGetFinalPathNameByHandle", "[filesystem]")
     REQUIRE(hr == E_HANDLE); // should be a usage error so be a fail fast.
                              // A more legitimate case is a non file handler like a drive volume.
 
-    wil::unique_hfile volumeHandle(CreateFileW(LR"(\\?\C:)", FILE_READ_ATTRIBUTES,
-        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING,
-        FILE_FLAG_BACKUP_SEMANTICS, nullptr));
+    wil::unique_hfile volumeHandle(CreateFileW(
+        LR"(\\?\C:)", FILE_READ_ATTRIBUTES, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, nullptr));
     THROW_LAST_ERROR_IF(!volumeHandle);
     const auto hr2 = wil::GetFinalPathNameByHandleW(volumeHandle.get(), path);
     REQUIRE(hr2 == HRESULT_FROM_WIN32(ERROR_INVALID_FUNCTION));
@@ -372,7 +365,7 @@ TEST_CASE("FileSystemTests::VerifyExpandEnvAndSearchPath", "[filesystem]")
 
     // This test will exercise the case where AdaptFixedSizeToAllocatedResult will need to
     // reallocate the initial buffer to fit the final string.
-    // This test is sufficient to test both wil::ExpandEnvironmentStringsW and wil::SeachPathW
+    // This test is sufficient to test both wil::ExpandEnvironmentStringsW and wil::SearchPathW
     REQUIRE_SUCCEEDED((wil::ExpandEnvAndSearchPath<wil::unique_cotaskmem_string, c_stackBufferLimitTest>(c_variablePath, pathToTest)));
     REQUIRE(CompareStringOrdinal(pathToTest.get(), -1, c_expandedPath, -1, TRUE) == CSTR_EQUAL);
 
@@ -480,13 +473,13 @@ TEST_CASE("FileSystemTests::VerifyStrConcat", "[filesystem]")
         wil::unique_cotaskmem_string test4 = wil::make_unique_string_nothrow<wil::unique_cotaskmem_string>(L"test4");
         wil::unique_hstring test5 = wil::make_unique_string_nothrow<wil::unique_hstring>(L"test5");
 
-        has_operator_pcwstr test6{ L"Test6" };
+        has_operator_pcwstr test6{L"Test6"};
         WCHAR test7Buffer[] = L"Test7";
-        has_operator_pwstr test7{ test7Buffer };
+        has_operator_pwstr test7{test7Buffer};
 
 #ifdef WIL_ENABLE_EXCEPTIONS
-        has_operator_wstr_ref test8{ L"Test8" };
-        has_operator_wstr test9{ L"Test9" };
+        has_operator_wstr_ref test8{L"Test8"};
+        has_operator_wstr test9{L"Test9"};
 #else
         PCWSTR test8 = L"Test8";
         PCWSTR test9 = L"Test9";
@@ -494,7 +487,8 @@ TEST_CASE("FileSystemTests::VerifyStrConcat", "[filesystem]")
         PCWSTR expectedStr = L"Test1Test2Test3Test4Test5Test6Test7Test8Test9";
 
 #ifdef WIL_ENABLE_EXCEPTIONS
-        auto combinedString = wil::str_concat<wil::unique_cotaskmem_string>(test1, test2, test3, test4, test5, test6, test7, test8, test9);
+        auto combinedString =
+            wil::str_concat<wil::unique_cotaskmem_string>(test1, test2, test3, test4, test5, test6, test7, test8, test9);
         REQUIRE(CompareStringOrdinal(combinedString.get(), -1, expectedStr, -1, TRUE) == CSTR_EQUAL);
 #endif
 
@@ -502,7 +496,8 @@ TEST_CASE("FileSystemTests::VerifyStrConcat", "[filesystem]")
         REQUIRE_SUCCEEDED(wil::str_concat_nothrow(combinedStringNT, test1, test2, test3, test4, test5, test6, test7, test8, test9));
         REQUIRE(CompareStringOrdinal(combinedStringNT.get(), -1, expectedStr, -1, TRUE) == CSTR_EQUAL);
 
-        auto combinedStringFF = wil::str_concat_failfast<wil::unique_cotaskmem_string>(test1, test2, test3, test4, test5, test6, test7, test8, test9);
+        auto combinedStringFF =
+            wil::str_concat_failfast<wil::unique_cotaskmem_string>(test1, test2, test3, test4, test5, test6, test7, test8, test9);
         REQUIRE(CompareStringOrdinal(combinedStringFF.get(), -1, expectedStr, -1, TRUE) == CSTR_EQUAL);
     }
 
@@ -576,9 +571,8 @@ wil::unique_cotaskmem_string NativeGetModuleFileNameWrap(HANDLE processHandle, H
     DWORD size = MAX_PATH * 4;
     auto path = wil::make_cotaskmem_string_nothrow(nullptr, size);
 
-    DWORD copied = processHandle ?
-        ::GetModuleFileNameExW(processHandle, moduleHandle, path.get(), size) :
-        ::GetModuleFileNameW(moduleHandle, path.get(), size);
+    DWORD copied = processHandle ? ::GetModuleFileNameExW(processHandle, moduleHandle, path.get(), size)
+                                 : ::GetModuleFileNameW(moduleHandle, path.get(), size);
     REQUIRE(copied < size);
 
     return path;
@@ -640,9 +634,8 @@ TEST_CASE("FileSystemTests::QueryFullProcessImageNameW and GetModuleFileNameW", 
 TEST_CASE("FileSystemTests::GetFileInfo<FileStreamInfo>", "[filesystem]")
 {
     auto path = wil::ExpandEnvironmentStringsW<std::wstring>(L"%TEMP%");
-    wil::unique_hfile handle(CreateFileW(path.c_str(), FILE_READ_ATTRIBUTES,
-        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING,
-        FILE_FLAG_BACKUP_SEMANTICS, nullptr));
+    wil::unique_hfile handle(CreateFileW(
+        path.c_str(), FILE_READ_ATTRIBUTES, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, nullptr));
     THROW_LAST_ERROR_IF(!handle.is_valid());
 
     // Test the ERROR_HANDLE_EOF case with a folder
@@ -723,7 +716,6 @@ TEST_CASE("FileSystemTests::CreateFileW helpers", "[filesystem]")
             REQUIRE(!result.file.is_valid());
             REQUIRE(result.last_error == ERROR_FILE_EXISTS); // file existed
         }
-
     }
 
     // OPEN_ALWAYS
@@ -772,7 +764,194 @@ TEST_CASE("FileSystemTests::CreateFileW helpers", "[filesystem]")
     }
 }
 
+TEST_CASE("FileSystemTest::FolderChangeReader destructor does not hang", "[filesystem]")
+{
+    wil::unique_cotaskmem_string testRootTmp;
+    REQUIRE_SUCCEEDED(wil::ExpandEnvironmentStringsW(L"%TEMP%\\wil_test_filesystem", testRootTmp));
+    std::wstring testRootDir = testRootTmp.get();
+    std::wstring testFile = testRootDir + L"\\test.dat";
+    bool deleteDir = false;
+    wil::unique_event opCompletedEv(wil::EventOptions::None);
+    wil::unique_event readerDestructNotify(wil::EventOptions::ManualReset);
+    HANDLE readerDestructNotifyRaw = readerDestructNotify.get();
+
+    REQUIRE_FALSE(DirectoryExists(testRootDir.c_str()));
+    REQUIRE_SUCCEEDED(wil::CreateDirectoryDeepNoThrow(testRootDir.c_str()));
+    REQUIRE(DirectoryExists(testRootDir.c_str()));
+
+    /**
+     * Move the operation to a new thread.
+     * The destructor of unique_folder_change_reader might hang. If this happens,
+     * we want to report an test error instead of hanging forever.
+     * Initialize the reader in current thread to make sure there is no race condition with test
+     * creating files
+     */
+    auto reader = wil::make_folder_change_reader_nothrow(
+        testRootDir.c_str(), false, wil::FolderChangeEvents::All, [&](wil::FolderChangeEvent, PCWSTR) {
+            if (deleteDir)
+                RemoveDirectoryW(testRootDir.c_str());
+
+            opCompletedEv.SetEvent();
+        });
+    auto readerThread = std::thread([rdn = std::move(readerDestructNotify), r = std::move(reader)]() mutable {
+        rdn.wait(INFINITE);
+    });
+
+    wil::unique_hfile testFileOut(::CreateFileW(testFile.c_str(), GENERIC_ALL, FILE_SHARE_READ, nullptr, CREATE_ALWAYS, 0, nullptr));
+    REQUIRE(testFileOut);
+    testFileOut.reset();
+    opCompletedEv.wait(INFINITE);
+
+    deleteDir = true;
+    REQUIRE(DeleteFileW(testFile.c_str()));
+    opCompletedEv.wait(INFINITE);
+    std::this_thread::sleep_for(std::chrono::seconds(1)); // enough time for the StartIO call to fail
+
+    SetEvent(readerDestructNotifyRaw);
+    DWORD waitResult = WaitForSingleObject(readerThread.native_handle(), 30 * 1000);
+    if (waitResult != WAIT_OBJECT_0)
+        readerThread.detach();
+    else
+        readerThread.join();
+
+    REQUIRE(waitResult == WAIT_OBJECT_0);
+}
+
 #endif
 
-
 #endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+
+auto Mock_GetModuleFileName(DWORD pathLength)
+{
+    witest::detoured_thread_function<&GetModuleFileNameW> result;
+    REQUIRE_SUCCEEDED(result.reset([pathLength](HMODULE, _Out_ PWSTR fileName, _In_ DWORD bufferSize) -> DWORD {
+        const DWORD amountToCopy = std::min(pathLength, bufferSize);
+        for (size_t i = 0; i < amountToCopy; i++)
+        {
+            fileName[i] = L'a';
+        }
+        fileName[amountToCopy - 1] = L'\0';
+        // GetModuleFileNameW is not documented on MSDN to SetLastError(ERROR_SUCCESS).
+        // Internally it does, but it's also possible for it to SetLastError to a
+        // failure code while at the same time returning success.  Per MSDN, the function
+        // succeeds with no truncation when it returns a non-zero value smaller than
+        // the bufferSize.  To account for the cases where it "succeeds" while setting
+        // last error to something else, we choose to SetLastError(ERROR_INVALID_HANDLE)
+        // in the success case.
+        DWORD error = (pathLength < bufferSize) ? ERROR_INVALID_HANDLE : ERROR_INSUFFICIENT_BUFFER;
+        SetLastError(error);
+        return (pathLength < bufferSize) ? amountToCopy : bufferSize;
+    }));
+
+    return result;
+}
+
+auto Mock_GetModuleFileNameEx(DWORD pathLength)
+{
+    witest::detoured_thread_function<&GetModuleFileNameExW> result;
+    REQUIRE_SUCCEEDED(result.reset([pathLength](HANDLE, HMODULE, _Out_ PWSTR fileName, _In_ DWORD bufferSize) -> DWORD {
+        const DWORD amountToCopy = std::min(pathLength, bufferSize);
+        for (size_t i = 0; i < amountToCopy; i++)
+        {
+            fileName[i] = L'a';
+        }
+        fileName[amountToCopy - 1] = L'\0';
+        // GetModuleFileNameEx only sets ERROR_INSUFFICIENT_BUFFER when bufferSize == 0
+        // It never sets ERROR_SUCCESS, so we'll set a invalid handle since there's no
+        // guarantee that ERROR_SUCCESS was set.
+        SetLastError(ERROR_INVALID_HANDLE);
+        return (pathLength < bufferSize) ? amountToCopy : 0;
+    }));
+
+    return result;
+}
+
+TEST_CASE("GetModuleFileNameTests::VerifyFileNameLessThanMaxPath", "[filesystem]")
+{
+    const DWORD pathLength = 10;
+    auto mock1 = Mock_GetModuleFileName(pathLength);
+    auto mock2 = Mock_GetModuleFileNameEx(pathLength);
+
+    wil::unique_cotaskmem_string path;
+    REQUIRE_SUCCEEDED(wil::GetModuleFileNameW(nullptr, path));
+    REQUIRE(wcslen(path.get()) == (pathLength - 1));
+    REQUIRE_SUCCEEDED(wil::GetModuleFileNameExW(nullptr, nullptr, path));
+    REQUIRE(wcslen(path.get()) == (pathLength - 1));
+}
+
+TEST_CASE("GetModuleFileNameTests::VerifyFileNameGreaterThanInitialBufferLength", "[filesystem]")
+{
+    const DWORD pathLength = 130;
+    auto mock1 = Mock_GetModuleFileName(pathLength);
+    auto mock2 = Mock_GetModuleFileNameEx(pathLength);
+
+    wil::unique_cotaskmem_string path;
+    REQUIRE_SUCCEEDED((wil::GetModuleFileNameW<wil::unique_cotaskmem_string, 128>(nullptr, path)));
+    REQUIRE(wcslen(path.get()) == (pathLength - 1));
+    REQUIRE_SUCCEEDED((wil::GetModuleFileNameExW<wil::unique_cotaskmem_string, 128>(nullptr, nullptr, path)));
+    REQUIRE(wcslen(path.get()) == (pathLength - 1));
+}
+
+TEST_CASE("GetModuleFileNameTests::VerifyFileNameExactlyMatchingTheInitialBufferLength", "[filesystem]")
+{
+    const DWORD pathLength = 130;
+    auto mock1 = Mock_GetModuleFileName(pathLength);
+    auto mock2 = Mock_GetModuleFileNameEx(pathLength);
+
+    wil::unique_cotaskmem_string path;
+    REQUIRE_SUCCEEDED((wil::GetModuleFileNameW<wil::unique_cotaskmem_string, pathLength - 1>(nullptr, path)));
+    REQUIRE(wcslen(path.get()) == (pathLength - 1));
+    REQUIRE_SUCCEEDED((wil::GetModuleFileNameExW<wil::unique_cotaskmem_string, pathLength - 1>(nullptr, nullptr, path)));
+    REQUIRE(wcslen(path.get()) == (pathLength - 1));
+}
+
+TEST_CASE("GetModuleFileNameTests::VerifyFileNameExactlyMaximumNTPathLength", "[filesystem]")
+{
+    const DWORD pathLength = wil::max_extended_path_length;
+    auto mock1 = Mock_GetModuleFileName(pathLength);
+    auto mock2 = Mock_GetModuleFileNameEx(pathLength);
+
+    wil::unique_cotaskmem_string path;
+    REQUIRE_SUCCEEDED(wil::GetModuleFileNameW(nullptr, path));
+    REQUIRE(wcslen(path.get()) == (pathLength - 1));
+    REQUIRE_SUCCEEDED(wil::GetModuleFileNameExW(nullptr, nullptr, path));
+    REQUIRE(wcslen(path.get()) == (pathLength - 1));
+}
+
+TEST_CASE("GetModuleFileNameTests::VerifyRegularFailuresAreSurfaced", "[filesystem]")
+{
+    witest::detoured_thread_function<&GetModuleFileNameW> mock1;
+    REQUIRE_SUCCEEDED(mock1.reset([](HMODULE, PWSTR, DWORD) -> DWORD {
+        SetLastError(ERROR_NOT_FOUND);
+        return 0;
+    }));
+
+    witest::detoured_thread_function<&GetModuleFileNameExW> mock2;
+    REQUIRE_SUCCEEDED(mock2.reset([](HANDLE, HMODULE, PWSTR, DWORD) -> DWORD {
+        SetLastError(ERROR_NOT_FOUND);
+        return 0;
+    }));
+
+    wil::unique_cotaskmem_string path;
+    REQUIRE(wil::GetModuleFileNameW(nullptr, path) == HRESULT_FROM_WIN32(ERROR_NOT_FOUND));
+    REQUIRE(wil::GetModuleFileNameExW(nullptr, nullptr, path) == HRESULT_FROM_WIN32(ERROR_NOT_FOUND));
+}
+
+TEST_CASE("GetModuleFileNameTests::VerifyWithRealResults", "[filesystem]")
+{
+    wil::unique_cotaskmem_string path;
+    REQUIRE_SUCCEEDED(wil::GetModuleFileNameW(nullptr, path));
+    REQUIRE_SUCCEEDED(wil::GetModuleFileNameExW(GetCurrentProcess(), nullptr, path));
+}
+
+TEST_CASE("GetModuleFileNameTests::VerifyWithRealResultsAndShortInitialBufferLength", "[filesystem]")
+{
+    wil::unique_cotaskmem_string path;
+    constexpr size_t c_initialBufferLimitTest = 5;
+
+    REQUIRE_SUCCEEDED((wil::GetModuleFileNameW<wil::unique_cotaskmem_string, c_initialBufferLimitTest>(nullptr, path)));
+    REQUIRE(c_initialBufferLimitTest < wcslen(path.get()));
+    REQUIRE_SUCCEEDED(
+        (wil::GetModuleFileNameExW<wil::unique_cotaskmem_string, c_initialBufferLimitTest>(GetCurrentProcess(), nullptr, path)));
+    REQUIRE(c_initialBufferLimitTest < wcslen(path.get()));
+}

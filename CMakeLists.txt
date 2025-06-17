@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.29)
 project(WIL)
 
 include(GNUInstallDirs)
@@ -13,7 +13,7 @@ if (NOT DEFINED WIL_BUILD_VERSION)
 endif()
 
 if (NOT DEFINED CPPWINRT_VERSION)
-    set(CPPWINRT_VERSION "2.0.221121.5")
+    set(CPPWINRT_VERSION "2.0.240405.15")
 endif()
 
 # Detect the Windows SDK version. If we're using the Visual Studio generator, this will be provided for us. Otherwise
@@ -30,7 +30,15 @@ if (${WIL_BUILD_PACKAGING})
 endif()
 
 if (${WIL_BUILD_TESTS})
+    add_subdirectory(docs)
     add_subdirectory(tests)
+
+    enable_testing()
+
+    # Custom target for running clang-format
+    add_custom_target(format
+        WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+        COMMAND scripts/run-clang-format.cmd)
 endif()
 
 # Gather headers into an interface library.

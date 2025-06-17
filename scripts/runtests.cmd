@@ -43,6 +43,10 @@ call :execute_test app witest.app.exe
 if %ERRORLEVEL% NEQ 0 ( goto :execute_tests_done )
 call :execute_test cpplatest witest.cpplatest.exe
 if %ERRORLEVEL% NEQ 0 ( goto :execute_tests_done )
+call :execute_test cppwinrt-com-server witest.cppwinrt-com-server.exe
+if %ERRORLEVEL% NEQ 0 ( goto :execute_tests_done )
+call :execute_test cppwinrt-com-server-custom-module-lock witest.cppwinrt-com-server-custom-module-lock.exe
+if %ERRORLEVEL% NEQ 0 ( goto :execute_tests_done )
 call :execute_test noexcept witest.noexcept.exe
 if %ERRORLEVEL% NEQ 0 ( goto :execute_tests_done )
 call :execute_test normal witest.exe

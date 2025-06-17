@@ -1,6 +1,8 @@
 
 add_executable(witest.asan)
 
+target_precompile_headers(witest.asan PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../pch.h)
+
 target_compile_options(witest.asan PRIVATE -fsanitize=address)
 
 target_compile_definitions(witest.asan PRIVATE
@@ -10,9 +12,6 @@ target_compile_definitions(witest.asan PRIVATE
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     target_compile_definitions(witest.asan PRIVATE
-        # Not compatible with using lld-link
-        -D_DISABLE_VECTOR_ANNOTATION
-        -D_DISABLE_STRING_ANNOTATION
         # See below; not compatible with exceptions
         -DCATCH_CONFIG_DISABLE_EXCEPTIONS
         )
@@ -23,6 +22,11 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     else()
         target_compile_options(witest.asan PRIVATE -fno-exceptions)
     endif()
+
+    # Since we're disabling exceptions, we also need to explicitly enable use of the STL since some tests rely on it
+    target_compile_definitions(witest.asan PRIVATE
+        -DWIL_USE_STL=1
+        )
 
     if ($ENV{Platform} STREQUAL "x86")
         target_link_libraries(witest.asan PRIVATE
@@ -43,9 +47,17 @@ else()
         )
 endif()
 
+target_compile_definitions(witest.asan PRIVATE
+    # Since we link with Catch2, which is pre-built
+    -D_DISABLE_VECTOR_ANNOTATION
+    -D_DISABLE_STRING_ANNOTATION
+    )
+
 target_sources(witest.asan PUBLIC
     ${COMMON_SOURCES}
     ${EXTRA_SOURCES}
+    ${CMAKE_CURRENT_SOURCE_DIR}/../NetworkTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../RegistryTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../TokenHelpersTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../UniqueWinRTEventTokenTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../WatcherTests.cpp

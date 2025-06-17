@@ -91,27 +91,27 @@ enum ErrorPropagationPolicy
 
 namespace Details
 {
-  // contains states indicating existance or lack of options
-  struct AsyncOptionsBase
-  {
-      static const bool hasCausalityOptions = false;
-      static const bool hasErrorPropagationPolicy = false;
-      static const bool hasCausalityOperationName = false;
-      static const bool isCausalityEnabled = true;
-  };
+    // contains states indicating existence or lack of options
+    struct AsyncOptionsBase
+    {
+        static const bool hasCausalityOptions = false;
+        static const bool hasErrorPropagationPolicy = false;
+        static const bool hasCausalityOperationName = false;
+        static const bool isCausalityEnabled = true;
+    };
 
-  template < PCWSTR OpName >
-  struct IsOperationName
-  {
-      static const bool Value = true;
-  };
+    template <PCWSTR OpName>
+    struct IsOperationName
+    {
+        static const bool Value = true;
+    };
 
-  template < >
-  struct IsOperationName< nullptr >
-  {
-      static const bool Value = false;
-  };
-}
+    template <>
+    struct IsOperationName<nullptr>
+    {
+        static const bool Value = false;
+    };
+} // namespace Details
 
 // Options for error propagation and the defaults are set here.
 #if defined(BUILD_WINDOWS) && (NTDDI_VERSION >= NTDDI_WINBLUE)
