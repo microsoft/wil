@@ -245,12 +245,12 @@ inline namespace literals
 {
     constexpr zstring_view operator""_zv(const char* str, std::size_t len) noexcept
     {
-        return zstring_view(str, len);
+        return {str, len};
     }
 
     constexpr zwstring_view operator""_zv(const wchar_t* str, std::size_t len) noexcept
     {
-        return zwstring_view(str, len);
+        return {str, len};
     }
 } // namespace literals
 
