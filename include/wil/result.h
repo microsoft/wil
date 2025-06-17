@@ -403,7 +403,7 @@ namespace details_abi
         T* GetLocal(bool shouldAllocate = false) WI_NOEXCEPT
         {
             DWORD const threadId = ::GetCurrentThreadId();
-            size_t const index = (threadId % ARRAYSIZE(m_hashArray));
+            size_t const index = ((threadId >> 2) % ARRAYSIZE(m_hashArray)); // Reduce hash collisions; thread IDs are even.
             for (auto pNode = m_hashArray[index]; pNode != nullptr; pNode = pNode->pNext)
             {
                 if (pNode->threadId == threadId)
