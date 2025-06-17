@@ -258,7 +258,8 @@ inline namespace literals
 
 } // namespace wil
 
-#if defined(_FORMAT_)
+#if (__WI_LIBCPP_STD_VER >= 20) && WI_HAS_INCLUDE(<format>, 1) // Assume present if C++20
+#include <format>
 template <typename TChar>
 struct std::formatter<wil::basic_zstring_view<TChar>, TChar> : std::formatter<std::basic_string_view<TChar>, TChar>
 {

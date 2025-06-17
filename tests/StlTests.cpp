@@ -1,11 +1,5 @@
 #include "pch.h"
 
-#include <wil/common.h>
-
-#if (__WI_LIBCPP_STD_VER >= 20) && WI_HAS_INCLUDE(<format>, 1) // Assume present if C++20
-#include <format>
-#endif
-
 #include <wil/stl.h>
 
 #include "common.h"
