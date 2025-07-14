@@ -4220,6 +4220,11 @@ TEST_CASE("WindowsInternalTests::ArgvToCommandLine", "[win32_helpers]")
         {L"test", L"This\u00A0string\u180Ehas\u2000no\u2001space\u2002characters\u2003even\u2004though\u2005it\u2006contains\u2007characters\u2008that\u2009look\u200Athe\u200Bsame\u200Cor\u200Dare\u202Fsometimes\u205Ftreated\u2060the\u2800same\u3000as\u3164whitespace"},
         L"test This\u00A0string\u180Ehas\u2000no\u2001space\u2002characters\u2003even\u2004though\u2005it\u2006contains\u2007characters\u2008that\u2009look\u200Athe\u200Bsame\u200Cor\u200Dare\u202Fsometimes\u205Ftreated\u2060the\u2800same\u3000as\u3164whitespace",
         L"\"test\" \"This\u00A0string\u180Ehas\u2000no\u2001space\u2002characters\u2003even\u2004though\u2005it\u2006contains\u2007characters\u2008that\u2009look\u200Athe\u200Bsame\u200Cor\u200Dare\u202Fsometimes\u205Ftreated\u2060the\u2800same\u3000as\u3164whitespace\"");
+
+    // Finally, ensure that we can call the argc+argv version using the default flags
+    const char* const argvArray[] = { "test.exe", "foo", "bar" }; // Simple... this is just to verify we can call it
+    auto cmdLine = wil::ArgvToCommandLine(3, argvArray);
+    REQUIRE(cmdLine == "test.exe foo bar");
 }
 #endif
 
