@@ -398,6 +398,12 @@ check fails as opposed to the invalid parameter handler that the STL invokes. Th
 // Until we'll have C++17 enabled in our code base, we're falling back to SAL
 #define WI_NODISCARD __WI_LIBCPP_NODISCARD_ATTRIBUTE
 
+#if defined(__has_cpp_attribute) && __has_cpp_attribute(nodiscard) >= 201907L
+#define WI_NODISCARD_REASON(x) [[nodiscard(x)]]
+#else
+#define WI_NODISCARD_REASON(x) WI_NODISCARD
+#endif
+
 #define __R_ENABLE_IF_IS_CLASS(ptrType) wistd::enable_if_t<wistd::is_class<ptrType>::value, void*> = nullptr
 #define __R_ENABLE_IF_IS_NOT_CLASS(ptrType) wistd::enable_if_t<!wistd::is_class<ptrType>::value, void*> = nullptr
 
