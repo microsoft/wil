@@ -188,7 +188,7 @@ std::vector<unique_com_class_object_cookie> register_com_server(
     {
         winrt::check_hresult(CoResumeClassObjects());
     }
-    
+
     return registrations;
 }
 
