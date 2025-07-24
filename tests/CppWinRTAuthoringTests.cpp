@@ -521,7 +521,7 @@ TEST_CASE("CppWinRTAuthoringTests::Async", "[com_server]")
     {
         const auto action = asyncLambda();
 
-        action.Completed([&](...) {
+        action.Completed([&](winrt::Windows::Foundation::IAsyncAction const&, winrt::Windows::Foundation::AsyncStatus const&) {
             coroutineEnded.SetEvent();
         });
 
