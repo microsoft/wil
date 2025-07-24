@@ -14,7 +14,9 @@ using namespace std::string_view_literals;
 
 TEST_CASE("CppWinRTComServerTests::NotifiableServerLock", "[cppwinrt_com_server]")
 {
-    struct Test : winrt::implements<Test, IUnknown> { };
+    struct Test : winrt::implements<Test, IUnknown>
+    {
+    };
 
     bool released = false;
 

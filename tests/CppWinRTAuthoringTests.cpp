@@ -443,15 +443,14 @@ TEST_CASE("CppWinRTAuthoringTests::MultiRegisterComServerUnregistersOnFail", "[c
     winrt::init_apartment();
 
     witest::detoured_thread_function<&::CoRegisterClassObject> detour;
-    detour.reset(
-        [](REFCLSID clsid, LPUNKNOWN obj, DWORD ctxt, DWORD flags, LPDWORD cookie) mutable {
-            if (clsid == __uuidof(BuggyServer))
-            {
-                *cookie = 0;
-                return E_UNEXPECTED;
-            }
-            return ::CoRegisterClassObject(clsid, obj, ctxt, flags, cookie);
-        });
+    detour.reset([](REFCLSID clsid, LPUNKNOWN obj, DWORD ctxt, DWORD flags, LPDWORD cookie) {
+        if (clsid == __uuidof(BuggyServer))
+        {
+            *cookie = 0;
+            return E_UNEXPECTED;
+        }
+        return ::CoRegisterClassObject(clsid, obj, ctxt, flags, cookie);
+    });
 
     try
     {
