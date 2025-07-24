@@ -183,7 +183,12 @@ std::vector<unique_com_class_object_cookie> register_com_server(
     std::size_t i = 0;
     (registrations.push_back(wil::register_com_server<Ts>(guids[i++], context, flags | REGCLS_SUSPENDED)), ...);
 
-    winrt::check_hresult(CoResumeClassObjects());
+    // allow the user to keep class objects suspended if they've explicitly passed REGCLS_SUSPENDED.
+    if (!WI_IsFlagSet(flags, REGCLS_SUSPENDED))
+    {
+        winrt::check_hresult(CoResumeClassObjects());
+    }
+    
     return registrations;
 }
 
