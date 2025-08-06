@@ -43,6 +43,34 @@ struct my_pointer_args : winrt::implements<my_pointer_args, winrt::Windows::UI::
     }
 };
 
+struct __declspec(uuid("89B627CE-DCBE-415A-B91B-699D9FB7B7A8")) MyServer
+    : winrt::implements<MyServer, winrt::Windows::Foundation::IStringable, winrt::composable>
+{
+    winrt::hstring ToString()
+    {
+        return L"MyServer from Server";
+    }
+};
+
+struct __declspec(uuid("105FDF00-A3FC-456E-AFD0-28918CB797AF")) BuggyServer
+    : winrt::implements<BuggyServer, winrt::Windows::Foundation::IStringable>
+{
+    BuggyServer()
+    {
+        throw winrt::hresult_access_denied{};
+    }
+
+    winrt::hstring ToString()
+    {
+        return L"BuggyServer from Server";
+    }
+};
+
+auto create_server_instance(const GUID& clsid)
+{
+    return winrt::create_instance<winrt::Windows::Foundation::IStringable>(clsid, CLSCTX_LOCAL_SERVER);
+}
+
 TEST_CASE("CppWinRTAuthoringTests::Read", "[property]")
 {
     int value = 42;
@@ -315,4 +343,199 @@ TEST_CASE("CppWinRTAuthoringTests::NotifyPropertyChanged", "[property]")
         std::rethrow_exception(exception);
     }
 #endif
+}
+
+TEST_CASE("CppWinRTAuthoringTests::CreateInstance", "[class_factory]")
+{
+    auto factory = winrt::make<wil::class_factory<MyServer>>();
+
+    winrt::com_ptr<IUnknown> inst;
+    REQUIRE(factory->CreateInstance(nullptr, winrt::guid_of<IUnknown>(), inst.put_void()) == S_OK);
+}
+
+TEST_CASE("CppWinRTAuthoringTests::CreateInstanceDoesNotAllowAggregation", "[class_factory]")
+{
+    auto factory = winrt::make<wil::class_factory<MyServer>>();
+
+    winrt::com_ptr<MyServer> inst;
+    auto outer = winrt::make<MyServer>().as<IUnknown>(); // dummy non-null parameter. don't compose a class with itself!
+    REQUIRE(factory->CreateInstance(outer.get(), winrt::guid_of<IUnknown>(), inst.put_void()) == CLASS_E_NOAGGREGATION);
+}
+
+TEST_CASE("CppWinRTAuthoringTests::LockServer", "[class_factory]")
+{
+    auto factory = winrt::make<wil::class_factory<MyServer, winrt::no_module_lock>>();
+
+    REQUIRE(factory->LockServer(true) == S_OK);
+    REQUIRE(winrt::get_module_lock() == 1);
+
+    REQUIRE(factory->LockServer(false) == S_OK);
+    REQUIRE(!winrt::get_module_lock());
+}
+
+TEST_CASE("CppWinRTAuthoringTests::RegisterComServer", "[com_server]")
+{
+    winrt::init_apartment();
+
+    {
+        auto revoker = wil::register_com_server<MyServer>(__uuidof(MyServer));
+        auto instance = create_server_instance(__uuidof(MyServer));
+        REQUIRE(winrt::get_module_lock() == 1);
+    }
+
+    REQUIRE(!winrt::get_module_lock());
+    try
+    {
+        auto instance = create_server_instance(_uuidof(MyServer));
+        REQUIRE(false);
+    }
+    catch (winrt::hresult_error const& e)
+    {
+        REQUIRE(e.code() == REGDB_E_CLASSNOTREG);
+    }
+}
+
+TEST_CASE("CppWinRTAuthoringTests::MultiRegisterComServer", "[com_server]")
+{
+    winrt::init_apartment();
+
+    {
+        auto revoker = wil::register_com_server<MyServer, BuggyServer>({{__uuidof(MyServer), __uuidof(BuggyServer)}});
+
+        auto instance = create_server_instance(__uuidof(MyServer));
+        REQUIRE(winrt::get_module_lock() == 1);
+
+        try
+        {
+            auto instance2 = create_server_instance(__uuidof(BuggyServer));
+            REQUIRE(false);
+        }
+        catch (winrt::hresult_error const& e)
+        {
+            REQUIRE(e.code() == E_ACCESSDENIED);
+        }
+    }
+
+    REQUIRE(!winrt::get_module_lock());
+    try
+    {
+        auto instance = create_server_instance(__uuidof(MyServer));
+        REQUIRE(false);
+    }
+    catch (winrt::hresult_error const& e)
+    {
+        REQUIRE(e.code() == REGDB_E_CLASSNOTREG);
+    }
+
+    try
+    {
+        auto instance = create_server_instance(__uuidof(BuggyServer));
+        REQUIRE(false);
+    }
+    catch (winrt::hresult_error const& e)
+    {
+        REQUIRE(e.code() == REGDB_E_CLASSNOTREG);
+    }
+}
+
+TEST_CASE("CppWinRTAuthoringTests::MultiRegisterComServerUnregistersOnFail", "[com_server]")
+{
+    winrt::init_apartment();
+
+    witest::detoured_thread_function<&::CoRegisterClassObject> detour;
+    detour.reset([](REFCLSID clsid, LPUNKNOWN obj, DWORD ctxt, DWORD flags, LPDWORD cookie) {
+        if (clsid == __uuidof(BuggyServer))
+        {
+            *cookie = 0;
+            return E_UNEXPECTED;
+        }
+        return ::CoRegisterClassObject(clsid, obj, ctxt, flags, cookie);
+    });
+
+    try
+    {
+        auto revoker = wil::register_com_server<MyServer, BuggyServer>({{__uuidof(MyServer), __uuidof(BuggyServer)}});
+        REQUIRE(false);
+    }
+    catch (winrt::hresult_error const& e)
+    {
+        REQUIRE(e.code() == E_UNEXPECTED);
+    }
+
+    try
+    {
+        auto instance = create_server_instance(__uuidof(MyServer));
+        REQUIRE(false);
+    }
+    catch (winrt::hresult_error const& e)
+    {
+        REQUIRE(e.code() == REGDB_E_CLASSNOTREG);
+    }
+}
+
+TEST_CASE("CppWinRTAuthoringTests::RegisterComServerThrowIsSafe", "[com_server]")
+{
+    winrt::init_apartment();
+
+    {
+        auto revoker = wil::register_com_server<BuggyServer>(__uuidof(BuggyServer));
+        try
+        {
+            auto instance = create_server_instance(__uuidof(BuggyServer));
+            REQUIRE(false);
+        }
+        catch (winrt::hresult_error const& e)
+        {
+            REQUIRE(e.code() == E_ACCESSDENIED);
+        }
+    }
+}
+
+TEST_CASE("CppWinRTAuthoringTests::Async", "[com_server]")
+{
+    wil::unique_event coroutineRunning(wil::EventOptions::ManualReset);
+    wil::unique_event coroutineContinue(wil::EventOptions::ManualReset);
+    wil::unique_event coroutineEnded(wil::EventOptions::ManualReset);
+
+    winrt::init_apartment();
+
+    auto revoker = wil::register_com_server<MyServer>(__uuidof(MyServer));
+
+    std::exception_ptr coroutineException;
+    auto asyncLambda = [&]() -> winrt::Windows::Foundation::IAsyncAction {
+        try
+        {
+            co_await winrt::resume_background();
+            coroutineRunning.SetEvent();
+
+            coroutineContinue.wait();
+            auto instance = create_server_instance(__uuidof(MyServer));
+            REQUIRE(winrt::get_module_lock() == 3);
+        }
+        catch (...)
+        {
+            coroutineException = std::current_exception();
+        }
+    };
+
+    {
+        const auto action = asyncLambda();
+
+        action.Completed([&](winrt::Windows::Foundation::IAsyncAction const&, winrt::Windows::Foundation::AsyncStatus const&) {
+            coroutineEnded.SetEvent();
+        });
+
+        coroutineRunning.wait();
+        REQUIRE(winrt::get_module_lock() == 2); // Coroutine and Completed handler bumped count
+
+        coroutineContinue.SetEvent();
+        coroutineEnded.wait();
+
+        if (coroutineException)
+        {
+            std::rethrow_exception(coroutineException);
+        }
+    }
+
+    REQUIRE(!winrt::get_module_lock());
 }
