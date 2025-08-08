@@ -6866,7 +6866,8 @@ namespace details
         }
 
         _IRQL_requires_(DISPATCH_LEVEL)
-        static void Release(_In_ _IRQL_restores_ const kspin_lock_saved_irql& spinLockSavedIrql)
+        _IRQL_restores_global_(savedIrql, spinLockSavedIrql)
+        static void Release(_In_ const kspin_lock_saved_irql& spinLockSavedIrql)
         {
             KeReleaseSpinLock(spinLockSavedIrql.spinLock, spinLockSavedIrql.savedIrql);
         }
@@ -6890,7 +6891,7 @@ using kspin_lock_at_dpc_guard =
 
 WI_NODISCARD
 inline _IRQL_requires_max_(DISPATCH_LEVEL)
-_IRQL_saves_
+_IRQL_saves_global_(savedIrql, return)
 _IRQL_raises_(DISPATCH_LEVEL)
 kspin_lock_guard acquire_kspin_lock(_In_ PKSPIN_LOCK spinLock)
 {
@@ -6926,7 +6927,7 @@ public:
 
     WI_NODISCARD
     _IRQL_requires_max_(DISPATCH_LEVEL)
-    _IRQL_saves_
+    _IRQL_saves_global_(savedIrql, return)
     _IRQL_raises_(DISPATCH_LEVEL)
     kspin_lock_guard acquire() WI_NOEXCEPT
     {
@@ -7034,6 +7035,8 @@ using fast_mutex_guard = unique_any<FAST_MUTEX*, decltype(::ExReleaseFastMutex),
 
 WI_NODISCARD
 inline _IRQL_requires_max_(APC_LEVEL)
+_IRQL_raises_(APC_LEVEL)
+_IRQL_saves_global_(OldIrql, return)
 fast_mutex_guard acquire_fast_mutex(FAST_MUTEX* fastMutex) WI_NOEXCEPT
 {
     ::ExAcquireFastMutex(fastMutex);
@@ -7042,6 +7045,8 @@ fast_mutex_guard acquire_fast_mutex(FAST_MUTEX* fastMutex) WI_NOEXCEPT
 
 WI_NODISCARD
 inline _IRQL_requires_max_(APC_LEVEL)
+_IRQL_raises_(APC_LEVEL)
+_IRQL_saves_global_(OldIrql, fastMutex)
 fast_mutex_guard try_acquire_fast_mutex(FAST_MUTEX* fastMutex) WI_NOEXCEPT
 {
     if (::ExTryToAcquireFastMutex(fastMutex))
@@ -7074,6 +7079,8 @@ public:
     // destruction.
     WI_NODISCARD
     _IRQL_requires_max_(APC_LEVEL)
+    _IRQL_raises_(APC_LEVEL)
+    _IRQL_saves_global_(OldIrql, return)
     fast_mutex_guard acquire() WI_NOEXCEPT
     {
         return acquire_fast_mutex(&m_fastMutex);
@@ -7083,6 +7090,8 @@ public:
     // calls ExReleaseFastMutex on destruction.
     WI_NODISCARD
     _IRQL_requires_max_(APC_LEVEL)
+    _IRQL_raises_(APC_LEVEL)
+    _IRQL_saves_global_(OldIrql, return)
     fast_mutex_guard try_acquire() WI_NOEXCEPT
     {
         return try_acquire_fast_mutex(&m_fastMutex);
