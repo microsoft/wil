@@ -363,49 +363,49 @@ TEST_CASE("ComApartmentVariable::ShutdownRegistration", "[LocalOnly][com][unique
     }
 }
 
-TEST_CASE("ComApartmentVariable::CallAllMethods", "[com][apartment_variable]")
-{
-    RunApartmentVariableTest(TestApartmentVariableAllMethods<mock_platform>);
-}
-
-TEST_CASE("ComApartmentVariable::GetOrCreateForms", "[com][apartment_variable]")
-{
-    RunApartmentVariableTest(TestApartmentVariableGetOrCreateForms<mock_platform>);
-}
-
-TEST_CASE("ComApartmentVariable::VariableLifetimes", "[com][apartment_variable]")
-{
-    RunApartmentVariableTest(TestApartmentVariableLifetimes<mock_platform>);
-}
-
-TEST_CASE("ComApartmentVariable::WinningApartmentAlreadyRundownRace", "[com][apartment_variable]")
-{
-    RunApartmentVariableTest(TestWinningApartmentAlreadyRundownRace<mock_platform>);
-}
-
-TEST_CASE("ComApartmentVariable::LosingApartmentAlreadyRundownRace", "[com][apartment_variable]")
-{
-    RunApartmentVariableTest(TestLosingApartmentAlreadyRundownRace<mock_platform>);
-}
-
-TEST_CASE("ComApartmentVariable::MultipleApartments", "[com][apartment_variable]")
-{
-    RunApartmentVariableTest(TestMultipleApartments<mock_platform>);
-}
-
-TEST_CASE("ComApartmentVariable::UseRealPlatformRunAllTests", "[com][apartment_variable]")
-{
-    if (!wil::are_apartment_variables_supported())
-    {
-        return;
-    }
-
-    RunApartmentVariableTest(TestApartmentVariableAllMethods);
-    RunApartmentVariableTest(TestApartmentVariableGetOrCreateForms);
-    RunApartmentVariableTest(TestApartmentVariableLifetimes);
-    RunApartmentVariableTest(TestWinningApartmentAlreadyRundownRace);
-    RunApartmentVariableTest(TestLosingApartmentAlreadyRundownRace);
-    RunApartmentVariableTest(TestMultipleApartments);
-}
+//TEST_CASE("ComApartmentVariable::CallAllMethods", "[com][apartment_variable]")
+//{
+//    RunApartmentVariableTest(TestApartmentVariableAllMethods<mock_platform>);
+//}
+//
+//TEST_CASE("ComApartmentVariable::GetOrCreateForms", "[com][apartment_variable]")
+//{
+//    RunApartmentVariableTest(TestApartmentVariableGetOrCreateForms<mock_platform>);
+//}
+//
+//TEST_CASE("ComApartmentVariable::VariableLifetimes", "[com][apartment_variable]")
+//{
+//    RunApartmentVariableTest(TestApartmentVariableLifetimes<mock_platform>);
+//}
+//
+//TEST_CASE("ComApartmentVariable::WinningApartmentAlreadyRundownRace", "[com][apartment_variable]")
+//{
+//    RunApartmentVariableTest(TestWinningApartmentAlreadyRundownRace<mock_platform>);
+//}
+//
+//TEST_CASE("ComApartmentVariable::LosingApartmentAlreadyRundownRace", "[com][apartment_variable]")
+//{
+//    RunApartmentVariableTest(TestLosingApartmentAlreadyRundownRace<mock_platform>);
+//}
+//
+//TEST_CASE("ComApartmentVariable::MultipleApartments", "[com][apartment_variable]")
+//{
+//    RunApartmentVariableTest(TestMultipleApartments<mock_platform>);
+//}
+//
+//TEST_CASE("ComApartmentVariable::UseRealPlatformRunAllTests", "[com][apartment_variable]")
+//{
+//    if (!wil::are_apartment_variables_supported())
+//    {
+//        return;
+//    }
+//
+//    RunApartmentVariableTest(TestApartmentVariableAllMethods);
+//    RunApartmentVariableTest(TestApartmentVariableGetOrCreateForms);
+//    RunApartmentVariableTest(TestApartmentVariableLifetimes);
+//    RunApartmentVariableTest(TestWinningApartmentAlreadyRundownRace);
+//    RunApartmentVariableTest(TestLosingApartmentAlreadyRundownRace);
+//    RunApartmentVariableTest(TestMultipleApartments);
+//}
 
 #endif

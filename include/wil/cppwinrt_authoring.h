@@ -172,22 +172,16 @@ unique_com_class_object_cookie
     return registration;
 }
 
-template <typename... Types>
-struct clsid_array
-{
-    std::array<GUID, sizeof...(Types)> value;
-};
-
 template <typename... Ts>
 WI_NODISCARD_REASON("The classes are unregistered when the returned value is destructed")
 std::vector<unique_com_class_object_cookie> register_com_server(
-    wil::clsid_array<Ts...> const& clsids, DWORD context = CLSCTX_LOCAL_SERVER, DWORD flags = REGCLS_MULTIPLEUSE)
+    std::array<GUID, sizeof...(Ts)> const& clsids, DWORD context = CLSCTX_LOCAL_SERVER, DWORD flags = REGCLS_MULTIPLEUSE)
 {
     std::vector<wil::unique_com_class_object_cookie> registrations;
     registrations.reserve(sizeof...(Ts));
 
     std::size_t i = 0;
-    (registrations.push_back(wil::register_com_server<Ts>(clsids.value[i++], context, flags | REGCLS_SUSPENDED)), ...);
+    (registrations.push_back(wil::register_com_server<Ts>(clsids[i++], context, flags | REGCLS_SUSPENDED)), ...);
 
     // allow the user to keep class objects suspended if they've explicitly passed REGCLS_SUSPENDED.
     if (!WI_IsFlagSet(flags, REGCLS_SUSPENDED))
@@ -196,6 +190,23 @@ std::vector<unique_com_class_object_cookie> register_com_server(
     }
 
     return registrations;
+}
+
+template <typename... Types>
+struct clsid_array
+{
+    std::array<GUID, sizeof...(Types)> value;
+    explicit clsid_array(std::array<GUID, sizeof...(Types)> value) : value(std::move(value))
+    {
+    }
+};
+
+template <typename... Ts>
+WI_NODISCARD_REASON("The classes are unregistered when the returned value is destructed")
+std::vector<unique_com_class_object_cookie> register_com_server(
+    wil::clsid_array<Ts...> const& clsids, DWORD context = CLSCTX_LOCAL_SERVER, DWORD flags = REGCLS_MULTIPLEUSE)
+{
+    return register_com_server<Ts...>(clsids.value, context, flags);
 }
 
 namespace details
