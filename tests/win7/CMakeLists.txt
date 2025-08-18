@@ -14,4 +14,5 @@ target_sources(witest.win7 PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../StlTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../TokenHelpersTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../WatcherTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../Toolhelp32Tests.cpp
     )
