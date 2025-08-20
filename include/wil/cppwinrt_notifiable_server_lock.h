@@ -72,7 +72,7 @@ private:
 
 namespace winrt
 {
-auto& get_module_lock() noexcept
+inline auto& get_module_lock() noexcept
 {
     return wil::notifiable_server_lock::instance();
 }
