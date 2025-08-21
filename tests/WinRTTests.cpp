@@ -580,6 +580,20 @@ TEST_CASE("WinRTTests::WaitForCompletionTimeout", "[winrt][wait_for_completion]"
     REQUIRE(timedOut);
 }
 
+TEST_CASE("WinRTTests::WaitForCompletionTimeoutWithResult", "[winrt][wait_for_completion]")
+{
+    auto op = Make<FakeAsyncOperation<bool, boolean>>();
+    REQUIRE(op);
+
+    // The wait_for_completion* functions don't properly deduce the "decayed" async type, so force it here
+    auto asyncOp = static_cast<IAsyncOperation<bool>*>(op.Get());
+
+    boolean result = false;
+    bool timedOut = false;
+    REQUIRE_SUCCEEDED(wil::wait_for_completion_or_timeout_nothrow(asyncOp, &result, 1, &timedOut));
+    REQUIRE(timedOut);
+}
+
 // This is not a test method, nor should it be called. This is a compilation-only test.
 #pragma warning(push)
 #pragma warning(disable : 4702) // Unreachable code

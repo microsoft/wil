@@ -172,7 +172,18 @@ struct FakeAsyncOperation
 
     IFACEMETHODIMP GetResults(Abi* results) override
     {
-        return m_storage.CopyTo(results);
+        auto lock = m_lock.lock_shared();
+        switch (m_status)
+        {
+        case AsyncStatus::Started:
+            return E_ILLEGAL_METHOD_CALL;
+        case AsyncStatus::Completed:
+            return m_storage.CopyTo(results);
+        case AsyncStatus::Error:
+            return m_result;
+        default:
+            return E_NOTIMPL;
+        }
     }
 
     // Test functions
