@@ -147,10 +147,10 @@ constexpr size_t max_path_segment_length = 255;
 //! Character length not including the null, MAX_PATH (260) includes the null.
 constexpr size_t max_path_length = 259;
 
-//! 32743 Character length not including the null. This is a system defined limit.
-//! The 24 is for the expansion of the roots from "C:" to "\Device\HarddiskVolume4"
-//! It will be 25 when there are more than 9 disks.
-constexpr size_t max_extended_path_length = 0x7FFF - 24;
+//! 32744 Character length not including the null. This is a system defined limit.
+//! The 23 is for the expansion of the roots from "C:" to "\Device\HarddiskVolume4"
+//! It will be 24 when there are more than 9 disks.
+constexpr size_t max_extended_path_length = 0x7FFF - 23;
 
 //! For {guid} string form. Includes space for the null terminator.
 constexpr size_t guid_string_buffer_length = 39;
