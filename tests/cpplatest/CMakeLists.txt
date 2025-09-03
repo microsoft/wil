@@ -38,5 +38,6 @@ target_sources(witest.cpplatest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../WatcherTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../WinRTTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../WinVerifyTrustTest.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../Toolhelp32Tests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/app.manifest
     )
