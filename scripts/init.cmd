@@ -163,7 +163,7 @@ goto :init
     if "%VCPKG_ROOT_PATH%"=="" (
         :: First check for %VCPKG_ROOT% variable
         if defined VCPKG_ROOT (
-            set VCPKG_ROOT_PATH=%VCPKG_ROOT%
+            set "VCPKG_ROOT_PATH=%VCPKG_ROOT%"
         ) else (
             :: Next check the PATH for vcpkg.exe
             for %%i in (vcpkg.exe) do set VCPKG_ROOT_PATH=%%~dp$PATH:i
