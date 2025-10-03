@@ -182,7 +182,7 @@ public:
 
 #ifdef WIL_ENABLE_EXCEPTIONS
     template <typename Func>
-    detoured_global_function(Func&& func) noexcept(noexcept(reset(wistd::forward<Func>(func))))
+    explicit detoured_global_function(Func&& func) noexcept(noexcept(reset(wistd::forward<Func>(func))))
     {
         THROW_IF_FAILED(reset(wistd::forward<Func>(func)));
     }
@@ -261,6 +261,15 @@ public:
         resetOnExit.release();
         return S_OK;
     }
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+    template <typename Func>
+    detoured_global_function& operator=(Func&& func)
+    {
+        THROW_IF_FAILED(reset(wistd::forward<Func>(func)));
+        return *this;
+    }
+#endif
 
 private:
     template <typename... ArgsT>
@@ -342,7 +351,7 @@ public:
 
 #ifdef WIL_ENABLE_EXCEPTIONS
     template <typename Func>
-    detoured_thread_function(Func&& func) noexcept(noexcept(reset(wistd::forward<Func>(func))))
+    explicit detoured_thread_function(Func&& func) noexcept(noexcept(reset(wistd::forward<Func>(func))))
     {
         THROW_IF_FAILED(reset(wistd::forward<Func>(func)));
     }
@@ -469,6 +478,15 @@ public:
         s_threadInstance = this;
         return S_OK;
     }
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+    template <typename Func>
+    detoured_thread_function& operator=(Func&& func)
+    {
+        THROW_IF_FAILED(reset(wistd::forward<Func>(func)));
+        return *this;
+    }
+#endif
 
 private:
     template <typename... ArgsT>

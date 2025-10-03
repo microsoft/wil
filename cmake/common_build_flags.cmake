@@ -56,8 +56,5 @@ else()
 
         # Some tests have a LOT of template instantiations
         /bigobj
-
-        # NOTE: Temporary workaround while https://github.com/microsoft/wil/issues/102 is being investigated
-        /d2FH4-
         )
 endif()

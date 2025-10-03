@@ -3394,6 +3394,9 @@ public:
         }
     }
 
+    //! !IMPORTANT! This value is updated concurrently on a separate thread *after* cancellation is requested. Therefore, it is
+    //! not guaranteed that this value is up to date when read immediately after a cancelled call returns.
+    // TODO: This should **at the very least** be updated to use atomic reads and writes
     bool timed_out() const
     {
         return m_timedOut;

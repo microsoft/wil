@@ -246,12 +246,14 @@ TEST_CASE("TokenHelpersTests::VerifyGetTokenInformationSecurityImpersonationLeve
     REQUIRE(HRESULT_FROM_WIN32(ERROR_NO_TOKEN) == wil::get_token_information_nothrow(&tokenInfo, GetCurrentThreadToken()));
 
     // Setup the impersonation token that SECURITY_IMPERSONATION_LEVEL requires.
-    FAIL_FAST_IF_WIN32_BOOL_FALSE(ImpersonateSelf(SecurityIdentification));
+    REQUIRE(ImpersonateSelf(SecurityIdentification));
+    auto revert = wil::scope_exit([&] {
+        ::RevertToSelf();
+    });
+
     TestGetTokenInfoForCurrentThread<SECURITY_IMPERSONATION_LEVEL>();
 
     REQUIRE(S_OK == wil::get_token_information_nothrow(&tokenInfo, GetCurrentThreadToken()));
-
-    RevertToSelf();
 }
 #endif
 

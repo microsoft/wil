@@ -165,7 +165,7 @@ public:
         if (Leaked())
         {
             // NOTE: This runs when no test is active, but will still cause an assert failure to notify
-            FAIL("GlobalCount is non-zero; there is a leak somewhere");
+            FAIL_FAST_MSG("GlobalCount is non-zero; there is a leak somewhere");
         }
     }
 };
@@ -337,7 +337,7 @@ inline HRESULT CreateUniqueFolderPath(wchar_t (&buffer)[MAX_PATH], PCWSTR root =
 inline void RequireRestrictedErrorInfo(HRESULT error, wchar_t const* message)
 {
     wil::com_ptr_nothrow<IRestrictedErrorInfo> errorInfo;
-    REQUIRE_SUCCEEDED(GetRestrictedErrorInfo(&errorInfo));
+    REQUIRE(GetRestrictedErrorInfo(&errorInfo) == S_OK); // S_FALSE means no restricted error info for the thread
     REQUIRE(errorInfo != nullptr);
     wil::unique_bstr description;
     wil::unique_bstr restrictedDescription;
