@@ -3417,7 +3417,7 @@ private:
         // There may not be an in-flight call to a marshaled COM function, so this may fail. We also don't synchronize
         // with other threads, so success/failure can't reliably be communicated to the thread that owns this object, so
         // we just ignore the result.
-        ::CoCancelCall(self->m_threadId, 0);
+        (void)::CoCancelCall(self->m_threadId, 0);
     }
 
     wil::unique_call<decltype(&details::CoDisableCallCancellationNull), details::CoDisableCallCancellationNull, false> m_ensureDisable{};
