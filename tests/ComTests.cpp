@@ -3217,19 +3217,16 @@ TEST_CASE("com_timeout", "[com][com_timeout]")
     {
         wil::com_timeout_nothrow timeout{5000};
         REQUIRE(static_cast<bool>(timeout));
-        REQUIRE(!timeout.timed_out()); // NOTE: *Okay* usage since it should never be set to true
     }
     SECTION("Basic construction throwing")
     {
         wil::com_timeout timeout{5000};
         REQUIRE(static_cast<bool>(timeout));
-        REQUIRE(!timeout.timed_out()); // NOTE: *Okay* usage since it should never be set to true
     }
     SECTION("Basic construction failfast")
     {
         wil::com_timeout_failfast timeout{5000};
         REQUIRE(static_cast<bool>(timeout));
-        REQUIRE(!timeout.timed_out()); // NOTE: *Okay* usage since it should never be set to true
     }
     SECTION("RPC timeout test")
     {
@@ -3242,9 +3239,6 @@ TEST_CASE("com_timeout", "[com][com_timeout]")
         wil::unique_hstring value;
         auto localServerResult = localServer->ToString(&value);
         REQUIRE(static_cast<bool>(localServerResult == RPC_E_CALL_CANCELED));
-        // TODO: This is currently incorrect usage since the internal boolean variable is not guaranteed to be set by the time we
-        // check its value. Hence why this is commented out for now
-        // REQUIRE(timeout.timed_out());
 
         sharedData->hangEvent.SetEvent();
 
@@ -3252,9 +3246,6 @@ TEST_CASE("com_timeout", "[com][com_timeout]")
         // cancel and return.
         localServerResult = localServer->ToString(&value);
         REQUIRE(static_cast<bool>(localServerResult == RPC_E_CALL_CANCELED));
-        // TODO: This is currently incorrect usage since the internal boolean variable is not guaranteed to be set by the time we
-        // check its value. Hence why this is commented out for now
-        // REQUIRE(timeout.timed_out());
 
         sharedData->hangEvent.SetEvent();
 
@@ -3268,7 +3259,6 @@ TEST_CASE("com_timeout", "[com][com_timeout]")
         auto localServer = agileObj.query<ABI::Windows::Foundation::IStringable>();
         wil::unique_hstring value;
         REQUIRE_SUCCEEDED(localServer->ToString(&value));
-        REQUIRE(!timeout.timed_out()); // NOTE: *Okay* usage since it should never be set to true
         REQUIRE(std::wstring_view{L"COMTimeoutTestObject"} == WindowsGetStringRawBuffer(value.get(), nullptr));
     }
 }
