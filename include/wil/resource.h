@@ -2602,13 +2602,10 @@ namespace details
     {
         static void Destroy(_In_ PTP_TIMER threadpoolTimer) WI_NOEXCEPT
         {
+            static_assert(cancellationBehavior != PendingCallbackCancellationBehavior::NoWait); // Handled by partial specialization
             threadpool_t::SetThreadpoolTimer(threadpoolTimer, nullptr, 0, 0);
-#pragma warning(suppress : 4127) // conditional expression is constant
-            if (cancellationBehavior != PendingCallbackCancellationBehavior::NoWait)
-            {
-                threadpool_t::WaitForThreadpoolTimerCallbacks(
-                    threadpoolTimer, (cancellationBehavior == PendingCallbackCancellationBehavior::Cancel));
-            }
+            threadpool_t::WaitForThreadpoolTimerCallbacks(
+                threadpoolTimer, (cancellationBehavior == PendingCallbackCancellationBehavior::Cancel));
             threadpool_t::CloseThreadpoolTimer(threadpoolTimer);
         }
     };

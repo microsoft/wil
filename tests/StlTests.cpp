@@ -1,12 +1,11 @@
 #include "pch.h"
 
-#include <wil/stl.h>
-
 #include "common.h"
 
-#ifndef WIL_ENABLE_EXCEPTIONS
-#error STL tests require exceptions
-#endif
+// Disable tests if we're not using exceptions. This is simpler than conditionally compiling this file
+#ifdef WIL_ENABLE_EXCEPTIONS
+
+#include <wil/stl.h>
 
 struct dummy
 {
@@ -244,3 +243,5 @@ TEST_CASE("StlTests::TestZWStringView", "[stl][zstring_view]")
     string_with_c_str fake_path{};
     REQUIRE(wil::zwstring_view(fake_path) == L"hello");
 }
+
+#endif

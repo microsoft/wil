@@ -71,6 +71,23 @@ auto create_server_instance(const GUID& clsid)
     return winrt::create_instance<winrt::Windows::Foundation::IStringable>(clsid, CLSCTX_LOCAL_SERVER);
 }
 
+static void WaitForWinRTModuleLock()
+{
+    // Other tests may create C++/WinRT objects and not wait for all objects to be destroyed before finishing.
+    for (auto start = ::GetTickCount64(); winrt::get_module_lock() != 0;)
+    {
+        if ((::GetTickCount64() - start) > 5000)
+        {
+            FAIL(
+                "C++/WinRT module lock did not reach zero within 5 seconds. This likely signals a memory leak in a previous test. "
+                "If this is the case, the issue should be reproducable locally by running with '--rng-seed <seed>' with the seed "
+                "that was printed by Catch2 at the start of this executable's execution.");
+        }
+
+        ::SwitchToThread();
+    }
+}
+
 TEST_CASE("CppWinRTAuthoringTests::Read", "[property]")
 {
     int value = 42;
@@ -256,6 +273,12 @@ TEST_CASE("CppWinRTAuthoringTests::NotifyPropertyChanged", "[property]")
 #if defined(WIL_ENABLE_EXCEPTIONS)
     auto uninit = wil::RoInitialize_failfast(RO_INIT_MULTITHREADED);
 
+    // Since we're uninitializing COM, we need to clear the factory cache when we're done, otherwise DLLs might unload while we
+    // still have open references to factory objects
+    auto clearCache = wil::scope_exit([] {
+        winrt::clear_factory_cache();
+    });
+
     // We need to initialize the XAML core in order to instantiate a PropertyChangedEventArgs.
     // Do all the work on a separate DispatcherQueue thread so we can shut it down cleanly and pump all messages
     auto controller = winrt::Windows::System::DispatcherQueueController::CreateOnDedicatedThread();
@@ -364,6 +387,7 @@ TEST_CASE("CppWinRTAuthoringTests::CreateInstanceDoesNotAllowAggregation", "[cla
 
 TEST_CASE("CppWinRTAuthoringTests::LockServer", "[class_factory]")
 {
+    WaitForWinRTModuleLock();
     auto factory = winrt::make<wil::class_factory<MyServer, winrt::no_module_lock>>();
 
     REQUIRE(factory->LockServer(true) == S_OK);
@@ -375,7 +399,11 @@ TEST_CASE("CppWinRTAuthoringTests::LockServer", "[class_factory]")
 
 TEST_CASE("CppWinRTAuthoringTests::RegisterComServer", "[com_server]")
 {
+    WaitForWinRTModuleLock();
     winrt::init_apartment();
+    auto uninit = wil::scope_exit([] {
+        winrt::uninit_apartment();
+    });
 
     {
         auto revoker = wil::register_com_server<MyServer>(__uuidof(MyServer));
@@ -397,7 +425,11 @@ TEST_CASE("CppWinRTAuthoringTests::RegisterComServer", "[com_server]")
 
 TEST_CASE("CppWinRTAuthoringTests::MultiRegisterComServer", "[com_server]")
 {
+    WaitForWinRTModuleLock();
     winrt::init_apartment();
+    auto uninit = wil::scope_exit([] {
+        winrt::uninit_apartment();
+    });
 
     {
         auto revoker = wil::register_com_server<MyServer, BuggyServer>({{__uuidof(MyServer), __uuidof(BuggyServer)}});
@@ -441,6 +473,9 @@ TEST_CASE("CppWinRTAuthoringTests::MultiRegisterComServer", "[com_server]")
 TEST_CASE("CppWinRTAuthoringTests::MultiRegisterComServerUnregistersOnFail", "[com_server]")
 {
     winrt::init_apartment();
+    auto uninit = wil::scope_exit([] {
+        winrt::uninit_apartment();
+    });
 
     witest::detoured_thread_function<&::CoRegisterClassObject> detour;
     detour.reset([](REFCLSID clsid, LPUNKNOWN obj, DWORD ctxt, DWORD flags, LPDWORD cookie) {
@@ -476,6 +511,9 @@ TEST_CASE("CppWinRTAuthoringTests::MultiRegisterComServerUnregistersOnFail", "[c
 TEST_CASE("CppWinRTAuthoringTests::RegisterComServerThrowIsSafe", "[com_server]")
 {
     winrt::init_apartment();
+    auto uninit = wil::scope_exit([] {
+        winrt::uninit_apartment();
+    });
 
     {
         auto revoker = wil::register_com_server<BuggyServer>(__uuidof(BuggyServer));
@@ -493,11 +531,15 @@ TEST_CASE("CppWinRTAuthoringTests::RegisterComServerThrowIsSafe", "[com_server]"
 
 TEST_CASE("CppWinRTAuthoringTests::Async", "[com_server]")
 {
+    WaitForWinRTModuleLock();
     wil::unique_event coroutineRunning(wil::EventOptions::ManualReset);
     wil::unique_event coroutineContinue(wil::EventOptions::ManualReset);
     wil::unique_event coroutineEnded(wil::EventOptions::ManualReset);
 
     winrt::init_apartment();
+    auto uninit = wil::scope_exit([] {
+        winrt::uninit_apartment();
+    });
 
     auto revoker = wil::register_com_server<MyServer>(__uuidof(MyServer));
 
@@ -521,21 +563,23 @@ TEST_CASE("CppWinRTAuthoringTests::Async", "[com_server]")
     {
         const auto action = asyncLambda();
 
+        uint32_t completedCount = 0;
         action.Completed([&](winrt::Windows::Foundation::IAsyncAction const&, winrt::Windows::Foundation::AsyncStatus const&) {
+            completedCount = winrt::get_module_lock();
             coroutineEnded.SetEvent();
         });
 
         coroutineRunning.wait();
-        REQUIRE(winrt::get_module_lock() == 2); // Coroutine and Completed handler bumped count
+        REQUIRE(winrt::get_module_lock() == 2); // IAsyncAction and Completed handler bumped count
 
         coroutineContinue.SetEvent();
         coroutineEnded.wait();
+
+        REQUIRE(completedCount == 2); // IAsyncAction and Completed handler still alive
 
         if (coroutineException)
         {
             std::rethrow_exception(coroutineException);
         }
     }
-
-    REQUIRE(!winrt::get_module_lock());
 }
