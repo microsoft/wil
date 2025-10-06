@@ -5,6 +5,8 @@ target_precompile_headers(witest.asan PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../pch
 
 target_compile_options(witest.asan PRIVATE -fsanitize=address)
 
+target_compile_features(witest.asan PRIVATE cxx_std_23)
+
 target_compile_definitions(witest.asan PRIVATE
     -DCATCH_CONFIG_NO_WINDOWS_SEH # ASAN relies on first chance AVs
     -DWITEST_ADDRESS_SANITIZER # To conditionally enable/disable code
@@ -40,10 +42,9 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
             )
     endif()
 else()
-    # Using exceptions, so we can compile the STL tests
+    # Using exceptions; we can compile all of the C++/WinRT tests
     set(EXTRA_SOURCES
-        ${EXTRA_SOURCES}
-        ${CMAKE_CURRENT_SOURCE_DIR}/../StlTests.cpp
+        ${CPP20_SOURCES}
         )
 endif()
 
@@ -55,12 +56,8 @@ target_compile_definitions(witest.asan PRIVATE
 
 target_sources(witest.asan PUBLIC
     ${COMMON_SOURCES}
+    ${DOWNLEVEL_SOURCES}
+    ${WINRT_SOURCES}
+    ${WIN11_DESTKTOP_SOURCES}
     ${EXTRA_SOURCES}
-    ${CMAKE_CURRENT_SOURCE_DIR}/../NetworkTests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../RegistryTests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../TokenHelpersTests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../UniqueWinRTEventTokenTests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../WatcherTests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../WinRTTests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../WinVerifyTrustTest.cpp
     )

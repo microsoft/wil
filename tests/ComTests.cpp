@@ -3125,8 +3125,7 @@ TEST_CASE("COMEnumerator", "[com][enumerator]")
 #include <winrt/windows.foundation.h>
 #include <windows.foundation.h>
 
-// NOTE: Disabled in CI until the spurious failures can be investigated and resolved
-TEST_CASE("com_timeout", "[com][com_timeout][LocalOnly]")
+TEST_CASE("com_timeout", "[com][com_timeout]")
 {
     auto init = wil::CoInitializeEx_failfast();
 
@@ -3134,145 +3133,142 @@ TEST_CASE("com_timeout", "[com][com_timeout][LocalOnly]")
     // the COM runtime..  Additionally, this server needs to support the ability to control if it hangs
     // or returns quickly.  The following class provides that functionality, using some global events to
     // provide deterministic ordering of operations.
-    //
+    struct shared_data
+    {
+        wil::unique_event comServerStartedEvent{wil::EventOptions::None};
+        wil::unique_event comServerTearDownEvent{wil::EventOptions::None};
+        wil::unique_event hangEvent{wil::EventOptions::None};
+        std::atomic_bool shouldHang{false};
+        std::atomic_bool shouldCancel{false};
+    };
+    auto sharedData = std::make_shared<shared_data>();
+
     // To ensure the call goes through a proxy, the object must be non-agile and the call must cross between
     // apartments (MTA -> STA in this case)
     struct COMTimeoutTestObject : winrt::implements<COMTimeoutTestObject, winrt::Windows::Foundation::IStringable, winrt::non_agile>
     {
-        wil::shared_event _hangHandle;
-        wil::shared_event _doneHangingHandle;
-        std::shared_ptr<bool> _shouldHang;
-        COMTimeoutTestObject(wil::shared_event hangHandle, wil::shared_event doneHangingHandle, std::shared_ptr<bool> shouldHang) :
-            _hangHandle(hangHandle), _doneHangingHandle(doneHangingHandle), _shouldHang(shouldHang)
+        std::shared_ptr<shared_data> _sharedData;
+        COMTimeoutTestObject(std::shared_ptr<shared_data> sharedData) : _sharedData(std::move(sharedData))
         {
         }
 
         winrt::hstring ToString()
         {
             // If the test wants to block, then use the hang handles.
-            if (*(_shouldHang.get()))
+            if (_sharedData->shouldHang)
             {
-                // Pump messages so this STA thread is healthy while we wait.  If this wait fails that means
-                // the cancel did not work.
-                HANDLE handles[1] = {_hangHandle.get()};
+                // Signal that this function is running so it's okay to cancel it now
+                _sharedData->shouldCancel = true;
+
+                // Pump messages so this STA thread is healthy while we wait. If the wait times out, the cancel did not work
+                HANDLE handles[1] = {_sharedData->hangEvent.get()};
                 DWORD index;
                 REQUIRE_SUCCEEDED(CoWaitForMultipleObjects(
-                    CWMO_DISPATCH_CALLS | CWMO_DISPATCH_WINDOW_MESSAGES, 10000, ARRAYSIZE(handles), handles, &index));
-
-                if (_doneHangingHandle)
-                {
-                    _doneHangingHandle.SetEvent();
-                }
+                    CWMO_DISPATCH_CALLS | CWMO_DISPATCH_WINDOW_MESSAGES, INFINITE, ARRAYSIZE(handles), handles, &index));
             }
 
             return L"COMTimeoutTestObject";
         }
     };
 
-    // The COM server thread needs an event that is signaled when we want it to stop pumping messages and
-    // exit.
-    wil::shared_event comServerEvent;
-    comServerEvent.create();
+    // There is a race between cancellation and the underlying implementation getting called such that it's possible for the call
+    // to get marked as cancelled and then the marshalling code sees that the call is cancelled and never invoke the
+    // implementation. Since we rely on doing synchronization between the two threads, we are hooking the 'CoCancelCall' API such
+    // that we don't actually invoke it until we know that the call is in progress.
+    auto detouredCancel = witest::detoured_thread_function<&CoCancelCall>([&](DWORD threadId, ULONG timeout) -> HRESULT {
+        if (sharedData->shouldCancel)
+        {
+            sharedData->shouldCancel = false; // Only cancel once per call
+            return ::CoCancelCall(threadId, timeout);
+        }
 
-    wil::shared_event agileReferencePopulated;
-    agileReferencePopulated.create();
+        return E_NOINTERFACE;
+    });
 
-    // These handles are used to coordinate with the COM server thread.  The first one causes it to block.  The
-    // done hanging event lets us know that it is done blocking and we can proceed with a second call that should
-    // avoid reentering.
-    wil::shared_event hangingHandle;
-    hangingHandle.create();
-    wil::shared_event doneHangingHandle;
-    doneHangingHandle.create();
+    wil::com_agile_ref agileObj;
 
-    auto shouldHang = std::make_shared<bool>(false);
+    auto comServerThread = std::thread([sharedData, &agileObj] {
+        // This thread must be STA to pull RPC in as mediator between threads.
+        auto init = wil::CoInitializeEx_failfast(COINIT_APARTMENTTHREADED);
 
-    wil::com_agile_ref agileStringable;
+        const auto stringable = winrt::make<COMTimeoutTestObject>(sharedData);
+        agileObj = wil::com_agile_query(stringable.as<ABI::Windows::Foundation::IStringable>().get());
 
-    auto comServerThread =
-        std::thread([comServerEvent, agileReferencePopulated, hangingHandle, doneHangingHandle, &agileStringable, shouldHang] {
-            // This thread must be STA to pull RPC in as mediator between threads.
-            auto init = wil::CoInitializeEx_failfast(COINIT_APARTMENTTHREADED);
+        sharedData->comServerStartedEvent.SetEvent();
 
-            const auto stringable = winrt::make<COMTimeoutTestObject>(hangingHandle, doneHangingHandle, shouldHang);
-            agileStringable = wil::com_agile_query(stringable.as<ABI::Windows::Foundation::IStringable>().get());
+        // Pump messages so this STA thread is healthy.
+        HANDLE handles[1] = {sharedData->comServerTearDownEvent.get()};
+        DWORD index;
+        REQUIRE_SUCCEEDED(CoWaitForMultipleObjects(
+            CWMO_DISPATCH_CALLS | CWMO_DISPATCH_WINDOW_MESSAGES, INFINITE, ARRAYSIZE(handles), handles, &index));
+    });
 
-            agileReferencePopulated.SetEvent();
-
-            // Pump messages so this STA thread is healthy.
-            HANDLE handles[1] = {comServerEvent.get()};
-            DWORD index;
-            REQUIRE_SUCCEEDED(CoWaitForMultipleObjects(
-                CWMO_DISPATCH_CALLS | CWMO_DISPATCH_WINDOW_MESSAGES, INFINITE, ARRAYSIZE(handles), handles, &index));
-        });
-
-    auto makeSureComServerThreadExits = wil::scope_exit([comServerEvent, &comServerThread] {
+    auto makeSureComServerThreadExits = wil::scope_exit([&] {
         // We are done testing.  Tell the STA thread to exit and then block until it is done.
-        comServerEvent.SetEvent();
+        sharedData->hangEvent.SetEvent(); // In case of failure, we may not have set this event
+        sharedData->comServerTearDownEvent.SetEvent();
 
         comServerThread.join();
     });
 
-    REQUIRE_SUCCEEDED(agileReferencePopulated.wait(5000));
+    REQUIRE(sharedData->comServerStartedEvent.wait(5000));
 
     SECTION("Basic construction nothrow")
     {
         wil::com_timeout_nothrow timeout{5000};
         REQUIRE(static_cast<bool>(timeout));
-        REQUIRE(!timeout.timed_out());
+        REQUIRE(!timeout.timed_out()); // NOTE: *Okay* usage since it should never be set to true
     }
     SECTION("Basic construction throwing")
     {
         wil::com_timeout timeout{5000};
         REQUIRE(static_cast<bool>(timeout));
-        REQUIRE(!timeout.timed_out());
+        REQUIRE(!timeout.timed_out()); // NOTE: *Okay* usage since it should never be set to true
     }
     SECTION("Basic construction failfast")
     {
         wil::com_timeout_failfast timeout{5000};
         REQUIRE(static_cast<bool>(timeout));
-        REQUIRE(!timeout.timed_out());
+        REQUIRE(!timeout.timed_out()); // NOTE: *Okay* usage since it should never be set to true
     }
     SECTION("RPC timeout test")
     {
         wil::com_timeout timeout{100};
 
-        *(shouldHang.get()) = true;
+        sharedData->shouldHang = true;
 
         // The timeout is now in place.  The blocking call should cancel in a timely manner and fail with RPC_E_CALL_CANCELED.
-        wil::com_ptr<ABI::Windows::Foundation::IStringable> localServer =
-            agileStringable.query<ABI::Windows::Foundation::IStringable>();
+        auto localServer = agileObj.query<ABI::Windows::Foundation::IStringable>();
         wil::unique_hstring value;
         auto localServerResult = localServer->ToString(&value);
         REQUIRE(static_cast<bool>(localServerResult == RPC_E_CALL_CANCELED));
-        REQUIRE(timeout.timed_out());
+        // TODO: This is currently incorrect usage since the internal boolean variable is not guaranteed to be set by the time we
+        // check its value. Hence why this is commented out for now
+        // REQUIRE(timeout.timed_out());
 
-        hangingHandle.SetEvent();
-        REQUIRE(doneHangingHandle.wait(5000));
-
-        hangingHandle.ResetEvent();
+        sharedData->hangEvent.SetEvent();
 
         // Make a second blocking call within the lifetime of the same com_timeout instance.  This second call should also
         // cancel and return.
         localServerResult = localServer->ToString(&value);
         REQUIRE(static_cast<bool>(localServerResult == RPC_E_CALL_CANCELED));
-        REQUIRE(timeout.timed_out());
+        // TODO: This is currently incorrect usage since the internal boolean variable is not guaranteed to be set by the time we
+        // check its value. Hence why this is commented out for now
+        // REQUIRE(timeout.timed_out());
 
-        hangingHandle.SetEvent();
-        REQUIRE(doneHangingHandle.wait(5000));
+        sharedData->hangEvent.SetEvent();
 
-        *(shouldHang.get()) = false;
+        sharedData->shouldHang = false;
     }
     SECTION("Non-timeout unaffected test")
     {
         wil::com_timeout timeout{100};
 
         // g_hangHandle is not set so this call will not block.  It should not be affected by the timeout.
-        wil::com_ptr<ABI::Windows::Foundation::IStringable> localServer =
-            agileStringable.query<ABI::Windows::Foundation::IStringable>();
+        auto localServer = agileObj.query<ABI::Windows::Foundation::IStringable>();
         wil::unique_hstring value;
         REQUIRE_SUCCEEDED(localServer->ToString(&value));
-        REQUIRE(!timeout.timed_out());
+        REQUIRE(!timeout.timed_out()); // NOTE: *Okay* usage since it should never be set to true
         REQUIRE(std::wstring_view{L"COMTimeoutTestObject"} == WindowsGetStringRawBuffer(value.get(), nullptr));
     }
 }

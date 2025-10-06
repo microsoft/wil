@@ -80,5 +80,8 @@ jobs:
   - script: |
       call scripts\call-vcvars.cmd $(arch)
       set ASAN_WIN_CONTINUE_ON_INTERCEPTION_FAILURE=1
-      call scripts\runtests.cmd ~[LocalOnly]
+      REM NOTE: You can add '-s' to display detailed information about passing assertions, which can be helpful for diagnosing
+      REM hanging tests, however the callstack logic has mostly rendered this unnecssary for most scenarios.
+      REM That said, we do pass '-d yes' so that it's easier to see which tests were run immediately before a hanging/crashing test
+      call scripts\runtests.cmd ~[LocalOnly] -d yes
     displayName: 'Test $(compiler) $(arch)$(build-type)'

@@ -5,6 +5,7 @@
 #include <functional>
 
 #include "common.h"
+#include "cppwinrt_threadpool_guard.h"
 
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
 
@@ -38,7 +39,11 @@ void co_wait(const wil::unique_event& e)
 
 void RunApartmentVariableTest(void (*test)())
 {
-    test();
+    {
+        cppwinrt_threadpool_guard guard;
+        test();
+    }
+
     // Apartment variable rundown is async, wait for the last COM apartment
     // to rundown before proceeding to the next test.
     WaitForAllComApartmentsToRundown();
@@ -130,6 +135,10 @@ void TestApartmentVariableAllMethods()
     auto coUninit = platform::CoInitializeEx(COINIT_MULTITHREADED);
 
     std::ignore = g_v1.get_or_create(fn);
+    auto clearOnExit = wil::scope_exit([&] {
+        // Other tests rely on the C++/WinRT module lock count being zero at the start. Ensure we clean up after ourselves
+        g_v1.clear();
+    });
 
     wil::apartment_variable<int, wil::apartment_variable_leak_action::fail_fast, platform> v1;
 

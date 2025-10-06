@@ -29,7 +29,9 @@ constexpr DWORD test_dword_three = 3ul;
 constexpr uint32_t test_dword_zero = 0ul;
 constexpr uint64_t test_qword_zero = 0ull;
 constexpr DWORD64 test_qword_max = 0xffffffffffffffff;
+#ifdef WIL_ENABLE_EXCEPTIONS
 const std::wstring test_string_empty{};
+#endif
 
 constexpr PCWSTR test_null_terminated_string{L"testing"};
 constexpr PCWSTR test_empty_null_terminated_string{L""};
@@ -44,8 +46,10 @@ constexpr PCWSTR test_enum_valueName2 = L"2second_value_even_longer";
 constexpr PCWSTR test_enum_valueName3 = L"3third_value_shorter";
 constexpr PCWSTR test_enum_valueName4 = L"4fourth_value_very_very_very_very_long";
 
+#ifdef WIL_ENABLE_EXCEPTIONS
 // The empty multistring array has specific behavior: it will be read as an array with one string.
 const std::vector<std::wstring> test_multistring_empty{};
+#endif
 
 constexpr PCWSTR stringLiteralArrayOfOne[1]{L""};
 
@@ -71,7 +75,9 @@ const std::vector<std::vector<PCWSTR>> multiStringLiteralsTestArray{
     {L"", L"", L""},
     {L"a"}};
 
+#ifdef WIL_ENABLE_EXCEPTIONS
 const std::vector<BYTE> emptyStringTestValue{};
+#endif
 const std::vector<BYTE> nonNullTerminatedString{'a', 0, 'b', 0, 'c', 0, 'd', 0, 'e', 0, 'f', 0,
                                                 'g', 0, 'h', 0, 'i', 0, 'j', 0, 'k', 0, 'l', 0};
 const std::wstring nonNullTerminatedStringFixed{L"abcdefghijkl"};

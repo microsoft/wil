@@ -298,6 +298,7 @@ TEST_CASE("RegistryWatcherTests::VerifyDeleteBehavior", "[registry][registry_wat
 
 TEST_CASE("RegistryWatcherTests::VerifyResetInCallback", "[registry][registry_watcher]")
 {
+    ::RegDeleteTreeW(ROOT_KEY_PAIR);
     auto notificationReceived = make_event();
 
     wil::unique_registry_watcher_nothrow watcher = wil::make_registry_watcher_nothrow(ROOT_KEY_PAIR, TRUE, [&](wil::RegistryChangeKind) {

@@ -612,6 +612,10 @@ TEST_CASE("ResultTests::ErrorMacros", "[result]")
 TEST_CASE("ResultTests::NoOriginationByDefault", "[result]")
 {
     ::wil::SetOriginateErrorCallback(nullptr);
+    auto resetCallback = wil::scope_exit([] {
+        ::wil::SetOriginateErrorCallback(::wil::details::RaiseRoOriginateOnWilExceptions);
+    });
+
     wil::com_ptr_nothrow<IRestrictedErrorInfo> restrictedErrorInformation;
 
     // We can't guarantee test order, so clear the error payload prior to starting
@@ -647,7 +651,6 @@ TEST_CASE("ResultTests::NoOriginationByDefault", "[result]")
 
 TEST_CASE("ResultTests::AutomaticOriginationOnFailure", "[result]")
 {
-    ::wil::SetOriginateErrorCallback(::wil::details::RaiseRoOriginateOnWilExceptions);
     wil::com_ptr_nothrow<IRestrictedErrorInfo> restrictedErrorInformation;
 
     // Make sure we don't start with an error payload
@@ -729,6 +732,24 @@ TEST_CASE("ResultTests::OriginatedWithMessagePreserved", "[result]")
         RETURN_HR_MSG(E_FAIL, "Puppies not allowed");
     }();
     witest::RequireRestrictedErrorInfo(E_FAIL, L"Puppies not allowed");
+
+    // The origination logic won't call originate if there's a pre-existing error with the same HRESULT
+    []() {
+        RETURN_HR_MSG(E_FAIL, "First message");
+    }();
+    []() {
+        RETURN_HR_MSG(E_FAIL, "Second message");
+    }();
+    witest::RequireRestrictedErrorInfo(E_FAIL, L"First message");
+
+    // If the HRESULT is different, it will originate the new error
+    []() {
+        RETURN_HR_MSG(E_FAIL, "First message");
+    }();
+    []() {
+        RETURN_HR_MSG(E_ACCESSDENIED, "Second message");
+    }();
+    witest::RequireRestrictedErrorInfo(E_ACCESSDENIED, L"Second message");
 }
 
 #endif

@@ -18,6 +18,7 @@ using namespace winrt::Windows::ApplicationModel::Activation;
 #include "catch.hpp"
 #include <roerrorapi.h>
 #include "common.h"
+#include "cppwinrt_threadpool_guard.h"
 
 // HRESULT values that C++/WinRT throws as something other than winrt::hresult_error - e.g. a type derived from
 // winrt::hresult_error, std::*, etc.
@@ -561,6 +562,8 @@ wil::com_task<void> test_sta_task(HANDLE e)
 
 TEST_CASE("CppWinRTTests::SimpleTaskTest", "[cppwinrt]")
 {
+    cppwinrt_threadpool_guard guard;
+
     std::thread([] {
         // MTA tests
         wil::unique_mta_usage_cookie cookie;
@@ -591,6 +594,8 @@ TEST_CASE("CppWinRTTests::SimpleTaskTest", "[cppwinrt]")
 
 TEST_CASE("CppWinRTTests::TasksPropagateErrorState", "[cppwinrt]")
 {
+    cppwinrt_threadpool_guard guard;
+
     std::thread([] {
         // MTA tests
         wil::unique_mta_usage_cookie cookie;
@@ -691,6 +696,7 @@ TEST_CASE("CppWinRTTests::ResumeForegroundTests", "[cppwinrt]")
     using Verify = decltype(wil::resume_foreground(winrt::Windows::System::DispatcherQueue{nullptr}));
     static_assert(wistd::is_trivial_v<Verify> || !wistd::is_trivial_v<Verify>);
 
+#pragma warning(suppress : 4714) // 'HRESULT_FROM_WIN32' marked as __forceinline not inlined
     []() -> winrt::Windows::Foundation::IAsyncAction {
         test::TestDispatcher dispatcher;
 

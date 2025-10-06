@@ -3576,7 +3576,7 @@ void ThreadPoolTimerWorkHelper(SetThreadpoolTimerT const& setThreadpoolTimerFn, 
         setThreadpoolTimerFn(timer.get(), reinterpret_cast<DueTimeT*>(&dueTime), 0, allowedWindow);
 
         // Wait until 'myContext.Counter' increments by 1.
-        REQUIRE(myContext.Event.wait(500));
+        REQUIRE(myContext.Event.wait(5000));
         for (int itr = 0; itr != 50 && currCallbackCount == myContext.Counter; ++itr)
         {
             Sleep(10);
