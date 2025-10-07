@@ -3394,14 +3394,6 @@ public:
         }
     }
 
-    //! !IMPORTANT! This value is updated concurrently on a separate thread *after* cancellation is requested. Therefore, it is
-    //! not guaranteed that this value is up to date when read immediately after a cancelled call returns.
-    // TODO: This should **at the very least** be updated to use atomic reads and writes
-    bool timed_out() const
-    {
-        return m_timedOut;
-    }
-
     operator bool() const noexcept
     {
         // All construction calls must succeed to provide us with a non-null m_timer value.
@@ -3421,15 +3413,15 @@ private:
     {
         // The timer is waited upon during destruction so it is safe to rely on the this pointer in context.
         com_timeout_t* self = static_cast<com_timeout_t*>(context);
-        if (SUCCEEDED(CoCancelCall(self->m_threadId, 0)))
-        {
-            self->m_timedOut = true;
-        }
+
+        // There may not be an in-flight call to a marshaled COM function, so this may fail. We also don't synchronize
+        // with other threads, so success/failure can't reliably be communicated to the thread that owns this object, so
+        // we just ignore the result.
+        (void)::CoCancelCall(self->m_threadId, 0);
     }
 
     wil::unique_call<decltype(&details::CoDisableCallCancellationNull), details::CoDisableCallCancellationNull, false> m_ensureDisable{};
     DWORD m_threadId{};
-    bool m_timedOut{};
 
     // The threadpool timer goes last so that it destructs first, waiting until the timer callback has completed.
     wil::unique_threadpool_timer_nocancel m_timer;
