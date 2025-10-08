@@ -232,13 +232,11 @@ bool DoesCodeFailFast(TLambda&& callOp)
     // instruction. The end result is that the function is too "small" to detour. Detouring 'ReportFailure_NoReturn'
     // gives us effectively the same result
     witest::detoured_thread_function<&wil::details::ReportFailure_NoReturn<wil::FailureType::FailFast>> detour;
-    REQUIRE_SUCCEEDED(detour.reset([&](__R_FN_PARAMS_FULL,
-                                       const wil::details::ResultStatus& resultPair,
-                                       PCWSTR message,
-                                       wil::details::ReportFailureOptions options) {
-        failFast = true;
-        wil::details::ReportFailure_Base<wil::FailureType::FailFast, true>(__R_FN_CALL_FULL, resultPair, message, options);
-    }));
+    REQUIRE_SUCCEEDED(detour.reset(
+        [&](__R_FN_PARAMS_FULL, const wil::details::ResultStatus& resultPair, PCWSTR message, wil::details::ReportFailureOptions options) {
+            failFast = true;
+            wil::details::ReportFailure_Base<wil::FailureType::FailFast, true>(__R_FN_CALL_FULL, resultPair, message, options);
+        }));
 
     callOp();
 
