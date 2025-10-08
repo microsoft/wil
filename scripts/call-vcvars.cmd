@@ -9,7 +9,9 @@ if NOT EXIST "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxili
 )
 
 if /I "%1"=="x86" (
-    call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsamd64_x86.bat"
+    call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64_x86
 ) else if /I "%1"=="x64" (
-    call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-) else echo ERROR: Requires one of 'x86' or 'x64' & exit /B 1
+    call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
+) else if /I "%1"=="arm64" (
+    call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" arm64
+) else echo ERROR: Requires one of 'x86', 'x64', or 'arm64' & exit /B 1

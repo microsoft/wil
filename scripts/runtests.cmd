@@ -17,15 +17,17 @@ set BUILD_TYPES=debug release relwithdebinfo minsizerel
 :: The asan binaries are architecture specific, so we unfortunately must limit the tests we run by the architecture of
 :: the command window.
 if "%Platform%"=="x64" (
-    set ARCHITECTURES=64
-) else (
-    set ARCHITECTURES=32
+    set ARCHITECTURES=x64
+) else if "%Platform%"=="x86" (
+    set ARCHITECTURES=x86
+) else if "%Platform%"=="arm64" (
+    set ARCHITECTURES=arm64
 )
 
 for %%c in (%COMPILERS%) do (
     for %%a in (%ARCHITECTURES%) do (
         for %%b in (%BUILD_TYPES%) do (
-            call :execute_tests %%c%%a%%b
+            call :execute_tests %%c-%%a-%%b
             if !ERRORLEVEL! NEQ 0 ( goto :eof )
         )
     )
