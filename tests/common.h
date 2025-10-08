@@ -226,15 +226,17 @@ template <typename TLambda>
 bool DoesCodeFailFast(TLambda&& callOp)
 {
     bool failFast = false;
-    witest::detoured_thread_function<&wil::details::ReportFailure_Base<wil::FailureType::FailFast, false>> detour;
-    REQUIRE_SUCCEEDED(detour.reset([&](__R_FN_PARAMS_FULL,
-                                       const wil::details::ResultStatus& resultPair,
-                                       PCWSTR message,
-                                       wil::details::ReportFailureOptions options,
-                                       wil::FailureFlags flags) {
-        failFast = true;
-        wil::details::ReportFailure_Base<wil::FailureType::FailFast, true>(__R_FN_CALL_FULL, resultPair, message, options, flags);
-    }));
+
+    // NOTE: 'ReportFailure_Base<wil::FailureType::FailFast, false>' is the entrypoint for failfasts, however this just
+    // calls ReportFailure_NoReturn and under optimization, primarily on arm64, this can turn into just a jump
+    // instruction. The end result is that the function is too "small" to detour. Detouring 'ReportFailure_NoReturn'
+    // gives us effectively the same result
+    witest::detoured_thread_function<&wil::details::ReportFailure_NoReturn<wil::FailureType::FailFast>> detour;
+    REQUIRE_SUCCEEDED(detour.reset(
+        [&](__R_FN_PARAMS_FULL, const wil::details::ResultStatus& resultPair, PCWSTR message, wil::details::ReportFailureOptions options) {
+            failFast = true;
+            wil::details::ReportFailure_Base<wil::FailureType::FailFast, true>(__R_FN_CALL_FULL, resultPair, message, options);
+        }));
 
     callOp();
 

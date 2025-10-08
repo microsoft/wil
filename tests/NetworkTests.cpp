@@ -1925,7 +1925,7 @@ TEST_CASE("NetworkingTests::Verifying_function_tables", "[networking]")
 
             DWORD acceptex_bytes_received{};
             wil::unique_event_nothrow acceptex_overlapped_event{};
-            REQUIRE(SUCCEEDED(acceptex_overlapped_event.create()));
+            REQUIRE(SUCCEEDED(acceptex_overlapped_event.create(wil::EventOptions::ManualReset)));
             REQUIRE(acceptex_overlapped_event.get() != nullptr);
             OVERLAPPED acceptex_overlapped{};
             acceptex_overlapped.hEvent = acceptex_overlapped_event.get();
@@ -1959,7 +1959,7 @@ TEST_CASE("NetworkingTests::Verifying_function_tables", "[networking]")
 
             // now create a socket to connect to it
             wil::unique_event_nothrow connectex_overlapped_event{};
-            REQUIRE(SUCCEEDED(connectex_overlapped_event.create()));
+            REQUIRE(SUCCEEDED(connectex_overlapped_event.create(wil::EventOptions::ManualReset)));
             REQUIRE(connectex_overlapped_event.get() != nullptr);
             OVERLAPPED connectex_overlapped{};
             connectex_overlapped.hEvent = connectex_overlapped_event.get();
