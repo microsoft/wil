@@ -35,11 +35,13 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
             clang_rt.asan_dynamic-i386.lib
             clang_rt.asan_dynamic_runtime_thunk-i386.lib
             )
-    else()
+    elseif ($ENV{Platform} STREQUAL "x64")
         target_link_libraries(witest.asan PRIVATE
             clang_rt.asan_dynamic-x86_64.lib
             clang_rt.asan_dynamic_runtime_thunk-x86_64.lib
             )
+    else()
+        message(FATAL_ERROR "Platform '$ENV{Platform}' does not have support for ASan")
     endif()
 else()
     # Using exceptions; we can compile all of the C++/WinRT tests

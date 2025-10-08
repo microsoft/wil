@@ -40,12 +40,15 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         -Wno-self-assign-overloaded
         -Wno-self-move
 
-        # clang needs this to enable _InterlockedCompareExchange128
-        -mcx16
-
         # We don't want legacy MSVC conformance
         -fno-delayed-template-parsing
         )
+    if (NOT $ENV{Platform} STREQUAL "arm64")
+        add_compile_options(
+            # clang needs this to enable _InterlockedCompareExchange128
+            -mcx16
+            )
+    endif()
 else()
     add_compile_options(
         # We want to be as conformant as possible, so tell MSVC to not be permissive (note that this has no effect on clang-cl)

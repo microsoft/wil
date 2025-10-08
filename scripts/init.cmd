@@ -38,7 +38,6 @@ goto :init
     set GENERATOR=
     set BUILD_TYPE=
     set CMAKE_ARGS=
-    set BITNESS=
     set VERSION=
     set VCPKG_ROOT_PATH=
     set CPPWINRT_VERSION=
@@ -215,14 +214,15 @@ goto :init
     :: Figure out the platform
     if "%Platform%"=="" echo ERROR: The init.cmd script must be run from a Visual Studio command window & exit /B 1
     if "%Platform%"=="x86" (
-        set BITNESS=32
-        if %COMPILER%==clang set CFLAGS=-m32 & set CXXFLAGS=-m32
+        if %COMPILER%==clang set CFLAGS=-target i386-win32-msvc & set CXXFLAGS=-target i386-win32-msvc
+    ) else if "%Platform%"=="x64" (
+        if %COMPILER%==clang set CFLAGS=-target x86_64-win32-msvc & set CXXFLAGS=-target x86_64-win32-msvc
+    ) else if "%Platform%"=="arm64" (
+        if "%COMPILER%"=="clang" set CFLAGS=-target aarch64-win32-msvc & set CXXFLAGS=-target aarch64-win32-msvc
     )
-    if "%Platform%"=="x64" set BITNESS=64
-    if "%BITNESS%"=="" echo ERROR: Unrecognized/unsupported platform %Platform% & exit /B 1
 
     :: Set up the build directory
-    set BUILD_DIR=%BUILD_ROOT%\%COMPILER%%BITNESS%%BUILD_TYPE%
+    set BUILD_DIR=%BUILD_ROOT%\%COMPILER%-%Platform%-%BUILD_TYPE%
     mkdir %BUILD_DIR% > NUL 2>&1
 
     :: Run CMake

@@ -172,16 +172,20 @@ endif()
 
 set(ASAN_AVAILABLE FALSE)
 set(UBSAN_AVAILABLE FALSE)
-if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-    # Address Sanitizer is available for all architectures and build types, but warns/errors if debug info is not enabled
-    set(ASAN_AVAILABLE ${HAS_DEBUG_INFO})
-elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    # Sanitizers are not available with debug libraries
-    # Starting with Clang 17, there appears to be some issue where linking to the dynamic asan libraries seems to think that
-    # things like 'operator new' are present in the executable, but only for x64 for some reason. As there's no way to
-    # detect the target system architecture, use a good proxy
-    set(ASAN_AVAILABLE NOT ${DEBUG_BUILD} AND ${CMAKE_SIZEOF_VOID_P} EQUAL 4)
-    set(UBSAN_AVAILABLE NOT ${DEBUG_BUILD})
+
+# Neither Clang nor MSVC currently ship with ARM64 ASan/UBSan libraries/binaries, so disable until support is added.
+if ((NOT defined $ENV{Platform}) OR (NOT $ENV{Platform} STREQUAL "arm64"))
+    if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+        # Address Sanitizer is available for all architectures and build types, but warns/errors if debug info is not enabled
+        set(ASAN_AVAILABLE ${HAS_DEBUG_INFO})
+    elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        # Sanitizers are not available with debug libraries
+        # Starting with Clang 17, there appears to be some issue where linking to the dynamic asan libraries seems to think that
+        # things like 'operator new' are present in the executable, but only for x64 for some reason. As there's no way to
+        # detect the target system architecture, use a good proxy
+        set(ASAN_AVAILABLE NOT ${DEBUG_BUILD} AND ${CMAKE_SIZEOF_VOID_P} EQUAL 4)
+        set(UBSAN_AVAILABLE NOT ${DEBUG_BUILD})
+    endif()
 endif()
 
 if (${ASAN_AVAILABLE})
