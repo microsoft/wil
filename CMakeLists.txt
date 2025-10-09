@@ -7,6 +7,8 @@ include(GNUInstallDirs)
 option(FAST_BUILD "Sets options to speed up build/reduce obj/executable size" OFF)
 option(WIL_BUILD_PACKAGING "Sets option to build the packaging, default on" ON)
 option(WIL_BUILD_TESTS "Sets option to build the unit tests, default on" ON)
+option(WIL_ENABLE_ASAN "Enables building the test executable that has Address Sanitizer enabled" OFF)
+option(WIL_ENABLE_UBSAN "Enables building the test executable that has Undefined Behavior Sanitizer enabled" OFF)
 
 if (NOT DEFINED WIL_BUILD_VERSION)
     set(WIL_BUILD_VERSION "0.0.0")

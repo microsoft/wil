@@ -14,14 +14,12 @@ set BUILD_ROOT=%~dp0\..\build
 set COMPILERS=clang msvc
 set BUILD_TYPES=debug release relwithdebinfo minsizerel
 
-:: The asan binaries are architecture specific, so we unfortunately must limit the tests we run by the architecture of
-:: the command window.
-if "%Platform%"=="x64" (
-    set ARCHITECTURES=x64
-) else if "%Platform%"=="x86" (
+if %PROCESSOR_ARCHITECTURE%==x86 (
     set ARCHITECTURES=x86
-) else if "%Platform%"=="arm64" (
-    set ARCHITECTURES=arm64
+) else if %PROCESSOR_ARCHITECTURE%==AMD64 (
+    set ARCHITECTURES=x86 x64
+) else if %PROCESSOR_ARCHITECTURE%==ARM64 (
+    set ARCHITECTURES=x86 x64 arm64
 )
 
 for %%c in (%COMPILERS%) do (
