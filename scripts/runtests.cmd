@@ -25,7 +25,7 @@ if %PROCESSOR_ARCHITECTURE%==x86 (
 for %%c in (%COMPILERS%) do (
     for %%a in (%ARCHITECTURES%) do (
         for %%b in (%BUILD_TYPES%) do (
-            call :execute_tests %%c-%%a-%%b
+            call :execute_tests %%c %%a %%b
             if !ERRORLEVEL! NEQ 0 ( goto :eof )
         )
     )
@@ -34,8 +34,16 @@ for %%c in (%COMPILERS%) do (
 goto :eof
 
 :execute_tests
-set BUILD_DIR=%BUILD_ROOT%\%1
+set BUILD_DIR=%BUILD_ROOT%\%1-%2-%3
 if not exist %BUILD_DIR% ( goto :eof )
+
+:: MSVC does not currently ship a version of the x64 ASan DLL that can be run on an arm64 host. MSVC _does_ ship a lib
+:: so we _can_ build the ASan tests, which is at least something. For now we're going to handle this limitation here and
+:: avoid running the ASan test in this specific scenario
+set RUN_ASAN_TEST=1
+if %PROCESSOR_ARCHITECTURE%==ARM64 (
+    if %2==x64 set RUN_ASAN_TEST=0
+)
 
 pushd %BUILD_DIR%
 echo Running tests from %CD%
@@ -49,8 +57,10 @@ call :execute_test noexcept witest.noexcept.exe
 if %ERRORLEVEL% NEQ 0 ( goto :execute_tests_done )
 call :execute_test normal witest.exe
 if %ERRORLEVEL% NEQ 0 ( goto :execute_tests_done )
-call :execute_test sanitize-address witest.asan.exe
-if %ERRORLEVEL% NEQ 0 ( goto :execute_tests_done )
+if %RUN_ASAN_TEST%==1 (
+    call :execute_test sanitize-address witest.asan.exe
+    if %ERRORLEVEL% NEQ 0 ( goto :execute_tests_done )
+)
 call :execute_test sanitize-undefined-behavior witest.ubsan.exe
 if %ERRORLEVEL% NEQ 0 ( goto :execute_tests_done )
 call :execute_test win7 witest.win7.exe
