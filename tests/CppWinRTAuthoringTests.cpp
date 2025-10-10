@@ -470,6 +470,24 @@ TEST_CASE("CppWinRTAuthoringTests::MultiRegisterComServer", "[com_server]")
     }
 }
 
+TEST_CASE("CppWinRTAuthoringTests::MultiRegisterComServerWithMakeArrayOfUuid", "[com_server]")
+{
+    auto revoker = wil::register_com_server(wil::make_array_of_uuid<MyServer, BuggyServer>());
+
+    auto instance = create_server_instance(__uuidof(MyServer));
+    REQUIRE(winrt::get_module_lock() == 1);
+
+    try
+    {
+        auto instance2 = create_server_instance(__uuidof(BuggyServer));
+        REQUIRE(false);
+    }
+    catch (winrt::hresult_error const& e)
+    {
+        REQUIRE(e.code() == E_ACCESSDENIED);
+    }
+}
+
 TEST_CASE("CppWinRTAuthoringTests::MultiRegisterComServerUnregistersOnFail", "[com_server]")
 {
     winrt::init_apartment();
