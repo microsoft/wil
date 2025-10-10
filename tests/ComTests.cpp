@@ -3238,14 +3238,14 @@ TEST_CASE("com_timeout", "[com][com_timeout]")
         auto localServer = agileObj.query<ABI::Windows::Foundation::IStringable>();
         wil::unique_hstring value;
         auto localServerResult = localServer->ToString(&value);
-        REQUIRE(static_cast<bool>(localServerResult == RPC_E_CALL_CANCELED));
+        REQUIRE(localServerResult == RPC_E_CALL_CANCELED);
 
         sharedData->hangEvent.SetEvent();
 
         // Make a second blocking call within the lifetime of the same com_timeout instance.  This second call should also
         // cancel and return.
         localServerResult = localServer->ToString(&value);
-        REQUIRE(static_cast<bool>(localServerResult == RPC_E_CALL_CANCELED));
+        REQUIRE(localServerResult == RPC_E_CALL_CANCELED);
 
         sharedData->hangEvent.SetEvent();
 
