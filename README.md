@@ -205,8 +205,6 @@ C:\wil> scripts\init_all.cmd
 C:\wil> scripts\build_all.cmd
 C:\wil> scripts\runtests.cmd
 ```
-Note that this will only test for the architecture that corresponds to the command window you opened. You will want to
-repeat this process for the other architecture (e.g. by using the `x86 Native Tools Command Prompt for VS 2022` in addition to `x64`).
 
 ## Formatting
 

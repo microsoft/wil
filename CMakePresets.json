@@ -40,13 +40,19 @@
             "name": "msvc-debug",
             "displayName": "MSVC Debug",
             "configurePreset": "msvc",
-            "configuration": "Debug"
+            "configuration": "Debug",
+            "cacheVariables": {
+                "WIL_ENABLE_ASAN": true
+            }
         },
         {
             "name": "msvc-release",
             "displayName": "MSVC Release (debuggable)",
             "configurePreset": "msvc",
-            "configuration": "RelWithDebInfo"
+            "configuration": "RelWithDebInfo",
+            "cacheVariables": {
+                "WIL_ENABLE_ASAN": true
+            }
         },
         {
             "name": "clang-debug",
@@ -58,7 +64,11 @@
             "name": "clang-release",
             "displayName": "clang Release (debuggable)",
             "configurePreset": "clang",
-            "configuration": "RelWithDebInfo"
+            "configuration": "RelWithDebInfo",
+            "cacheVariables": {
+                "WIL_ENABLE_ASAN": true,
+                "WIL_ENABLE_UBSAN": true
+            }
         }
     ],
     "testPresets": [
