@@ -286,7 +286,8 @@ namespace details
     struct needs_destruction
     {
         template <typename U>
-        static auto invoke(int) -> wistd::bool_constant<sizeof(U) >= 0>; // Always true, but SFINAE's if incomplete type
+        static auto invoke(int)
+            -> wistd::bool_constant<sizeof(U) >= 0>; // NOLINT(bugprone-sizeof-expression) Always true, but SFINAE's if incomplete type
         template <typename U>
         static auto invoke(float) -> wistd::false_type;
 
@@ -2038,20 +2039,6 @@ namespace details
             }
         }
 
-        shared_storage(const shared_storage& other) WI_NOEXCEPT : m_ptr(other.m_ptr)
-        {
-        }
-
-        shared_storage& operator=(const shared_storage& other) WI_NOEXCEPT
-        {
-            m_ptr = other.m_ptr;
-            return *this;
-        }
-
-        shared_storage(shared_storage&& other) WI_NOEXCEPT : m_ptr(wistd::move(other.m_ptr))
-        {
-        }
-
         shared_storage(std::shared_ptr<unique_t> const& ptr) : m_ptr(ptr)
         {
         }
@@ -2323,22 +2310,10 @@ class weak_any
 public:
     typedef SharedT shared_t;
 
-    weak_any() WI_NOEXCEPT
-    {
-    }
+    weak_any() WI_NOEXCEPT = default;
 
     weak_any(const shared_t& other) WI_NOEXCEPT : m_weakPtr(other.m_ptr)
     {
-    }
-
-    weak_any(const weak_any& other) WI_NOEXCEPT : m_weakPtr(other.m_weakPtr)
-    {
-    }
-
-    weak_any& operator=(const weak_any& right) WI_NOEXCEPT
-    {
-        m_weakPtr = right.m_weakPtr;
-        return (*this);
     }
 
     weak_any& operator=(const shared_t& right) WI_NOEXCEPT

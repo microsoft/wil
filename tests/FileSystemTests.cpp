@@ -751,7 +751,7 @@ TEST_CASE("FileSystemTests::CreateFileW helpers", "[filesystem]")
             THROW_WIN32_IF(result.last_error, !result.file.is_valid());
             const auto data = L"abcd";
             DWORD written{};
-            THROW_IF_WIN32_BOOL_FALSE(WriteFile(result.file.get(), data, sizeof(data), &written, nullptr));
+            THROW_IF_WIN32_BOOL_FALSE(WriteFile(result.file.get(), data, ::wcslen(data), &written, nullptr));
             auto originalEndOfFile = wil::GetFileInfo<FileStandardInfo>(result.file.get()).EndOfFile;
             THROW_HR_IF(E_UNEXPECTED, originalEndOfFile.QuadPart == 0);
         }

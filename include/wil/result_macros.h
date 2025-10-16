@@ -319,11 +319,11 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 #define __R_INFO_ONLY(CODE) \
     __R_IF_CALLERADDRESS(_ReturnAddress() __R_IF_COMMA) \
     __R_IF_LINE(__R_LINE_VALUE) \
-    __R_IF_FILE(__R_COMMA __R_FILE_VALUE) __R_IF_FUNCTION(__R_COMMA __FUNCTION__) __R_IF_CODE(__R_COMMA CODE)
+    __R_IF_FILE(__R_COMMA __R_FILE_VALUE) __R_IF_FUNCTION(__R_COMMA __FUNCTION__) __R_IF_CODE(__R_COMMA CODE) // NOLINT(bugprone-lambda-function-name)
 #define __R_INFO(CODE) __R_INFO_ONLY(CODE) __R_IF_TRAIL_COMMA
 #define __R_INFO_NOFILE_ONLY(CODE) \
     __R_IF_CALLERADDRESS(_ReturnAddress() __R_IF_COMMA) \
-    __R_IF_LINE(__R_LINE_VALUE) __R_IF_FILE(__R_COMMA "wil") __R_IF_FUNCTION(__R_COMMA __FUNCTION__) __R_IF_CODE(__R_COMMA CODE)
+    __R_IF_LINE(__R_LINE_VALUE) __R_IF_FILE(__R_COMMA "wil") __R_IF_FUNCTION(__R_COMMA __FUNCTION__) __R_IF_CODE(__R_COMMA CODE) // NOLINT(bugprone-lambda-function-name)
 #define __R_INFO_NOFILE(CODE) __R_INFO_NOFILE_ONLY(CODE) __R_IF_TRAIL_COMMA
 #define __R_FN_PARAMS_ONLY \
     __R_IF_CALLERADDRESS(void* callerReturnAddress __R_IF_COMMA) \
@@ -517,12 +517,12 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 #define __RFF_INFO_ONLY(CODE) \
     __RFF_IF_CALLERADDRESS(_ReturnAddress() __RFF_IF_COMMA) \
     __RFF_IF_LINE(__R_LINE_VALUE) \
-    __RFF_IF_FILE(__RFF_COMMA __R_FILE_VALUE) __RFF_IF_FUNCTION(__RFF_COMMA __FUNCTION__) __RFF_IF_CODE(__RFF_COMMA CODE)
+    __RFF_IF_FILE(__RFF_COMMA __R_FILE_VALUE) __RFF_IF_FUNCTION(__RFF_COMMA __FUNCTION__) __RFF_IF_CODE(__RFF_COMMA CODE) // NOLINT(bugprone-lambda-function-name)
 #define __RFF_INFO(CODE) __RFF_INFO_ONLY(CODE) __RFF_IF_TRAIL_COMMA
 #define __RFF_INFO_NOFILE_ONLY(CODE) \
     __RFF_IF_CALLERADDRESS(_ReturnAddress() __RFF_IF_COMMA) \
     __RFF_IF_LINE(__R_LINE_VALUE) \
-    __RFF_IF_FILE(__RFF_COMMA "wil") __RFF_IF_FUNCTION(__RFF_COMMA __FUNCTION__) __RFF_IF_CODE(__RFF_COMMA CODE)
+    __RFF_IF_FILE(__RFF_COMMA "wil") __RFF_IF_FUNCTION(__RFF_COMMA __FUNCTION__) __RFF_IF_CODE(__RFF_COMMA CODE) // NOLINT(bugprone-lambda-function-name)
 #define __RFF_INFO_NOFILE(CODE) __RFF_INFO_NOFILE_ONLY(CODE) __RFF_IF_TRAIL_COMMA
 #define __RFF_FN_PARAMS_ONLY \
     __RFF_IF_CALLERADDRESS(void* callerReturnAddress __RFF_IF_COMMA) \
@@ -2505,7 +2505,7 @@ namespace details
             {
             }
 
-            template <typename param_t>
+            template <typename param_t> // NOLINTNEXTLINE(bugprone-forwarding-reference-overload): Internal type
             RefAndObject(param_t&& param1) : m_refCount(1), m_object(wistd::forward<param_t>(param1))
             {
             }

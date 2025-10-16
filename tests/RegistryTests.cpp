@@ -397,7 +397,7 @@ TEST_CASE("BasicRegistryTests::ExampleUsage", "[registry]")
             HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes", L"CurrentTheme", bstr));
 
         // Templated version
-        const auto value = wil::reg::get_value<std::wstring>(
+        std::ignore = wil::reg::get_value<std::wstring>(
             HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes", L"CurrentTheme");
     }
 #endif // defined(__cpp_lib_optional)

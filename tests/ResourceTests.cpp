@@ -700,7 +700,6 @@ TEST_CASE("UniqueStringAndStringMakerTests::VerifyStringMakerHString", "[resourc
 #ifdef WIL_ENABLE_EXCEPTIONS
 TEST_CASE("UniqueStringAndStringMakerTests::VerifyStringMakerStdWString", "[resource][string_maker]")
 {
-    std::string s;
     wil::details::string_maker<std::wstring> maker;
 
     TestStringMaker<std::wstring>([](PCWSTR value, size_t valueLength, const std::wstring& result) {

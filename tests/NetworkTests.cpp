@@ -320,6 +320,7 @@ TEST_CASE("NetworkingTests::Verifying_constructors", "[networking]")
 #ifdef WIL_ENABLE_EXCEPTIONS
         REQUIRE(Test_linklocal_in_addr_string == v4_addr.format_address());
 #endif
+        // NOLINTNEXTLINE(bugprone-suspicious-memory-comparison): Maybe worth doing a better compare, but right now construction is a memcpy
         REQUIRE(0 == memcmp(&v4_inet_addr, v4_addr.sockaddr_inet(), sizeof(SOCKADDR_INET)));
 
         SOCKADDR_STORAGE v4_addr_storage = v4_addr.sockaddr_storage();
@@ -348,6 +349,7 @@ TEST_CASE("NetworkingTests::Verifying_constructors", "[networking]")
 #ifdef WIL_ENABLE_EXCEPTIONS
         REQUIRE(Test_linklocal_in6_addr_string == v6_addr.format_address());
 #endif
+        // NOLINTNEXTLINE(bugprone-suspicious-memory-comparison): Maybe worth doing a better compare, but right now construction is a memcpy
         REQUIRE(0 == memcmp(&v6_inet_addr, v6_addr.sockaddr_inet(), sizeof(SOCKADDR_INET)));
 
         SOCKADDR_STORAGE v6_addr_storage = v6_addr.sockaddr_storage();

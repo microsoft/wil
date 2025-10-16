@@ -573,6 +573,8 @@ namespace reg
             {
                 return true;
             }
+
+            // NOLINTNEXTLINE(bugprone-exception-escape): Only reduces the size
             inline size_t trim_buffer(::std::wstring& buffer) WI_NOEXCEPT
             {
                 // remove any embedded null characters
@@ -1327,7 +1329,7 @@ namespace reg
         // reference these overload functions
         inline void clear_name(::std::wstring& name, size_t) WI_NOEXCEPT
         {
-            name.assign(name.size(), L'\0');
+            std::fill(name.begin(), name.end(), L'\0');
         }
         inline ::std::wstring copy_name(const ::std::wstring& str, size_t length) WI_NOEXCEPT
         {
