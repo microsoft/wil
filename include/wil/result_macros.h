@@ -1794,7 +1794,7 @@ inline HRESULT GetFailureLogString(
     // it for OutputDebugString or exception message, then generate the default string.
     if (pszDest[0] == L'\0')
     {
-        PCSTR pszType = "";
+        PCSTR pszType = ""; // NOLINT(clang-analyzer-deadcode.DeadStores): Good hygiene
         switch (failure.type)
         {
         case FailureType::Exception:
@@ -1897,6 +1897,7 @@ inline HRESULT GetFailureLogString(
             {
                 dest = details::LogStringPrintf(dest, destEnd, L"\n");
             }
+            (void)dest; // Most recent stores are for consistency and debugging
         }
     }
 

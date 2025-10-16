@@ -3357,6 +3357,7 @@ TEST_CASE("WindowsInternalTests::Ranges", "[common]")
         unsigned int count = 0;
         for (auto m : wil::make_range(things, ARRAYSIZE(things)))
         {
+            (void)m;
             ++count;
             m = 1;
             (void)m;

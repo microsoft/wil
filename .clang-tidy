@@ -1,0 +1,81 @@
+---
+Checks:
+- clang-diagnostic-*
+- clang-analyzer-*
+- bugprone-*
+- concurrency-*
+- misc-*
+- performance-*
+- portability-*
+- readability-*
+# ^^^ Enable ^^^ vvv Disable vvv
+- -bugprone-branch-clone
+- -bugprone-easily-swappable-parameters
+- -bugprone-empty-catch
+- -bugprone-exception-escape
+- -bugprone-forwarding-reference-overload
+- -bugprone-implicit-widening-of-multiplication-result
+- -bugprone-inc-dec-in-conditions
+- -bugprone-lambda-function-name
+- -bugprone-macro-parentheses
+- -bugprone-multi-level-implicit-pointer-conversion
+- -bugprone-narrowing-conversions
+- -bugprone-reserved-identifier
+- -bugprone-sizeof-expression
+- -bugprone-string-literal-with-embedded-nul
+- -bugprone-suspicious-memory-comparison
+- -bugprone-unchecked-optional-access
+- -bugprone-unhandled-self-assignment
+- -bugprone-unused-local-non-trivial-variable
+- -bugprone-use-after-move
+- -clang-analyzer-core.CallAndMessage # This check apparently can't figure out how C++/WinRT's activation factory logic works
+- -clang-analyzer-cplusplus.Move # We explicitly test the behavior of moved-from WIL types
+- -clang-analyzer-cplusplus.NewDelete # This check apparently can't figure out how COM's reference counting works
+- -clang-analyzer-optin.core.EnumCastOutOfRange # Many windows enums are flags without the expected attributes
+- -misc-const-correctness
+- -misc-definitions-in-headers
+- -misc-include-cleaner
+- -misc-misplaced-const
+- -misc-no-recursion
+- -misc-non-private-member-variables-in-classes
+- -misc-redundant-expression
+- -misc-unconventional-assign-operator
+- -misc-unused-parameters
+- -misc-use-anonymous-namespace
+- -misc-use-internal-linkage
+- -performance-enum-size
+- -performance-inefficient-vector-operation
+- -performance-move-const-arg
+- -performance-no-int-to-ptr
+- -performance-unnecessary-copy-initialization
+- -performance-unnecessary-value-param
+- -readability-avoid-return-with-void-value
+- -readability-braces-around-statements
+- -readability-container-size-empty
+- -readability-convert-member-functions-to-static
+- -readability-duplicate-include
+- -readability-else-after-return
+- -readability-function-cognitive-complexity
+- -readability-identifier-length
+- -readability-implicit-bool-conversion
+- -readability-inconsistent-declaration-parameter-name
+- -readability-isolate-declaration
+- -readability-magic-numbers
+- -readability-make-member-function-const
+- -readability-math-missing-parentheses
+- -readability-named-parameter
+- -readability-non-const-parameter
+- -readability-qualified-auto
+- -readability-redundant-access-specifiers
+- -readability-redundant-casting
+- -readability-redundant-declaration
+- -readability-redundant-inline-specifier
+- -readability-redundant-member-init
+- -readability-redundant-preprocessor
+- -readability-simplify-boolean-expr
+- -readability-static-accessed-through-instance
+- -readability-suspicious-call-argument
+- -readability-uppercase-literal-suffix
+- -readability-use-std-min-max
+#CheckOptions:
+HeaderFilterRegex: '^.*include\\wil\\[^\\/]*$'

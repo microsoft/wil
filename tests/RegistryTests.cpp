@@ -360,6 +360,7 @@ TEST_CASE("BasicRegistryTests::ExampleUsage", "[registry]")
         //    L"Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
         //    L"ShowTypeOverlay",
         //    1);
+        (void)showTypeOverlay;
     }
 
     SECTION("Open & create keys")
@@ -380,7 +381,7 @@ TEST_CASE("BasicRegistryTests::ExampleUsage", "[registry]")
     SECTION("Read values")
     {
         // Get values (or try_get if the value might not exist)
-        const DWORD dword = wil::reg::get_value_dword(
+        std::ignore = wil::reg::get_value_dword(
             HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize", L"AppsUseLightTheme");
         const std::optional<std::wstring> stringOptional =
             wil::reg::try_get_value_string(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes", L"CurrentTheme");
@@ -388,7 +389,7 @@ TEST_CASE("BasicRegistryTests::ExampleUsage", "[registry]")
         // Known HKEY
         const auto key =
             wil::reg::open_unique_key(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize");
-        const DWORD otherDword = wil::reg::get_value_dword(key.get(), L"AppsUseLightTheme");
+        std::ignore = wil::reg::get_value_dword(key.get(), L"AppsUseLightTheme");
 
         // nothrow version, if you don't have exceptions
         wil::unique_bstr bstr;
@@ -441,7 +442,7 @@ TEST_CASE("BasicRegistryTests::ExampleUsage", "[registry]")
         const uint32_t largeChildKeyCount = wil::reg::get_child_key_count(HKEY_CLASSES_ROOT);
 
         // Get last write time
-        const FILETIME lastModified = wil::reg::get_last_write_filetime(key.get());
+        std::ignore = wil::reg::get_last_write_filetime(key.get());
 
         // Simple helpers for analyzing returned HRESULTs
         const bool a = wil::reg::is_registry_buffer_too_small(HRESULT_FROM_WIN32(ERROR_MORE_DATA)); // => true

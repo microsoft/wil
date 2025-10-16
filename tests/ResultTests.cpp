@@ -107,6 +107,7 @@ TEST_CASE("ResultTests::ExceptionHandling", "[result]")
 
     SECTION("Test 'what()' implementation on ResultException")
     {
+        // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores): This seems to be a false positive
         auto swap = witest::AssignTemporaryValue(&wil::g_fResultThrowPlatformException, false);
         try
         {
