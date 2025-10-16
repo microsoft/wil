@@ -75,7 +75,7 @@ TEST_CASE("Rpc::NonThrowing", "[rpc]")
     {
         using foo_context_t = wil::unique_rpc_context_handle<FOO_CONTEXT, decltype(&CloseContextHandle), CloseContextHandle>;
         foo_context_t ctx;
-        auto tempBinding = reinterpret_cast<handle_t>(-5);
+        auto tempBinding = reinterpret_cast<handle_t>(-5); // NOLINT(performance-no-int-to-ptr): Test value
         REQUIRE_SUCCEEDED(wil::invoke_rpc_nothrow(AcquireContextHandle, tempBinding, ctx.put()));
         REQUIRE(ctx.get() == reinterpret_cast<FOO_CONTEXT>(tempBinding));
         ctx.reset();

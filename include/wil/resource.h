@@ -181,11 +181,12 @@ namespace details
         typedef pointer_access_t pointer_access;
         __forceinline static pointer_storage invalid_value()
         {
+            // NOLINTNEXTLINE(performance-no-int-to-ptr): There's no provenance concealment because this isn't a valid pointer
             return (pointer)invalid;
         }
         __forceinline static bool is_valid(pointer_storage value) WI_NOEXCEPT
         {
-            return (static_cast<pointer>(value) != (pointer)invalid);
+            return (static_cast<pointer>(value) != invalid_value());
         }
     };
 

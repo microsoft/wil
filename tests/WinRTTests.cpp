@@ -922,7 +922,7 @@ TEST_CASE("WinRTTests::VectorRangeTest", "[winrt][vector_range]")
         auto val = ref;
         itr = itr;
         REQUIRE(val == ref);
-        itr = std::move(itr);
+        itr = std::move(itr); // NOLINT(performance-move-const-arg): Iterator does not have move assignment operator, but we want to test this anyway
         REQUIRE(val == ref);
     }
 
@@ -934,7 +934,7 @@ TEST_CASE("WinRTTests::VectorRangeTest", "[winrt][vector_range]")
         auto val = ref.Get();
         itr = itr;
         REQUIRE(val == ref);
-        itr = std::move(itr);
+        itr = std::move(itr); // NOLINT(performance-move-const-arg): Iterator does not have move assignment operator, but we want to test this anyway
         REQUIRE(val == ref.Get());
     }
 #endif
@@ -1143,7 +1143,7 @@ TEST_CASE("WinRTTests::IterableRangeTest", "[winrt][iterable_range]")
         auto val = ref;
         itr = itr;
         REQUIRE(val == ref);
-        itr = std::move(itr);
+        itr = std::move(itr); // NOLINT(performance-move-const-arg): Iterator does not have move assignment operator, but we want to test this anyway
         REQUIRE(val == ref);
     }
 
@@ -1155,7 +1155,7 @@ TEST_CASE("WinRTTests::IterableRangeTest", "[winrt][iterable_range]")
         auto val = ref.Get();
         itr = itr;
         REQUIRE(val == ref);
-        itr = std::move(itr);
+        itr = std::move(itr); // NOLINT(performance-move-const-arg): Iterator does not have move assignment operator, but we want to test this anyway
         REQUIRE(val == ref.Get());
     }
 #endif

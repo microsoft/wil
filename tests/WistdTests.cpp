@@ -75,7 +75,7 @@ TEST_CASE("WistdFunctionTests::CopyConstructionTest", "[wistd]")
         };
         REQUIRE(0 == copyFrom());
 
-        auto copyTo = copyFrom;
+        auto copyTo = copyFrom; // NOLINT(performance-unnecessary-copy-initialization): Just for testing
         REQUIRE(1 == copyTo());
     }
 
@@ -182,6 +182,7 @@ TEST_CASE("WistdFunctionTests::SwapTest", "[wistd]")
 // MSVC's optimizer has had issues with wistd::function in the past when forwarding wistd::function objects to a
 // function that accepts the arguments by value. This test exercises the workaround that we have in place. Note
 // that this of course requires building with optimizations enabled
+// NOLINTNEXTLINE(performance-unnecessary-value-param): This is testing a very specific scenario
 void ForwardingTest(wistd::function<int()> getValue, wistd::function<int(int)> negate, wistd::function<int(int, int)> add)
 {
     // Previously, this would cause a runtime crash

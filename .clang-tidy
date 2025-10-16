@@ -20,7 +20,7 @@ Checks:
 - -bugprone-reserved-identifier
 - -bugprone-string-literal-with-embedded-nul
 - -bugprone-unchecked-optional-access # Currently, this marks '.value()' as unsafe. We can revisit if an option is added to only check 'operator*'
-- -bugprone-use-after-move
+- -bugprone-use-after-move # We explicitly test the behavior of moved-from WIL types
 - -clang-analyzer-core.CallAndMessage # This check apparently can't figure out how C++/WinRT's activation factory logic works
 - -clang-analyzer-cplusplus.Move # We explicitly test the behavior of moved-from WIL types
 - -clang-analyzer-cplusplus.NewDelete # This check apparently can't figure out how COM's reference counting works
@@ -36,12 +36,7 @@ Checks:
 - -misc-unused-parameters
 - -misc-use-anonymous-namespace
 - -misc-use-internal-linkage
-- -performance-enum-size
-- -performance-inefficient-vector-operation
-- -performance-move-const-arg
-- -performance-no-int-to-ptr
-- -performance-unnecessary-copy-initialization
-- -performance-unnecessary-value-param
+- -performance-enum-size # Maybe we can revisit, but changing the size of public enums may have unexpected impact
 - -readability-avoid-return-with-void-value
 - -readability-braces-around-statements
 - -readability-container-size-empty

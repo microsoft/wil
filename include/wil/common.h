@@ -603,6 +603,7 @@ namespace details
     class pointer_range
     {
     public:
+        // NOLINTNEXTLINE(performance-unnecessary-value-param): These should be pointers
         pointer_range(T begin_, T end_) : m_begin(begin_), m_end(end_)
         {
         }
@@ -629,6 +630,7 @@ for (auto& obj : make_range(objPointerBegin, objPointerEnd)) { }
 template <typename T>
 details::pointer_range<T> make_range(T begin, T end)
 {
+    // NOLINTNEXTLINE(performance-unnecessary-value-param): These are expected to be pointers and cheap to copy
     return details::pointer_range<T>(begin, end);
 }
 

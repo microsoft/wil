@@ -107,6 +107,7 @@ namespace details_abi
             *pointer = nullptr;
             ULONG_PTR value = 0;
             __WIL_PRIVATE_RETURN_IF_FAILED(TryGetValue(name, &value));
+            // NOLINTNEXTLINE(performance-no-int-to-ptr): Provenance concealment is intentional here
             *pointer = reinterpret_cast<void*>(value << 2);
             return S_OK;
         }

@@ -53,6 +53,8 @@ static void __stdcall timer_callback(PTP_CALLBACK_INSTANCE, void*, PTP_TIMER)
     ::ExitProcess(42); // Easy to identify code
 }
 
+// NOLINTBEGIN(performance-no-int-to-ptr): Debugging APIs represent pointers as integers
+
 static void print_exception_record(EXCEPTION_RECORD* ex)
 {
     std::printf("ExceptionAddress: %p\n", ex->ExceptionAddress);
@@ -263,6 +265,8 @@ static void print_all_stacks()
         } while (::Thread32Next(snapshot.get(), &entry));
     }
 }
+
+// NOLINTEND(performance-no-int-to-ptr)
 
 extern "C" __declspec(dllexport) const char* __asan_default_options()
 {

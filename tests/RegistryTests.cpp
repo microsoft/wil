@@ -1668,9 +1668,9 @@ namespace
 
 template <typename StringT, typename SetStringT = PCWSTR>
 void verify_string_nothrow(
-    std::function<HRESULT(PCWSTR, typename type_identity<StringT>::type&)> getFn,
-    std::function<HRESULT(PCWSTR, typename type_identity<SetStringT>::type)> setFn,
-    std::function<HRESULT(PCWSTR)> wrongSetFn)
+    const std::function<HRESULT(PCWSTR, typename type_identity<StringT>::type&)>& getFn,
+    const std::function<HRESULT(PCWSTR, typename type_identity<SetStringT>::type)>& setFn,
+    const std::function<HRESULT(PCWSTR)>& wrongSetFn)
 {
     for (const auto& value : stringTestArray)
     {
@@ -1765,9 +1765,9 @@ void verify_string_generic_get_value_nothrow(HKEY key, PCWSTR subkey)
 #ifdef WIL_ENABLE_EXCEPTIONS
 template <typename StringT, typename StringSetT = PCWSTR>
 void verify_string(
-    std::function<typename type_identity<StringT>::type(PCWSTR)> getFn,
-    std::function<void(PCWSTR, typename type_identity<StringSetT>::type)> setFn,
-    std::function<void(PCWSTR)> setWrongTypeFn)
+    const std::function<typename type_identity<StringT>::type(PCWSTR)>& getFn,
+    const std::function<void(PCWSTR, typename type_identity<StringSetT>::type)>& setFn,
+    const std::function<void(PCWSTR)>& setWrongTypeFn)
 {
     for (const auto& value : stringTestArray)
     {
@@ -1862,9 +1862,9 @@ void verify_string_generic_get_value_subkey()
 #if defined(__cpp_lib_optional)
 template <typename StringT, typename StringSetT = PCWSTR>
 void verify_try_string(
-    std::function<std::optional<StringT>(PCWSTR)> tryGetFn,
-    std::function<void(PCWSTR, typename type_identity<StringSetT>::type)> setFn,
-    std::function<void(PCWSTR)> setWrongTypeFn)
+    const std::function<std::optional<StringT>(PCWSTR)>& tryGetFn,
+    const std::function<void(PCWSTR, typename type_identity<StringSetT>::type)>& setFn,
+    const std::function<void(PCWSTR)>& setWrongTypeFn)
 {
     for (const auto& value : stringTestArray)
     {
@@ -2415,9 +2415,9 @@ namespace
 
 template <typename StringT, typename SetStringT = PCWSTR>
 void verify_expanded_string_nothrow(
-    std::function<HRESULT(PCWSTR, typename type_identity<StringT>::type&)> getFn,
-    std::function<HRESULT(PCWSTR, typename type_identity<SetStringT>::type)> setFn,
-    std::function<HRESULT(PCWSTR)> setWrongTypeFn)
+    const std::function<HRESULT(PCWSTR, typename type_identity<StringT>::type&)>& getFn,
+    const std::function<HRESULT(PCWSTR, typename type_identity<SetStringT>::type)>& setFn,
+    const std::function<HRESULT(PCWSTR)>& setWrongTypeFn)
 {
     for (const auto& value : expandedStringTestArray)
     {
@@ -2490,9 +2490,9 @@ void verify_expanded_string_subkey_nothrow()
 
 template <typename StringT, typename SetStringT = PCWSTR>
 void verify_expanded_string(
-    std::function<typename type_identity<StringT>::type(PCWSTR)> getFn,
-    std::function<void(PCWSTR, typename type_identity<SetStringT>::type)> setFn,
-    std::function<void(PCWSTR)> setWrongTypeFn)
+    const std::function<typename type_identity<StringT>::type(PCWSTR)>& getFn,
+    const std::function<void(PCWSTR, typename type_identity<SetStringT>::type)>& setFn,
+    const std::function<void(PCWSTR)>& setWrongTypeFn)
 {
     for (const auto& value : expandedStringTestArray)
     {
@@ -2592,9 +2592,9 @@ void verify_expanded_string_subkey()
 #if defined(__cpp_lib_optional)
 template <typename StringT, typename SetStringT = PCWSTR>
 void verify_try_expanded_string(
-    std::function<std::optional<typename type_identity<StringT>::type>(PCWSTR)> getFn,
-    std::function<void(PCWSTR, typename type_identity<SetStringT>::type)> setFn,
-    std::function<void(PCWSTR)> setWrongTypeFn)
+    const std::function<std::optional<typename type_identity<StringT>::type>(PCWSTR)>& getFn,
+    const std::function<void(PCWSTR, typename type_identity<SetStringT>::type)>& setFn,
+    const std::function<void(PCWSTR)>& setWrongTypeFn)
 {
     for (const auto& value : stringTestArray)
     {
@@ -3038,9 +3038,9 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
 
 #if defined(__WIL_OBJBASE_H_)
 void verify_cotaskmem_array_nothrow(
-    std::function<HRESULT(PCWSTR, DWORD, wil::unique_cotaskmem_array_ptr<BYTE>&)> getFn,
-    std::function<HRESULT(PCWSTR, DWORD, const wil::unique_cotaskmem_array_ptr<BYTE>&)> setFn,
-    std::function<HRESULT(PCWSTR, uint32_t)> setDwordFn)
+    const std::function<HRESULT(PCWSTR, DWORD, wil::unique_cotaskmem_array_ptr<BYTE>&)>& getFn,
+    const std::function<HRESULT(PCWSTR, DWORD, const wil::unique_cotaskmem_array_ptr<BYTE>&)>& setFn,
+    const std::function<HRESULT(PCWSTR, uint32_t)>& setDwordFn)
 {
     PopulateCoTaskMemArrayTestCases();
     for (const auto& value : cotaskmemArrayBytesTestArray)
@@ -3100,9 +3100,9 @@ namespace
 // reason.
 
 void verify_byte_vector_nothrow(
-    std::function<HRESULT(PCWSTR, DWORD, wil::unique_cotaskmem_array_ptr<BYTE>&)> getFn,
-    std::function<void(PCWSTR, DWORD, const std::vector<BYTE>&)> setFn,
-    std::function<HRESULT(PCWSTR, uint32_t)> setDwordFn)
+    const std::function<HRESULT(PCWSTR, DWORD, wil::unique_cotaskmem_array_ptr<BYTE>&)>& getFn,
+    const std::function<void(PCWSTR, DWORD, const std::vector<BYTE>&)>& setFn,
+    const std::function<HRESULT(PCWSTR, uint32_t)>& setDwordFn)
 {
     for (const auto& value : vectorBytesTestArray)
     {
@@ -3145,9 +3145,9 @@ void verify_byte_vector_nothrow(
 }
 
 void verify_byte_vector(
-    std::function<std::vector<BYTE>(PCWSTR, DWORD)> getFn,
-    std::function<void(PCWSTR, DWORD, const std::vector<BYTE>&)> setFn,
-    std::function<void(PCWSTR, uint32_t)> setDwordFn)
+    const std::function<std::vector<BYTE>(PCWSTR, DWORD)>& getFn,
+    const std::function<void(PCWSTR, DWORD, const std::vector<BYTE>&)>& setFn,
+    const std::function<void(PCWSTR, uint32_t)>& setDwordFn)
 {
     for (const auto& value : vectorBytesTestArray)
     {
@@ -3183,9 +3183,9 @@ void verify_byte_vector(
 
 #if defined(__cpp_lib_optional)
 void verify_try_byte_vector(
-    std::function<std::optional<std::vector<BYTE>>(PCWSTR, DWORD)> tryGetFn,
-    std::function<void(PCWSTR, DWORD, const std::vector<BYTE>&)> setFn,
-    std::function<void(PCWSTR, uint32_t)> setDwordFn)
+    const std::function<std::optional<std::vector<BYTE>>(PCWSTR, DWORD)>& tryGetFn,
+    const std::function<void(PCWSTR, DWORD, const std::vector<BYTE>&)>& setFn,
+    const std::function<void(PCWSTR, uint32_t)>& setDwordFn)
 {
     for (const auto& value : vectorBytesTestArray)
     {
@@ -3442,7 +3442,7 @@ TEST_CASE("BasicRegistryTests::value_iterator", "[registry]")
         const auto end = wil::reg::value_iterator{};
 
         size_t count = 0u;
-        std::for_each(begin, end, [&](auto nameAndType) {
+        std::for_each(begin, end, [&](auto nameAndType) { // NOLINT(performance-unnecessary-value-param): Copy is intentional for testing
             auto stringLength = wcslen(nameAndType.name.c_str());
             REQUIRE(stringLength == nameAndType.name.size());
             REQUIRE(stringLength == wcslen(enumTestNames[count]));
@@ -3775,7 +3775,7 @@ TEST_CASE("BasicRegistryTests::key_iterator", "[registry]")
         const auto end = wil::reg::key_iterator{};
 
         size_t count = 0u;
-        std::for_each(begin, end, [&](auto keyInfo) {
+        std::for_each(begin, end, [&](auto keyInfo) { // NOLINT(performance-unnecessary-value-param): Copy is intentional for testing
             auto stringLength = wcslen(keyInfo.name.c_str());
             REQUIRE(stringLength == keyInfo.name.size());
             REQUIRE(stringLength == wcslen(enumTestNames[count]));
@@ -4028,7 +4028,7 @@ TEST_CASE("BasicRegistryTests::value_bstr_iterator", "[registry]")
         const auto end = wil::reg::value_bstr_iterator{};
 
         size_t count = 0u;
-        std::for_each(begin, end, [&](auto nameAndType) {
+        std::for_each(begin, end, [&](auto nameAndType) { // NOLINT(performance-unnecessary-value-param): Copy is intentional for testing
             auto stringLength = wcslen(nameAndType.name.get());
             REQUIRE(stringLength == SysStringLen(nameAndType.name.get()));
             REQUIRE(stringLength == wcslen(enumTestNames[count]));
@@ -4347,7 +4347,7 @@ TEST_CASE("BasicRegistryTests::key_bstr_iterator", "[registry]")
         const auto end = wil::reg::key_bstr_iterator{};
 
         size_t count = 0u;
-        std::for_each(begin, end, [&](auto keyInfo) {
+        std::for_each(begin, end, [&](auto keyInfo) { // NOLINT(performance-unnecessary-value-param): Copy is intentional for testing
             auto stringLength = wcslen(keyInfo.name.get());
             REQUIRE(stringLength == ::SysStringLen(keyInfo.name.get()));
             REQUIRE(stringLength == wcslen(enumTestNames[count]));
@@ -4638,7 +4638,7 @@ TEST_CASE("BasicRegistryTests::value_heap_string_iterator", "[registry]")
         const auto end = wil::reg::value_heap_string_iterator{};
 
         size_t count = 0u;
-        std::for_each(begin, end, [&](auto nameAndType) {
+        std::for_each(begin, end, [&](auto nameAndType) { // NOLINT(performance-unnecessary-value-param): Copy is intentional for testing
             auto stringLength = wcslen(nameAndType.name.get());
             REQUIRE(stringLength == wcslen(enumTestNames[count]));
             REQUIRE(0 == wcscmp(nameAndType.name.get(), enumTestNames[count]));
@@ -4955,7 +4955,7 @@ TEST_CASE("BasicRegistryTests::key_heap_string_iterator", "[registry]")
         const auto end = wil::reg::key_heap_string_iterator{};
 
         size_t count = 0u;
-        std::for_each(begin, end, [&](auto keyInfo) {
+        std::for_each(begin, end, [&](auto keyInfo) { // NOLINT(performance-unnecessary-value-param): Copy is intentional for testing
             auto stringLength = wcslen(keyInfo.name.get());
             REQUIRE(stringLength == wcslen(enumTestNames[count]));
             REQUIRE(0 == wcscmp(keyInfo.name.get(), enumTestNames[count]));
@@ -5265,7 +5265,7 @@ TEST_CASE("BasicRegistryTests::value_bstr_nothrow_iterator", "[registry]")
         const auto end = wil::reg::value_bstr_nothrow_iterator{};
 
         size_t count = 0u;
-        std::for_each(begin, end, [&](auto nameAndType) {
+        std::for_each(begin, end, [&](auto nameAndType) { // NOLINT(performance-unnecessary-value-param): Copy is intentional for testing
             auto stringLength = wcslen(nameAndType.name.get());
             REQUIRE(stringLength == SysStringLen(nameAndType.name.get()));
             REQUIRE(stringLength == wcslen(enumTestNames[count]));
@@ -5577,7 +5577,7 @@ TEST_CASE("BasicRegistryTests::key_bstr_nothrow_iterator", "[registry]")
         const auto end = wil::reg::key_bstr_nothrow_iterator{};
 
         size_t count = 0u;
-        std::for_each(begin, end, [&](auto keyInfo) {
+        std::for_each(begin, end, [&](auto keyInfo) { // NOLINT(performance-unnecessary-value-param): Copy is intentional for testing
             auto stringLength = wcslen(keyInfo.name.get());
             REQUIRE(stringLength == ::SysStringLen(keyInfo.name.get()));
             REQUIRE(stringLength == wcslen(enumTestNames[count]));
@@ -5870,7 +5870,7 @@ TEST_CASE("BasicRegistryTests::value_heap_string_nothrow_iterator", "[registry]"
         const auto end = wil::reg::value_heap_string_nothrow_iterator{};
 
         size_t count = 0u;
-        std::for_each(begin, end, [&](auto nameAndType) {
+        std::for_each(begin, end, [&](auto nameAndType) { // NOLINT(performance-unnecessary-value-param): Copy is intentional for testing
             auto stringLength = wcslen(nameAndType.name.get());
             REQUIRE(stringLength == wcslen(enumTestNames[count]));
             REQUIRE(0 == wcscmp(nameAndType.name.get(), enumTestNames[count]));
@@ -6179,7 +6179,7 @@ TEST_CASE("BasicRegistryTests::key_heap_string_nothrow_iterator", "[registry]")
         const auto end = wil::reg::key_heap_string_nothrow_iterator{};
 
         size_t count = 0u;
-        std::for_each(begin, end, [&](auto keyInfo) {
+        std::for_each(begin, end, [&](auto keyInfo) { // NOLINT(performance-unnecessary-value-param): Copy is intentional for testing
             auto stringLength = wcslen(keyInfo.name.get());
             REQUIRE(stringLength == wcslen(enumTestNames[count]));
             REQUIRE(0 == wcscmp(keyInfo.name.get(), enumTestNames[count]));

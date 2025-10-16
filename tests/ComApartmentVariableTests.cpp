@@ -82,6 +82,7 @@ struct mock_platform
         {
             apt_observers->second.emplace_back(observer);
         }
+        // NOLINTNEXTLINE(performance-no-int-to-ptr): Cookie masquerading as a pointer
         return shutdown_type{reinterpret_cast<APARTMENT_SHUTDOWN_REGISTRATION_COOKIE>(id)};
     }
 

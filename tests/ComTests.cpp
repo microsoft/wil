@@ -112,7 +112,7 @@ TEST_CASE("ComTests::Test_Constructors", "[com][com_ptr]")
     SECTION("Copy construction")
     {
         wil::com_ptr_nothrow<IUnknown> ptr(&helper);
-        wil::com_ptr_nothrow<IUnknown> ptrCopy(ptr); // assign the same pointer
+        wil::com_ptr_nothrow<IUnknown> ptrCopy(ptr); // NOLINT(performance-unnecessary-copy-initialization): assign the same pointer
         REQUIRE(IUnknownFake::GetAddRef() == 2);
         REQUIRE(ptrCopy.get() == ptr.get());
 

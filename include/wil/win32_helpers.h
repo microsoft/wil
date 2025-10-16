@@ -340,7 +340,7 @@ constexpr rect_type rect_from_size(length_type x, length_type y, length_type wid
 // Adjust stackBufferLength based on typical result sizes to optimize use and
 // to test the boundary cases.
 template <typename string_type, size_t stackBufferLength = 256>
-HRESULT AdaptFixedSizeToAllocatedResult(string_type& result, wistd::function<HRESULT(PWSTR, size_t, size_t*)> callback) WI_NOEXCEPT
+HRESULT AdaptFixedSizeToAllocatedResult(string_type& result, const wistd::function<HRESULT(PWSTR, size_t, size_t*)>& callback) WI_NOEXCEPT
 {
     details::string_maker<string_type> maker;
 

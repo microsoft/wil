@@ -2195,7 +2195,7 @@ TEST_CASE("WindowsInternalTests::WistdTests", "[resource][wistd]")
             (void)a9;
             (void)a10;
         };
-        auto fnCopy = fn;
+        auto fnCopy = fn; // NOLINT(performance-unnecessary-copy-initialization): Just for testing
 
         // Uncomment to double-check static assert.  Reports:
         // "The sizeof(wistd::function) has grown too large for the reserved buffer (10 pointers).  Refactor to reduce size of the
@@ -4084,7 +4084,7 @@ static void VerifyArgvRoundTrip(const std::wstring& cmdline, const std::vector<s
 
 static void DoWideArgvToCommandLineTest(
     const std::vector<std::wstring>& wideArgv,
-    const std::wstring expectedNoQuotes,
+    const std::wstring& expectedNoQuotes,
     const std::wstring& expectedWithQuotes,
     wil::ArgvToCommandLineFlags baseFlags = wil::ArgvToCommandLineFlags::None)
 {
@@ -4098,6 +4098,7 @@ static void DoWideArgvToCommandLineTest(
 #endif
 
     std::vector<wchar_t*> nonConstArgv;
+    nonConstArgv.reserve(wideArgv.size());
     for (auto& str : wideArgv)
     {
         // const_cast okay... these are just std::wstrings after all. We're not even modifying them

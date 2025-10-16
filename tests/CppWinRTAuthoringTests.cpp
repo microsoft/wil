@@ -225,13 +225,13 @@ TEST_CASE("CppWinRTAuthoringTests::Events", "[property]")
         wil::typed_event<winrt::Windows::Foundation::IInspectable, int> MyTypedEvent;
     } test;
 
-    auto token = test.MyEvent([](winrt::Windows::Foundation::IInspectable, int args) {
+    auto token = test.MyEvent([](const winrt::Windows::Foundation::IInspectable&, int args) {
         REQUIRE(args == 42);
     });
     test.MyEvent.invoke(nullptr, 42);
     test.MyEvent(token);
 
-    auto token2 = test.MyTypedEvent([](winrt::Windows::Foundation::IInspectable, int args) {
+    auto token2 = test.MyTypedEvent([](const winrt::Windows::Foundation::IInspectable&, int args) {
         REQUIRE(args == 42);
     });
     test.MyTypedEvent.invoke(nullptr, 42);
@@ -257,7 +257,7 @@ TEST_CASE("CppWinRTAuthoringTests::EventsAndCppWinRt", "[property]")
 
     auto test = winrt::make<Test>();
     bool invoked = false;
-    auto token = test.Closed([&](winrt::Windows::Foundation::IMemoryBufferReference, winrt::Windows::Foundation::IInspectable) {
+    auto token = test.Closed([&](const winrt::Windows::Foundation::IMemoryBufferReference&, const winrt::Windows::Foundation::IInspectable&) {
         invoked = true;
     });
     winrt::get_self<Test>(test)->Closed.invoke(test, nullptr);
@@ -315,7 +315,7 @@ TEST_CASE("CppWinRTAuthoringTests::NotifyPropertyChanged", "[property]")
                 auto testImpl = winrt::get_self<Test>(test);
                 bool notified = false;
                 auto token = test.PropertyChanged(
-                    [&](winrt::Windows::Foundation::IInspectable, winrt::Windows::UI::Xaml::Data::PropertyChangedEventArgs args) {
+                    [&](const winrt::Windows::Foundation::IInspectable&, const winrt::Windows::UI::Xaml::Data::PropertyChangedEventArgs& args) {
                         REQUIRE(args.PropertyName() == L"MyProperty");
                         REQUIRE(testImpl->MyProperty() == 43);
                         notified = true;
@@ -336,7 +336,7 @@ TEST_CASE("CppWinRTAuthoringTests::NotifyPropertyChanged", "[property]")
                 auto testImpl = winrt::get_self<Test>(test);
                 bool notified = false;
                 auto token = test.PropertyChanged(
-                    [&](winrt::Windows::Foundation::IInspectable, winrt::Windows::UI::Xaml::Data::PropertyChangedEventArgs args) {
+                    [&](const winrt::Windows::Foundation::IInspectable&, const winrt::Windows::UI::Xaml::Data::PropertyChangedEventArgs& args) {
                         REQUIRE(args.PropertyName() == L"MyProperty");
                         REQUIRE(testImpl->MyProperty() == 43);
                         notified = true;
