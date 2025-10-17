@@ -294,7 +294,7 @@ TEST_CASE("FileSystemTests::VerifyGetFullPathName", "[filesystem]")
     REQUIRE(wcscmp(result.get(), result2.get()) == 0);
 
     // The only negative test case I've found is a path > 32k.
-    std::wstring big(1024 * 32, L'a');
+    std::wstring big(static_cast<std::size_t>(1024 * 32), L'a');
     wil::unique_hstring output;
     auto hr = wil::GetFullPathNameW(big.c_str(), output, nullptr);
     REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILENAME_EXCED_RANGE));
@@ -826,7 +826,7 @@ auto Mock_GetModuleFileName(DWORD pathLength)
     witest::detoured_thread_function<&GetModuleFileNameW> result;
     REQUIRE_SUCCEEDED(result.reset([pathLength](HMODULE, _Out_ PWSTR fileName, _In_ DWORD bufferSize) -> DWORD {
         const DWORD amountToCopy = std::min(pathLength, bufferSize);
-        for (size_t i = 0; i < amountToCopy; i++)
+        for (size_t i = 0; i < amountToCopy; ++i)
         {
             fileName[i] = L'a';
         }
@@ -851,7 +851,7 @@ auto Mock_GetModuleFileNameEx(DWORD pathLength)
     witest::detoured_thread_function<&GetModuleFileNameExW> result;
     REQUIRE_SUCCEEDED(result.reset([pathLength](HANDLE, HMODULE, _Out_ PWSTR fileName, _In_ DWORD bufferSize) -> DWORD {
         const DWORD amountToCopy = std::min(pathLength, bufferSize);
-        for (size_t i = 0; i < amountToCopy; i++)
+        for (size_t i = 0; i < amountToCopy; ++i)
         {
             fileName[i] = L'a';
         }

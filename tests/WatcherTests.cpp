@@ -413,14 +413,14 @@ TEST_CASE("RegistryWatcherTests::VerifyDeleteDuringNotification", "[registry][re
     REQUIRE_SUCCEEDED(mockRegNotifyChangeKeyValue.reset([&](HKEY, BOOL, DWORD, HANDLE event, BOOL) -> LSTATUS {
         if (!mockObserved)
         {
-            mockObserved++;
+            ++mockObserved;
             SetEvent(event);
             // on watcher create just return
             return ERROR_SUCCESS;
         }
         else
         {
-            mockObserved++;
+            ++mockObserved;
             notificationReceived.SetEvent();
             deleteNotification.wait();
             return ERROR_SUCCESS;

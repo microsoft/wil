@@ -1432,6 +1432,7 @@ struct function_deleter
     template <typename T>
     void operator()(_Frees_ptr_opt_ T* toFree) const
     {
+        // NOLINTNEXTLINE(bugprone-multi-level-implicit-pointer-conversion): It's common to call deleter functions that take void*
         TDeleter(toFree);
     }
 };

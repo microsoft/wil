@@ -1,7 +1,7 @@
 ---
 Checks:
-- clang-diagnostic-*
 - clang-analyzer-*
+- clang-diagnostic-*
 - bugprone-*
 - concurrency-*
 - misc-*
@@ -9,16 +9,12 @@ Checks:
 - portability-*
 - readability-*
 # ^^^ Enable ^^^ vvv Disable vvv
-- -bugprone-branch-clone
-- -bugprone-easily-swappable-parameters
-- -bugprone-empty-catch
-- -bugprone-implicit-widening-of-multiplication-result
-- -bugprone-inc-dec-in-conditions
+- -bugprone-easily-swappable-parameters # Perhaps we can suppress individual instances, but the ship has sailed on many of these
+- -bugprone-inc-dec-in-conditions # Disabled until https://github.com/llvm/llvm-project/issues/163913 is fixed
 - -bugprone-macro-parentheses
-- -bugprone-multi-level-implicit-pointer-conversion
 - -bugprone-narrowing-conversions
 - -bugprone-reserved-identifier
-- -bugprone-string-literal-with-embedded-nul
+- -bugprone-string-literal-with-embedded-nul # Several types/functions need to be tested with embedded null characters
 - -bugprone-unchecked-optional-access # Currently, this marks '.value()' as unsafe. We can revisit if an option is added to only check 'operator*'
 - -bugprone-use-after-move # We explicitly test the behavior of moved-from WIL types
 - -clang-analyzer-core.CallAndMessage # This check apparently can't figure out how C++/WinRT's activation factory logic works
@@ -65,5 +61,6 @@ Checks:
 - -readability-suspicious-call-argument
 - -readability-uppercase-literal-suffix
 - -readability-use-std-min-max
-#CheckOptions:
+CheckOptions:
+  bugprone-empty-catch.IgnoreCatchWithKeywords: 'Fall through'
 HeaderFilterRegex: '^.*include\\wil\\[^\\/]*$'

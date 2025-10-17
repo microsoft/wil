@@ -530,7 +530,7 @@ void ExceptionHandlingCompilationTest()
         }
         CATCH_THROW_NORMALIZED();
     }
-    catch (...)
+    catch (...) // NOLINT(bugprone-empty-catch): This is just a compilation test
     {
     }
     try
@@ -541,7 +541,7 @@ void ExceptionHandlingCompilationTest()
         }
         CATCH_THROW_NORMALIZED_MSG("train: %d", 42);
     }
-    catch (...)
+    catch (...) // NOLINT(bugprone-empty-catch): This is just a compilation test
     {
     }
     try
@@ -555,7 +555,7 @@ void ExceptionHandlingCompilationTest()
             THROW_NORMALIZED_CAUGHT_EXCEPTION();
         }
     }
-    catch (...)
+    catch (...) // NOLINT(bugprone-empty-catch): This is just a compilation test
     {
     }
     try
@@ -569,7 +569,7 @@ void ExceptionHandlingCompilationTest()
             THROW_NORMALIZED_CAUGHT_EXCEPTION_MSG("train: %d", 42);
         }
     }
-    catch (...)
+    catch (...) // NOLINT(bugprone-empty-catch): This is just a compilation test
     {
     }
 
@@ -634,6 +634,7 @@ TEST_CASE("ResultTests::NoOriginationByDefault", "[result]")
     }
     catch (...)
     {
+        // Fall through to checking restricted error info below
     }
     REQUIRE(S_FALSE == GetRestrictedErrorInfo(&restrictedErrorInformation));
 #endif // WIL_ENABLE_EXCEPTIONS
@@ -682,6 +683,7 @@ TEST_CASE("ResultTests::AutomaticOriginationOnFailure", "[result]")
     }
     catch (...)
     {
+        // Fall through to checking restricted error info below
     }
     REQUIRE(S_OK == GetRestrictedErrorInfo(&restrictedErrorInformation));
     validateOriginatedError(thrownErrorCode);
@@ -715,6 +717,7 @@ TEST_CASE("ResultTests::OriginatedWithMessagePreserved", "[result]")
     }
     catch (...)
     {
+        // Fall through to checking restricted error info below
     }
     witest::RequireRestrictedErrorInfo(E_FAIL, L"Puppies not allowed");
 

@@ -210,6 +210,7 @@ HRESULT __stdcall TestResultCaughtFromException() WI_NOEXCEPT
     }
     catch (...)
     {
+        // Fall through to returning 'S_OK' below
     }
     return S_OK;
 }
@@ -1741,7 +1742,7 @@ TEST_CASE("WindowsInternalTests::HandleWrappers", "[resource][unique_any]")
                 {
                     size_t const size = pMalloc->GetSize(p);
                     auto buffer = static_cast<byte*>(p);
-                    for (size_t i = 0; i < size; i++)
+                    for (size_t i = 0; i < size; ++i)
                     {
                         REQUIRE(buffer[i] == 0);
                     }
@@ -1830,7 +1831,7 @@ TEST_CASE("WindowsInternalTests::HandleWrappers", "[resource][unique_any]")
             {
                 size_t const size = ::LocalSize(p);
                 auto buffer = static_cast<byte*>(p);
-                for (size_t i = 0; i < size; i++)
+                for (size_t i = 0; i < size; ++i)
                 {
                     REQUIRE(buffer[i] == 0);
                 }

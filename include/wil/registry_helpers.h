@@ -1819,16 +1819,8 @@ namespace reg
         iterator_t& operator+=(size_t offset)
         {
             uint32_t newIndex = m_data.m_index + static_cast<uint32_t>(offset);
-            if (newIndex < m_data.m_index)
-            {
-                // fail on integer overflow
-                THROW_HR(E_INVALIDARG);
-            }
-            if (newIndex == ::wil::reg::reg_iterator_details::iterator_end_offset)
-            {
-                // fail if this creates an end iterator
-                THROW_HR(E_INVALIDARG);
-            }
+            THROW_HR_IF(E_INVALIDARG, newIndex < m_data.m_index); // fail on integer overflow
+            THROW_HR_IF(E_INVALIDARG, newIndex == ::wil::reg::reg_iterator_details::iterator_end_offset); // fail if this creates an end iterator
 
             // iterate by the integer offset
             for (size_t count = 0; count < offset; ++count)
@@ -1882,14 +1874,9 @@ namespace reg
         HRESULT move_next() WI_NOEXCEPT
         {
             const auto newIndex = m_data.m_index + 1;
-            if (newIndex < m_data.m_index)
+            if ((newIndex < m_data.m_index) || // fail on integer overflow
+                (newIndex == ::wil::reg::reg_iterator_details::iterator_end_offset)) // fail if this creates an end iterator
             {
-                // fail on integer overflow
-                m_last_error = E_INVALIDARG;
-            }
-            else if (newIndex == ::wil::reg::reg_iterator_details::iterator_end_offset)
-            {
-                // fail if this creates an end iterator
                 m_last_error = E_INVALIDARG;
             }
             else
