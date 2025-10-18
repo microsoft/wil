@@ -436,7 +436,7 @@ namespace details_abi
     private:
         struct Node
         {
-            DWORD threadId = 0xffffffffu;
+            DWORD threadId = 0xffffffffU;
             Node* pNext = nullptr;
             T value{};
         };
@@ -519,7 +519,7 @@ namespace details_abi
         {
             ::ZeroMemory(&info, sizeof(info));
 
-            info.failureId = sequenceId;
+            info.failureId = static_cast<long>(sequenceId);
             info.hr = hr;
             info.pszFile = fileName;
             info.uLineNumber = lineNumber;
@@ -839,7 +839,7 @@ public:
     /** Retrieves the origination of the last error that occurred since this class was constructed.
     The optional parameter allows the failure information returned to be filtered to a specific
     result. */
-    inline bool GetLastError(FailureInfo& info, HRESULT matchRequirement = S_OK)
+    bool GetLastError(FailureInfo& info, HRESULT matchRequirement = S_OK)
     {
         if (m_data)
         {
@@ -850,7 +850,7 @@ public:
 
     /** Retrieves the origin of the current exception (within a catch block) since this class was constructed.
     See @ref GetCaughtExceptionError for more information */
-    inline __declspec(noinline) bool GetCaughtExceptionError(
+    __declspec(noinline) bool GetCaughtExceptionError(
         _Inout_ wil::FailureInfo& info, const DiagnosticsInfo* diagnostics = nullptr, HRESULT matchRequirement = S_OK)
     {
         if (m_data)

@@ -893,16 +893,16 @@ namespace reg
 
             // constexpr expressions to determining the get* and set* registry value types
             // for all supported types T to read/write values
-            template <typename T>
+            template <typename T = void>
             DWORD get_value_type() WI_NOEXCEPT
             {
-                static_assert(sizeof(T) != sizeof(T), "Unsupported type for get_value_type");
+                static_assert(!wistd::is_same_v<T, T>, "Unsupported type for get_value_type");
             }
 
-            template <typename T>
+            template <typename T = void>
             DWORD set_value_type() WI_NOEXCEPT
             {
-                static_assert(sizeof(T) != sizeof(T), "Unsupported type for set_value_type");
+                static_assert(!wistd::is_same_v<T, T>, "Unsupported type for set_value_type");
             }
 
             template <>
@@ -1126,7 +1126,7 @@ namespace reg
             typename err_policy::result get_value_char_array(
                 _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, WCHAR (&return_value)[Length], DWORD type, _Out_opt_ DwordType* requiredBytes) const
             {
-                constexpr DwordType zero_value{0ul};
+                constexpr DwordType zero_value{0UL};
                 ::wil::assign_to_opt_param(requiredBytes, zero_value);
                 DWORD data_size_bytes{Length * sizeof(WCHAR)};
                 const auto hr = HRESULT_FROM_WIN32(::RegGetValueW(
@@ -1713,10 +1713,7 @@ namespace reg
 
                     // resize and try again - growing exponentially up to the max
                     string_length *= 2;
-                    if (string_length > ::wil::reg::reg_iterator_details::iterator_max_valuename_length + 1)
-                    {
-                        string_length = ::wil::reg::reg_iterator_details::iterator_max_valuename_length + 1;
-                    }
+                    string_length = (wistd::min<size_t>)(string_length, ::wil::reg::reg_iterator_details::iterator_max_valuename_length + 1);
                     continue;
                 }
 

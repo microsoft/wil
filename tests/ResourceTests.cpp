@@ -12,7 +12,7 @@
 #include <winstring.h>
 #include <WinUser.h>
 
-#include <wil/resource.h>
+#include <wil/resource.h> // NOLINT(readability-duplicate-include): Intentional
 #include <wrl/implements.h>
 
 #include "common.h"
@@ -268,7 +268,7 @@ TEST_CASE("ResourceTests::TestOperationsOnGenericSmartPointerClasses", "[resourc
     REQUIRE(ptr1);
 }
 
-// Compilation only test...
+// NOLINTNEXTLINE(misc-use-internal-linkage): Compilation only test...
 void StlAdlTest()
 {
     // This test has exposed some Argument Dependent Lookup issues in wistd / stl.  Primarily we're
@@ -297,8 +297,8 @@ void StlAdlTest()
     REQUIRE(*v3[2] == 2);
 }
 
-// Compilation only test...
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+// NOLINTNEXTLINE(misc-use-internal-linkage): Compilation only test...
 void UniqueProcessInfo()
 {
     wil::unique_process_information process;
@@ -309,8 +309,8 @@ void UniqueProcessInfo()
 }
 #endif
 
-// Compilation only test...
 #ifdef WIL_ENABLE_EXCEPTIONS
+// NOLINTNEXTLINE(misc-use-internal-linkage): Compilation only test...
 void NoexceptConstructibleTest()
 {
     using BaseStorage = wil::details::unique_storage<wil::details::handle_resource_policy>;
@@ -544,6 +544,7 @@ TEST_CASE("ResourceTests::VerifyUniqueCall", "[resource][unique_call]")
 #endif
 }
 
+// NOLINTNEXTLINE(misc-use-internal-linkage): Compilation only test...
 void UniqueCallCompilationTest()
 {
 #ifdef __WIL__COMBASEAPI_H_EXCEPTIONAL
@@ -697,7 +698,6 @@ TEST_CASE("UniqueStringAndStringMakerTests::VerifyStringMakerHString", "[resourc
     });
 }
 
-#ifdef WIL_ENABLE_EXCEPTIONS
 TEST_CASE("UniqueStringAndStringMakerTests::VerifyStringMakerStdWString", "[resource][string_maker]")
 {
     wil::details::string_maker<std::wstring> maker;
@@ -708,7 +708,6 @@ TEST_CASE("UniqueStringAndStringMakerTests::VerifyStringMakerStdWString", "[reso
         REQUIRE(result.size() == valueLength);
     });
 }
-#endif
 
 TEST_CASE("UniqueStringAndStringMakerTests::VerifyLegacyStringMakers", "[resource][string_maker]")
 {
@@ -877,7 +876,7 @@ struct TokenTester : ITokenTester
     DWORD_PTR m_closeToken;
 };
 
-void MyTokenTesterCloser(ITokenTester* tt, DWORD_PTR token)
+static void MyTokenTesterCloser(ITokenTester* tt, DWORD_PTR token)
 {
     tt->DirectClose(token);
 }

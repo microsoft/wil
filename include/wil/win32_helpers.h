@@ -41,7 +41,7 @@
 #if WIL_USE_STL && (__cpp_lib_bit_cast >= 201806L)
 #define __WI_CONSTEXPR_BIT_CAST constexpr
 #else
-#define __WI_CONSTEXPR_BIT_CAST inline
+#define __WI_CONSTEXPR_BIT_CAST // All uses are templates, which is implicitly inline
 #endif
 /// @endcond
 
@@ -207,31 +207,44 @@ namespace filetime_duration
 
 namespace filetime
 {
-    constexpr unsigned long long to_int64(const FILETIME& ft) WI_NOEXCEPT
+    template <typename Int64 = unsigned long long, wistd::enable_if_t<wistd::is_integral_v<Int64> && (sizeof(Int64) == sizeof(FILETIME)), int> = 0>
+    constexpr Int64 to_int64(const FILETIME& ft) WI_NOEXCEPT
     {
 #if WIL_USE_STL && (__cpp_lib_bit_cast >= 201806L)
-        return std::bit_cast<unsigned long long>(ft);
+        return std::bit_cast<Int64>(ft);
 #else
-        // Cannot reinterpret_cast FILETIME* to unsigned long long*
-        // due to alignment differences.
-        return (static_cast<unsigned long long>(ft.dwHighDateTime) << 32) + ft.dwLowDateTime;
+        // Cannot reinterpret_cast FILETIME* to Int64* due to alignment differences.
+        return (static_cast<Int64>(ft.dwHighDateTime) << 32) + ft.dwLowDateTime;
 #endif
     }
 
-    __WI_CONSTEXPR_BIT_CAST FILETIME from_int64(unsigned long long i64) WI_NOEXCEPT
+    namespace details
     {
+        template <typename Int>
+        using select_int64 =
+            wistd::conditional_t<sizeof(Int) == 8, Int, wistd::conditional_t<wistd::is_signed_v<Int>, long long, unsigned long long>>;
+    }
+
+    template <typename Int, wistd::enable_if_t<wistd::is_integral_v<Int> && (sizeof(Int) <= sizeof(FILETIME)), int> = 0>
+    __WI_CONSTEXPR_BIT_CAST FILETIME from_int64(Int val) WI_NOEXCEPT
+    {
+        using Int64 = details::select_int64<Int>;
+        auto i64 = static_cast<Int64>(val);
+
 #if WIL_USE_STL && (__cpp_lib_bit_cast >= 201806L)
         return std::bit_cast<FILETIME>(i64);
 #else
         static_assert(sizeof(i64) == sizeof(FILETIME), "sizes don't match");
-        static_assert(__alignof(unsigned long long) >= __alignof(FILETIME), "alignment not compatible with type pun");
+        static_assert(__alignof(Int64) >= __alignof(FILETIME), "alignment not compatible with type pun");
         return *reinterpret_cast<FILETIME*>(&i64);
 #endif
     }
 
-    __WI_CONSTEXPR_BIT_CAST FILETIME add(_In_ FILETIME const& ft, long long delta100ns) WI_NOEXCEPT
+    template <typename Int, wistd::enable_if_t<wistd::is_integral_v<Int> && (sizeof(Int) <= sizeof(FILETIME)), int> = 0>
+    __WI_CONSTEXPR_BIT_CAST FILETIME add(FILETIME const& ft, Int delta100ns) WI_NOEXCEPT
     {
-        return from_int64(to_int64(ft) + delta100ns);
+        using Int64 = details::select_int64<Int>;
+        return from_int64(to_int64<Int64>(ft) + delta100ns);
     }
 
     constexpr bool is_empty(const FILETIME& ft) WI_NOEXCEPT
@@ -670,7 +683,8 @@ namespace details
             wil::unique_cotaskmem_string keyPath;
             RETURN_IF_FAILED(wil::str_concat_nothrow<wil::unique_cotaskmem_string>(
                 keyPath, LR"(SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\)", fileName));
-            DWORD value{}, sizeofValue = sizeof(value);
+            DWORD value{};
+            DWORD sizeofValue = sizeof(value);
             if (::RegGetValueW(
                     HKEY_LOCAL_MACHINE,
                     keyPath.get(),
@@ -771,7 +785,7 @@ inline void WaitForDebuggerPresent(bool checkRegistryConfig = true)
 
 inline void WaitForDebuggerPresentNoThrow(bool checkRegistryConfig = true)
 {
-    (void)details::WaitForDebuggerPresent<err_returncode_policy>(checkRegistryConfig);
+    details::WaitForDebuggerPresent<err_returncode_policy>(checkRegistryConfig);
 }
 
 inline void WaitForDebuggerPresentFailFast(bool checkRegistryConfig = true)
@@ -1085,7 +1099,9 @@ inline std::basic_string<CharT> ArgvToCommandLine(RangeT&& range, ArgvToCommandL
             result.append(str, pos, nextPos - pos);
             pos = nextPos;
             if (pos == str.npos)
+            {
                 break;
+            }
 
             if (str[pos] == '"')
             {
@@ -1199,6 +1215,6 @@ inline std::basic_string<wistd::remove_cv_t<CharT>> ArgvToCommandLine(
 //    sendMail(0, 0, pmm, MAPI_USE_DEFAULT, 0);
 // }
 //  Declaration
-#define GetProcAddressByFunctionDeclaration(hinst, fn) reinterpret_cast<decltype(::fn)*>(GetProcAddress(hinst, #fn))
+#define GetProcAddressByFunctionDeclaration(hinst, fn) (reinterpret_cast<decltype(::fn)*>(GetProcAddress(hinst, #fn)))
 
 #endif // __WIL_WIN32_HELPERS_INCLUDED

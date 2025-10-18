@@ -5,7 +5,7 @@
 #include <wil/resource.h>
 
 #include <memory> // For shared_event_watcher
-#include <wil/resource.h>
+#include <wil/resource.h> // NOLINT(readability-duplicate-include): Intentionally testing "light up" code
 
 #include "common.h"
 
@@ -190,7 +190,7 @@ TEST_CASE("RegistryWatcherTests::Construction", "[registry][registry_watcher]")
 #endif
 }
 
-void SetRegistryValue(
+static void SetRegistryValue(
     _In_ HKEY hKey,
     _In_opt_ LPCWSTR lpSubKey,
     _In_opt_ LPCWSTR lpValueName,
@@ -252,7 +252,8 @@ TEST_CASE("RegistryWatcherTests::VerifyLastChangeObserved", "[registry][registry
         allChangesMade.wait();
         countObserved = countObserved + 1;
         lastObservedState = stateToObserve;
-        DWORD value, cbValue = sizeof(value);
+        DWORD value;
+        DWORD cbValue = sizeof(value);
         RegGetValueW(ROOT_KEY_PAIR, L"value", RRF_RT_REG_DWORD, nullptr, &value, &cbValue);
         lastObservedValue = value;
         processedChange.SetEvent();

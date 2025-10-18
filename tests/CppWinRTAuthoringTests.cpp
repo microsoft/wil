@@ -66,7 +66,7 @@ struct __declspec(uuid("105FDF00-A3FC-456E-AFD0-28918CB797AF")) BuggyServer
     }
 };
 
-auto create_server_instance(const GUID& clsid)
+static auto create_server_instance(const GUID& clsid)
 {
     return winrt::create_instance<winrt::Windows::Foundation::IStringable>(clsid, CLSCTX_LOCAL_SERVER);
 }
@@ -265,7 +265,6 @@ TEST_CASE("CppWinRTAuthoringTests::EventsAndCppWinRt", "[property]")
     test.Closed(token);
 }
 
-#include <winrt/Windows.System.h>
 #include <winrt/Windows.UI.Xaml.Hosting.h>
 
 TEST_CASE("CppWinRTAuthoringTests::NotifyPropertyChanged", "[property]")

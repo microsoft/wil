@@ -11,8 +11,6 @@ Checks:
 # ^^^ Enable ^^^ vvv Disable vvv
 - -bugprone-easily-swappable-parameters # Perhaps we can suppress individual instances, but the ship has sailed on many of these
 - -bugprone-inc-dec-in-conditions # Disabled until https://github.com/llvm/llvm-project/issues/163913 is fixed
-- -bugprone-macro-parentheses
-- -bugprone-narrowing-conversions
 - -bugprone-reserved-identifier
 - -bugprone-string-literal-with-embedded-nul # Several types/functions need to be tested with embedded null characters
 - -bugprone-unchecked-optional-access # Currently, this marks '.value()' as unsafe. We can revisit if an option is added to only check 'operator*'
@@ -21,46 +19,26 @@ Checks:
 - -clang-analyzer-cplusplus.Move # We explicitly test the behavior of moved-from WIL types
 - -clang-analyzer-cplusplus.NewDelete # This check apparently can't figure out how COM's reference counting works
 - -clang-analyzer-optin.core.EnumCastOutOfRange # Many windows enums are flags without the expected attributes
-- -misc-const-correctness
-- -misc-definitions-in-headers
+- -misc-const-correctness # Too noisy
+- -misc-definitions-in-headers # We rely quite heavily on the ability to define 'selectany'/inline/etc. variables
 - -misc-include-cleaner
-- -misc-misplaced-const
+- -misc-misplaced-const # Flags things like 'const HSTRING' which isn't that hard to use correctly
 - -misc-no-recursion
 - -misc-non-private-member-variables-in-classes
-- -misc-redundant-expression
-- -misc-unconventional-assign-operator
 - -misc-unused-parameters
-- -misc-use-anonymous-namespace
-- -misc-use-internal-linkage
+- -misc-use-anonymous-namespace # Too noisy
 - -performance-enum-size # Maybe we can revisit, but changing the size of public enums may have unexpected impact
-- -readability-avoid-return-with-void-value
-- -readability-braces-around-statements
-- -readability-container-size-empty
 - -readability-convert-member-functions-to-static
-- -readability-duplicate-include
 - -readability-else-after-return
 - -readability-function-cognitive-complexity
 - -readability-identifier-length
 - -readability-implicit-bool-conversion
-- -readability-inconsistent-declaration-parameter-name
-- -readability-isolate-declaration
 - -readability-magic-numbers
 - -readability-make-member-function-const
-- -readability-math-missing-parentheses
 - -readability-named-parameter
-- -readability-non-const-parameter
 - -readability-qualified-auto
-- -readability-redundant-access-specifiers
-- -readability-redundant-casting
-- -readability-redundant-declaration
-- -readability-redundant-inline-specifier
-- -readability-redundant-member-init
-- -readability-redundant-preprocessor
 - -readability-simplify-boolean-expr
 - -readability-static-accessed-through-instance
-- -readability-suspicious-call-argument
-- -readability-uppercase-literal-suffix
-- -readability-use-std-min-max
 CheckOptions:
   bugprone-empty-catch.IgnoreCatchWithKeywords: 'Fall through'
 HeaderFilterRegex: '^.*include\\wil\\[^\\/]*$'

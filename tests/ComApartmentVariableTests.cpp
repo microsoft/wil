@@ -10,19 +10,19 @@
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
 
 template <typename... args_t>
-inline void LogOutput(_Printf_format_string_ PCWSTR format, args_t&&... args)
+static inline void LogOutput(_Printf_format_string_ PCWSTR format, args_t&&... args)
 {
     OutputDebugStringW(wil::str_printf_failfast<wil::unique_cotaskmem_string>(format, wistd::forward<args_t>(args)...).get());
 }
 
-inline bool IsComInitialized()
+static inline bool IsComInitialized()
 {
     APTTYPE type{};
     APTTYPEQUALIFIER qualifier{};
     return CoGetApartmentType(&type, &qualifier) == S_OK;
 }
 
-inline void WaitForAllComApartmentsToRundown()
+static inline void WaitForAllComApartmentsToRundown()
 {
     while (IsComInitialized())
     {
@@ -30,14 +30,14 @@ inline void WaitForAllComApartmentsToRundown()
     }
 }
 
-void co_wait(const wil::unique_event& e)
+static void co_wait(const wil::unique_event& e)
 {
     HANDLE raw[] = {e.get()};
     ULONG index{};
     REQUIRE_SUCCEEDED(CoWaitForMultipleHandles(COWAIT_DISPATCH_CALLS, INFINITE, static_cast<ULONG>(std::size(raw)), raw, &index));
 }
 
-void RunApartmentVariableTest(void (*test)())
+static void RunApartmentVariableTest(void (*test)())
 {
     {
         cppwinrt_threadpool_guard guard;
@@ -114,24 +114,24 @@ struct mock_platform
     }
 
     // Enable the test hook to force losing the race
-    inline static constexpr unsigned long AsyncRundownDelayForTestingRaces = 1; // enable test hook
+    static constexpr unsigned long AsyncRundownDelayForTestingRaces = 1; // enable test hook
     inline static std::unordered_map<unsigned long long, std::vector<wil::com_ptr<IApartmentShutdown>>> m_observers;
 };
 
-auto fn()
+static auto fn()
 {
     return 42;
 };
-auto fn2()
+static auto fn2()
 {
     return 43;
 };
 
-wil::apartment_variable<int, wil::apartment_variable_leak_action::ignore, mock_platform> g_v1;
-wil::apartment_variable<int, wil::apartment_variable_leak_action::ignore> g_v2;
+static wil::apartment_variable<int, wil::apartment_variable_leak_action::ignore, mock_platform> g_v1;
+static wil::apartment_variable<int, wil::apartment_variable_leak_action::ignore> g_v2;
 
 template <typename platform = wil::apartment_variable_platform>
-void TestApartmentVariableAllMethods()
+static void TestApartmentVariableAllMethods()
 {
     auto coUninit = platform::CoInitializeEx(COINIT_MULTITHREADED);
 
@@ -154,7 +154,7 @@ void TestApartmentVariableAllMethods()
 }
 
 template <typename platform = wil::apartment_variable_platform>
-void TestApartmentVariableGetOrCreateForms()
+static void TestApartmentVariableGetOrCreateForms()
 {
     auto coUninit = platform::CoInitializeEx(COINIT_MULTITHREADED);
 
@@ -169,9 +169,10 @@ void TestApartmentVariableGetOrCreateForms()
 }
 
 template <typename platform = wil::apartment_variable_platform>
-void TestApartmentVariableLifetimes()
+static void TestApartmentVariableLifetimes()
 {
-    wil::apartment_variable<int, wil::apartment_variable_leak_action::fail_fast, platform> av1, av2;
+    wil::apartment_variable<int, wil::apartment_variable_leak_action::fail_fast, platform> av1;
+    wil::apartment_variable<int, wil::apartment_variable_leak_action::fail_fast, platform> av2;
 
     {
         auto coUninit = platform::CoInitializeEx(COINIT_MULTITHREADED);
@@ -235,12 +236,15 @@ void TestApartmentVariableLifetimes()
 }
 
 template <typename platform = wil::apartment_variable_platform>
-void TestMultipleApartments()
+static void TestMultipleApartments()
 {
-    wil::apartment_variable<int, wil::apartment_variable_leak_action::fail_fast, platform> av1, av2;
+    wil::apartment_variable<int, wil::apartment_variable_leak_action::fail_fast, platform> av1;
+    wil::apartment_variable<int, wil::apartment_variable_leak_action::fail_fast, platform> av2;
 
-    wil::unique_event t1Created{wil::EventOptions::None}, t2Created{wil::EventOptions::None};
-    wil::unique_event t1Shutdown{wil::EventOptions::None}, t2Shutdown{wil::EventOptions::None};
+    wil::unique_event t1Created{wil::EventOptions::None};
+    wil::unique_event t2Created{wil::EventOptions::None};
+    wil::unique_event t1Shutdown{wil::EventOptions::None};
+    wil::unique_event t2Shutdown{wil::EventOptions::None};
 
     auto apt1_thread = std::thread([&]() // join below makes this ok
                                    {
@@ -277,7 +281,7 @@ void TestMultipleApartments()
 }
 
 template <typename platform = wil::apartment_variable_platform>
-void TestWinningApartmentAlreadyRundownRace()
+static void TestWinningApartmentAlreadyRundownRace()
 {
     auto coUninit = platform::CoInitializeEx(COINIT_MULTITHREADED);
 
@@ -311,7 +315,7 @@ void TestWinningApartmentAlreadyRundownRace()
 }
 
 template <typename platform = wil::apartment_variable_platform>
-void TestLosingApartmentAlreadyRundownRace()
+static void TestLosingApartmentAlreadyRundownRace()
 {
     auto coUninit = platform::CoInitializeEx(COINIT_MULTITHREADED);
 

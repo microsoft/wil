@@ -723,32 +723,32 @@ boolean, BOOLEAN, and classes with an explicit bool cast.
 @param val The logical bool expression
 @return A C++ bool representing the evaluation of `val`. */
 template <typename T, __R_ENABLE_IF_IS_CLASS(T)>
-_Post_satisfies_(return == static_cast<bool>(val)) inline constexpr bool verify_bool(const T& val) WI_NOEXCEPT
+_Post_satisfies_(return == static_cast<bool>(val)) constexpr bool verify_bool(const T& val) WI_NOEXCEPT
 {
     return static_cast<bool>(val);
 }
 
 template <typename T, __R_ENABLE_IF_IS_NOT_CLASS(T)>
-inline constexpr bool verify_bool(T /*val*/) WI_NOEXCEPT
+constexpr bool verify_bool(T /*val*/) WI_NOEXCEPT
 {
     static_assert(!wistd::is_same<T, T>::value, "Wrong Type: bool/BOOL/BOOLEAN/boolean expected");
     return false;
 }
 
 template <>
-_Post_satisfies_(return == val) inline constexpr bool verify_bool<bool>(bool val) WI_NOEXCEPT
+_Post_satisfies_(return == val) constexpr bool verify_bool<bool>(bool val) WI_NOEXCEPT
 {
     return val;
 }
 
 template <>
-_Post_satisfies_(return == (val != 0)) inline constexpr bool verify_bool<int>(int val) WI_NOEXCEPT
+_Post_satisfies_(return == (val != 0)) constexpr bool verify_bool<int>(int val) WI_NOEXCEPT
 {
     return (val != 0);
 }
 
 template <>
-_Post_satisfies_(return == (val != 0)) inline constexpr bool verify_bool<unsigned char>(unsigned char val) WI_NOEXCEPT
+_Post_satisfies_(return == (val != 0)) constexpr bool verify_bool<unsigned char>(unsigned char val) WI_NOEXCEPT
 {
     return (val != 0);
 }
@@ -759,7 +759,7 @@ accept any `int` value as long as that is the underlying typedef behind `BOOL`.
 @param val The Win32 BOOL returning expression
 @return A Win32 BOOL representing the evaluation of `val`. */
 template <typename T>
-_Post_satisfies_(return == val) inline constexpr int verify_BOOL(T val) WI_NOEXCEPT
+_Post_satisfies_(return == val) constexpr int verify_BOOL(T val) WI_NOEXCEPT
 {
     // Note: Written in terms of 'int' as BOOL is actually:  typedef int BOOL;
     static_assert((wistd::is_same<T, int>::value), "Wrong Type: BOOL expected");
@@ -788,7 +788,7 @@ RETURN_HR_IF(static_cast<HRESULT>(UIA_E_NOTSUPPORTED), (patternId != UIA_DragPat
 @param hr The HRESULT returning expression
 @return An HRESULT representing the evaluation of `val`. */
 template <typename T>
-_Post_satisfies_(return == hr) inline constexpr long verify_hresult(T hr) WI_NOEXCEPT
+_Post_satisfies_(return == hr) constexpr long verify_hresult(T hr) WI_NOEXCEPT
 {
     // Note: Written in terms of 'long' as HRESULT is actually:  typedef _Return_type_success_(return >= 0) long HRESULT
     static_assert(wistd::is_same<T, long>::value, "Wrong Type: HRESULT expected");

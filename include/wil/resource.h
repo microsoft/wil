@@ -139,7 +139,7 @@ namespace details
         {
             wistd::invoke(close_fn, value);
         }
-        inline static void close_reset(pointer_storage_t value) WI_NOEXCEPT
+        static void close_reset(pointer_storage_t value) WI_NOEXCEPT
         {
             auto preserveError = last_error_context();
             wistd::invoke(close_fn, value);
@@ -153,7 +153,7 @@ namespace details
         {
             close_fn(value);
         }
-        inline static void close_reset(pointer_storage_t value) WI_NOEXCEPT
+        static void close_reset(pointer_storage_t value) WI_NOEXCEPT
         {
             auto preserveError = last_error_context();
             close_fn(value);
@@ -1984,6 +1984,7 @@ namespace std
 template <typename storage_t>
 struct hash<wil::unique_any_t<storage_t>>
 {
+    // NOLINTNEXTLINE(readability-redundant-casting): This warning originates from the STL headers
     WI_NODISCARD size_t operator()(wil::unique_any_t<storage_t> const& val) const
     {
         return (hash<typename wil::unique_any_t<storage_t>::pointer>()(val.get()));
@@ -2370,6 +2371,7 @@ namespace std
 template <typename storage_t>
 struct hash<wil::shared_any_t<storage_t>>
 {
+    // NOLINTNEXTLINE(readability-redundant-casting): This warning originates from the STL headers
     WI_NODISCARD size_t operator()(wil::shared_any_t<storage_t> const& val) const
     {
         return (hash<typename wil::shared_any_t<storage_t>::pointer>()(val.get()));

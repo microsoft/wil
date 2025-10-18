@@ -17,7 +17,7 @@
 
 #define POINTER_STRING_SIZE (int)(sizeof(void*) * 2)
 
-static LONG __stdcall on_crash(EXCEPTION_POINTERS* info);
+static LONG __stdcall on_crash(EXCEPTION_POINTERS* ex);
 
 static void __stdcall timer_callback(PTP_CALLBACK_INSTANCE, void*, PTP_TIMER);
 static void print_all_stacks();

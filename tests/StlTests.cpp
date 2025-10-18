@@ -15,7 +15,7 @@ struct dummy
 using namespace wil::literals;
 
 // Specialize std::allocator<> so that we don't actually allocate/deallocate memory
-dummy g_memoryBuffer[256];
+static dummy g_memoryBuffer[256];
 namespace std
 {
 template <>
@@ -67,14 +67,14 @@ struct CustomNoncopyableString
 TEST_CASE("StlTests::TestZStringView", "[stl][zstring_view]")
 {
     // Test empty cases
-    REQUIRE(wil::zstring_view{}.length() == (size_t)0u);
+    REQUIRE(wil::zstring_view{}.empty());
     REQUIRE(wil::zstring_view{}.data() == nullptr);
     REQUIRE(wil::zstring_view{}.c_str() == nullptr);
 
     // Test empty string cases
     REQUIRE(wil::zstring_view{""}[0] == '\0');
     REQUIRE(wil::zstring_view{""}.c_str()[0] == '\0');
-    REQUIRE(wil::zstring_view{""}.length() == 0);
+    REQUIRE(wil::zstring_view{""}.empty());
 
     // Test different constructor equality
     constexpr wil::zstring_view fromLiteral = "abc";
@@ -174,14 +174,14 @@ TEST_CASE("StlTests::TestZStringView formatting", "[stl][zstring_view]")
 TEST_CASE("StlTests::TestZWStringView", "[stl][zstring_view]")
 {
     // Test empty cases
-    REQUIRE(wil::zwstring_view{}.length() == (size_t)0u);
+    REQUIRE(wil::zwstring_view{}.empty());
     REQUIRE(wil::zwstring_view{}.data() == nullptr);
     REQUIRE(wil::zwstring_view{}.c_str() == nullptr);
 
     // Test empty string cases
     REQUIRE(wil::zwstring_view{L""}[0] == L'\0');
     REQUIRE(wil::zwstring_view{L""}.c_str()[0] == L'\0');
-    REQUIRE(wil::zwstring_view{L""}.length() == 0);
+    REQUIRE(wil::zwstring_view{L""}.empty());
 
     // Test different constructor equality
     constexpr wil::zwstring_view fromLiteral = L"abc";

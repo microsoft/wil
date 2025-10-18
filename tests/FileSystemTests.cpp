@@ -29,14 +29,14 @@ PCWSTR str_raw_ptr(const std::wstring&);
 
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 
-bool DirectoryExists(_In_ PCWSTR path)
+static bool DirectoryExists(_In_ PCWSTR path)
 {
     DWORD dwAttrib = GetFileAttributesW(path);
 
     return (dwAttrib != INVALID_FILE_ATTRIBUTES && (dwAttrib & FILE_ATTRIBUTE_DIRECTORY));
 }
 
-bool FileExists(_In_ PCWSTR path)
+static bool FileExists(_In_ PCWSTR path)
 {
     DWORD dwAttrib = GetFileAttributesW(path);
 
@@ -566,7 +566,7 @@ TEST_CASE("FileSystemTests::VerifyGetModuleFileNameW", "[filesystem]")
 }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
-wil::unique_cotaskmem_string NativeGetModuleFileNameWrap(HANDLE processHandle, HMODULE moduleHandle)
+static wil::unique_cotaskmem_string NativeGetModuleFileNameWrap(HANDLE processHandle, HMODULE moduleHandle)
 {
     DWORD size = MAX_PATH * 4;
     auto path = wil::make_cotaskmem_string_nothrow(nullptr, size);
@@ -789,7 +789,9 @@ TEST_CASE("FileSystemTest::FolderChangeReader destructor does not hang", "[files
     auto reader = wil::make_folder_change_reader_nothrow(
         testRootDir.c_str(), false, wil::FolderChangeEvents::All, [&](wil::FolderChangeEvent, PCWSTR) {
             if (deleteDir)
+            {
                 RemoveDirectoryW(testRootDir.c_str());
+            }
 
             opCompletedEv.SetEvent();
         });
@@ -810,9 +812,13 @@ TEST_CASE("FileSystemTest::FolderChangeReader destructor does not hang", "[files
     SetEvent(readerDestructNotifyRaw);
     DWORD waitResult = WaitForSingleObject(readerThread.native_handle(), 30 * 1000);
     if (waitResult != WAIT_OBJECT_0)
+    {
         readerThread.detach();
+    }
     else
+    {
         readerThread.join();
+    }
 
     REQUIRE(waitResult == WAIT_OBJECT_0);
 }
@@ -821,7 +827,7 @@ TEST_CASE("FileSystemTest::FolderChangeReader destructor does not hang", "[files
 
 #endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 
-auto Mock_GetModuleFileName(DWORD pathLength)
+static auto Mock_GetModuleFileName(DWORD pathLength)
 {
     witest::detoured_thread_function<&GetModuleFileNameW> result;
     REQUIRE_SUCCEEDED(result.reset([pathLength](HMODULE, _Out_ PWSTR fileName, _In_ DWORD bufferSize) -> DWORD {
@@ -846,7 +852,7 @@ auto Mock_GetModuleFileName(DWORD pathLength)
     return result;
 }
 
-auto Mock_GetModuleFileNameEx(DWORD pathLength)
+static auto Mock_GetModuleFileNameEx(DWORD pathLength)
 {
     witest::detoured_thread_function<&GetModuleFileNameExW> result;
     REQUIRE_SUCCEEDED(result.reset([pathLength](HANDLE, HMODULE, _Out_ PWSTR fileName, _In_ DWORD bufferSize) -> DWORD {

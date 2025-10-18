@@ -10,7 +10,7 @@
 #include <winrt/Windows.ApplicationModel.Activation.h>
 #include <wil/cppwinrt_helpers.h>
 #include <winrt/Windows.System.h>
-#include <wil/cppwinrt_helpers.h> // Verify can include a second time to unlock more features
+#include <wil/cppwinrt_helpers.h> // NOLINT(readability-duplicate-include) Verify can include a second time to unlock more features
 #include <wil/stl.h>
 
 using namespace winrt::Windows::ApplicationModel::Activation;
@@ -39,13 +39,13 @@ static const HRESULT cppwinrt_mapped_hresults[] = {
 };
 
 template <typename T>
-auto copy_thing(T const& src)
+static auto copy_thing(T const& src)
 {
     return std::decay_t<T>(src);
 }
 
 template <typename T, typename K>
-void CheckMapVector(std::vector<winrt::Windows::Foundation::Collections::IKeyValuePair<T, K>> const& test, std::map<T, K> const& src)
+static void CheckMapVector(std::vector<winrt::Windows::Foundation::Collections::IKeyValuePair<T, K>> const& test, std::map<T, K> const& src)
 {
     REQUIRE(test.size() == src.size());
     for (auto&& i : test)
@@ -196,12 +196,16 @@ TEST_CASE("CppWinRTTests::VectorToVector", "[cppwinrt]")
     auto ilike = wil::to_vector(iterable_like{});
     REQUIRE(ilike.size() == iterator_like::total);
     for (auto&& i : ilike)
+    {
         REQUIRE(i == iterator_like{}.Current());
+    }
 
     auto vlike = wil::to_vector(vector_like{});
     REQUIRE(vlike.size() == vector_like{}.Size());
     for (auto&& i : vlike)
+    {
         REQUIRE(i == vector_like{}.GetAt(0));
+    }
 
     winrt::clear_factory_cache();
     winrt::uninit_apartment();

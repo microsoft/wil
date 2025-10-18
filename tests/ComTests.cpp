@@ -17,7 +17,6 @@
 using namespace Microsoft::WRL;
 
 // avoid including #include <shobjidl.h>, it fails to compile in noprivateapis
-EXTERN_C const CLSID CLSID_ShellLink;
 class DECLSPEC_UUID("00021401-0000-0000-C000-000000000046") ShellLink;
 
 // Uncomment this line to do a more exhaustive test of the concepts covered by this file.  By
@@ -519,7 +518,7 @@ TEST_CASE("ComTests::Test_CopyTo", "[com][com_ptr]")
 }
 
 // Helper used to verify correctness of IID_PPV_ARGS support
-void IID_PPV_ARGS_Test_Helper(REFIID iid, void** pv)
+static void IID_PPV_ARGS_Test_Helper(REFIID iid, void** pv)
 {
     __analysis_assume(pv != nullptr);
     REQUIRE(pv != nullptr);
@@ -704,14 +703,14 @@ private:
 };
 
 template <typename T, typename U, typename = wistd::enable_if_t<!wistd::is_same_v<T, U>>>
-T* cast_object(U*)
+static T* cast_object(U*)
 {
     FAIL_FAST();
     return nullptr; // Because we define 'RESULT_NORETURN' to nothing for other tests
 }
 
 template <typename T>
-T* cast_object(T* ptr)
+static T* cast_object(T* ptr)
 {
     return ptr;
 }
@@ -740,7 +739,7 @@ NoCom* make_object<NoCom, NoCom>()
 }
 
 template <typename Ptr>
-void TestSmartPointer(const Ptr& ptr1, const Ptr& ptr2)
+static void TestSmartPointer(const Ptr& ptr1, const Ptr& ptr2)
 {
     SECTION("swap (method and global)")
     {
@@ -1094,7 +1093,7 @@ TEST_CASE("ComTests::Test_PointerConversion", "[com][com_ptr]")
 }
 
 template <typename TargetIFace, typename Ptr>
-void TestGlobalQueryIidPpv(wistd::true_type, const Ptr& source) // interface
+static void TestGlobalQueryIidPpv(wistd::true_type, const Ptr& source) // interface
 {
     using DestPtr = wil::com_ptr_nothrow<TargetIFace>;
     wil::com_ptr_nothrow<INever> never;
@@ -1110,7 +1109,8 @@ void TestGlobalQueryIidPpv(wistd::true_type, const Ptr& source) // interface
             REQUIRE((dest1 && !never));
 #endif
 
-            DestPtr dest2, dest3;
+            DestPtr dest2;
+            DestPtr dest3;
             wil::com_query_to_failfast(source, IID_PPV_ARGS(&dest2));
             REQUIRE_ERROR(wil::com_query_to_failfast(source, IID_PPV_ARGS(&never)));
             wil::com_query_to_nothrow(source, IID_PPV_ARGS(&dest3));
@@ -1125,7 +1125,8 @@ void TestGlobalQueryIidPpv(wistd::true_type, const Ptr& source) // interface
             REQUIRE_CRASH(wil::com_query_to(source, IID_PPV_ARGS(&never)));
 #endif
 
-            DestPtr dest2, dest3;
+            DestPtr dest2;
+            DestPtr dest3;
             REQUIRE_CRASH(wil::com_query_to_failfast(source, IID_PPV_ARGS(&dest2)));
             REQUIRE_CRASH(wil::com_query_to_failfast(source, IID_PPV_ARGS(&never)));
             REQUIRE_CRASH(wil::com_query_to_nothrow(source, IID_PPV_ARGS(&dest3)));
@@ -1161,7 +1162,8 @@ void TestGlobalQueryIidPpv(wistd::true_type, const Ptr& source) // interface
             REQUIRE((dest1 && !never));
 #endif
 
-            DestPtr dest2, dest3;
+            DestPtr dest2;
+            DestPtr dest3;
             wil::com_copy_to_failfast(source, IID_PPV_ARGS(&dest2));
             REQUIRE_ERROR(wil::com_copy_to_failfast(source, IID_PPV_ARGS(&never)));
             wil::com_copy_to_nothrow(source, IID_PPV_ARGS(&dest3));
@@ -1176,7 +1178,8 @@ void TestGlobalQueryIidPpv(wistd::true_type, const Ptr& source) // interface
             wil::com_copy_to(source, IID_PPV_ARGS(&never));
 #endif
 
-            DestPtr dest2, dest3;
+            DestPtr dest2;
+            DestPtr dest3;
             wil::com_copy_to_failfast(source, IID_PPV_ARGS(&dest2));
             wil::com_copy_to_failfast(source, IID_PPV_ARGS(&never));
             wil::com_copy_to_nothrow(source, IID_PPV_ARGS(&dest3));
@@ -1203,7 +1206,7 @@ void TestGlobalQueryIidPpv(wistd::true_type, const Ptr& source) // interface
 }
 
 template <typename TargetIFace, typename Ptr>
-void TestGlobalQueryIidPpv(wistd::false_type, const Ptr&) // class
+static void TestGlobalQueryIidPpv(wistd::false_type, const Ptr&) // class
 {
     // we can't compile against iid, ppv with a class
 }
@@ -1249,7 +1252,8 @@ static void TestGlobalQuery(const Ptr& source)
             REQUIRE((dest1 && !never));
 #endif
 
-            DestPtr dest2, dest3;
+            DestPtr dest2;
+            DestPtr dest3;
             wil::com_query_to_failfast(source, &dest2);
             REQUIRE_ERROR(wil::com_query_to_failfast(source, &never));
             wil::com_query_to_nothrow(source, &dest3);
@@ -1264,7 +1268,8 @@ static void TestGlobalQuery(const Ptr& source)
             REQUIRE_CRASH(wil::com_query_to(source, &never));
 #endif
 
-            DestPtr dest2, dest3;
+            DestPtr dest2;
+            DestPtr dest3;
             REQUIRE_CRASH(wil::com_query_to_failfast(source, &dest2));
             REQUIRE_CRASH(wil::com_query_to_failfast(source, &never));
             REQUIRE_CRASH(wil::com_query_to_nothrow(source, &dest3));
@@ -1352,7 +1357,8 @@ static void TestGlobalQuery(const Ptr& source)
             REQUIRE((dest1 && !never));
 #endif
 
-            DestPtr dest2, dest3;
+            DestPtr dest2;
+            DestPtr dest3;
             wil::com_copy_to_failfast(source, &dest2);
             REQUIRE_ERROR(wil::com_copy_to_failfast(source, &never));
             wil::com_copy_to_nothrow(source, &dest3);
@@ -1367,7 +1373,8 @@ static void TestGlobalQuery(const Ptr& source)
             wil::com_copy_to(source, &never);
 #endif
 
-            DestPtr dest2, dest3;
+            DestPtr dest2;
+            DestPtr dest3;
             wil::com_copy_to_failfast(source, &dest2);
             wil::com_copy_to_failfast(source, &never);
             wil::com_copy_to_nothrow(source, &dest3);
@@ -1423,7 +1430,7 @@ static void TestGlobalQuery(const Ptr& source)
 
 // Test fluent query functions for types that support them (exception and fail fast)
 template <typename IFace, typename Ptr>
-void TestSmartPointerQueryFluent(wistd::true_type, const Ptr& source) // void return (non-error based)
+static void TestSmartPointerQueryFluent(wistd::true_type, const Ptr& source) // void return (non-error based)
 {
     SECTION("query")
     {
@@ -1456,14 +1463,14 @@ void TestSmartPointerQueryFluent(wistd::true_type, const Ptr& source) // void re
 
 // "Test" fluent query functions for error-based types (by doing nothing)
 template <typename IFace, typename Ptr>
-void TestSmartPointerQueryFluent(wistd::false_type, const Ptr& /*source*/) // error-code based return
+static void TestSmartPointerQueryFluent(wistd::false_type, const Ptr& /*source*/) // error-code based return
 {
     // error code based code cannot call the fluent error methods
 }
 
 // Test iid, ppv queries for types that support them (interfaces yes, classes no)
 template <typename IFace, typename Ptr>
-void TestSmartPointerQueryIidPpv(wistd::true_type, const Ptr& source) // interface
+static void TestSmartPointerQueryIidPpv(wistd::true_type, const Ptr& source) // interface
 {
     wil::com_ptr_nothrow<INever> never;
     using DestPtr = wil::com_ptr_nothrow<IFace>;
@@ -1543,14 +1550,14 @@ void TestSmartPointerQueryIidPpv(wistd::true_type, const Ptr& source) // interfa
 
 // "Test" iid, ppv queries for types that support them for a class (unsupported same (interfaces yes, classes no)
 template <typename IFace, typename Ptr>
-void TestSmartPointerQueryIidPpv(wistd::false_type, const Ptr& /*source*/) // class
+static void TestSmartPointerQueryIidPpv(wistd::false_type, const Ptr& /*source*/) // class
 {
     // we can't compile against iid, ppv with a class
 }
 
 // Test the various query and copy methods against the given source pointer (trying produce the given dest pointer)
 template <typename IFace, typename Ptr>
-void TestSmartPointerQuery(const Ptr& source)
+static void TestSmartPointerQuery(const Ptr& source)
 {
     wil::com_ptr_nothrow<INever> never;
     using DestPtr = wil::com_ptr_nothrow<IFace>;
@@ -1792,7 +1799,7 @@ TEST_CASE("ComTests::Test_Query", "[com][com_ptr]")
 
 #if (NTDDI_VERSION >= NTDDI_WINBLUE)
 template <typename Ptr>
-void TestAgile(const Ptr& source)
+static void TestAgile(const Ptr& source)
 {
     bool source_valid = (source != nullptr);
 
@@ -1832,7 +1839,7 @@ void TestAgile(const Ptr& source)
 }
 
 template <typename IFace>
-void TestAgileCombinations()
+static void TestAgileCombinations()
 {
     auto ptr = make_object<IFace, WinRtObject>();
 
@@ -1877,7 +1884,7 @@ TEST_CASE("ComTests::Test_Agile", "[com][com_agile_ref]")
 #endif
 
 template <typename Ptr>
-void TestWeak(const Ptr& source)
+static void TestWeak(const Ptr& source)
 {
     bool supports_weak = (source && (wil::try_com_query_nothrow<IInspectable>(source)));
 
@@ -1943,7 +1950,7 @@ void TestWeak(const Ptr& source)
 }
 
 template <typename TargetIFace, typename Ptr>
-void TestGlobalQueryWithFailedResolve(const Ptr& source)
+static void TestGlobalQueryWithFailedResolve(const Ptr& source)
 {
     // No need to test the null source and wrong interface query
     // since that's covered in the TestGlobalQuery.
@@ -1965,7 +1972,8 @@ void TestGlobalQueryWithFailedResolve(const Ptr& source)
         REQUIRE(!dest1);
 #endif
 
-        DestPtr dest2, dest3;
+        DestPtr dest2;
+        DestPtr dest3;
         REQUIRE_ERROR(wil::com_query_to_failfast(source, &dest2));
         REQUIRE_ERROR(wil::com_query_to_nothrow(source, &dest3));
         REQUIRE((!dest2 && !dest3));
@@ -2003,7 +2011,8 @@ void TestGlobalQueryWithFailedResolve(const Ptr& source)
         REQUIRE(!dest1);
 #endif
 
-        DestPtr dest2, dest3;
+        DestPtr dest2;
+        DestPtr dest3;
         REQUIRE_ERROR(wil::com_copy_to_failfast(source, &dest2));
         REQUIRE_ERROR(wil::com_copy_to_nothrow(source, &dest3));
         REQUIRE((!dest2 && !dest3));
@@ -2035,7 +2044,8 @@ void TestGlobalQueryWithFailedResolve(const Ptr& source)
             REQUIRE(!dest1);
 #endif
 
-            DestPtr dest2, dest3;
+            DestPtr dest2;
+            DestPtr dest3;
             REQUIRE_ERROR(wil::com_query_to_failfast(source, IID_PPV_ARGS(&dest2)));
             REQUIRE_ERROR(wil::com_query_to_nothrow(source, IID_PPV_ARGS(&dest3)));
             REQUIRE((!dest2 && !dest3));
@@ -2056,7 +2066,8 @@ void TestGlobalQueryWithFailedResolve(const Ptr& source)
             REQUIRE(!dest1);
 #endif
 
-            DestPtr dest2, dest3;
+            DestPtr dest2;
+            DestPtr dest3;
             REQUIRE_ERROR(wil::com_copy_to_failfast(source, IID_PPV_ARGS(&dest2)));
             REQUIRE_ERROR(wil::com_copy_to_nothrow(source, IID_PPV_ARGS(&dest3)));
             REQUIRE((!dest2 && !dest3));
@@ -2072,19 +2083,19 @@ void TestGlobalQueryWithFailedResolve(const Ptr& source)
 }
 
 template <typename TargetIFace, typename Ptr>
-void TestSmartPointerQueryFluentWithFailedResolve(wistd::false_type, const Ptr& /*source*/)
+static void TestSmartPointerQueryFluentWithFailedResolve(wistd::false_type, const Ptr& /*source*/)
 {
 }
 
 template <typename TargetIFace, typename Ptr>
-void TestSmartPointerQueryFluentWithFailedResolve(wistd::true_type, const Ptr& source)
+static void TestSmartPointerQueryFluentWithFailedResolve(wistd::true_type, const Ptr& source)
 {
     REQUIRE_ERROR(source.template query<TargetIFace>());
     REQUIRE_ERROR(source.template copy<TargetIFace>());
 }
 
 template <typename TargetIFace, typename Ptr>
-void TestSmartPointerQueryWithFailedResolve(const Ptr source)
+static void TestSmartPointerQueryWithFailedResolve(const Ptr source)
 {
     using DestPtr = wil::com_ptr_nothrow<TargetIFace>;
 
@@ -2161,7 +2172,7 @@ void TestSmartPointerQueryWithFailedResolve(const Ptr source)
 }
 
 template <typename TargetIFace, typename IFace>
-void TestQueryWithFailedResolve(IFace* ptr)
+static void TestQueryWithFailedResolve(IFace* ptr)
 {
     TestGlobalQueryWithFailedResolve<TargetIFace>(ptr);
 #ifdef WIL_EXHAUSTIVE_TEST
@@ -2181,7 +2192,7 @@ void TestQueryWithFailedResolve(IFace* ptr)
 }
 
 template <typename IFace>
-void TestWeakCombinations()
+static void TestWeakCombinations()
 {
     auto ptr = make_object<IFace, WinRtObject>();
 
@@ -2591,7 +2602,7 @@ public:
 
     void SetPosition(unsigned long long position)
     {
-        return SetPosition(position, position);
+        SetPosition(position, position);
     }
 };
 
