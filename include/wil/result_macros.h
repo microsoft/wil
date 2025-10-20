@@ -2558,13 +2558,13 @@ namespace details
     }
     __WI_POP_WARNINGS
 
-    inline RESULT_NORETURN void __stdcall WilRaiseFailFastException(_In_ PEXCEPTION_RECORD er, _In_opt_ PCONTEXT cr, _In_ DWORD flags)
+    inline RESULT_NORETURN void __stdcall WilRaiseFailFastException(_In_ PEXCEPTION_RECORD exr, _In_opt_ PCONTEXT ctxt, _In_ DWORD flags)
     {
         // if we managed to load the pointer either through WilDynamicRaiseFailFastException (PARTITION_DESKTOP etc.)
         // or via direct linkage (e.g. UWP apps), then use it.
         if (g_pfnRaiseFailFastException)
         {
-            g_pfnRaiseFailFastException(er, cr, flags);
+            g_pfnRaiseFailFastException(exr, ctxt, flags);
         }
         // if not, as a best effort, we are just going to call the intrinsic.
         __fastfail(FAST_FAIL_FATAL_APP_EXIT);
@@ -2627,7 +2627,7 @@ namespace details
         ::DebugBreak();
     }
 
-    inline void __stdcall WilDynamicLoadRaiseFailFastException(_In_ PEXCEPTION_RECORD er, _In_ PCONTEXT cr, _In_ DWORD flags)
+    inline void __stdcall WilDynamicLoadRaiseFailFastException(_In_ PEXCEPTION_RECORD exr, _In_ PCONTEXT ctxt, _In_ DWORD flags)
     {
         auto k32handle = GetModuleHandleW(L"kernelbase.dll");
         _Analysis_assume_(k32handle != nullptr);
@@ -2635,7 +2635,7 @@ namespace details
             details::GetProcAddress<decltype(WilDynamicLoadRaiseFailFastException)*>(k32handle, "RaiseFailFastException");
         if (pfnRaiseFailFastException)
         {
-            pfnRaiseFailFastException(er, cr, flags);
+            pfnRaiseFailFastException(exr, ctxt, flags);
         }
     }
 #endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
@@ -3507,10 +3507,10 @@ protected:
     //! Use to produce a custom FailureInfo from an HRESULT (use only when constructing custom exception types).
     static FailureInfo CustomExceptionFailureInfo(HRESULT hr) WI_NOEXCEPT
     {
-        FailureInfo fi = {};
-        fi.type = FailureType::Exception;
-        fi.hr = hr;
-        return fi;
+        FailureInfo info = {};
+        info.type = FailureType::Exception;
+        info.hr = hr;
+        return info;
     }
 };
 #endif
@@ -4520,28 +4520,28 @@ namespace details
         }
 
         // parameter 0 is the !analyze code (FAST_FAIL_FATAL_APP_EXIT)
-        EXCEPTION_RECORD er{};
-        er.NumberParameters = 1;                                            // default to be safe, see below
-        er.ExceptionCode = STATUS_STACK_BUFFER_OVERRUN;                     // 0xC0000409
-        er.ExceptionFlags = EXCEPTION_NONCONTINUABLE;
-        er.ExceptionInformation[0] = FAST_FAIL_FATAL_APP_EXIT; // see winnt.h, generated from minkernel\published\base\ntrtl_x.w
+        EXCEPTION_RECORD exr{};
+        exr.NumberParameters = 1;                                            // default to be safe, see below
+        exr.ExceptionCode = STATUS_STACK_BUFFER_OVERRUN;                     // 0xC0000409
+        exr.ExceptionFlags = EXCEPTION_NONCONTINUABLE;
+        exr.ExceptionInformation[0] = FAST_FAIL_FATAL_APP_EXIT; // see winnt.h, generated from minkernel\published\base\ntrtl_x.w
         if (failure.returnAddress == nullptr) // FailureInfo does not have _ReturnAddress, have RaiseFailFastException generate it
         {
             // passing ExceptionCode 0xC0000409 and one param with FAST_FAIL_APP_EXIT will use existing
             // !analyze functionality to crawl the stack looking for the HRESULT
             // don't pass a 0 HRESULT in param 1 because that will result in worse bucketing.
-            WilRaiseFailFastException(&er, nullptr, FAIL_FAST_GENERATE_EXCEPTION_ADDRESS);
+            WilRaiseFailFastException(&exr, nullptr, FAIL_FAST_GENERATE_EXCEPTION_ADDRESS);
         }
         else // use FailureInfo caller address
         {
             // parameter 1 is the failing HRESULT
             // parameter 2 is the line number.  This is never used for bucketing (due to code churn causing re-bucketing) but is available in the dump's
             // exception record to aid in failure locality. Putting it here prevents it from being poisoned in triage dumps.
-            er.NumberParameters = 3;
-            er.ExceptionInformation[1] = failure.hr;
-            er.ExceptionInformation[2] = failure.uLineNumber;
-            er.ExceptionAddress = failure.returnAddress;
-            WilRaiseFailFastException(&er, nullptr, 0 /* do not generate exception address */);
+            exr.NumberParameters = 3;
+            exr.ExceptionInformation[1] = failure.hr;
+            exr.ExceptionInformation[2] = failure.uLineNumber;
+            exr.ExceptionAddress = failure.returnAddress;
+            WilRaiseFailFastException(&exr, nullptr, 0 /* do not generate exception address */);
         }
     }
 
@@ -7229,10 +7229,10 @@ struct err_returncode_policy
         RETURN_IF_WIN32_BOOL_FALSE_EXPECTED(fReturn);
         return S_OK;
     }
-    __forceinline static HRESULT Win32Handle(HANDLE h, _Out_ HANDLE* ph)
+    __forceinline static HRESULT Win32Handle(HANDLE handleIn, _Out_ HANDLE* handleOut)
     {
-        *ph = h;
-        RETURN_LAST_ERROR_IF_NULL_EXPECTED(h);
+        *handleOut = handleIn;
+        RETURN_LAST_ERROR_IF_NULL_EXPECTED(handleIn);
         return S_OK;
     }
     _Post_satisfies_(return == hr) __forceinline static HRESULT HResult(HRESULT hr)
@@ -7262,10 +7262,10 @@ struct err_failfast_policy
     {
         FAIL_FAST_IF_WIN32_BOOL_FALSE(fReturn);
     }
-    __forceinline static result Win32Handle(HANDLE h, _Out_ HANDLE* ph)
+    __forceinline static result Win32Handle(HANDLE handleIn, _Out_ HANDLE* handleOut)
     {
-        *ph = h;
-        FAIL_FAST_LAST_ERROR_IF_NULL(h);
+        *handleOut = handleIn;
+        FAIL_FAST_LAST_ERROR_IF_NULL(handleIn);
     }
     _When_(FAILED(hr), _Analysis_noreturn_)
     __forceinline static result HResult(HRESULT hr)
@@ -7297,10 +7297,10 @@ struct err_exception_policy
     {
         THROW_IF_WIN32_BOOL_FALSE(fReturn);
     }
-    __forceinline static result Win32Handle(HANDLE h, _Out_ HANDLE* ph)
+    __forceinline static result Win32Handle(HANDLE handleIn, _Out_ HANDLE* handleOut)
     {
-        *ph = h;
-        THROW_LAST_ERROR_IF_NULL(h);
+        *handleOut = handleIn;
+        THROW_LAST_ERROR_IF_NULL(handleIn);
     }
     _When_(FAILED(hr), _Analysis_noreturn_)
     __forceinline static result HResult(HRESULT hr)

@@ -208,13 +208,13 @@ namespace filetime_duration
 namespace filetime
 {
     template <typename Int64 = unsigned long long, wistd::enable_if_t<wistd::is_integral_v<Int64> && (sizeof(Int64) == sizeof(FILETIME)), int> = 0>
-    constexpr Int64 to_int64(const FILETIME& ft) WI_NOEXCEPT
+    constexpr Int64 to_int64(const FILETIME& val) WI_NOEXCEPT
     {
 #if WIL_USE_STL && (__cpp_lib_bit_cast >= 201806L)
-        return std::bit_cast<Int64>(ft);
+        return std::bit_cast<Int64>(val);
 #else
         // Cannot reinterpret_cast FILETIME* to Int64* due to alignment differences.
-        return (static_cast<Int64>(ft.dwHighDateTime) << 32) + ft.dwLowDateTime;
+        return (static_cast<Int64>(val.dwHighDateTime) << 32) + val.dwLowDateTime;
 #endif
     }
 
@@ -241,22 +241,22 @@ namespace filetime
     }
 
     template <typename Int, wistd::enable_if_t<wistd::is_integral_v<Int> && (sizeof(Int) <= sizeof(FILETIME)), int> = 0>
-    __WI_CONSTEXPR_BIT_CAST FILETIME add(FILETIME const& ft, Int delta100ns) WI_NOEXCEPT
+    __WI_CONSTEXPR_BIT_CAST FILETIME add(FILETIME const& baseTime, Int delta100ns) WI_NOEXCEPT
     {
         using Int64 = details::select_int64<Int>;
-        return from_int64(to_int64<Int64>(ft) + delta100ns);
+        return from_int64(to_int64<Int64>(baseTime) + delta100ns);
     }
 
-    constexpr bool is_empty(const FILETIME& ft) WI_NOEXCEPT
+    constexpr bool is_empty(const FILETIME& val) WI_NOEXCEPT
     {
-        return (ft.dwHighDateTime == 0) && (ft.dwLowDateTime == 0);
+        return (val.dwHighDateTime == 0) && (val.dwLowDateTime == 0);
     }
 
     inline FILETIME get_system_time() WI_NOEXCEPT
     {
-        FILETIME ft;
-        GetSystemTimeAsFileTime(&ft);
-        return ft;
+        FILETIME now;
+        GetSystemTimeAsFileTime(&now);
+        return now;
     }
 
     /// Convert time as units of 100 nanoseconds to milliseconds. Fractional milliseconds are truncated.
@@ -962,10 +962,8 @@ bool init_once(_Inout_ INIT_ONCE& initOnce, T func)
         completion.success();
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 #endif // WIL_ENABLE_EXCEPTIONS
 

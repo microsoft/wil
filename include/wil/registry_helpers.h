@@ -1308,18 +1308,18 @@ namespace reg
         constexpr size_t iterator_max_valuename_length = 16383;
 
         // function overloads to allow *_enumerator objects to be constructed from all 3 types of HKEY representatives
-        inline HKEY get_hkey(HKEY h) WI_NOEXCEPT
+        inline HKEY get_hkey(HKEY key) WI_NOEXCEPT
         {
-            return h;
+            return key;
         }
-        inline HKEY get_hkey(const ::wil::unique_hkey& h) WI_NOEXCEPT
+        inline HKEY get_hkey(const ::wil::unique_hkey& key) WI_NOEXCEPT
         {
-            return h.get();
+            return key.get();
         }
 #if defined(__WIL_WINREG_STL)
-        inline HKEY get_hkey(const ::wil::shared_hkey& h) WI_NOEXCEPT
+        inline HKEY get_hkey(const ::wil::shared_hkey& key) WI_NOEXCEPT
         {
-            return h.get();
+            return key.get();
         }
 #endif // #if defined(__WIL_WINREG_STL)
 

@@ -667,7 +667,7 @@ namespace details_abi
             unsigned int minSequenceId,
             _In_opt_ const DiagnosticsInfo* diagnostics,
             HRESULT matchRequirement,
-            void* returnAddress)
+            void* returnAddress) const
         {
             // First attempt to get the last error and then see if it matches the error returned from
             // the last caught exception.  If it does, then we're good to go and we return that last error.

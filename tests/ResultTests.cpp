@@ -79,19 +79,19 @@ TEST_CASE("ResultTests::ProcessLocalStorage", "[result]")
         wil::details_abi::ProcessLocalStorage<SharedObject> obj1("ver1");
         wil::details_abi::ProcessLocalStorage<SharedObject> obj2("ver1");
 
-        auto& o1 = *obj1.GetShared();
-        auto& o2 = *obj2.GetShared();
+        auto& shared1 = *obj1.GetShared();
+        auto& shared2 = *obj2.GetShared();
 
-        REQUIRE(o1.value == 0);
-        REQUIRE(o2.value == 0);
-        o1.value = 42;
-        REQUIRE(o2.value == 42);
+        REQUIRE(shared1.value == 0);
+        REQUIRE(shared2.value == 0);
+        shared1.value = 42;
+        REQUIRE(shared2.value == 42);
         REQUIRE(objectCount == 1);
 
         wil::details_abi::ProcessLocalStorage<SharedObject> obj3("ver3");
-        auto& o3 = *obj3.GetShared();
+        auto& shared3 = *obj3.GetShared();
 
-        REQUIRE(o3.value == 0);
+        REQUIRE(shared3.value == 0);
         REQUIRE(objectCount == 2);
     }
 

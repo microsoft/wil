@@ -372,10 +372,10 @@ TEST_CASE("MockingTests::GlobalDetourDestructorRace", "[mocking]")
     wil::unique_event nonDetourContinueEvent(wil::EventOptions::None);
     wil::unique_event nonDetourCompleteEvent(wil::EventOptions::None);
     witest::detoured_thread_function<&::SleepConditionVariableSRW> cvWaitDetour(
-        [&](PCONDITION_VARIABLE cv, PSRWLOCK lock, DWORD dwMilliseconds, ULONG flags) {
+        [&](PCONDITION_VARIABLE condVar, PSRWLOCK lock, DWORD dwMilliseconds, ULONG flags) {
             // This should be called during the call to 'reset' since there's an "active" call
             nonDetourContinueEvent.SetEvent(); // Kick off a non-detoured call
-            return ::SleepConditionVariableSRW(cv, lock, dwMilliseconds, flags);
+            return ::SleepConditionVariableSRW(condVar, lock, dwMilliseconds, flags);
         });
 
     witest::detoured_global_function<&LocalAddFunction> detour([&](int lhs, int rhs) {

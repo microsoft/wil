@@ -439,25 +439,17 @@ TEST_CASE("BasicRegistryTests::ExampleUsage", "[registry]")
             wil::reg::create_unique_key(HKEY_CURRENT_USER, L"Software\\Microsoft\\BasicRegistryTest", wil::reg::key_access::readwrite);
 
         // Get count of child keys and values.
-        const uint32_t childValCount = wil::reg::get_child_value_count(key.get());
-        const uint32_t childKeyCount = wil::reg::get_child_key_count(key.get());
-        const uint32_t largeChildKeyCount = wil::reg::get_child_key_count(HKEY_CLASSES_ROOT);
+        REQUIRE(wil::reg::get_child_value_count(key.get()) == 0);
+        REQUIRE(wil::reg::get_child_key_count(key.get()) == 0);
+        REQUIRE(wil::reg::get_child_key_count(HKEY_CLASSES_ROOT) > 1000);
 
         // Get last write time
         std::ignore = wil::reg::get_last_write_filetime(key.get());
 
         // Simple helpers for analyzing returned HRESULTs
-        const bool a = wil::reg::is_registry_buffer_too_small(HRESULT_FROM_WIN32(ERROR_MORE_DATA)); // => true
-        const bool b = wil::reg::is_registry_not_found(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));   // => true
-        const bool c = wil::reg::is_registry_not_found(HRESULT_FROM_WIN32(ERROR_PATH_NOT_FOUND));   // => true
-
-        // --- validation, not included in documentation ---
-        REQUIRE(childKeyCount == 0);
-        REQUIRE(childValCount == 0);
-        REQUIRE(largeChildKeyCount > 1000);
-        REQUIRE(a == true);
-        REQUIRE(b == true);
-        REQUIRE(c == true);
+        REQUIRE(wil::reg::is_registry_buffer_too_small(HRESULT_FROM_WIN32(ERROR_MORE_DATA)));
+        REQUIRE(wil::reg::is_registry_not_found(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND)));
+        REQUIRE(wil::reg::is_registry_not_found(HRESULT_FROM_WIN32(ERROR_PATH_NOT_FOUND)));
     }
 #if defined(__clang__)
 #pragma clang diagnostic pop

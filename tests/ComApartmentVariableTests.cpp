@@ -30,9 +30,9 @@ static inline void WaitForAllComApartmentsToRundown()
     }
 }
 
-static void co_wait(const wil::unique_event& e)
+static void co_wait(const wil::unique_event& evt)
 {
-    HANDLE raw[] = {e.get()};
+    HANDLE raw[] = {evt.get()};
     ULONG index{};
     REQUIRE_SUCCEEDED(CoWaitForMultipleHandles(COWAIT_DISPATCH_CALLS, INFINITE, static_cast<ULONG>(std::size(raw)), raw, &index));
 }
@@ -63,11 +63,9 @@ struct mock_platform
             REQUIRE_FALSE(GetCurrentThreadId() < APTTYPE_MAINSTA);
             return GetCurrentThreadId();
         }
-        else
-        {
-            // APTTYPE_MTA (1), APTTYPE_NA (2), APTTYPE_MAINSTA (3)
-            return type;
-        }
+
+        // APTTYPE_MTA (1), APTTYPE_NA (2), APTTYPE_MAINSTA (3)
+        return type;
     }
 
     static auto RegisterForApartmentShutdown(IApartmentShutdown* observer)
@@ -141,16 +139,16 @@ static void TestApartmentVariableAllMethods()
         g_v1.clear();
     });
 
-    wil::apartment_variable<int, wil::apartment_variable_leak_action::fail_fast, platform> v1;
+    wil::apartment_variable<int, wil::apartment_variable_leak_action::fail_fast, platform> var;
 
-    REQUIRE(v1.get_if() == nullptr);
-    REQUIRE(v1.get_or_create(fn) == 42);
-    int value = 43;
-    v1.set(value);
-    REQUIRE(v1.get_or_create(fn) == 43);
-    REQUIRE(v1.get_existing() == 43);
-    v1.clear();
-    REQUIRE(v1.get_if() == nullptr);
+    REQUIRE(var.get_if() == nullptr);
+    REQUIRE(var.get_or_create(fn) == 42);
+    int varue = 43;
+    var.set(varue);
+    REQUIRE(var.get_or_create(fn) == 43);
+    REQUIRE(var.get_existing() == 43);
+    var.clear();
+    REQUIRE(var.get_if() == nullptr);
 }
 
 template <typename platform = wil::apartment_variable_platform>
@@ -158,14 +156,14 @@ static void TestApartmentVariableGetOrCreateForms()
 {
     auto coUninit = platform::CoInitializeEx(COINIT_MULTITHREADED);
 
-    wil::apartment_variable<int, wil::apartment_variable_leak_action::fail_fast, platform> v1;
-    REQUIRE(v1.get_or_create(fn) == 42);
-    v1.clear();
-    REQUIRE(v1.get_or_create([&] {
+    wil::apartment_variable<int, wil::apartment_variable_leak_action::fail_fast, platform> var;
+    REQUIRE(var.get_or_create(fn) == 42);
+    var.clear();
+    REQUIRE(var.get_or_create([&] {
         return 1;
     }) == 1);
-    v1.clear();
-    REQUIRE(v1.get_or_create() == 0);
+    var.clear();
+    REQUIRE(var.get_or_create() == 0);
 }
 
 template <typename platform = wil::apartment_variable_platform>
@@ -177,19 +175,19 @@ static void TestApartmentVariableLifetimes()
     {
         auto coUninit = platform::CoInitializeEx(COINIT_MULTITHREADED);
 
-        auto v1 = av1.get_or_create(fn);
+        auto val1 = av1.get_or_create(fn);
         REQUIRE(av1.storage().size() == 1);
-        auto v2 = av1.get_existing();
+        auto val2 = av1.get_existing();
         REQUIRE(av1.current_apartment_variable_count() == 1);
-        REQUIRE(v1 == v2);
+        REQUIRE(val1 == val2);
     }
 
     {
         auto coUninit = platform::CoInitializeEx(COINIT_MULTITHREADED);
-        auto v1 = av1.get_or_create(fn);
-        auto v2 = av2.get_or_create(fn2);
+        auto val1 = av1.get_or_create(fn);
+        auto val2 = av2.get_or_create(fn2);
         REQUIRE((av1.current_apartment_variable_count() == 2));
-        REQUIRE(v1 != v2);
+        REQUIRE(val1 != val2);
         REQUIRE(av1.storage().size() == 1);
     }
 
@@ -198,7 +196,7 @@ static void TestApartmentVariableLifetimes()
     {
         auto coUninit = platform::CoInitializeEx(COINIT_MULTITHREADED);
 
-        auto v = av1.get_or_create(fn);
+        auto val = av1.get_or_create(fn);
         REQUIRE(av1.current_apartment_variable_count() == 1);
 
         std::thread([&]() // join below makes this ok
@@ -213,8 +211,8 @@ static void TestApartmentVariableLifetimes()
         REQUIRE(av1.storage().size() == 1);
 
         av1.get_or_create(fn)++;
-        v = av1.get_existing();
-        REQUIRE(v == 43);
+        val = av1.get_existing();
+        REQUIRE(val == 43);
     }
 
     {
@@ -222,8 +220,8 @@ static void TestApartmentVariableLifetimes()
 
         std::ignore = av1.get_or_create(fn);
         REQUIRE(av1.current_apartment_variable_count() == 1);
-        int i = 1;
-        av1.set(i);
+        int newVal = 1;
+        av1.set(newVal);
         av1.clear();
         REQUIRE(av1.current_apartment_variable_count() == 0);
 
@@ -285,10 +283,10 @@ static void TestWinningApartmentAlreadyRundownRace()
 {
     auto coUninit = platform::CoInitializeEx(COINIT_MULTITHREADED);
 
-    wil::apartment_variable<int, wil::apartment_variable_leak_action::fail_fast, platform> av;
+    wil::apartment_variable<int, wil::apartment_variable_leak_action::fail_fast, platform> aptVar;
 
-    std::ignore = av.get_or_create(fn);
-    const auto& storage = av.storage(); // for viewing the storage in the debugger
+    std::ignore = aptVar.get_or_create(fn);
+    const auto& storage = aptVar.storage(); // for viewing the storage in the debugger
 
     wil::unique_event otherAptVarCreated{wil::EventOptions::None};
     wil::unique_event startApartmentRundown{wil::EventOptions::None};
@@ -298,19 +296,19 @@ static void TestWinningApartmentAlreadyRundownRace()
                                   {
                                       SetThreadDescription(GetCurrentThread(), L"STA");
                                       auto coUninit = platform::CoInitializeEx(COINIT_APARTMENTTHREADED);
-                                      std::ignore = av.get_or_create(fn);
+                                      std::ignore = aptVar.get_or_create(fn);
                                       otherAptVarCreated.SetEvent();
                                       co_wait(startApartmentRundown);
                                   });
 
     otherAptVarCreated.wait();
-    // we now have av in this apartment and in the STA
+    // we now have aptVar in this apartment and in the STA
     REQUIRE(storage.size() == 2);
     // wait for async clean to complete
-    av.clear_all_apartments_async().get();
+    aptVar.clear_all_apartments_async().get();
     startApartmentRundown.SetEvent();
 
-    REQUIRE(av.storage().size() == 0);
+    REQUIRE(aptVar.storage().size() == 0);
     apt_thread.join();
 }
 
@@ -319,10 +317,10 @@ static void TestLosingApartmentAlreadyRundownRace()
 {
     auto coUninit = platform::CoInitializeEx(COINIT_MULTITHREADED);
 
-    wil::apartment_variable<int, wil::apartment_variable_leak_action::fail_fast, platform> av;
+    wil::apartment_variable<int, wil::apartment_variable_leak_action::fail_fast, platform> aptVar;
 
-    std::ignore = av.get_or_create(fn);
-    const auto& storage = av.storage(); // for viewing the storage in the debugger
+    std::ignore = aptVar.get_or_create(fn);
+    const auto& storage = aptVar.storage(); // for viewing the storage in the debugger
 
     wil::unique_event otherAptVarCreated{wil::EventOptions::None};
     wil::unique_event startApartmentRundown{wil::EventOptions::None};
@@ -332,7 +330,7 @@ static void TestLosingApartmentAlreadyRundownRace()
                                   {
                                       SetThreadDescription(GetCurrentThread(), L"STA");
                                       auto coUninit = platform::CoInitializeEx(COINIT_APARTMENTTHREADED);
-                                      std::ignore = av.get_or_create(fn);
+                                      std::ignore = aptVar.get_or_create(fn);
                                       otherAptVarCreated.SetEvent();
                                       co_wait(startApartmentRundown);
                                       coUninit.reset();
@@ -340,21 +338,21 @@ static void TestLosingApartmentAlreadyRundownRace()
                                   });
 
     otherAptVarCreated.wait();
-    // we now have av in this apartment and in the STA
+    // we now have aptVar in this apartment and in the STA
     REQUIRE(storage.size() == 2);
-    auto clearAllOperation = av.clear_all_apartments_async();
+    auto clearAllOperation = aptVar.clear_all_apartments_async();
     startApartmentRundown.SetEvent();
     comRundownComplete.wait();
     clearAllOperation.get(); // wait for the async rundowns to complete
 
-    REQUIRE(av.storage().size() == 0);
+    REQUIRE(aptVar.storage().size() == 0);
     apt_thread.join();
 }
 
 TEST_CASE("ComApartmentVariable::ShutdownRegistration", "[LocalOnly][com][unique_apartment_shutdown_registration]")
 {
     {
-        wil::unique_apartment_shutdown_registration r;
+        wil::unique_apartment_shutdown_registration apt_shutdown_registration;
     }
 
     {

@@ -98,20 +98,20 @@ class WilExceptionMatcher : public Catch::Matchers::MatcherBase<wil::ResultExcep
     HRESULT m_expected;
 
 public:
-    WilExceptionMatcher(HRESULT ex) : m_expected(ex)
+    WilExceptionMatcher(HRESULT hr) : m_expected(hr)
     {
     }
 
-    bool match(wil::ResultException const& ex) const override
+    bool match(wil::ResultException const& exception) const override
     {
-        return ex.GetErrorCode() == m_expected;
+        return exception.GetErrorCode() == m_expected;
     }
 
     std::string describe() const override
     {
-        std::ostringstream ss;
-        ss << "wil::ResultException expects code 0x%08lx" << std::hex << m_expected;
-        return ss.str();
+        std::ostringstream stream;
+        stream << "wil::ResultException expects code 0x%08lx" << std::hex << m_expected;
+        return stream.str();
     }
 };
 

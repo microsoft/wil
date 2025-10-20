@@ -1277,9 +1277,9 @@ inline IInspectable* com_raw_ptr(T^ ptr)
 //! }
 //! ~~~
 template <typename T>
-com_ptr<T> make_com_ptr(T* p)
+com_ptr<T> make_com_ptr(T* ptr)
 {
-    return p;
+    return ptr;
 }
 #endif
 
@@ -1293,9 +1293,9 @@ com_ptr<T> make_com_ptr(T* p)
 //! }
 //! ~~~
 template <typename T>
-com_ptr_nothrow<T> make_com_ptr_nothrow(T* p)
+com_ptr_nothrow<T> make_com_ptr_nothrow(T* ptr)
 {
-    return p;
+    return ptr;
 }
 
 //! Constructs a `com_ptr_failfast` from a raw pointer.
@@ -1308,9 +1308,9 @@ com_ptr_nothrow<T> make_com_ptr_nothrow(T* p)
 //! }
 //! ~~~
 template <typename T>
-com_ptr_failfast<T> make_com_ptr_failfast(T* p)
+com_ptr_failfast<T> make_com_ptr_failfast(T* ptr)
 {
-    return p;
+    return ptr;
 }
 
 //! @name Stand-alone query helpers
@@ -2134,8 +2134,8 @@ namespace details
         std::tuple<wil::com_ptr_t<Results, error_policy>...> resultTuple;
 
         std::apply(
-            [i = 0, &multiQis](auto&... a) mutable {
-                (a.attach(reinterpret_cast<typename std::remove_reference<decltype(a)>::type::pointer>(multiQis[i++].pItf)), ...);
+            [i = 0, &multiQis](auto&... ptrs) mutable {
+                (ptrs.attach(reinterpret_cast<typename std::remove_reference<decltype(ptrs)>::type::pointer>(multiQis[i++].pItf)), ...);
             },
             resultTuple);
         return std::tuple<HRESULT, decltype(resultTuple)>(hr, std::move(resultTuple));
@@ -2162,8 +2162,8 @@ namespace details
         {
             hr = multiQi->QueryMultipleInterfaces(ARRAYSIZE(multiQis), multiQis);
             std::apply(
-                [i = 0, &multiQis](auto&... a) mutable {
-                    (a.attach(reinterpret_cast<typename std::remove_reference<decltype(a)>::type::pointer>(multiQis[i++].pItf)), ...);
+                [i = 0, &multiQis](auto&... ptrs) mutable {
+                    (ptrs.attach(reinterpret_cast<typename std::remove_reference<decltype(ptrs)>::type::pointer>(multiQis[i++].pItf)), ...);
                 },
                 resultTuple);
         }
@@ -2380,9 +2380,9 @@ RETURN_HR_IF(E_INVALIDARG, size > ULONG_MAX);
 */
 inline HRESULT stream_size_nothrow(_In_ IStream* stream, _Out_ unsigned long long* value)
 {
-    STATSTG st{};
-    RETURN_IF_FAILED(stream->Stat(&st, STATFLAG_NONAME));
-    *value = st.cbSize.QuadPart;
+    STATSTG info{};
+    RETURN_IF_FAILED(stream->Stat(&info, STATFLAG_NONAME));
+    *value = info.cbSize.QuadPart;
 
     return S_OK;
 }
@@ -3322,10 +3322,10 @@ WI_NODISCARD auto make_range(IEnumXxx* enumPtr)
 }
 
 template <typename TEnum, typename = wistd::enable_if_t<wil::details::has_next_v<TEnum*>>>
-auto make_range(const wil::com_ptr<TEnum>& e)
+auto make_range(const wil::com_ptr<TEnum>& enumerable)
 {
     using Enumerated = typename wil::details::com_enumerator_traits<TEnum>::smart_result;
-    return wil::make_range<Enumerated>(e.get());
+    return wil::make_range<Enumerated>(enumerable.get());
 }
 
 #ifdef __IShellItemArray_INTERFACE_DEFINED__
@@ -3386,9 +3386,9 @@ public:
             err_policy::LastErrorIfFalse(static_cast<bool>(m_timer));
             if (m_timer)
             {
-                FILETIME ft = filetime::get_system_time();
-                ft = filetime::add(ft, filetime::convert_msec_to_100ns(timeoutInMilliseconds));
-                SetThreadpoolTimer(m_timer.get(), &ft, timeoutInMilliseconds, 0);
+                FILETIME target = filetime::get_system_time();
+                target = filetime::add(target, filetime::convert_msec_to_100ns(timeoutInMilliseconds));
+                SetThreadpoolTimer(m_timer.get(), &target, timeoutInMilliseconds, 0);
             }
         }
     }

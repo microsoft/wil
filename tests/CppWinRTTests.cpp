@@ -48,9 +48,9 @@ template <typename T, typename K>
 static void CheckMapVector(std::vector<winrt::Windows::Foundation::Collections::IKeyValuePair<T, K>> const& test, std::map<T, K> const& src)
 {
     REQUIRE(test.size() == src.size());
-    for (auto&& i : test)
+    for (auto&& pair : test)
     {
-        REQUIRE(i.Value() == src.at(i.Key()));
+        REQUIRE(pair.Value() == src.at(pair.Key()));
     }
 }
 
@@ -131,35 +131,35 @@ TEST_CASE("CppWinRTTests::VectorToVector", "[cppwinrt]")
     winrt::init_apartment();
     {
         std::vector<winrt::hstring> src_vector = {L"foo", L"bar", L"bas"};
-        auto sv = winrt::single_threaded_vector(copy_thing(src_vector));
-        REQUIRE(wil::to_vector(sv) == src_vector);
-        REQUIRE(wil::to_vector(sv.GetView()) == src_vector);
-        REQUIRE(wil::to_vector(sv.First()) == src_vector);
-        REQUIRE(wil::to_vector(sv.First()) == src_vector);
-        REQUIRE(wil::to_vector(sv.as<winrt::Windows::Foundation::Collections::IIterable<winrt::hstring>>()) == src_vector);
+        auto winrtVec = winrt::single_threaded_vector(copy_thing(src_vector));
+        REQUIRE(wil::to_vector(winrtVec) == src_vector);
+        REQUIRE(wil::to_vector(winrtVec.GetView()) == src_vector);
+        REQUIRE(wil::to_vector(winrtVec.First()) == src_vector);
+        REQUIRE(wil::to_vector(winrtVec.First()) == src_vector);
+        REQUIRE(wil::to_vector(winrtVec.as<winrt::Windows::Foundation::Collections::IIterable<winrt::hstring>>()) == src_vector);
     }
     {
         std::vector<uint32_t> src_vector = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19};
-        auto sv = winrt::single_threaded_vector(copy_thing(src_vector));
-        REQUIRE(wil::to_vector(sv) == src_vector);
-        REQUIRE(wil::to_vector(sv.GetView()) == src_vector);
-        REQUIRE(wil::to_vector(sv.First()) == src_vector);
-        REQUIRE(wil::to_vector(sv.as<winrt::Windows::Foundation::Collections::IIterable<uint32_t>>()) == src_vector);
+        auto winrtVec = winrt::single_threaded_vector(copy_thing(src_vector));
+        REQUIRE(wil::to_vector(winrtVec) == src_vector);
+        REQUIRE(wil::to_vector(winrtVec.GetView()) == src_vector);
+        REQUIRE(wil::to_vector(winrtVec.First()) == src_vector);
+        REQUIRE(wil::to_vector(winrtVec.as<winrt::Windows::Foundation::Collections::IIterable<uint32_t>>()) == src_vector);
     }
     {
         std::vector<float> src_vector;
-        auto sv = winrt::single_threaded_vector(copy_thing(src_vector));
-        REQUIRE(wil::to_vector(sv) == src_vector);
-        REQUIRE(wil::to_vector(sv.GetView()) == src_vector);
-        REQUIRE(wil::to_vector(sv.First()) == src_vector);
-        REQUIRE(wil::to_vector(sv.as<winrt::Windows::Foundation::Collections::IIterable<float>>()) == src_vector);
+        auto winrtVec = winrt::single_threaded_vector(copy_thing(src_vector));
+        REQUIRE(wil::to_vector(winrtVec) == src_vector);
+        REQUIRE(wil::to_vector(winrtVec.GetView()) == src_vector);
+        REQUIRE(wil::to_vector(winrtVec.First()) == src_vector);
+        REQUIRE(wil::to_vector(winrtVec.as<winrt::Windows::Foundation::Collections::IIterable<float>>()) == src_vector);
     }
     {
         std::map<winrt::hstring, winrt::hstring> src_map{{L"kittens", L"fluffy"}, {L"puppies", L"cute"}};
-        auto sm = winrt::single_threaded_map(copy_thing(src_map));
-        CheckMapVector(wil::to_vector(sm), src_map);
-        CheckMapVector(wil::to_vector(sm.GetView()), src_map);
-        CheckMapVector(wil::to_vector(sm.First()), src_map);
+        auto winrtMap = winrt::single_threaded_map(copy_thing(src_map));
+        CheckMapVector(wil::to_vector(winrtMap), src_map);
+        CheckMapVector(wil::to_vector(winrtMap.GetView()), src_map);
+        CheckMapVector(wil::to_vector(winrtMap.First()), src_map);
     }
     {
         winrt::Windows::Foundation::Collections::PropertySet props;
@@ -167,15 +167,15 @@ TEST_CASE("CppWinRTTests::VectorToVector", "[cppwinrt]")
         props.Insert(L"puppy", winrt::box_value<uint32_t>(25));
         auto converted = wil::to_vector(props);
         REQUIRE(converted.size() == props.Size());
-        for (auto&& kv : converted)
+        for (auto&& pair : converted)
         {
-            if (kv.Key() == L"kitten")
+            if (pair.Key() == L"kitten")
             {
-                REQUIRE(kv.Value().as<winrt::hstring>() == L"fluffy");
+                REQUIRE(pair.Value().as<winrt::hstring>() == L"fluffy");
             }
-            else if (kv.Key() == L"puppy")
+            else if (pair.Key() == L"puppy")
             {
-                REQUIRE(kv.Value().as<uint32_t>() == 25);
+                REQUIRE(pair.Value().as<uint32_t>() == 25);
             }
             else
             {
@@ -187,24 +187,24 @@ TEST_CASE("CppWinRTTests::VectorToVector", "[cppwinrt]")
         std::vector<BackgroundActivatedEventArgs> src_vector;
         src_vector.emplace_back(BackgroundActivatedEventArgs{nullptr});
         src_vector.emplace_back(BackgroundActivatedEventArgs{nullptr});
-        auto sv = winrt::single_threaded_vector(copy_thing(src_vector));
-        REQUIRE(wil::to_vector(sv) == src_vector);
+        auto winrtVec = winrt::single_threaded_vector(copy_thing(src_vector));
+        REQUIRE(wil::to_vector(winrtVec) == src_vector);
     }
 
     REQUIRE_THROWS(wil::to_vector(winrt::make<unstable_vector>()));
 
     auto ilike = wil::to_vector(iterable_like{});
     REQUIRE(ilike.size() == iterator_like::total);
-    for (auto&& i : ilike)
+    for (auto&& val : ilike)
     {
-        REQUIRE(i == iterator_like{}.Current());
+        REQUIRE(val == iterator_like{}.Current());
     }
 
     auto vlike = wil::to_vector(vector_like{});
     REQUIRE(vlike.size() == vector_like{}.Size());
-    for (auto&& i : vlike)
+    for (auto&& val : vlike)
     {
-        REQUIRE(i == vector_like{}.GetAt(0));
+        REQUIRE(val == vector_like{}.GetAt(0));
     }
 
     winrt::clear_factory_cache();
@@ -349,13 +349,13 @@ TEST_CASE("CppWinRTTests::ModuleReference", "[cppwinrt]")
         {
             wil::winrt_module_reference ref;
         };
-        object_with_ref o1;
+        object_with_ref obj1;
         REQUIRE(peek_module_ref_count() == initial + 1);
-        auto o2 = o1;
+        auto obj2 = obj1;
         REQUIRE(peek_module_ref_count() == initial + 2);
-        o1 = o2;
+        obj1 = obj2;
         REQUIRE(peek_module_ref_count() == initial + 2);
-        o2 = std::move(o1);
+        obj2 = std::move(obj1);
         REQUIRE(peek_module_ref_count() == initial + 2);
     }
     REQUIRE(peek_module_ref_count() == initial);

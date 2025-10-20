@@ -795,7 +795,7 @@ TEST_CASE("FileSystemTest::FolderChangeReader destructor does not hang", "[files
 
             opCompletedEv.SetEvent();
         });
-    auto readerThread = std::thread([rdn = std::move(readerDestructNotify), r = std::move(reader)]() mutable {
+    auto readerThread = std::thread([rdn = std::move(readerDestructNotify), reader = std::move(reader)]() mutable {
         rdn.wait(INFINITE);
     });
 

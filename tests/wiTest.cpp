@@ -1263,8 +1263,8 @@ TEST_CASE("WindowsInternalTests::SharedHandle", "[resource][shared_any]")
     REQUIRE((ptr1 >= ptr2) == (sp1 >= sp2));
 
     // construction
-    wil::weak_handle wh;
-    REQUIRE_FALSE(wh.lock());
+    wil::weak_handle weakHandle;
+    REQUIRE_FALSE(weakHandle.lock());
     wil::weak_handle wh1 = sp1;
     REQUIRE(wh1.lock());
     REQUIRE(wh1.lock().get() == ptr1);
@@ -1272,20 +1272,20 @@ TEST_CASE("WindowsInternalTests::SharedHandle", "[resource][shared_any]")
     REQUIRE(wh1copy.lock());
 
     // assignment
-    wh = wh1;
-    REQUIRE(wh.lock().get() == ptr1);
-    wh = sp2;
-    REQUIRE(wh.lock().get() == ptr2);
+    weakHandle = wh1;
+    REQUIRE(weakHandle.lock().get() == ptr1);
+    weakHandle = sp2;
+    REQUIRE(weakHandle.lock().get() == ptr2);
 
     // reset
-    wh.reset();
-    REQUIRE_FALSE(wh.lock());
+    weakHandle.reset();
+    REQUIRE_FALSE(weakHandle.lock());
 
     // expiration
-    wh = sp1;
+    weakHandle = sp1;
     sp1.reset();
-    REQUIRE(wh.expired());
-    REQUIRE_FALSE(wh.lock());
+    REQUIRE(weakHandle.expired());
+    REQUIRE_FALSE(weakHandle.lock());
 
     // swap
     wh1 = sp1;
@@ -1337,34 +1337,34 @@ template <typename event_t>
 static void EventTestCommon()
 {
     // Constructor tests...
-    event_t e1;
-    REQUIRE_FALSE(e1);
-    event_t e2(::CreateEventEx(nullptr, nullptr, 0, 0));
-    REQUIRE(e2);
-    wil::unique_handle h1(::CreateEventEx(nullptr, nullptr, 0, 0));
-    REQUIRE(h1);
-    event_t e3(h1.release());
-    REQUIRE(e3);
-    REQUIRE_FALSE(h1);
-    event_t e4(std::move(e2));
-    REQUIRE(e4);
-    REQUIRE_FALSE(e2);
+    event_t evt1;
+    REQUIRE_FALSE(evt1);
+    event_t evt2(::CreateEventEx(nullptr, nullptr, 0, 0));
+    REQUIRE(evt2);
+    wil::unique_handle handle1(::CreateEventEx(nullptr, nullptr, 0, 0));
+    REQUIRE(handle1);
+    event_t evt3(handle1.release());
+    REQUIRE(evt3);
+    REQUIRE_FALSE(handle1);
+    event_t evt4(std::move(evt2));
+    REQUIRE(evt4);
+    REQUIRE_FALSE(evt2);
 
     // inherited address tests...
-    REQUIRE(e4);
-    &e4;
-    REQUIRE_FALSE(e4);
+    REQUIRE(evt4);
+    &evt4;
+    REQUIRE_FALSE(evt4);
     auto hFill = ::CreateEventEx(nullptr, nullptr, 0, 0);
-    *(&e4) = hFill;
-    REQUIRE(e4);
-    REQUIRE(*e4.addressof() == hFill);
-    REQUIRE(e4);
+    *(&evt4) = hFill;
+    REQUIRE(evt4);
+    REQUIRE(*evt4.addressof() == hFill);
+    REQUIRE(evt4);
 
     // assignment...
-    event_t e5;
-    e5 = std::move(e4);
-    REQUIRE(e5);
-    REQUIRE_FALSE(e4);
+    event_t evt5;
+    evt5 = std::move(evt4);
+    REQUIRE(evt5);
+    REQUIRE_FALSE(evt4);
 
     // various event-based tests
     event_t eManual;
@@ -1400,34 +1400,34 @@ template <typename mutex_t>
 static void MutexTestCommon()
 {
     // Constructor tests...
-    mutex_t m1;
-    REQUIRE_FALSE(m1);
-    mutex_t m2(::CreateMutexEx(nullptr, nullptr, 0, 0));
-    REQUIRE(m2);
-    wil::unique_handle h1(::CreateMutexEx(nullptr, nullptr, 0, 0));
-    REQUIRE(h1);
-    mutex_t m3(h1.release());
-    REQUIRE(m3);
-    REQUIRE_FALSE(h1);
-    mutex_t m4(std::move(m2));
-    REQUIRE(m4);
-    REQUIRE_FALSE(m2);
+    mutex_t mutex1;
+    REQUIRE_FALSE(mutex1);
+    mutex_t mutex2(::CreateMutexEx(nullptr, nullptr, 0, 0));
+    REQUIRE(mutex2);
+    wil::unique_handle handle1(::CreateMutexEx(nullptr, nullptr, 0, 0));
+    REQUIRE(handle1);
+    mutex_t mutex3(handle1.release());
+    REQUIRE(mutex3);
+    REQUIRE_FALSE(handle1);
+    mutex_t mutex4(std::move(mutex2));
+    REQUIRE(mutex4);
+    REQUIRE_FALSE(mutex2);
 
     // inherited address tests...
-    REQUIRE(m4);
-    &m4;
-    REQUIRE_FALSE(m4);
+    REQUIRE(mutex4);
+    &mutex4;
+    REQUIRE_FALSE(mutex4);
     auto hFill = ::CreateMutexEx(nullptr, nullptr, 0, 0);
-    *(&m4) = hFill;
-    REQUIRE(m4);
-    REQUIRE(*m4.addressof() == hFill);
-    REQUIRE(m4);
+    *(&mutex4) = hFill;
+    REQUIRE(mutex4);
+    REQUIRE(*mutex4.addressof() == hFill);
+    REQUIRE(mutex4);
 
     // assignment...
-    mutex_t m5;
-    m5 = std::move(m4);
-    REQUIRE(m5);
-    REQUIRE_FALSE(m4);
+    mutex_t mutex5;
+    mutex5 = std::move(mutex4);
+    REQUIRE(mutex5);
+    REQUIRE_FALSE(mutex4);
 
     // various mutex-based tests
     mutex_t eManual;
@@ -1453,34 +1453,34 @@ template <typename semaphore_t>
 static void SemaphoreTestCommon()
 {
     // Constructor tests...
-    semaphore_t m1;
-    REQUIRE_FALSE(m1);
-    semaphore_t m2(::CreateSemaphoreEx(nullptr, 1, 1, nullptr, 0, 0));
-    REQUIRE(m2);
-    wil::unique_handle h1(::CreateSemaphoreEx(nullptr, 1, 1, nullptr, 0, 0));
-    REQUIRE(h1);
-    semaphore_t m3(h1.release());
-    REQUIRE(m3);
-    REQUIRE_FALSE(h1);
-    semaphore_t m4(std::move(m2));
-    REQUIRE(m4);
-    REQUIRE_FALSE(m2);
+    semaphore_t sem1;
+    REQUIRE_FALSE(sem1);
+    semaphore_t sem2(::CreateSemaphoreEx(nullptr, 1, 1, nullptr, 0, 0));
+    REQUIRE(sem2);
+    wil::unique_handle handle1(::CreateSemaphoreEx(nullptr, 1, 1, nullptr, 0, 0));
+    REQUIRE(handle1);
+    semaphore_t sem3(handle1.release());
+    REQUIRE(sem3);
+    REQUIRE_FALSE(handle1);
+    semaphore_t sem4(std::move(sem2));
+    REQUIRE(sem4);
+    REQUIRE_FALSE(sem2);
 
     // inherited address tests...
-    REQUIRE(m4);
-    &m4;
-    REQUIRE_FALSE(m4);
+    REQUIRE(sem4);
+    &sem4;
+    REQUIRE_FALSE(sem4);
     auto hFill = ::CreateSemaphoreEx(nullptr, 1, 1, nullptr, 0, 0);
-    *(&m4) = hFill;
-    REQUIRE(m4);
-    REQUIRE(*m4.addressof() == hFill);
-    REQUIRE(m4);
+    *(&sem4) = hFill;
+    REQUIRE(sem4);
+    REQUIRE(*sem4.addressof() == hFill);
+    REQUIRE(sem4);
 
     // assignment...
-    semaphore_t m5;
-    m5 = std::move(m4);
-    REQUIRE(m5);
-    REQUIRE_FALSE(m4);
+    semaphore_t sem5;
+    sem5 = std::move(sem4);
+    REQUIRE(sem5);
+    REQUIRE_FALSE(sem4);
 
     // various semaphore-based tests
     semaphore_t eManual;
@@ -1715,20 +1715,20 @@ TEST_CASE("WindowsInternalTests::HandleWrappers", "[resource][unique_any]")
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
     {
         witest::detoured_thread_function<&::CoTaskMemFree> detour;
-        REQUIRE_SUCCEEDED(detour.reset([](void* p) {
-            if (p != nullptr)
+        REQUIRE_SUCCEEDED(detour.reset([](void* ptr) {
+            if (ptr != nullptr)
             {
                 wil::com_ptr_nothrow<IMalloc> pMalloc;
                 if (SUCCEEDED(::CoGetMalloc(1, &pMalloc)))
                 {
-                    size_t const size = pMalloc->GetSize(p);
-                    auto buffer = static_cast<byte*>(p);
+                    size_t const size = pMalloc->GetSize(ptr);
+                    auto buffer = static_cast<byte*>(ptr);
                     for (size_t i = 0; i < size; ++i)
                     {
                         REQUIRE(buffer[i] == 0);
                     }
                 }
-                ::CoTaskMemFree(p);
+                ::CoTaskMemFree(ptr);
             }
         }));
 
@@ -1806,19 +1806,19 @@ TEST_CASE("WindowsInternalTests::HandleWrappers", "[resource][unique_any]")
 
     {
         witest::detoured_thread_function<&::LocalFree> detour;
-        REQUIRE_SUCCEEDED(detour.reset([](HLOCAL p) -> HLOCAL {
-            HLOCAL h = nullptr;
-            if (p != nullptr)
+        REQUIRE_SUCCEEDED(detour.reset([](HLOCAL ptr) -> HLOCAL {
+            HLOCAL result = nullptr;
+            if (ptr != nullptr)
             {
-                size_t const size = ::LocalSize(p);
-                auto buffer = static_cast<byte*>(p);
+                size_t const size = ::LocalSize(ptr);
+                auto buffer = static_cast<byte*>(ptr);
                 for (size_t i = 0; i < size; ++i)
                 {
                     REQUIRE(buffer[i] == 0);
                 }
-                h = ::LocalFree(p);
+                result = ::LocalFree(ptr);
             }
-            return h;
+            return result;
         }));
 
         auto unique_hlocal_string_secure_failfast1 = wil::make_hlocal_string_secure_failfast(L"Foo");
@@ -1973,22 +1973,22 @@ TEST_CASE("WindowsInternalTests::Locking", "[resource]")
     }
 
     {
-        CRITICAL_SECTION cs;
-        ::InitializeCriticalSectionEx(&cs, 0, 0);
+        CRITICAL_SECTION lock;
+        ::InitializeCriticalSectionEx(&lock, 0, 0);
         {
-            auto lock = wil::EnterCriticalSection(&cs);
-            REQUIRE(lock);
-            auto tryLock = wil::TryEnterCriticalSection(&cs);
+            auto lockGuard = wil::EnterCriticalSection(&lock);
+            REQUIRE(lockGuard);
+            auto tryLock = wil::TryEnterCriticalSection(&lock);
             REQUIRE(tryLock);
         }
-        ::DeleteCriticalSection(&cs);
+        ::DeleteCriticalSection(&lock);
     }
     {
-        wil::critical_section cs;
-        auto lock = cs.lock();
-        REQUIRE(lock);
-        auto tryLock = cs.try_lock();
-        REQUIRE(tryLock);
+        wil::critical_section lock;
+        auto lockGuard = lock.lock();
+        REQUIRE(lockGuard);
+        auto tryLockGuard = lock.try_lock();
+        REQUIRE(tryLockGuard);
     }
 }
 
@@ -1996,15 +1996,15 @@ TEST_CASE("WindowsInternalTests::Locking", "[resource]")
 TEST_CASE("WindowsInternalTests::GDIWrappers", "[resource]")
 {
     {
-        auto dc = wil::GetDC(::GetDesktopWindow());
+        (void)wil::GetDC(::GetDesktopWindow());
     }
     {
-        auto dc = wil::GetWindowDC(::GetDesktopWindow());
+        (void)wil::GetWindowDC(::GetDesktopWindow());
     }
     {
-        auto dc = wil::BeginPaint(::GetDesktopWindow());
+        auto hdc = wil::BeginPaint(::GetDesktopWindow());
         wil::unique_hbrush brush(::CreateSolidBrush(0xffffff));
-        auto select = wil::SelectObject(dc.get(), brush.get());
+        auto select = wil::SelectObject(hdc.get(), brush.get());
     }
 }
 #endif /* WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) */
@@ -2044,9 +2044,9 @@ static void TestByte(_Out_ BYTE** ppByte)
 struct my_deleter
 {
     template <typename T>
-    void operator()(T* p) const
+    void operator()(T* ptr) const
     {
-        delete p;
+        delete ptr;
     }
 };
 
@@ -2092,23 +2092,23 @@ TEST_CASE("WindowsInternalTests::WistdTests", "[resource][wistd]")
     };
 
     auto spff = wil::make_unique_failfast<Nothing>(3);
-    auto sp = wil::make_unique_nothrow<Nothing>(3);
-    REQUIRE(sp);
+    auto obj = wil::make_unique_nothrow<Nothing>(3);
+    REQUIRE(obj);
 #ifdef WIL_ENABLE_EXCEPTIONS
-    THROW_IF_NULL_ALLOC(sp.get());
-    THROW_IF_NULL_ALLOC(sp);
+    THROW_IF_NULL_ALLOC(obj.get());
+    THROW_IF_NULL_ALLOC(obj);
 #endif
-    sp->Method();
-    decltype(sp) sp2;
-    sp2 = wistd::move(sp);
+    obj->Method();
+    decltype(obj) sp2;
+    sp2 = wistd::move(obj);
     (void)sp2.get();
 
     wistd::unique_ptr<int> spConstruct;
     wistd::unique_ptr<int> spConstruct2 = nullptr;
     spConstruct = nullptr;
     wistd::unique_ptr<int> spConstruct3(new int(3));
-    my_deleter d;
-    wistd::unique_ptr<int, my_deleter> spConstruct4(new int(4), d);
+    my_deleter deleter;
+    wistd::unique_ptr<int, my_deleter> spConstruct4(new int(4), deleter);
     wistd::unique_ptr<int, my_deleter> spConstruct5(new int(5), my_deleter());
     wistd::unique_ptr<int> spConstruct6(wistd::unique_ptr<int>(new int(6)));
     spConstruct = std::move(spConstruct2);
@@ -2130,10 +2130,10 @@ TEST_CASE("WindowsInternalTests::WistdTests", "[resource][wistd]")
     object_counter_state state;
     count = 0;
     {
-        object_counter c{state};
+        object_counter counter{state};
         REQUIRE(state.instance_count() == 1);
 
-        wistd::function<void(int)> fn = [&count, c](int param) {
+        wistd::function<void(int)> fn = [&count, counter](int param) {
             count += param;
         };
         REQUIRE(state.instance_count() == 2);
@@ -2147,9 +2147,9 @@ TEST_CASE("WindowsInternalTests::WistdTests", "[resource][wistd]")
     {
         wistd::function<void(int)> fn;
         {
-            object_counter c{state};
+            object_counter counter{state};
             REQUIRE(state.instance_count() == 1);
-            fn = [&count, c](int param) {
+            fn = [&count, counter](int param) {
                 count += param;
             };
             REQUIRE(state.instance_count() == 2);
@@ -2161,28 +2161,28 @@ TEST_CASE("WindowsInternalTests::WistdTests", "[resource][wistd]")
 
     {
         // Size Check -- the current implementation allows for 10 pointers to be passed through the lambda
-        int a1;
-        int a2;
-        int a3;
-        int a4;
-        int a5;
-        int a6;
-        int a7;
-        int a8;
-        int a9;
-        int a10;
+        int val1;
+        int val2;
+        int val3;
+        int val4;
+        int val5;
+        int val6;
+        int val7;
+        int val8;
+        int val9;
+        int val10;
 
-        wistd::function<void()> fn = [&a1, &a2, &a3, &a4, &a5, &a6, &a7, &a8, &a9, &a10]() {
-            (void)a1;
-            (void)a2;
-            (void)a3;
-            (void)a4;
-            (void)a5;
-            (void)a6;
-            (void)a7;
-            (void)a8;
-            (void)a9;
-            (void)a10;
+        wistd::function<void()> fn = [&val1, &val2, &val3, &val4, &val5, &val6, &val7, &val8, &val9, &val10]() {
+            (void)val1;
+            (void)val2;
+            (void)val3;
+            (void)val4;
+            (void)val5;
+            (void)val6;
+            (void)val7;
+            (void)val8;
+            (void)val9;
+            (void)val10;
         };
         auto fnCopy = fn; // NOLINT(performance-unnecessary-copy-initialization): Just for testing
 
@@ -2647,15 +2647,15 @@ TEST_CASE("WindowsInternalTests::ResourceTemplateTests", "[resource]")
     TestUniquePropVariant<unique_prop_variant_no_init>();
 }
 
-inline static unsigned long long ToInt64(const FILETIME& ft)
+inline static unsigned long long ToInt64(const FILETIME& val)
 {
-    return (static_cast<unsigned long long>(ft.dwHighDateTime) << 32) + ft.dwLowDateTime;
+    return (static_cast<unsigned long long>(val.dwHighDateTime) << 32) + val.dwLowDateTime;
 }
 
 inline static FILETIME FromInt64(unsigned long long i64)
 {
-    FILETIME ft = {static_cast<DWORD>(i64), static_cast<DWORD>(i64 >> 32)};
-    return ft;
+    FILETIME result = {static_cast<DWORD>(i64), static_cast<DWORD>(i64 >> 32)};
+    return result;
 }
 
 TEST_CASE("WindowsInternalTests::Win32HelperTests", "[win32_helpers]")
@@ -3115,9 +3115,9 @@ class __declspec(empty_bases) ArrayTestObject
       public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::RuntimeClassType::ClassicCom>, IFakeObject>
 {
 public:
-    HRESULT RuntimeClassInitialize(UINT n)
+    HRESULT RuntimeClassInitialize(UINT val)
     {
-        m_number = n;
+        m_number = val;
         return S_OK;
     };
     STDMETHOD_(void, DoStuff)()
@@ -3346,10 +3346,10 @@ TEST_CASE("WindowsInternalTests::Ranges", "[common]")
     {
         int things[10]{};
         unsigned int count = 0;
-        for (auto& m : wil::make_range(things, ARRAYSIZE(things)))
+        for (auto& val : wil::make_range(things, ARRAYSIZE(things)))
         {
             ++count;
-            m = 1;
+            val = 1;
         }
         REQUIRE(ARRAYSIZE(things) == count);
         REQUIRE(1 == things[1]);
@@ -3358,12 +3358,12 @@ TEST_CASE("WindowsInternalTests::Ranges", "[common]")
     {
         int things[10]{};
         unsigned int count = 0;
-        for (auto m : wil::make_range(things, ARRAYSIZE(things)))
+        for (auto val : wil::make_range(things, ARRAYSIZE(things)))
         {
-            (void)m;
+            (void)val;
             ++count;
-            m = 1;
-            (void)m;
+            val = 1;
+            (void)val;
         }
         REQUIRE(ARRAYSIZE(things) == count);
         REQUIRE(0 == things[0]);
@@ -3373,9 +3373,9 @@ TEST_CASE("WindowsInternalTests::Ranges", "[common]")
         int things[10]{};
         unsigned int count = 0;
         auto range = wil::make_range(things, ARRAYSIZE(things));
-        for (auto m : range)
+        for (auto val : range)
         {
-            (void)m;
+            (void)val;
             ++count;
         }
         REQUIRE(ARRAYSIZE(things) == count);
@@ -3385,9 +3385,9 @@ TEST_CASE("WindowsInternalTests::Ranges", "[common]")
         int things[10]{};
         unsigned int count = 0;
         const auto range = wil::make_range(things, ARRAYSIZE(things));
-        for (auto m : range)
+        for (auto val : range)
         {
-            (void)m;
+            (void)val;
             ++count;
         }
         REQUIRE(ARRAYSIZE(things) == count);
@@ -4040,13 +4040,13 @@ TEST_CASE("WindowsInternalTests::ModuleReference", "[wrl]")
         {
             wil::wrl_module_reference ref;
         };
-        object_with_ref o1;
+        object_with_ref obj1;
         REQUIRE(peek_module_ref_count() == initial + 1);
-        auto o2 = o1;
+        auto obj2 = obj1;
         REQUIRE(peek_module_ref_count() == initial + 2);
-        o1 = o2;
+        obj1 = obj2;
         REQUIRE(peek_module_ref_count() == initial + 2);
-        o2 = std::move(o1);
+        obj2 = std::move(obj1);
         REQUIRE(peek_module_ref_count() == initial + 2);
     }
     REQUIRE(peek_module_ref_count() == initial);

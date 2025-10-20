@@ -302,10 +302,10 @@ TEST_CASE("TokenHelpersTests::VerifyGetTokenInfo", "[token_helpers]")
 
     // check a non-pointer size value to make sure the whole struct is returned.
     DWORD resultSize{};
-    TOKEN_SOURCE ts{};
+    TOKEN_SOURCE tokenSrc{};
     auto tokenSource = wil::get_token_information<TOKEN_SOURCE>();
-    GetTokenInformation(GetCurrentThreadEffectiveToken(), TokenSource, &ts, sizeof(ts), &resultSize);
-    REQUIRE(memcmp(&ts, &tokenSource, sizeof(ts)) == 0);
+    GetTokenInformation(GetCurrentThreadEffectiveToken(), TokenSource, &tokenSrc, sizeof(tokenSrc), &resultSize);
+    REQUIRE(memcmp(&tokenSrc, &tokenSource, sizeof(tokenSrc)) == 0);
 }
 
 TEST_CASE("TokenHelpersTests::VerifyGetTokenInfoFailFast", "[token_helpers]")

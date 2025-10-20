@@ -99,8 +99,8 @@ TEST_CASE("StlTests::TestZStringView", "[stl][zstring_view]")
     REQUIRE(fromLiteral == copy);
 
     // Test decay to std::string_view
-    std::string_view sv = fromLiteral;
-    REQUIRE(sv == fromLiteral);
+    std::string_view view = fromLiteral;
+    REQUIRE(view == fromLiteral);
 
     // Test operator[]
     REQUIRE(fromLiteral[0] == 'a');
@@ -157,15 +157,15 @@ TEST_CASE("StlTests::TestZStringView formatting", "[stl][zstring_view]")
     SECTION("zstring_view can be used with std::format(wchar_t const*)")
     {
         auto str = L"kittens"_zv;
-        auto f = std::format(L"Hello {}", str);
-        REQUIRE(f == L"Hello kittens");
+        auto fmtStr = std::format(L"Hello {}", str);
+        REQUIRE(fmtStr == L"Hello kittens");
     }
 
     SECTION("zstring_view can be used with std::format(char const*)")
     {
         auto str = "kittens"_zv;
-        auto f = std::format("Hello {}", str);
-        REQUIRE(f == "Hello kittens");
+        auto fmtStr = std::format("Hello {}", str);
+        REQUIRE(fmtStr == "Hello kittens");
     }
 }
 
@@ -206,8 +206,8 @@ TEST_CASE("StlTests::TestZWStringView", "[stl][zstring_view]")
     REQUIRE(fromLiteral == copy);
 
     // Test decay to std::wstring_view
-    std::wstring_view sv = fromLiteral;
-    REQUIRE(sv == fromLiteral);
+    std::wstring_view view = fromLiteral;
+    REQUIRE(view == fromLiteral);
 
     // Test operator[]
     REQUIRE(fromLiteral[0] == L'a');

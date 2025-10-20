@@ -23,22 +23,20 @@ Checks:
 - -misc-definitions-in-headers # We rely quite heavily on the ability to define 'selectany'/inline/etc. variables
 - -misc-include-cleaner
 - -misc-misplaced-const # Flags things like 'const HSTRING' which isn't that hard to use correctly
-- -misc-no-recursion
+- -misc-no-recursion # We have a number of intentional recursive functions
 - -misc-non-private-member-variables-in-classes
-- -misc-unused-parameters
+- -misc-unused-parameters # This has weird behavior that I'm not quite convinced isn't a bug
 - -misc-use-anonymous-namespace # Too noisy
 - -performance-enum-size # Maybe we can revisit, but changing the size of public enums may have unexpected impact
-- -readability-convert-member-functions-to-static
-- -readability-else-after-return
+- -readability-convert-member-functions-to-static # This has undesired consequences in test code
 - -readability-function-cognitive-complexity
-- -readability-identifier-length
 - -readability-implicit-bool-conversion
 - -readability-magic-numbers
-- -readability-make-member-function-const
-- -readability-named-parameter
+- -readability-named-parameter # Too noisy, negatively impacts the use of tag types, and generally not that useful of a check
 - -readability-qualified-auto
-- -readability-simplify-boolean-expr
-- -readability-static-accessed-through-instance
 CheckOptions:
   bugprone-empty-catch.IgnoreCatchWithKeywords: 'Fall through'
+  readability-identifier-length.IgnoredParameterNames: '^(fn|hr|x|y)$' # Common, well understood names
+  readability-identifier-length.IgnoredVariableNames: '^(fn|hr|i|id|op)$' # Common, well understood names
+  readability-simplify-boolean-expr.IgnoreMacros: true # Otherwise it's easy to get hits in our many, many macros
 HeaderFilterRegex: '^.*include\\wil\\[^\\/]*$'

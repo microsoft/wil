@@ -166,59 +166,59 @@ TEST_CASE("ResourceTests::TestOperationsOnGenericSmartPointerClasses", "[resourc
         static_assert(wistd::is_same<typename wil::smart_pointer_details<decltype(ptr2)>::pointer, HANDLE>::value, "type-mismatch");
         static_assert(wistd::is_same<typename wil::smart_pointer_details<decltype(ptr3)>::pointer, PointerTestObject*>::value, "type-mismatch");
 
-        auto p2 = wil::detach_from_smart_pointer(ptr2);
-        auto p3 = wil::detach_from_smart_pointer(ptr3);
-        // auto p4 = wil::detach_from_smart_pointer(ptr4); // wil::shared_any_t and std::shared_ptr do not support release().
-        HANDLE p4{};
-        auto p5 = wil::detach_from_smart_pointer(ptr5);
+        auto raw2 = wil::detach_from_smart_pointer(ptr2);
+        auto raw3 = wil::detach_from_smart_pointer(ptr3);
+        // auto raw4 = wil::detach_from_smart_pointer(ptr4); // wil::shared_any_t and std::shared_ptr do not support release().
+        HANDLE raw4{};
+        auto raw5 = wil::detach_from_smart_pointer(ptr5);
 
         REQUIRE((!ptr2 && !ptr3));
-        REQUIRE((p2 && p3));
+        REQUIRE((raw2 && raw3));
 
-        wil::attach_to_smart_pointer(ptr2, p2);
-        wil::attach_to_smart_pointer(ptr3, p3);
-        wil::attach_to_smart_pointer(ptr4, p4);
-        wil::attach_to_smart_pointer(ptr5, p5);
+        wil::attach_to_smart_pointer(ptr2, raw2);
+        wil::attach_to_smart_pointer(ptr3, raw3);
+        wil::attach_to_smart_pointer(ptr4, raw4);
+        wil::attach_to_smart_pointer(ptr5, raw5);
 
-        p2 = nullptr;
-        p3 = nullptr;
-        p4 = nullptr;
-        p5 = nullptr;
+        raw2 = nullptr;
+        raw3 = nullptr;
+        raw4 = nullptr;
+        raw5 = nullptr;
 
-        wil::detach_to_opt_param(&p2, ptr2);
-        wil::detach_to_opt_param(&p3, ptr3);
+        wil::detach_to_opt_param(&raw2, ptr2);
+        wil::detach_to_opt_param(&raw3, ptr3);
 
         REQUIRE((!ptr2 && !ptr3));
-        REQUIRE((p2 && p3));
+        REQUIRE((raw2 && raw3));
 
-        wil::attach_to_smart_pointer(ptr2, p2);
-        wil::attach_to_smart_pointer(ptr3, p3);
-        p2 = nullptr;
-        p3 = nullptr;
+        wil::attach_to_smart_pointer(ptr2, raw2);
+        wil::attach_to_smart_pointer(ptr3, raw3);
+        raw2 = nullptr;
+        raw3 = nullptr;
 
-        wil::detach_to_opt_param(&p2, ptr2);
-        wil::detach_to_opt_param(&p3, ptr3);
+        wil::detach_to_opt_param(&raw2, ptr2);
+        wil::detach_to_opt_param(&raw3, ptr3);
         REQUIRE((!ptr2 && !ptr3));
-        REQUIRE((p2 && p3));
+        REQUIRE((raw2 && raw3));
 
-        [&](decltype(p2)* ptr) {
-            *ptr = p2;
+        [&](decltype(raw2)* ptr) {
+            *ptr = raw2;
         }(wil::out_param(ptr2));
-        [&](decltype(p3)* ptr) {
-            *ptr = p3;
+        [&](decltype(raw3)* ptr) {
+            *ptr = raw3;
         }(wil::out_param(ptr3));
-        [&](decltype(p4)* ptr) {
-            *ptr = p4;
+        [&](decltype(raw4)* ptr) {
+            *ptr = raw4;
         }(wil::out_param(ptr4));
-        [&](decltype(p5)* ptr) {
-            *ptr = p5;
+        [&](decltype(raw5)* ptr) {
+            *ptr = raw5;
         }(wil::out_param(ptr5));
 
         REQUIRE((ptr2 && ptr3));
 
         // Validate R-Value compilation
-        wil::detach_to_opt_param(&p2, decltype(ptr2){});
-        wil::detach_to_opt_param(&p3, decltype(ptr3){});
+        wil::detach_to_opt_param(&raw2, decltype(ptr2){});
+        wil::detach_to_opt_param(&raw3, decltype(ptr3){});
     }
 #endif
 
@@ -228,42 +228,42 @@ TEST_CASE("ResourceTests::TestOperationsOnGenericSmartPointerClasses", "[resourc
     static_assert(wistd::is_same<typename wil::smart_pointer_details<decltype(ptr1)>::pointer, int*>::value, "type-mismatch");
     static_assert(wistd::is_same<typename wil::smart_pointer_details<decltype(ptr4)>::pointer, PointerTestObject*>::value, "type-mismatch");
 
-    auto p1 = wil::detach_from_smart_pointer(ptr1);
-    auto p4 = wil::detach_from_smart_pointer(ptr4);
+    auto raw1 = wil::detach_from_smart_pointer(ptr1);
+    auto raw4 = wil::detach_from_smart_pointer(ptr4);
 
     REQUIRE((!ptr1 && !ptr4));
-    REQUIRE((p1 && p4));
+    REQUIRE((raw1 && raw4));
 
-    wil::attach_to_smart_pointer(ptr1, p1);
-    wil::attach_to_smart_pointer(ptr4, p4);
+    wil::attach_to_smart_pointer(ptr1, raw1);
+    wil::attach_to_smart_pointer(ptr4, raw4);
 
     REQUIRE((ptr1 && ptr4));
 
-    p1 = nullptr;
-    p4 = nullptr;
+    raw1 = nullptr;
+    raw4 = nullptr;
 
     int** pNull = nullptr;
     wil::detach_to_opt_param(pNull, ptr1);
     REQUIRE(ptr1);
 
-    wil::detach_to_opt_param(&p1, ptr1);
-    wil::detach_to_opt_param(&p4, ptr4);
+    wil::detach_to_opt_param(&raw1, ptr1);
+    wil::detach_to_opt_param(&raw4, ptr4);
 
     REQUIRE((!ptr1 && !ptr4));
-    REQUIRE((p1 && p4));
+    REQUIRE((raw1 && raw4));
 
-    [&](decltype(p1)* ptr) {
-        *ptr = p1;
+    [&](decltype(raw1)* ptr) {
+        *ptr = raw1;
     }(wil::out_param(ptr1));
-    [&](decltype(p4)* ptr) {
-        *ptr = p4;
+    [&](decltype(raw4)* ptr) {
+        *ptr = raw4;
     }(wil::out_param(ptr4));
 
     REQUIRE((ptr1 && ptr4));
 
-    p1 = wil::detach_from_smart_pointer(ptr1);
+    raw1 = wil::detach_from_smart_pointer(ptr1);
     [&](int** ptr) {
-        *ptr = p1;
+        *ptr = raw1;
     }(wil::out_param_ptr<int**>(ptr1));
     REQUIRE(ptr1);
 }
@@ -274,27 +274,27 @@ void StlAdlTest()
     // This test has exposed some Argument Dependent Lookup issues in wistd / stl.  Primarily we're
     // just looking for clean compilation.
 
-    std::vector<wistd::unique_ptr<int>> v;
-    v.emplace_back(new int{1});
-    v.emplace_back(new int{2});
-    v.emplace_back(new int{3});
-    std::rotate(begin(v), begin(v) + 1, end(v));
+    std::vector<wistd::unique_ptr<int>> vec;
+    vec.emplace_back(new int{1});
+    vec.emplace_back(new int{2});
+    vec.emplace_back(new int{3});
+    std::rotate(begin(vec), begin(vec) + 1, end(vec));
 
-    REQUIRE(*v[0] == 1);
-    REQUIRE(*v[1] == 3);
-    REQUIRE(*v[2] == 2);
+    REQUIRE(*vec[0] == 1);
+    REQUIRE(*vec[1] == 3);
+    REQUIRE(*vec[2] == 2);
 
-    decltype(v) v2;
-    v2 = std::move(v);
-    REQUIRE(*v2[0] == 1);
-    REQUIRE(*v2[1] == 3);
-    REQUIRE(*v2[2] == 2);
+    decltype(vec) vec2;
+    vec2 = std::move(vec);
+    REQUIRE(*vec2[0] == 1);
+    REQUIRE(*vec2[1] == 3);
+    REQUIRE(*vec2[2] == 2);
 
-    decltype(v) v3;
-    std::swap(v2, v3);
-    REQUIRE(*v3[0] == 1);
-    REQUIRE(*v3[1] == 3);
-    REQUIRE(*v3[2] == 2);
+    decltype(vec) vec3;
+    std::swap(vec2, vec3);
+    REQUIRE(*vec3[0] == 1);
+    REQUIRE(*vec3[1] == 3);
+    REQUIRE(*vec3[2] == 2);
 }
 
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
@@ -347,7 +347,7 @@ void NoexceptConstructibleTest()
 
     // With a protected constructor wil::unique_any_t will be unable to correctly
     // "forward" the noexcept attribute, but the code should still compile.
-    wil::unique_any_t<ProtectedConstructor> p{INVALID_HANDLE_VALUE};
+    wil::unique_any_t<ProtectedConstructor> value{INVALID_HANDLE_VALUE};
 }
 #endif
 
@@ -378,7 +378,7 @@ struct FakeComInterface
         return (old > 0);
     }
 
-    bool has_ref()
+    bool has_ref() const
     {
         return (refs > 0);
     }
@@ -712,17 +712,17 @@ TEST_CASE("UniqueStringAndStringMakerTests::VerifyStringMakerStdWString", "[reso
 TEST_CASE("UniqueStringAndStringMakerTests::VerifyLegacyStringMakers", "[resource][string_maker]")
 {
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
-    auto l = wil::make_hlocal_string(L"value");
-    l = wil::make_hlocal_string_nothrow(L"value");
-    l = wil::make_hlocal_string_failfast(L"value");
+    auto localStr = wil::make_hlocal_string(L"value");
+    localStr = wil::make_hlocal_string_nothrow(L"value");
+    localStr = wil::make_hlocal_string_failfast(L"value");
 
-    auto p = wil::make_process_heap_string(L"value");
-    p = wil::make_process_heap_string_nothrow(L"value");
-    p = wil::make_process_heap_string_failfast(L"value");
+    auto heapStr = wil::make_process_heap_string(L"value");
+    heapStr = wil::make_process_heap_string_nothrow(L"value");
+    heapStr = wil::make_process_heap_string_failfast(L"value");
 #endif
-    auto c = wil::make_cotaskmem_string(L"value");
-    c = wil::make_cotaskmem_string_nothrow(L"value");
-    c = wil::make_cotaskmem_string_failfast(L"value");
+    auto coTaskStr = wil::make_cotaskmem_string(L"value");
+    coTaskStr = wil::make_cotaskmem_string_nothrow(L"value");
+    coTaskStr = wil::make_cotaskmem_string_failfast(L"value");
 }
 #endif
 
@@ -733,9 +733,9 @@ void* __RPC_USER MIDL_user_allocate(size_t size)
 }
 
 _Use_decl_annotations_
-void __RPC_USER MIDL_user_free(void* p)
+void __RPC_USER MIDL_user_free(void* ptr)
 {
-    ::HeapFree(GetProcessHeap(), 0, p);
+    ::HeapFree(GetProcessHeap(), 0, ptr);
 }
 
 TEST_CASE("UniqueMidlStringTests", "[resource][rpc]")
@@ -799,19 +799,19 @@ TEST_CASE("UniqueVariant", "[resource][com]")
 
 TEST_CASE("DefaultTemplateParamCompiles", "[resource]")
 {
-    wil::unique_process_heap_ptr<> a;
-    wil::unique_virtualalloc_ptr<> b;
+    wil::unique_process_heap_ptr<> heapPtr;
+    wil::unique_virtualalloc_ptr<> virtualPtr;
 
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
-    wil::unique_hlocal_ptr<> c;
-    wil::unique_hlocal_secure_ptr<> d;
-    wil::unique_hglobal_ptr<> e;
-    wil::unique_cotaskmem_secure_ptr<> f;
+    wil::unique_hlocal_ptr<> hlocalPtr;
+    wil::unique_hlocal_secure_ptr<> hlocalSecurePtr;
+    wil::unique_hglobal_ptr<> hglobalPtr;
+    wil::unique_cotaskmem_secure_ptr<> cotaskmemSecurePtr;
 #endif
 
-    wil::unique_midl_ptr<> g;
-    wil::unique_cotaskmem_ptr<> h;
-    wil::unique_mapview_ptr<> i;
+    wil::unique_midl_ptr<> midlPtr;
+    wil::unique_cotaskmem_ptr<> cotaskmemPtr;
+    wil::unique_mapview_ptr<> mapViewPtr;
 }
 
 TEST_CASE("UniqueInvokeCleanupMembers", "[resource]")
@@ -826,16 +826,16 @@ TEST_CASE("UniqueInvokeCleanupMembers", "[resource]")
         };
     };
     ThingWithDestroy toDestroy;
-    wil::unique_any<ThingWithDestroy*, decltype(&ThingWithDestroy::destroy), &ThingWithDestroy::destroy> p(&toDestroy);
-    p.reset();
-    REQUIRE(!p);
+    wil::unique_any<ThingWithDestroy*, decltype(&ThingWithDestroy::destroy), &ThingWithDestroy::destroy> obj(&toDestroy);
+    obj.reset();
+    REQUIRE(!obj);
     REQUIRE(toDestroy.destroyed);
 
     // Case 2 - unique_struct calling a member, like above
     struct ThingToDestroy2
     {
         bool* destroyed;
-        void destroy()
+        void destroy() const
         {
             *destroyed = true;
         };
@@ -876,21 +876,21 @@ struct TokenTester : ITokenTester
     DWORD_PTR m_closeToken;
 };
 
-static void MyTokenTesterCloser(ITokenTester* tt, DWORD_PTR token)
+static void MyTokenTesterCloser(ITokenTester* obj, DWORD_PTR token)
 {
-    tt->DirectClose(token);
+    obj->DirectClose(token);
 }
 
 TEST_CASE("ComTokenCloser", "[resource]")
 {
     using token_tester_t = wil::unique_com_token<ITokenTester, DWORD_PTR, decltype(MyTokenTesterCloser), &MyTokenTesterCloser>;
 
-    TokenTester tt;
-    tt.m_closeToken = 4;
+    TokenTester obj;
+    obj.m_closeToken = 4;
     {
-        token_tester_t tmp{&tt, 4};
+        token_tester_t tmp{&obj, 4};
     }
-    REQUIRE(tt.m_closed);
+    REQUIRE(obj.m_closed);
 }
 
 TEST_CASE("ComTokenDirectCloser", "[resource]")
@@ -898,12 +898,12 @@ TEST_CASE("ComTokenDirectCloser", "[resource]")
     using token_tester_t =
         wil::unique_com_token<ITokenTester, DWORD_PTR, decltype(&ITokenTester::DirectClose), &ITokenTester::DirectClose>;
 
-    TokenTester tt;
-    tt.m_closeToken = 4;
+    TokenTester obj;
+    obj.m_closeToken = 4;
     {
-        token_tester_t tmp{&tt, 4};
+        token_tester_t tmp{&obj, 4};
     }
-    REQUIRE(tt.m_closed);
+    REQUIRE(obj.m_closed);
 }
 
 TEST_CASE("UniqueCloseClipboardCall", "[resource]")

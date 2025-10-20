@@ -316,9 +316,9 @@ inline ::IInspectable* com_raw_ptr(const winrt::Windows::Foundation::IInspectabl
 template <typename T>
 T convert_from_abi(::IUnknown* from)
 {
-    T to{nullptr}; // `T` is a projected type.
-    winrt::check_hresult(from->QueryInterface(winrt::guid_of<T>(), winrt::put_abi(to)));
-    return to;
+    T result{nullptr}; // `T` is a projected type.
+    winrt::check_hresult(from->QueryInterface(winrt::guid_of<T>(), winrt::put_abi(result)));
+    return result;
 }
 
 // For obtaining an object from an interop method on the factory. Example:
@@ -335,9 +335,9 @@ auto capture_interop(HRESULT (__stdcall Interface::*method)(InterfaceArgs...), A
 // For obtaining an object from an interop method on an instance. Example:
 // winrt::UserActivitySession session = wil::capture_interop<winrt::UserActivitySession>(activity, &IUserActivityInterop::CreateSessionForWindow, hwnd);
 template <typename WinRTResult, typename Interface, typename... InterfaceArgs, typename... Args>
-auto capture_interop(winrt::Windows::Foundation::IUnknown const& o, HRESULT (__stdcall Interface::*method)(InterfaceArgs...), Args&&... args)
+auto capture_interop(winrt::Windows::Foundation::IUnknown const& obj, HRESULT (__stdcall Interface::*method)(InterfaceArgs...), Args&&... args)
 {
-    return winrt::capture<WinRTResult>(o.as<Interface>(), method, std::forward<Args>(args)...);
+    return winrt::capture<WinRTResult>(obj.as<Interface>(), method, std::forward<Args>(args)...);
 }
 
 /** Holds a reference to the host C++/WinRT module to prevent it from being unloaded.

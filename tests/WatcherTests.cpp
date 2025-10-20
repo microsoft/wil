@@ -326,7 +326,7 @@ TEST_CASE("RegistryWatcherTests::VerifyResetInCallbackStress", "[LocalOnly][regi
         wil::unique_registry_watcher_nothrow watcher =
             wil::make_registry_watcher_nothrow(ROOT_KEY_PAIR, TRUE, [&](wil::RegistryChangeKind) {
                 {
-                    auto al = lock.lock_exclusive();
+                    auto guard = lock.lock_exclusive();
                     watcher.reset(); // get m_refCount to 1 to ensure the Release happens on the background thread
                 }
                 ++value;
@@ -339,7 +339,7 @@ TEST_CASE("RegistryWatcherTests::VerifyResetInCallbackStress", "[LocalOnly][regi
         notificationReceived.wait();
 
         {
-            auto al = lock.lock_exclusive();
+            auto guard = lock.lock_exclusive();
             watcher.reset();
         }
     }
@@ -419,13 +419,11 @@ TEST_CASE("RegistryWatcherTests::VerifyDeleteDuringNotification", "[registry][re
             // on watcher create just return
             return ERROR_SUCCESS;
         }
-        else
-        {
-            ++mockObserved;
-            notificationReceived.SetEvent();
-            deleteNotification.wait();
-            return ERROR_SUCCESS;
-        }
+
+        ++mockObserved;
+        notificationReceived.SetEvent();
+        deleteNotification.wait();
+        return ERROR_SUCCESS;
     }));
 
     auto watcher = wil::make_registry_watcher(ROOT_KEY_PAIR, true, [&](wil::RegistryChangeKind) {});
