@@ -1602,7 +1602,7 @@ namespace reg
     class value_iterator_data
     {
     public:
-        T name{}; // NOLINT(misc-non-private-member-variables-in-classes): Part of original interface & cannot change
+        T name{};              // NOLINT(misc-non-private-member-variables-in-classes): Part of original interface & cannot change
         DWORD type = REG_NONE; // NOLINT(misc-non-private-member-variables-in-classes): Part of original interface & cannot change
 
         value_iterator_data(HKEY key = nullptr) WI_NOEXCEPT : m_hkey{key}
@@ -1713,7 +1713,8 @@ namespace reg
 
                     // resize and try again - growing exponentially up to the max
                     string_length *= 2;
-                    string_length = (wistd::min<size_t>)(string_length, ::wil::reg::reg_iterator_details::iterator_max_valuename_length + 1);
+                    string_length =
+                        (wistd::min<size_t>)(string_length, ::wil::reg::reg_iterator_details::iterator_max_valuename_length + 1);
                     continue;
                 }
 
@@ -1871,7 +1872,7 @@ namespace reg
         HRESULT move_next() WI_NOEXCEPT
         {
             const auto newIndex = m_data.m_index + 1;
-            if ((newIndex < m_data.m_index) || // fail on integer overflow
+            if ((newIndex < m_data.m_index) ||                                       // fail on integer overflow
                 (newIndex == ::wil::reg::reg_iterator_details::iterator_end_offset)) // fail if this creates an end iterator
             {
                 m_last_error = E_INVALIDARG;

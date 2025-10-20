@@ -320,11 +320,14 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 #define __R_INFO_ONLY(CODE) \
     __R_IF_CALLERADDRESS(_ReturnAddress() __R_IF_COMMA) \
     __R_IF_LINE(__R_LINE_VALUE) \
-    __R_IF_FILE(__R_COMMA __R_FILE_VALUE) __R_IF_FUNCTION(__R_COMMA __FUNCTION__) __R_IF_CODE(__R_COMMA CODE) // NOLINT(bugprone-lambda-function-name)
+    __R_IF_FILE(__R_COMMA __R_FILE_VALUE) \
+    __R_IF_FUNCTION(__R_COMMA __FUNCTION__) __R_IF_CODE(__R_COMMA CODE) // NOLINT(bugprone-lambda-function-name)
 #define __R_INFO(CODE) __R_INFO_ONLY(CODE) __R_IF_TRAIL_COMMA
 #define __R_INFO_NOFILE_ONLY(CODE) \
     __R_IF_CALLERADDRESS(_ReturnAddress() __R_IF_COMMA) \
-    __R_IF_LINE(__R_LINE_VALUE) __R_IF_FILE(__R_COMMA "wil") __R_IF_FUNCTION(__R_COMMA __FUNCTION__) __R_IF_CODE(__R_COMMA CODE) // NOLINT(bugprone-lambda-function-name)
+    __R_IF_LINE(__R_LINE_VALUE) \
+    __R_IF_FILE(__R_COMMA "wil") __R_IF_FUNCTION(__R_COMMA __FUNCTION__) \
+        __R_IF_CODE(__R_COMMA CODE) // NOLINT(bugprone-lambda-function-name)
 #define __R_INFO_NOFILE(CODE) __R_INFO_NOFILE_ONLY(CODE) __R_IF_TRAIL_COMMA
 #define __R_FN_PARAMS_ONLY \
     __R_IF_CALLERADDRESS(void* callerReturnAddress __R_IF_COMMA) \
@@ -518,12 +521,14 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 #define __RFF_INFO_ONLY(CODE) \
     __RFF_IF_CALLERADDRESS(_ReturnAddress() __RFF_IF_COMMA) \
     __RFF_IF_LINE(__R_LINE_VALUE) \
-    __RFF_IF_FILE(__RFF_COMMA __R_FILE_VALUE) __RFF_IF_FUNCTION(__RFF_COMMA __FUNCTION__) __RFF_IF_CODE(__RFF_COMMA CODE) // NOLINT(bugprone-lambda-function-name)
+    __RFF_IF_FILE(__RFF_COMMA __R_FILE_VALUE) \
+    __RFF_IF_FUNCTION(__RFF_COMMA __FUNCTION__) __RFF_IF_CODE(__RFF_COMMA CODE) // NOLINT(bugprone-lambda-function-name)
 #define __RFF_INFO(CODE) __RFF_INFO_ONLY(CODE) __RFF_IF_TRAIL_COMMA
 #define __RFF_INFO_NOFILE_ONLY(CODE) \
     __RFF_IF_CALLERADDRESS(_ReturnAddress() __RFF_IF_COMMA) \
     __RFF_IF_LINE(__R_LINE_VALUE) \
-    __RFF_IF_FILE(__RFF_COMMA "wil") __RFF_IF_FUNCTION(__RFF_COMMA __FUNCTION__) __RFF_IF_CODE(__RFF_COMMA CODE) // NOLINT(bugprone-lambda-function-name)
+    __RFF_IF_FILE(__RFF_COMMA "wil") \
+    __RFF_IF_FUNCTION(__RFF_COMMA __FUNCTION__) __RFF_IF_CODE(__RFF_COMMA CODE) // NOLINT(bugprone-lambda-function-name)
 #define __RFF_INFO_NOFILE(CODE) __RFF_INFO_NOFILE_ONLY(CODE) __RFF_IF_TRAIL_COMMA
 #define __RFF_FN_PARAMS_ONLY \
     __RFF_IF_CALLERADDRESS(void* callerReturnAddress __RFF_IF_COMMA) \
@@ -1129,19 +1134,19 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 // Always logs a known failure
 #define LOG_HR(hr) __R_FN(Log_Hr)(__R_INFO(#hr) wil::verify_hresult(hr))
 #define LOG_LAST_ERROR() __R_FN(Log_GetLastError)(__R_INFO_ONLY(nullptr))
-#define LOG_WIN32(win32err) __R_FN(Log_Win32)(__R_INFO(#win32err) (win32err))
-#define LOG_NTSTATUS(status) __R_FN(Log_NtStatus)(__R_INFO(#status) (status))
+#define LOG_WIN32(win32err) __R_FN(Log_Win32)(__R_INFO(#win32err)(win32err))
+#define LOG_NTSTATUS(status) __R_FN(Log_NtStatus)(__R_INFO(#status)(status))
 
 // Conditionally logs failures - returns parameter value
 #define LOG_IF_FAILED(hr) __R_FN(Log_IfFailed)(__R_INFO(#hr) wil::verify_hresult(hr))
 #define LOG_IF_WIN32_BOOL_FALSE(win32BOOL) __R_FN(Log_IfWin32BoolFalse)(__R_INFO(#win32BOOL) wil::verify_BOOL(win32BOOL))
-#define LOG_IF_WIN32_ERROR(win32err) __R_FN(Log_IfWin32Error)(__R_INFO(#win32err) (win32err))
-#define LOG_IF_NULL_ALLOC(ptr) __R_FN(Log_IfNullAlloc)(__R_INFO(#ptr) (ptr))
+#define LOG_IF_WIN32_ERROR(win32err) __R_FN(Log_IfWin32Error)(__R_INFO(#win32err)(win32err))
+#define LOG_IF_NULL_ALLOC(ptr) __R_FN(Log_IfNullAlloc)(__R_INFO(#ptr)(ptr))
 #define LOG_HR_IF(hr, condition) __R_FN(Log_HrIf)(__R_INFO(#condition) wil::verify_hresult(hr), wil::verify_bool(condition))
 #define LOG_HR_IF_NULL(hr, ptr) __R_FN(Log_HrIfNull)(__R_INFO(#ptr) wil::verify_hresult(hr), ptr)
 #define LOG_LAST_ERROR_IF(condition) __R_FN(Log_GetLastErrorIf)(__R_INFO(#condition) wil::verify_bool(condition))
-#define LOG_LAST_ERROR_IF_NULL(ptr) __R_FN(Log_GetLastErrorIfNull)(__R_INFO(#ptr) (ptr))
-#define LOG_IF_NTSTATUS_FAILED(status) __R_FN(Log_IfNtStatusFailed)(__R_INFO(#status) (status))
+#define LOG_LAST_ERROR_IF_NULL(ptr) __R_FN(Log_GetLastErrorIfNull)(__R_INFO(#ptr)(ptr))
+#define LOG_IF_NTSTATUS_FAILED(status) __R_FN(Log_IfNtStatusFailed)(__R_INFO(#status)(status))
 
 // Alternatives for SUCCEEDED(hr) and FAILED(hr) that conditionally log failures
 #define SUCCEEDED_LOG(hr) SUCCEEDED(LOG_IF_FAILED(hr))
@@ -1199,21 +1204,21 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 // Always fail fast a known failure
 #define FAIL_FAST_HR(hr) __RFF_FN(FailFast_Hr)(__RFF_INFO(#hr) wil::verify_hresult(hr))
 #define FAIL_FAST_LAST_ERROR() __RFF_FN(FailFast_GetLastError)(__RFF_INFO_ONLY(nullptr))
-#define FAIL_FAST_WIN32(win32err) __RFF_FN(FailFast_Win32)(__RFF_INFO(#win32err) (win32err))
-#define FAIL_FAST_NTSTATUS(status) __RFF_FN(FailFast_NtStatus)(__RFF_INFO(#status) (status))
+#define FAIL_FAST_WIN32(win32err) __RFF_FN(FailFast_Win32)(__RFF_INFO(#win32err)(win32err))
+#define FAIL_FAST_NTSTATUS(status) __RFF_FN(FailFast_NtStatus)(__RFF_INFO(#status)(status))
 
 // Conditionally fail fast failures - returns parameter value
 #define FAIL_FAST_IF_FAILED(hr) __RFF_FN(FailFast_IfFailed)(__RFF_INFO(#hr) wil::verify_hresult(hr))
 #define FAIL_FAST_IF_WIN32_BOOL_FALSE(win32BOOL) \
     __RFF_FN(FailFast_IfWin32BoolFalse)(__RFF_INFO(#win32BOOL) wil::verify_BOOL(win32BOOL))
-#define FAIL_FAST_IF_WIN32_ERROR(win32err) __RFF_FN(FailFast_IfWin32Error)(__RFF_INFO(#win32err) (win32err))
-#define FAIL_FAST_IF_NULL_ALLOC(ptr) __RFF_FN(FailFast_IfNullAlloc)(__RFF_INFO(#ptr) (ptr))
+#define FAIL_FAST_IF_WIN32_ERROR(win32err) __RFF_FN(FailFast_IfWin32Error)(__RFF_INFO(#win32err)(win32err))
+#define FAIL_FAST_IF_NULL_ALLOC(ptr) __RFF_FN(FailFast_IfNullAlloc)(__RFF_INFO(#ptr)(ptr))
 #define FAIL_FAST_HR_IF(hr, condition) \
     __RFF_FN(FailFast_HrIf)(__RFF_INFO(#condition) wil::verify_hresult(hr), wil::verify_bool(condition))
 #define FAIL_FAST_HR_IF_NULL(hr, ptr) __RFF_FN(FailFast_HrIfNull)(__RFF_INFO(#ptr) wil::verify_hresult(hr), ptr)
 #define FAIL_FAST_LAST_ERROR_IF(condition) __RFF_FN(FailFast_GetLastErrorIf)(__RFF_INFO(#condition) wil::verify_bool(condition))
-#define FAIL_FAST_LAST_ERROR_IF_NULL(ptr) __RFF_FN(FailFast_GetLastErrorIfNull)(__RFF_INFO(#ptr) (ptr))
-#define FAIL_FAST_IF_NTSTATUS_FAILED(status) __RFF_FN(FailFast_IfNtStatusFailed)(__RFF_INFO(#status) (status))
+#define FAIL_FAST_LAST_ERROR_IF_NULL(ptr) __RFF_FN(FailFast_GetLastErrorIfNull)(__RFF_INFO(#ptr)(ptr))
+#define FAIL_FAST_IF_NTSTATUS_FAILED(status) __RFF_FN(FailFast_IfNtStatusFailed)(__RFF_INFO(#status)(status))
 
 // Always fail fast a known failure - fail fast a var-arg message on failure
 #define FAIL_FAST_HR_MSG(hr, fmt, ...) \
@@ -1255,7 +1260,7 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 
 // Conditionally fail fast failures - returns parameter value
 #define FAIL_FAST_IF(condition) __RFF_FN(FailFast_If)(__RFF_INFO(#condition) wil::verify_bool(condition))
-#define FAIL_FAST_IF_NULL(ptr) __RFF_FN(FailFast_IfNull)(__RFF_INFO(#ptr) (ptr))
+#define FAIL_FAST_IF_NULL(ptr) __RFF_FN(FailFast_IfNull)(__RFF_INFO(#ptr)(ptr))
 
 // Always fail fast a known failure - fail fast a var-arg message on failure
 #define FAIL_FAST_MSG(fmt, ...) __RFF_FN(FailFast_UnexpectedMsg)(__RFF_INFO(nullptr) __WI_CHECK_MSG_FMT(fmt, ##__VA_ARGS__))
@@ -1314,22 +1319,22 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 // Always throw a known failure
 #define THROW_HR(hr) __R_FN(Throw_Hr)(__R_INFO(#hr) wil::verify_hresult(hr))
 #define THROW_LAST_ERROR() __R_FN(Throw_GetLastError)(__R_INFO_ONLY(nullptr))
-#define THROW_WIN32(win32err) __R_FN(Throw_Win32)(__R_INFO(#win32err) (win32err))
-#define THROW_EXCEPTION(exception) wil::details::ReportFailure_CustomException(__R_INFO(#exception) (exception))
-#define THROW_NTSTATUS(status) __R_FN(Throw_NtStatus)(__R_INFO(#status) (status))
+#define THROW_WIN32(win32err) __R_FN(Throw_Win32)(__R_INFO(#win32err)(win32err))
+#define THROW_EXCEPTION(exception) wil::details::ReportFailure_CustomException(__R_INFO(#exception)(exception))
+#define THROW_NTSTATUS(status) __R_FN(Throw_NtStatus)(__R_INFO(#status)(status))
 
 // Conditionally throw failures - returns parameter value
 #define THROW_IF_FAILED(hr) __R_FN(Throw_IfFailed)(__R_INFO(#hr) wil::verify_hresult(hr))
 #define THROW_IF_WIN32_BOOL_FALSE(win32BOOL) __R_FN(Throw_IfWin32BoolFalse)(__R_INFO(#win32BOOL) wil::verify_BOOL(win32BOOL))
-#define THROW_IF_WIN32_ERROR(win32err) __R_FN(Throw_IfWin32Error)(__R_INFO(#win32err) (win32err))
-#define THROW_IF_NULL_ALLOC(ptr) __R_FN(Throw_IfNullAlloc)(__R_INFO(#ptr) (ptr))
+#define THROW_IF_WIN32_ERROR(win32err) __R_FN(Throw_IfWin32Error)(__R_INFO(#win32err)(win32err))
+#define THROW_IF_NULL_ALLOC(ptr) __R_FN(Throw_IfNullAlloc)(__R_INFO(#ptr)(ptr))
 #define THROW_HR_IF(hr, condition) __R_FN(Throw_HrIf)(__R_INFO(#condition) wil::verify_hresult(hr), wil::verify_bool(condition))
 #define THROW_HR_IF_NULL(hr, ptr) __R_FN(Throw_HrIfNull)(__R_INFO(#ptr) wil::verify_hresult(hr), ptr)
 #define THROW_WIN32_IF(win32err, condition) \
     __R_FN(Throw_Win32If)(__R_INFO(#condition) wil::verify_win32(win32err), wil::verify_bool(condition))
 #define THROW_LAST_ERROR_IF(condition) __R_FN(Throw_GetLastErrorIf)(__R_INFO(#condition) wil::verify_bool(condition))
-#define THROW_LAST_ERROR_IF_NULL(ptr) __R_FN(Throw_GetLastErrorIfNull)(__R_INFO(#ptr) (ptr))
-#define THROW_IF_NTSTATUS_FAILED(status) __R_FN(Throw_IfNtStatusFailed)(__R_INFO(#status) (status))
+#define THROW_LAST_ERROR_IF_NULL(ptr) __R_FN(Throw_GetLastErrorIfNull)(__R_INFO(#ptr)(ptr))
+#define THROW_IF_NTSTATUS_FAILED(status) __R_FN(Throw_IfNtStatusFailed)(__R_INFO(#status)(status))
 
 // Always throw a known failure - throw a var-arg message on failure
 #define THROW_HR_MSG(hr, fmt, ...) \
@@ -4530,8 +4535,8 @@ namespace details
 
         // parameter 0 is the !analyze code (FAST_FAIL_FATAL_APP_EXIT)
         EXCEPTION_RECORD exr{};
-        exr.NumberParameters = 1;                                            // default to be safe, see below
-        exr.ExceptionCode = STATUS_STACK_BUFFER_OVERRUN;                     // 0xC0000409
+        exr.NumberParameters = 1;                        // default to be safe, see below
+        exr.ExceptionCode = STATUS_STACK_BUFFER_OVERRUN; // 0xC0000409
         exr.ExceptionFlags = EXCEPTION_NONCONTINUABLE;
         exr.ExceptionInformation[0] = FAST_FAIL_FATAL_APP_EXIT; // see winnt.h, generated from minkernel\published\base\ntrtl_x.w
         if (failure.returnAddress == nullptr) // FailureInfo does not have _ReturnAddress, have RaiseFailFastException generate it

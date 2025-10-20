@@ -1043,7 +1043,8 @@ template <FILE_INFO_BY_HANDLE_CLASS infoClass, typename wistd::enable_if<!detail
 HRESULT GetFileInfoNoThrow(HANDLE fileHandle, wistd::unique_ptr<typename details::MapInfoClassToInfoStruct<infoClass>::type>& result) WI_NOEXCEPT
 {
 #ifdef __STDCPP_DEFAULT_NEW_ALIGNMENT__
-    static_assert(__STDCPP_DEFAULT_NEW_ALIGNMENT__ >= alignof(typename details::MapInfoClassToInfoStruct<infoClass>::type),
+    static_assert(
+        __STDCPP_DEFAULT_NEW_ALIGNMENT__ >= alignof(typename details::MapInfoClassToInfoStruct<infoClass>::type),
         "Memory allocated by 'details::GetFileInfo' may not be aligned correctly");
 #endif
     void* rawResult;
