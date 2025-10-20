@@ -3206,12 +3206,14 @@ namespace details
 template <typename TStoredType, typename IEnumType>
 struct com_iterator
 {
+private:
     using TActualStoredType =
         wistd::conditional_t<wistd::is_same_v<TStoredType, void>, typename wil::details::com_enumerator_traits<IEnumType>::smart_result, TStoredType>;
 
     wil::com_ptr<IEnumType> m_enum{};
     TActualStoredType m_currentValue{};
 
+public:
     using smart_result = TActualStoredType;
     com_iterator(com_iterator&&) = default;
     com_iterator(com_iterator const&) = default;
@@ -3292,7 +3294,7 @@ WI_NODISCARD auto make_range(IEnumXxx* enumPtr)
 
     struct iterator_range
     {
-
+    private:
         static_assert(!wistd::is_same_v<TActualStoredType, void>, "You must specify a type to receive the enumerated objects.");
 
         // the stored type must be constructible from the output type of the enumerator
@@ -3300,9 +3302,11 @@ WI_NODISCARD auto make_range(IEnumXxx* enumPtr)
             wistd::is_constructible_v<TActualStoredType, typename wil::details::com_enumerator_traits<IEnumXxx>::Result>,
             "The type you specified cannot be converted to the enumerator's output type.");
 
+        wil::com_ptr<IEnumXxx> m_enumerator{};
+
+    public:
         using enumerator_type = com_iterator<TActualStoredType, IEnumXxx>;
 
-        wil::com_ptr<IEnumXxx> m_enumerator{};
         iterator_range(IEnumXxx* enumPtr) : m_enumerator(enumPtr)
         {
         }

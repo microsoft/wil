@@ -2068,7 +2068,10 @@ namespace details
     template <typename TFunctor>
     struct functor_wrapper_void : public IFunctor
     {
+    private:
         TFunctor&& functor;
+
+    public:
         functor_wrapper_void(TFunctor&& functor_) : functor(wistd::forward<TFunctor>(functor_))
         {
         }
@@ -2085,7 +2088,10 @@ namespace details
     template <typename TFunctor>
     struct functor_wrapper_HRESULT : public IFunctor
     {
+    private:
         TFunctor&& functor;
+
+    public:
         functor_wrapper_HRESULT(TFunctor& functor_) : functor(wistd::forward<TFunctor>(functor_))
         {
         }
@@ -2098,8 +2104,11 @@ namespace details
     template <typename TFunctor, typename TReturn>
     struct functor_wrapper_other : public IFunctor
     {
+    private:
         TFunctor&& functor;
         TReturn& retVal;
+
+    public:
         functor_wrapper_other(TFunctor& functor_, TReturn& retval_) : functor(wistd::forward<TFunctor>(functor_)), retVal(retval_)
         {
         }
@@ -3412,7 +3421,7 @@ public:
 
     // Relies upon generated copy constructor and assignment operator
 
-protected:
+private:
     FailureInfo m_failureInfo;
     details::shared_buffer m_spStrings;
 };
@@ -3500,7 +3509,7 @@ public:
     }
 
     // Relies upon auto-generated copy constructor and assignment operator
-protected:
+private:
     StoredFailureInfo m_failure;           //!< The failure information for this exception
     mutable details::shared_buffer m_what; //!< The on-demand generated what() string
 

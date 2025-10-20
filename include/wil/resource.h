@@ -582,7 +582,7 @@ namespace details
             return m_call;
         }
 
-    protected:
+    private:
         TLambda m_lambda;
         bool m_call = true;
     };
@@ -785,10 +785,13 @@ namespace details
     struct out_param_t
     {
         typedef typename wil::smart_pointer_details<T>::pointer pointer;
+
+    private:
         T& wrapper;
         pointer pRaw;
         bool replace = true;
 
+    public:
         out_param_t(_Inout_ T& output) : wrapper(output), pRaw(nullptr)
         {
         }
@@ -821,10 +824,13 @@ namespace details
     struct out_param_ptr_t
     {
         typedef typename wil::smart_pointer_details<T>::pointer pointer;
+
+    private:
         T& wrapper;
         pointer pRaw;
         bool replace = true;
 
+    public:
         out_param_ptr_t(_Inout_ T& output) : wrapper(output), pRaw(nullptr)
         {
         }
@@ -1271,10 +1277,12 @@ public:
     template <typename TSize>
     struct size_address_ptr
     {
+    private:
         unique_any_array_ptr& wrapper;
         TSize size{};
         bool replace = true;
 
+    public:
         size_address_ptr(_Inout_ unique_any_array_ptr& output) : wrapper(output)
         {
         }
@@ -3658,8 +3666,11 @@ namespace details
 
     struct SecureZeroData
     {
+    private:
         void* pointer;
         size_t sizeBytes;
+
+    public:
         SecureZeroData(void* pointer_, size_t sizeBytes_ = 0) WI_NOEXCEPT
         {
             pointer = pointer_;
@@ -5088,8 +5099,11 @@ typedef weak_any<unique_addrinfoex> weak_addrinfoex;
 /// @endcond
 struct window_dc
 {
+private:
     HDC dc;
     HWND hwnd;
+
+public:
     window_dc(HDC dc_, HWND hwnd_ = nullptr) WI_NOEXCEPT
     {
         dc = dc_;
@@ -5128,8 +5142,11 @@ typedef unique_any<HDC, decltype(&paint_dc::close), paint_dc::close, details::po
 
 struct select_result
 {
+private:
     HGDIOBJ hgdi;
     HDC hdc;
+
+public:
     select_result(HGDIOBJ hgdi_, HDC hdc_ = nullptr) WI_NOEXCEPT
     {
         hgdi = hgdi_;

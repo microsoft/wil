@@ -1444,7 +1444,7 @@ namespace reg
     class key_iterator_data
     {
     public:
-        T name{};
+        T name{}; // NOLINT(misc-non-private-member-variables-in-classes): Part of original interface & cannot change
 
         key_iterator_data(HKEY key = nullptr) WI_NOEXCEPT : m_hkey{key}
         {
@@ -1602,8 +1602,8 @@ namespace reg
     class value_iterator_data
     {
     public:
-        T name{};
-        DWORD type = REG_NONE;
+        T name{}; // NOLINT(misc-non-private-member-variables-in-classes): Part of original interface & cannot change
+        DWORD type = REG_NONE; // NOLINT(misc-non-private-member-variables-in-classes): Part of original interface & cannot change
 
         value_iterator_data(HKEY key = nullptr) WI_NOEXCEPT : m_hkey{key}
         {
