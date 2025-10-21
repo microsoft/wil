@@ -447,6 +447,7 @@ namespace reg
                 }
                 // including the last null buffer space in the returned buffer-size-bytes
                 // as the registry API we call guarantees null termination
+                // NOLINTNEXTLINE(bugprone-misplaced-widening-cast): size_t and DWORD are effectively the same on x86
                 return static_cast<DWORD>((::wcslen(value) + 1) * sizeof(wchar_t));
             }
 
@@ -537,6 +538,7 @@ namespace reg
             {
                 // including the last null buffer space in the returned buffer-size-bytes
                 // as the registry API we call guarantees null termination
+                // NOLINTNEXTLINE(bugprone-misplaced-widening-cast): size_t and DWORD are effectively the same on x86
                 return static_cast<DWORD>((string.size() + 1) * sizeof(wchar_t));
             }
 
@@ -1713,8 +1715,8 @@ namespace reg
 
                     // resize and try again - growing exponentially up to the max
                     string_length *= 2;
-                    string_length =
-                        (wistd::min<size_t>)(string_length, ::wil::reg::reg_iterator_details::iterator_max_valuename_length + 1);
+                    string_length = (wistd::min)(
+                        string_length, static_cast<DWORD>(::wil::reg::reg_iterator_details::iterator_max_valuename_length + 1));
                     continue;
                 }
 
