@@ -181,7 +181,7 @@ public:
     detoured_global_function() = default;
 
 #ifdef WIL_ENABLE_EXCEPTIONS
-    template <typename Func, wistd::enable_if_t<wistd::is_assignable_v<wistd::function<function_type>, Func>, int> = 0>
+    template <typename Func, wistd::enable_if_t<wistd::is_assignable_v<wistd::function<function_type>&, Func>, int> = 0>
     explicit detoured_global_function(Func&& func) noexcept(noexcept(reset(wistd::forward<Func>(func))))
     {
         THROW_IF_FAILED(reset(wistd::forward<Func>(func)));
@@ -234,7 +234,7 @@ public:
         return S_OK;
     }
 
-    template <typename Func, wistd::enable_if_t<wistd::is_assignable_v<wistd::function<function_type>, Func>, int> = 0>
+    template <typename Func, wistd::enable_if_t<wistd::is_assignable_v<wistd::function<function_type>&, Func>, int> = 0>
     HRESULT reset(Func&& func) noexcept(
         (wistd::is_reference_v<Func> || wistd::is_const_v<Func>) ? wistd::is_nothrow_copy_assignable_v<wistd::remove_reference_t<Func>>
                                                                  : wistd::is_nothrow_move_assignable_v<Func>)
@@ -267,7 +267,7 @@ public:
     }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
-    template <typename Func, wistd::enable_if_t<wistd::is_assignable_v<wistd::function<function_type>, Func>, int> = 0>
+    template <typename Func, wistd::enable_if_t<wistd::is_assignable_v<wistd::function<function_type>&, Func>, int> = 0>
     detoured_global_function& operator=(Func&& func)
     {
         THROW_IF_FAILED(reset(wistd::forward<Func>(func)));
@@ -354,7 +354,7 @@ public:
     detoured_thread_function() = default;
 
 #ifdef WIL_ENABLE_EXCEPTIONS
-    template <typename Func, wistd::enable_if_t<wistd::is_assignable_v<wistd::function<function_type>, Func>, int> = 0>
+    template <typename Func, wistd::enable_if_t<wistd::is_assignable_v<wistd::function<function_type>&, Func>, int> = 0>
     explicit detoured_thread_function(Func&& func) noexcept(noexcept(reset(wistd::forward<Func>(func))))
     {
         THROW_IF_FAILED(reset(wistd::forward<Func>(func)));
@@ -467,7 +467,7 @@ public:
         return S_OK;
     }
 
-    template <typename Func, wistd::enable_if_t<wistd::is_assignable_v<wistd::function<function_type>, Func>, int> = 0>
+    template <typename Func, wistd::enable_if_t<wistd::is_assignable_v<wistd::function<function_type>&, Func>, int> = 0>
     HRESULT reset(Func&& func) noexcept(
         (wistd::is_reference_v<Func> || wistd::is_const_v<Func>) ? wistd::is_nothrow_copy_assignable_v<wistd::remove_reference_t<Func>>
                                                                  : wistd::is_nothrow_move_assignable_v<Func>)
@@ -490,7 +490,7 @@ public:
     }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
-    template <typename Func, wistd::enable_if_t<wistd::is_assignable_v<wistd::function<function_type>, Func>, int> = 0>
+    template <typename Func, wistd::enable_if_t<wistd::is_assignable_v<wistd::function<function_type>&, Func>, int> = 0>
     detoured_thread_function& operator=(Func&& func)
     {
         THROW_IF_FAILED(reset(wistd::forward<Func>(func)));
