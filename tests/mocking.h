@@ -181,8 +181,7 @@ public:
     detoured_global_function() = default;
 
 #ifdef WIL_ENABLE_EXCEPTIONS
-    template <typename Func, wistd::enable_if_t<wistd::is_assignable_v<wistd::function<function_type>&, Func>, int> = 0>
-    // NOLINTNEXTLINE(bugprone-forwarding-reference-overload): Check does not understand *wistd*::enable_if
+    template <typename Func>
     explicit detoured_global_function(Func&& func) noexcept(noexcept(reset(wistd::forward<Func>(func))))
     {
         THROW_IF_FAILED(reset(wistd::forward<Func>(func)));
@@ -190,6 +189,7 @@ public:
 #endif
 
     detoured_global_function(const detoured_global_function&) = delete;
+    detoured_global_function(detoured_global_function&&) = delete;
     detoured_global_function& operator=(const detoured_global_function&) = delete;
     // It's not safe to move construct/assign this type because it's not safe to move the function object while it's potentially
     // being invoked by a different thread
@@ -235,7 +235,7 @@ public:
         return S_OK;
     }
 
-    template <typename Func, wistd::enable_if_t<wistd::is_assignable_v<wistd::function<function_type>&, Func>, int> = 0>
+    template <typename Func>
     HRESULT reset(Func&& func) noexcept(
         (wistd::is_reference_v<Func> || wistd::is_const_v<Func>) ? wistd::is_nothrow_copy_assignable_v<wistd::remove_reference_t<Func>>
                                                                  : wistd::is_nothrow_move_assignable_v<Func>)
@@ -268,7 +268,7 @@ public:
     }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
-    template <typename Func, wistd::enable_if_t<wistd::is_assignable_v<wistd::function<function_type>&, Func>, int> = 0>
+    template <typename Func>
     detoured_global_function& operator=(Func&& func)
     {
         THROW_IF_FAILED(reset(wistd::forward<Func>(func)));
@@ -355,8 +355,7 @@ public:
     detoured_thread_function() = default;
 
 #ifdef WIL_ENABLE_EXCEPTIONS
-    template <typename Func, wistd::enable_if_t<wistd::is_assignable_v<wistd::function<function_type>&, Func>, int> = 0>
-    // NOLINTNEXTLINE(bugprone-forwarding-reference-overload): Check does not understand *wistd*::enable_if
+    template <typename Func> // NOLINTNEXTLINE(bugprone-forwarding-reference-overload): We have an explicit move constructor
     explicit detoured_thread_function(Func&& func) noexcept(noexcept(reset(wistd::forward<Func>(func))))
     {
         THROW_IF_FAILED(reset(wistd::forward<Func>(func)));
@@ -469,7 +468,7 @@ public:
         return S_OK;
     }
 
-    template <typename Func, wistd::enable_if_t<wistd::is_assignable_v<wistd::function<function_type>&, Func>, int> = 0>
+    template <typename Func>
     HRESULT reset(Func&& func) noexcept(
         (wistd::is_reference_v<Func> || wistd::is_const_v<Func>) ? wistd::is_nothrow_copy_assignable_v<wistd::remove_reference_t<Func>>
                                                                  : wistd::is_nothrow_move_assignable_v<Func>)
@@ -492,7 +491,7 @@ public:
     }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
-    template <typename Func, wistd::enable_if_t<wistd::is_assignable_v<wistd::function<function_type>&, Func>, int> = 0>
+    template <typename Func>
     detoured_thread_function& operator=(Func&& func)
     {
         THROW_IF_FAILED(reset(wistd::forward<Func>(func)));
