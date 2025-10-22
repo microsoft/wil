@@ -39,4 +39,4 @@ CheckOptions:
   readability-identifier-length.IgnoredParameterNames: '^(fn|hr|x|y)$' # Common, well understood names
   readability-identifier-length.IgnoredVariableNames: '^(fn|hr|i|id|op)$' # Common, well understood names
   readability-simplify-boolean-expr.IgnoreMacros: true # Otherwise it's easy to get hits in our many, many macros
-HeaderFilterRegex: '^.*include\\wil\\[^\\/]*$'
+HeaderFilterRegex: '(include\\wil|tests)\\[^\\/]*\.h$'
