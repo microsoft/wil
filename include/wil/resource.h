@@ -3544,13 +3544,13 @@ string_type make_unique_ansistring_nothrow(
         FAIL_FAST_IF(!source);
         length = strlen(source);
     }
-    const size_t allocSize = (length + 1) * sizeof(*source);
-    auto result = static_cast<PSTR>(details::string_allocator<string_type>::allocate(allocSize));
+    const size_t allocSizeBytes = (length + 1) * sizeof(*source);
+    auto result = static_cast<PSTR>(details::string_allocator<string_type>::allocate(allocSizeBytes));
     if (result)
     {
         if (source)
         {
-            memcpy_s(result, allocSize, source, allocSize - sizeof(*source));
+            memcpy_s(result, allocSizeBytes, source, allocSizeBytes - sizeof(*source));
         }
         else
         {

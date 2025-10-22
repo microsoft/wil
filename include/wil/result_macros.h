@@ -3514,9 +3514,11 @@ public:
     }
 
     // Relies upon auto-generated copy constructor and assignment operator
-private:
+protected:
+    // NOLINTBEGIN(misc-non-private-member-variables-in-classes): Historically part of API and too risky to change
     StoredFailureInfo m_failure;           //!< The failure information for this exception
     mutable details::shared_buffer m_what; //!< The on-demand generated what() string
+    // NOLINTEND(misc-non-private-member-variables-in-classes)
 
     //! Use to produce a custom FailureInfo from an HRESULT (use only when constructing custom exception types).
     static FailureInfo CustomExceptionFailureInfo(HRESULT hr) WI_NOEXCEPT
