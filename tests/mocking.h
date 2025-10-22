@@ -182,6 +182,7 @@ public:
 
 #ifdef WIL_ENABLE_EXCEPTIONS
     template <typename Func, wistd::enable_if_t<wistd::is_assignable_v<wistd::function<function_type>&, Func>, int> = 0>
+    // NOLINTNEXTLINE(bugprone-forwarding-reference-overload): Check does not understand *wistd*::enable_if
     explicit detoured_global_function(Func&& func) noexcept(noexcept(reset(wistd::forward<Func>(func))))
     {
         THROW_IF_FAILED(reset(wistd::forward<Func>(func)));
@@ -355,6 +356,7 @@ public:
 
 #ifdef WIL_ENABLE_EXCEPTIONS
     template <typename Func, wistd::enable_if_t<wistd::is_assignable_v<wistd::function<function_type>&, Func>, int> = 0>
+    // NOLINTNEXTLINE(bugprone-forwarding-reference-overload): Check does not understand *wistd*::enable_if
     explicit detoured_thread_function(Func&& func) noexcept(noexcept(reset(wistd::forward<Func>(func))))
     {
         THROW_IF_FAILED(reset(wistd::forward<Func>(func)));
