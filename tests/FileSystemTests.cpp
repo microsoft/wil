@@ -29,14 +29,14 @@ PCWSTR str_raw_ptr(const std::wstring&);
 
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 
-bool DirectoryExists(_In_ PCWSTR path)
+static bool DirectoryExists(_In_ PCWSTR path)
 {
     DWORD dwAttrib = GetFileAttributesW(path);
 
     return (dwAttrib != INVALID_FILE_ATTRIBUTES && (dwAttrib & FILE_ATTRIBUTE_DIRECTORY));
 }
 
-bool FileExists(_In_ PCWSTR path)
+static bool FileExists(_In_ PCWSTR path)
 {
     DWORD dwAttrib = GetFileAttributesW(path);
 
@@ -294,7 +294,7 @@ TEST_CASE("FileSystemTests::VerifyGetFullPathName", "[filesystem]")
     REQUIRE(wcscmp(result.get(), result2.get()) == 0);
 
     // The only negative test case I've found is a path > 32k.
-    std::wstring big(1024 * 32, L'a');
+    std::wstring big(static_cast<std::size_t>(1024 * 32), L'a');
     wil::unique_hstring output;
     auto hr = wil::GetFullPathNameW(big.c_str(), output, nullptr);
     REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILENAME_EXCED_RANGE));
@@ -566,7 +566,7 @@ TEST_CASE("FileSystemTests::VerifyGetModuleFileNameW", "[filesystem]")
 }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
-wil::unique_cotaskmem_string NativeGetModuleFileNameWrap(HANDLE processHandle, HMODULE moduleHandle)
+static wil::unique_cotaskmem_string NativeGetModuleFileNameWrap(HANDLE processHandle, HMODULE moduleHandle)
 {
     DWORD size = MAX_PATH * 4;
     auto path = wil::make_cotaskmem_string_nothrow(nullptr, size);
@@ -751,7 +751,7 @@ TEST_CASE("FileSystemTests::CreateFileW helpers", "[filesystem]")
             THROW_WIN32_IF(result.last_error, !result.file.is_valid());
             const auto data = L"abcd";
             DWORD written{};
-            THROW_IF_WIN32_BOOL_FALSE(WriteFile(result.file.get(), data, sizeof(data), &written, nullptr));
+            THROW_IF_WIN32_BOOL_FALSE(WriteFile(result.file.get(), data, static_cast<DWORD>(::wcslen(data)), &written, nullptr));
             auto originalEndOfFile = wil::GetFileInfo<FileStandardInfo>(result.file.get()).EndOfFile;
             THROW_HR_IF(E_UNEXPECTED, originalEndOfFile.QuadPart == 0);
         }
@@ -789,11 +789,13 @@ TEST_CASE("FileSystemTest::FolderChangeReader destructor does not hang", "[files
     auto reader = wil::make_folder_change_reader_nothrow(
         testRootDir.c_str(), false, wil::FolderChangeEvents::All, [&](wil::FolderChangeEvent, PCWSTR) {
             if (deleteDir)
+            {
                 RemoveDirectoryW(testRootDir.c_str());
+            }
 
             opCompletedEv.SetEvent();
         });
-    auto readerThread = std::thread([rdn = std::move(readerDestructNotify), r = std::move(reader)]() mutable {
+    auto readerThread = std::thread([rdn = std::move(readerDestructNotify), reader = std::move(reader)]() mutable {
         rdn.wait(INFINITE);
     });
 
@@ -810,9 +812,13 @@ TEST_CASE("FileSystemTest::FolderChangeReader destructor does not hang", "[files
     SetEvent(readerDestructNotifyRaw);
     DWORD waitResult = WaitForSingleObject(readerThread.native_handle(), 30 * 1000);
     if (waitResult != WAIT_OBJECT_0)
+    {
         readerThread.detach();
+    }
     else
+    {
         readerThread.join();
+    }
 
     REQUIRE(waitResult == WAIT_OBJECT_0);
 }
@@ -821,12 +827,12 @@ TEST_CASE("FileSystemTest::FolderChangeReader destructor does not hang", "[files
 
 #endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 
-auto Mock_GetModuleFileName(DWORD pathLength)
+static auto Mock_GetModuleFileName(DWORD pathLength)
 {
     witest::detoured_thread_function<&GetModuleFileNameW> result;
     REQUIRE_SUCCEEDED(result.reset([pathLength](HMODULE, _Out_ PWSTR fileName, _In_ DWORD bufferSize) -> DWORD {
         const DWORD amountToCopy = std::min(pathLength, bufferSize);
-        for (size_t i = 0; i < amountToCopy; i++)
+        for (size_t i = 0; i < amountToCopy; ++i)
         {
             fileName[i] = L'a';
         }
@@ -846,12 +852,12 @@ auto Mock_GetModuleFileName(DWORD pathLength)
     return result;
 }
 
-auto Mock_GetModuleFileNameEx(DWORD pathLength)
+static auto Mock_GetModuleFileNameEx(DWORD pathLength)
 {
     witest::detoured_thread_function<&GetModuleFileNameExW> result;
     REQUIRE_SUCCEEDED(result.reset([pathLength](HANDLE, HMODULE, _Out_ PWSTR fileName, _In_ DWORD bufferSize) -> DWORD {
         const DWORD amountToCopy = std::min(pathLength, bufferSize);
-        for (size_t i = 0; i < amountToCopy; i++)
+        for (size_t i = 0; i < amountToCopy; ++i)
         {
             fileName[i] = L'a';
         }
