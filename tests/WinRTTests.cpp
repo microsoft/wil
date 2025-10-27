@@ -45,8 +45,9 @@ TEST_CASE("WinRTTests::VerifyTraitsTypes", "[winrt]")
 }
 
 template <bool InhibitArrayReferences, bool IgnoreCase, typename LhsT, typename RhsT>
-void DoHStringComparisonTest(LhsT&& lhs, RhsT&& rhs, int relation)
+static void DoHStringComparisonTest(LhsT&& lhs, RhsT&& rhs, int relation)
 {
+    // NOLINTBEGIN(readability-suspicious-call-argument): Explicitly testing different parameter orders
     using compare = wil::details::hstring_compare<InhibitArrayReferences, IgnoreCase>;
 
     // == and !=
@@ -85,12 +86,13 @@ void DoHStringComparisonTest(LhsT&& lhs, RhsT&& rhs, int relation)
         const wistd::remove_reference_t<RhsT>& constRhs = rhs;
         DoHStringComparisonTest<InhibitArrayReferences, IgnoreCase>(lhs, constRhs, relation);
     }
+    // NOLINTEND(readability-suspicious-call-argument)
 }
 
 // The two string arguments are expected to compare equal to one another using the specified IgnoreCase argument and
 // contain at least one embedded null character
 template <bool InhibitArrayReferences, bool IgnoreCase, size_t Size>
-void DoHStringSameValueComparisonTest(const wchar_t (&lhs)[Size], const wchar_t (&rhs)[Size])
+static void DoHStringSameValueComparisonTest(const wchar_t (&lhs)[Size], const wchar_t (&rhs)[Size])
 {
     wchar_t lhsNonConstArray[Size + 5];
     wchar_t rhsNonConstArray[Size + 5];
@@ -188,7 +190,7 @@ void DoHStringSameValueComparisonTest(const wchar_t (&lhs)[Size], const wchar_t 
 
 // It's expected that the first argument (lhs) compares greater than the second argument (rhs)
 template <bool InhibitArrayReferences, bool IgnoreCase, size_t LhsSize, size_t RhsSize>
-void DoHStringDifferentValueComparisonTest(const wchar_t (&lhs)[LhsSize], const wchar_t (&rhs)[RhsSize])
+static void DoHStringDifferentValueComparisonTest(const wchar_t (&lhs)[LhsSize], const wchar_t (&rhs)[RhsSize])
 {
     wchar_t lhsNonConstArray[LhsSize];
     wchar_t rhsNonConstArray[RhsSize];
@@ -525,8 +527,8 @@ TEST_CASE("WinRTTests::HStringCaseInsensitiveMapTest", "[winrt][hstring_compare]
 }
 #endif
 
-// This is not a test method, nor should it be called. This is a compilation-only test.
 #ifdef WIL_ENABLE_EXCEPTIONS
+// NOLINTNEXTLINE(misc-use-internal-linkage): This is not a test method, nor should it be called. This is a compilation-only test.
 void RunWhenCompleteCompilationTest()
 {
     {
@@ -580,9 +582,9 @@ TEST_CASE("WinRTTests::WaitForCompletionTimeout", "[winrt][wait_for_completion]"
     REQUIRE(timedOut);
 }
 
-// This is not a test method, nor should it be called. This is a compilation-only test.
 #pragma warning(push)
 #pragma warning(disable : 4702) // Unreachable code
+// NOLINTNEXTLINE(misc-use-internal-linkage): This is not a test method, nor should it be called. This is a compilation-only test.
 void WaitForCompletionCompilationTest()
 {
     // Ensure the wait_for_completion variants compile
@@ -680,7 +682,7 @@ TEST_CASE("WinRTTests::TimeTTests", "[winrt][time_t]")
 }
 
 template <template <typename> class ResultT = IVector>
-ComPtr<ResultT<IInspectable*>> MakeSampleInspectableVector(UINT32 count = 5)
+static ComPtr<ResultT<IInspectable*>> MakeSampleInspectableVector(UINT32 count = 5)
 {
     auto result = Make<FakeVector<IInspectable*>>();
     REQUIRE(result);
@@ -699,7 +701,7 @@ ComPtr<ResultT<IInspectable*>> MakeSampleInspectableVector(UINT32 count = 5)
 }
 
 template <template <typename> class ResultT = IVector>
-ComPtr<ResultT<HSTRING>> MakeSampleStringVector()
+static ComPtr<ResultT<HSTRING>> MakeSampleStringVector()
 {
     auto result = Make<FakeVector<HSTRING>>();
     REQUIRE(result);
@@ -714,7 +716,7 @@ ComPtr<ResultT<HSTRING>> MakeSampleStringVector()
 }
 
 template <template <typename> class ResultT = IVector>
-ComPtr<ResultT<Point>> MakeSamplePointVector(int count = 5)
+static ComPtr<ResultT<Point>> MakeSamplePointVector(int count = 5)
 {
     auto result = Make<FakeVector<Point>>();
     REQUIRE(result);
@@ -729,7 +731,7 @@ ComPtr<ResultT<Point>> MakeSamplePointVector(int count = 5)
 }
 
 template <typename T>
-auto cast_to(ComPtr<IInspectable> const& src)
+static auto cast_to(ComPtr<IInspectable> const& src)
 {
     ComPtr<IReference<T>> theRef;
     T value{};
@@ -922,7 +924,7 @@ TEST_CASE("WinRTTests::VectorRangeTest", "[winrt][vector_range]")
         auto val = ref;
         itr = itr;
         REQUIRE(val == ref);
-        itr = std::move(itr);
+        itr = std::move(itr); // NOLINT(performance-move-const-arg): Iterator does not have move assignment operator, but we want to test this anyway
         REQUIRE(val == ref);
     }
 
@@ -934,13 +936,13 @@ TEST_CASE("WinRTTests::VectorRangeTest", "[winrt][vector_range]")
         auto val = ref.Get();
         itr = itr;
         REQUIRE(val == ref);
-        itr = std::move(itr);
+        itr = std::move(itr); // NOLINT(performance-move-const-arg): Iterator does not have move assignment operator, but we want to test this anyway
         REQUIRE(val == ref.Get());
     }
 #endif
 }
 
-unsigned long GetComObjectRefCount(IUnknown* unk)
+static unsigned long GetComObjectRefCount(IUnknown* unk)
 {
     unk->AddRef();
     return unk->Release();
@@ -1143,7 +1145,7 @@ TEST_CASE("WinRTTests::IterableRangeTest", "[winrt][iterable_range]")
         auto val = ref;
         itr = itr;
         REQUIRE(val == ref);
-        itr = std::move(itr);
+        itr = std::move(itr); // NOLINT(performance-move-const-arg): Iterator does not have move assignment operator, but we want to test this anyway
         REQUIRE(val == ref);
     }
 
@@ -1155,7 +1157,7 @@ TEST_CASE("WinRTTests::IterableRangeTest", "[winrt][iterable_range]")
         auto val = ref.Get();
         itr = itr;
         REQUIRE(val == ref);
-        itr = std::move(itr);
+        itr = std::move(itr); // NOLINT(performance-move-const-arg): Iterator does not have move assignment operator, but we want to test this anyway
         REQUIRE(val == ref.Get());
     }
 #endif

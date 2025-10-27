@@ -15,7 +15,7 @@ struct dummy
 using namespace wil::literals;
 
 // Specialize std::allocator<> so that we don't actually allocate/deallocate memory
-dummy g_memoryBuffer[256];
+static dummy g_memoryBuffer[256];
 namespace std
 {
 template <>
@@ -67,14 +67,14 @@ struct CustomNoncopyableString
 TEST_CASE("StlTests::TestZStringView", "[stl][zstring_view]")
 {
     // Test empty cases
-    REQUIRE(wil::zstring_view{}.length() == (size_t)0u);
+    REQUIRE(wil::zstring_view{}.empty());
     REQUIRE(wil::zstring_view{}.data() == nullptr);
     REQUIRE(wil::zstring_view{}.c_str() == nullptr);
 
     // Test empty string cases
     REQUIRE(wil::zstring_view{""}[0] == '\0');
     REQUIRE(wil::zstring_view{""}.c_str()[0] == '\0');
-    REQUIRE(wil::zstring_view{""}.length() == 0);
+    REQUIRE(wil::zstring_view{""}.empty());
 
     // Test different constructor equality
     constexpr wil::zstring_view fromLiteral = "abc";
@@ -99,8 +99,8 @@ TEST_CASE("StlTests::TestZStringView", "[stl][zstring_view]")
     REQUIRE(fromLiteral == copy);
 
     // Test decay to std::string_view
-    std::string_view sv = fromLiteral;
-    REQUIRE(sv == fromLiteral);
+    std::string_view view = fromLiteral;
+    REQUIRE(view == fromLiteral);
 
     // Test operator[]
     REQUIRE(fromLiteral[0] == 'a');
@@ -157,15 +157,15 @@ TEST_CASE("StlTests::TestZStringView formatting", "[stl][zstring_view]")
     SECTION("zstring_view can be used with std::format(wchar_t const*)")
     {
         auto str = L"kittens"_zv;
-        auto f = std::format(L"Hello {}", str);
-        REQUIRE(f == L"Hello kittens");
+        auto fmtStr = std::format(L"Hello {}", str);
+        REQUIRE(fmtStr == L"Hello kittens");
     }
 
     SECTION("zstring_view can be used with std::format(char const*)")
     {
         auto str = "kittens"_zv;
-        auto f = std::format("Hello {}", str);
-        REQUIRE(f == "Hello kittens");
+        auto fmtStr = std::format("Hello {}", str);
+        REQUIRE(fmtStr == "Hello kittens");
     }
 }
 
@@ -174,14 +174,14 @@ TEST_CASE("StlTests::TestZStringView formatting", "[stl][zstring_view]")
 TEST_CASE("StlTests::TestZWStringView", "[stl][zstring_view]")
 {
     // Test empty cases
-    REQUIRE(wil::zwstring_view{}.length() == (size_t)0u);
+    REQUIRE(wil::zwstring_view{}.empty());
     REQUIRE(wil::zwstring_view{}.data() == nullptr);
     REQUIRE(wil::zwstring_view{}.c_str() == nullptr);
 
     // Test empty string cases
     REQUIRE(wil::zwstring_view{L""}[0] == L'\0');
     REQUIRE(wil::zwstring_view{L""}.c_str()[0] == L'\0');
-    REQUIRE(wil::zwstring_view{L""}.length() == 0);
+    REQUIRE(wil::zwstring_view{L""}.empty());
 
     // Test different constructor equality
     constexpr wil::zwstring_view fromLiteral = L"abc";
@@ -206,8 +206,8 @@ TEST_CASE("StlTests::TestZWStringView", "[stl][zstring_view]")
     REQUIRE(fromLiteral == copy);
 
     // Test decay to std::wstring_view
-    std::wstring_view sv = fromLiteral;
-    REQUIRE(sv == fromLiteral);
+    std::wstring_view view = fromLiteral;
+    REQUIRE(view == fromLiteral);
 
     // Test operator[]
     REQUIRE(fromLiteral[0] == L'a');

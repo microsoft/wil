@@ -176,13 +176,13 @@ TEST_CASE("CommonTests::FlagsMacros", "[common]")
     {
         FlagsMacrosNonStatic<char>(
             static_cast<char>(0), static_cast<char>(0x1), static_cast<char>(0x2), static_cast<char>(0x4), static_cast<char>(0x40));
-        FlagsMacrosNonStatic<unsigned char>(0, 0x1, 0x2, 0x4, 0x80u);
+        FlagsMacrosNonStatic<unsigned char>(0, 0x1, 0x2, 0x4, 0x80U);
         FlagsMacrosNonStatic<short>(0, 0x1, 0x2, 0x4, 0x4000);
-        FlagsMacrosNonStatic<unsigned short>(0, 0x1, 0x2, 0x4, 0x8000u);
-        FlagsMacrosNonStatic<long>(0, 0x1, 0x2, 0x4, 0x80000000ul);
-        FlagsMacrosNonStatic<unsigned long>(0, 0x1, 0x2, 0x4, 0x80000000ul);
-        FlagsMacrosNonStatic<long long>(0, 0x1, 0x2, 0x4, 0x8000000000000000ull);
-        FlagsMacrosNonStatic<unsigned long long>(0, 0x1, 0x2, 0x4, 0x8000000000000000ull);
+        FlagsMacrosNonStatic<unsigned short>(0, 0x1, 0x2, 0x4, 0x8000U);
+        FlagsMacrosNonStatic<long>(0, 0x1, 0x2, 0x4, static_cast<long>(0x80000000UL));
+        FlagsMacrosNonStatic<unsigned long>(0, 0x1, 0x2, 0x4, 0x80000000UL);
+        FlagsMacrosNonStatic<long long>(0, 0x1, 0x2, 0x4, static_cast<long long>(0x8000000000000000ULL));
+        FlagsMacrosNonStatic<unsigned long long>(0, 0x1, 0x2, 0x4, 0x8000000000000000ULL);
     }
 
     SECTION("Raw enum")

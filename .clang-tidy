@@ -1,0 +1,42 @@
+---
+Checks:
+- clang-analyzer-*
+- clang-diagnostic-*
+- bugprone-*
+- concurrency-*
+- misc-*
+- performance-*
+- portability-*
+- readability-*
+# ^^^ Enable ^^^ vvv Disable vvv
+- -bugprone-easily-swappable-parameters # Perhaps we can suppress individual instances, but the ship has sailed on many of these
+- -bugprone-inc-dec-in-conditions # Disabled until https://github.com/llvm/llvm-project/issues/163913 is fixed
+- -bugprone-reserved-identifier # This would require a herculean effort
+- -bugprone-string-literal-with-embedded-nul # Several types/functions need to be tested with embedded null characters
+- -bugprone-unchecked-optional-access # Currently, this marks '.value()' as unsafe. We can revisit if an option is added to only check 'operator*'
+- -bugprone-use-after-move # We explicitly test the behavior of moved-from WIL types
+- -clang-analyzer-core.CallAndMessage # This check apparently can't figure out how C++/WinRT's activation factory logic works
+- -clang-analyzer-cplusplus.Move # We explicitly test the behavior of moved-from WIL types
+- -clang-analyzer-cplusplus.NewDelete # This check apparently can't figure out how COM's reference counting works
+- -clang-analyzer-optin.core.EnumCastOutOfRange # Many windows enums are flags without the expected attributes
+- -misc-const-correctness # Too noisy
+- -misc-definitions-in-headers # We rely quite heavily on the ability to define 'selectany'/inline/etc. variables
+- -misc-include-cleaner # Too noisy and not really compatible with pch or Windows.h
+- -misc-misplaced-const # Flags things like 'const HSTRING' which isn't that hard to use correctly
+- -misc-no-recursion # We have a number of intentional recursive functions
+- -misc-unused-parameters # This has weird behavior that I'm not quite convinced isn't a bug
+- -misc-use-anonymous-namespace # Too noisy
+- -performance-enum-size # Maybe we can revisit, but changing the size of public enums may have unexpected impact
+- -readability-convert-member-functions-to-static # This has undesired consequences in test code
+- -readability-function-cognitive-complexity # We can _maybe_ revisit for a subset of the repo (no tests) if we exclude macros
+- -readability-implicit-bool-conversion # Maybe we can revisit non-pointers, but for now this is too noisy
+- -readability-magic-numbers # Maybe we can revisit later, but for now this is too noisy
+- -readability-named-parameter # Too noisy, negatively impacts the use of tag types, and generally not that useful of a check
+- -readability-qualified-auto # Changes 'auto' to 'auto*' for pointers... Not really all that useful and kind of annoying for HANDLE
+CheckOptions:
+  bugprone-empty-catch.IgnoreCatchWithKeywords: 'Fall through'
+  misc-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic: true # Makes this check more tolerable
+  readability-identifier-length.IgnoredParameterNames: '^(fn|hr|x|y)$' # Common, well understood names
+  readability-identifier-length.IgnoredVariableNames: '^(fn|hr|i|id|op)$' # Common, well understood names
+  readability-simplify-boolean-expr.IgnoreMacros: true # Otherwise it's easy to get hits in our many, many macros
+HeaderFilterRegex: '(include\\wil|tests)\\[^\\/]*\.h$'
