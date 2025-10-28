@@ -3123,6 +3123,8 @@ namespace details
             if (0 == ::InterlockedDecrement(&m_refCount))
             {
                 lock.reset(); // leave the lock before deleting it.
+                // Make sure callbacks are not running in parallel to destruction.
+                m_threadPoolWait.reset();
                 delete this;
             }
         }
@@ -3139,7 +3141,7 @@ namespace details
                 delete this;
                 // Sleep(1); // Enable for testing to find use after free bugs.
             }
-            else if (rearm)
+            else if (rearm && m_threadPoolWait.is_valid())
             {
                 ::SetThreadpoolWait(m_threadPoolWait.get(), m_eventHandle.get(), nullptr);
             }
