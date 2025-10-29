@@ -66,7 +66,6 @@ namespace reg
 
         // Open key for reading and writing. Equivalent to KEY_ALL_ACCESS.
         readwrite,
-        
         // Open key for reading from 64-bit registry.
         read64,
 
