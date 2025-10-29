@@ -66,6 +66,12 @@ namespace reg
 
         // Open key for reading and writing. Equivalent to KEY_ALL_ACCESS.
         readwrite,
+        
+        // Open key for reading from 64-bit registry.
+        read64,
+
+        // Open key for reading and writing from 64-bit registry. Equivalent to KEY_ALL_ACCESS.
+        readwrite64,
     };
 
     /// @cond
@@ -101,6 +107,11 @@ namespace reg
                 return KEY_READ;
             case key_access::readwrite:
                 return KEY_ALL_ACCESS;
+            case key_access::read64:
+                return KEY_READ | KEY_WOW64_64KEY;
+            case key_access::readwrite64:
+                return KEY_ALL_ACCESS | KEY_WOW64_64KEY;
+            }
             }
             FAIL_FAST();
             RESULT_NORETURN_RESULT(0);
