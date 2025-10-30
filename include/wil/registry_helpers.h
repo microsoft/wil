@@ -112,7 +112,6 @@ namespace reg
             case key_access::readwrite64:
                 return KEY_ALL_ACCESS | KEY_WOW64_64KEY;
             }
-            }
             FAIL_FAST();
             RESULT_NORETURN_RESULT(0);
         }
