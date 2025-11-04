@@ -4537,8 +4537,9 @@ namespace details
 
         // parameter 0 is the !analyze code (FAST_FAIL_FATAL_APP_EXIT)
         EXCEPTION_RECORD exr{};
-        exr.NumberParameters = 1;                        // default to be safe, see below
-        exr.ExceptionCode = STATUS_STACK_BUFFER_OVERRUN; // 0xC0000409
+        exr.NumberParameters = 1; // default to be safe, see below
+        // NOLINTNEXTLINE(readability-redundant-casting): STATUS_ macros inconsistently defined in Windows headers
+        exr.ExceptionCode = static_cast<DWORD>(STATUS_STACK_BUFFER_OVERRUN); // 0xC0000409
         exr.ExceptionFlags = EXCEPTION_NONCONTINUABLE;
         exr.ExceptionInformation[0] = FAST_FAIL_FATAL_APP_EXIT; // see winnt.h, generated from minkernel\published\base\ntrtl_x.w
         if (failure.returnAddress == nullptr) // FailureInfo does not have _ReturnAddress, have RaiseFailFastException generate it
