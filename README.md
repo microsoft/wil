@@ -20,7 +20,7 @@ Some things that WIL includes to whet your appetite:
 - [`include/wil/registry.h`](include/wil/registry.h) ([documentation](https://github.com/microsoft/wil/wiki/Registry-Helpers)): Type-safe functions to read from, write to,
   and watch the registry. Also, registry watchers that can call a lambda function or a callback function
   you provide whenever a certain tree within the Windows registry changes.
-- [`include/wil/network.h`](include/wil/network.h): Supports Winsock and network APIs
+- [`include/wil/network.h`](include/wil/network.h): ([documentation](https://github.com/microsoft/wil/wiki/Network-Helpers)) Supports Winsock and network APIs
   by providing a header-include list which addresses the inter-header include dependendies;
   provides RAII objects for WSAStartup refcounts as well as the various addrinfo* types
   returned from the family of getaddrinfo* functions; provides a type-safe class for managing

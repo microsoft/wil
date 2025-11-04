@@ -66,7 +66,7 @@ struct __declspec(uuid("105FDF00-A3FC-456E-AFD0-28918CB797AF")) BuggyServer
     }
 };
 
-auto create_server_instance(const GUID& clsid)
+static auto create_server_instance(const GUID& clsid)
 {
     return winrt::create_instance<winrt::Windows::Foundation::IStringable>(clsid, CLSCTX_LOCAL_SERVER);
 }
@@ -225,13 +225,13 @@ TEST_CASE("CppWinRTAuthoringTests::Events", "[property]")
         wil::typed_event<winrt::Windows::Foundation::IInspectable, int> MyTypedEvent;
     } test;
 
-    auto token = test.MyEvent([](winrt::Windows::Foundation::IInspectable, int args) {
+    auto token = test.MyEvent([](const winrt::Windows::Foundation::IInspectable&, int args) {
         REQUIRE(args == 42);
     });
     test.MyEvent.invoke(nullptr, 42);
     test.MyEvent(token);
 
-    auto token2 = test.MyTypedEvent([](winrt::Windows::Foundation::IInspectable, int args) {
+    auto token2 = test.MyTypedEvent([](const winrt::Windows::Foundation::IInspectable&, int args) {
         REQUIRE(args == 42);
     });
     test.MyTypedEvent.invoke(nullptr, 42);
@@ -257,15 +257,15 @@ TEST_CASE("CppWinRTAuthoringTests::EventsAndCppWinRt", "[property]")
 
     auto test = winrt::make<Test>();
     bool invoked = false;
-    auto token = test.Closed([&](winrt::Windows::Foundation::IMemoryBufferReference, winrt::Windows::Foundation::IInspectable) {
-        invoked = true;
-    });
+    auto token =
+        test.Closed([&](const winrt::Windows::Foundation::IMemoryBufferReference&, const winrt::Windows::Foundation::IInspectable&) {
+            invoked = true;
+        });
     winrt::get_self<Test>(test)->Closed.invoke(test, nullptr);
     REQUIRE(invoked == true);
     test.Closed(token);
 }
 
-#include <winrt/Windows.System.h>
 #include <winrt/Windows.UI.Xaml.Hosting.h>
 
 TEST_CASE("CppWinRTAuthoringTests::NotifyPropertyChanged", "[property]")
@@ -314,12 +314,12 @@ TEST_CASE("CppWinRTAuthoringTests::NotifyPropertyChanged", "[property]")
                 auto test = winrt::make<Test>();
                 auto testImpl = winrt::get_self<Test>(test);
                 bool notified = false;
-                auto token = test.PropertyChanged(
-                    [&](winrt::Windows::Foundation::IInspectable, winrt::Windows::UI::Xaml::Data::PropertyChangedEventArgs args) {
-                        REQUIRE(args.PropertyName() == L"MyProperty");
-                        REQUIRE(testImpl->MyProperty() == 43);
-                        notified = true;
-                    });
+                auto token = test.PropertyChanged([&](const winrt::Windows::Foundation::IInspectable&,
+                                                      const winrt::Windows::UI::Xaml::Data::PropertyChangedEventArgs& args) {
+                    REQUIRE(args.PropertyName() == L"MyProperty");
+                    REQUIRE(testImpl->MyProperty() == 43);
+                    notified = true;
+                });
 
                 testImpl->MyProperty(43);
                 REQUIRE(notified);
@@ -335,12 +335,12 @@ TEST_CASE("CppWinRTAuthoringTests::NotifyPropertyChanged", "[property]")
                 auto test = winrt::make<Test>();
                 auto testImpl = winrt::get_self<Test>(test);
                 bool notified = false;
-                auto token = test.PropertyChanged(
-                    [&](winrt::Windows::Foundation::IInspectable, winrt::Windows::UI::Xaml::Data::PropertyChangedEventArgs args) {
-                        REQUIRE(args.PropertyName() == L"MyProperty");
-                        REQUIRE(testImpl->MyProperty() == 43);
-                        notified = true;
-                    });
+                auto token = test.PropertyChanged([&](const winrt::Windows::Foundation::IInspectable&,
+                                                      const winrt::Windows::UI::Xaml::Data::PropertyChangedEventArgs& args) {
+                    REQUIRE(args.PropertyName() == L"MyProperty");
+                    REQUIRE(testImpl->MyProperty() == 43);
+                    notified = true;
+                });
 
                 testImpl->MyProperty(43);
                 REQUIRE(notified);

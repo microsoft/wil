@@ -94,7 +94,7 @@ TEST_CASE("TokenHelpersTests::VerifyLinkedToken", "[token_helpers][LocalOnly]")
 }
 #endif
 
-bool IsImpersonating()
+static bool IsImpersonating()
 {
     wil::unique_handle token;
     if (!::OpenThreadToken(GetCurrentThread(), TOKEN_QUERY, TRUE, &token))
@@ -106,7 +106,7 @@ bool IsImpersonating()
     return true;
 }
 
-wil::unique_handle GetTokenToImpersonate()
+static wil::unique_handle GetTokenToImpersonate()
 {
     wil::unique_handle processToken;
     FAIL_FAST_IF_WIN32_BOOL_FALSE(::OpenProcessToken(GetCurrentProcess(), TOKEN_ALL_ACCESS, &processToken));
@@ -189,7 +189,7 @@ TEST_CASE("TokenHelpersTests::VerifyResetThreadToken", "[token_helpers]")
 
 #if (_WIN32_WINNT >= _WIN32_WINNT_WIN8)
 template <typename T, wistd::enable_if_t<!wil::details::MapTokenStructToInfoClass<T>::FixedSize>* = nullptr>
-void TestGetTokenInfoForCurrentThread()
+static void TestGetTokenInfoForCurrentThread()
 {
     wil::unique_tokeninfo_ptr<T> tokenInfo;
     const auto hr = wil::get_token_information_nothrow(tokenInfo, nullptr);
@@ -197,7 +197,7 @@ void TestGetTokenInfoForCurrentThread()
 }
 
 template <typename T, wistd::enable_if_t<wil::details::MapTokenStructToInfoClass<T>::FixedSize>* = nullptr>
-void TestGetTokenInfoForCurrentThread()
+static void TestGetTokenInfoForCurrentThread()
 {
     T tokenInfo{};
     const auto hr = wil::get_token_information_nothrow(&tokenInfo, nullptr);
@@ -257,7 +257,7 @@ TEST_CASE("TokenHelpersTests::VerifyGetTokenInformationSecurityImpersonationLeve
 }
 #endif
 
-bool operator==(const SID_IDENTIFIER_AUTHORITY& left, const SID_IDENTIFIER_AUTHORITY& right)
+static bool operator==(const SID_IDENTIFIER_AUTHORITY& left, const SID_IDENTIFIER_AUTHORITY& right)
 {
     return memcmp(&left, &right, sizeof(left)) == 0;
 }
@@ -302,10 +302,10 @@ TEST_CASE("TokenHelpersTests::VerifyGetTokenInfo", "[token_helpers]")
 
     // check a non-pointer size value to make sure the whole struct is returned.
     DWORD resultSize{};
-    TOKEN_SOURCE ts{};
+    TOKEN_SOURCE tokenSrc{};
     auto tokenSource = wil::get_token_information<TOKEN_SOURCE>();
-    GetTokenInformation(GetCurrentThreadEffectiveToken(), TokenSource, &ts, sizeof(ts), &resultSize);
-    REQUIRE(memcmp(&ts, &tokenSource, sizeof(ts)) == 0);
+    GetTokenInformation(GetCurrentThreadEffectiveToken(), TokenSource, &tokenSrc, sizeof(tokenSrc), &resultSize);
+    REQUIRE(memcmp(&tokenSrc, &tokenSource, sizeof(tokenSrc)) == 0);
 }
 
 TEST_CASE("TokenHelpersTests::VerifyGetTokenInfoFailFast", "[token_helpers]")

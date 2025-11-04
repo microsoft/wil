@@ -65,20 +65,20 @@ namespace details
     {
     public:
         template <typename T>
-        inline static HRESULT query(_In_ T* ptr, REFIID riid, _COM_Outptr_ void** result)
+        static HRESULT query(_In_ T* ptr, REFIID riid, _COM_Outptr_ void** result)
         {
             return ptr->QueryInterface(riid, result);
         }
 
         template <typename T, typename TResult>
-        inline static HRESULT query(_In_ T* ptr, _COM_Outptr_ TResult** result)
+        static HRESULT query(_In_ T* ptr, _COM_Outptr_ TResult** result)
         {
             return query_dispatch(ptr, typename details::is_com_convertible<T*, TResult*>::type(), result);
         }
 
     private:
         template <typename T, typename TResult>
-        inline static HRESULT query_dispatch(_In_ T* ptr, wistd::true_type, _COM_Outptr_ TResult** result) // convertible
+        static HRESULT query_dispatch(_In_ T* ptr, wistd::true_type, _COM_Outptr_ TResult** result) // convertible
         {
             *result = ptr;
             (*result)->AddRef();
@@ -86,7 +86,7 @@ namespace details
         }
 
         template <typename T, typename TResult>
-        inline static HRESULT query_dispatch(_In_ T* ptr, wistd::false_type, _COM_Outptr_ TResult** result) // not convertible
+        static HRESULT query_dispatch(_In_ T* ptr, wistd::false_type, _COM_Outptr_ TResult** result) // not convertible
         {
             auto hr = ptr->QueryInterface(IID_PPV_ARGS(result));
             __analysis_assume(SUCCEEDED(hr) || (*result == nullptr));
@@ -103,7 +103,7 @@ namespace details
     class weak_query_policy
     {
     public:
-        inline static HRESULT query(_In_ IWeakReference* ptr, REFIID riid, _COM_Outptr_ void** result)
+        static HRESULT query(_In_ IWeakReference* ptr, REFIID riid, _COM_Outptr_ void** result)
         {
             WI_ASSERT_MSG(riid != __uuidof(IWeakReference), "Cannot resolve a weak reference to IWeakReference");
             *result = nullptr;
@@ -125,7 +125,7 @@ namespace details
         }
 
         template <typename TResult>
-        inline static HRESULT query(_In_ IWeakReference* ptr, _COM_Outptr_ TResult** result)
+        static HRESULT query(_In_ IWeakReference* ptr, _COM_Outptr_ TResult** result)
         {
             static_assert(!wistd::is_same<IWeakReference, TResult>::value, "Cannot resolve a weak reference to IWeakReference");
             return query_dispatch(ptr, wistd::is_base_of<IInspectable, TResult>(), result);
@@ -161,7 +161,7 @@ namespace details
     class agile_query_policy
     {
     public:
-        inline static HRESULT query(_In_ IAgileReference* ptr, REFIID riid, _COM_Outptr_ void** result) WI_NOEXCEPT
+        static HRESULT query(_In_ IAgileReference* ptr, REFIID riid, _COM_Outptr_ void** result) WI_NOEXCEPT
         {
             WI_ASSERT_MSG(riid != __uuidof(IAgileReference), "Cannot resolve a agile reference to IAgileReference");
             auto hr = ptr->Resolve(riid, result);
@@ -294,14 +294,14 @@ public:
     //! Assign a like `com_ptr_t` (releases current pointer, copies and AddRef's the parameter).
     com_ptr_t& operator=(const com_ptr_t& other) WI_NOEXCEPT
     {
-        return operator=(other.get());
+        return operator=(other.get()); // NOLINT(misc-unconventional-assign-operator): Can't see through function call
     }
 
     //! Assign a convertible `com_ptr_t` (releases current pointer, copies and AddRef's the parameter).
     template <class U, typename err, class = wistd::enable_if_t<__is_convertible_to(U*, pointer)>>
     com_ptr_t& operator=(const com_ptr_t<U, err>& other) WI_NOEXCEPT
     {
-        return operator=(static_cast<pointer>(other.get()));
+        return operator=(static_cast<pointer>(other.get())); // NOLINT(misc-unconventional-assign-operator): Can't see through function call
     }
 
     //! Move assign from a like `com_ptr_t` (releases current pointer, avoids AddRef/Release by moving the parameter).
@@ -488,7 +488,7 @@ public:
     //!         `com_ptr_t` type will be @ref com_ptr or @ref com_ptr_failfast (matching the error handling form of the
     //!         pointer being queried (exception based or fail-fast).
     template <class U>
-    WI_NODISCARD inline com_ptr_t<U, err_policy> query() const
+    WI_NODISCARD com_ptr_t<U, err_policy> query() const
     {
         static_assert(wistd::is_same<void, result>::value, "query requires exceptions or fail fast; use try_query or query_to");
         return com_ptr_t<U, err_policy>(m_ptr, details::tag_com_query());
@@ -617,7 +617,7 @@ public:
     //!             not supported.  The returned `com_ptr_t` will have the same error handling policy (exceptions, failfast or
     //!             error codes) as the pointer being queried.
     template <class U>
-    WI_NODISCARD inline com_ptr_t<U, err_policy> try_query() const
+    WI_NODISCARD com_ptr_t<U, err_policy> try_query() const
     {
         return com_ptr_t<U, err_policy>(m_ptr, details::tag_try_com_query());
     }
@@ -696,7 +696,7 @@ public:
     //!         null.  The returned `com_ptr_t` type will be @ref com_ptr or @ref com_ptr_failfast (matching the error handling
     //!         form of the pointer being queried (exception based or fail-fast).
     template <class U>
-    WI_NODISCARD inline com_ptr_t<U, err_policy> copy() const
+    WI_NODISCARD com_ptr_t<U, err_policy> copy() const
     {
         static_assert(wistd::is_same<void, result>::value, "copy requires exceptions or fail fast; use the try_copy or copy_to method");
         return com_ptr_t<U, err_policy>(m_ptr, details::tag_com_copy());
@@ -790,7 +790,7 @@ public:
     //!             not supported or the pointer being queried is null.  The returned `com_ptr_t` will have the same error
     //!             handling policy (exceptions, failfast or error codes) as the pointer being queried.
     template <class U>
-    WI_NODISCARD inline com_ptr_t<U, err_policy> try_copy() const
+    WI_NODISCARD com_ptr_t<U, err_policy> try_copy() const
     {
         return com_ptr_t<U, err_policy>(m_ptr, details::tag_try_com_copy());
     }
@@ -856,7 +856,7 @@ public:
     template <class U, class = wistd::enable_if_t<__is_convertible_to(U*, pointer)>>
     com_ptr_t& operator=(const Microsoft::WRL::ComPtr<U>& other) WI_NOEXCEPT
     {
-        return operator=(static_cast<pointer>(other.Get()));
+        return operator=(static_cast<pointer>(other.Get())); // NOLINT(misc-unconventional-assign-operator): Can't see through function call
     }
 
     //! Move assign from a compatible WRL ComPtr<T>.
@@ -882,23 +882,22 @@ public:
     }
     //! @}  // WRL compatibility
 
-public:
     // Internal Helpers
     /// @cond
     template <class U>
-    inline com_ptr_t(_In_ U* ptr, details::tag_com_query) : m_ptr(nullptr)
+    com_ptr_t(_In_ U* ptr, details::tag_com_query) : m_ptr(nullptr)
     {
         err_policy::HResult(details::query_policy_t<U>::query(ptr, &m_ptr));
     }
 
     template <class U>
-    inline com_ptr_t(_In_ U* ptr, details::tag_try_com_query) WI_NOEXCEPT : m_ptr(nullptr)
+    com_ptr_t(_In_ U* ptr, details::tag_try_com_query) WI_NOEXCEPT : m_ptr(nullptr)
     {
         details::query_policy_t<U>::query(ptr, &m_ptr);
     }
 
     template <class U>
-    inline com_ptr_t(_In_opt_ U* ptr, details::tag_com_copy) : m_ptr(nullptr)
+    com_ptr_t(_In_opt_ U* ptr, details::tag_com_copy) : m_ptr(nullptr)
     {
         if (ptr)
         {
@@ -907,7 +906,7 @@ public:
     }
 
     template <class U>
-    inline com_ptr_t(_In_opt_ U* ptr, details::tag_try_com_copy) WI_NOEXCEPT : m_ptr(nullptr)
+    com_ptr_t(_In_opt_ U* ptr, details::tag_try_com_copy) WI_NOEXCEPT : m_ptr(nullptr)
     {
         if (ptr)
         {
@@ -1278,9 +1277,9 @@ inline IInspectable* com_raw_ptr(T^ ptr)
 //! }
 //! ~~~
 template <typename T>
-com_ptr<T> make_com_ptr(T* p)
+com_ptr<T> make_com_ptr(T* ptr)
 {
-    return p;
+    return ptr;
 }
 #endif
 
@@ -1294,9 +1293,9 @@ com_ptr<T> make_com_ptr(T* p)
 //! }
 //! ~~~
 template <typename T>
-com_ptr_nothrow<T> make_com_ptr_nothrow(T* p)
+com_ptr_nothrow<T> make_com_ptr_nothrow(T* ptr)
 {
-    return p;
+    return ptr;
 }
 
 //! Constructs a `com_ptr_failfast` from a raw pointer.
@@ -1309,9 +1308,9 @@ com_ptr_nothrow<T> make_com_ptr_nothrow(T* p)
 //! }
 //! ~~~
 template <typename T>
-com_ptr_failfast<T> make_com_ptr_failfast(T* p)
+com_ptr_failfast<T> make_com_ptr_failfast(T* ptr)
 {
-    return p;
+    return ptr;
 }
 
 //! @name Stand-alone query helpers
@@ -2135,8 +2134,8 @@ namespace details
         std::tuple<wil::com_ptr_t<Results, error_policy>...> resultTuple;
 
         std::apply(
-            [i = 0, &multiQis](auto&... a) mutable {
-                (a.attach(reinterpret_cast<typename std::remove_reference<decltype(a)>::type::pointer>(multiQis[i++].pItf)), ...);
+            [i = 0, &multiQis](auto&... ptrs) mutable {
+                (ptrs.attach(reinterpret_cast<typename std::remove_reference<decltype(ptrs)>::type::pointer>(multiQis[i++].pItf)), ...);
             },
             resultTuple);
         return std::tuple<HRESULT, decltype(resultTuple)>(hr, std::move(resultTuple));
@@ -2163,8 +2162,8 @@ namespace details
         {
             hr = multiQi->QueryMultipleInterfaces(ARRAYSIZE(multiQis), multiQis);
             std::apply(
-                [i = 0, &multiQis](auto&... a) mutable {
-                    (a.attach(reinterpret_cast<typename std::remove_reference<decltype(a)>::type::pointer>(multiQis[i++].pItf)), ...);
+                [i = 0, &multiQis](auto&... ptrs) mutable {
+                    (ptrs.attach(reinterpret_cast<typename std::remove_reference<decltype(ptrs)>::type::pointer>(multiQis[i++].pItf)), ...);
                 },
                 resultTuple);
         }
@@ -2381,9 +2380,9 @@ RETURN_HR_IF(E_INVALIDARG, size > ULONG_MAX);
 */
 inline HRESULT stream_size_nothrow(_In_ IStream* stream, _Out_ unsigned long long* value)
 {
-    STATSTG st{};
-    RETURN_IF_FAILED(stream->Stat(&st, STATFLAG_NONAME));
-    *value = st.cbSize.QuadPart;
+    STATSTG info{};
+    RETURN_IF_FAILED(stream->Stat(&info, STATFLAG_NONAME));
+    *value = info.cbSize.QuadPart;
 
     return S_OK;
 }
@@ -3207,12 +3206,14 @@ namespace details
 template <typename TStoredType, typename IEnumType>
 struct com_iterator
 {
+private:
     using TActualStoredType =
         wistd::conditional_t<wistd::is_same_v<TStoredType, void>, typename wil::details::com_enumerator_traits<IEnumType>::smart_result, TStoredType>;
 
     wil::com_ptr<IEnumType> m_enum{};
     TActualStoredType m_currentValue{};
 
+public:
     using smart_result = TActualStoredType;
     com_iterator(com_iterator&&) = default;
     com_iterator(com_iterator const&) = default;
@@ -3293,7 +3294,7 @@ WI_NODISCARD auto make_range(IEnumXxx* enumPtr)
 
     struct iterator_range
     {
-
+    private:
         static_assert(!wistd::is_same_v<TActualStoredType, void>, "You must specify a type to receive the enumerated objects.");
 
         // the stored type must be constructible from the output type of the enumerator
@@ -3301,9 +3302,11 @@ WI_NODISCARD auto make_range(IEnumXxx* enumPtr)
             wistd::is_constructible_v<TActualStoredType, typename wil::details::com_enumerator_traits<IEnumXxx>::Result>,
             "The type you specified cannot be converted to the enumerator's output type.");
 
+        wil::com_ptr<IEnumXxx> m_enumerator{};
+
+    public:
         using enumerator_type = com_iterator<TActualStoredType, IEnumXxx>;
 
-        wil::com_ptr<IEnumXxx> m_enumerator{};
         iterator_range(IEnumXxx* enumPtr) : m_enumerator(enumPtr)
         {
         }
@@ -3323,10 +3326,10 @@ WI_NODISCARD auto make_range(IEnumXxx* enumPtr)
 }
 
 template <typename TEnum, typename = wistd::enable_if_t<wil::details::has_next_v<TEnum*>>>
-auto make_range(const wil::com_ptr<TEnum>& e)
+auto make_range(const wil::com_ptr<TEnum>& enumerable)
 {
     using Enumerated = typename wil::details::com_enumerator_traits<TEnum>::smart_result;
-    return wil::make_range<Enumerated>(e.get());
+    return wil::make_range<Enumerated>(enumerable.get());
 }
 
 #ifdef __IShellItemArray_INTERFACE_DEFINED__
@@ -3387,9 +3390,9 @@ public:
             err_policy::LastErrorIfFalse(static_cast<bool>(m_timer));
             if (m_timer)
             {
-                FILETIME ft = filetime::get_system_time();
-                ft = filetime::add(ft, filetime::convert_msec_to_100ns(timeoutInMilliseconds));
-                SetThreadpoolTimer(m_timer.get(), &ft, timeoutInMilliseconds, 0);
+                FILETIME target = filetime::get_system_time();
+                target = filetime::add(target, filetime::convert_msec_to_100ns(timeoutInMilliseconds));
+                SetThreadpoolTimer(m_timer.get(), &target, timeoutInMilliseconds, 0);
             }
         }
     }
@@ -3420,7 +3423,7 @@ private:
         (void)::CoCancelCall(self->m_threadId, 0);
     }
 
-    wil::unique_call<decltype(&details::CoDisableCallCancellationNull), details::CoDisableCallCancellationNull, false> m_ensureDisable{};
+    wil::unique_call<decltype(&details::CoDisableCallCancellationNull), details::CoDisableCallCancellationNull, false> m_ensureDisable;
     DWORD m_threadId{};
 
     // The threadpool timer goes last so that it destructs first, waiting until the timer callback has completed.

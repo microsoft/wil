@@ -384,6 +384,7 @@ TEST_CASE("SafeCastTests::SafeCastThrowsTemplateCheck", "[safecast]")
 }
 #endif
 
+// NOLINTBEGIN(readability-identifier-length): These are all dummy names based off type
 TEST_CASE("SafeCastTests::SafeCastFailFastSyntaxCheck", "[safecast]")
 {
     SECTION("safe_cast_failfast safe")
@@ -570,6 +571,7 @@ TEST_CASE("SafeCastTests::SafeCastExpectFailFast", "[safecast]")
     }
 }
 #endif
+// NOLINTEND(readability-identifier-length)
 
 TEST_CASE("SafeCastTests::ZeroExtendingCast", "[safecast]")
 {

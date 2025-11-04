@@ -18,15 +18,6 @@ if (NOT DEFINED CPPWINRT_VERSION)
     set(CPPWINRT_VERSION "2.0.240405.15")
 endif()
 
-# Detect the Windows SDK version. If we're using the Visual Studio generator, this will be provided for us. Otherwise
-# we'll need to assume that this value comes from the command line (e.g. through the VS command prompt)
-if (DEFINED CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION)
-    set(WIL_WINDOWS_SDK_VERSION ${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION})
-else()
-    # This has a trailing backslash for whatever reason...
-    string(REGEX REPLACE "\\\\$" "" WIL_WINDOWS_SDK_VERSION "$ENV{WindowsSDKVersion}")
-endif()
-
 if (${WIL_BUILD_PACKAGING})
     add_subdirectory(packaging)
 endif()
@@ -41,6 +32,17 @@ if (${WIL_BUILD_TESTS})
     add_custom_target(format
         WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
         COMMAND scripts/run-clang-format.cmd)
+
+    # Custom target for running clang-tidy. Since Clang's tooling does not understand MSVC command lines, only enable
+    # when targeting Clang
+    if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        add_custom_target(run-clang-tidy
+            DEPENDS witest.cpplatest # Clang needs the pch, otherwise it fails
+            USES_TERMINAL # Otherwise, we don't get any output until the command is done, which takes _a while_
+            WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+            COMMAND clang-tidy -p ${PROJECT_BINARY_DIR}/compile_commands.json tests/*.cpp
+            )
+    endif()
 endif()
 
 # Gather headers into an interface library.

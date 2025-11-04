@@ -189,6 +189,7 @@ public:
 #endif
 
     detoured_global_function(const detoured_global_function&) = delete;
+    detoured_global_function(detoured_global_function&&) = delete;
     detoured_global_function& operator=(const detoured_global_function&) = delete;
     // It's not safe to move construct/assign this type because it's not safe to move the function object while it's potentially
     // being invoked by a different thread
@@ -208,11 +209,15 @@ public:
                 auto lock = details::s_detourLock.lock_exclusive();
                 m_removed = true;
                 while (m_entryCount > 0)
+                {
                     m_invokeComplete.wait(lock);
+                }
 
                 auto entryPtr = &s_globalInstance;
                 while (*entryPtr && (*entryPtr != this))
+                {
                     entryPtr = &(*entryPtr)->m_next;
+                }
 
                 // Failing this check likely means that there's either a memory corruption issue or an error in our logic
                 FAIL_FAST_IF_NULL(*entryPtr);
@@ -350,7 +355,7 @@ public:
     detoured_thread_function() = default;
 
 #ifdef WIL_ENABLE_EXCEPTIONS
-    template <typename Func>
+    template <typename Func> // NOLINTNEXTLINE(bugprone-forwarding-reference-overload): We have an explicit move constructor
     explicit detoured_thread_function(Func&& func) noexcept(noexcept(reset(wistd::forward<Func>(func))))
     {
         THROW_IF_FAILED(reset(wistd::forward<Func>(func)));
@@ -387,9 +392,13 @@ public:
         for (auto ptr = &s_threadInstance; *ptr; ptr = &(*ptr)->m_next)
         {
             if (*ptr == this)
+            {
                 thisPos = ptr;
+            }
             else if (*ptr == &other)
+            {
                 otherPos = ptr;
+            }
         }
 
         if (!thisPos)
@@ -438,7 +447,9 @@ public:
 
             detoured_thread_function** entryPtr = &s_threadInstance;
             while (*entryPtr && (*entryPtr != this))
+            {
                 entryPtr = &(*entryPtr)->m_next;
+            }
 
             // Faling this check would likely imply that this object is being destroyed on the wrong thread. No matter the reason,
             // this should be considered a pretty fatal error

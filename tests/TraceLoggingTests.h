@@ -3,6 +3,8 @@
 
 #include <string>
 
+// NOLINTBEGIN: TraceLogging macros are far from clean
+
 class PROVIDER_CLASS_NAME : wil::TraceLoggingProvider
 {
     // 1f9acafe-7501-4da1-84f0-d5312ac4c5fe
@@ -879,3 +881,5 @@ public:
     DEFINE_TELEMETRY_THREAD_ACTIVITY(TelemetryThreadActivity);
 #endif
 };
+
+// NOLINTEND
