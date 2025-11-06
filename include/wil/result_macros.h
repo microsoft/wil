@@ -7220,32 +7220,33 @@ namespace details
 struct err_returncode_policy
 {
     using result = HRESULT;
+    static constexpr bool is_noexcept = true;
 
-    __forceinline static HRESULT Win32BOOL(BOOL fReturn)
+    __forceinline static HRESULT Win32BOOL(BOOL fReturn) WI_NOEXCEPT
     {
         RETURN_IF_WIN32_BOOL_FALSE_EXPECTED(fReturn);
         return S_OK;
     }
-    __forceinline static HRESULT Win32Handle(HANDLE h, _Out_ HANDLE* ph)
+    __forceinline static HRESULT Win32Handle(HANDLE h, _Out_ HANDLE* ph) WI_NOEXCEPT
     {
         *ph = h;
         RETURN_LAST_ERROR_IF_NULL_EXPECTED(h);
         return S_OK;
     }
-    _Post_satisfies_(return == hr) __forceinline static HRESULT HResult(HRESULT hr)
+    _Post_satisfies_(return == hr) __forceinline static HRESULT HResult(HRESULT hr) WI_NOEXCEPT
     {
         return hr;
     }
-    __forceinline static HRESULT LastError()
+    __forceinline static HRESULT LastError() WI_NOEXCEPT
     {
         return wil::details::GetLastErrorFailHr();
     }
-    __forceinline static HRESULT LastErrorIfFalse(bool condition)
+    __forceinline static HRESULT LastErrorIfFalse(bool condition) WI_NOEXCEPT
     {
         RETURN_LAST_ERROR_IF_EXPECTED(!condition);
         return S_OK;
     }
-    _Post_satisfies_(return == S_OK) __forceinline static HRESULT OK()
+    _Post_satisfies_(return == S_OK) __forceinline static HRESULT OK() WI_NOEXCEPT
     {
         return S_OK;
     }
@@ -7255,32 +7256,33 @@ struct err_returncode_policy
 struct err_failfast_policy
 {
     typedef _Return_type_success_(true) void result;
-    __forceinline static result Win32BOOL(BOOL fReturn)
+    static constexpr bool is_noexcept = true;
+    __forceinline static result Win32BOOL(BOOL fReturn) WI_NOEXCEPT
     {
         FAIL_FAST_IF_WIN32_BOOL_FALSE(fReturn);
     }
-    __forceinline static result Win32Handle(HANDLE h, _Out_ HANDLE* ph)
+    __forceinline static result Win32Handle(HANDLE h, _Out_ HANDLE* ph) WI_NOEXCEPT
     {
         *ph = h;
         FAIL_FAST_LAST_ERROR_IF_NULL(h);
     }
     _When_(FAILED(hr), _Analysis_noreturn_)
-    __forceinline static result HResult(HRESULT hr)
+    __forceinline static result HResult(HRESULT hr) WI_NOEXCEPT
     {
         FAIL_FAST_IF_FAILED(hr);
     }
-    __forceinline static result LastError()
+    __forceinline static result LastError() WI_NOEXCEPT
     {
         FAIL_FAST_LAST_ERROR();
     }
-    __forceinline static result LastErrorIfFalse(bool condition)
+    __forceinline static result LastErrorIfFalse(bool condition) WI_NOEXCEPT
     {
         if (!condition)
         {
             FAIL_FAST_LAST_ERROR();
         }
     }
-    __forceinline static result OK()
+    __forceinline static result OK() WI_NOEXCEPT
     {
     }
 };
@@ -7290,6 +7292,7 @@ struct err_failfast_policy
 struct err_exception_policy
 {
     typedef _Return_type_success_(true) void result;
+    static constexpr bool is_noexcept = false;
     __forceinline static result Win32BOOL(BOOL fReturn)
     {
         THROW_IF_WIN32_BOOL_FALSE(fReturn);
@@ -7315,7 +7318,7 @@ struct err_exception_policy
             THROW_LAST_ERROR();
         }
     }
-    __forceinline static result OK()
+    __forceinline static result OK() WI_NOEXCEPT
     {
     }
 };

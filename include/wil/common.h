@@ -910,6 +910,58 @@ namespace details
     {
         using type = typename variable_size<sizeof(T)>::type;
     };
+
+    // Type to help take advantage of empty base optimization, e.g. when dealing with allocator types, in liu of the ABI
+    // issues with MSVC and [[no_unique_address]]/[[msvc::no_unique_address]]
+    template <typename T, bool = wistd::is_final_v<T> || wistd::is_scalar_v<T> || wistd::is_reference_v<T>>
+    struct ebo
+    {
+    private:
+        T m_value;
+
+    protected:
+        ebo() = default;
+        ebo(const T& value) : m_value(value)
+        {
+        }
+        template <typename U = T, typename = wistd::enable_if_t<!wistd::is_reference_v<U>>>
+        ebo(T&& value) : m_value(wistd::forward<T>(value))
+        {
+        }
+
+        T& get() noexcept
+        {
+            return m_value;
+        }
+
+        const T& get() const noexcept
+        {
+            return m_value;
+        }
+    };
+
+    template <typename T>
+    struct ebo<T, false> : private T
+    {
+    protected:
+        ebo() = default;
+        ebo(const T& value) : T(value)
+        {
+        }
+        ebo(T&& value) : T(wistd::forward<T>(value))
+        {
+        }
+
+        T& get() noexcept
+        {
+            return static_cast<T&>(*this);;
+        }
+
+        const T& get() const noexcept
+        {
+            return static_cast<const T&>(*this);
+        }
+    };
 } // namespace details
 /// @endcond
 

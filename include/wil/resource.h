@@ -3720,6 +3720,7 @@ namespace details
         ::HeapFree(::GetProcessHeap(), 0, p);
     }
 
+    // TODO(dunhor): Rename to something like 'heap_byte_allocator'
     struct heap_allocator
     {
         static _Ret_opt_bytecap_(size) void* allocate(size_t size) WI_NOEXCEPT
@@ -4315,6 +4316,7 @@ typedef unique_any<PSTR, decltype(&::LocalFree), ::LocalFree> unique_hlocal_ansi
 /// @cond
 namespace details
 {
+    // TODO(dunhor): Rename to something like 'localalloc_byte_allocator'
     struct localalloc_allocator
     {
         static _Ret_opt_bytecap_(size) void* allocate(size_t size) WI_NOEXCEPT
@@ -5436,6 +5438,7 @@ using unique_midl_ansistring = unique_midl_ptr<char>;
 /// @cond
 namespace details
 {
+    // TODO(dunhor): Rename to something like 'midl_byte_allocator'
     struct midl_allocator
     {
         static _Ret_opt_bytecap_(size) void* allocate(size_t size) WI_NOEXCEPT
@@ -5617,6 +5620,7 @@ typedef unique_any<PSTR, decltype(&::CoTaskMemFree), ::CoTaskMemFree> unique_cot
 /// @cond
 namespace details
 {
+    // TODO(dunhor): It would be ideal to rename this, but there's a dependency...
     struct cotaskmem_allocator
     {
         static _Ret_opt_bytecap_(size) void* allocate(size_t size) WI_NOEXCEPT
