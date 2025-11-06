@@ -159,41 +159,12 @@ add_test(NAME noexcept COMMAND $<TARGET_FILE:witest.noexcept>)
 add_test(NAME normal COMMAND $<TARGET_FILE:witest>)
 add_test(NAME win7 COMMAND $<TARGET_FILE:witest.win7>)
 
-set(DEBUG_BUILD FALSE)
-set(HAS_DEBUG_INFO FALSE)
-
-if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
-    set(DEBUG_BUILD TRUE)
-    set(HAS_DEBUG_INFO TRUE)
-elseif("${CMAKE_BUILD_TYPE}" STREQUAL "RelWithDebInfo")
-    set(HAS_DEBUG_INFO TRUE)
-endif()
-# Release & MinSizeRel => keep all false
-
-set(ASAN_AVAILABLE FALSE)
-set(UBSAN_AVAILABLE FALSE)
-
-# Neither Clang nor MSVC currently ship with ARM64 ASan/UBSan libraries/binaries, so disable until support is added.
-if ((NOT defined $ENV{Platform}) OR (NOT $ENV{Platform} STREQUAL "arm64"))
-    if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-        # Address Sanitizer is available for all architectures and build types, but warns/errors if debug info is not enabled
-        set(ASAN_AVAILABLE ${HAS_DEBUG_INFO})
-    elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-        # Sanitizers are not available with debug libraries
-        # Starting with Clang 17, there appears to be some issue where linking to the dynamic asan libraries seems to think that
-        # things like 'operator new' are present in the executable, but only for x64 for some reason. As there's no way to
-        # detect the target system architecture, use a good proxy
-        set(ASAN_AVAILABLE NOT ${DEBUG_BUILD} AND ${CMAKE_SIZEOF_VOID_P} EQUAL 4)
-        set(UBSAN_AVAILABLE NOT ${DEBUG_BUILD})
-    endif()
-endif()
-
-if (${ASAN_AVAILABLE})
+if (${WIL_ENABLE_ASAN})
     add_subdirectory(sanitize-address)
     add_test(NAME witest.asan COMMAND $<TARGET_FILE:witest.asan>)
 endif()
 
-if (${UBSAN_AVAILABLE})
+if (${WIL_ENABLE_UBSAN})
     # TODO: Disabled until https://github.com/microsoft/STL/issues/3568 is resolved
     # add_subdirectory(sanitize-undefined-behavior)
 endif()

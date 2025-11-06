@@ -297,6 +297,7 @@ public:
     }
 
     // IFailureCallback
+    // NOLINTNEXTLINE(bugprone-exception-escape): Test code; let it crash
     bool NotifyFailure(wil::FailureInfo const& failure) WI_NOEXCEPT override
     {
         m_failures.emplace_back(failure);
@@ -374,7 +375,7 @@ struct TestFolder
     TestFolder(const TestFolder&) = delete;
     TestFolder& operator=(const TestFolder&) = delete;
 
-    TestFolder(TestFolder&& other)
+    TestFolder(TestFolder&& other) WI_NOEXCEPT
     {
         if (other.m_valid)
         {
@@ -433,7 +434,7 @@ struct TestFile
     TestFile(const TestFile&) = delete;
     TestFile& operator=(const TestFile&) = delete;
 
-    TestFile(TestFile&& other)
+    TestFile(TestFile&& other) WI_NOEXCEPT
     {
         if (other.m_valid)
         {

@@ -24,10 +24,10 @@ constexpr auto* multiStringValueName = L"MyMultiStringValue";
 constexpr auto* invalidValueName = L"NonExistentValue";
 constexpr auto* wrongTypeValueName = L"InvalidTypeValue";
 
-constexpr uint32_t test_dword_two = 2ul;
-constexpr DWORD test_dword_three = 3ul;
-constexpr uint32_t test_dword_zero = 0ul;
-constexpr uint64_t test_qword_zero = 0ull;
+constexpr uint32_t test_dword_two = 2UL;
+constexpr DWORD test_dword_three = 3UL;
+constexpr uint32_t test_dword_zero = 0UL;
+constexpr uint64_t test_qword_zero = 0ULL;
 constexpr DWORD64 test_qword_max = 0xffffffffffffffff;
 #ifdef WIL_ENABLE_EXCEPTIONS
 const std::wstring test_string_empty{};
@@ -137,7 +137,7 @@ const std::vector<std::vector<std::wstring>> multiStringRawExpectedValues{
     {std::wstring{L"foo"}, std::wstring{L"bar"}},
 };
 
-const wchar_t* enumTestNames[] = {
+static const wchar_t* enumTestNames[] = {
     L"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     L"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
     L"cccccccccccccccccccccc",
@@ -145,8 +145,8 @@ const wchar_t* enumTestNames[] = {
     L"eeeee",
     L""};
 
-wil::unique_cotaskmem_array_ptr<BYTE> cotaskmemArrayBytesTestArray[3];
-void PopulateCoTaskMemArrayTestCases()
+static wil::unique_cotaskmem_array_ptr<BYTE> cotaskmemArrayBytesTestArray[3];
+static void PopulateCoTaskMemArrayTestCases()
 {
     cotaskmemArrayBytesTestArray[0].reset(static_cast<BYTE*>(CoTaskMemAlloc(1)), 1);
     cotaskmemArrayBytesTestArray[0][0] = 0x00;
@@ -158,12 +158,13 @@ void PopulateCoTaskMemArrayTestCases()
     CopyMemory(cotaskmemArrayBytesTestArray[2].get(), thirdTestcaseData, 15);
 }
 
+// NOLINTNEXTLINE(misc-use-internal-linkage): Conditionally used & 'static' creates more warnings
 bool AreStringsEqual(const std::wstring& lhs, const std::wstring& rhs) noexcept
 {
     return lhs == rhs;
 }
 
-bool AreStringsEqual(const wil::unique_bstr& lhs, const std::wstring& rhs) noexcept
+static bool AreStringsEqual(const wil::unique_bstr& lhs, const std::wstring& rhs) noexcept
 {
     if (!lhs && rhs.empty())
     {
@@ -178,7 +179,7 @@ bool AreStringsEqual(const wil::unique_bstr& lhs, const std::wstring& rhs) noexc
 }
 
 #if defined(__WIL_OLEAUTO_H_STL)
-bool AreStringsEqual(const wil::shared_bstr& lhs, const std::wstring& rhs) noexcept
+static bool AreStringsEqual(const wil::shared_bstr& lhs, const std::wstring& rhs) noexcept
 {
     if (!lhs && rhs.empty())
     {
@@ -193,7 +194,7 @@ bool AreStringsEqual(const wil::shared_bstr& lhs, const std::wstring& rhs) noexc
 }
 #endif
 
-bool AreStringsEqual(const wil::unique_cotaskmem_string& lhs, const std::wstring& rhs) noexcept
+static bool AreStringsEqual(const wil::unique_cotaskmem_string& lhs, const std::wstring& rhs) noexcept
 {
     if (!lhs && rhs.empty())
     {
@@ -203,7 +204,7 @@ bool AreStringsEqual(const wil::unique_cotaskmem_string& lhs, const std::wstring
 }
 
 #if defined(__WIL_OBJBASE_H_STL)
-bool AreStringsEqual(const wil::shared_cotaskmem_string& lhs, const std::wstring& rhs) noexcept
+static bool AreStringsEqual(const wil::shared_cotaskmem_string& lhs, const std::wstring& rhs) noexcept
 {
     if (!lhs && rhs.empty())
     {
@@ -214,7 +215,7 @@ bool AreStringsEqual(const wil::shared_cotaskmem_string& lhs, const std::wstring
 #endif
 
 template <size_t C>
-bool AreStringsEqual(wil::unique_cotaskmem_array_ptr<wil::unique_cotaskmem_string>& cotaskmemarray_strings, const PCWSTR array_literals[C])
+static bool AreStringsEqual(wil::unique_cotaskmem_array_ptr<wil::unique_cotaskmem_string>& cotaskmemarray_strings, const PCWSTR array_literals[C])
 {
     if (C != cotaskmemarray_strings.size())
     {
@@ -234,7 +235,7 @@ bool AreStringsEqual(wil::unique_cotaskmem_array_ptr<wil::unique_cotaskmem_strin
     return true;
 }
 
-bool AreStringsEqual(wil::unique_cotaskmem_array_ptr<wil::unique_cotaskmem_string>& cotaskmem_array, const std::vector<std::wstring>& wstring_vector)
+static bool AreStringsEqual(wil::unique_cotaskmem_array_ptr<wil::unique_cotaskmem_string>& cotaskmem_array, const std::vector<std::wstring>& wstring_vector)
 {
     if (cotaskmem_array.size() != wstring_vector.size())
     {
@@ -291,6 +292,7 @@ bool AreStringsEqual(wil::unique_cotaskmem_array_ptr<wil::unique_cotaskmem_strin
     return true;
 }
 
+// NOLINTNEXTLINE(misc-use-internal-linkage): Conditionally used & 'static' creates more warnings
 bool AreStringsEqual(const wil::unique_cotaskmem_array_ptr<BYTE>& lhs, const std::vector<BYTE>& rhs)
 {
     if (lhs.size() != rhs.size())
@@ -312,7 +314,7 @@ bool AreStringsEqual(const wil::unique_cotaskmem_array_ptr<BYTE>& lhs, const std
 }
 
 #if defined WIL_ENABLE_EXCEPTIONS
-void VerifyThrowsHr(HRESULT hr, const std::function<void()>& fn)
+static void VerifyThrowsHr(HRESULT hr, const std::function<void()>& fn)
 {
     try
     {
@@ -360,6 +362,7 @@ TEST_CASE("BasicRegistryTests::ExampleUsage", "[registry]")
         //    L"Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
         //    L"ShowTypeOverlay",
         //    1);
+        (void)showTypeOverlay;
     }
 
     SECTION("Open & create keys")
@@ -380,7 +383,7 @@ TEST_CASE("BasicRegistryTests::ExampleUsage", "[registry]")
     SECTION("Read values")
     {
         // Get values (or try_get if the value might not exist)
-        const DWORD dword = wil::reg::get_value_dword(
+        std::ignore = wil::reg::get_value_dword(
             HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize", L"AppsUseLightTheme");
         const std::optional<std::wstring> stringOptional =
             wil::reg::try_get_value_string(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes", L"CurrentTheme");
@@ -388,7 +391,7 @@ TEST_CASE("BasicRegistryTests::ExampleUsage", "[registry]")
         // Known HKEY
         const auto key =
             wil::reg::open_unique_key(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize");
-        const DWORD otherDword = wil::reg::get_value_dword(key.get(), L"AppsUseLightTheme");
+        std::ignore = wil::reg::get_value_dword(key.get(), L"AppsUseLightTheme");
 
         // nothrow version, if you don't have exceptions
         wil::unique_bstr bstr;
@@ -396,7 +399,7 @@ TEST_CASE("BasicRegistryTests::ExampleUsage", "[registry]")
             HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes", L"CurrentTheme", bstr));
 
         // Templated version
-        const auto value = wil::reg::get_value<std::wstring>(
+        std::ignore = wil::reg::get_value<std::wstring>(
             HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes", L"CurrentTheme");
     }
 #endif // defined(__cpp_lib_optional)
@@ -436,25 +439,17 @@ TEST_CASE("BasicRegistryTests::ExampleUsage", "[registry]")
             wil::reg::create_unique_key(HKEY_CURRENT_USER, L"Software\\Microsoft\\BasicRegistryTest", wil::reg::key_access::readwrite);
 
         // Get count of child keys and values.
-        const uint32_t childValCount = wil::reg::get_child_value_count(key.get());
-        const uint32_t childKeyCount = wil::reg::get_child_key_count(key.get());
-        const uint32_t largeChildKeyCount = wil::reg::get_child_key_count(HKEY_CLASSES_ROOT);
+        REQUIRE(wil::reg::get_child_value_count(key.get()) == 0);
+        REQUIRE(wil::reg::get_child_key_count(key.get()) == 0);
+        REQUIRE(wil::reg::get_child_key_count(HKEY_CLASSES_ROOT) > 1000);
 
         // Get last write time
-        const FILETIME lastModified = wil::reg::get_last_write_filetime(key.get());
+        std::ignore = wil::reg::get_last_write_filetime(key.get());
 
         // Simple helpers for analyzing returned HRESULTs
-        const bool a = wil::reg::is_registry_buffer_too_small(HRESULT_FROM_WIN32(ERROR_MORE_DATA)); // => true
-        const bool b = wil::reg::is_registry_not_found(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));   // => true
-        const bool c = wil::reg::is_registry_not_found(HRESULT_FROM_WIN32(ERROR_PATH_NOT_FOUND));   // => true
-
-        // --- validation, not included in documentation ---
-        REQUIRE(childKeyCount == 0);
-        REQUIRE(childValCount == 0);
-        REQUIRE(largeChildKeyCount > 1000);
-        REQUIRE(a == true);
-        REQUIRE(b == true);
-        REQUIRE(c == true);
+        REQUIRE(wil::reg::is_registry_buffer_too_small(HRESULT_FROM_WIN32(ERROR_MORE_DATA)));
+        REQUIRE(wil::reg::is_registry_not_found(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND)));
+        REQUIRE(wil::reg::is_registry_not_found(HRESULT_FROM_WIN32(ERROR_PATH_NOT_FOUND)));
     }
 #if defined(__clang__)
 #pragma clang diagnostic pop
@@ -591,8 +586,8 @@ TEST_CASE("BasicRegistryTests::Open", "[registry]")
         hkey.reset();
         REQUIRE_SUCCEEDED(wil::reg::open_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
 
-        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(hkey.get(), dwordValueName, 1ul));
-        REQUIRE_SUCCEEDED(wil::reg::set_value_qword_nothrow(hkey.get(), qwordValueName, 2ull));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(hkey.get(), dwordValueName, 1UL));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_qword_nothrow(hkey.get(), qwordValueName, 2ULL));
         REQUIRE_SUCCEEDED(wil::reg::set_value_string_nothrow(hkey.get(), stringValueName, L"three"));
         REQUIRE_SUCCEEDED(wil::reg::set_value_expanded_string_nothrow(
             hkey.get(), (std::wstring(stringValueName) + L"_expanded").c_str(), L"%four%"));
@@ -765,8 +760,8 @@ TEST_CASE("BasicRegistryTests::Open", "[registry]")
 
         hkey = wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite);
 
-        wil::reg::set_value_dword(hkey.get(), dwordValueName, 1ul);
-        wil::reg::set_value_qword(hkey.get(), qwordValueName, 2ull);
+        wil::reg::set_value_dword(hkey.get(), dwordValueName, 1UL);
+        wil::reg::set_value_qword(hkey.get(), qwordValueName, 2ULL);
         wil::reg::set_value_string(hkey.get(), stringValueName, L"three");
         wil::reg::set_value_expanded_string(hkey.get(), (std::wstring(stringValueName) + L"_expanded").c_str(), L"%four%");
 
@@ -1667,9 +1662,9 @@ namespace
 
 template <typename StringT, typename SetStringT = PCWSTR>
 void verify_string_nothrow(
-    std::function<HRESULT(PCWSTR, typename type_identity<StringT>::type&)> getFn,
-    std::function<HRESULT(PCWSTR, typename type_identity<SetStringT>::type)> setFn,
-    std::function<HRESULT(PCWSTR)> wrongSetFn)
+    const std::function<HRESULT(PCWSTR, typename type_identity<StringT>::type&)>& getFn,
+    const std::function<HRESULT(PCWSTR, typename type_identity<SetStringT>::type)>& setFn,
+    const std::function<HRESULT(PCWSTR)>& wrongSetFn)
 {
     for (const auto& value : stringTestArray)
     {
@@ -1764,9 +1759,9 @@ void verify_string_generic_get_value_nothrow(HKEY key, PCWSTR subkey)
 #ifdef WIL_ENABLE_EXCEPTIONS
 template <typename StringT, typename StringSetT = PCWSTR>
 void verify_string(
-    std::function<typename type_identity<StringT>::type(PCWSTR)> getFn,
-    std::function<void(PCWSTR, typename type_identity<StringSetT>::type)> setFn,
-    std::function<void(PCWSTR)> setWrongTypeFn)
+    const std::function<typename type_identity<StringT>::type(PCWSTR)>& getFn,
+    const std::function<void(PCWSTR, typename type_identity<StringSetT>::type)>& setFn,
+    const std::function<void(PCWSTR)>& setWrongTypeFn)
 {
     for (const auto& value : stringTestArray)
     {
@@ -1802,8 +1797,8 @@ void verify_string()
         [&](PCWSTR valueName) {
             return wil::reg::get_value_string<StringT>(hkey.get(), valueName);
         },
-        [&](PCWSTR valueName, PCWSTR value) -> void {
-            wil::reg::set_value_string(hkey.get(), valueName, value);
+        [&](PCWSTR valueName, PCWSTR dataValue) -> void {
+            wil::reg::set_value_string(hkey.get(), valueName, dataValue);
         },
         [&](PCWSTR valueName) {
             wil::reg::set_value_dword(hkey.get(), valueName, test_dword_zero);
@@ -1817,8 +1812,8 @@ void verify_string_subkey()
         [](PCWSTR valueName) {
             return wil::reg::get_value_string<StringT>(HKEY_CURRENT_USER, testSubkey, valueName);
         },
-        [](PCWSTR valueName, PCWSTR value) -> void {
-            wil::reg::set_value_string(HKEY_CURRENT_USER, testSubkey, valueName, value);
+        [](PCWSTR valueName, PCWSTR dataValue) -> void {
+            wil::reg::set_value_string(HKEY_CURRENT_USER, testSubkey, valueName, dataValue);
         },
         [](PCWSTR valueName) {
             wil::reg::set_value_dword(HKEY_CURRENT_USER, testSubkey, valueName, test_dword_zero);
@@ -1835,8 +1830,8 @@ void verify_string_generic_get_value()
         [&](PCWSTR valueName) {
             return wil::reg::get_value<StringT>(hkey.get(), valueName);
         },
-        [&](PCWSTR valueName, PCWSTR value) -> void {
-            wil::reg::set_value(hkey.get(), valueName, value);
+        [&](PCWSTR valueName, PCWSTR dataValue) -> void {
+            wil::reg::set_value(hkey.get(), valueName, dataValue);
         },
         [&](PCWSTR valueName) {
             wil::reg::set_value_dword(hkey.get(), valueName, test_dword_zero);
@@ -1850,8 +1845,8 @@ void verify_string_generic_get_value_subkey()
         [](PCWSTR valueName) {
             return wil::reg::get_value<StringT>(HKEY_CURRENT_USER, testSubkey, valueName);
         },
-        [](PCWSTR valueName, PCWSTR value) -> void {
-            wil::reg::set_value(HKEY_CURRENT_USER, testSubkey, valueName, value);
+        [](PCWSTR valueName, PCWSTR dataValue) -> void {
+            wil::reg::set_value(HKEY_CURRENT_USER, testSubkey, valueName, dataValue);
         },
         [](PCWSTR valueName) {
             wil::reg::set_value_dword(HKEY_CURRENT_USER, testSubkey, valueName, test_dword_zero);
@@ -1861,9 +1856,9 @@ void verify_string_generic_get_value_subkey()
 #if defined(__cpp_lib_optional)
 template <typename StringT, typename StringSetT = PCWSTR>
 void verify_try_string(
-    std::function<std::optional<StringT>(PCWSTR)> tryGetFn,
-    std::function<void(PCWSTR, typename type_identity<StringSetT>::type)> setFn,
-    std::function<void(PCWSTR)> setWrongTypeFn)
+    const std::function<std::optional<StringT>(PCWSTR)>& tryGetFn,
+    const std::function<void(PCWSTR, typename type_identity<StringSetT>::type)>& setFn,
+    const std::function<void(PCWSTR)>& setWrongTypeFn)
 {
     for (const auto& value : stringTestArray)
     {
@@ -1898,8 +1893,8 @@ void verify_try_string()
         [&](PCWSTR valueName) {
             return wil::reg::try_get_value_string<StringT>(hkey.get(), valueName);
         },
-        [&](PCWSTR valueName, PCWSTR value) -> void {
-            wil::reg::set_value_string(hkey.get(), valueName, value);
+        [&](PCWSTR valueName, PCWSTR dataValue) -> void {
+            wil::reg::set_value_string(hkey.get(), valueName, dataValue);
         },
         [&](PCWSTR valueName) {
             wil::reg::set_value_dword(hkey.get(), valueName, test_dword_zero);
@@ -1913,8 +1908,8 @@ void verify_try_string_subkey()
         [](PCWSTR valueName) {
             return wil::reg::try_get_value_string<StringT>(HKEY_CURRENT_USER, testSubkey, valueName);
         },
-        [](PCWSTR valueName, PCWSTR value) -> void {
-            wil::reg::set_value_string(HKEY_CURRENT_USER, testSubkey, valueName, value);
+        [](PCWSTR valueName, PCWSTR dataValue) -> void {
+            wil::reg::set_value_string(HKEY_CURRENT_USER, testSubkey, valueName, dataValue);
         },
         [](PCWSTR valueName) {
             wil::reg::set_value_dword(HKEY_CURRENT_USER, testSubkey, valueName, test_dword_zero);
@@ -1931,8 +1926,8 @@ void verify_try_string_generic_get_value()
         [&](PCWSTR valueName) {
             return wil::reg::try_get_value<StringT>(hkey.get(), valueName);
         },
-        [&](PCWSTR valueName, PCWSTR value) -> void {
-            wil::reg::set_value(hkey.get(), valueName, value);
+        [&](PCWSTR valueName, PCWSTR dataValue) -> void {
+            wil::reg::set_value(hkey.get(), valueName, dataValue);
         },
         [&](PCWSTR valueName) {
             wil::reg::set_value_dword(hkey.get(), valueName, test_dword_zero);
@@ -1946,8 +1941,8 @@ void verify_try_string_generic_get_value_subkey()
         [](PCWSTR valueName) {
             return wil::reg::try_get_value<StringT>(HKEY_CURRENT_USER, testSubkey, valueName);
         },
-        [](PCWSTR valueName, PCWSTR value) -> void {
-            wil::reg::set_value(HKEY_CURRENT_USER, testSubkey, valueName, value);
+        [](PCWSTR valueName, PCWSTR dataValue) -> void {
+            wil::reg::set_value(HKEY_CURRENT_USER, testSubkey, valueName, dataValue);
         },
         [](PCWSTR valueName) {
             wil::reg::set_value_dword(HKEY_CURRENT_USER, testSubkey, valueName, test_dword_zero);
@@ -2414,9 +2409,9 @@ namespace
 
 template <typename StringT, typename SetStringT = PCWSTR>
 void verify_expanded_string_nothrow(
-    std::function<HRESULT(PCWSTR, typename type_identity<StringT>::type&)> getFn,
-    std::function<HRESULT(PCWSTR, typename type_identity<SetStringT>::type)> setFn,
-    std::function<HRESULT(PCWSTR)> setWrongTypeFn)
+    const std::function<HRESULT(PCWSTR, typename type_identity<StringT>::type&)>& getFn,
+    const std::function<HRESULT(PCWSTR, typename type_identity<SetStringT>::type)>& setFn,
+    const std::function<HRESULT(PCWSTR)>& setWrongTypeFn)
 {
     for (const auto& value : expandedStringTestArray)
     {
@@ -2489,9 +2484,9 @@ void verify_expanded_string_subkey_nothrow()
 
 template <typename StringT, typename SetStringT = PCWSTR>
 void verify_expanded_string(
-    std::function<typename type_identity<StringT>::type(PCWSTR)> getFn,
-    std::function<void(PCWSTR, typename type_identity<SetStringT>::type)> setFn,
-    std::function<void(PCWSTR)> setWrongTypeFn)
+    const std::function<typename type_identity<StringT>::type(PCWSTR)>& getFn,
+    const std::function<void(PCWSTR, typename type_identity<SetStringT>::type)>& setFn,
+    const std::function<void(PCWSTR)>& setWrongTypeFn)
 {
     for (const auto& value : expandedStringTestArray)
     {
@@ -2591,9 +2586,9 @@ void verify_expanded_string_subkey()
 #if defined(__cpp_lib_optional)
 template <typename StringT, typename SetStringT = PCWSTR>
 void verify_try_expanded_string(
-    std::function<std::optional<typename type_identity<StringT>::type>(PCWSTR)> getFn,
-    std::function<void(PCWSTR, typename type_identity<SetStringT>::type)> setFn,
-    std::function<void(PCWSTR)> setWrongTypeFn)
+    const std::function<std::optional<typename type_identity<StringT>::type>(PCWSTR)>& getFn,
+    const std::function<void(PCWSTR, typename type_identity<SetStringT>::type)>& setFn,
+    const std::function<void(PCWSTR)>& setWrongTypeFn)
 {
     for (const auto& value : stringTestArray)
     {
@@ -3036,10 +3031,10 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
 }
 
 #if defined(__WIL_OBJBASE_H_)
-void verify_cotaskmem_array_nothrow(
-    std::function<HRESULT(PCWSTR, DWORD, wil::unique_cotaskmem_array_ptr<BYTE>&)> getFn,
-    std::function<HRESULT(PCWSTR, DWORD, const wil::unique_cotaskmem_array_ptr<BYTE>&)> setFn,
-    std::function<HRESULT(PCWSTR, uint32_t)> setDwordFn)
+static void verify_cotaskmem_array_nothrow(
+    const std::function<HRESULT(PCWSTR, DWORD, wil::unique_cotaskmem_array_ptr<BYTE>&)>& getFn,
+    const std::function<HRESULT(PCWSTR, DWORD, const wil::unique_cotaskmem_array_ptr<BYTE>&)>& setFn,
+    const std::function<HRESULT(PCWSTR, uint32_t)>& setDwordFn)
 {
     PopulateCoTaskMemArrayTestCases();
     for (const auto& value : cotaskmemArrayBytesTestArray)
@@ -3099,9 +3094,9 @@ namespace
 // reason.
 
 void verify_byte_vector_nothrow(
-    std::function<HRESULT(PCWSTR, DWORD, wil::unique_cotaskmem_array_ptr<BYTE>&)> getFn,
-    std::function<void(PCWSTR, DWORD, const std::vector<BYTE>&)> setFn,
-    std::function<HRESULT(PCWSTR, uint32_t)> setDwordFn)
+    const std::function<HRESULT(PCWSTR, DWORD, wil::unique_cotaskmem_array_ptr<BYTE>&)>& getFn,
+    const std::function<void(PCWSTR, DWORD, const std::vector<BYTE>&)>& setFn,
+    const std::function<HRESULT(PCWSTR, uint32_t)>& setDwordFn)
 {
     for (const auto& value : vectorBytesTestArray)
     {
@@ -3144,9 +3139,9 @@ void verify_byte_vector_nothrow(
 }
 
 void verify_byte_vector(
-    std::function<std::vector<BYTE>(PCWSTR, DWORD)> getFn,
-    std::function<void(PCWSTR, DWORD, const std::vector<BYTE>&)> setFn,
-    std::function<void(PCWSTR, uint32_t)> setDwordFn)
+    const std::function<std::vector<BYTE>(PCWSTR, DWORD)>& getFn,
+    const std::function<void(PCWSTR, DWORD, const std::vector<BYTE>&)>& setFn,
+    const std::function<void(PCWSTR, uint32_t)>& setDwordFn)
 {
     for (const auto& value : vectorBytesTestArray)
     {
@@ -3182,9 +3177,9 @@ void verify_byte_vector(
 
 #if defined(__cpp_lib_optional)
 void verify_try_byte_vector(
-    std::function<std::optional<std::vector<BYTE>>(PCWSTR, DWORD)> tryGetFn,
-    std::function<void(PCWSTR, DWORD, const std::vector<BYTE>&)> setFn,
-    std::function<void(PCWSTR, uint32_t)> setDwordFn)
+    const std::function<std::optional<std::vector<BYTE>>(PCWSTR, DWORD)>& tryGetFn,
+    const std::function<void(PCWSTR, DWORD, const std::vector<BYTE>&)>& setFn,
+    const std::function<void(PCWSTR, uint32_t)>& setDwordFn)
 {
     for (const auto& value : vectorBytesTestArray)
     {
@@ -3440,8 +3435,8 @@ TEST_CASE("BasicRegistryTests::value_iterator", "[registry]")
         const auto begin = wil::reg::value_iterator{write_hkey.get()};
         const auto end = wil::reg::value_iterator{};
 
-        size_t count = 0u;
-        std::for_each(begin, end, [&](auto nameAndType) {
+        size_t count = 0U;
+        std::for_each(begin, end, [&](auto nameAndType) { // NOLINT(performance-unnecessary-value-param): Copy is intentional for testing
             auto stringLength = wcslen(nameAndType.name.c_str());
             REQUIRE(stringLength == nameAndType.name.size());
             REQUIRE(stringLength == wcslen(enumTestNames[count]));
@@ -3473,7 +3468,7 @@ TEST_CASE("BasicRegistryTests::value_iterator", "[registry]")
 
     SECTION("value_iterator max name lengths")
     {
-        const auto half_length = ::wil::reg::reg_iterator_details::iterator_max_valuename_length / 2 - 2;
+        const auto half_length = (::wil::reg::reg_iterator_details::iterator_max_valuename_length / 2) - 2;
         const auto full_length = ::wil::reg::reg_iterator_details::iterator_max_valuename_length;
 
         std::wstring half_length_name(half_length, L'a');
@@ -3497,8 +3492,8 @@ TEST_CASE("BasicRegistryTests::value_iterator", "[registry]")
     {
         wil::unique_hkey hkey{wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite)};
         wil::reg::set_value(hkey.get(), test_enum_valueName1, 0);
-        wil::reg::set_value(hkey.get(), test_enum_valueName2, 1ul);
-        wil::reg::set_value(hkey.get(), test_enum_valueName3, 3ull);
+        wil::reg::set_value(hkey.get(), test_enum_valueName2, 1UL);
+        wil::reg::set_value(hkey.get(), test_enum_valueName3, 3ULL);
         wil::reg::set_value(hkey.get(), test_enum_valueName4, L"four");
 
         uint32_t count = 0;
@@ -3614,8 +3609,8 @@ TEST_CASE("BasicRegistryTests::value_iterator", "[registry]")
     {
         wil::unique_hkey hkey{wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite)};
         wil::reg::set_value(hkey.get(), test_enum_valueName1, 0);
-        wil::reg::set_value(hkey.get(), test_enum_valueName2, 1ul);
-        wil::reg::set_value(hkey.get(), test_enum_valueName3, 3ull);
+        wil::reg::set_value(hkey.get(), test_enum_valueName2, 1UL);
+        wil::reg::set_value(hkey.get(), test_enum_valueName3, 3ULL);
         wil::reg::set_value(hkey.get(), test_enum_valueName4, L"four");
 
         uint32_t count = 0;
@@ -3773,8 +3768,8 @@ TEST_CASE("BasicRegistryTests::key_iterator", "[registry]")
         const auto begin = wil::reg::key_iterator{write_hkey.get()};
         const auto end = wil::reg::key_iterator{};
 
-        size_t count = 0u;
-        std::for_each(begin, end, [&](auto keyInfo) {
+        size_t count = 0U;
+        std::for_each(begin, end, [&](auto keyInfo) { // NOLINT(performance-unnecessary-value-param): Copy is intentional for testing
             auto stringLength = wcslen(keyInfo.name.c_str());
             REQUIRE(stringLength == keyInfo.name.size());
             REQUIRE(stringLength == wcslen(enumTestNames[count]));
@@ -3806,7 +3801,7 @@ TEST_CASE("BasicRegistryTests::key_iterator", "[registry]")
 
     SECTION("key_iterator max name lengths")
     {
-        const auto half_length = ::wil::reg::reg_iterator_details::iterator_max_keyname_length / 2 - 1;
+        const auto half_length = (::wil::reg::reg_iterator_details::iterator_max_keyname_length / 2) - 1;
         const auto full_length = ::wil::reg::reg_iterator_details::iterator_max_keyname_length;
 
         std::wstring half_length_name(half_length, L'a');
@@ -4026,8 +4021,8 @@ TEST_CASE("BasicRegistryTests::value_bstr_iterator", "[registry]")
         const auto begin = wil::reg::value_bstr_iterator{write_hkey.get()};
         const auto end = wil::reg::value_bstr_iterator{};
 
-        size_t count = 0u;
-        std::for_each(begin, end, [&](auto nameAndType) {
+        size_t count = 0U;
+        std::for_each(begin, end, [&](auto nameAndType) { // NOLINT(performance-unnecessary-value-param): Copy is intentional for testing
             auto stringLength = wcslen(nameAndType.name.get());
             REQUIRE(stringLength == SysStringLen(nameAndType.name.get()));
             REQUIRE(stringLength == wcslen(enumTestNames[count]));
@@ -4059,7 +4054,7 @@ TEST_CASE("BasicRegistryTests::value_bstr_iterator", "[registry]")
 
     SECTION("value_bstr_iterator max name lengths")
     {
-        const auto half_length = ::wil::reg::reg_iterator_details::iterator_max_valuename_length / 2 - 2;
+        const auto half_length = (::wil::reg::reg_iterator_details::iterator_max_valuename_length / 2) - 2;
         const auto full_length = ::wil::reg::reg_iterator_details::iterator_max_valuename_length;
 
         wil::unique_bstr half_length_name{SysAllocStringLen(nullptr, half_length)};
@@ -4089,8 +4084,8 @@ TEST_CASE("BasicRegistryTests::value_bstr_iterator", "[registry]")
     {
         wil::unique_hkey hkey{wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite)};
         wil::reg::set_value(hkey.get(), test_enum_valueName1, 0);
-        wil::reg::set_value(hkey.get(), test_enum_valueName2, 1ul);
-        wil::reg::set_value(hkey.get(), test_enum_valueName3, 3ull);
+        wil::reg::set_value(hkey.get(), test_enum_valueName2, 1UL);
+        wil::reg::set_value(hkey.get(), test_enum_valueName3, 3ULL);
         wil::reg::set_value(hkey.get(), test_enum_valueName4, L"four");
 
         uint32_t count = 0;
@@ -4194,8 +4189,8 @@ TEST_CASE("BasicRegistryTests::value_bstr_iterator", "[registry]")
     {
         wil::unique_hkey hkey{wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite)};
         wil::reg::set_value(hkey.get(), test_enum_valueName1, 0);
-        wil::reg::set_value(hkey.get(), test_enum_valueName2, 1ul);
-        wil::reg::set_value(hkey.get(), test_enum_valueName3, 3ull);
+        wil::reg::set_value(hkey.get(), test_enum_valueName2, 1UL);
+        wil::reg::set_value(hkey.get(), test_enum_valueName3, 3ULL);
         wil::reg::set_value(hkey.get(), test_enum_valueName4, L"four");
 
         uint32_t count = 0;
@@ -4345,8 +4340,8 @@ TEST_CASE("BasicRegistryTests::key_bstr_iterator", "[registry]")
         const auto begin = wil::reg::key_bstr_iterator{write_hkey.get()};
         const auto end = wil::reg::key_bstr_iterator{};
 
-        size_t count = 0u;
-        std::for_each(begin, end, [&](auto keyInfo) {
+        size_t count = 0U;
+        std::for_each(begin, end, [&](auto keyInfo) { // NOLINT(performance-unnecessary-value-param): Copy is intentional for testing
             auto stringLength = wcslen(keyInfo.name.get());
             REQUIRE(stringLength == ::SysStringLen(keyInfo.name.get()));
             REQUIRE(stringLength == wcslen(enumTestNames[count]));
@@ -4378,7 +4373,7 @@ TEST_CASE("BasicRegistryTests::key_bstr_iterator", "[registry]")
 
     SECTION("key_bstr_iterator max name lengths")
     {
-        const auto half_length = ::wil::reg::reg_iterator_details::iterator_max_keyname_length / 2 - 1;
+        const auto half_length = (::wil::reg::reg_iterator_details::iterator_max_keyname_length / 2) - 1;
         const auto full_length = ::wil::reg::reg_iterator_details::iterator_max_keyname_length;
 
         wil::unique_bstr half_length_name{SysAllocStringLen(nullptr, half_length)};
@@ -4636,8 +4631,8 @@ TEST_CASE("BasicRegistryTests::value_heap_string_iterator", "[registry]")
         const auto begin = wil::reg::value_heap_string_iterator{write_hkey.get()};
         const auto end = wil::reg::value_heap_string_iterator{};
 
-        size_t count = 0u;
-        std::for_each(begin, end, [&](auto nameAndType) {
+        size_t count = 0U;
+        std::for_each(begin, end, [&](auto nameAndType) { // NOLINT(performance-unnecessary-value-param): Copy is intentional for testing
             auto stringLength = wcslen(nameAndType.name.get());
             REQUIRE(stringLength == wcslen(enumTestNames[count]));
             REQUIRE(0 == wcscmp(nameAndType.name.get(), enumTestNames[count]));
@@ -4666,7 +4661,7 @@ TEST_CASE("BasicRegistryTests::value_heap_string_iterator", "[registry]")
 
     SECTION("value_heap_string_iterator max name lengths")
     {
-        const auto half_length = ::wil::reg::reg_iterator_details::iterator_max_valuename_length / 2 - 2;
+        const auto half_length = (::wil::reg::reg_iterator_details::iterator_max_valuename_length / 2) - 2;
         const auto full_length = ::wil::reg::reg_iterator_details::iterator_max_valuename_length;
 
         auto half_length_name{::wil::make_unique_string_nothrow<::wil::unique_process_heap_string>(nullptr, half_length)};
@@ -4696,8 +4691,8 @@ TEST_CASE("BasicRegistryTests::value_heap_string_iterator", "[registry]")
     {
         wil::unique_hkey hkey{wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite)};
         wil::reg::set_value(hkey.get(), test_enum_valueName1, 0);
-        wil::reg::set_value(hkey.get(), test_enum_valueName2, 1ul);
-        wil::reg::set_value(hkey.get(), test_enum_valueName3, 3ull);
+        wil::reg::set_value(hkey.get(), test_enum_valueName2, 1UL);
+        wil::reg::set_value(hkey.get(), test_enum_valueName3, 3ULL);
         wil::reg::set_value(hkey.get(), test_enum_valueName4, L"four");
 
         uint32_t count = 0;
@@ -4801,8 +4796,8 @@ TEST_CASE("BasicRegistryTests::value_heap_string_iterator", "[registry]")
     {
         wil::unique_hkey hkey{wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite)};
         wil::reg::set_value(hkey.get(), test_enum_valueName1, 0);
-        wil::reg::set_value(hkey.get(), test_enum_valueName2, 1ul);
-        wil::reg::set_value(hkey.get(), test_enum_valueName3, 3ull);
+        wil::reg::set_value(hkey.get(), test_enum_valueName2, 1UL);
+        wil::reg::set_value(hkey.get(), test_enum_valueName3, 3ULL);
         wil::reg::set_value(hkey.get(), test_enum_valueName4, L"four");
 
         uint32_t count = 0;
@@ -4953,8 +4948,8 @@ TEST_CASE("BasicRegistryTests::key_heap_string_iterator", "[registry]")
         const auto begin = wil::reg::key_heap_string_iterator{write_hkey.get()};
         const auto end = wil::reg::key_heap_string_iterator{};
 
-        size_t count = 0u;
-        std::for_each(begin, end, [&](auto keyInfo) {
+        size_t count = 0U;
+        std::for_each(begin, end, [&](auto keyInfo) { // NOLINT(performance-unnecessary-value-param): Copy is intentional for testing
             auto stringLength = wcslen(keyInfo.name.get());
             REQUIRE(stringLength == wcslen(enumTestNames[count]));
             REQUIRE(0 == wcscmp(keyInfo.name.get(), enumTestNames[count]));
@@ -4983,7 +4978,7 @@ TEST_CASE("BasicRegistryTests::key_heap_string_iterator", "[registry]")
 
     SECTION("key_heap_string_iterator max name lengths")
     {
-        const auto half_length = ::wil::reg::reg_iterator_details::iterator_max_keyname_length / 2 - 2;
+        const auto half_length = (::wil::reg::reg_iterator_details::iterator_max_keyname_length / 2) - 2;
         const auto full_length = ::wil::reg::reg_iterator_details::iterator_max_keyname_length;
 
         auto half_length_name{::wil::make_unique_string_nothrow<::wil::unique_process_heap_string>(nullptr, half_length)};
@@ -5263,8 +5258,8 @@ TEST_CASE("BasicRegistryTests::value_bstr_nothrow_iterator", "[registry]")
         const auto begin = wil::reg::value_bstr_nothrow_iterator{write_hkey.get()};
         const auto end = wil::reg::value_bstr_nothrow_iterator{};
 
-        size_t count = 0u;
-        std::for_each(begin, end, [&](auto nameAndType) {
+        size_t count = 0U;
+        std::for_each(begin, end, [&](auto nameAndType) { // NOLINT(performance-unnecessary-value-param): Copy is intentional for testing
             auto stringLength = wcslen(nameAndType.name.get());
             REQUIRE(stringLength == SysStringLen(nameAndType.name.get()));
             REQUIRE(stringLength == wcslen(enumTestNames[count]));
@@ -5299,7 +5294,7 @@ TEST_CASE("BasicRegistryTests::value_bstr_nothrow_iterator", "[registry]")
 
     SECTION("value_bstr_nothrow_iterator max name lengths")
     {
-        const auto half_length = ::wil::reg::reg_iterator_details::iterator_max_valuename_length / 2 - 2;
+        const auto half_length = (::wil::reg::reg_iterator_details::iterator_max_valuename_length / 2) - 2;
         const auto full_length = ::wil::reg::reg_iterator_details::iterator_max_valuename_length;
 
         wil::unique_bstr half_length_name{SysAllocStringLen(nullptr, half_length)};
@@ -5333,8 +5328,8 @@ TEST_CASE("BasicRegistryTests::value_bstr_nothrow_iterator", "[registry]")
         wil::unique_hkey hkey;
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
         REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(hkey.get(), test_enum_valueName1, 0));
-        REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(hkey.get(), test_enum_valueName2, 1ul));
-        REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(hkey.get(), test_enum_valueName3, 3ull));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(hkey.get(), test_enum_valueName2, 1UL));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(hkey.get(), test_enum_valueName3, 3ULL));
         REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(hkey.get(), test_enum_valueName4, L"four"));
 
         uint32_t count = 0;
@@ -5575,8 +5570,8 @@ TEST_CASE("BasicRegistryTests::key_bstr_nothrow_iterator", "[registry]")
         const auto begin = wil::reg::key_bstr_nothrow_iterator{write_hkey.get()};
         const auto end = wil::reg::key_bstr_nothrow_iterator{};
 
-        size_t count = 0u;
-        std::for_each(begin, end, [&](auto keyInfo) {
+        size_t count = 0U;
+        std::for_each(begin, end, [&](auto keyInfo) { // NOLINT(performance-unnecessary-value-param): Copy is intentional for testing
             auto stringLength = wcslen(keyInfo.name.get());
             REQUIRE(stringLength == ::SysStringLen(keyInfo.name.get()));
             REQUIRE(stringLength == wcslen(enumTestNames[count]));
@@ -5611,7 +5606,7 @@ TEST_CASE("BasicRegistryTests::key_bstr_nothrow_iterator", "[registry]")
 
     SECTION("key_bstr_nothrow_iterator max name lengths")
     {
-        const auto half_length = ::wil::reg::reg_iterator_details::iterator_max_keyname_length / 2 - 1;
+        const auto half_length = (::wil::reg::reg_iterator_details::iterator_max_keyname_length / 2) - 1;
         const auto full_length = ::wil::reg::reg_iterator_details::iterator_max_keyname_length;
 
         wil::unique_bstr half_length_name{SysAllocStringLen(nullptr, half_length)};
@@ -5868,8 +5863,8 @@ TEST_CASE("BasicRegistryTests::value_heap_string_nothrow_iterator", "[registry]"
         const auto begin = wil::reg::value_heap_string_nothrow_iterator{write_hkey.get()};
         const auto end = wil::reg::value_heap_string_nothrow_iterator{};
 
-        size_t count = 0u;
-        std::for_each(begin, end, [&](auto nameAndType) {
+        size_t count = 0U;
+        std::for_each(begin, end, [&](auto nameAndType) { // NOLINT(performance-unnecessary-value-param): Copy is intentional for testing
             auto stringLength = wcslen(nameAndType.name.get());
             REQUIRE(stringLength == wcslen(enumTestNames[count]));
             REQUIRE(0 == wcscmp(nameAndType.name.get(), enumTestNames[count]));
@@ -5901,7 +5896,7 @@ TEST_CASE("BasicRegistryTests::value_heap_string_nothrow_iterator", "[registry]"
 
     SECTION("value_heap_string_nothrow_iterator max name lengths")
     {
-        const auto half_length = ::wil::reg::reg_iterator_details::iterator_max_valuename_length / 2 - 2;
+        const auto half_length = (::wil::reg::reg_iterator_details::iterator_max_valuename_length / 2) - 2;
         const auto full_length = ::wil::reg::reg_iterator_details::iterator_max_valuename_length;
 
         auto half_length_name{::wil::make_unique_string_nothrow<::wil::unique_process_heap_string>(nullptr, half_length)};
@@ -5935,8 +5930,8 @@ TEST_CASE("BasicRegistryTests::value_heap_string_nothrow_iterator", "[registry]"
         wil::unique_hkey hkey;
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
         REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(hkey.get(), test_enum_valueName1, 0));
-        REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(hkey.get(), test_enum_valueName2, 1ul));
-        REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(hkey.get(), test_enum_valueName3, 3ull));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(hkey.get(), test_enum_valueName2, 1UL));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(hkey.get(), test_enum_valueName3, 3ULL));
         REQUIRE_SUCCEEDED(wil::reg::set_value_nothrow(hkey.get(), test_enum_valueName4, L"four"));
 
         uint32_t count = 0;
@@ -6177,8 +6172,8 @@ TEST_CASE("BasicRegistryTests::key_heap_string_nothrow_iterator", "[registry]")
         const auto begin = wil::reg::key_heap_string_nothrow_iterator{write_hkey.get()};
         const auto end = wil::reg::key_heap_string_nothrow_iterator{};
 
-        size_t count = 0u;
-        std::for_each(begin, end, [&](auto keyInfo) {
+        size_t count = 0U;
+        std::for_each(begin, end, [&](auto keyInfo) { // NOLINT(performance-unnecessary-value-param): Copy is intentional for testing
             auto stringLength = wcslen(keyInfo.name.get());
             REQUIRE(stringLength == wcslen(enumTestNames[count]));
             REQUIRE(0 == wcscmp(keyInfo.name.get(), enumTestNames[count]));
@@ -6210,7 +6205,7 @@ TEST_CASE("BasicRegistryTests::key_heap_string_nothrow_iterator", "[registry]")
 
     SECTION("key_heap_string_nothrow_iterator max name lengths")
     {
-        const auto half_length = ::wil::reg::reg_iterator_details::iterator_max_keyname_length / 2 - 2;
+        const auto half_length = (::wil::reg::reg_iterator_details::iterator_max_keyname_length / 2) - 2;
         const auto full_length = ::wil::reg::reg_iterator_details::iterator_max_keyname_length;
 
         auto half_length_name{::wil::make_unique_string_nothrow<::wil::unique_process_heap_string>(nullptr, half_length)};
