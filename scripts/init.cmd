@@ -212,14 +212,37 @@ goto :init
     set CMAKE_ARGS=%CMAKE_ARGS% -DCMAKE_TOOLCHAIN_FILE="%VCPKG_ROOT_PATH%\scripts\buildsystems\vcpkg.cmake"
 
     :: Figure out the platform
+    set ARCH_NAME=
     if "%Platform%"=="" echo ERROR: The init.cmd script must be run from a Visual Studio command window & exit /B 1
     if "%Platform%"=="x86" (
-        if %COMPILER%==clang set CFLAGS=-target i386-win32-msvc & set CXXFLAGS=-target i386-win32-msvc
+        set ARCH_NAME=i386
     ) else if "%Platform%"=="x64" (
-        if %COMPILER%==clang set CFLAGS=-target x86_64-win32-msvc & set CXXFLAGS=-target x86_64-win32-msvc
+        set ARCH_NAME=x86_64
     ) else if "%Platform%"=="arm64" (
-        if "%COMPILER%"=="clang" set CFLAGS=-target aarch64-win32-msvc & set CXXFLAGS=-target aarch64-win32-msvc
+        set ARCH_NAME=aarch64
     )
+    if %COMPILER%==clang set CFLAGS=-target %ARCH_NAME%-win32-msvc & set CXXFLAGS=-target %ARCH_NAME%-win32-msvc
+
+    :: Figure out if ASan/UBSan are supported for the configuration chosen
+    :: NOTE: Neither MSVC nor Clang currently ship ASan runtime libraries for arm64
+    set ASAN_SUPPORTED=0
+    set UBSAN_SUPPORTED=0
+    if %COMPILER%==clang (
+        :: For Clang, both ASan and UBSan are supported only for non-debug builds
+        if %BUILD_TYPE% NEQ debug (
+            if %Platform% NEQ arm64 set ASAN_SUPPORTED=1
+            set UBSAN_SUPPORTED=1
+        )
+    ) else if %COMPILER%==msvc (
+        if %Platform% NEQ arm64 (
+            :: For MSVC, ASan is supported only if debug information is available
+            if %BUILD_TYPE%==debug set ASAN_SUPPORTED=1
+            if %BUILD_TYPE%==relwithdebinfo set ASAN_SUPPORTED=1
+        )
+    )
+
+    if %ASAN_SUPPORTED%==1 set CMAKE_ARGS=%CMAKE_ARGS% -DWIL_ENABLE_ASAN=ON
+    if %UBSAN_SUPPORTED%==1 set CMAKE_ARGS=%CMAKE_ARGS% -DWIL_ENABLE_UBSAN=ON
 
     :: Set up the build directory
     set BUILD_DIR=%BUILD_ROOT%\%COMPILER%-%Platform%-%BUILD_TYPE%
@@ -233,6 +256,37 @@ goto :init
     echo Using build root..... %CD%
     echo.
     cmake %CMAKE_ARGS% ..\..
+    if %ERRORLEVEL% NEQ 0 (
+        popd
+        exit /B %ERRORLEVEL%
+    )
+
+    :: Because the ASan binaries shipped by MSVC and Clang differ but have the same names, and because the DLLs may not
+    :: be found in the PATH, e.g. when trying to run x86 binaries from an x64 command prompt, copy the DLLs to the build
+    :: directory to make life much easier
+    if %ASAN_SUPPORTED%==1 (
+        set ASAN_DLL_PATH=
+        if %COMPILER%==clang (
+            set CLANG_CL_PATH=
+            for /f "delims=" %%c in ('where clang-cl 2^> NUL') do set CLANG_CL_PATH=%%~dpc
+            :: Arguably an error if we can't find it, but just to be safe...
+            if "!CLANG_CL_PATH!" NEQ "" (
+                for /f "delims=" %%d in ('where /R "!CLANG_CL_PATH!\..\lib" clang_rt.asan_dynamic-%ARCH_NAME%.dll 2^> NUL') do set ASAN_DLL_PATH=%%d
+            )
+        )
+
+        if "!ASAN_DLL_PATH!"=="" (
+            :: Not Clang or not found; assume we're using MSVC's libraries
+            for /f "delims=" %%d in ('where clang_rt.asan_dynamic-%ARCH_NAME%.dll 2^> NUL') do set ASAN_DLL_PATH=%%d
+        )
+
+        if "!ASAN_DLL_PATH!"=="" (
+            echo WARNING: Unable to locate 'clang_rt.asan_dynamic-%ARCH_NAME%.dll'. This may result in later errors when running tests
+        ) else (
+            copy "!ASAN_DLL_PATH!" "%BUILD_DIR%\tests\sanitize-address\" > NUL
+        )
+    )
+
     popd
 
     goto :eof
