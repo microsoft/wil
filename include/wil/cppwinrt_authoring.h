@@ -175,13 +175,13 @@ unique_com_class_object_cookie
 template <typename... Ts>
 WI_NODISCARD_REASON("The classes are unregistered when the returned value is destructed")
 std::vector<unique_com_class_object_cookie> register_com_server(
-    std::array<GUID, sizeof...(Ts)> const& guids, DWORD context = CLSCTX_LOCAL_SERVER, DWORD flags = REGCLS_MULTIPLEUSE)
+    std::array<GUID, sizeof...(Ts)> const& clsids, DWORD context = CLSCTX_LOCAL_SERVER, DWORD flags = REGCLS_MULTIPLEUSE)
 {
     std::vector<wil::unique_com_class_object_cookie> registrations;
     registrations.reserve(sizeof...(Ts));
 
     std::size_t i = 0;
-    (registrations.push_back(wil::register_com_server<Ts>(guids[i++], context, flags | REGCLS_SUSPENDED)), ...);
+    (registrations.push_back(wil::register_com_server<Ts>(clsids[i++], context, flags | REGCLS_SUSPENDED)), ...);
 
     // allow the user to keep class objects suspended if they've explicitly passed REGCLS_SUSPENDED.
     if (!WI_IsFlagSet(flags, REGCLS_SUSPENDED))
@@ -190,6 +190,54 @@ std::vector<unique_com_class_object_cookie> register_com_server(
     }
 
     return registrations;
+}
+
+template <typename... Types>
+struct clsid_array
+{
+    std::array<GUID, sizeof...(Types)> value;
+    explicit clsid_array(std::array<GUID, sizeof...(Types)> value) : value(std::move(value))
+    {
+    }
+};
+
+template <typename... Ts>
+WI_NODISCARD_REASON("The classes are unregistered when the returned value is destructed")
+std::vector<unique_com_class_object_cookie> register_com_server(
+    wil::clsid_array<Ts...> const& clsids, DWORD context = CLSCTX_LOCAL_SERVER, DWORD flags = REGCLS_MULTIPLEUSE)
+{
+    return register_com_server<Ts...>(clsids.value, context, flags);
+}
+
+namespace details
+{
+    template <typename T>
+    struct has_iid
+    {
+        template <typename U = T, std::enable_if_t<std::is_same_v<GUID, std::decay_t<decltype(__uuidof(U))>>, int> = 0>
+        static std::true_type invoke(int);
+
+        template <typename U = T>
+        static std::false_type invoke(float);
+
+        static constexpr bool value = decltype(invoke(0))::value;
+    };
+
+    template <typename T>
+    constexpr bool has_iid_v = has_iid<T>::value;
+}
+
+template <typename... Types>
+constexpr auto make_array_of_uuid()
+{
+    return clsid_array<Types...>{std::array<GUID, sizeof...(Types)>{__uuidof(Types)...}};
+}
+
+template <typename... Types>
+constexpr auto make_array_of_guid()
+{
+    static_assert(!(... && details::has_iid_v<Types>), "Use make_array_of_uuid for COM class instead");
+    return clsid_array<Types...>{std::array<GUID, sizeof...(Types)>{winrt::guid_of<Types>()...}};
 }
 
 #endif // (!defined(__WIL_CPPWINRT_AUTHORING_INCLUDED_COM_SERVER) && defined(__WIL_CPPWINRT_AUTHORING_INCLUDED_ICLASSFACTORY) && defined(_COMBASEAPI_H_))
