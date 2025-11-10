@@ -4209,9 +4209,7 @@ TEST_CASE("WindowsInternalTests::ArgvToCommandLine", "[win32_helpers]")
 
     // Empty arguments should always force quotes
     DoArgvToCommandLineTest(
-        {"", "test", "", "foo", "", "", "bar", ""},
-        R"("" test "" foo "" "" bar "")",
-        R"("" "test" "" "foo" "" "" "bar" "")");
+        {"", "test", "", "foo", "", "", "bar", ""}, R"("" test "" foo "" "" bar "")", R"("" "test" "" "foo" "" "" "bar" "")");
 
     // CommandLineToArgvW treats tab characters the same as spaces; test that here
     DoArgvToCommandLineTest(
