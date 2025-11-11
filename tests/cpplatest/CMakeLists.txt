@@ -24,3 +24,10 @@ target_sources(witest.cpplatest PRIVATE
     ${WIN11_DESTKTOP_SOURCES}
     ${CPP20_SOURCES}
     )
+
+# For things like intellisense in VS code and making clang-tidy not take an excruciatingly long time, only use this
+# target for generating compile_commands.json, which should encompass the largest "surface area" of all targets.
+set_target_properties(witest.cpplatest
+    PROPERTIES
+        EXPORT_COMPILE_COMMANDS ON
+    )

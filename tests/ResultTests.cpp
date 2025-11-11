@@ -51,17 +51,17 @@ TEST_CASE("ResultTests::SemaphoreValue", "[result]")
     };
 
     // Test 32-bit values (edge cases)
-    TestValue(0u, 10u);
-    TestValue(250u, 260u);
-    TestValue(0x7FFFFFF0u, 0x7FFFFFFFu);
+    TestValue(0U, 10U);
+    TestValue(250U, 260U);
+    TestValue(0x7FFFFFF0U, 0x7FFFFFFFU);
 
     // Test 64-bit values (edge cases)
-    TestValue(0ull, 10ull);
-    TestValue(250ull, 260ull);
-    TestValue(0x000000007FFFFFF0ull, 0x000000008000000Full);
-    TestValue(0x00000000FFFFFFF0ull, 0x000000010000000Full);
-    TestValue(0x00000000FFFFFFF0ull, 0x000000010000000Full);
-    TestValue(0x3FFFFFFFFFFFFFF0ull, 0x3FFFFFFFFFFFFFFFull);
+    TestValue(0ULL, 10ULL);
+    TestValue(250ULL, 260ULL);
+    TestValue(0x000000007FFFFFF0ULL, 0x000000008000000FULL);
+    TestValue(0x00000000FFFFFFF0ULL, 0x000000010000000FULL);
+    TestValue(0x00000000FFFFFFF0ULL, 0x000000010000000FULL);
+    TestValue(0x3FFFFFFFFFFFFFF0ULL, 0x3FFFFFFFFFFFFFFFULL);
 
     // Test pointer values
     wil::details_abi::SemaphoreValue semaphore;
@@ -79,19 +79,19 @@ TEST_CASE("ResultTests::ProcessLocalStorage", "[result]")
         wil::details_abi::ProcessLocalStorage<SharedObject> obj1("ver1");
         wil::details_abi::ProcessLocalStorage<SharedObject> obj2("ver1");
 
-        auto& o1 = *obj1.GetShared();
-        auto& o2 = *obj2.GetShared();
+        auto& shared1 = *obj1.GetShared();
+        auto& shared2 = *obj2.GetShared();
 
-        REQUIRE(o1.value == 0);
-        REQUIRE(o2.value == 0);
-        o1.value = 42;
-        REQUIRE(o2.value == 42);
+        REQUIRE(shared1.value == 0);
+        REQUIRE(shared2.value == 0);
+        shared1.value = 42;
+        REQUIRE(shared2.value == 42);
         REQUIRE(objectCount == 1);
 
         wil::details_abi::ProcessLocalStorage<SharedObject> obj3("ver3");
-        auto& o3 = *obj3.GetShared();
+        auto& shared3 = *obj3.GetShared();
 
-        REQUIRE(o3.value == 0);
+        REQUIRE(shared3.value == 0);
         REQUIRE(objectCount == 2);
     }
 
@@ -107,6 +107,7 @@ TEST_CASE("ResultTests::ExceptionHandling", "[result]")
 
     SECTION("Test 'what()' implementation on ResultException")
     {
+        // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores): This seems to be a false positive
         auto swap = witest::AssignTemporaryValue(&wil::g_fResultThrowPlatformException, false);
         try
         {
@@ -413,6 +414,7 @@ TEST_CASE("ResultTests::ExceptionHandling", "[result]")
     }
 }
 
+// NOLINTNEXTLINE(misc-use-internal-linkage): Compilation only test...
 void ExceptionHandlingCompilationTest()
 {
     [] {
@@ -529,7 +531,7 @@ void ExceptionHandlingCompilationTest()
         }
         CATCH_THROW_NORMALIZED();
     }
-    catch (...)
+    catch (...) // NOLINT(bugprone-empty-catch): This is just a compilation test
     {
     }
     try
@@ -540,7 +542,7 @@ void ExceptionHandlingCompilationTest()
         }
         CATCH_THROW_NORMALIZED_MSG("train: %d", 42);
     }
-    catch (...)
+    catch (...) // NOLINT(bugprone-empty-catch): This is just a compilation test
     {
     }
     try
@@ -554,7 +556,7 @@ void ExceptionHandlingCompilationTest()
             THROW_NORMALIZED_CAUGHT_EXCEPTION();
         }
     }
-    catch (...)
+    catch (...) // NOLINT(bugprone-empty-catch): This is just a compilation test
     {
     }
     try
@@ -568,7 +570,7 @@ void ExceptionHandlingCompilationTest()
             THROW_NORMALIZED_CAUGHT_EXCEPTION_MSG("train: %d", 42);
         }
     }
-    catch (...)
+    catch (...) // NOLINT(bugprone-empty-catch): This is just a compilation test
     {
     }
 
@@ -633,6 +635,7 @@ TEST_CASE("ResultTests::NoOriginationByDefault", "[result]")
     }
     catch (...)
     {
+        // Fall through to checking restricted error info below
     }
     REQUIRE(S_FALSE == GetRestrictedErrorInfo(&restrictedErrorInformation));
 #endif // WIL_ENABLE_EXCEPTIONS
@@ -681,6 +684,7 @@ TEST_CASE("ResultTests::AutomaticOriginationOnFailure", "[result]")
     }
     catch (...)
     {
+        // Fall through to checking restricted error info below
     }
     REQUIRE(S_OK == GetRestrictedErrorInfo(&restrictedErrorInformation));
     validateOriginatedError(thrownErrorCode);
@@ -714,6 +718,7 @@ TEST_CASE("ResultTests::OriginatedWithMessagePreserved", "[result]")
     }
     catch (...)
     {
+        // Fall through to checking restricted error info below
     }
     witest::RequireRestrictedErrorInfo(E_FAIL, L"Puppies not allowed");
 

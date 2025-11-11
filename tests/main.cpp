@@ -17,7 +17,7 @@
 
 #define POINTER_STRING_SIZE (int)(sizeof(void*) * 2)
 
-static LONG __stdcall on_crash(EXCEPTION_POINTERS* info);
+static LONG __stdcall on_crash(EXCEPTION_POINTERS* exPtrs);
 
 static void __stdcall timer_callback(PTP_CALLBACK_INSTANCE, void*, PTP_TIMER);
 static void print_all_stacks();
@@ -53,15 +53,17 @@ static void __stdcall timer_callback(PTP_CALLBACK_INSTANCE, void*, PTP_TIMER)
     ::ExitProcess(42); // Easy to identify code
 }
 
-static void print_exception_record(EXCEPTION_RECORD* ex)
+// NOLINTBEGIN(performance-no-int-to-ptr): Debugging APIs represent pointers as integers
+
+static void print_exception_record(EXCEPTION_RECORD* exr)
 {
-    std::printf("ExceptionAddress: %p\n", ex->ExceptionAddress);
-    std::printf("   ExceptionCode: %lX\n", ex->ExceptionCode);
-    std::printf("  ExceptionFlags: %lX\n", ex->ExceptionFlags);
-    std::printf("NumberParameters: %lu\n", ex->NumberParameters);
-    for (DWORD i = 0; i < ex->NumberParameters; ++i)
+    std::printf("ExceptionAddress: %p\n", exr->ExceptionAddress);
+    std::printf("   ExceptionCode: %lX\n", exr->ExceptionCode);
+    std::printf("  ExceptionFlags: %lX\n", exr->ExceptionFlags);
+    std::printf("NumberParameters: %lu\n", exr->NumberParameters);
+    for (DWORD i = 0; i < exr->NumberParameters; ++i)
     {
-        std::printf("%*sParameter[%lu]: %p\n", (i < 10) ? 4 : 3, "", i, (void*)ex->ExceptionInformation[i]);
+        std::printf("%*sParameter[%lu]: %p\n", (i < 10) ? 4 : 3, "", i, (void*)exr->ExceptionInformation[i]);
     }
     std::printf("\n");
 }
@@ -126,13 +128,13 @@ static void print_callstack(HANDLE thread, const CONTEXT* ctx)
             {
                 // Just want the filename part
                 moduleName = modulePath.get();
-                if (auto pos = moduleName.find_last_of(L'\\'); pos != moduleName.npos)
+                if (auto pos = moduleName.find_last_of(L'\\'); pos != std::wstring_view::npos)
                 {
                     moduleName = moduleName.substr(pos + 1);
                 }
 
                 // Remove the extension
-                if (auto pos = moduleName.find_last_of(L'.'); pos != moduleName.npos)
+                if (auto pos = moduleName.find_last_of(L'.'); pos != std::wstring_view::npos)
                 {
                     moduleName = moduleName.substr(0, pos);
                 }
@@ -181,23 +183,23 @@ static void print_callstack(HANDLE thread, const CONTEXT* ctx)
     ::SymCleanup(proc);
 }
 
-static LONG __stdcall on_crash(EXCEPTION_POINTERS* ex)
+static LONG __stdcall on_crash(EXCEPTION_POINTERS* exPtrs)
 {
     std::printf("Unhandled exception thrown during test execution\n\n");
 
-    print_exception_record(ex->ExceptionRecord);
+    print_exception_record(exPtrs->ExceptionRecord);
 
     // TODO: Print registers? That's unlikely to be super useful in contexts without binaries/symbols, however in such situations
     // a debugger should be available
 
-    print_callstack(::GetCurrentThread(), ex->ContextRecord);
+    print_callstack(::GetCurrentThread(), exPtrs->ContextRecord);
 
-    if (ex->ExceptionRecord->ExceptionRecord)
+    if (exPtrs->ExceptionRecord->ExceptionRecord)
     {
         std::printf("Nested exceptions:\n\n");
-        for (auto rec = ex->ExceptionRecord->ExceptionRecord; rec; rec = rec->ExceptionRecord)
+        for (auto rec = exPtrs->ExceptionRecord->ExceptionRecord; rec; rec = rec->ExceptionRecord)
         {
-            print_exception_record(ex->ExceptionRecord->ExceptionRecord);
+            print_exception_record(exPtrs->ExceptionRecord->ExceptionRecord);
         }
     }
 
@@ -263,6 +265,8 @@ static void print_all_stacks()
         } while (::Thread32Next(snapshot.get(), &entry));
     }
 }
+
+// NOLINTEND(performance-no-int-to-ptr)
 
 extern "C" __declspec(dllexport) const char* __asan_default_options()
 {

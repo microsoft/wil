@@ -139,7 +139,7 @@ namespace details
         {
             wistd::invoke(close_fn, value);
         }
-        inline static void close_reset(pointer_storage_t value) WI_NOEXCEPT
+        static void close_reset(pointer_storage_t value) WI_NOEXCEPT
         {
             auto preserveError = last_error_context();
             wistd::invoke(close_fn, value);
@@ -153,7 +153,7 @@ namespace details
         {
             close_fn(value);
         }
-        inline static void close_reset(pointer_storage_t value) WI_NOEXCEPT
+        static void close_reset(pointer_storage_t value) WI_NOEXCEPT
         {
             auto preserveError = last_error_context();
             close_fn(value);
@@ -181,11 +181,12 @@ namespace details
         typedef pointer_access_t pointer_access;
         __forceinline static pointer_storage invalid_value()
         {
+            // NOLINTNEXTLINE(performance-no-int-to-ptr): There's no provenance concealment because this isn't a valid pointer
             return (pointer)invalid;
         }
         __forceinline static bool is_valid(pointer_storage value) WI_NOEXCEPT
         {
-            return (static_cast<pointer>(value) != (pointer)invalid);
+            return (static_cast<pointer>(value) != invalid_value());
         }
     };
 
@@ -286,7 +287,8 @@ namespace details
     struct needs_destruction
     {
         template <typename U>
-        static auto invoke(int) -> wistd::bool_constant<sizeof(U) >= 0>; // Always true, but SFINAE's if incomplete type
+        static auto invoke(int)
+            -> wistd::bool_constant<sizeof(U) >= 0>; // NOLINT(bugprone-sizeof-expression) Always true, but SFINAE's if incomplete type
         template <typename U>
         static auto invoke(float) -> wistd::false_type;
 
@@ -580,7 +582,7 @@ namespace details
             return m_call;
         }
 
-    protected:
+    private:
         TLambda m_lambda;
         bool m_call = true;
     };
@@ -783,10 +785,13 @@ namespace details
     struct out_param_t
     {
         typedef typename wil::smart_pointer_details<T>::pointer pointer;
+
+    private:
         T& wrapper;
         pointer pRaw;
         bool replace = true;
 
+    public:
         out_param_t(_Inout_ T& output) : wrapper(output), pRaw(nullptr)
         {
         }
@@ -819,10 +824,13 @@ namespace details
     struct out_param_ptr_t
     {
         typedef typename wil::smart_pointer_details<T>::pointer pointer;
+
+    private:
         T& wrapper;
         pointer pRaw;
         bool replace = true;
 
+    public:
         out_param_ptr_t(_Inout_ T& output) : wrapper(output), pRaw(nullptr)
         {
         }
@@ -857,18 +865,18 @@ namespace details
 This avoids multi-step handling of a raw resource to establish the smart pointer.
 Example: `GetFoo(out_param(foo));` */
 template <typename T>
-details::out_param_t<T> out_param(T& p)
+details::out_param_t<T> out_param(T& ptr)
 {
-    return details::out_param_t<T>(p);
+    return details::out_param_t<T>(ptr);
 }
 
 /** Use to retrieve raw out parameter pointers (with a required cast) into smart pointers that do not support the '&' operator.
 Use only when the smart pointer's &handle is not equal to the output type a function requires, necessitating a cast.
 Example: `wil::out_param_ptr<PSECURITY_DESCRIPTOR*>(securityDescriptor)` */
 template <typename Tcast, typename T>
-details::out_param_ptr_t<Tcast, T> out_param_ptr(T& p)
+details::out_param_ptr_t<Tcast, T> out_param_ptr(T& ptr)
 {
-    return details::out_param_ptr_t<Tcast, T>(p);
+    return details::out_param_ptr_t<Tcast, T>(ptr);
 }
 
 /** Use unique_struct to define an RAII type for a trivial struct that references resources that must be cleaned up.
@@ -1269,10 +1277,12 @@ public:
     template <typename TSize>
     struct size_address_ptr
     {
+    private:
         unique_any_array_ptr& wrapper;
         TSize size{};
         bool replace = true;
 
+    public:
         size_address_ptr(_Inout_ unique_any_array_ptr& output) : wrapper(output)
         {
         }
@@ -1336,9 +1346,9 @@ namespace details
     struct unique_any_array_deleter
     {
         template <typename T>
-        void operator()(_Pre_opt_valid_ _Frees_ptr_opt_ T* p) const
+        void operator()(_Pre_opt_valid_ _Frees_ptr_opt_ T* ptr) const
         {
-            UniqueAnyType::policy::close_reset(p);
+            UniqueAnyType::policy::close_reset(ptr);
         }
     };
 
@@ -1346,20 +1356,20 @@ namespace details
     struct unique_struct_array_deleter
     {
         template <typename T>
-        void operator()(_Pre_opt_valid_ _Frees_ptr_opt_ T& p) const
+        void operator()(_Pre_opt_valid_ _Frees_ptr_opt_ T& ptr) const
         {
-            close_invoker<close_fn_t, close_fn, T*>::close(&p);
+            close_invoker<close_fn_t, close_fn, T*>::close(&ptr);
         }
     };
 
     struct com_unknown_deleter
     {
         template <typename T>
-        void operator()(_Pre_opt_valid_ _Frees_ptr_opt_ T* p) const
+        void operator()(_Pre_opt_valid_ _Frees_ptr_opt_ T* ptr) const
         {
-            if (p)
+            if (ptr)
             {
-                p->Release();
+                ptr->Release();
             }
         }
     };
@@ -1430,6 +1440,7 @@ struct function_deleter
     template <typename T>
     void operator()(_Frees_ptr_opt_ T* toFree) const
     {
+        // NOLINTNEXTLINE(bugprone-multi-level-implicit-pointer-conversion): It's common to call deleter functions that take void*
         TDeleter(toFree);
     }
 };
@@ -1820,9 +1831,9 @@ inline PCWSTR str_raw_ptr(PCWSTR str)
 }
 
 template <typename T>
-PCWSTR str_raw_ptr(const unique_any_t<T>& ua)
+PCWSTR str_raw_ptr(const unique_any_t<T>& val)
 {
-    return str_raw_ptr(ua.get());
+    return str_raw_ptr(val.get());
 }
 
 #if !defined(__WIL_MIN_KERNEL) && !defined(WIL_KERNEL_MODE)
@@ -1981,6 +1992,7 @@ namespace std
 template <typename storage_t>
 struct hash<wil::unique_any_t<storage_t>>
 {
+    // NOLINTNEXTLINE(readability-redundant-casting): This warning originates from the STL headers
     WI_NODISCARD size_t operator()(wil::unique_any_t<storage_t> const& val) const
     {
         return (hash<typename wil::unique_any_t<storage_t>::pointer>()(val.get()));
@@ -2036,20 +2048,6 @@ namespace details
             {
                 m_ptr = std::make_shared<unique_t>(wistd::move(other));
             }
-        }
-
-        shared_storage(const shared_storage& other) WI_NOEXCEPT : m_ptr(other.m_ptr)
-        {
-        }
-
-        shared_storage& operator=(const shared_storage& other) WI_NOEXCEPT
-        {
-            m_ptr = other.m_ptr;
-            return *this;
-        }
-
-        shared_storage(shared_storage&& other) WI_NOEXCEPT : m_ptr(wistd::move(other.m_ptr))
-        {
         }
 
         shared_storage(std::shared_ptr<unique_t> const& ptr) : m_ptr(ptr)
@@ -2323,22 +2321,10 @@ class weak_any
 public:
     typedef SharedT shared_t;
 
-    weak_any() WI_NOEXCEPT
-    {
-    }
+    weak_any() WI_NOEXCEPT = default;
 
     weak_any(const shared_t& other) WI_NOEXCEPT : m_weakPtr(other.m_ptr)
     {
-    }
-
-    weak_any(const weak_any& other) WI_NOEXCEPT : m_weakPtr(other.m_weakPtr)
-    {
-    }
-
-    weak_any& operator=(const weak_any& right) WI_NOEXCEPT
-    {
-        m_weakPtr = right.m_weakPtr;
-        return (*this);
     }
 
     weak_any& operator=(const shared_t& right) WI_NOEXCEPT
@@ -2393,6 +2379,7 @@ namespace std
 template <typename storage_t>
 struct hash<wil::shared_any_t<storage_t>>
 {
+    // NOLINTNEXTLINE(readability-redundant-casting): This warning originates from the STL headers
     WI_NODISCARD size_t operator()(wil::shared_any_t<storage_t> const& val) const
     {
         return (hash<typename wil::shared_any_t<storage_t>::pointer>()(val.get()));
@@ -2499,29 +2486,29 @@ typename wistd::enable_if<wistd::extent<_Ty>::value != 0, void>::type make_uniqu
 #define __WIL_WINBASE_
 namespace details
 {
-    inline void __stdcall SetEvent(HANDLE h) WI_NOEXCEPT
+    inline void __stdcall SetEvent(HANDLE evt) WI_NOEXCEPT
     {
-        __FAIL_FAST_ASSERT_WIN32_BOOL_FALSE__(::SetEvent(h));
+        __FAIL_FAST_ASSERT_WIN32_BOOL_FALSE__(::SetEvent(evt));
     }
 
-    inline void __stdcall ResetEvent(HANDLE h) WI_NOEXCEPT
+    inline void __stdcall ResetEvent(HANDLE evt) WI_NOEXCEPT
     {
-        __FAIL_FAST_ASSERT_WIN32_BOOL_FALSE__(::ResetEvent(h));
+        __FAIL_FAST_ASSERT_WIN32_BOOL_FALSE__(::ResetEvent(evt));
     }
 
-    inline void __stdcall CloseHandle(HANDLE h) WI_NOEXCEPT
+    inline void __stdcall CloseHandle(HANDLE handle) WI_NOEXCEPT
     {
-        __FAIL_FAST_ASSERT_WIN32_BOOL_FALSE__(::CloseHandle(h));
+        __FAIL_FAST_ASSERT_WIN32_BOOL_FALSE__(::CloseHandle(handle));
     }
 
-    inline void __stdcall ReleaseSemaphore(_In_ HANDLE h) WI_NOEXCEPT
+    inline void __stdcall ReleaseSemaphore(_In_ HANDLE semaphore) WI_NOEXCEPT
     {
-        __FAIL_FAST_ASSERT_WIN32_BOOL_FALSE__(::ReleaseSemaphore(h, 1, nullptr));
+        __FAIL_FAST_ASSERT_WIN32_BOOL_FALSE__(::ReleaseSemaphore(semaphore, 1, nullptr));
     }
 
-    inline void __stdcall ReleaseMutex(_In_ HANDLE h) WI_NOEXCEPT
+    inline void __stdcall ReleaseMutex(_In_ HANDLE mutex) WI_NOEXCEPT
     {
-        __FAIL_FAST_ASSERT_WIN32_BOOL_FALSE__(::ReleaseMutex(h));
+        __FAIL_FAST_ASSERT_WIN32_BOOL_FALSE__(::ReleaseMutex(mutex));
     }
 
     inline void __stdcall CloseTokenLinkedToken(_In_ TOKEN_LINKED_TOKEN* linkedToken) WI_NOEXCEPT
@@ -2699,9 +2686,9 @@ typedef unique_any_handle_null_only<decltype(&::DeleteBoundaryDescriptor), ::Del
 namespace details
 {
     template <ULONG flags>
-    inline void __stdcall ClosePrivateNamespaceHelper(HANDLE h) WI_NOEXCEPT
+    inline void __stdcall ClosePrivateNamespaceHelper(HANDLE handle) WI_NOEXCEPT
     {
-        ::ClosePrivateNamespace(h, flags);
+        ::ClosePrivateNamespace(handle, flags);
     }
 } // namespace details
 /// @endcond
@@ -2982,7 +2969,7 @@ public:
         {
             return TryAcquireEvent();
         }
-        else if (timeoutMilliseconds == INFINITE)
+        if (timeoutMilliseconds == INFINITE)
         {
             return wait();
         }
@@ -3036,10 +3023,8 @@ private:
         {
             return ResetEvent();
         }
-        else
-        {
-            return is_signaled();
-        }
+
+        return is_signaled();
     }
 
     bool WaitForSignal(DWORD timeoutMilliseconds) WI_NOEXCEPT
@@ -3559,13 +3544,13 @@ string_type make_unique_ansistring_nothrow(
         FAIL_FAST_IF(!source);
         length = strlen(source);
     }
-    const size_t cb = (length + 1) * sizeof(*source);
-    auto result = static_cast<PSTR>(details::string_allocator<string_type>::allocate(cb));
+    const size_t allocSizeBytes = (length + 1) * sizeof(*source);
+    auto result = static_cast<PSTR>(details::string_allocator<string_type>::allocate(allocSizeBytes));
     if (result)
     {
         if (source)
         {
-            memcpy_s(result, cb, source, cb - sizeof(*source));
+            memcpy_s(result, allocSizeBytes, source, allocSizeBytes - sizeof(*source));
         }
         else
         {
@@ -3681,8 +3666,11 @@ namespace details
 
     struct SecureZeroData
     {
+    private:
         void* pointer;
         size_t sizeBytes;
+
+    public:
         SecureZeroData(void* pointer_, size_t sizeBytes_ = 0) WI_NOEXCEPT
         {
             pointer = pointer_;
@@ -3715,9 +3703,9 @@ WI_NODISCARD inline secure_zero_memory_scope_exit SecureZeroMemory_scope_exit(_I
 /// @cond
 namespace details
 {
-    inline void __stdcall FreeProcessHeap(_Pre_opt_valid_ _Frees_ptr_opt_ void* p)
+    inline void __stdcall FreeProcessHeap(_Pre_opt_valid_ _Frees_ptr_opt_ void* ptr)
     {
-        ::HeapFree(::GetProcessHeap(), 0, p);
+        ::HeapFree(::GetProcessHeap(), 0, ptr);
     }
 
     // TODO(dunhor): Rename to something like 'heap_byte_allocator'
@@ -3734,27 +3722,27 @@ namespace details
 struct process_heap_deleter
 {
     template <typename T>
-    void operator()(_Pre_valid_ _Frees_ptr_ T* p) const
+    void operator()(_Pre_valid_ _Frees_ptr_ T* ptr) const
     {
-        details::FreeProcessHeap(p);
+        details::FreeProcessHeap(ptr);
     }
 };
 
 struct virtualalloc_deleter
 {
     template <typename T>
-    void operator()(_Pre_valid_ _Frees_ptr_ T* p) const
+    void operator()(_Pre_valid_ _Frees_ptr_ T* ptr) const
     {
-        ::VirtualFree(p, 0, MEM_RELEASE);
+        ::VirtualFree(ptr, 0, MEM_RELEASE);
     }
 };
 
 struct mapview_deleter
 {
     template <typename T>
-    void operator()(_Pre_valid_ _Frees_ptr_ T* p) const
+    void operator()(_Pre_valid_ _Frees_ptr_ T* ptr) const
     {
-        ::UnmapViewOfFile(p);
+        ::UnmapViewOfFile(ptr);
     }
 };
 
@@ -4191,13 +4179,13 @@ if (foo)
 template <typename T, typename... Args>
 inline typename wistd::enable_if<!wistd::is_array<T>::value, unique_hlocal_ptr<T>>::type make_unique_hlocal_nothrow(Args&&... args)
 {
-    unique_hlocal_ptr<T> sp(static_cast<T*>(::LocalAlloc(LMEM_FIXED, sizeof(T))));
-    if (sp)
+    unique_hlocal_ptr<T> result(static_cast<T*>(::LocalAlloc(LMEM_FIXED, sizeof(T))));
+    if (result)
     {
         // use placement new to initialize memory from the previous allocation
-        new (sp.get()) T(wistd::forward<Args>(args)...);
+        new (result.get()) T(wistd::forward<Args>(args)...);
     }
-    return sp;
+    return result;
 }
 
 /** Provides `std::make_unique()` semantics for array resources allocated with `LocalAlloc()` in a context that may not throw upon
@@ -4221,18 +4209,18 @@ inline typename wistd::enable_if<wistd::is_array<T>::value && wistd::extent<T>::
     typedef typename wistd::remove_extent<T>::type E;
     FAIL_FAST_IF((__WI_SIZE_MAX / sizeof(E)) < size);
     size_t allocSize = sizeof(E) * size;
-    unique_hlocal_ptr<T> sp(static_cast<E*>(::LocalAlloc(LMEM_FIXED, allocSize)));
-    if (sp)
+    unique_hlocal_ptr<T> result(static_cast<E*>(::LocalAlloc(LMEM_FIXED, allocSize)));
+    if (result)
     {
         // use placement new to initialize memory from the previous allocation;
         // note that array placement new cannot be used as the standard allows for operator new[]
         // to consume overhead in the allocation for internal bookkeeping
-        for (auto& elem : make_range(static_cast<E*>(sp.get()), size))
+        for (auto& elem : make_range(static_cast<E*>(result.get()), size))
         {
             new (&elem) E();
         }
     }
-    return sp;
+    return result;
 }
 
 /** Provides `std::make_unique()` semantics for resources allocated with `LocalAlloc()` in a context that must fail fast upon
@@ -4395,13 +4383,13 @@ inline auto make_hlocal_ansistring(
 struct hlocal_secure_deleter
 {
     template <typename T>
-    void operator()(_Pre_opt_valid_ _Frees_ptr_opt_ T* p) const
+    void operator()(_Pre_opt_valid_ _Frees_ptr_opt_ T* ptr) const
     {
-        if (p)
+        if (ptr)
         {
 #pragma warning(suppress : 26006 26007)            // LocalSize() ensures proper buffer length
-            ::SecureZeroMemory(p, ::LocalSize(p)); // this is safe since LocalSize() returns 0 on failure
-            ::LocalFree(p);
+            ::SecureZeroMemory(ptr, ::LocalSize(ptr)); // this is safe since LocalSize() returns 0 on failure
+            ::LocalFree(ptr);
         }
     }
 };
@@ -5113,8 +5101,11 @@ typedef weak_any<unique_addrinfoex> weak_addrinfoex;
 /// @endcond
 struct window_dc
 {
+private:
     HDC dc;
     HWND hwnd;
+
+public:
     window_dc(HDC dc_, HWND hwnd_ = nullptr) WI_NOEXCEPT
     {
         dc = dc_;
@@ -5153,8 +5144,11 @@ typedef unique_any<HDC, decltype(&paint_dc::close), paint_dc::close, details::po
 
 struct select_result
 {
+private:
     HGDIOBJ hgdi;
     HDC hdc;
+
+public:
     select_result(HGDIOBJ hgdi_, HDC hdc_ = nullptr) WI_NOEXCEPT
     {
         hgdi = hgdi_;
@@ -5164,9 +5158,9 @@ struct select_result
     {
         return hgdi;
     }
-    static void close(select_result sr) WI_NOEXCEPT
+    static void close(select_result obj) WI_NOEXCEPT
     {
-        ::SelectObject(sr.hdc, sr.hgdi);
+        ::SelectObject(obj.hdc, obj.hgdi);
     }
 };
 typedef unique_any<HGDIOBJ, decltype(&select_result::close), select_result::close, details::pointer_access_all, select_result> unique_select_object;
@@ -5496,13 +5490,13 @@ if (foo)
 template <typename T, typename... Args>
 inline typename wistd::enable_if<!wistd::is_array<T>::value, unique_cotaskmem_ptr<T>>::type make_unique_cotaskmem_nothrow(Args&&... args)
 {
-    unique_cotaskmem_ptr<T> sp(static_cast<T*>(::CoTaskMemAlloc(sizeof(T))));
-    if (sp)
+    unique_cotaskmem_ptr<T> result(static_cast<T*>(::CoTaskMemAlloc(sizeof(T))));
+    if (result)
     {
         // use placement new to initialize memory from the previous allocation
-        new (sp.get()) T(wistd::forward<Args>(args)...);
+        new (result.get()) T(wistd::forward<Args>(args)...);
     }
-    return sp;
+    return result;
 }
 
 /** Provides `std::make_unique()` semantics for array resources allocated with `CoTaskMemAlloc()` in a context that may not throw
@@ -5526,18 +5520,18 @@ inline typename wistd::enable_if<wistd::is_array<T>::value && wistd::extent<T>::
     typedef typename wistd::remove_extent<T>::type E;
     FAIL_FAST_IF((__WI_SIZE_MAX / sizeof(E)) < size);
     size_t allocSize = sizeof(E) * size;
-    unique_cotaskmem_ptr<T> sp(static_cast<E*>(::CoTaskMemAlloc(allocSize)));
-    if (sp)
+    unique_cotaskmem_ptr<T> result(static_cast<E*>(::CoTaskMemAlloc(allocSize)));
+    if (result)
     {
         // use placement new to initialize memory from the previous allocation;
         // note that array placement new cannot be used as the standard allows for operator new[]
         // to consume overhead in the allocation for internal bookkeeping
-        for (auto& elem : make_range(static_cast<E*>(sp.get()), size))
+        for (auto& elem : make_range(static_cast<E*>(result.get()), size))
         {
             new (&elem) E();
         }
     }
-    return sp;
+    return result;
 }
 
 /** Provides `std::make_unique()` semantics for resources allocated with `CoTaskMemAlloc()` in a context that must fail fast upon
@@ -5689,21 +5683,21 @@ typedef weak_any<shared_cotaskmem_string> weak_cotaskmem_string;
 struct cotaskmem_secure_deleter
 {
     template <typename T>
-    void operator()(_Pre_opt_valid_ _Frees_ptr_opt_ T* p) const
+    void operator()(_Pre_opt_valid_ _Frees_ptr_opt_ T* ptr) const
     {
-        if (p)
+        if (ptr)
         {
             IMalloc* malloc;
             if (SUCCEEDED(::CoGetMalloc(1, &malloc)))
             {
-                size_t const size = malloc->GetSize(p);
+                size_t const size = malloc->GetSize(ptr);
                 if (size != static_cast<size_t>(-1))
                 {
-                    ::SecureZeroMemory(p, size);
+                    ::SecureZeroMemory(ptr, size);
                 }
                 malloc->Release();
             }
-            ::CoTaskMemFree(p);
+            ::CoTaskMemFree(ptr);
         }
     }
 };
@@ -6201,16 +6195,16 @@ typedef unique_any<PSID, decltype(&::CoTaskMemFree), ::CoTaskMemFree> unique_cot
 #define __WIL_PROCESSTHREADSAPI_H_DESK_SYS
 namespace details
 {
-    inline void __stdcall CloseProcessInformation(_In_ PROCESS_INFORMATION* p)
+    inline void __stdcall CloseProcessInformation(_In_ PROCESS_INFORMATION* procInfo)
     {
-        if (p->hProcess)
+        if (procInfo->hProcess)
         {
-            CloseHandle(p->hProcess);
+            CloseHandle(procInfo->hProcess);
         }
 
-        if (p->hThread)
+        if (procInfo->hThread)
         {
-            CloseHandle(p->hThread);
+            CloseHandle(procInfo->hThread);
         }
     }
 } // namespace details
