@@ -155,7 +155,7 @@ struct class_factory : winrt::implements<class_factory<T, Rest...>, IClassFactor
 
 #endif // !defined(__WIL_CPPWINRT_AUTHORING_INCLUDED_ICLASSFACTORY) && defined(__IClassFactory_INTERFACE_DEFINED__)
 
-#if (!defined(__WIL_CPPWINRT_AUTHORING_INCLUDED_COM_SERVER) && defined(__WIL_CPPWINRT_AUTHORING_INCLUDED_ICLASSFACTORY) && defined(_COMBASEAPI_H_)) || \
+#if (!defined(__WIL_CPPWINRT_AUTHORING_INCLUDED_COM_SERVER) && defined(__WIL_CPPWINRT_AUTHORING_INCLUDED_ICLASSFACTORY) && defined(__WIL__COMBASEAPI_H_)) || \
     defined(WIL_DOXYGEN) // COM server
 /// @cond
 #define __WIL_CPPWINRT_AUTHORING_INCLUDED_COM_SERVER
@@ -192,7 +192,7 @@ std::vector<unique_com_class_object_cookie> register_com_server(
     return registrations;
 }
 
-#endif // (!defined(__WIL_CPPWINRT_AUTHORING_INCLUDED_COM_SERVER) && defined(__WIL_CPPWINRT_AUTHORING_INCLUDED_ICLASSFACTORY) && defined(_COMBASEAPI_H_))
+#endif // (!defined(__WIL_CPPWINRT_AUTHORING_INCLUDED_COM_SERVER) && defined(__WIL_CPPWINRT_AUTHORING_INCLUDED_ICLASSFACTORY) && defined(__WIL__COMBASEAPI_H_))
 
 #if (!defined(__WIL_CPPWINRT_AUTHORING_INCLUDED_FOUNDATION) && defined(WINRT_Windows_Foundation_H)) || \
     defined(WIL_DOXYGEN) // WinRT / XAML helpers
