@@ -20,7 +20,11 @@
 #include "common.h"
 
 #if !defined(__WIL_MIN_KERNEL) && !defined(WIL_KERNEL_MODE)
+#ifdef __MINGW32__
+#include <windows.h>
+#else
 #include <Windows.h>
+#endif
 #endif
 
 // Setup the debug behavior. For kernel-mode, we ignore NDEBUG because that gets set automatically
