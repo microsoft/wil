@@ -27,6 +27,39 @@
 #ifndef __WIL_RESOURCE
 #define __WIL_RESOURCE
 
+#ifdef __MINGW32__
+#ifndef _Pre_opt_valid_
+#define _Pre_opt_valid_ SAL__pre SAL__valid SAL__maybenull
+#endif
+#ifndef _Frees_ptr_
+#define _Frees_ptr_ __drv_freesMem(Mem)
+#endif
+#ifndef _Frees_ptr_opt_
+#define _Frees_ptr_opt_ __drv_freesMem(Mem) SAL__maybenull
+#endif
+#ifndef _Pre_valid_
+#define _Pre_valid_ SAL__pre SAL__valid
+#endif
+#ifndef _Ret_opt_bytecap_
+#define _Ret_opt_bytecap_(n)
+#endif
+extern "C"
+{
+    static inline void WriteRelease(long* p, long v)
+    {
+        __atomic_store_n(p, v, __ATOMIC_RELEASE);
+    }
+    static inline long ReadAcquire(const long* p)
+    {
+        return __atomic_load_n(p, __ATOMIC_ACQUIRE);
+    }
+    void* _ReturnAddress(void)
+    {
+        return __builtin_return_address(0);
+    }
+}
+#endif
+
 /// @cond
 // stdint.h and intsafe.h have conflicting definitions, so it's not safe to include either to pick up our dependencies,
 // so the definitions we need are copied below
