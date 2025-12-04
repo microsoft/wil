@@ -842,33 +842,33 @@ public:
 
     //! Copy construct from a compatible WRL ComPtr<T>.
     template <class U, class = wistd::enable_if_t<__is_convertible_to(U*, pointer)>>
-    com_ptr_t(const Microsoft::WRL::ComPtr<U>& other) WI_NOEXCEPT : com_ptr_t(static_cast<pointer>(other.Get()))
+    com_ptr_t(const ::Microsoft::WRL::ComPtr<U>& other) WI_NOEXCEPT : com_ptr_t(static_cast<pointer>(other.Get()))
     {
     }
 
     //! Move construct from a compatible WRL ComPtr<T>.
     template <class U, class = wistd::enable_if_t<__is_convertible_to(U*, pointer)>>
-    com_ptr_t(Microsoft::WRL::ComPtr<U>&& other) WI_NOEXCEPT : m_ptr(other.Detach())
+    com_ptr_t(::Microsoft::WRL::ComPtr<U>&& other) WI_NOEXCEPT : m_ptr(other.Detach())
     {
     }
 
     //! Assign from a compatible WRL ComPtr<T>.
     template <class U, class = wistd::enable_if_t<__is_convertible_to(U*, pointer)>>
-    com_ptr_t& operator=(const Microsoft::WRL::ComPtr<U>& other) WI_NOEXCEPT
+    com_ptr_t& operator=(const ::Microsoft::WRL::ComPtr<U>& other) WI_NOEXCEPT
     {
         return operator=(static_cast<pointer>(other.Get())); // NOLINT(misc-unconventional-assign-operator): Can't see through function call
     }
 
     //! Move assign from a compatible WRL ComPtr<T>.
     template <class U, class = wistd::enable_if_t<__is_convertible_to(U*, pointer)>>
-    com_ptr_t& operator=(Microsoft::WRL::ComPtr<U>&& other) WI_NOEXCEPT
+    com_ptr_t& operator=(::Microsoft::WRL::ComPtr<U>&& other) WI_NOEXCEPT
     {
         attach(other.Detach());
         return *this;
     }
 
     //! Swap pointers with a WRL ComPtr<T> to the same interface.
-    void swap(Microsoft::WRL::ComPtr<T>& other) WI_NOEXCEPT
+    void swap(::Microsoft::WRL::ComPtr<T>& other) WI_NOEXCEPT
     {
         auto ptr = m_ptr;
         m_ptr = other.Detach();
@@ -876,7 +876,7 @@ public:
     }
 
     //! Swap pointers with a rvalue reference to a WRL ComPtr<T> to the same interface.
-    void swap(Microsoft::WRL::ComPtr<T>&& other) WI_NOEXCEPT
+    void swap(::Microsoft::WRL::ComPtr<T>&& other) WI_NOEXCEPT
     {
         swap(other);
     }
@@ -1029,13 +1029,13 @@ inline bool operator!=(wistd::nullptr_t, const com_ptr_t<TRight, ErrRight>& righ
 // WRL ComPtr support
 
 template <typename T, typename ErrLeft>
-inline void swap(com_ptr_t<T, ErrLeft>& left, Microsoft::WRL::ComPtr<T>& right) WI_NOEXCEPT
+inline void swap(com_ptr_t<T, ErrLeft>& left, ::Microsoft::WRL::ComPtr<T>& right) WI_NOEXCEPT
 {
     left.swap(right);
 }
 
 template <typename TLeft, typename ErrLeft, typename TRight>
-inline bool operator==(const com_ptr_t<TLeft, ErrLeft>& left, const Microsoft::WRL::ComPtr<TRight>& right) WI_NOEXCEPT
+inline bool operator==(const com_ptr_t<TLeft, ErrLeft>& left, const ::Microsoft::WRL::ComPtr<TRight>& right) WI_NOEXCEPT
 {
     static_assert(
         __is_convertible_to(TLeft*, TRight*) || __is_convertible_to(TRight*, TLeft*),
@@ -1044,7 +1044,7 @@ inline bool operator==(const com_ptr_t<TLeft, ErrLeft>& left, const Microsoft::W
 }
 
 template <typename TLeft, typename ErrLeft, typename TRight>
-inline bool operator<(const com_ptr_t<TLeft, ErrLeft>& left, const Microsoft::WRL::ComPtr<TRight>& right) WI_NOEXCEPT
+inline bool operator<(const com_ptr_t<TLeft, ErrLeft>& left, const ::Microsoft::WRL::ComPtr<TRight>& right) WI_NOEXCEPT
 {
     static_assert(
         __is_convertible_to(TLeft*, TRight*) || __is_convertible_to(TRight*, TLeft*),
@@ -1053,37 +1053,37 @@ inline bool operator<(const com_ptr_t<TLeft, ErrLeft>& left, const Microsoft::WR
 }
 
 template <typename TLeft, typename ErrLeft, typename TRight>
-inline bool operator!=(const com_ptr_t<TLeft, ErrLeft>& left, const Microsoft::WRL::ComPtr<TRight>& right) WI_NOEXCEPT
+inline bool operator!=(const com_ptr_t<TLeft, ErrLeft>& left, const ::Microsoft::WRL::ComPtr<TRight>& right) WI_NOEXCEPT
 {
     return (!(left == right));
 }
 
 template <typename TLeft, typename ErrLeft, typename TRight>
-inline bool operator>=(const com_ptr_t<TLeft, ErrLeft>& left, const Microsoft::WRL::ComPtr<TRight>& right) WI_NOEXCEPT
+inline bool operator>=(const com_ptr_t<TLeft, ErrLeft>& left, const ::Microsoft::WRL::ComPtr<TRight>& right) WI_NOEXCEPT
 {
     return (!(left < right));
 }
 
 template <typename TLeft, typename ErrLeft, typename TRight>
-inline bool operator>(const com_ptr_t<TLeft, ErrLeft>& left, const Microsoft::WRL::ComPtr<TRight>& right) WI_NOEXCEPT
+inline bool operator>(const com_ptr_t<TLeft, ErrLeft>& left, const ::Microsoft::WRL::ComPtr<TRight>& right) WI_NOEXCEPT
 {
     return (right < left);
 }
 
 template <typename TLeft, typename ErrLeft, typename TRight>
-inline bool operator<=(const com_ptr_t<TLeft, ErrLeft>& left, const Microsoft::WRL::ComPtr<TRight>& right) WI_NOEXCEPT
+inline bool operator<=(const com_ptr_t<TLeft, ErrLeft>& left, const ::Microsoft::WRL::ComPtr<TRight>& right) WI_NOEXCEPT
 {
     return (!(right < left));
 }
 
 template <typename T, typename ErrRight>
-inline void swap(Microsoft::WRL::ComPtr<T>& left, com_ptr_t<T, ErrRight>& right) WI_NOEXCEPT
+inline void swap(::Microsoft::WRL::ComPtr<T>& left, com_ptr_t<T, ErrRight>& right) WI_NOEXCEPT
 {
     right.swap(left);
 }
 
 template <typename TLeft, typename TRight, typename ErrRight>
-inline bool operator==(const Microsoft::WRL::ComPtr<TLeft>& left, const com_ptr_t<TRight, ErrRight>& right) WI_NOEXCEPT
+inline bool operator==(const ::Microsoft::WRL::ComPtr<TLeft>& left, const com_ptr_t<TRight, ErrRight>& right) WI_NOEXCEPT
 {
     static_assert(
         __is_convertible_to(TLeft*, TRight*) || __is_convertible_to(TRight*, TLeft*),
@@ -1092,7 +1092,7 @@ inline bool operator==(const Microsoft::WRL::ComPtr<TLeft>& left, const com_ptr_
 }
 
 template <typename TLeft, typename TRight, typename ErrRight>
-inline bool operator<(const Microsoft::WRL::ComPtr<TLeft>& left, const com_ptr_t<TRight, ErrRight>& right) WI_NOEXCEPT
+inline bool operator<(const ::Microsoft::WRL::ComPtr<TLeft>& left, const com_ptr_t<TRight, ErrRight>& right) WI_NOEXCEPT
 {
     static_assert(
         __is_convertible_to(TLeft*, TRight*) || __is_convertible_to(TRight*, TLeft*),
@@ -1101,25 +1101,25 @@ inline bool operator<(const Microsoft::WRL::ComPtr<TLeft>& left, const com_ptr_t
 }
 
 template <typename TLeft, typename TRight, typename ErrRight>
-inline bool operator!=(const Microsoft::WRL::ComPtr<TLeft>& left, const com_ptr_t<TRight, ErrRight>& right) WI_NOEXCEPT
+inline bool operator!=(const ::Microsoft::WRL::ComPtr<TLeft>& left, const com_ptr_t<TRight, ErrRight>& right) WI_NOEXCEPT
 {
     return (!(left == right));
 }
 
 template <typename TLeft, typename TRight, typename ErrRight>
-inline bool operator>=(const Microsoft::WRL::ComPtr<TLeft>& left, const com_ptr_t<TRight, ErrRight>& right) WI_NOEXCEPT
+inline bool operator>=(const ::Microsoft::WRL::ComPtr<TLeft>& left, const com_ptr_t<TRight, ErrRight>& right) WI_NOEXCEPT
 {
     return (!(left < right));
 }
 
 template <typename TLeft, typename TRight, typename ErrRight>
-inline bool operator>(const Microsoft::WRL::ComPtr<TLeft>& left, const com_ptr_t<TRight, ErrRight>& right) WI_NOEXCEPT
+inline bool operator>(const ::Microsoft::WRL::ComPtr<TLeft>& left, const com_ptr_t<TRight, ErrRight>& right) WI_NOEXCEPT
 {
     return (right < left);
 }
 
 template <typename TLeft, typename TRight, typename ErrRight>
-inline bool operator<=(const Microsoft::WRL::ComPtr<TLeft>& left, const com_ptr_t<TRight, ErrRight>& right) WI_NOEXCEPT
+inline bool operator<=(const ::Microsoft::WRL::ComPtr<TLeft>& left, const com_ptr_t<TRight, ErrRight>& right) WI_NOEXCEPT
 {
     return (!(right < left));
 }
@@ -1223,7 +1223,7 @@ inline bool operator<=(TLeft* left, const com_ptr_t<TRight, ErrRight>& right) WI
 //! forwarding reference template that can be used as an input com pointer.  That input com pointer is allowed to be any of:
 //! * Raw Pointer:  `T* com_raw_ptr(T* ptr)`
 //! * Wil com_ptr:  `T* com_raw_ptr(const wil::com_ptr_t<T, err>& ptr)`
-//! * WRL ComPtr:   `T* com_raw_ptr(const Microsoft::WRL::ComPtr<T>& ptr)`
+//! * WRL ComPtr:   `T* com_raw_ptr(const ::Microsoft::WRL::ComPtr<T>& ptr)`
 //! * C++/CX hat:   `IInspectable* com_raw_ptr(Platform::Object^ ptr)`
 //!
 //! Which in turn allows code like the following to be written:
@@ -1248,7 +1248,7 @@ T* com_raw_ptr(const wil::com_ptr_t<T, err>& ptr)
 }
 
 template <typename T>
-T* com_raw_ptr(const Microsoft::WRL::ComPtr<T>& ptr)
+T* com_raw_ptr(const ::Microsoft::WRL::ComPtr<T>& ptr)
 {
     return ptr.Get();
 }
