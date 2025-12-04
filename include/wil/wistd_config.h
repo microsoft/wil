@@ -203,7 +203,11 @@
 #define __WI_HAS_FEATURE_IS_UNION __has_feature(is_union)
 #define __WI_HAS_FEATURE_IS_CLASS __has_feature(is_class)
 #define __WI_HAS_FEATURE_IS_ENUM __has_feature(is_enum)
+#ifdef __MINGW32__
+#define __WI_HAS_FEATURE_IS_CONVERTIBLE_TO 0
+#else
 #define __WI_HAS_FEATURE_IS_CONVERTIBLE_TO __has_feature(is_convertible_to)
+#endif
 #define __WI_HAS_FEATURE_IS_EMPTY __has_feature(is_empty)
 #define __WI_HAS_FEATURE_IS_POLYMORPHIC __has_feature(is_polymorphic)
 #define __WI_HAS_FEATURE_HAS_VIRTUAL_DESTRUCTOR __has_feature(has_virtual_destructor)
@@ -222,19 +226,33 @@
 #define __WI_HAS_FEATURE_HAS_NOTHROW_COPY __has_feature(has_nothrow_copy) || (__WI_GNUC_VER >= 403)
 #define __WI_HAS_FEATURE_HAS_NOTHROW_ASSIGN __has_feature(has_nothrow_assign) || (__WI_GNUC_VER >= 403)
 
+#ifdef __clang__
 #if !(__has_feature(cxx_noexcept))
 #define __WI_LIBCPP_HAS_NO_NOEXCEPT
+#endif
+#else
+#if __cplusplus < 201103L
+#define __WI_LIBCPP_HAS_NO_NOEXCEPT
+#endif
 #endif
 
 #if !__is_identifier(__has_unique_object_representations) || __WI_GNUC_VER >= 700
 #define __WI_LIBCPP_HAS_UNIQUE_OBJECT_REPRESENTATIONS
 #endif
 
+#ifdef __clang__
 #if !(__has_feature(cxx_variadic_templates))
 #define __WI_LIBCPP_HAS_NO_VARIADICS
 #endif
+#else
+#if __cplusplus < 201103L
+#define __WI_LIBCPP_HAS_NO_VARIADICS
+#endif
+#endif
 
-#if __has_feature(is_literal) || __WI_GNUC_VER >= 407
+#if defined(__MINGW32__)
+#define __WI_LIBCPP_IS_LITERAL(T) __is_literal_type(T)
+#elif __has_feature(is_literal) || __WI_GNUC_VER >= 407
 #define __WI_LIBCPP_IS_LITERAL(T) __is_literal(T)
 #endif
 
@@ -258,12 +276,24 @@
 #define __WI_LIBCPP_NO_RTTI
 #endif
 
+#ifdef __clang__
 #if !(__has_feature(cxx_variable_templates))
 #define __WI_LIBCPP_HAS_NO_VARIABLE_TEMPLATES
 #endif
+#else
+#if __cplusplus < 201103L
+#define __WI_LIBCPP_HAS_NO_VARIABLE_TEMPLATES
+#endif
+#endif
 
+#ifdef __clang__
 #if !(__has_feature(cxx_relaxed_constexpr))
 #define __WI_LIBCPP_HAS_NO_CXX14_CONSTEXPR
+#endif
+#else
+#if __cplusplus < 201103L
+#define __WI_LIBCPP_HAS_NO_CXX14_CONSTEXPR
+#endif
 #endif
 
 #if !__has_builtin(__builtin_addressof) && _GNUC_VER < 700
@@ -473,7 +503,11 @@
 
 namespace wistd // ("Windows Implementation" std)
 {
+#ifdef __MINGW32__
+using nullptr_t = decltype(nullptr);
+#else
 using nullptr_t = decltype(__nullptr);
+#endif
 
 template <class _T1, class _T2 = _T1>
 struct __less

@@ -20,7 +20,37 @@
 #include "common.h"
 
 #if !defined(__WIL_MIN_KERNEL) && !defined(WIL_KERNEL_MODE)
+#ifdef __MINGW32__
+#include <atomic>
+#include <windows.h>
+#else
 #include <Windows.h>
+#endif
+#endif
+
+#ifndef _MSC_VER
+#ifndef __z
+#define __z
+#endif
+#ifndef _Post_z_
+#define _Post_z_ SAL__post SAL__valid __z
+#endif
+#ifndef _Pre_maybenull_
+#define _Pre_maybenull_ SAL__pre SAL__maybenull
+#endif
+#ifndef _Translates_last_error_to_HRESULT_
+#define _Translates_last_error_to_HRESULT_
+#endif
+#ifndef _Translates_Win32_to_HRESULT_
+#define _Translates_Win32_to_HRESULT_(x)
+#endif
+#ifndef _Translates_NTSTATUS_to_HRESULT_
+#define _Translates_NTSTATUS_to_HRESULT_(x)
+#endif
+extern "C" inline long InterlockedIncrementNoFence(volatile long* ptr)
+{
+    return reinterpret_cast<std::atomic<long>*>(const_cast<long*>(ptr))->fetch_add(1, std::memory_order_relaxed) + 1;
+}
 #endif
 
 // Setup the debug behavior. For kernel-mode, we ignore NDEBUG because that gets set automatically
@@ -34,7 +64,7 @@
 
 /// @cond
 #if defined(_PREFAST_)
-#define __WI_ANALYSIS_ASSUME(_exp) _Analysis_assume_(_exp)
+#define __WI_ANALYSIS_ASSUME(_exp) _Analysis_assume_(static_cast<bool>(_exp))
 #else
 #ifdef RESULT_DEBUG
 #define __WI_ANALYSIS_ASSUME(_exp) ((void)0)
@@ -365,8 +395,13 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
     template <unsigned int optimizerCounter> \
     inline __declspec(noinline) RESULT_NORETURN RetType MethodName
 #else
+#if defined(_MSC_VER)
 #define __R_DIRECT_METHOD(RetType, MethodName) inline __declspec(noinline) RetType MethodName
 #define __R_DIRECT_NORET_METHOD(RetType, MethodName) inline __declspec(noinline) RESULT_NORETURN RetType MethodName
+#else
+#define __R_DIRECT_METHOD(RetType, MethodName) inline RetType MethodName
+#define __R_DIRECT_NORET_METHOD(RetType, MethodName) inline RetType MethodName
+#endif
 #endif
 #define __R_DIRECT_FN_PARAMS __R_FN_PARAMS
 #define __R_DIRECT_FN_PARAMS_ONLY __R_FN_PARAMS_ONLY
@@ -4131,15 +4166,19 @@ namespace details
     inline HRESULT ResultFromExceptionSeh(
         const DiagnosticsInfo& diagnostics, void* returnAddress, SupportedExceptions supported, IFunctor& functor) WI_NOEXCEPT
     {
+#if defined(_MSC_VER)
         __try
+#endif
         {
             return wil::details::ResultFromKnownExceptions(diagnostics, returnAddress, supported, functor);
         }
+#if defined(_MSC_VER)
         __except (wil::details::TerminateAndReportError(GetExceptionInformation()), EXCEPTION_CONTINUE_SEARCH)
         {
             WI_ASSERT(false);
             RESULT_NORETURN_RESULT(HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION));
         }
+#endif
     }
 
     __declspec(noinline) inline HRESULT ResultFromException(const DiagnosticsInfo& diagnostics, SupportedExceptions supported, IFunctor& functor) WI_NOEXCEPT

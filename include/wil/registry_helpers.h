@@ -27,7 +27,11 @@
 #endif
 
 #include <stdint.h>
+#ifdef __MINGW32__
+#include <windows.h>
+#else
 #include <Windows.h>
+#endif
 #include "resource.h"
 
 #ifdef _KERNEL_MODE

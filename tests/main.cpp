@@ -8,7 +8,11 @@
 #include <catch2/catch_session.hpp>
 #include <cinttypes>
 
+#ifdef __MINGW32__
+#include <windows.h>
+#else
 #include <Windows.h>
+#endif
 
 #include <DbgHelp.h> // NOTE: Must be included after Windows.h
 #include <TlHelp32.h>
