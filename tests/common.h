@@ -210,15 +210,20 @@ template <typename TLambda>
 bool DoesCodeCrash(TLambda&& lambda)
 {
     bool crashed = false;
+#if defined(_MSC_VER)
     __try
+#endif
     {
         // for the purposes of this test, throwing an exception is not a crash
         DoesCodeThrow(wistd::forward<TLambda>(lambda));
     }
+#if defined(_MSC_VER)
     __except (EXCEPTION_EXECUTE_HANDLER)
+
     {
         crashed = true;
     }
+#endif
     return crashed;
 }
 
