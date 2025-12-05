@@ -946,4 +946,3 @@ using hide_name = void(struct hidden_name);
 
 #endif // __cplusplus
 #endif // __WIL_COMMON_INCLUDED
-
