@@ -16,7 +16,7 @@
 #include "common.h"
 
 #if WIL_USE_STL
-#include <functional>
+#include <algorithm>
 #include <iterator>
 #include <string>
 #include <vector>
@@ -1960,3 +1960,4 @@ namespace reg
 } // namespace reg
 } // namespace wil
 #endif // __WIL_REGISTRY_HELPERS_INCLUDED
+
