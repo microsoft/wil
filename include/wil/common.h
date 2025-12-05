@@ -85,7 +85,7 @@
 
 /// @cond
 #if defined(__MINGW32__) && !defined(_NATIVE_WCHAR_T_DEFINED)
-#define __wchar_t wchar_t
+using __wchar_t = wchar_t;
 #endif
 /// @endcond
 
@@ -946,3 +946,4 @@ using hide_name = void(struct hidden_name);
 
 #endif // __cplusplus
 #endif // __WIL_COMMON_INCLUDED
+
