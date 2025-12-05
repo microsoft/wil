@@ -21,7 +21,6 @@
 
 #if !defined(__WIL_MIN_KERNEL) && !defined(WIL_KERNEL_MODE)
 #ifdef __MINGW32__
-#include <atomic>
 #include <windows.h>
 #else
 #include <Windows.h>
@@ -50,7 +49,7 @@
 #endif
 extern "C" inline long InterlockedIncrementNoFence(volatile long* ptr)
 {
-    return reinterpret_cast<std::atomic<long>*>(const_cast<long*>(ptr))->fetch_add(1, std::memory_order_relaxed) + 1;
+    return __atomic_add_fetch(ptr, 1, __ATOMIC_RELAXED);
 }
 #endif
 
