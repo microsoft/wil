@@ -1960,4 +1960,3 @@ namespace reg
 } // namespace reg
 } // namespace wil
 #endif // __WIL_REGISTRY_HELPERS_INCLUDED
-
