@@ -395,7 +395,7 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
     template <unsigned int optimizerCounter> \
     inline __declspec(noinline) RESULT_NORETURN RetType MethodName
 #else
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) || defined(__clang__)
 #define __R_DIRECT_METHOD(RetType, MethodName) inline __declspec(noinline) RetType MethodName
 #define __R_DIRECT_NORET_METHOD(RetType, MethodName) inline __declspec(noinline) RESULT_NORETURN RetType MethodName
 #else
