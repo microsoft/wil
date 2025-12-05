@@ -204,7 +204,7 @@
 #define __WI_HAS_FEATURE_IS_UNION __has_feature(is_union)
 #define __WI_HAS_FEATURE_IS_CLASS __has_feature(is_class)
 #define __WI_HAS_FEATURE_IS_ENUM __has_feature(is_enum)
-#ifdef __MINGW32__
+#ifdef __WI_LIBCPP_COMPILER_GCC
 #define __WI_HAS_FEATURE_IS_CONVERTIBLE_TO 0
 #else
 #define __WI_HAS_FEATURE_IS_CONVERTIBLE_TO __has_feature(is_convertible_to)

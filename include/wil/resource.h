@@ -53,10 +53,12 @@ extern "C"
     {
         return __atomic_load_n(p, __ATOMIC_ACQUIRE);
     }
+#if !__has_builtin(_ReturnAddress)
     void* _ReturnAddress(void)
     {
         return __builtin_return_address(0);
     }
+#endif
 }
 #endif
 
