@@ -83,6 +83,12 @@
 #endif
 /// @endcond
 
+/// @cond
+#if defined(__MINGW32__) && !defined(_NATIVE_WCHAR_T_DEFINED)
+#define __wchar_t wchar_t
+#endif
+/// @endcond
+
 #include <sal.h>
 
 // Some SAL remapping / decoration to better support Doxygen.  Macros that look like function calls can
