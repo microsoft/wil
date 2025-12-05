@@ -51,6 +51,10 @@ extern "C" inline long InterlockedIncrementNoFence(volatile long* ptr)
 {
     return reinterpret_cast<std::atomic<long>*>(const_cast<long*>(ptr))->fetch_add(1, std::memory_order_relaxed) + 1;
 }
+extern "C" inline long InterlockedDecrementNoFence(volatile long* ptr)
+{
+    return __atomic_sub_fetch(ptr, 1, __ATOMIC_RELAXED);
+}
 #endif
 
 // Setup the debug behavior. For kernel-mode, we ignore NDEBUG because that gets set automatically
