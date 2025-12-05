@@ -589,12 +589,16 @@ desktop APIs.  Building this functionality as `#IFDEF`s within functions would c
 doing it with global function pointers and header initialization allows a runtime determination. */
 #define WI_HEADER_INITIALIZATION_FUNCTION(name, fn)
 #elif defined(_M_IX86)
+#if defined(_MSC_VER)
 #define WI_HEADER_INITIALIZATION_FUNCTION(name, fn) \
     extern "C" \
     { \
         __declspec(selectany) unsigned char g_header_init_##name = static_cast<unsigned char>(fn()); \
     } \
     __pragma(comment(linker, "/INCLUDE:_g_header_init_" #name))
+#else
+#define WI_HEADER_INITIALIZATION_FUNCTION(name, expr) inline int name##_header_init = ((expr)(), 0)
+#endif
 #elif defined(_M_IA64) || defined(_M_AMD64) || defined(_M_ARM) || defined(_M_ARM64)
 #if defined(_MSC_VER)
 #define WI_HEADER_INITIALIZATION_FUNCTION(name, fn) \
