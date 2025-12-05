@@ -17,7 +17,9 @@
 #include "wistd_memory.h"
 
 #if WIL_USE_STL
+#if (defined(MSCAT_H) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && !defined(__WIL_MSCAT)) || defined(WIL_DOXYGEN)
 #include <iterator>
+#endif
 #endif
 
 #pragma warning(push)
