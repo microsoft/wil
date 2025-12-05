@@ -29,11 +29,12 @@
 #endif
 
 #ifndef _MSC_VER
-#ifndef __z
-#define __z
-#endif
 #ifndef _Post_z_
+#ifdef __z
 #define _Post_z_ SAL__post SAL__valid __z
+#else
+#define _Post_z_ SAL__post SAL__valid
+#endif
 #endif
 #ifndef _Pre_maybenull_
 #define _Pre_maybenull_ SAL__pre SAL__maybenull
