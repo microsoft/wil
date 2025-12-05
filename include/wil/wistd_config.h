@@ -115,8 +115,8 @@
 #define __WI_PUSH_WARNINGS __pragma(warning(push))
 #define __WI_POP_WARNINGS __pragma(warning(pop))
 #elif defined(__WI_LIBCPP_COMPILER_CLANG)
-#define __WI_PUSH_WARNINGS __pragma(clang diagnostic push)
-#define __WI_POP_WARNINGS __pragma(clang diagnostic pop)
+#define __WI_PUSH_WARNINGS _Pragma("clang diagnostic push")
+#define __WI_POP_WARNINGS _Pragma("clang diagnostic pop")
 #else
 #define __WI_PUSH_WARNINGS
 #define __WI_POP_WARNINGS
@@ -129,7 +129,8 @@
 #endif
 
 #ifdef __WI_LIBCPP_COMPILER_CLANG
-#define __WI_CLANG_DISABLE_WARNING(warning) __pragma(clang diagnostic ignored #warning)
+#define __WI_CLANG_DISABLE_WARNING_AUX(x) _Pragma(#x)
+#define __WI_CLANG_DISABLE_WARNING(w) __WI_CLANG_DISABLE_WARNING_AUX(clang diagnostic ignored #w)
 #else
 #define __WI_CLANG_DISABLE_WARNING(warning)
 #endif
