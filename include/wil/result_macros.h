@@ -27,36 +27,6 @@
 #endif
 #endif
 
-#ifndef _MSC_VER
-#ifndef _Post_z_
-#ifdef __z
-#define _Post_z_ SAL__post SAL__valid __z
-#else
-#define _Post_z_ SAL__post SAL__valid
-#endif
-#endif
-#ifndef _Pre_maybenull_
-#define _Pre_maybenull_ SAL__pre SAL__maybenull
-#endif
-#ifndef _Translates_last_error_to_HRESULT_
-#define _Translates_last_error_to_HRESULT_
-#endif
-#ifndef _Translates_Win32_to_HRESULT_
-#define _Translates_Win32_to_HRESULT_(x)
-#endif
-#ifndef _Translates_NTSTATUS_to_HRESULT_
-#define _Translates_NTSTATUS_to_HRESULT_(x)
-#endif
-extern "C" inline long InterlockedIncrementNoFence(volatile long* ptr)
-{
-    return __atomic_add_fetch(ptr, 1, __ATOMIC_RELAXED);
-}
-extern "C" inline long InterlockedDecrementNoFence(volatile long* ptr)
-{
-    return __atomic_sub_fetch(ptr, 1, __ATOMIC_RELAXED);
-}
-#endif
-
 // Setup the debug behavior. For kernel-mode, we ignore NDEBUG because that gets set automatically
 // for driver projects. We mimic the behavior of NT_ASSERT which checks only for DBG.
 // RESULT_NO_DEBUG is provided as an opt-out mechanism.
