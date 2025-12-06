@@ -83,6 +83,12 @@
 #endif
 /// @endcond
 
+/// @cond
+#if defined(__MINGW32__) && !defined(_NATIVE_WCHAR_T_DEFINED)
+using __wchar_t = wchar_t;
+#endif
+/// @endcond
+
 #include <sal.h>
 
 #ifdef __MINGW32__
