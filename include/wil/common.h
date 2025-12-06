@@ -128,24 +128,24 @@ using __wchar_t = wchar_t;
 #endif
 extern "C"
 {
-    static inline void WriteRelease(long* p, long v)
+    inline void WriteRelease(long* p, long v)
     {
         __atomic_store_n(p, v, __ATOMIC_RELEASE);
     }
-    static inline long ReadAcquire(const long* p)
+    inline long ReadAcquire(const long* p)
     {
         return __atomic_load_n(p, __ATOMIC_ACQUIRE);
     }
-    static inline long InterlockedIncrementNoFence(volatile long* ptr)
+    inline long InterlockedIncrementNoFence(volatile long* ptr)
     {
         return __atomic_add_fetch(ptr, 1, __ATOMIC_RELAXED);
     }
-    static inline long InterlockedDecrementNoFence(volatile long* ptr)
+    inline long InterlockedDecrementNoFence(volatile long* ptr)
     {
         return __atomic_sub_fetch(ptr, 1, __ATOMIC_RELAXED);
     }
 #if !__has_builtin(_ReturnAddress)
-    static inline void* _ReturnAddress(void)
+    inline void* _ReturnAddress(void)
     {
         return __builtin_return_address(0);
     }
