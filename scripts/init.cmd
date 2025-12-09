@@ -269,7 +269,7 @@ goto :init
         if %COMPILER%==clang (
             set CLANG_CL_PATH=
             for /f "delims=" %%c in ('where clang-cl 2^> NUL') do (
-                if "%CLANG_CL_PATH%"=="" set CLANG_CL_PATH=%%~dpc
+                if "!CLANG_CL_PATH!"=="" set CLANG_CL_PATH=%%~dpc
             )
             :: Arguably an error if we can't find it, but just to be safe...
             if "!CLANG_CL_PATH!" NEQ "" (
