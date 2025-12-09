@@ -65,6 +65,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install/Update Clang
+        if: matrix.compiler == 'clang'
+        shell: cmd
+        run: |
+          choco upgrade llvm -y
+
       - name: Initialize CMake
         shell: cmd
         run: |
@@ -86,9 +92,6 @@ jobs:
         run: |
           call scripts\call-vcvars.cmd ${{matrix.arch}}
           if %ERRORLEVEL% NEQ 0 goto :eof
-
-          REM Test if this is still needed for GitHub Actions
-          REM set ASAN_WIN_CONTINUE_ON_INTERCEPTION_FAILURE=1
 
           REM NOTE: You can add '-s' to display detailed information about passing assertions, which can be helpful for diagnosing
           REM hanging tests, however the callstack logic has mostly rendered this unnecssary for most scenarios.
