@@ -268,7 +268,9 @@ goto :init
         set ASAN_DLL_PATH=
         if %COMPILER%==clang (
             set CLANG_CL_PATH=
-            for /f "delims=" %%c in ('where clang-cl 2^> NUL') do set CLANG_CL_PATH=%%~dpc
+            for /f "delims=" %%c in ('where clang-cl 2^> NUL') do (
+                if "%CLANG_CL_PATH%"=="" set CLANG_CL_PATH=%%~dpc
+            )
             :: Arguably an error if we can't find it, but just to be safe...
             if "!CLANG_CL_PATH!" NEQ "" (
                 for /f "delims=" %%d in ('where /R "!CLANG_CL_PATH!\..\lib" clang_rt.asan_dynamic-%ARCH_NAME%.dll 2^> NUL') do set ASAN_DLL_PATH=%%d
