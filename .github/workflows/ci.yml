@@ -72,13 +72,15 @@ jobs:
           choco upgrade llvm -y
           if %ERRORLEVEL% NEQ 0 exit /b %ERRORLEVEL%
 
-          echo C:\Program Files\LLVM\bin >> %GITHUB_PATH%
-
       - name: Initialize CMake
         shell: cmd
         run: |
           call scripts\call-vcvars.cmd ${{matrix.arch}}
           if %ERRORLEVEL% NEQ 0 goto :eof
+
+          REM vcvarsall likes to stick it's dirty fingers into the root of the PATH, which means we'll pick up the
+          REM version of LLVM installed with VS, which we _don't_ want.
+          set PATH=C:\Program Files\LLVM\bin;%PATH%
 
           echo %PATH%
           call scripts\init.cmd -c ${{matrix.compiler}} -b ${{matrix.config}}
@@ -88,6 +90,10 @@ jobs:
         run: |
           call scripts\call-vcvars.cmd ${{matrix.arch}}
           if %ERRORLEVEL% NEQ 0 goto :eof
+
+          REM vcvarsall likes to stick it's dirty fingers into the root of the PATH, which means we'll pick up the
+          REM version of LLVM installed with VS, which we _don't_ want.
+          set PATH=C:\Program Files\LLVM\bin;%PATH%
 
           call scripts\build_all.cmd
 
