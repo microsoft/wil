@@ -91,6 +91,68 @@ using __wchar_t = wchar_t;
 
 #include <sal.h>
 
+#ifdef __MINGW32__
+#ifndef _Post_z_
+#ifdef __z
+#define _Post_z_ SAL__post SAL__valid __z
+#else
+#define _Post_z_ SAL__post SAL__valid
+#endif
+#endif
+#ifndef _Pre_maybenull_
+#define _Pre_maybenull_ SAL__pre SAL__maybenull
+#endif
+#ifndef _Translates_last_error_to_HRESULT_
+#define _Translates_last_error_to_HRESULT_
+#endif
+#ifndef _Translates_Win32_to_HRESULT_
+#define _Translates_Win32_to_HRESULT_(x)
+#endif
+#ifndef _Translates_NTSTATUS_to_HRESULT_
+#define _Translates_NTSTATUS_to_HRESULT_(x)
+#endif
+#ifndef _Pre_opt_valid_
+#define _Pre_opt_valid_ SAL__pre SAL__valid SAL__maybenull
+#endif
+#ifndef _Frees_ptr_
+#define _Frees_ptr_ __drv_freesMem(Mem)
+#endif
+#ifndef _Frees_ptr_opt_
+#define _Frees_ptr_opt_ __drv_freesMem(Mem) SAL__maybenull
+#endif
+#ifndef _Pre_valid_
+#define _Pre_valid_ SAL__pre SAL__valid
+#endif
+#ifndef _Ret_opt_bytecap_
+#define _Ret_opt_bytecap_(n)
+#endif
+extern "C"
+{
+    inline void WriteRelease(long* p, long v)
+    {
+        __atomic_store_n(p, v, __ATOMIC_RELEASE);
+    }
+    inline long ReadAcquire(const long* p)
+    {
+        return __atomic_load_n(p, __ATOMIC_ACQUIRE);
+    }
+    inline long InterlockedIncrementNoFence(volatile long* ptr)
+    {
+        return __atomic_add_fetch(ptr, 1, __ATOMIC_RELAXED);
+    }
+    inline long InterlockedDecrementNoFence(volatile long* ptr)
+    {
+        return __atomic_sub_fetch(ptr, 1, __ATOMIC_RELAXED);
+    }
+#if !__has_builtin(_ReturnAddress)
+    inline void* _ReturnAddress(void)
+    {
+        return __builtin_return_address(0);
+    }
+#endif
+}
+#endif
+
 // Some SAL remapping / decoration to better support Doxygen.  Macros that look like function calls can
 // confuse Doxygen when they are used to decorate a function or variable.  We simplify some of these to
 // basic macros without the function for common use cases.
