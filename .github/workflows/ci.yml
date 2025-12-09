@@ -70,6 +70,9 @@ jobs:
         shell: cmd
         run: |
           choco upgrade llvm -y
+          if %ERRORLEVEL% NEQ 0 exit /b %ERRORLEVEL%
+
+          echo C:\Program Files\LLVM\bin >> %GITHUB_PATH%
 
       - name: Initialize CMake
         shell: cmd
