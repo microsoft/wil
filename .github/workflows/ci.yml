@@ -72,6 +72,11 @@ jobs:
           choco upgrade llvm -y
           if %ERRORLEVEL% NEQ 0 exit /b %ERRORLEVEL%
 
+          REM This is somewhat of a hack... we want to use the path to LLVM instead of MSVC's LLVM installation, but
+          REM _only_ when we're actually building with Clang. This is taking advantage of the fact that we're only
+          REM setting this variable when 'matrix.compiler' is 'clang'.
+          echo LLVM_PATH=C:\Program Files\LLVM\bin >> %GITHUB_ENV%
+
       - name: Initialize CMake
         shell: cmd
         run: |
@@ -80,7 +85,7 @@ jobs:
 
           REM vcvarsall likes to stick it's dirty fingers into the root of the PATH, which means we'll pick up the
           REM version of LLVM installed with VS, which we _don't_ want.
-          set PATH=C:\Program Files\LLVM\bin;%PATH%
+          set PATH=%LLVM_PATH%;%PATH%
 
           call scripts\init.cmd -c ${{matrix.compiler}} -b ${{matrix.config}}
 
@@ -92,7 +97,7 @@ jobs:
 
           REM vcvarsall likes to stick it's dirty fingers into the root of the PATH, which means we'll pick up the
           REM version of LLVM installed with VS, which we _don't_ want.
-          set PATH=C:\Program Files\LLVM\bin;%PATH%
+          set PATH=%LLVM_PATH%;%PATH%
 
           call scripts\build_all.cmd
 
@@ -104,7 +109,7 @@ jobs:
 
           REM vcvarsall likes to stick it's dirty fingers into the root of the PATH, which means we'll pick up the
           REM version of LLVM installed with VS, which we _don't_ want.
-          set PATH=C:\Program Files\LLVM\bin;%PATH%
+          set PATH=%LLVM_PATH%;%PATH%
 
           REM NOTE: You can add '-s' to display detailed information about passing assertions, which can be helpful for diagnosing
           REM hanging tests, however the callstack logic has mostly rendered this unnecssary for most scenarios.
