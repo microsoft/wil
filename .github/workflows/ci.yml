@@ -80,6 +80,7 @@ jobs:
           call scripts\call-vcvars.cmd ${{matrix.arch}}
           if %ERRORLEVEL% NEQ 0 goto :eof
 
+          echo %PATH%
           call scripts\init.cmd -c ${{matrix.compiler}} -b ${{matrix.config}}
 
       - name: Build Tests
