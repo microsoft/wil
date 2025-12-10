@@ -8,10 +8,10 @@ if NOT EXIST "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxili
     echo ERROR: Could not locate 'vcvars' batch file. This script is intended to be run from a build machine & exit /B 1
 )
 
-if /I "%1"=="x86" (
-    call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64_x86
-) else if /I "%1"=="x64" (
-    call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
-) else if /I "%1"=="arm64" (
-    call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" arm64
-) else echo ERROR: Requires one of 'x86', 'x64', or 'arm64' & exit /B 1
+set ARCH=%1
+if /I "%ARCH%"=="x86" (
+    REM Use the x64 toolchain
+    set ARCH=x64_x86
+)
+
+call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" %ARCH%
