@@ -1053,6 +1053,7 @@ inline std::basic_string<CharT> ArgvToCommandLine(RangeT&& range, ArgvToCommandL
     // Somewhat of a hack to avoid the fact that we can't conditionalize a string literal on a template
     static constexpr const CharT empty_string[] = {'\0'};
     static constexpr const CharT single_quote_string[] = {'"', '\0'};
+    static constexpr const CharT double_quote_string[] = {'"', '"', '\0'};
     static constexpr const CharT space_string[] = {' ', '\0'};
     static constexpr const CharT quoted_space_string[] = {'"', ' ', '"', '\0'};
 
@@ -1070,6 +1071,7 @@ inline std::basic_string<CharT> ArgvToCommandLine(RangeT&& range, ArgvToCommandL
     {
         auto currentIndex = index++;
         result += prefix;
+        prefix = nextPrefix;
 
         const CharT* searchString = initialSearchString;
 
@@ -1079,6 +1081,14 @@ inline std::basic_string<CharT> ArgvToCommandLine(RangeT&& range, ArgvToCommandL
 
         // We need to escape any quotes and CONDITIONALLY any backslashes
         string_view_type str(strRaw);
+        if (str.empty() && !forceQuotes)
+        {
+            // The argument is empty. If we want to preserve it in the command line string, we need to manually insert
+            // a pair of quotes since normal parsing won't handle this case
+            result.append(double_quote_string);
+            continue;
+        }
+
         size_t pos = 0;
         while (pos < str.size())
         {
@@ -1178,8 +1188,6 @@ inline std::basic_string<CharT> ArgvToCommandLine(RangeT&& range, ArgvToCommandL
         {
             result.push_back('"');
         }
-
-        prefix = nextPrefix;
     }
 
     // NOTE: We optimize the force quotes case by including them in the prefix string. We're not appending a prefix
