@@ -3271,7 +3271,7 @@ private:
             auto hr = m_enum->Next(1, &m_currentValue, nullptr);
             if (hr == S_FALSE)
             {
-                m_enum = nullptr;
+                m_enum = nullptr ;
             }
             else
             {
