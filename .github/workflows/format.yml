@@ -13,7 +13,12 @@ jobs:
   run-clang-format:
     if: >
       github.event.issue.pull_request &&
-      contains(github.event.comment.body, '!run-clang-format')
+      contains(github.event.comment.body, '!run-clang-format') &&
+      (
+        github.event.comment.author_association == 'OWNER' ||
+        github.event.comment.author_association == 'MEMBER' ||
+        github.event.comment.user.login == github.event.issue.user.login
+      )
     runs-on: windows-latest
 
     steps:
