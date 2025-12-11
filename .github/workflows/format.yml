@@ -25,6 +25,8 @@ jobs:
       - name: Run clang-format
         shell: cmd
         run:
+          REM 'run-clang-format' script needs 'VCINSTALLDIR' env (among maybe others) to be set
+          ./scripts/call-vcvars.cmd x64
           ./scripts/run-clang-format.cmd origin/master
 
       - name: Commit changes
