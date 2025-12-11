@@ -1,0 +1,32 @@
+
+name: Run clang-format on PR comment
+
+on:
+  issue_comment:
+    types: [ created ]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  run-clang-format:
+    if: >
+      github.event.issue.pull_request &&
+      contains(github.event.comment.body, '!run-clang-format')
+    runs-on: windows-latest
+
+    steps:
+      - name: Run clang-format
+        shell: cmd
+        run:
+          ./scripts/run-clang-format.cmd origin/master
+
+      - name: Commit changes
+        shell: cmd
+        run:
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -a
+          git commit -m "Run clang-format on PR changes"
+          git push
