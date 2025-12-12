@@ -1392,7 +1392,7 @@ __WI_LIBCPP_INLINE_VAR __WI_LIBCPP_CONSTEXPR bool is_abstract_v = is_abstract<_T
 
 // is_final
 
-#if defined(__WI_LIBCPP_HAS_IS_FINAL)
+#ifdef __WI_LIBCPP_HAS_IS_FINAL
 template <class _Tp>
 struct __WI_LIBCPP_TEMPLATE_VIS __libcpp_is_final : public integral_constant<bool, __is_final(_Tp)>
 {
@@ -1562,7 +1562,7 @@ struct wi_is_convertible
     : public integral_constant<
           bool,
           wi_is_convertible_imp::wi_is_convertible_test<_T1, _T2>::value
-#if defined(__WI_LIBCPP_HAS_NO_RVALUE_REFERENCES)
+#ifdef __WI_LIBCPP_HAS_NO_RVALUE_REFERENCES
               && !(!is_function<_T1>::value && !is_reference<_T1>::value && is_reference<_T2>::value &&
                    (!is_const<typename remove_reference<_T2>::type>::value || is_volatile<typename remove_reference<_T2>::type>::value) &&
                    (is_same<typename remove_cv<_T1>::type, typename remove_cv<typename remove_reference<_T2>::type>::type>::value ||
@@ -4972,7 +4972,7 @@ enum class endian
 {
     little = 0xDEAD,
     big = 0xFACE,
-#if defined(__WI_LIBCPP_LITTLE_ENDIAN)
+#ifdef __WI_LIBCPP_LITTLE_ENDIAN
     native = little
 #elif defined(__WI_LIBCPP_BIG_ENDIAN)
     native = big

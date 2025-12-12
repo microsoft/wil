@@ -542,7 +542,7 @@ public:
         // Prefast cannot see through the error policy + query_policy mapping and as a result fires 6388 and 28196 for this
         // function. Suppression is also not working. Wrapping this entire function in #pragma warning(disable: 6388 28196) does
         // not stop all of the prefast errors from being emitted.
-#if defined(_PREFAST_)
+#ifdef _PREFAST_
         *ptrResult = nullptr;
         return err_policy::HResult(E_NOINTERFACE);
 #else
@@ -579,7 +579,7 @@ public:
         // Prefast cannot see through the error policy + query_policy mapping and as a result and as a result fires 6388 and 28196
         // for this function. Suppression is also not working. Wrapping this entire function in #pragma warning(disable: 6388
         // 28196) does not stop the prefast errors from being emitted.
-#if defined(_PREFAST_)
+#ifdef _PREFAST_
         *ptrResult = nullptr;
         return err_policy::HResult(E_NOINTERFACE);
 #else
@@ -726,7 +726,7 @@ public:
             // Prefast cannot see through the error policy + query_policy mapping and as a result and as a result fires 6388 and
             // 28196 for this function. Suppression is also not working. Wrapping this entire function in #pragma warning(disable:
             // 6388 28196) does not stop the prefast errors from being emitted.
-#if defined(_PREFAST_)
+#ifdef _PREFAST_
             *ptrResult = nullptr;
             return err_policy::HResult(E_NOINTERFACE);
 #else
@@ -758,7 +758,7 @@ public:
             // Prefast cannot see through the error policy + query_policy mapping and as a result and as a result fires 6388 and
             // 28196 for this function. Suppression is also not working. Wrapping this entire function in #pragma warning(disable:
             // 6388 28196) does not stop the prefast errors from being emitted.
-#if defined(_PREFAST_)
+#ifdef _PREFAST_
             *ptrResult = nullptr;
             return err_policy::HResult(E_NOINTERFACE);
 #else
