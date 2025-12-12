@@ -2339,22 +2339,22 @@ TEST_CASE("ComTests::VerifyTryCoCreateInstanceMissingInterface", "[com][CoCreate
 
     // request some implemented, one not (IPropertyBag), partial results enabled
     {
-        auto [sp, pb] =
+        auto [copyMgr, propBag] =
             wil::TryCoCreateInstanceEx<IBackgroundCopyManager, IPropertyBag>(__uuidof(BackgroundCopyManager), CLSCTX_LOCAL_SERVER);
-        REQUIRE(sp != nullptr);
-        REQUIRE(pb == nullptr);
+        REQUIRE(copyMgr != nullptr);
+        REQUIRE(propBag == nullptr);
     }
     {
-        auto [sp, pb] = wil::TryCoCreateInstanceExNoThrow<IBackgroundCopyManager, IPropertyBag>(
+        auto [copyMgr, propBag] = wil::TryCoCreateInstanceExNoThrow<IBackgroundCopyManager, IPropertyBag>(
             __uuidof(BackgroundCopyManager), CLSCTX_LOCAL_SERVER);
-        REQUIRE(sp != nullptr);
-        REQUIRE(pb == nullptr);
+        REQUIRE(copyMgr != nullptr);
+        REQUIRE(propBag == nullptr);
     }
     {
-        auto [sp, pb] = wil::TryCoCreateInstanceExFailFast<IBackgroundCopyManager, IPropertyBag>(
+        auto [copyMgr, propBag] = wil::TryCoCreateInstanceExFailFast<IBackgroundCopyManager, IPropertyBag>(
             __uuidof(BackgroundCopyManager), CLSCTX_LOCAL_SERVER);
-        REQUIRE(sp != nullptr);
-        REQUIRE(pb == nullptr);
+        REQUIRE(copyMgr != nullptr);
+        REQUIRE(propBag == nullptr);
     }
 }
 
@@ -2363,12 +2363,12 @@ TEST_CASE("ComTests::VerifyQueryMultipleInterfaces", "[com][com_multi_query]")
     auto init = wil::CoInitializeEx_failfast();
 
     auto mgr = wil::CoCreateInstance<BackgroundCopyManager>(CLSCTX_LOCAL_SERVER);
-    auto [sp, ps] = wil::com_multi_query<IBackgroundCopyManager, IUnknown>(mgr.get());
-    REQUIRE(sp);
-    REQUIRE(ps);
-    auto [sp1, pb] = wil::try_com_multi_query<IBackgroundCopyManager, IPropertyBag>(mgr.get());
-    REQUIRE(sp1);
-    REQUIRE(!pb);
+    auto [copyMgr, unk] = wil::com_multi_query<IBackgroundCopyManager, IUnknown>(mgr.get());
+    REQUIRE(copyMgr);
+    REQUIRE(unk);
+    auto [copyMgr1, propBag] = wil::try_com_multi_query<IBackgroundCopyManager, IPropertyBag>(mgr.get());
+    REQUIRE(copyMgr1);
+    REQUIRE(!propBag);
 }
 #endif
 #endif // __IBackgroundCopyManager_INTERFACE_DEFINED__

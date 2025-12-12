@@ -33,6 +33,7 @@ Checks:
 - -readability-magic-numbers # Maybe we can revisit later, but for now this is too noisy
 - -readability-named-parameter # Too noisy, negatively impacts the use of tag types, and generally not that useful of a check
 - -readability-qualified-auto # Changes 'auto' to 'auto*' for pointers... Not really all that useful and kind of annoying for HANDLE
+- -readability-use-concise-preprocessor-directives # Suggests 'elif(n)def' with >= C++23, but we need to support down to C++17 and there's no option to suppress
 CheckOptions:
   bugprone-empty-catch.IgnoreCatchWithKeywords: 'Fall through'
   misc-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic: true # Makes this check more tolerable

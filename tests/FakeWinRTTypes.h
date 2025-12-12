@@ -1,4 +1,4 @@
-#pragma once
+#pragma once // NOLINT(portability-avoid-pragma-once)
 
 #include <wil/resource.h>
 #include <windows.foundation.h>

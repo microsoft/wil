@@ -1,4 +1,4 @@
-#pragma once
+#pragma once // NOLINT(portability-avoid-pragma-once)
 
 #include <winrt/base.h>
 

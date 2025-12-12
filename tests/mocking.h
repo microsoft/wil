@@ -1,4 +1,4 @@
-#pragma once
+#pragma once // NOLINT(portability-avoid-pragma-once)
 
 #include <detours/detours.h>
 #include <synchapi.h>
