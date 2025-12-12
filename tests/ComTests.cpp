@@ -2285,7 +2285,7 @@ TEST_CASE("ComTests::VerifyCoGetClassObject", "[com][CoGetClassObject]")
 }
 #endif
 
-#if defined(__IBackgroundCopyManager_INTERFACE_DEFINED__)
+#ifdef __IBackgroundCopyManager_INTERFACE_DEFINED__
 TEST_CASE("ComTests::VerifyCoCreateEx", "[com][CoCreateInstance]")
 {
     auto init = wil::CoInitializeEx_failfast();

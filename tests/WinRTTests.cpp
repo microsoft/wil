@@ -742,7 +742,7 @@ static auto cast_to(ComPtr<IInspectable> const& src)
 
 TEST_CASE("WinRTTests::VectorToVectorTest", "[winrt][to_vector]")
 {
-#if defined(WIL_ENABLE_EXCEPTIONS)
+#ifdef WIL_ENABLE_EXCEPTIONS
     auto uninit = wil::RoInitialize_failfast();
     auto ints = MakeSampleInspectableVector(100);
     auto vec = wil::to_vector(ints.Get());

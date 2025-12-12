@@ -29,7 +29,7 @@
 #endif
 /// @endcond
 
-#if defined(WIL_ENABLE_EXCEPTIONS)
+#ifdef WIL_ENABLE_EXCEPTIONS
 
 namespace wil
 {

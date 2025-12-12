@@ -148,7 +148,7 @@
 
 // Detect which version of the coroutine standard we have.
 /// @cond
-#if defined(_RESUMABLE_FUNCTIONS_SUPPORTED)
+#ifdef _RESUMABLE_FUNCTIONS_SUPPORTED
 #include <experimental/coroutine>
 #define __WI_COROUTINE_NAMESPACE ::std::experimental
 #elif defined(__cpp_impl_coroutine)

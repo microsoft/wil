@@ -89,7 +89,7 @@
 #define __WI_LIBCPP_CXX03_LANG
 #endif
 
-#if defined(__ELF__)
+#ifdef __ELF__
 #define __WI_LIBCPP_OBJECT_FORMAT_ELF 1
 #elif defined(__MACH__)
 #define __WI_LIBCPP_OBJECT_FORMAT_MACHO 1
@@ -101,7 +101,7 @@
 #error Unknown object file format
 #endif
 
-#if defined(__clang__)
+#ifdef __clang__
 #define __WI_LIBCPP_COMPILER_CLANG
 #elif defined(__GNUC__)
 #define __WI_LIBCPP_COMPILER_GCC
@@ -111,7 +111,7 @@
 #define __WI_LIBCPP_COMPILER_IBM
 #endif
 
-#if defined(__WI_LIBCPP_COMPILER_MSVC)
+#ifdef __WI_LIBCPP_COMPILER_MSVC
 #define __WI_PUSH_WARNINGS __pragma(warning(push))
 #define __WI_POP_WARNINGS __pragma(warning(pop))
 #elif defined(__WI_LIBCPP_COMPILER_CLANG)
@@ -251,7 +251,7 @@
 #endif
 #endif
 
-#if defined(__MINGW32__)
+#ifdef __MINGW32__
 #define __WI_LIBCPP_IS_LITERAL(T) __is_literal_type(T)
 #elif __has_feature(is_literal) || __WI_GNUC_VER >= 407
 #define __WI_LIBCPP_IS_LITERAL(T) __is_literal(T)
@@ -475,7 +475,7 @@
 #define __WI_NOEXCEPT_(x)
 #endif
 
-#if defined(__WI_LIBCPP_OBJECT_FORMAT_COFF)
+#ifdef __WI_LIBCPP_OBJECT_FORMAT_COFF
 #define __WI_LIBCPP_HIDDEN
 #define __WI_LIBCPP_TEMPLATE_VIS
 #endif // defined(__WI_LIBCPP_OBJECT_FORMAT_COFF)
