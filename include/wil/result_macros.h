@@ -37,7 +37,7 @@
 #endif
 
 /// @cond
-#if defined(_PREFAST_)
+#ifdef _PREFAST_
 #define __WI_ANALYSIS_ASSUME(_exp) _Analysis_assume_(static_cast<bool>(_exp))
 #else
 #ifdef RESULT_DEBUG
@@ -4140,13 +4140,13 @@ namespace details
     inline HRESULT ResultFromExceptionSeh(
         const DiagnosticsInfo& diagnostics, void* returnAddress, SupportedExceptions supported, IFunctor& functor) WI_NOEXCEPT
     {
-#if defined(_MSC_VER)
+#ifdef _MSC_VER
         __try
 #endif
         {
             return wil::details::ResultFromKnownExceptions(diagnostics, returnAddress, supported, functor);
         }
-#if defined(_MSC_VER)
+#ifdef _MSC_VER
         __except (wil::details::TerminateAndReportError(GetExceptionInformation()), EXCEPTION_CONTINUE_SEARCH)
         {
             WI_ASSERT(false);

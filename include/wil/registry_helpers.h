@@ -227,7 +227,7 @@ namespace reg
         }
 #endif
 
-#if defined(__WIL_OBJBASE_H_)
+#ifdef __WIL_OBJBASE_H_
         template <size_t C>
         void get_multistring_bytearray_from_strings_nothrow(const PCWSTR data[C], ::wil::unique_cotaskmem_array_ptr<BYTE>& multistring) WI_NOEXCEPT
         {
@@ -342,7 +342,7 @@ namespace reg
                 ++arrayOffset;
             });
         }
-#endif // #if defined(__WIL_OBJBASE_H_)
+#endif // #ifdef __WIL_OBJBASE_H_
 
         namespace reg_value_type_info
         {
@@ -603,7 +603,7 @@ namespace reg
             }
 #endif
 
-#if defined(__WIL_OLEAUTO_H_)
+#ifdef __WIL_OLEAUTO_H_
             inline void* get_buffer(const BSTR& value) WI_NOEXCEPT
             {
                 return value;
@@ -733,9 +733,9 @@ namespace reg
                 string.reset(temp_bstr);
                 return S_OK;
             }
-#endif // #if defined(__WIL_OLEAUTO_H_)
+#endif // #ifdef __WIL_OLEAUTO_H_
 
-#if defined(__WIL_OLEAUTO_H_STL)
+#ifdef __WIL_OLEAUTO_H_STL
             inline void* get_buffer(const ::wil::shared_bstr& value) WI_NOEXCEPT
             {
                 return value.get();
@@ -782,9 +782,9 @@ namespace reg
                 string.reset(temp_bstr);
                 return S_OK;
             }
-#endif // #if defined(__WIL_OLEAUTO_H_STL)
+#endif // #ifdef __WIL_OLEAUTO_H_STL
 
-#if defined(__WIL_OBJBASE_H_)
+#ifdef __WIL_OBJBASE_H_
             inline void* get_buffer(const ::wil::unique_cotaskmem_string& value) WI_NOEXCEPT
             {
                 return value.get();
@@ -843,9 +843,9 @@ namespace reg
                 arrayValue = ::wistd::move(tempValue);
                 return S_OK;
             }
-#endif // #if defined(__WIL_OBJBASE_H_)
+#endif // #ifdef __WIL_OBJBASE_H_
 
-#if defined(__WIL_OBJBASE_H_STL)
+#ifdef __WIL_OBJBASE_H_STL
             inline void* get_buffer(const ::wil::shared_cotaskmem_string& value) WI_NOEXCEPT
             {
                 return value.get();
@@ -875,7 +875,7 @@ namespace reg
                 string = ::wistd::move(new_string);
                 return S_OK;
             }
-#endif // #if defined(__WIL_OBJBASE_H_STL)
+#endif // #ifdef __WIL_OBJBASE_H_STL
 
             inline void* get_buffer(const ::wil::unique_process_heap_string& value) WI_NOEXCEPT
             {
@@ -1012,7 +1012,7 @@ namespace reg
             }
 #endif
 
-#if defined(__WIL_OLEAUTO_H_)
+#ifdef __WIL_OLEAUTO_H_
             template <>
             constexpr DWORD get_value_type<BSTR>() WI_NOEXCEPT
             {
@@ -1035,9 +1035,9 @@ namespace reg
             {
                 return REG_SZ;
             }
-#endif // #if defined(__WIL_OLEAUTO_H_)
+#endif // #ifdef __WIL_OLEAUTO_H_
 
-#if defined(__WIL_OLEAUTO_H_STL)
+#ifdef __WIL_OLEAUTO_H_STL
 
             template <>
             constexpr DWORD get_value_type<::wil::shared_bstr>() WI_NOEXCEPT
@@ -1050,9 +1050,9 @@ namespace reg
             {
                 return REG_SZ;
             }
-#endif // #if defined(__WIL_OLEAUTO_H_STL)
+#endif // #ifdef __WIL_OLEAUTO_H_STL
 
-#if defined(__WIL_OBJBASE_H_)
+#ifdef __WIL_OBJBASE_H_
             template <>
             constexpr DWORD get_value_type<::wil::unique_cotaskmem_string>() WI_NOEXCEPT
             {
@@ -1064,9 +1064,9 @@ namespace reg
             {
                 return REG_SZ;
             }
-#endif // defined(__WIL_OBJBASE_H_)
+#endif // #ifdef __WIL_OBJBASE_H_
 
-#if defined(__WIL_OBJBASE_H_STL)
+#ifdef __WIL_OBJBASE_H_STL
             template <>
             constexpr DWORD get_value_type<::wil::shared_cotaskmem_string>() WI_NOEXCEPT
             {
@@ -1078,7 +1078,7 @@ namespace reg
             {
                 return REG_SZ;
             }
-#endif // #if defined(__WIL_OBJBASE_H_STL)
+#endif // #ifdef __WIL_OBJBASE_H_STL
         } // namespace reg_value_type_info
 
         template <typename err_policy = ::wil::err_exception_policy>
@@ -1206,7 +1206,7 @@ namespace reg
                 _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, R& return_value, DWORD type = reg_value_type_info::get_value_type<R>()) const
             {
                 if
-#if defined(__cpp_if_constexpr)
+#ifdef __cpp_if_constexpr
                     constexpr
 #endif
                     (reg_value_type_info::supports_prepare_buffer<R>())
@@ -1238,7 +1238,7 @@ namespace reg
                     // some return types we can grow as needed - e.g. when writing to a std::wstring
                     // only compile and resize_buffer for those types that support dynamically growing the buffer
                     if
-#if defined(__cpp_if_constexpr)
+#ifdef __cpp_if_constexpr
                         constexpr
 #endif
                         (reg_value_type_info::supports_resize_buffer_bytes<R>())
@@ -1292,7 +1292,7 @@ namespace reg
 
                 // some types (generally string types) require trimming its internal buffer after RegGetValueW successfully wrote into its buffer
                 if
-#if defined(__cpp_if_constexpr)
+#ifdef __cpp_if_constexpr
                     constexpr
 #endif
                     (reg_value_type_info::supports_trim_buffer<R>())
@@ -1309,9 +1309,9 @@ namespace reg
         };
 
         using reg_view_nothrow = ::wil::reg::reg_view_details::reg_view_t<::wil::err_returncode_policy>;
-#if defined(WIL_ENABLE_EXCEPTIONS)
+#ifdef WIL_ENABLE_EXCEPTIONS
         using reg_view = ::wil::reg::reg_view_details::reg_view_t<::wil::err_exception_policy>;
-#endif // #if defined(WIL_ENABLE_EXCEPTIONS)
+#endif // #ifdef WIL_ENABLE_EXCEPTIONS
     } // namespace reg_view_details
       /// @endcond
 
@@ -1332,12 +1332,12 @@ namespace reg
         {
             return key.get();
         }
-#if defined(__WIL_WINREG_STL)
+#ifdef __WIL_WINREG_STL
         inline HKEY get_hkey(const ::wil::shared_hkey& key) WI_NOEXCEPT
         {
             return key.get();
         }
-#endif // #if defined(__WIL_WINREG_STL)
+#endif // #ifdef __WIL_WINREG_STL
 
 #if (WIL_USE_STL && defined(WIL_ENABLE_EXCEPTIONS)) || defined(WIL_DOXYGEN)
         // overloads for some of the below string functions - specific for std::wstring
@@ -1431,7 +1431,7 @@ namespace reg
             return ::wil::make_unique_string_nothrow<T>(address_of_name(name), length);
         }
 
-#if defined(__WIL_OLEAUTO_H_)
+#ifdef __WIL_OLEAUTO_H_
         inline ::wil::unique_bstr copy_name(const ::wil::unique_bstr& name, size_t length) WI_NOEXCEPT
         {
             if (!can_derive_length(name))
@@ -1443,12 +1443,12 @@ namespace reg
             length = length > 0 ? length - 1 : length;
             return ::wil::unique_bstr{::SysAllocStringLen(name.get(), static_cast<UINT>(length))};
         }
-#endif // #if defined(__WIL_OLEAUTO_H_)
+#endif // #ifdef __WIL_OLEAUTO_H_
     } // namespace reg_iterator_details
       /// @endcond
 
     // forward declaration to allow friend-ing the template iterator class
-#if defined(WIL_ENABLE_EXCEPTIONS)
+#ifdef WIL_ENABLE_EXCEPTIONS
     template <typename T>
     class iterator_t;
 #endif
@@ -1514,7 +1514,7 @@ namespace reg
         }
 
     private:
-#if defined(WIL_ENABLE_EXCEPTIONS)
+#ifdef WIL_ENABLE_EXCEPTIONS
         friend class ::wil::reg::iterator_t<key_iterator_data>;
 #endif
         friend class ::wil::reg::iterator_nothrow_t<key_iterator_data>;
@@ -1654,7 +1654,7 @@ namespace reg
         }
 
     private:
-#if defined(WIL_ENABLE_EXCEPTIONS)
+#ifdef WIL_ENABLE_EXCEPTIONS
         friend class ::wil::reg::iterator_t<value_iterator_data>;
 #endif
         friend class ::wil::reg::iterator_nothrow_t<value_iterator_data>;
@@ -1745,7 +1745,7 @@ namespace reg
         size_t m_name_length{};
     };
 
-#if defined(WIL_ENABLE_EXCEPTIONS)
+#ifdef WIL_ENABLE_EXCEPTIONS
     template <typename T>
     class iterator_t
     {
