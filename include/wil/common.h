@@ -83,7 +83,75 @@
 #endif
 /// @endcond
 
+/// @cond
+#if defined(__MINGW32__) && !defined(_NATIVE_WCHAR_T_DEFINED)
+using __wchar_t = wchar_t;
+#endif
+/// @endcond
+
 #include <sal.h>
+
+#ifdef __MINGW32__
+#ifndef _Post_z_
+#ifdef __z
+#define _Post_z_ SAL__post SAL__valid __z
+#else
+#define _Post_z_ SAL__post SAL__valid
+#endif
+#endif
+#ifndef _Pre_maybenull_
+#define _Pre_maybenull_ SAL__pre SAL__maybenull
+#endif
+#ifndef _Translates_last_error_to_HRESULT_
+#define _Translates_last_error_to_HRESULT_
+#endif
+#ifndef _Translates_Win32_to_HRESULT_
+#define _Translates_Win32_to_HRESULT_(x)
+#endif
+#ifndef _Translates_NTSTATUS_to_HRESULT_
+#define _Translates_NTSTATUS_to_HRESULT_(x)
+#endif
+#ifndef _Pre_opt_valid_
+#define _Pre_opt_valid_ SAL__pre SAL__valid SAL__maybenull
+#endif
+#ifndef _Frees_ptr_
+#define _Frees_ptr_ __drv_freesMem(Mem)
+#endif
+#ifndef _Frees_ptr_opt_
+#define _Frees_ptr_opt_ __drv_freesMem(Mem) SAL__maybenull
+#endif
+#ifndef _Pre_valid_
+#define _Pre_valid_ SAL__pre SAL__valid
+#endif
+#ifndef _Ret_opt_bytecap_
+#define _Ret_opt_bytecap_(n)
+#endif
+extern "C"
+{
+    inline void WriteRelease(long* p, long v)
+    {
+        __atomic_store_n(p, v, __ATOMIC_RELEASE);
+    }
+    inline long ReadAcquire(const long* p)
+    {
+        return __atomic_load_n(p, __ATOMIC_ACQUIRE);
+    }
+    inline long InterlockedIncrementNoFence(volatile long* ptr)
+    {
+        return __atomic_add_fetch(ptr, 1, __ATOMIC_RELAXED);
+    }
+    inline long InterlockedDecrementNoFence(volatile long* ptr)
+    {
+        return __atomic_sub_fetch(ptr, 1, __ATOMIC_RELAXED);
+    }
+#if !__has_builtin(_ReturnAddress)
+    inline void* _ReturnAddress(void)
+    {
+        return __builtin_return_address(0);
+    }
+#endif
+}
+#endif
 
 // Some SAL remapping / decoration to better support Doxygen.  Macros that look like function calls can
 // confuse Doxygen when they are used to decorate a function or variable.  We simplify some of these to
@@ -263,7 +331,11 @@
 #include "wistd_type_traits.h"
 
 //! This macro inserts ODR violation protection; the macro allows it to be compatible with straight "C" code
+#if defined(_MSC_VER)
 #define WI_ODR_PRAGMA(NAME, TOKEN) __pragma(detect_mismatch("ODR_violation_" NAME "_mismatch", TOKEN))
+#else
+#define WI_ODR_PRAGMA(NAME, TOKEN)
+#endif
 
 #ifdef WIL_KERNEL_MODE
 WI_ODR_PRAGMA("WIL_KERNEL_MODE", "1")
@@ -464,6 +536,21 @@ check fails as opposed to the invalid parameter handler that the STL invokes. Th
 //! ~~~~
 //! @{
 
+namespace wil
+{
+/// @cond
+namespace details
+{
+    template <unsigned long long flag>
+    struct verify_single_flag_helper
+    {
+        static_assert((flag != 0) && ((flag & (flag - 1)) == 0), "Single flag expected, zero or multiple flags found");
+        static constexpr unsigned long long value = flag;
+    };
+} // namespace details
+} // namespace wil
+/// @endcond
+
 //! Returns the unsigned type of the same width and numeric value as the given enum
 #define WI_EnumValue(val) static_cast<::wil::integral_from_enum<decltype(val)>>(val)
 //! Validates that exactly ONE bit is set in compile-time constant `flag`
@@ -569,20 +656,26 @@ The above example is used within WIL to decide whether or not the library contai
 desktop APIs.  Building this functionality as `#IFDEF`s within functions would create ODR violations, whereas
 doing it with global function pointers and header initialization allows a runtime determination. */
 #define WI_HEADER_INITIALIZATION_FUNCTION(name, fn)
-#elif defined(_M_IX86)
+#elif defined(_M_IX86) || defined(_M_IA64) || defined(_M_AMD64) || defined(_M_ARM) || defined(_M_ARM64)
+#if defined(_MSC_VER)
+#ifdef _M_IX86
 #define WI_HEADER_INITIALIZATION_FUNCTION(name, fn) \
     extern "C" \
     { \
         __declspec(selectany) unsigned char g_header_init_##name = static_cast<unsigned char>(fn()); \
     } \
     __pragma(comment(linker, "/INCLUDE:_g_header_init_" #name))
-#elif defined(_M_IA64) || defined(_M_AMD64) || defined(_M_ARM) || defined(_M_ARM64)
+#else
 #define WI_HEADER_INITIALIZATION_FUNCTION(name, fn) \
     extern "C" \
     { \
         __declspec(selectany) unsigned char g_header_init_##name = static_cast<unsigned char>(fn()); \
     } \
     __pragma(comment(linker, "/INCLUDE:g_header_init_" #name))
+#endif
+#else
+#define WI_HEADER_INITIALIZATION_FUNCTION(name, expr) inline int name##_header_init = ((expr)(), 0)
+#endif
 #else
 #error linker pragma must include g_header_init variation
 #endif
@@ -695,18 +788,6 @@ template <bool... Rest>
 struct variadic_logical_or<false, Rest...> : variadic_logical_or<Rest...>::type
 {
 };
-/// @endcond
-
-/// @cond
-namespace details
-{
-    template <unsigned long long flag>
-    struct verify_single_flag_helper
-    {
-        static_assert((flag != 0) && ((flag & (flag - 1)) == 0), "Single flag expected, zero or multiple flags found");
-        static const unsigned long long value = flag;
-    };
-} // namespace details
 /// @endcond
 
 //! @defgroup typesafety Type Validation
@@ -848,11 +929,11 @@ namespace details
 {
     // Use size-specific casts to avoid sign extending numbers -- avoid warning C4310: cast truncates constant value
 #define __WI_MAKE_UNSIGNED(val) \
-    (__pragma(warning(push)) __pragma(warning(disable : 4310 4309))( \
+    (__WI_PUSH_WARNINGS __WI_MSVC_DISABLE_WARNING(4310 4309)( \
         sizeof(val) == 1   ? static_cast<unsigned char>(val) \
         : sizeof(val) == 2 ? static_cast<unsigned short>(val) \
         : sizeof(val) == 4 ? static_cast<unsigned long>(val) \
-                           : static_cast<unsigned long long>(val)) __pragma(warning(pop)))
+                           : static_cast<unsigned long long>(val)) __WI_POP_WARNINGS)
 #define __WI_IS_UNSIGNED_SINGLE_FLAG_SET(val) ((val) && !((val) & ((val) - 1)))
 #define __WI_IS_SINGLE_FLAG_SET(val) __WI_IS_UNSIGNED_SINGLE_FLAG_SET(__WI_MAKE_UNSIGNED(val))
 

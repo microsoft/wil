@@ -20,7 +20,11 @@
 #include "common.h"
 
 #if !defined(__WIL_MIN_KERNEL) && !defined(WIL_KERNEL_MODE)
+#ifdef __MINGW32__
+#include <windows.h>
+#else
 #include <Windows.h>
+#endif
 #endif
 
 // Setup the debug behavior. For kernel-mode, we ignore NDEBUG because that gets set automatically
@@ -365,8 +369,13 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
     template <unsigned int optimizerCounter> \
     inline __declspec(noinline) RESULT_NORETURN RetType MethodName
 #else
+#if defined(_MSC_VER) || defined(__clang__)
 #define __R_DIRECT_METHOD(RetType, MethodName) inline __declspec(noinline) RetType MethodName
 #define __R_DIRECT_NORET_METHOD(RetType, MethodName) inline __declspec(noinline) RESULT_NORETURN RetType MethodName
+#else
+#define __R_DIRECT_METHOD(RetType, MethodName) inline RetType MethodName
+#define __R_DIRECT_NORET_METHOD(RetType, MethodName) inline RetType MethodName
+#endif
 #endif
 #define __R_DIRECT_FN_PARAMS __R_FN_PARAMS
 #define __R_DIRECT_FN_PARAMS_ONLY __R_FN_PARAMS_ONLY
@@ -4131,15 +4140,19 @@ namespace details
     inline HRESULT ResultFromExceptionSeh(
         const DiagnosticsInfo& diagnostics, void* returnAddress, SupportedExceptions supported, IFunctor& functor) WI_NOEXCEPT
     {
+#if defined(_MSC_VER)
         __try
+#endif
         {
             return wil::details::ResultFromKnownExceptions(diagnostics, returnAddress, supported, functor);
         }
+#if defined(_MSC_VER)
         __except (wil::details::TerminateAndReportError(GetExceptionInformation()), EXCEPTION_CONTINUE_SEARCH)
         {
             WI_ASSERT(false);
             RESULT_NORETURN_RESULT(HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION));
         }
+#endif
     }
 
     __declspec(noinline) inline HRESULT ResultFromException(const DiagnosticsInfo& diagnostics, SupportedExceptions supported, IFunctor& functor) WI_NOEXCEPT

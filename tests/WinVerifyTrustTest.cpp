@@ -1,6 +1,10 @@
 #include "pch.h"
 
+#ifdef __MINGW32__
+#include <windows.h>
+#else
 #include <Windows.h>
+#endif
 #include <wincrypt.h>
 #include <mscat.h>
 #include <softpub.h>

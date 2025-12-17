@@ -14,7 +14,11 @@
 #define __WIL_CPPWINRT_INCLUDED
 
 #include "common.h"
+#ifdef __MINGW32__
 #include <windows.h>
+#else
+#include <Windows.h>
+#endif
 #include <unknwn.h>
 #include <inspectable.h>
 #include <hstring.h>
