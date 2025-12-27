@@ -3700,6 +3700,63 @@ WI_NODISCARD inline secure_zero_memory_scope_exit SecureZeroMemory_scope_exit(_I
     return SecureZeroMemory_scope_exit(static_cast<void*>(initializedString), wcslen(initializedString) * sizeof(initializedString[0]));
 }
 
+/**
+ * An allocator type that satisfies C++'s 'Allocator' requirements and uses HeapAlloc/HeapFree to allocate and deallocate memory.
+ */
+template <typename T, typename ErrPolicy = err_exception_policy>
+struct heap_allocator
+{
+    using value_type = T;
+    using is_always_equal = wistd::true_type;
+    using propagate_on_container_move_assignment = wistd::true_type;
+
+    constexpr heap_allocator() WI_NOEXCEPT = default;
+    constexpr heap_allocator(const heap_allocator&) WI_NOEXCEPT = default;
+
+    template <typename U>
+    constexpr heap_allocator(const heap_allocator<U>&) WI_NOEXCEPT
+    {
+    }
+
+    T* allocate(size_t count)
+    {
+        if (count > ((static_cast<size_t>(0) - 1) / sizeof(T)))
+        {
+            // NOTE: std::allocator throws std::bad_array_new_length - this is a slight deviation
+            ErrPolicy::HResult(E_OUTOFMEMORY);
+            return nullptr;
+        }
+
+        // TODO(dunhor): HEAP_ZERO_MEMORY to match below?
+        auto ptr = static_cast<T*>(::HeapAlloc(::GetProcessHeap(), 0, count * sizeof(T)));
+        if (!ptr)
+        {
+            // NOTE: std::allocator throws std::bad_alloc - this is a slight deviation
+            ErrPolicy::HResult(E_OUTOFMEMORY);
+            return nullptr;
+        }
+
+        return ptr;
+    }
+
+    void deallocate(T* ptr, size_t) WI_NOEXCEPT
+    {
+        ::HeapFree(::GetProcessHeap(), 0, ptr);
+    }
+
+    template <typename U>
+    constexpr bool operator==(const heap_allocator<U>&) const WI_NOEXCEPT
+    {
+        return true;
+    }
+
+    template <typename U>
+    constexpr bool operator!=(const heap_allocator<U>&) const WI_NOEXCEPT
+    {
+        return false;
+    }
+};
+
 /// @cond
 namespace details
 {
@@ -3708,7 +3765,6 @@ namespace details
         ::HeapFree(::GetProcessHeap(), 0, ptr);
     }
 
-    // TODO(dunhor): Rename to something like 'heap_byte_allocator'
     struct heap_allocator
     {
         static _Ret_opt_bytecap_(size) void* allocate(size_t size) WI_NOEXCEPT
@@ -4301,10 +4357,65 @@ typedef unique_any<PWSTR, decltype(&::LocalFree), ::LocalFree> unique_hlocal_str
 typedef unique_any<PSTR, decltype(&::LocalFree), ::LocalFree> unique_hlocal_ansistring;
 #endif // WIL_NO_ANSI_STRINGS
 
+/**
+ * An allocator type that satisfies C++'s 'Allocator' requirements and uses LocalAlloc/LocalFree to allocate and deallocate memory.
+ */
+template <typename T, typename ErrPolicy = err_exception_policy>
+struct localalloc_allocator
+{
+    using value_type = T;
+    using is_always_equal = wistd::true_type;
+    using propagate_on_container_move_assignment = wistd::true_type;
+
+    constexpr localalloc_allocator() WI_NOEXCEPT = default;
+    constexpr localalloc_allocator(const localalloc_allocator&) WI_NOEXCEPT = default;
+
+    template <typename U>
+    constexpr localalloc_allocator(const localalloc_allocator<U>&) WI_NOEXCEPT
+    {
+    }
+
+    T* allocate(size_t count)
+    {
+        if (count > ((static_cast<size_t>(0) - 1) / sizeof(T)))
+        {
+            // NOTE: std::allocator throws std::bad_array_new_length - this is a slight deviation
+            ErrPolicy::HResult(E_OUTOFMEMORY);
+            return nullptr;
+        }
+
+        auto ptr = static_cast<T*>(::LocalAlloc(LMEM_FIXED, count * sizeof(T)));
+        if (!ptr)
+        {
+            // NOTE: std::allocator throws std::bad_alloc - this is a slight deviation
+            ErrPolicy::HResult(E_OUTOFMEMORY);
+            return nullptr;
+        }
+
+        return ptr;
+    }
+
+    void deallocate(T* ptr, size_t) WI_NOEXCEPT
+    {
+        ::LocalFree(ptr);
+    }
+
+    template <typename U>
+    constexpr bool operator==(const localalloc_allocator<U>&) const WI_NOEXCEPT
+    {
+        return true;
+    }
+
+    template <typename U>
+    constexpr bool operator!=(const localalloc_allocator<U>&) const WI_NOEXCEPT
+    {
+        return false;
+    }
+};
+
 /// @cond
 namespace details
 {
-    // TODO(dunhor): Rename to something like 'localalloc_byte_allocator'
     struct localalloc_allocator
     {
         static _Ret_opt_bytecap_(size) void* allocate(size_t size) WI_NOEXCEPT
@@ -5429,10 +5540,65 @@ using unique_midl_string = unique_midl_ptr<wchar_t>;
 using unique_midl_ansistring = unique_midl_ptr<char>;
 #endif
 
+/**
+ * An allocator type that satisfies C++'s 'Allocator' requirements and uses MIDL_user_allocate/MIDL_user_free to allocate and deallocate memory.
+ */
+template <typename T, typename ErrPolicy = err_exception_policy>
+struct midl_allocator
+{
+    using value_type = T;
+    using is_always_equal = wistd::true_type;
+    using propagate_on_container_move_assignment = wistd::true_type;
+
+    constexpr midl_allocator() WI_NOEXCEPT = default;
+    constexpr midl_allocator(const midl_allocator&) WI_NOEXCEPT = default;
+
+    template <typename U>
+    constexpr midl_allocator(const midl_allocator<U>&) WI_NOEXCEPT
+    {
+    }
+
+    T* allocate(size_t count)
+    {
+        if (count > ((static_cast<size_t>(0) - 1) / sizeof(T)))
+        {
+            // NOTE: std::allocator throws std::bad_array_new_length - this is a slight deviation
+            ErrPolicy::HResult(E_OUTOFMEMORY);
+            return nullptr;
+        }
+
+        auto ptr = static_cast<T*>(::MIDL_user_allocate(count * sizeof(T)));
+        if (!ptr)
+        {
+            // NOTE: std::allocator throws std::bad_alloc - this is a slight deviation
+            ErrPolicy::HResult(E_OUTOFMEMORY);
+            return nullptr;
+        }
+
+        return ptr;
+    }
+
+    void deallocate(T* ptr, size_t) WI_NOEXCEPT
+    {
+        ::MIDL_user_free(ptr);
+    }
+
+    template <typename U>
+    constexpr bool operator==(const midl_allocator<U>&) const WI_NOEXCEPT
+    {
+        return true;
+    }
+
+    template <typename U>
+    constexpr bool operator!=(const midl_allocator<U>&) const WI_NOEXCEPT
+    {
+        return false;
+    }
+};
+
 /// @cond
 namespace details
 {
-    // TODO(dunhor): Rename to something like 'midl_byte_allocator'
     struct midl_allocator
     {
         static _Ret_opt_bytecap_(size) void* allocate(size_t size) WI_NOEXCEPT
@@ -5611,10 +5777,65 @@ typedef unique_any<PWSTR, decltype(&::CoTaskMemFree), ::CoTaskMemFree> unique_co
 typedef unique_any<PSTR, decltype(&::CoTaskMemFree), ::CoTaskMemFree> unique_cotaskmem_ansistring;
 #endif // WIL_NO_ANSI_STRINGS
 
+/**
+ * An allocator type that satisfies C++'s 'Allocator' requirements and uses MIDL_user_allocate/MIDL_user_free to allocate and deallocate memory.
+ */
+template <typename T, typename ErrPolicy = err_exception_policy>
+struct cotaskmem_allocator
+{
+    using value_type = T;
+    using is_always_equal = wistd::true_type;
+    using propagate_on_container_move_assignment = wistd::true_type;
+
+    constexpr cotaskmem_allocator() WI_NOEXCEPT = default;
+    constexpr cotaskmem_allocator(const cotaskmem_allocator&) WI_NOEXCEPT = default;
+
+    template <typename U>
+    constexpr cotaskmem_allocator(const cotaskmem_allocator<U>&) WI_NOEXCEPT
+    {
+    }
+
+    T* allocate(size_t count)
+    {
+        if (count > ((static_cast<size_t>(0) - 1) / sizeof(T)))
+        {
+            // NOTE: std::allocator throws std::bad_array_new_length - this is a slight deviation
+            ErrPolicy::HResult(E_OUTOFMEMORY);
+            return nullptr;
+        }
+
+        auto ptr = static_cast<T*>(::CoTaskMemAlloc(count * sizeof(T)));
+        if (!ptr)
+        {
+            // NOTE: std::allocator throws std::bad_alloc - this is a slight deviation
+            ErrPolicy::HResult(E_OUTOFMEMORY);
+            return nullptr;
+        }
+
+        return ptr;
+    }
+
+    void deallocate(T* ptr, size_t) WI_NOEXCEPT
+    {
+        ::CoTaskMemFree(ptr);
+    }
+
+    template <typename U>
+    constexpr bool operator==(const cotaskmem_allocator<U>&) const WI_NOEXCEPT
+    {
+        return true;
+    }
+
+    template <typename U>
+    constexpr bool operator!=(const cotaskmem_allocator<U>&) const WI_NOEXCEPT
+    {
+        return false;
+    }
+};
+
 /// @cond
 namespace details
 {
-    // TODO(dunhor): It would be ideal to rename this, but there's a dependency...
     struct cotaskmem_allocator
     {
         static _Ret_opt_bytecap_(size) void* allocate(size_t size) WI_NOEXCEPT

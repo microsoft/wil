@@ -161,7 +161,7 @@ namespace details
     {
         static size_t length(const char* str) noexcept
         {
-            return strlen(str);
+            return ::strlen(str);
         }
     };
 
@@ -170,8 +170,76 @@ namespace details
     {
         static size_t length(const wchar_t* str) noexcept
         {
-            return wcslen(str);
+            return ::wcslen(str);
         }
+    };
+
+    // Since we don't want to take a dependency on std::allocator_traits being available, we implement what we need
+    // here... This is a minimal subset of just what we need for correctness and is intentionally not feature complete.
+    template <typename Alloc>
+    struct allocator_traits
+    {
+    private:
+        template <typename A, typename = decltype(wistd::declval<A>().select_on_container_copy_construction())>
+        static wistd::true_type test_select_on_container_copy_construction(int);
+
+        template <typename>
+        static wistd::false_type test_select_on_container_copy_construction(...);
+
+        template <typename A, typename = typename A::is_always_equal>
+        static wistd::true_type test_is_always_equal(int);
+
+        template <typename>
+        static wistd::false_type test_is_always_equal(...);
+
+        template <typename A, typename = typename A::propagate_on_container_copy_assignment>
+        static wistd::true_type test_propagate_on_container_copy_assignment(int);
+
+        template <typename>
+        static wistd::false_type test_propagate_on_container_copy_assignment(...);
+
+        template <typename A, typename = typename A::propagate_on_container_move_assignment>
+        static wistd::true_type test_propagate_on_container_move_assignment(int);
+
+        template <typename>
+        static wistd::false_type test_propagate_on_container_move_assignment(...);
+
+        template <typename A, typename = typename A::propagate_on_container_swap>
+        static wistd::true_type test_propagate_on_container_swap(int);
+
+        template <typename>
+        static wistd::false_type test_propagate_on_container_swap(...);
+
+        struct wrapper
+        {
+            using is_always_equal = wistd::is_empty<Alloc>;
+            using propagate_on_container_copy_assignment = wistd::false_type;
+            using propagate_on_container_move_assignment = wistd::false_type;
+            using propagate_on_container_swap = wistd::false_type;
+        };
+
+    public:
+
+        static constexpr Alloc select_on_container_copy_construction(const Alloc& alloc)
+        {
+            if constexpr (decltype(test_select_on_container_copy_construction<Alloc>(0))::value)
+            {
+                return alloc.select_on_container_copy_construction();
+            }
+            else
+            {
+                return alloc;
+            }
+        }
+
+        using is_always_equal =
+            typename wistd::conditional_t<decltype(test_is_always_equal<Alloc>(0))::value, Alloc, wrapper<Alloc>>::is_always_equal;
+        using propagate_on_container_copy_assignment =
+            typename wistd::conditional_t<decltype(test_propagate_on_container_copy_assignment<Alloc>(0))::value, Alloc, wrapper<Alloc>>::propagate_on_container_copy_assignment;
+        using propagate_on_container_move_assignment =
+            typename wistd::conditional_t<decltype(test_propagate_on_container_move_assignment<Alloc>(0))::value, Alloc, wrapper<Alloc>>::propagate_on_container_move_assignment;
+        using propagate_on_container_swap =
+            typename wistd::conditional_t<decltype(test_propagate_on_container_swap<Alloc>(0))::value, Alloc, wrapper<Alloc>>::propagate_on_container_swap;
     };
 
     template <typename CharT, typename UniqueStringT, typename Alloc, typename ErrPolicy>
@@ -180,6 +248,9 @@ namespace details
         using value_type = CharT;
         using string_type = UniqueStringT;
         using size_type = typename Alloc::size_type;
+
+        // NOTE: There's an implicit assumption that if 'ErrPolicy::is_noexcept' is true, 'Alloc' should not throw on
+        // allocation failure.
         using result_type = typename ErrPolicy::result;
         static constexpr bool is_noexcept = ErrPolicy::is_noexcept;
 
@@ -187,13 +258,18 @@ namespace details
         {
         private:
             using AllocBase = ebo<Alloc>;
+            using AllocTraits = allocator_traits<Alloc>;
 
             // std::allocator<T>::rebind was removed in C++20 and since we can't easily take a dependency on
             // std::allocator_traits we don't have an easy way to rebind the allocator... For now we take a dependency
-            // on the allocator's `value_type` matching ours
+            // on the allocator's `value_type` matching ours, which should be a reasonable requirement.
             static_assert(wisd::is_same_v<typename Alloc::value_type, value_type>, "Allocator's 'value_type' must match the trait's character type");
 
-            // Avoid allocating just a few bytes since it's likely we'll want more
+            // Avoid allocating just a few bytes since it's likely we'll want more. Note that we don't implement small
+            // string optimization under the assumption that most paths will be longer and many use cases for shorter
+            // paths (such as extension, filename, etc.), using other types like `basic_path_view` are more optimal.
+            // FUTURE: Since we currently delay allocation for default-constructed paths, we may be able to get away
+            // with implementing a small string optimization since we need to check for the empty case anyway.
             static constexpr const size_type minimum_capacity = 15; // I.e. allocate at least 16 characters-worth
 
             // Although the path object logically holds a 'UniqueStringT', we want to make default constructed path
@@ -204,28 +280,8 @@ namespace details
             size_type m_size = 0;
             size_type m_capacity = 0;
 
-        public:
-            storage() noexcept = default;
-
-            template <wistd::enable_if_t<wistd::is_same_v<result_type, void>, int> = 0>
-            storage(const storage& other) noexcept(is_noexcept) : storage(other.m_data, other.m_size)
-            {
-            }
-
-            storage(storage&& other) noexcept
-            {
-                // If other is not allocated, we don't want to take its buffer since it points inside other!
-                if (other.is_allocated())
-                {
-                    m_data = other.m_data;
-                    other.m_data = reinterpret_cast<value_type*>(&other.m_size);
-                    m_size = wistd::exchange(other.m_size, 0);
-                    m_capacity = wistd::exchange(other.m_capacity, 0);
-                }
-            }
-
-            template <wistd::enable_if_t<wistd::is_same_v<result_type, void>, int> = 0>
-            storage(const value_type* str, size_type len) noexcept(is_noexcept)
+            template <wistd::enable_if_t<wistd::is_same_v<result_type, void>, int> = 0> // Sanity check
+            storage(const value_type* str, size_type len, Alloc&& alloc) noexcept(is_noexcept) : AllocBase(wistd::move(alloc))
             {
                 if (len == 0)
                 {
@@ -233,16 +289,45 @@ namespace details
                 }
 
                 auto newCapacity = (wistd::max)(len, minimum_capacity);
-                m_data = AllocBase::get().allocate(newCapacity + 1);
+                m_data = get_allocator().allocate(newCapacity + 1);
                 if (!m_data)
                 {
+                    // Ideally the allocator would throw, but this is "just to be safe"
                     ErrPolicy::HResult(E_OUTOFMEMORY);
                 }
 
-                memcpy(m_data, str, len * sizeof(value_type));
+                ::memcpy(m_data, str, len * sizeof(value_type));
                 m_size = len;
                 m_capacity = newCapacity;
                 m_data[m_size] = '\0';
+            }
+
+        public:
+            storage() noexcept = default;
+
+            template <wistd::enable_if_t<wistd::is_same_v<result_type, void>, int> = 0>
+            storage(const storage& other) noexcept(is_noexcept && wistd::is_nothrow_copy_constructible_v<Alloc>) :
+                storage(other.m_data, other.m_size, AllocTraits::select_on_container_copy_construction(other.get_allocator()))
+            {
+            }
+
+            storage(storage&& other) noexcept : AllocBase(wistd::move(other.get_allocator()))
+            {
+                // If other is not allocated, we don't want to take its buffer since it points inside other!
+                if (other.is_allocated())
+                {
+                    m_data = other.m_data;
+                    m_size = other.m_size;
+                    m_capacity = other.m_capacity;
+                    other.transition_to_default_state();
+                }
+            }
+
+            template <wistd::enable_if_t<wistd::is_same_v<result_type, void>, int> = 0>
+            storage(const value_type* str, size_type len, const Alloc& alloc = Alloc()) noexcept(
+                is_noexcept && wistd::is_nothrow_copy_constructible_v<Alloc>) :
+                storage(str, len, Alloc(alloc))
+            {
             }
 
             ~storage()
@@ -251,19 +336,130 @@ namespace details
             }
 
             template <wistd::enable_if_t<wistd::is_same_v<result_type, void>, int> = 0>
-            storage& operator=(const storage& other) noexcept(is_noexcept)
+            storage& operator=(const storage& other) noexcept(
+                is_noexcept && (!AllocTraits::propagate_on_container_copy_assignment::value ||
+                                AllocTraits::is_always_equal::value || wistd::is_nothrow_copy_assignable_v<Alloc>))
             {
                 if (this != &other)
                 {
+                    if constexpr (AllocTraits::propagate_on_container_copy_assignment::value && !AllocTraits::is_always_equal::value)
+                    {
+                        if (get_allocator() != other.get_allocator())
+                        {
+                            // We're getting a new allocator... anything we've already allocated needs to get thrown away
+                            destroy();
+                            transition_to_default_state();
+
+                            get_allocator() = other.get_allocator();
+                        }
+                    }
+
                     assign(other.m_data, other.m_size);
                 }
 
                 return *this;
             }
 
-            storage& operator=(storage&& other) noexcept
+            storage& operator=(storage&& other) noexcept(
+                is_noexcept || AllocTraits::propagate_on_container_move_assignment::value || AllocTraits::is_always_equal::value)
             {
-                // TODO
+                if constexpr (!AllocTraits::propagate_on_container_move_assignment::value)
+                {
+                    if constexpr (!AllocTraits::is_always_equal::value)
+                    {
+                        if (get_allocator() != other.get_allocator())
+                        {
+                            // Unfortunate scenario where we can't just steal memory from other
+                            assign(other.m_data, other.m_size);
+                            return;
+                        }
+                    }
+
+                    if ((other.m_size == 0) && (other.m_capacity <= m_capacity))
+                    {
+                        // This is a small optimization - if other is empty, we can keep our current buffer (if it
+                        // exists), which may elide a future allocation.
+                        *m_data = '\0';
+                        m_size = 0;
+                        return;
+                    }
+
+                    destroy();
+                }
+                else
+                {
+                    // Since we're overwriting our allocator, we need to release any resources we've acquired first.
+                    // This has the downside that if 'other' is empty and we have allocated memory, we'll be throwing
+                    // away a perfectly good buffer for nothing. It's assumed that usage patterns would make this
+                    // unlikely to occur.
+                    destroy();
+                    get_allocator() = wistd::move(other.get_allocator());
+                }
+                // NOTE: Assumption is that we're **NOT** in the default state at this point
+
+                if (other.is_allocated())
+                {
+                    // We can steal other's memory
+                    m_data = other.m_data;
+                    m_size = other.m_size;
+                    m_capacity = other.m_capacity;
+                    other.transition_to_default_state();
+                }
+                else
+                {
+                    // All other code paths call 'destroy', but don't reset other values - do so now
+                    transition_to_default_state();
+                }
+
+                return *this;
+            }
+
+            void swap(storage& other) noexcept(is_noexcept || AllocTraits::propagate_on_container_swap::value || AllocTraits::is_always_equal::value)
+            {
+                if constexpr (AllocTraits::propagate_on_container_swap::value)
+                {
+                    wistd::swap_wil(get_allocator(), other.get_allocator());
+                }
+                else if constexpr (!AllocTraits::is_always_equal::value)
+                {
+                    if (get_allocator() != other.get_allocator())
+                    {
+                        // Unfortunate scenario where we can't just swap memory pointers
+                        auto temp = wistd::move(*this);
+                        assign(other.m_data, other.m_size);
+                        other.assign(temp.m_data, temp.m_size);
+                        return;
+                    }
+                    // Otherwise it's "as if" we swapped the allocators
+                }
+
+                if (is_allocated())
+                {
+                    if (other.is_allocated())
+                    {
+                        // Easy case - both allocated, just swap pointers/sizes
+                        wistd::swap_wil(m_data, other.m_data);
+                        wistd::swap_wil(m_size, other.m_size);
+                        wistd::swap_wil(m_capacity, other.m_capacity);
+                    }
+                    else
+                    {
+                        // This object has data, but other doesn't
+                        other.m_data = m_data;
+                        other.m_size = m_size;
+                        other.m_capacity = m_capacity;
+                        transition_to_default_state();
+                    }
+                }
+                else if (other.is_allocated())
+                {
+                    // Other has data, but this object doesn't
+                    m_data = other.m_data;
+                    m_size = other.m_size;
+                    m_capacity = other.m_capacity;
+                    other.transition_to_default_state();
+                }
+                // Otherwise both empty - nothing to do
             }
 
             value_type* data() noexcept
@@ -299,7 +495,7 @@ namespace details
                     // m_size set below
                 }
 
-                memcpy(m_data, str, len * sizeof(value_type));
+                ::memcpy(m_data, str, len * sizeof(value_type));
                 m_size = len;
                 m_data[m_size] = '\0';
 
@@ -313,21 +509,24 @@ namespace details
                 {
                     auto newCapacity = (wistd::max)(newLen, m_capacity * 2);
                     newCapacity = (wistd::max)(newCapacity, minimum_capacity);
+                    WI_ASSERT(newCapacity >= (m_size + len));
+
                     auto newPtr = AllocBase::get().allocate(newCapacity + 1);
                     if (!newPtr)
                     {
                         return ErrPolicy::HResult(E_OUTOFMEMORY);
                     }
 
-                    memcpy(newPtr, m_data, m_size * sizeof(value_type));
+                    ::memcpy(newPtr, m_data, m_size * sizeof(value_type));
+                    // NOTE: Null terminator written below
 
                     destroy();
                     m_data = newPtr;
                     m_capacity = newCapacity;
-                    // m_size set below
+                    // m_size is correct & updated below
                 }
 
-                memcpy(m_data + m_size, str, len * sizeof(value_type));
+                ::memcpy(m_data + m_size, str, len * sizeof(value_type));
                 m_size += len;
                 m_data[m_size] = '\0';
 
@@ -338,7 +537,18 @@ namespace details
 
             bool is_allocated() const noexcept
             {
-                return m_data != reinterpret_cast<value_type*>(&m_size);
+                WI_ASSERT((m_capacity == 0) == (m_data == reinterpret_cast<value_type*>(&m_size)));
+                return m_capacity != 0;
+            }
+
+            Alloc& get_allocator() noexcept
+            {
+                return AllocBase::get();
+            }
+
+            const Alloc& get_allocator() const noexcept
+            {
+                return AllocBase::get();
             }
 
             void destroy() noexcept
@@ -349,7 +559,16 @@ namespace details
                     return; // Not allocated; nothing to do
                 }
 
-                // NOTE: It's the caller's responsibilty for setting pointers/values as appropriate
+                get_allocator().deallocate(m_data, m_capacity + 1);
+                // NOTE: It's the caller's responsibilty for setting pointers/values as appropriate. If default values
+                // are desired, call 'transition_to_default_state'
+            }
+
+            void transition_to_default_state() noexcept
+            {
+                m_data = reinterpret_cast<value_type*>(&m_size);
+                m_size = 0;
+                m_capacity = 0;
             }
         };
 
