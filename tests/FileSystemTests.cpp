@@ -545,9 +545,10 @@ TEST_CASE("FileSystemTests::VerifyStrConcat", "[filesystem]")
         auto part2 = std::wstring(L"Test3");
         auto part3 = wil::zwstring_view(L"Test4");
         auto part4 = wil::make_unique_string_nothrow<wil::unique_cotaskmem_string>(L"Test5");
+        auto part5 = wil::make_unique_string_nothrow<wil::unique_hstring>(L"Test6");
         wil::unique_cotaskmem_string combinedStringNT = wil::make_unique_string_nothrow<wil::unique_cotaskmem_string>(L"Test1");
-        REQUIRE_SUCCEEDED(wil::str_concat_nothrow(combinedStringNT, part1, part2, part3, part4));
-        REQUIRE(CompareStringOrdinal(combinedStringNT.get(), -1, L"Test1Test2Test3Test4Test5", -1, TRUE) == CSTR_EQUAL);
+        REQUIRE_SUCCEEDED(wil::str_concat_nothrow(combinedStringNT, part1, part2, part3, part4, part5));
+        REQUIRE(CompareStringOrdinal(combinedStringNT.get(), -1, L"Test1Test2Test3Test4Test5Test6", -1, TRUE) == CSTR_EQUAL);
     }
 #endif
 }
