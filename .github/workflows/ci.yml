@@ -1,0 +1,130 @@
+
+name: Windows Implementation Library CI
+permissions:
+  contents: read
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  format:
+    name: Format Check
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check Formatting
+        shell: cmd
+        run: |
+          REM The architecture is not important; we just need VCINSTALLDIR set
+          call scripts\call-vcvars.cmd x64
+          call scripts\format-changes.cmd origin/master
+          if %ERRORLEVEL% neq 0 (
+            echo ::error::ERROR: This branch contains changes that have not been formatted with 'clang-format'
+            echo NOTE:  To resolve this issue, you can run 'clang-format' in the following ways:
+            echo        * Run `scripts/format-changes.cmd ^<branch^>` where '^<branch^>' is either 'origin/master' or 'upstream/master'
+            echo          depending on whether or not this is a fork. This will only format the changes you made relative to the
+            echo          master branch in the 'microsoft/wil' repo.
+            echo        * Run `scripts/run-clang-format.cmd` which will run 'clang-format' on _all_ source files. This script is
+            echo          simpler to run, however there's a chance it may touch additional files you never changed due to you having
+            echo          a mis-matched version of 'clang-format'. This may require you to manually revert changes made by
+            echo          'clang-format' to the locations where you made no code changes.
+            echo        * Build the 'format' target ^(e.g. `ninja format`^). This is equivalent to running the second option above.
+            echo.
+            echo        For more information, please see https://github.com/microsoft/wil?tab=readme-ov-file#formatting
+            echo.
+            echo NOTE:  As an additional note, given that different versions of 'clang-format' may have different behaviors, this
+            echo        may be a false positive. If you believe that to be the case ^(e.g. none of the above resulted in modifications
+            echo        to the code you have changed^), please note this in your PR.
+            echo ----------------------------------------------
+            echo See below for the file^(s^) that have changed:
+            git diff
+            exit /b 1
+          )
+
+  build_and_test:
+    name: Build and Test
+    strategy:
+      matrix:
+        host: [ windows-latest, windows-11-arm ]
+        arch: [ x64, x64_x86, arm64 ]
+        compiler: [ msvc, clang ]
+        config: [ debug, relwithdebinfo ]
+        exclude:
+          - host: windows-latest
+            arch: arm64
+          - host: windows-11-arm
+            arch: x64
+          - host: windows-11-arm
+            arch: x64_x86
+
+    runs-on: ${{matrix.host}}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install/Update Clang
+        if: matrix.compiler == 'clang'
+        shell: cmd
+        run: |
+          choco upgrade llvm -y
+          if %ERRORLEVEL% NEQ 0 exit /b %ERRORLEVEL%
+
+          REM This is somewhat of a hack... we want to use the path to LLVM instead of MSVC's LLVM installation, but
+          REM _only_ when we're actually building with Clang. This is taking advantage of the fact that we're only
+          REM setting this variable when 'matrix.compiler' is 'clang'.
+          echo LLVM_PATH=C:\Program Files\LLVM\bin >> %GITHUB_ENV%
+
+      - name: Initialize CMake
+        shell: cmd
+        run: |
+          call scripts\call-vcvars.cmd ${{matrix.arch}}
+          if %ERRORLEVEL% NEQ 0 goto :eof
+
+          REM vcvarsall likes to stick it's dirty fingers into the root of the PATH, which means we'll pick up the
+          REM version of LLVM installed with VS, which we _don't_ want.
+          set PATH=%LLVM_PATH%;%PATH%
+
+          call scripts\init.cmd -c ${{matrix.compiler}} -b ${{matrix.config}}
+
+      - name: Build Tests
+        shell: cmd
+        run: |
+          call scripts\call-vcvars.cmd ${{matrix.arch}}
+          if %ERRORLEVEL% NEQ 0 goto :eof
+
+          REM vcvarsall likes to stick it's dirty fingers into the root of the PATH, which means we'll pick up the
+          REM version of LLVM installed with VS, which we _don't_ want.
+          set PATH=%LLVM_PATH%;%PATH%
+
+          call scripts\build_all.cmd
+
+      - name: Run Tests
+        shell: cmd
+        run: |
+          call scripts\call-vcvars.cmd ${{matrix.arch}}
+          if %ERRORLEVEL% NEQ 0 goto :eof
+
+          REM vcvarsall likes to stick it's dirty fingers into the root of the PATH, which means we'll pick up the
+          REM version of LLVM installed with VS, which we _don't_ want.
+          set PATH=%LLVM_PATH%;%PATH%
+
+          REM NOTE: You can add '-s' to display detailed information about passing assertions, which can be helpful for diagnosing
+          REM hanging tests, however the callstack logic has mostly rendered this unnecssary for most scenarios.
+          REM That said, we do pass '-d yes' so that it's easier to see which tests were run immediately before a hanging/crashing test
+          call scripts\runtests.cmd ~[LocalOnly] -d yes
+
+  # This is somewhat of a hack... The branch protection rules on GitHub "expand" jobs that have matrices into all
+  # "instances" that correspond with that matrix... To make CI requirements easier to manage, use 'needs' here as a way
+  # to "collapse" all of these "instantiations" into one job
+  wil_ci:
+    name: WIL CI Requirement
+    runs-on: windows-latest
+    needs: [ build_and_test, format ]
+    steps:
+      - name: Success
+        run: echo All CI checks passed!
