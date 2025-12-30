@@ -1,5 +1,7 @@
 
 name: Windows Implementation Library CI
+permissions:
+  contents: read
 
 on:
   pull_request:
@@ -115,3 +117,14 @@ jobs:
           REM hanging tests, however the callstack logic has mostly rendered this unnecssary for most scenarios.
           REM That said, we do pass '-d yes' so that it's easier to see which tests were run immediately before a hanging/crashing test
           call scripts\runtests.cmd ~[LocalOnly] -d yes
+
+  # This is somewhat of a hack... The branch protection rules on GitHub "expand" jobs that have matrices into all
+  # "instances" that correspond with that matrix... To make CI requirements easier to manage, use 'needs' here as a way
+  # to "collapse" all of these "instantiations" into one job
+  wil_ci:
+    name: WIL CI Requirement
+    runs-on: windows-latest
+    needs: [ build_and_test, format ]
+    steps:
+      - name: Success
+        run: echo All CI checks passed!
