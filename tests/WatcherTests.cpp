@@ -4,7 +4,7 @@
 #include <wil/registry.h>
 #include <wil/resource.h>
 
-#include <memory> // For shared_event_watcher
+#include <memory>         // For shared_event_watcher
 #include <wil/resource.h> // NOLINT(readability-duplicate-include): Intentionally testing "light up" code
 
 #include "common.h"
@@ -112,7 +112,7 @@ TEST_CASE("EventWatcherTests::DoNotResetEvent", "[resource][event_watcher]")
     REQUIRE(watcher != nullptr);
     watchedEvent.SetEvent();
     REQUIRE(notificationReceived.wait(5000)); // 5 second max wait
-    REQUIRE(watchedEvent.is_signaled()); // event should still be signaled
+    REQUIRE(watchedEvent.is_signaled());      // event should still be signaled
 }
 
 TEST_CASE("EventWatcherTests::VerifyDelivery", "[resource][event_watcher]")

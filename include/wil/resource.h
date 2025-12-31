@@ -3953,14 +3953,16 @@ unique_event_watcher_nothrow make_event_watcher_nothrow(
     return watcher; // caller must test for success using if (watcher)
 }
 
-inline unique_event_watcher_nothrow make_event_watcher_nothrow(_In_ HANDLE eventHandle, wistd::function<void()>&& callback, event_watcher_options options = event_watcher_options::reset_event) WI_NOEXCEPT
+inline unique_event_watcher_nothrow make_event_watcher_nothrow(
+    _In_ HANDLE eventHandle, wistd::function<void()>&& callback, event_watcher_options options = event_watcher_options::reset_event) WI_NOEXCEPT
 {
     unique_event_watcher_nothrow watcher;
     watcher.create(eventHandle, wistd::move(callback), options);
     return watcher; // caller must test for success using if (watcher)
 }
 
-inline unique_event_watcher_nothrow make_event_watcher_nothrow(wistd::function<void()>&& callback, event_watcher_options options = event_watcher_options::reset_event) WI_NOEXCEPT
+inline unique_event_watcher_nothrow make_event_watcher_nothrow(
+    wistd::function<void()>&& callback, event_watcher_options options = event_watcher_options::reset_event) WI_NOEXCEPT
 {
     unique_event_watcher_nothrow watcher;
     watcher.create(wistd::move(callback), options);
@@ -3970,17 +3972,20 @@ inline unique_event_watcher_nothrow make_event_watcher_nothrow(wistd::function<v
 template <typename err_policy>
 unique_event_watcher_failfast make_event_watcher_failfast(
     unique_any_t<event_t<details::unique_storage<details::handle_resource_policy>, err_policy>>&& eventHandle,
-    wistd::function<void()>&& callback, event_watcher_options options = event_watcher_options::reset_event)
+    wistd::function<void()>&& callback,
+    event_watcher_options options = event_watcher_options::reset_event)
 {
     return unique_event_watcher_failfast(wistd::move(eventHandle), wistd::move(callback), options);
 }
 
-inline unique_event_watcher_failfast make_event_watcher_failfast(_In_ HANDLE eventHandle, wistd::function<void()>&& callback, event_watcher_options options = event_watcher_options::reset_event)
+inline unique_event_watcher_failfast make_event_watcher_failfast(
+    _In_ HANDLE eventHandle, wistd::function<void()>&& callback, event_watcher_options options = event_watcher_options::reset_event)
 {
     return unique_event_watcher_failfast(eventHandle, wistd::move(callback), options);
 }
 
-inline unique_event_watcher_failfast make_event_watcher_failfast(wistd::function<void()>&& callback, event_watcher_options options = event_watcher_options::reset_event)
+inline unique_event_watcher_failfast make_event_watcher_failfast(
+    wistd::function<void()>&& callback, event_watcher_options options = event_watcher_options::reset_event)
 {
     return unique_event_watcher_failfast(wistd::move(callback), options);
 }
@@ -3991,12 +3996,14 @@ typedef unique_any_t<event_watcher_t<details::unique_storage<details::event_watc
 template <typename err_policy>
 unique_event_watcher make_event_watcher(
     unique_any_t<event_t<details::unique_storage<details::handle_resource_policy>, err_policy>>&& eventHandle,
-    wistd::function<void()>&& callback, event_watcher_options options = event_watcher_options::reset_event)
+    wistd::function<void()>&& callback,
+    event_watcher_options options = event_watcher_options::reset_event)
 {
     return unique_event_watcher(wistd::move(eventHandle), wistd::move(callback), options);
 }
 
-inline unique_event_watcher make_event_watcher(_In_ HANDLE eventHandle, wistd::function<void()>&& callback, event_watcher_options options = event_watcher_options::reset_event)
+inline unique_event_watcher make_event_watcher(
+    _In_ HANDLE eventHandle, wistd::function<void()>&& callback, event_watcher_options options = event_watcher_options::reset_event)
 {
     return unique_event_watcher(eventHandle, wistd::move(callback), options);
 }
@@ -4394,7 +4401,7 @@ struct hlocal_secure_deleter
     {
         if (ptr)
         {
-#pragma warning(suppress : 26006 26007)            // LocalSize() ensures proper buffer length
+#pragma warning(suppress : 26006 26007)                // LocalSize() ensures proper buffer length
             ::SecureZeroMemory(ptr, ::LocalSize(ptr)); // this is safe since LocalSize() returns 0 on failure
             ::LocalFree(ptr);
         }
