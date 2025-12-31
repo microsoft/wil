@@ -85,6 +85,36 @@ static auto make_event(wil::EventOptions options = wil::EventOptions::None)
     return result;
 }
 
+TEST_CASE("EventWatcherTests::DoNotResetEvent", "[resource][event_watcher]")
+{
+    // Create an event with all access. Use DuplicateHandle to create a second handle without
+    // the EVENT_MODIFY_STATE right, so we can test that the event was not reset by the watcher.
+    auto notificationReceived = make_event(wil::EventOptions::ManualReset);
+    auto watchedEvent = make_event(wil::EventOptions::ManualReset);
+    wil::unique_event_nothrow watchedEventSynchronize;
+    REQUIRE(DuplicateHandle(
+        GetCurrentProcess(),
+        watchedEvent.get(),
+        GetCurrentProcess(),
+        &watchedEventSynchronize,
+        SYNCHRONIZE, // no EVENT_MODIFY_STATE
+        FALSE,
+        0));
+    int volatile countObserved = 0;
+    auto watcher = wil::make_event_watcher_nothrow(
+        wistd::move(watchedEventSynchronize),
+        [&] {
+            countObserved = countObserved + 1;
+            notificationReceived.SetEvent();
+        },
+        wil::event_watcher_options::none);
+
+    REQUIRE(watcher != nullptr);
+    watchedEvent.SetEvent();
+    REQUIRE(notificationReceived.wait(5000)); // 5 second max wait
+    REQUIRE(watchedEvent.is_signaled()); // event should still be signaled
+}
+
 TEST_CASE("EventWatcherTests::VerifyDelivery", "[resource][event_watcher]")
 {
     auto notificationReceived = make_event();
