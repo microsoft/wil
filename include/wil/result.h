@@ -383,65 +383,66 @@ namespace details_abi
 
         ~ThreadLocalStorage() WI_NOEXCEPT
         {
-            for (auto& entry : m_hashArray)
-            {
-                Node* pNode = entry;
-                while (pNode != nullptr)
-                {
-                    auto pCurrent = pNode;
-#pragma warning(push)
-#pragma warning(disable : 6001) // https://github.com/microsoft/wil/issues/164
-                    pNode = pNode->pNext;
-#pragma warning(pop)
-                    pCurrent->~Node();
-                    ::HeapFree(::GetProcessHeap(), 0, pCurrent);
-                }
-                entry = nullptr;
-            }
+            // Cleanup is automatic via unique_process_heap_ptr destructors
         }
 
         // Note: Can return nullptr even when (shouldAllocate == true) upon allocation failure
         T* GetLocal(bool shouldAllocate = false) WI_NOEXCEPT
         {
+            // Get the current thread ID
             DWORD const threadId = ::GetCurrentThreadId();
+
+            // Determine the appropriate bucket for this thread
             size_t const index = ((threadId >> 2) % ARRAYSIZE(m_hashArray)); // Reduce hash collisions; thread IDs are even.
-            for (auto pNode = m_hashArray[index]; pNode != nullptr; pNode = pNode->pNext)
-            {
-                if (pNode->threadId == threadId)
-                {
-                    return &pNode->value;
-                }
-            }
+            Bucket& bucket = m_hashArray[index];
 
-            if (shouldAllocate)
+            // Lock the bucket and search for an existing entry
             {
-                if (auto pNewRaw = details::ProcessHeapAlloc(0, sizeof(Node)))
+                auto lock = bucket.lock.lock_shared();
+                for (auto pNode = bucket.head.get(); pNode != nullptr; pNode = pNode->pNext.get())
                 {
-                    auto pNew = new (pNewRaw) Node{threadId};
-
-                    Node* pFirst;
-                    do
+                    if (pNode->threadId == threadId)
                     {
-                        pFirst = m_hashArray[index];
-                        pNew->pNext = pFirst;
-                    } while (::InterlockedCompareExchangePointer(reinterpret_cast<PVOID volatile*>(m_hashArray + index), pNew, pFirst) !=
-                             pFirst);
-
-                    return &pNew->value;
+                        return &pNode->value;
+                    }
                 }
             }
-            return nullptr;
+
+            if (!shouldAllocate)
+            {
+                return nullptr;
+            }
+
+            // No entry for us, make a new one and insert it at the head
+            wil::unique_process_heap_ptr<Node> newNode;
+            void* newMemory = details::ProcessHeapAlloc(0, sizeof(Node));
+            if (!newMemory)
+            {
+                return nullptr;
+            }
+            newNode.reset(new (newMemory) Node{threadId});
+
+            auto lock = bucket.lock.lock_exclusive();
+            newNode->pNext = wistd::move(bucket.head);
+            bucket.head = wistd::move(newNode);
+            return &bucket.head->value;
         }
 
     private:
         struct Node
         {
             DWORD threadId = 0xffffffffU;
-            Node* pNext = nullptr;
+            wil::unique_process_heap_ptr<Node> pNext;
             T value{};
         };
 
-        Node* volatile m_hashArray[10]{};
+        struct Bucket
+        {
+            wil::srwlock lock;
+            wil::unique_process_heap_ptr<Node> head;
+        };
+
+        Bucket m_hashArray[10]{};
     };
 
     struct ThreadLocalFailureInfo

@@ -12,6 +12,10 @@
 
 #include "common.h"
 
+#include <thread>
+#include <vector>
+#include <atomic>
+
 static volatile long objectCount = 0;
 struct SharedObject
 {
@@ -772,4 +776,62 @@ TEST_CASE("ResultTests::ReportDoesNotChangeLastError", "[result]")
     ::SetLastError(ERROR_ABIOS_ERROR);
     LOG_IF_WIN32_BOOL_FALSE(FALSE);
     REQUIRE(::GetLastError() == ERROR_ABIOS_ERROR);
+}
+
+TEST_CASE("ResultTests::ThreadLocalStorage", "[result]")
+{
+    constexpr int NUM_THREADS = 10;
+    constexpr int ITERATIONS = 1000;
+    
+    wil::details_abi::ThreadLocalStorage<int> storage;
+    std::atomic<int> errors{0};
+    std::vector<std::thread> threads;
+
+    // Create multiple threads that will access the thread local storage concurrently
+    for (int i = 0; i < NUM_THREADS; ++i)
+    {
+        threads.emplace_back([&storage, &errors, i]() {
+            for (int j = 0; j < ITERATIONS; ++j)
+            {
+                // Get or create thread local value
+                int* pValue = storage.GetLocal(true);
+                if (!pValue)
+                {
+                    errors.fetch_add(1);
+                    continue;
+                }
+
+                // First time should be zero-initialized
+                if (j == 0 && *pValue != 0)
+                {
+                    errors.fetch_add(1);
+                }
+
+                // Set a thread-specific value
+                *pValue = i * 1000 + j;
+
+                // Verify we get the same pointer on subsequent calls
+                int* pValue2 = storage.GetLocal(false);
+                if (pValue != pValue2)
+                {
+                    errors.fetch_add(1);
+                }
+
+                // Verify the value is correct
+                if (*pValue2 != i * 1000 + j)
+                {
+                    errors.fetch_add(1);
+                }
+            }
+        });
+    }
+
+    // Wait for all threads to complete
+    for (auto& thread : threads)
+    {
+        thread.join();
+    }
+
+    // Verify no errors occurred
+    REQUIRE(errors.load() == 0);
 }
