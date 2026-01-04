@@ -423,6 +423,17 @@ namespace details_abi
             newNode.reset(new (newMemory) Node{threadId});
 
             auto lock = bucket.lock.lock_exclusive();
+            
+            // Check again if an entry was created by another thread while we were waiting for the exclusive lock
+            for (auto pNode = bucket.head.get(); pNode != nullptr; pNode = pNode->pNext.get())
+            {
+                if (pNode->threadId == threadId)
+                {
+                    return &pNode->value;
+                }
+            }
+            
+            // No duplicate entry, safe to insert
             newNode->pNext = wistd::move(bucket.head);
             bucket.head = wistd::move(newNode);
             return &bucket.head->value;
