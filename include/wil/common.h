@@ -83,7 +83,75 @@
 #endif
 /// @endcond
 
+/// @cond
+#if defined(__MINGW32__) && !defined(_NATIVE_WCHAR_T_DEFINED)
+using __wchar_t = wchar_t;
+#endif
+/// @endcond
+
 #include <sal.h>
+
+#ifdef __MINGW32__
+#ifndef _Post_z_
+#ifdef __z
+#define _Post_z_ SAL__post SAL__valid __z
+#else
+#define _Post_z_ SAL__post SAL__valid
+#endif
+#endif
+#ifndef _Pre_maybenull_
+#define _Pre_maybenull_ SAL__pre SAL__maybenull
+#endif
+#ifndef _Translates_last_error_to_HRESULT_
+#define _Translates_last_error_to_HRESULT_
+#endif
+#ifndef _Translates_Win32_to_HRESULT_
+#define _Translates_Win32_to_HRESULT_(x)
+#endif
+#ifndef _Translates_NTSTATUS_to_HRESULT_
+#define _Translates_NTSTATUS_to_HRESULT_(x)
+#endif
+#ifndef _Pre_opt_valid_
+#define _Pre_opt_valid_ SAL__pre SAL__valid SAL__maybenull
+#endif
+#ifndef _Frees_ptr_
+#define _Frees_ptr_ __drv_freesMem(Mem)
+#endif
+#ifndef _Frees_ptr_opt_
+#define _Frees_ptr_opt_ __drv_freesMem(Mem) SAL__maybenull
+#endif
+#ifndef _Pre_valid_
+#define _Pre_valid_ SAL__pre SAL__valid
+#endif
+#ifndef _Ret_opt_bytecap_
+#define _Ret_opt_bytecap_(n)
+#endif
+extern "C"
+{
+    inline void WriteRelease(long* p, long v)
+    {
+        __atomic_store_n(p, v, __ATOMIC_RELEASE);
+    }
+    inline long ReadAcquire(const long* p)
+    {
+        return __atomic_load_n(p, __ATOMIC_ACQUIRE);
+    }
+    inline long InterlockedIncrementNoFence(volatile long* ptr)
+    {
+        return __atomic_add_fetch(ptr, 1, __ATOMIC_RELAXED);
+    }
+    inline long InterlockedDecrementNoFence(volatile long* ptr)
+    {
+        return __atomic_sub_fetch(ptr, 1, __ATOMIC_RELAXED);
+    }
+#if !__has_builtin(_ReturnAddress)
+    inline void* _ReturnAddress(void)
+    {
+        return __builtin_return_address(0);
+    }
+#endif
+}
+#endif
 
 // Some SAL remapping / decoration to better support Doxygen.  Macros that look like function calls can
 // confuse Doxygen when they are used to decorate a function or variable.  We simplify some of these to
@@ -588,21 +656,23 @@ The above example is used within WIL to decide whether or not the library contai
 desktop APIs.  Building this functionality as `#IFDEF`s within functions would create ODR violations, whereas
 doing it with global function pointers and header initialization allows a runtime determination. */
 #define WI_HEADER_INITIALIZATION_FUNCTION(name, fn)
-#elif defined(_M_IX86)
+#elif defined(_M_IX86) || defined(_M_IA64) || defined(_M_AMD64) || defined(_M_ARM) || defined(_M_ARM64)
+#if defined(_MSC_VER)
+#ifdef _M_IX86
 #define WI_HEADER_INITIALIZATION_FUNCTION(name, fn) \
     extern "C" \
     { \
         __declspec(selectany) unsigned char g_header_init_##name = static_cast<unsigned char>(fn()); \
     } \
     __pragma(comment(linker, "/INCLUDE:_g_header_init_" #name))
-#elif defined(_M_IA64) || defined(_M_AMD64) || defined(_M_ARM) || defined(_M_ARM64)
-#if defined(_MSC_VER)
+#else
 #define WI_HEADER_INITIALIZATION_FUNCTION(name, fn) \
     extern "C" \
     { \
         __declspec(selectany) unsigned char g_header_init_##name = static_cast<unsigned char>(fn()); \
     } \
     __pragma(comment(linker, "/INCLUDE:g_header_init_" #name))
+#endif
 #else
 #define WI_HEADER_INITIALIZATION_FUNCTION(name, expr) inline int name##_header_init = ((expr)(), 0)
 #endif
