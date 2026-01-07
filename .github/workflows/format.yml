@@ -1,0 +1,39 @@
+
+name: Run clang-format on PR comment
+
+on:
+  issue_comment:
+    types: [ created ]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  run-clang-format:
+    if: >
+      github.event.issue.pull_request &&
+      contains(github.event.comment.body, '!run-clang-format') &&
+      (
+        github.event.comment.author_association == 'OWNER' ||
+        github.event.comment.author_association == 'MEMBER' ||
+        github.event.comment.user.login == github.event.issue.user.login
+      )
+    runs-on: windows-latest
+
+    steps:
+      - name: Run clang-format
+        shell: cmd
+        run:
+          REM 'run-clang-format' script needs 'VCINSTALLDIR' env (among maybe others) to be set
+          ./scripts/call-vcvars.cmd x64
+          ./scripts/run-clang-format.cmd origin/master
+
+      - name: Commit changes
+        shell: cmd
+        run:
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -a
+          git commit -m "Run clang-format on PR changes"
+          git push
