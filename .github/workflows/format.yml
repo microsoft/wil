@@ -24,14 +24,14 @@ jobs:
     steps:
       - name: Run clang-format
         shell: cmd
-        run:
+        run: |
           REM 'run-clang-format' script needs 'VCINSTALLDIR' env (among maybe others) to be set
           ./scripts/call-vcvars.cmd x64
           ./scripts/run-clang-format.cmd origin/master
 
       - name: Commit changes
         shell: cmd
-        run:
+        run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -a
