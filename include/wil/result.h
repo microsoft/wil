@@ -375,16 +375,39 @@ namespace details_abi
     template <typename T>
     class ThreadLocalStorage
     {
+        struct Node
+        {
+            Node* next{nullptr};
+            DWORD threadId = 0xffffffffU;
+            T value{};
+        };
+
+        struct Bucket
+        {
+            wil::srwlock lock;
+            Node* head{nullptr};
+
+            ~Bucket() WI_NOEXCEPT
+            {
+                // Cleanup in a loop rather than recursively
+                while (head)
+                {
+                    auto tmp = head;
+                    head = tmp->next;
+                    tmp->~Node();
+                    details::FreeProcessHeap(tmp);
+                }
+            }
+        };
+
+        Bucket m_hashArray[13]{};
+
     public:
         ThreadLocalStorage(const ThreadLocalStorage&) = delete;
         ThreadLocalStorage& operator=(const ThreadLocalStorage&) = delete;
 
         ThreadLocalStorage() = default;
-
-        ~ThreadLocalStorage() WI_NOEXCEPT
-        {
-            // Cleanup is automatic via unique_process_heap_ptr destructors
-        }
+        ~ThreadLocalStorage() WI_NOEXCEPT = default;
 
         // Note: Can return nullptr even when (shouldAllocate == true) upon allocation failure
         T* GetLocal(bool shouldAllocate = false) WI_NOEXCEPT
@@ -399,7 +422,7 @@ namespace details_abi
             // Lock the bucket and search for an existing entry
             {
                 auto lock = bucket.lock.lock_shared();
-                for (auto pNode = bucket.head.get(); pNode != nullptr; pNode = pNode->pNext.get())
+                for (auto pNode = bucket.head; pNode != nullptr; pNode = pNode->next)
                 {
                     if (pNode->threadId == threadId)
                     {
@@ -414,46 +437,29 @@ namespace details_abi
             }
 
             // No entry for us, make a new one and insert it at the head
-            wil::unique_process_heap_ptr<Node> newNode;
-            void* newMemory = details::ProcessHeapAlloc(0, sizeof(Node));
-            if (!newMemory)
+            void* newNodeStore = details::ProcessHeapAlloc(0, sizeof(Node));
+            if (!newNodeStore)
             {
                 return nullptr;
             }
-            newNode.reset(new (newMemory) Node{threadId});
+            auto node = new (newNodeStore) Node{nullptr, threadId};
 
-            auto lock = bucket.lock.lock_exclusive();
-            
-            // Check again if an entry was created by another thread while we were waiting for the exclusive lock
-            for (auto pNode = bucket.head.get(); pNode != nullptr; pNode = pNode->pNext.get())
+            // Look again and insert the new node
+            auto lock = bucket.lock.lock_exclusive();            
+            for (auto pNode = bucket.head; pNode != nullptr; pNode = pNode->next)
             {
                 if (pNode->threadId == threadId)
                 {
+                    node->~Node();
+                    details::FreeProcessHeap(node);
                     return &pNode->value;
                 }
             }
-            
-            // No duplicate entry, safe to insert
-            newNode->pNext = wistd::move(bucket.head);
-            bucket.head = wistd::move(newNode);
+
+            node->next = bucket.head;
+            bucket.head = node;            
             return &bucket.head->value;
         }
-
-    private:
-        struct Node
-        {
-            DWORD threadId = 0xffffffffU;
-            wil::unique_process_heap_ptr<Node> pNext;
-            T value{};
-        };
-
-        struct Bucket
-        {
-            wil::srwlock lock;
-            wil::unique_process_heap_ptr<Node> head;
-        };
-
-        Bucket m_hashArray[10]{};
     };
 
     struct ThreadLocalFailureInfo
