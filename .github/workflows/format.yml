@@ -26,7 +26,7 @@ jobs:
     outputs:
       pr-ref: ${{ steps.pr.outputs.ref }}
       pr-sha: ${{ steps.pr.outputs.sha }}
-      has-changes: ${{ steps.check-changes.outputs.has-changes }}
+      has-changes: ${{ steps.format.outputs.has-changes }}
 
     steps:
       - name: Get PR info
@@ -60,24 +60,18 @@ jobs:
         run: |
           REM 'run-clang-format' script needs 'VCINSTALLDIR' env (among maybe others) to be set
           call ./scripts/call-vcvars.cmd x64
-          call ./scripts/format-changes.cmd origin/master
-
-      - name: Check for changes
-        id: check-changes
-        shell: cmd
-        run: |
-          git diff --quiet && echo has-changes=false>> %GITHUB_OUTPUT% || echo has-changes=true>> %GITHUB_OUTPUT%
-          REM Don't let the exit code of 'git diff' cause this step to fail
+          call ./scripts/format-changes.cmd origin/master && echo has-changes=false>> %GITHUB_OUTPUT% || echo has-changes=true>> %GITHUB_OUTPUT%
+          REM Don't let the exit code of 'git clang-format' cause this step to fail
           exit /b 0
 
       - name: Create patch
-        if: steps.check-changes.outputs.has-changes == 'true'
+        if: steps.format.outputs.has-changes == 'true'
         shell: cmd
         run: |
           git diff > format-changes.patch
 
       - name: Upload patch
-        if: steps.check-changes.outputs.has-changes == 'true'
+        if: steps.format.outputs.has-changes == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: format-patch
