@@ -62,13 +62,17 @@ jobs:
 
       - name: Run clang-format
         id: format
-        shell: cmd
+        shell: pwsh
         run: |
-          REM 'run-clang-format' script needs 'VCINSTALLDIR' env (among maybe others) to be set
-          call ./scripts/call-vcvars.cmd x64
-          call ./scripts/format-changes.cmd origin/master && echo has-changes=false>> %GITHUB_OUTPUT% || echo has-changes=true>> %GITHUB_OUTPUT%
-          REM Don't let the exit code of 'git clang-format' cause this step to fail
-          exit /b 0
+          # 'run-clang-format' script needs 'VCINSTALLDIR' env (among maybe others) to be set
+          & cmd /c "call ./scripts/call-vcvars.cmd x64 && call ./scripts/format-changes.cmd origin/master"
+          if ($LASTEXITCODE -eq 0) {
+              "has-changes=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -NoNewline
+          } else {
+              "has-changes=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -NoNewline
+          }
+          # Don't let the exit code of 'git clang-format' cause this step to fail
+          exit 0
 
       - name: Create patch
         if: steps.format.outputs.has-changes == 'true'
