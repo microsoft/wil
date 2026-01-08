@@ -60,7 +60,7 @@ jobs:
         run: |
           REM 'run-clang-format' script needs 'VCINSTALLDIR' env (among maybe others) to be set
           call ./scripts/call-vcvars.cmd x64
-          call ./scripts/run-clang-format.cmd origin/master
+          call ./scripts/format-changes.cmd origin/master
 
       - name: Check for changes
         id: check-changes
