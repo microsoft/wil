@@ -59,14 +59,14 @@ jobs:
         shell: cmd
         run: |
           REM 'run-clang-format' script needs 'VCINSTALLDIR' env (among maybe others) to be set
-          ./scripts/call-vcvars.cmd x64
-          ./scripts/run-clang-format.cmd origin/master
+          call ./scripts/call-vcvars.cmd x64
+          call ./scripts/run-clang-format.cmd origin/master
 
       - name: Check for changes
         id: check-changes
         shell: cmd
         run: |
-          git diff --quiet && echo has-changes=false >> %GITHUB_OUTPUT% || echo has-changes=true >> %GITHUB_OUTPUT%
+          git diff --quiet && echo has-changes=false>> %GITHUB_OUTPUT% || echo has-changes=true>> %GITHUB_OUTPUT%
 
       - name: Create patch
         if: steps.check-changes.outputs.has-changes == 'true'
