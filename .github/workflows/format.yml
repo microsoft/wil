@@ -2,14 +2,8 @@
 name: Run clang-format on PR comment
 
 on:
-  pull_request:
-  push:
-    branches:
-      - master
-
-# on:
-#   issue_comment:
-#     types: [ created ]
+  issue_comment:
+    types: [ created ]
 
 permissions:
   pull-requests: write
@@ -17,13 +11,13 @@ permissions:
 jobs:
   # Job 1: Run formatting in sandbox with no write permissions
   format-code:
-    # if: >
-    #   github.event.issue.pull_request &&
-    #   contains(github.event.comment.body, '!run-clang-format') &&
-    #   (
-    #     github.event.comment.author_association == 'OWNER' ||
-    #     github.event.comment.author_association == 'MEMBER'
-    #   )
+    if: >
+      github.event.issue.pull_request &&
+      contains(github.event.comment.body, '!run-clang-format') &&
+      (
+        github.event.comment.author_association == 'OWNER' ||
+        github.event.comment.author_association == 'MEMBER'
+      )
     runs-on: windows-latest
     permissions:
       pull-requests: read
