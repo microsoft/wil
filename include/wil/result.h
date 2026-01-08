@@ -445,7 +445,7 @@ namespace details_abi
             auto node = new (newNodeStore) Node{nullptr, threadId};
 
             // Look again and insert the new node
-            auto lock = bucket.lock.lock_exclusive();            
+            auto lock = bucket.lock.lock_exclusive();
             for (auto pNode = bucket.head; pNode != nullptr; pNode = pNode->next)
             {
                 if (pNode->threadId == threadId)
@@ -457,7 +457,7 @@ namespace details_abi
             }
 
             node->next = bucket.head;
-            bucket.head = node;            
+            bucket.head = node;
             return &bucket.head->value;
         }
     };

@@ -782,7 +782,7 @@ TEST_CASE("ResultTests::ThreadLocalStorage", "[result]")
 {
     constexpr int NUM_THREADS = 10;
     constexpr int ITERATIONS = 1000;
-    
+
     wil::details_abi::ThreadLocalStorage<int> storage;
     std::atomic<int> errors{0};
     std::vector<std::thread> threads;
