@@ -2,8 +2,14 @@
 name: Run clang-format on PR comment
 
 on:
-  issue_comment:
-    types: [ created ]
+  pull_request:
+  push:
+    branches:
+      - master
+
+# on:
+#   issue_comment:
+#     types: [ created ]
 
 permissions:
   pull-requests: write
