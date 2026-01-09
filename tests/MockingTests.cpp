@@ -7,11 +7,13 @@
 #include <thread>
 #endif
 
-DWORD __stdcall InvertFileAttributes(PCWSTR path)
+static DWORD __stdcall InvertFileAttributes(PCWSTR path)
 {
-    thread_local bool recursive = false;
+    thread_local static bool recursive = false;
     if (recursive)
+    {
         return INVALID_FILE_ATTRIBUTES;
+    }
 
     recursive = true;
     auto result = ::GetFileAttributesW(path);
@@ -97,7 +99,7 @@ TEST_CASE("MockingTests::GlobalDetourWithLambda", "[mocking]")
 }
 
 #pragma optimize("", off) // Don't evaluate at compile-time
-__declspec(noinline) int __cdecl LocalAddFunction(int lhs, int rhs)
+__declspec(noinline) static int __cdecl LocalAddFunction(int lhs, int rhs)
 {
     return lhs + rhs;
 }
@@ -130,12 +132,12 @@ TEST_CASE("MockingTests::GlobalDetourLocalFunction", "[mocking]")
     REQUIRE(LocalAddFunction(2, 3) == 5);
 }
 
-__declspec(noinline) int __cdecl LocalAddFunctionNoexcept(int lhs, int rhs) noexcept
+__declspec(noinline) static int __cdecl LocalAddFunctionNoexcept(int lhs, int rhs) noexcept
 {
     return lhs + rhs;
 }
 
-__declspec(noinline) int __stdcall LocalAddFunctionStdcallNoexcept(int lhs, int rhs) noexcept
+__declspec(noinline) static int __stdcall LocalAddFunctionStdcallNoexcept(int lhs, int rhs) noexcept
 {
     return lhs + rhs;
 }
@@ -370,10 +372,10 @@ TEST_CASE("MockingTests::GlobalDetourDestructorRace", "[mocking]")
     wil::unique_event nonDetourContinueEvent(wil::EventOptions::None);
     wil::unique_event nonDetourCompleteEvent(wil::EventOptions::None);
     witest::detoured_thread_function<&::SleepConditionVariableSRW> cvWaitDetour(
-        [&](PCONDITION_VARIABLE cv, PSRWLOCK lock, DWORD dwMilliseconds, ULONG flags) {
+        [&](PCONDITION_VARIABLE condVar, PSRWLOCK lock, DWORD dwMilliseconds, ULONG flags) {
             // This should be called during the call to 'reset' since there's an "active" call
             nonDetourContinueEvent.SetEvent(); // Kick off a non-detoured call
-            return ::SleepConditionVariableSRW(cv, lock, dwMilliseconds, flags);
+            return ::SleepConditionVariableSRW(condVar, lock, dwMilliseconds, flags);
         });
 
     witest::detoured_global_function<&LocalAddFunction> detour([&](int lhs, int rhs) {

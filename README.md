@@ -20,7 +20,7 @@ Some things that WIL includes to whet your appetite:
 - [`include/wil/registry.h`](include/wil/registry.h) ([documentation](https://github.com/microsoft/wil/wiki/Registry-Helpers)): Type-safe functions to read from, write to,
   and watch the registry. Also, registry watchers that can call a lambda function or a callback function
   you provide whenever a certain tree within the Windows registry changes.
-- [`include/wil/network.h`](include/wil/network.h): Supports Winsock and network APIs
+- [`include/wil/network.h`](include/wil/network.h): ([documentation](https://github.com/microsoft/wil/wiki/Network-Helpers)) Supports Winsock and network APIs
   by providing a header-include list which addresses the inter-header include dependendies;
   provides RAII objects for WSAStartup refcounts as well as the various addrinfo* types
   returned from the family of getaddrinfo* functions; provides a type-safe class for managing
@@ -173,16 +173,16 @@ C:\wil> ctest --preset "msvc-release"
 For command-line Ninja (configured with `init.cmd -c clang -b debug`) build use, some examples:
 ```powershell
 # Build all tests
-C:\wil> ninja -C build\clang64debug
+C:\wil> ninja -C build\clang-x64-debug
 
 # Build only one test
-C:\wil> ninja -C build\clang64debug witest
+C:\wil> ninja -C build\clang-x64-debug witest
 
 # Clean outputs, then build one target
-C:\wil> ninja -C build\clang64debug -j 0 clean witest.app
+C:\wil> ninja -C build\clang-x64-debug -j 0 clean witest.app
 
 # Run the tests (PowerShell)
-C:\wil> Get-ChildItem -Recurse -File build\clang64debug\witest*.exe | %{ Write-Host $_ ; & $_ }
+C:\wil> Get-ChildItem -Recurse -File build\clang-x64-debug\witest*.exe | %{ Write-Host $_ ; & $_ }
 
 # Run the tests (cmd)
 C:\wil> for /F %f IN ('dir /s /b build\clang\tests\witest*.exe') do %f
@@ -205,8 +205,6 @@ C:\wil> scripts\init_all.cmd
 C:\wil> scripts\build_all.cmd
 C:\wil> scripts\runtests.cmd
 ```
-Note that this will only test for the architecture that corresponds to the command window you opened. You will want to
-repeat this process for the other architecture (e.g. by using the `x86 Native Tools Command Prompt for VS 2022` in addition to `x64`).
 
 ## Formatting
 
@@ -270,7 +268,7 @@ C:\wil> scripts\run-clang-format.cmd
 ```
 Additionally, we've added a build target that will invoke this script, named `format`:
 ```cmd
-C:\wil\build\clang64debug> ninja format
+C:\wil\build\clang-x64-debug> ninja format
 ```
 Please note that this all assumes that your Visual Studio installation is up to date.
 If it's out of date, code unrelated to your changes may get formatted unexpectedly.

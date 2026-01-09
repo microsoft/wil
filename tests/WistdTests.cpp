@@ -6,22 +6,22 @@
 #include "test_objects.h"
 
 // Test methods/objects
-int GetValue()
+static int GetValue()
 {
     return 42;
 }
 
-int GetOtherValue()
+static int GetOtherValue()
 {
     return 8;
 }
 
-int Negate(int value)
+static int Negate(int value)
 {
     return -value;
 }
 
-int Add(int lhs, int rhs)
+static int Add(int lhs, int rhs)
 {
     return lhs + rhs;
 }
@@ -75,7 +75,7 @@ TEST_CASE("WistdFunctionTests::CopyConstructionTest", "[wistd]")
         };
         REQUIRE(0 == copyFrom());
 
-        auto copyTo = copyFrom;
+        auto copyTo = copyFrom; // NOLINT(performance-unnecessary-copy-initialization): Just for testing
         REQUIRE(1 == copyTo());
     }
 
@@ -182,14 +182,15 @@ TEST_CASE("WistdFunctionTests::SwapTest", "[wistd]")
 // MSVC's optimizer has had issues with wistd::function in the past when forwarding wistd::function objects to a
 // function that accepts the arguments by value. This test exercises the workaround that we have in place. Note
 // that this of course requires building with optimizations enabled
-void ForwardingTest(wistd::function<int()> getValue, wistd::function<int(int)> negate, wistd::function<int(int, int)> add)
+// NOLINTNEXTLINE(performance-unnecessary-value-param): This is testing a very specific scenario
+static void ForwardingTest(wistd::function<int()> getValue, wistd::function<int(int)> negate, wistd::function<int(int, int)> add)
 {
     // Previously, this would cause a runtime crash
     REQUIRE(Add(GetValue(), Negate(8)) == add(getValue(), negate(8)));
 }
 
 template <typename... Args>
-void CallForwardingTest(Args&&... args)
+static void CallForwardingTest(Args&&... args)
 {
     ForwardingTest(wistd::forward<Args>(args)...);
 }

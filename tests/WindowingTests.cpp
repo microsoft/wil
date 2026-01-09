@@ -149,7 +149,7 @@ TEST_CASE("EnumThreadWindows", "[windowing]")
 #endif
 }
 
-bool has_child_window(HWND hwnd)
+static bool has_child_window(HWND hwnd)
 {
     bool hasChildWindow = false;
     wil::for_each_child_window_nothrow(hwnd, [&hasChildWindow](HWND) {
@@ -236,7 +236,7 @@ TEST_CASE("EnumChildWindows", "[windowing]")
         wil::for_each_child_window(parent, [&windows](HWND hwnd) {
             windows.push_back(hwnd);
         });
-        REQUIRE(windows.size() > 0);
+        REQUIRE(!windows.empty());
         wil::for_each_child_window(parent, [windows = std::vector<HWND>{}](HWND hwnd) mutable {
             windows.push_back(hwnd);
         });

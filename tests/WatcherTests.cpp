@@ -5,7 +5,7 @@
 #include <wil/resource.h>
 
 #include <memory> // For shared_event_watcher
-#include <wil/resource.h>
+#include <wil/resource.h> // NOLINT(readability-duplicate-include): Intentionally testing "light up" code
 
 #include "common.h"
 
@@ -190,7 +190,7 @@ TEST_CASE("RegistryWatcherTests::Construction", "[registry][registry_watcher]")
 #endif
 }
 
-void SetRegistryValue(
+static void SetRegistryValue(
     _In_ HKEY hKey,
     _In_opt_ LPCWSTR lpSubKey,
     _In_opt_ LPCWSTR lpValueName,
@@ -252,7 +252,8 @@ TEST_CASE("RegistryWatcherTests::VerifyLastChangeObserved", "[registry][registry
         allChangesMade.wait();
         countObserved = countObserved + 1;
         lastObservedState = stateToObserve;
-        DWORD value, cbValue = sizeof(value);
+        DWORD value;
+        DWORD cbValue = sizeof(value);
         RegGetValueW(ROOT_KEY_PAIR, L"value", RRF_RT_REG_DWORD, nullptr, &value, &cbValue);
         lastObservedValue = value;
         processedChange.SetEvent();
@@ -298,6 +299,7 @@ TEST_CASE("RegistryWatcherTests::VerifyDeleteBehavior", "[registry][registry_wat
 
 TEST_CASE("RegistryWatcherTests::VerifyResetInCallback", "[registry][registry_watcher]")
 {
+    ::RegDeleteTreeW(ROOT_KEY_PAIR);
     auto notificationReceived = make_event();
 
     wil::unique_registry_watcher_nothrow watcher = wil::make_registry_watcher_nothrow(ROOT_KEY_PAIR, TRUE, [&](wil::RegistryChangeKind) {
@@ -324,7 +326,7 @@ TEST_CASE("RegistryWatcherTests::VerifyResetInCallbackStress", "[LocalOnly][regi
         wil::unique_registry_watcher_nothrow watcher =
             wil::make_registry_watcher_nothrow(ROOT_KEY_PAIR, TRUE, [&](wil::RegistryChangeKind) {
                 {
-                    auto al = lock.lock_exclusive();
+                    auto guard = lock.lock_exclusive();
                     watcher.reset(); // get m_refCount to 1 to ensure the Release happens on the background thread
                 }
                 ++value;
@@ -337,7 +339,7 @@ TEST_CASE("RegistryWatcherTests::VerifyResetInCallbackStress", "[LocalOnly][regi
         notificationReceived.wait();
 
         {
-            auto al = lock.lock_exclusive();
+            auto guard = lock.lock_exclusive();
             watcher.reset();
         }
     }
@@ -412,18 +414,16 @@ TEST_CASE("RegistryWatcherTests::VerifyDeleteDuringNotification", "[registry][re
     REQUIRE_SUCCEEDED(mockRegNotifyChangeKeyValue.reset([&](HKEY, BOOL, DWORD, HANDLE event, BOOL) -> LSTATUS {
         if (!mockObserved)
         {
-            mockObserved++;
+            ++mockObserved;
             SetEvent(event);
             // on watcher create just return
             return ERROR_SUCCESS;
         }
-        else
-        {
-            mockObserved++;
-            notificationReceived.SetEvent();
-            deleteNotification.wait();
-            return ERROR_SUCCESS;
-        }
+
+        ++mockObserved;
+        notificationReceived.SetEvent();
+        deleteNotification.wait();
+        return ERROR_SUCCESS;
     }));
 
     auto watcher = wil::make_registry_watcher(ROOT_KEY_PAIR, true, [&](wil::RegistryChangeKind) {});

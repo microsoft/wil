@@ -4,9 +4,6 @@ include(${PROJECT_SOURCE_DIR}/cmake/common_build_flags.cmake)
 # All projects need to reference the WIL headers
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
-# TODO: Might be worth trying to conditionally do this on SDK version, assuming there's a semi-easy way to detect that
-include_directories(BEFORE SYSTEM ./workarounds/wrl)
-
 # Because we don't always use msbuild, we need to run nuget manually
 find_program(NUGET nuget)
 if (NOT NUGET)
@@ -62,7 +59,6 @@ if (MSVC AND "${CMAKE_BUILD_TYPE}" STREQUAL "RelWithDebInfo")
 endif()
 
 set(COMMON_SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/CommonTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ComTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/FileSystemTests.cpp
@@ -72,6 +68,7 @@ set(COMMON_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/ResultTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Rpc.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/SafeCastTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/StlTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/TraceLoggingTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/TraceLoggingTests_PartB.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/WindowingTests.cpp
@@ -79,6 +76,43 @@ set(COMMON_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/wiTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../natvis/wil.natvis
     )
+
+# Source files that can be compiled downlevel to at least Win7
+set(DOWNLEVEL_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/NetworkTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/RegistryTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/TokenHelpersTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/WatcherTests.cpp
+    )
+
+# Source files that require WinRT (Win8+ & can compile with App partition)
+set(WINRT_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/UniqueWinRTEventTokenTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/WinRTTests.cpp
+    )
+
+# Source files that can compile on Win11+, but only on the Destkop partition
+set(WIN11_DESTKTOP_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/WinVerifyTrustTest.cpp
+    )
+
+# Source files that require C++20
+set(CPP20_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/CoroutineTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/CppWinRT20Tests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/CppWinRTAuthoringTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/CppWinRTTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/app.manifest
+    )
+
+# It appears as though Clang has some issues with exception handling inside of coroutines, which causes issues when
+# trying to run the ComApartmentVariableTests.cpp tests, so disable on Clang for now
+if (NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    set(CPP20_SOURCES
+        ${CPP20_SOURCES}
+        ${CMAKE_CURRENT_SOURCE_DIR}/ComApartmentVariableTests.cpp
+        )
+endif()
 
 if (MSVC)
     add_link_options(/NATVIS:${CMAKE_SOURCE_DIR}/natvis/wil.natvis)
@@ -91,55 +125,46 @@ find_package(Catch2 CONFIG REQUIRED)
 
 include_directories(${DETOURS_INCLUDE_DIRS})
 add_definitions(-DNOMINMAX)
-link_libraries(${DETOURS_LIBRARY} Catch2::Catch2WithMain ws2_32.lib ntdll.lib)
+
+# We build the 'app' tests just to ensure various things can build for the App partition. We don't actually run them in
+# an app container or anything. By building 'main.cpp' separately and linking to it, we allow the app tests to get the
+# same callstack printing logic as the rest of the tests.
+add_library(witest.main STATIC)
+target_sources(witest.main
+    PRIVATE
+        main.cpp
+    )
+target_link_libraries(witest.main
+    INTERFACE
+        ${DETOURS_LIBRARY}
+        Catch2::Catch2
+        ntdll.lib
+        dbghelp.lib
+        ws2_32.lib
+    )
+
+link_libraries(witest.main)
 
 add_subdirectory(app)
 add_subdirectory(cpplatest)
-add_subdirectory(cppwinrt-com-server)
-add_subdirectory(cppwinrt-com-server-custom-module-lock)
+add_subdirectory(cppwinrt-notifiable-server-lock)
 add_subdirectory(noexcept)
 add_subdirectory(normal)
 add_subdirectory(win7)
 
 add_test(NAME app COMMAND $<TARGET_FILE:witest.app>)
 add_test(NAME cpplatest COMMAND $<TARGET_FILE:witest.cpplatest>)
-add_test(NAME cppwinrt-com-server COMMAND $<TARGET_FILE:witest.cppwinrt-com-server>)
-add_test(NAME cppwinrt-com-server-custom-module-lock COMMAND $<TARGET_FILE:witest.cppwinrt-com-server-custom-module-lock>)
+add_test(NAME cppwinrt-notifiable-server-lock COMMAND $<TARGET_FILE:witest.cppwinrt-notifiable-server-lock>)
 add_test(NAME noexcept COMMAND $<TARGET_FILE:witest.noexcept>)
 add_test(NAME normal COMMAND $<TARGET_FILE:witest>)
 add_test(NAME win7 COMMAND $<TARGET_FILE:witest.win7>)
 
-set(DEBUG_BUILD FALSE)
-set(HAS_DEBUG_INFO FALSE)
-
-if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
-    set(DEBUG_BUILD TRUE)
-    set(HAS_DEBUG_INFO TRUE)
-elseif("${CMAKE_BUILD_TYPE}" STREQUAL "RelWithDebInfo")
-    set(HAS_DEBUG_INFO TRUE)
-endif()
-# Release & MinSizeRel => keep all false
-
-set(ASAN_AVAILABLE FALSE)
-set(UBSAN_AVAILABLE FALSE)
-if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-    # Address Sanitizer is available for all architectures and build types, but warns/errors if debug info is not enabled
-    set(ASAN_AVAILABLE ${HAS_DEBUG_INFO})
-elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    # Sanitizers are not available with debug libraries
-    # Starting with Clang 17, there appears to be some issue where linking to the dynamic asan libraries seems to think that
-    # things like 'operator new' are present in the executable, but only for x64 for some reason. As there's no way to
-    # detect the target system architecture, use a good proxy
-    set(ASAN_AVAILABLE NOT ${DEBUG_BUILD} AND ${CMAKE_SIZEOF_VOID_P} EQUAL 4)
-    set(UBSAN_AVAILABLE NOT ${DEBUG_BUILD})
-endif()
-
-if (${ASAN_AVAILABLE})
+if (${WIL_ENABLE_ASAN})
     add_subdirectory(sanitize-address)
     add_test(NAME witest.asan COMMAND $<TARGET_FILE:witest.asan>)
 endif()
 
-if (${UBSAN_AVAILABLE})
+if (${WIL_ENABLE_UBSAN})
     # TODO: Disabled until https://github.com/microsoft/STL/issues/3568 is resolved
     # add_subdirectory(sanitize-undefined-behavior)
 endif()
