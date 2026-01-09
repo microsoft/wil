@@ -68,7 +68,7 @@
 /// @endcond
 
 /// @cond
-#if defined(_MSVC_LANG)
+#ifdef _MSVC_LANG
 #define __WI_SUPPRESS_BREAKING_WARNINGS_S __pragma(warning(push)) __pragma(warning(disable : 4127 26498 4245 26814))
 #define __WI_SUPPRESS_BREAKING_WARNINGS_E __pragma(warning(pop))
 #define __WI_SUPPRESS_NULLPTR_ANALYSIS __pragma(warning(suppress : 28285 6504))
@@ -331,7 +331,7 @@ extern "C"
 #include "wistd_type_traits.h"
 
 //! This macro inserts ODR violation protection; the macro allows it to be compatible with straight "C" code
-#if defined(_MSC_VER)
+#ifdef _MSC_VER
 #define WI_ODR_PRAGMA(NAME, TOKEN) __pragma(detect_mismatch("ODR_violation_" NAME "_mismatch", TOKEN))
 #else
 #define WI_ODR_PRAGMA(NAME, TOKEN)
@@ -359,7 +359,7 @@ routines suddenly becoming available. */
 #endif
 
 /// @cond
-#if defined(WIL_EXCEPTION_MODE)
+#ifdef WIL_EXCEPTION_MODE
 static_assert(WIL_EXCEPTION_MODE <= 2, "Invalid exception mode");
 #elif !defined(WIL_LOCK_EXCEPTION_MODE)
 #define WIL_EXCEPTION_MODE 0 // default, can link exception-based and non-exception based libraries together
@@ -430,7 +430,7 @@ deduce whether or not the STL is available and can be safely used.
 /// @endcond
 
 // block for documentation only
-#if defined(WIL_DOXYGEN)
+#ifdef WIL_DOXYGEN
 /** This define can be explicitly set to disable exception usage within wil.
 Normally this define is never needed as the WIL_ENABLE_EXCEPTIONS macro is enabled automatically by looking
 at _CPPUNWIND.  If your code compiles with exceptions enabled, but does not want to enable the exception-based
@@ -632,7 +632,7 @@ namespace details
 
 //! @}      // group bitwise
 
-#if defined(WIL_DOXYGEN)
+#ifdef WIL_DOXYGEN
 /** This macro provides a C++ header with a guaranteed initialization function.
 Normally, were a global object's constructor used for this purpose, the optimizer/linker might throw
 the object away if it's unreferenced (which throws away the side-effects that the initialization function
@@ -657,7 +657,7 @@ desktop APIs.  Building this functionality as `#IFDEF`s within functions would c
 doing it with global function pointers and header initialization allows a runtime determination. */
 #define WI_HEADER_INITIALIZATION_FUNCTION(name, fn)
 #elif defined(_M_IX86) || defined(_M_IA64) || defined(_M_AMD64) || defined(_M_ARM) || defined(_M_ARM64)
-#if defined(_MSC_VER)
+#ifdef _MSC_VER
 #ifdef _M_IX86
 #define WI_HEADER_INITIALIZATION_FUNCTION(name, fn) \
     extern "C" \
