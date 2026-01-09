@@ -52,7 +52,7 @@ namespace details
     //          the added complexity.
     template <class TFrom, class TTo>
     struct is_com_convertible
-    : wistd::bool_constant<__is_convertible_to(TFrom, TTo) && (__is_abstract(TFrom) || wistd::is_same<TFrom, TTo>::value)>
+        : wistd::bool_constant<__is_convertible_to(TFrom, TTo) && (__is_abstract(TFrom) || wistd::is_same<TFrom, TTo>::value)>
     {
     };
 
