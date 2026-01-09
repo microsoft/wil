@@ -14,6 +14,7 @@
             "installDir": "${sourceDir}/build/install/${presetName}",
             "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
             "cacheVariables": {
+                "WIL_ENABLE_ASAN": true,
                 "CMAKE_CONFIGURATION_TYPES": "Debug;RelWithDebInfo;Release;MinSizeRel",
                 "CMAKE_CXX_COMPILER": "cl",
                 "CMAKE_C_COMPILER": "cl"
@@ -29,8 +30,18 @@
                 }
             },
             "cacheVariables": {
+                "WIL_ENABLE_ASAN": false,
                 "CMAKE_CXX_COMPILER": "clang-cl",
                 "CMAKE_C_COMPILER": "clang-cl"
+            }
+        },
+        {
+            "name": "clang-release",
+            "inherits": "clang",
+            "hidden": false,
+            "cacheVariables": {
+                "WIL_ENABLE_ASAN": true,
+                "WIL_ENABLE_UBSAN": true
             }
         }
     ],
@@ -39,19 +50,13 @@
             "name": "msvc-debug",
             "displayName": "MSVC Debug",
             "configurePreset": "msvc",
-            "configuration": "Debug",
-            "cacheVariables": {
-                "WIL_ENABLE_ASAN": true
-            }
+            "configuration": "Debug"
         },
         {
             "name": "msvc-release",
             "displayName": "MSVC Release (debuggable)",
             "configurePreset": "msvc",
-            "configuration": "RelWithDebInfo",
-            "cacheVariables": {
-                "WIL_ENABLE_ASAN": true
-            }
+            "configuration": "RelWithDebInfo"
         },
         {
             "name": "clang-debug",
@@ -62,12 +67,8 @@
         {
             "name": "clang-release",
             "displayName": "clang Release (debuggable)",
-            "configurePreset": "clang",
-            "configuration": "RelWithDebInfo",
-            "cacheVariables": {
-                "WIL_ENABLE_ASAN": true,
-                "WIL_ENABLE_UBSAN": true
-            }
+            "configurePreset": "clang-release",
+            "configuration": "RelWithDebInfo"
         }
     ],
     "testPresets": [
