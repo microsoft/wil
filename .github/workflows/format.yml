@@ -26,7 +26,7 @@ jobs:
     outputs:
       pr-ref: ${{ steps.pr.outputs.ref }}
       pr-sha: ${{ steps.pr.outputs.sha }}
-      has-changes: ${{ steps.check-changes.outputs.has-changes }}
+      has-changes: ${{ steps.format.outputs.has-changes }}
 
     steps:
       - name: Get PR info
@@ -51,33 +51,31 @@ jobs:
       - name: Fetch PR branch
         shell: cmd
         run: |
-          git fetch origin ${{ steps.pr.outputs.ref }}:pr-branch
-          git checkout pr-branch
+          git fetch origin ${{ steps.pr.outputs.ref }}
+          git checkout ${{ steps.pr.outputs.ref }}
 
       - name: Run clang-format
         id: format
-        shell: cmd
+        shell: pwsh
         run: |
-          REM 'run-clang-format' script needs 'VCINSTALLDIR' env (among maybe others) to be set
-          call ./scripts/call-vcvars.cmd x64
-          call ./scripts/format-changes.cmd origin/master
-
-      - name: Check for changes
-        id: check-changes
-        shell: cmd
-        run: |
-          git diff --quiet && echo has-changes=false>> %GITHUB_OUTPUT% || echo has-changes=true>> %GITHUB_OUTPUT%
-          REM Don't let the exit code of 'git diff' cause this step to fail
-          exit /b 0
+          # 'run-clang-format' script needs 'VCINSTALLDIR' env (among maybe others) to be set
+          & cmd /c "call ./scripts/call-vcvars.cmd x64 && call ./scripts/format-changes.cmd origin/master"
+          if ($LASTEXITCODE -eq 0) {
+              "has-changes=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -NoNewline
+          } else {
+              "has-changes=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -NoNewline
+          }
+          # Don't let the exit code of 'git clang-format' cause this step to fail
+          exit 0
 
       - name: Create patch
-        if: steps.check-changes.outputs.has-changes == 'true'
+        if: steps.format.outputs.has-changes == 'true'
         shell: cmd
         run: |
           git diff > format-changes.patch
 
       - name: Upload patch
-        if: steps.check-changes.outputs.has-changes == 'true'
+        if: steps.format.outputs.has-changes == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: format-patch
@@ -102,8 +100,8 @@ jobs:
       - name: Fetch PR branch
         shell: cmd
         run: |
-          git fetch origin ${{ needs.format-code.outputs.pr-ref }}:pr-branch
-          git checkout pr-branch
+          git fetch origin ${{ needs.format-code.outputs.pr-ref }}
+          git checkout ${{ needs.format-code.outputs.pr-ref }}
 
       - name: Download patch
         uses: actions/download-artifact@v4
@@ -114,6 +112,7 @@ jobs:
         shell: cmd
         run: |
           git apply format-changes.patch
+          del format-changes.patch
 
       - name: Commit and push changes
         shell: cmd
@@ -122,7 +121,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           git commit -m "Run clang-format on PR changes"
-          git push origin pr-branch
+          git push origin HEAD:${{ needs.format-code.outputs.pr-ref }}
 
   # Job 3: Comment on PR with results
   comment-result:
