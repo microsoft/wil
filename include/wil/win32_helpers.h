@@ -971,17 +971,40 @@ bool init_once(_Inout_ INIT_ONCE& initOnce, T func)
 /// @cond
 namespace details
 {
+    // NOTE: We can't have a 'using std::begin' at class scope, hence the workaround for handling both 'begin' with ADL
+    // and 'std::begin' separately. We want to handle both because there's no guarantee the type has a 'begin' method
     template <typename RangeT>
+    struct deduce_char_type_from_string_range_traits
+    {
+        template <typename U>
+        static std::true_type deduce_has_adl_begin(U&& range, std::void_t<decltype((*begin(range))[0])>*);
+        template <typename U>
+        static std::false_type deduce_has_adl_begin(U&&, ...);
+
+        template <typename U>
+        static std::true_type deduce_has_std_begin(U&& range, std::void_t<decltype((*std::begin(range))[0])>*);
+        template <typename U>
+        static std::false_type deduce_has_std_begin(U&&, ...);
+
+        static constexpr bool has_adl_begin = decltype(deduce_has_adl_begin(std::declval<RangeT>(), nullptr))::value;
+        static constexpr bool has_std_begin = decltype(deduce_has_std_begin(std::declval<RangeT>(), nullptr))::value;
+    };
+
+    template <typename RangeT, bool hasAdlBegin = deduce_char_type_from_string_range_traits<RangeT>::has_adl_begin, bool hasStdBegin = deduce_char_type_from_string_range_traits<RangeT>::has_std_begin>
     struct deduce_char_type_from_string_range
     {
-        template <typename T = RangeT>
-        static auto deduce(T& range)
-        {
-            using std::begin;
-            return (*begin(range))[0];
-        }
+    };
 
-        using type = decltype(deduce(wistd::declval<RangeT&>()));
+    template <typename RangeT, bool hasStdBegin>
+    struct deduce_char_type_from_string_range<RangeT, true, hasStdBegin>
+    {
+        using type = std::decay_t<decltype((*begin(std::declval<RangeT>()))[0])>;
+    };
+
+    template <typename RangeT>
+    struct deduce_char_type_from_string_range<RangeT, false, true>
+    {
+        using type = std::decay_t<decltype((*std::begin(std::declval<RangeT>()))[0])>;
     };
 
     template <typename RangeT>
