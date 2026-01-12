@@ -1,0 +1,161 @@
+
+name: Run clang-format on PR comment
+
+on:
+  issue_comment:
+    types: [ created ]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  # Job 1: Run formatting in sandbox with no write permissions
+  format-code:
+    if: >
+      github.event.issue.pull_request &&
+      contains(github.event.comment.body, '!run-clang-format') &&
+      (
+        github.event.comment.author_association == 'OWNER' ||
+        github.event.comment.author_association == 'MEMBER'
+      )
+    runs-on: windows-latest
+    permissions:
+      pull-requests: read
+      contents: read
+
+    outputs:
+      pr-ref: ${{ steps.pr.outputs.ref }}
+      pr-sha: ${{ steps.pr.outputs.sha }}
+      has-changes: ${{ steps.format.outputs.has-changes }}
+
+    steps:
+      - name: Get PR info
+        id: pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            });
+            core.setOutput('ref', pr.data.head.ref);
+            core.setOutput('sha', pr.data.head.sha);
+            return pr.data.head.ref;
+
+      - name: Checkout base repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch PR branch
+        shell: cmd
+        run: |
+          git fetch origin ${{ steps.pr.outputs.ref }}
+          git checkout ${{ steps.pr.outputs.ref }}
+
+      - name: Run clang-format
+        id: format
+        shell: pwsh
+        run: |
+          # 'run-clang-format' script needs 'VCINSTALLDIR' env (among maybe others) to be set
+          & cmd /c "call ./scripts/call-vcvars.cmd x64 && call ./scripts/format-changes.cmd origin/master"
+          if ($LASTEXITCODE -eq 0) {
+              "has-changes=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -NoNewline
+          } else {
+              "has-changes=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -NoNewline
+          }
+          # Don't let the exit code of 'git clang-format' cause this step to fail
+          exit 0
+
+      - name: Create patch
+        if: steps.format.outputs.has-changes == 'true'
+        shell: cmd
+        run: |
+          git diff > format-changes.patch
+
+      - name: Upload patch
+        if: steps.format.outputs.has-changes == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: format-patch
+          path: format-changes.patch
+          retention-days: 1
+
+  # Job 2: Apply changes with write permissions (runs trusted code only)
+  apply-changes:
+    needs: format-code
+    if: needs.format-code.outputs.has-changes == 'true'
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout base repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Fetch PR branch
+        shell: cmd
+        run: |
+          git fetch origin ${{ needs.format-code.outputs.pr-ref }}
+          git checkout ${{ needs.format-code.outputs.pr-ref }}
+
+      - name: Download patch
+        uses: actions/download-artifact@v4
+        with:
+          name: format-patch
+
+      - name: Apply patch
+        shell: cmd
+        run: |
+          git apply format-changes.patch
+          del format-changes.patch
+
+      - name: Commit and push changes
+        shell: cmd
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Run clang-format on PR changes"
+          git push origin HEAD:${{ needs.format-code.outputs.pr-ref }}
+
+  # Job 3: Comment on PR with results
+  comment-result:
+    needs: [format-code, apply-changes]
+    if: always() && needs.format-code.result != 'cancelled'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+
+    steps:
+      - name: Comment success
+        if: needs.format-code.result == 'success' && (needs.apply-changes.result == 'success' || needs.format-code.outputs.has-changes == 'false')
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const hasChanges = '${{ needs.format-code.outputs.has-changes }}' === 'true';
+            const message = hasChanges 
+              ? '✅ clang-format completed successfully! Code formatting has been applied and committed to this PR.'
+              : '✅ clang-format completed successfully! No formatting changes were needed.';
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: message
+            });
+
+      - name: Comment failure
+        if: needs.format-code.result == 'failure' || needs.apply-changes.result == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: '❌ clang-format failed. Please check the [action logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.'
+            });
