@@ -75,8 +75,30 @@ TEST_CASE("EnumThreadWindows", "[windowing]")
     wil::for_each_window_nothrow([&thread_id](HWND hwnd) {
         if (IsWindow(hwnd) && IsWindowVisible(hwnd))
         {
-            thread_id = GetWindowThreadProcessId(hwnd, nullptr);
-            return false;
+            DWORD pid;
+            thread_id = ::GetWindowThreadProcessId(hwnd, &pid);
+
+            // Ideally, the window handle will be from a long lived process like Explorer so that it doesn't get
+            // destroyed - or perhaps more accurately so that the thread doesn't terminate - before we're done with this
+            // test.
+            wil::unique_handle proc{::OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid)};
+            if (proc)
+            {
+                wchar_t processName[MAX_PATH];
+                DWORD size = MAX_PATH;
+                if (::QueryFullProcessImageNameW(proc.get(), 0, processName, &size))
+                {
+                    auto len = ::wcslen(processName);
+                    if ((len >= 13) && (::wcscmp(processName + len - 13, L"\\explorer.exe") == 0))
+                    {
+                        // Assume long lived process - stop searching
+                        return false;
+                    }
+                }
+            }
+
+            // Not Explorer - we'll save the thread id, but continue iteration to try and find a better handle
+            return true;
         }
         return true;
     });
