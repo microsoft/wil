@@ -592,61 +592,218 @@ namespace details
 // Implementation of common operations
 namespace details
 {
+    template <typename CharT>
+    struct path_subspan
+    {
+        CharT* data = nullptr;
+        size_t size = 0;
+    };
+
+    template <typename CharT>
+    constexpr bool is_letter(CharT ch) noexcept
+    {
+        return ((ch >= 'A') &&s (ch <= 'Z')) || ((ch >= 'a') && (ch <= 'z'));
+    }
+
+    template <typename CharT>
+    constexpr bool is_separator(CharT ch) noexcept
+    {
+        return (ch == '\\') || (ch == '/');
+    }
+
+    template <typename CharT>
+    constexpr size_t next_backslash(CharT* data, size_t size, size_t startIndex = 0) noexcept
+    {
+        for (size_t i = startIndex; i < size; ++i)
+        {
+            if (data[i] == '\\')
+            {
+                return i;
+            }
+        }
+
+        return size;
+    }
+
+    template <typename CharT>
+    constexpr size_t next_separator(CharT* data, size_t size, size_t startIndex = 0) noexcept
+    {
+        for (size_t i = startIndex; i < size; ++i)
+        {
+            if (is_separator(data[i]))
+            {
+                return i;
+            }
+        }
+
+        return size;
+    }
+
+    template <typename CharT>
+    constexpr size_t next_non_separator(CharT* data, size_t size, size_t startIndex = 0) noexcept
+    {
+        for (size_t i = startIndex; i < size; ++i)
+        {
+            if (!is_separator(data[i]))
+            {
+                return i;
+            }
+        }
+
+        return size;
+    }
+
     /*
-     * We recognize the following as root paths:
-     *      
+     * For more info on 'root_name', see: https://en.cppreference.com/w/cpp/filesystem/path/root_name.html
+     * Unlike 'std::filesystem::path', we recognize all of the following as root names.
+     * IMPORTANT: Unlike 'std::filesystem::path', we include the share in the root name for UNC paths.
+     *      X:
+     *      \\server\share
+     *      \\?\X:
+     *      \\?\UNC\server\share
      */
-    template <typename PathT>
-    constexpr PathT root_name(const PathT& path) noexcept
+    template <typename CharT>
+    constexpr path_subspan<CharT> root_name(CharT* data, size_t size) noexcept
     {
-        // 
+        if (size < 2)
+        {
+            return {};
+        }
+
+        switch (data[0])
+        {
+        default:
+            // Expect a drive letter
+            if (is_letter(data[0]) && (data[1] == ':'))
+            {
+                return {data, 2}; // e.g. X:
+            }
+
+            return {};
+
+        case '/':
+            // Extended paths require backslashes, so expect a "normal" UNC path here of the form "//server/share"
+            break; // Fall through to common UNC handling
+
+        case '\\':
+            // Expect either a UNC path or an extended path. This gets interesting because only "normal" UNC paths allow
+            // the second character to be a forward slash.
+            if (data[1] == '/')
+            {
+                break; // Fall through to common UNC handling
+            }
+            if (data[1] != '\\')
+            {
+                return {}; // Path rooted on current drive... no root name
+            }
+
+            if ((size < 3) || (data[2] != '?'))
+            {
+                break; // Can't be or isn't an extended path; fall through to check for a "normal" UNC path
+            }
+
+            // Shortest valid extended path is "\\?\X:"
+            if ((size < 6) || data[3] != '\\')
+            {
+                return {}; // Invalid extended path
+            }
+
+            if (is_letter(data[4]) && (data[5] == ':'))
+            {
+                return {data, 6}; // e.g. \\?\X:
+            }
+
+            // Only other valid extended path is UNC of the form "\\?\UNC\server\share"
+            if ((size < 9) || (data[4] != 'U') || (data[5] != 'N') || (data[6] != 'C') || (data[7] != '\\'))
+            {
+                return {}; // Invalid extended path
+            }
+
+
+
+
+
+            return {};
+        }
+
+        // If we fall through, we're handling a "normal" UNC path. The first two characters should be confirmed
+        // NOTE: Although it looks weird, the second character does not need to match the first. I.e.
+        // "/\server/share" is okay
+        assert(is_separator(data[0]) && is_separator(data[1]));
+        if (size < 3)
+        {
+            return {}; // We expect at least a server name
+        }
+
+        if (is_separator(data[2]))
+        {
+            return {}; // Three initial separators is an invalid UNC path
+        }
+
+        // We don't validate names; all we care about are the separators
+        auto pos = next_separator(data, size, 3);
+        if (pos == size)
+        {
+            return {data, size}; // Server name only with no share
+        }
+
+        // Multiple consecutive separators are treated as one
+        pos = next_non_separator(data, size, pos + 1);
+        if (pos == size)
+        {
+            // This is a bit of an odd situation... The input is something like "//server/" with a trailing separator,
+            // but no share name. We consider that final separator to be part of the root name since it otherwise would
+            // be if there was a share name.
+            return {data, size};
+        }
+
+        return {data, next_separator(data, size, pos)};
+    }
+
+    template <typename CharT>
+    constexpr path_subspan<CharT> root_directory(CharT* data, size_t size) noexcept
+    {
         // TODO
     }
 
-    template <typename PathT>
-    constexpr PathT root_directory(const PathT& path) noexcept
+    template <typename CharT>
+    constexpr path_subspan<CharT> root_path(CharT* data, size_t size) noexcept
     {
         // TODO
     }
 
-    template <typename PathT>
-    constexpr PathT root_path(const PathT& path) noexcept
+    template <typename CharT>
+    constexpr path_subspan<CharT> relative_path(CharT* data, size_t size) noexcept
     {
         // TODO
     }
 
-    template <typename PathT>
-    constexpr PathT relative_path(const PathT& path) noexcept
+    template <typename CharT>
+    constexpr path_subspan<CharT> parent_path(CharT* data, size_t size) noexcept
     {
         // TODO
     }
 
-    template <typename PathT>
-    constexpr PathT parent_path(const PathT& path) noexcept
+    template <typename CharT>
+    constexpr path_subspan<CharT> filename(CharT* data, size_t size) noexcept
     {
         // TODO
     }
 
-    template <typename PathT>
-    constexpr PathT filename(const PathT& path) noexcept
+    template <typename CharT>
+    constexpr path_subspan<CharT> stem(CharT* data, size_t size) noexcept
     {
         // TODO
     }
 
-    template <typename PathT>
-    constexpr PathT stem(const PathT& path) noexcept
+    template <typename CharT>
+    constexpr path_subspan<CharT> extension(CharT* data, size_t size) noexcept
     {
         // TODO
     }
 
-    template <typename PathT>
-    constexpr PathT extension(const PathT& path) noexcept
-    {
-        // TODO
-    }
-
-    template <typename PathT>
-    constexpr PathT remove_filename(const PathT& path) noexcept
+    template <typename CharT>
+    constexpr path_subspan<CharT> remove_filename(CharT* data, size_t size) noexcept
     {
         // TODO
     }
