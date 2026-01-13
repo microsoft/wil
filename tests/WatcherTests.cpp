@@ -101,13 +101,10 @@ TEST_CASE("EventWatcherTests::DoNotResetEvent", "[resource][event_watcher]")
         FALSE,
         0));
     int volatile countObserved = 0;
-    auto watcher = wil::make_event_watcher_nothrow(
-        wistd::move(watchedEventSynchronize),
-        wil::event_watcher_options::manual_reset,
-        [&] {
-            countObserved = countObserved + 1;
-            notificationReceived.SetEvent();
-        });
+    auto watcher = wil::make_event_watcher_nothrow(wistd::move(watchedEventSynchronize), wil::event_watcher_options::manual_reset, [&] {
+        countObserved = countObserved + 1;
+        notificationReceived.SetEvent();
+    });
 
     REQUIRE(watcher != nullptr);
     watchedEvent.SetEvent();
@@ -120,12 +117,10 @@ TEST_CASE("EventWatcherTests::VerifyManualStart", "[resource][event_watcher]")
     auto notificationReceived = make_event();
 
     int volatile countObserved = 0;
-    auto watcher = wil::make_event_watcher_nothrow(
-        wil::event_watcher_options::manual_start,
-        [&] {
-            countObserved = countObserved + 1;
-            notificationReceived.SetEvent();
-        });
+    auto watcher = wil::make_event_watcher_nothrow(wil::event_watcher_options::manual_start, [&] {
+        countObserved = countObserved + 1;
+        notificationReceived.SetEvent();
+    });
     REQUIRE(watcher != nullptr);
 
     // SetEvent before starting - should not deliver notification
@@ -144,12 +139,10 @@ TEST_CASE("EventWatcherTests::VerifyOneShot", "[resource][event_watcher]")
     auto notificationReceived = make_event();
 
     int volatile countObserved = 0;
-    auto watcher = wil::make_event_watcher_nothrow(
-        wil::event_watcher_options::manual_start,
-        [&] {
-            countObserved = countObserved + 1;
-            notificationReceived.SetEvent();
-        });
+    auto watcher = wil::make_event_watcher_nothrow(wil::event_watcher_options::manual_start, [&] {
+        countObserved = countObserved + 1;
+        notificationReceived.SetEvent();
+    });
     REQUIRE(watcher != nullptr);
 
     watcher.start();
