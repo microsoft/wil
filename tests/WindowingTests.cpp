@@ -79,7 +79,7 @@ TEST_CASE("EnumThreadWindows", "[windowing]")
             thread_id = GetWindowThreadProcessId(hwnd, &pid);
 
             // Ideally, the window handle will be from a long lived process like Explorer so that it doesn't get
-            // destroyed - or perhaps more accurately so that the thread doesn't exist - before we're done with this
+            // destroyed - or perhaps more accurately so that the thread doesn't terminate - before we're done with this
             // test.
             wil::unique_handle proc{::OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid)};
             if (proc)
