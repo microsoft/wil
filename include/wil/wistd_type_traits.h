@@ -1568,9 +1568,7 @@ struct wi_is_convertible
                    (is_same<typename remove_cv<_T1>::type, typename remove_cv<typename remove_reference<_T2>::type>::type>::value ||
                     is_base_of<typename remove_reference<_T2>::type, _T1>::value))
 #endif
-          >
-{
-};
+          >{};
 
 template <class _T1, class _T2>
 struct wi_is_convertible<_T1, _T2, 0, 1> : public false_type

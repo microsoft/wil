@@ -3800,20 +3800,15 @@ using unique_mapview_ptr = wistd::unique_ptr<details::ensure_trivially_destructi
 // globalStateWatcher.SetEvent(); // signal observers so they can update
 
 /// @cond
-enum class event_watcher_options
-{
-    none = 0x0,
-    reset_event = 0x1, // Reset the event during the watch callback
-};
-
-DEFINE_ENUM_FLAG_OPERATORS(event_watcher_options);
-
 namespace details
 {
     struct event_watcher_state
     {
+        event_watcher_state(unique_event_nothrow&& eventHandle, wistd::function<void()>&& callback) :
+            m_callback(wistd::move(callback)), m_event(wistd::move(eventHandle))
+        {
+        }
         wistd::function<void()> m_callback;
-        event_watcher_options m_options;
         unique_event_nothrow m_event;
         // The thread pool must be last to ensure that the other members are valid
         // when it is destructed as it will reference them.
@@ -3846,36 +3841,34 @@ public:
     template <typename from_err_policy>
     event_watcher_t(
         unique_any_t<event_t<details::unique_storage<details::handle_resource_policy>, from_err_policy>>&& eventHandle,
-        wistd::function<void()>&& callback,
-        event_watcher_options options = event_watcher_options::reset_event)
+        wistd::function<void()>&& callback)
     {
         static_assert(wistd::is_same<void, result>::value, "this constructor requires exceptions or fail fast; use the create method");
-        create(wistd::move(eventHandle), wistd::move(callback), options);
+        create(wistd::move(eventHandle), wistd::move(callback));
     }
 
-    event_watcher_t(_In_ HANDLE eventHandle, wistd::function<void()>&& callback, event_watcher_options options = event_watcher_options::reset_event)
+    event_watcher_t(_In_ HANDLE eventHandle, wistd::function<void()>&& callback)
     {
         static_assert(wistd::is_same<void, result>::value, "this constructor requires exceptions or fail fast; use the create method");
-        create(eventHandle, wistd::move(callback), options);
+        create(eventHandle, wistd::move(callback));
     }
 
-    event_watcher_t(wistd::function<void()>&& callback, event_watcher_options options = event_watcher_options::reset_event)
+    event_watcher_t(wistd::function<void()>&& callback)
     {
         static_assert(wistd::is_same<void, result>::value, "this constructor requires exceptions or fail fast; use the create method");
-        create(wistd::move(callback), options);
+        create(wistd::move(callback));
     }
 
     template <typename event_err_policy>
     result create(
         unique_any_t<event_t<details::unique_storage<details::handle_resource_policy>, event_err_policy>>&& eventHandle,
-        wistd::function<void()>&& callback,
-        event_watcher_options options = event_watcher_options::reset_event)
+        wistd::function<void()>&& callback)
     {
-        return err_policy::HResult(create_take_hevent_ownership(eventHandle.release(), wistd::move(callback), options));
+        return err_policy::HResult(create_take_hevent_ownership(eventHandle.release(), wistd::move(callback)));
     }
 
     // Creates the event that you will be watching.
-    result create(wistd::function<void()>&& callback, event_watcher_options options = event_watcher_options::reset_event)
+    result create(wistd::function<void()>&& callback)
     {
         unique_event_nothrow eventHandle;
         HRESULT hr = eventHandle.create(EventOptions::ManualReset); // auto-reset is supported too.
@@ -3883,18 +3876,18 @@ public:
         {
             return err_policy::HResult(hr);
         }
-        return err_policy::HResult(create_take_hevent_ownership(eventHandle.release(), wistd::move(callback), options));
+        return err_policy::HResult(create_take_hevent_ownership(eventHandle.release(), wistd::move(callback)));
     }
 
     // Input is an event handler that is duplicated into this class.
-    result create(_In_ HANDLE eventHandle, wistd::function<void()>&& callback, event_watcher_options options = event_watcher_options::reset_event)
+    result create(_In_ HANDLE eventHandle, wistd::function<void()>&& callback)
     {
         unique_event_nothrow ownedHandle;
         if (!DuplicateHandle(GetCurrentProcess(), eventHandle, GetCurrentProcess(), &ownedHandle, 0, FALSE, DUPLICATE_SAME_ACCESS))
         {
             return err_policy::LastError();
         }
-        return err_policy::HResult(create_take_hevent_ownership(ownedHandle.release(), wistd::move(callback), options));
+        return err_policy::HResult(create_take_hevent_ownership(ownedHandle.release(), wistd::move(callback)));
     }
 
     // Provide access to the inner event and the very common SetEvent() method on it.
@@ -3908,27 +3901,26 @@ public:
     }
 
 private:
+    // Had to move this from a Lambda so it would compile in C++/CLI (which thought the Lambda should be a managed function for some reason).
     static void CALLBACK wait_callback(PTP_CALLBACK_INSTANCE, void* context, TP_WAIT* pThreadPoolWait, TP_WAIT_RESULT)
     {
         auto pThis = static_cast<details::event_watcher_state*>(context);
-        if (WI_IsFlagSet(pThis->m_options, event_watcher_options::reset_event))
-        {
-            // Manual events must be re-set to avoid missing the last notification.
-            pThis->m_event.ResetEvent();
-        }
-        // Call the client before re-arming to ensure that multiple callbacks don't run concurrently.
+        // Manual events must be re-set to avoid missing the last notification.
+        pThis->m_event.ResetEvent();
+        // Call the client before re-arming to ensure that multiple callbacks don't
+        // run concurrently.
         pThis->m_callback();
         SetThreadpoolWait(pThreadPoolWait, pThis->m_event.get(), nullptr); // valid params ensure success
     }
 
     // To avoid template expansion (if unique_event/unique_event_nothrow forms were used) this base
     // create function takes a raw handle and assumes its ownership, even on failure.
-    HRESULT create_take_hevent_ownership(_In_ HANDLE rawHandleOwnershipTaken, wistd::function<void()>&& callback, event_watcher_options options)
+    HRESULT create_take_hevent_ownership(_In_ HANDLE rawHandleOwnershipTaken, wistd::function<void()>&& callback)
     {
         __FAIL_FAST_ASSERT__(rawHandleOwnershipTaken != nullptr); // invalid parameter
         unique_event_nothrow eventHandle(rawHandleOwnershipTaken);
         wistd::unique_ptr<details::event_watcher_state> watcherState(
-            new (std::nothrow) details::event_watcher_state{wistd::move(callback), options, wistd::move(eventHandle)});
+            new (std::nothrow) details::event_watcher_state(wistd::move(eventHandle), wistd::move(callback)));
         RETURN_IF_NULL_ALLOC(watcherState);
 
         watcherState->m_threadPoolWait.reset(CreateThreadpoolWait(wait_callback, watcherState.get(), nullptr));
@@ -3945,49 +3937,43 @@ typedef unique_any_t<event_watcher_t<details::unique_storage<details::event_watc
 template <typename err_policy>
 unique_event_watcher_nothrow make_event_watcher_nothrow(
     unique_any_t<event_t<details::unique_storage<details::handle_resource_policy>, err_policy>>&& eventHandle,
-    wistd::function<void()>&& callback,
-    event_watcher_options options = event_watcher_options::reset_event) WI_NOEXCEPT
+    wistd::function<void()>&& callback) WI_NOEXCEPT
 {
     unique_event_watcher_nothrow watcher;
-    watcher.create(wistd::move(eventHandle), wistd::move(callback), options);
+    watcher.create(wistd::move(eventHandle), wistd::move(callback));
     return watcher; // caller must test for success using if (watcher)
 }
 
-inline unique_event_watcher_nothrow make_event_watcher_nothrow(
-    _In_ HANDLE eventHandle, wistd::function<void()>&& callback, event_watcher_options options = event_watcher_options::reset_event) WI_NOEXCEPT
+inline unique_event_watcher_nothrow make_event_watcher_nothrow(_In_ HANDLE eventHandle, wistd::function<void()>&& callback) WI_NOEXCEPT
 {
     unique_event_watcher_nothrow watcher;
-    watcher.create(eventHandle, wistd::move(callback), options);
+    watcher.create(eventHandle, wistd::move(callback));
     return watcher; // caller must test for success using if (watcher)
 }
 
-inline unique_event_watcher_nothrow make_event_watcher_nothrow(
-    wistd::function<void()>&& callback, event_watcher_options options = event_watcher_options::reset_event) WI_NOEXCEPT
+inline unique_event_watcher_nothrow make_event_watcher_nothrow(wistd::function<void()>&& callback) WI_NOEXCEPT
 {
     unique_event_watcher_nothrow watcher;
-    watcher.create(wistd::move(callback), options);
+    watcher.create(wistd::move(callback));
     return watcher; // caller must test for success using if (watcher)
 }
 
 template <typename err_policy>
 unique_event_watcher_failfast make_event_watcher_failfast(
     unique_any_t<event_t<details::unique_storage<details::handle_resource_policy>, err_policy>>&& eventHandle,
-    wistd::function<void()>&& callback,
-    event_watcher_options options = event_watcher_options::reset_event)
+    wistd::function<void()>&& callback)
 {
-    return unique_event_watcher_failfast(wistd::move(eventHandle), wistd::move(callback), options);
+    return unique_event_watcher_failfast(wistd::move(eventHandle), wistd::move(callback));
 }
 
-inline unique_event_watcher_failfast make_event_watcher_failfast(
-    _In_ HANDLE eventHandle, wistd::function<void()>&& callback, event_watcher_options options = event_watcher_options::reset_event)
+inline unique_event_watcher_failfast make_event_watcher_failfast(_In_ HANDLE eventHandle, wistd::function<void()>&& callback)
 {
-    return unique_event_watcher_failfast(eventHandle, wistd::move(callback), options);
+    return unique_event_watcher_failfast(eventHandle, wistd::move(callback));
 }
 
-inline unique_event_watcher_failfast make_event_watcher_failfast(
-    wistd::function<void()>&& callback, event_watcher_options options = event_watcher_options::reset_event)
+inline unique_event_watcher_failfast make_event_watcher_failfast(wistd::function<void()>&& callback)
 {
-    return unique_event_watcher_failfast(wistd::move(callback), options);
+    return unique_event_watcher_failfast(wistd::move(callback));
 }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
@@ -3996,16 +3982,14 @@ typedef unique_any_t<event_watcher_t<details::unique_storage<details::event_watc
 template <typename err_policy>
 unique_event_watcher make_event_watcher(
     unique_any_t<event_t<details::unique_storage<details::handle_resource_policy>, err_policy>>&& eventHandle,
-    wistd::function<void()>&& callback,
-    event_watcher_options options = event_watcher_options::reset_event)
+    wistd::function<void()>&& callback)
 {
-    return unique_event_watcher(wistd::move(eventHandle), wistd::move(callback), options);
+    return unique_event_watcher(wistd::move(eventHandle), wistd::move(callback));
 }
 
-inline unique_event_watcher make_event_watcher(
-    _In_ HANDLE eventHandle, wistd::function<void()>&& callback, event_watcher_options options = event_watcher_options::reset_event)
+inline unique_event_watcher make_event_watcher(_In_ HANDLE eventHandle, wistd::function<void()>&& callback)
 {
-    return unique_event_watcher(eventHandle, wistd::move(callback), options);
+    return unique_event_watcher(eventHandle, wistd::move(callback));
 }
 
 inline unique_event_watcher make_event_watcher(wistd::function<void()>&& callback)
@@ -4401,7 +4385,7 @@ struct hlocal_secure_deleter
     {
         if (ptr)
         {
-#pragma warning(suppress : 26006 26007)                // LocalSize() ensures proper buffer length
+#pragma warning(suppress : 26006 26007)            // LocalSize() ensures proper buffer length
             ::SecureZeroMemory(ptr, ::LocalSize(ptr)); // this is safe since LocalSize() returns 0 on failure
             ::LocalFree(ptr);
         }
