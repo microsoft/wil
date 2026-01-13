@@ -103,16 +103,68 @@ TEST_CASE("EventWatcherTests::DoNotResetEvent", "[resource][event_watcher]")
     int volatile countObserved = 0;
     auto watcher = wil::make_event_watcher_nothrow(
         wistd::move(watchedEventSynchronize),
+        wil::event_watcher_options::manual_reset,
         [&] {
             countObserved = countObserved + 1;
             notificationReceived.SetEvent();
-        },
-        wil::event_watcher_options::none);
+        });
 
     REQUIRE(watcher != nullptr);
     watchedEvent.SetEvent();
     REQUIRE(notificationReceived.wait(5000)); // 5 second max wait
     REQUIRE(watchedEvent.is_signaled());      // event should still be signaled
+}
+
+TEST_CASE("EventWatcherTests::VerifyManualStart", "[resource][event_watcher]")
+{
+    auto notificationReceived = make_event();
+
+    int volatile countObserved = 0;
+    auto watcher = wil::make_event_watcher_nothrow(
+        wil::event_watcher_options::manual_start,
+        [&] {
+            countObserved = countObserved + 1;
+            notificationReceived.SetEvent();
+        });
+    REQUIRE(watcher != nullptr);
+
+    // SetEvent before starting - should not deliver notification
+    watcher.SetEvent();
+    REQUIRE_FALSE(notificationReceived.wait(1000)); // 1 second max wait
+
+    // Now start and set again - should deliver notification
+    watcher.start();
+    watcher.SetEvent();
+    REQUIRE(notificationReceived.wait(5000)); // 5 second max wait
+    REQUIRE(countObserved == 1);
+}
+
+TEST_CASE("EventWatcherTests::VerifyOneShot", "[resource][event_watcher]")
+{
+    auto notificationReceived = make_event();
+
+    int volatile countObserved = 0;
+    auto watcher = wil::make_event_watcher_nothrow(
+        wil::event_watcher_options::manual_start,
+        [&] {
+            countObserved = countObserved + 1;
+            notificationReceived.SetEvent();
+        });
+    REQUIRE(watcher != nullptr);
+
+    watcher.start();
+    watcher.SetEvent();
+    REQUIRE(notificationReceived.wait(5000)); // 5 second max wait
+
+    // SetEvent again - should not deliver notification yet
+    watcher.SetEvent();
+    REQUIRE_FALSE(notificationReceived.wait(1000)); // 1 second max wait
+    REQUIRE(countObserved == 1);
+
+    // Start (requeue) and - should deliver notification
+    watcher.start();
+    REQUIRE(notificationReceived.wait(5000)); // 5 second max wait
+    REQUIRE(countObserved == 2);
 }
 
 TEST_CASE("EventWatcherTests::VerifyDelivery", "[resource][event_watcher]")
