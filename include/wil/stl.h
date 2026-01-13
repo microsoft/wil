@@ -132,6 +132,8 @@ inline PCWSTR str_raw_ptr(const std::wstring& str)
     return str.c_str();
 }
 
+#if __cpp_lib_string_view >= 201606L
+
 namespace details
 {
     inline string_view_t view_from_string(std::wstring_view const& s)
@@ -145,7 +147,6 @@ namespace details
     }
 }
 
-#if __cpp_lib_string_view >= 201606L
 /**
     zstring_view. A zstring_view is identical to a std::string_view except it is always nul-terminated (unless empty).
     * zstring_view can be used for storing string literals without "forgetting" the length or that it is nul-terminated.
