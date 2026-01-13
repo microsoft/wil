@@ -145,7 +145,7 @@ namespace details
     {
         return string_view_t{s.data(), s.length()};
     }
-}
+} // namespace details
 
 /**
     zstring_view. A zstring_view is identical to a std::string_view except it is always nul-terminated (unless empty).
@@ -269,7 +269,7 @@ namespace details
     {
         return string_view_t{s.data(), s.length()};
     }
-}
+} // namespace details
 
 inline namespace literals
 {

@@ -1910,7 +1910,8 @@ template <typename string_type, typename... strings>
 HRESULT str_concat_nothrow(string_type& buffer, const strings&... str)
 {
     static_assert(sizeof...(str) > 0, "attempting to concatenate no strings");
-    return details::str_build_nothrow(buffer, details::view_from_string(details::string_maker<string_type>::get(buffer)), details::view_from_string(str)...);
+    return details::str_build_nothrow(
+        buffer, details::view_from_string(details::string_maker<string_type>::get(buffer)), details::view_from_string(str)...);
 }
 #endif // !defined(__WIL_MIN_KERNEL) && !defined(WIL_KERNEL_MODE)
 
@@ -5081,7 +5082,7 @@ namespace details
     {
         return view_from_string(str.get());
     }
-}
+} // namespace details
 
 #endif // __WIL__WINSTRING_H_
 #if (defined(__WIL__WINSTRING_H_) && !defined(__WIL__WINSTRING_H_STL) && defined(WIL_RESOURCE_STL)) || defined(WIL_DOXYGEN)

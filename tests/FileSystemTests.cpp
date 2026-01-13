@@ -29,7 +29,6 @@ string_view_t view_from_string(std::wstring_view const&);
 #endif
 } // namespace wil::details
 
-
 #include <wil/resource.h>
 #include <wil/filesystem.h>
 
