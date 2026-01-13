@@ -12,20 +12,23 @@
 // TODO: str_raw_ptr is not two-phase name lookup clean (https://github.com/Microsoft/wil/issues/8)
 namespace wil
 {
-struct string_view_t;
-
 PCWSTR str_raw_ptr(HSTRING);
-string_view_t view_from_string(HSTRING);
 #ifdef WIL_ENABLE_EXCEPTIONS
 PCWSTR str_raw_ptr(const std::wstring&);
-string_view_t view_from_string(std::wstring const&);
-string_view_t view_from_string(std::wstring_view const&);
 #endif
 } // namespace wil
 
+namespace wil::details
+{
+struct string_view_t;
+
+string_view_t view_from_string(HSTRING);
 #ifdef WIL_ENABLE_EXCEPTIONS
-#include <wil/stl.h>
+string_view_t view_from_string(std::wstring const&);
+string_view_t view_from_string(std::wstring_view const&);
 #endif
+} // namespace wil::details
+
 
 #include <wil/resource.h>
 #include <wil/filesystem.h>

@@ -132,14 +132,17 @@ inline PCWSTR str_raw_ptr(const std::wstring& str)
     return str.c_str();
 }
 
-inline string_view_t view_from_string(std::wstring_view const& s)
+namespace details
 {
-    return string_view_t{s.data(), s.length()};
-}
+    inline string_view_t view_from_string(std::wstring_view const& s)
+    {
+        return string_view_t{s.data(), s.length()};
+    }
 
-inline string_view_t view_from_string(std::wstring const& s)
-{
-    return string_view_t{s.data(), s.length()};
+    inline string_view_t view_from_string(std::wstring const& s)
+    {
+        return string_view_t{s.data(), s.length()};
+    }
 }
 
 #if __cpp_lib_string_view >= 201606L
@@ -259,9 +262,12 @@ inline auto str_raw_ptr(basic_zstring_view<TChar> str)
     return str.c_str();
 }
 
-inline string_view_t view_from_string(zwstring_view const& s)
+namespace details
 {
-    return string_view_t{s.data(), s.length()};
+    inline string_view_t view_from_string(zwstring_view const& s)
+    {
+        return string_view_t{s.data(), s.length()};
+    }
 }
 
 inline namespace literals

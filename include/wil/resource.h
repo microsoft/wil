@@ -1836,32 +1836,32 @@ PCWSTR str_raw_ptr(const unique_any_t<T>& val)
     return str_raw_ptr(val.get());
 }
 
-struct string_view_t
-{
-    wchar_t const* data;
-    size_t length;
-};
-
-inline string_view_t view_from_string(string_view_t const& s)
-{
-    return s;
-}
-
-inline string_view_t view_from_string(PCWSTR str)
-{
-    return string_view_t{str, str ? wcslen(str) : 0};
-}
-
-template <typename T>
-inline string_view_t view_from_string(wil::unique_any_t<T> const& str)
-{
-    return view_from_string(str.get());
-}
-
 #if !defined(__WIL_MIN_KERNEL) && !defined(WIL_KERNEL_MODE)
 /// @cond
 namespace details
 {
+    struct string_view_t
+    {
+        wchar_t const* data;
+        size_t length;
+    };
+
+    inline string_view_t view_from_string(string_view_t const& s)
+    {
+        return s;
+    }
+
+    inline string_view_t view_from_string(PCWSTR str)
+    {
+        return string_view_t{str, str ? wcslen(str) : 0};
+    }
+
+    template <typename T>
+    inline string_view_t view_from_string(wil::unique_any_t<T> const& str)
+    {
+        return view_from_string(str.get());
+    }
+
     // Forward declaration
     template <typename string_type>
     struct string_maker;
@@ -1895,7 +1895,6 @@ namespace details
         return S_OK;
     }
 
-    // NOTE: 'Strings' must all be string_view_t, or convertible to string_view_t, but C++ doesn't allow us to express that cleanly
     template <typename string_type, typename... Strings>
     HRESULT str_build_nothrow(string_type& result, Strings... strings)
     {
@@ -1911,7 +1910,7 @@ template <typename string_type, typename... strings>
 HRESULT str_concat_nothrow(string_type& buffer, const strings&... str)
 {
     static_assert(sizeof...(str) > 0, "attempting to concatenate no strings");
-    return details::str_build_nothrow(buffer, view_from_string(details::string_maker<string_type>::get(buffer)), view_from_string(str)...);
+    return details::str_build_nothrow(buffer, details::view_from_string(details::string_maker<string_type>::get(buffer)), details::view_from_string(str)...);
 }
 #endif // !defined(__WIL_MIN_KERNEL) && !defined(WIL_KERNEL_MODE)
 
@@ -4952,16 +4951,19 @@ inline PCWSTR str_raw_ptr(const unique_hstring& str)
     return str_raw_ptr(str.get());
 }
 
-inline string_view_t view_from_string(HSTRING str)
+namespace details
 {
-    UINT32 length = 0;
-    PCWSTR rawBuffer = WindowsGetStringRawBuffer(str, &length);
-    return string_view_t{rawBuffer, length};
-}
+    inline string_view_t view_from_string(HSTRING str)
+    {
+        UINT32 length = 0;
+        PCWSTR rawBuffer = WindowsGetStringRawBuffer(str, &length);
+        return string_view_t{rawBuffer, length};
+    }
 
-inline string_view_t view_from_string(const unique_hstring& str)
-{
-    return view_from_string(str.get());
+    inline string_view_t view_from_string(const unique_hstring& str)
+    {
+        return view_from_string(str.get());
+    }
 }
 
 #endif // __WIL__WINSTRING_H_
