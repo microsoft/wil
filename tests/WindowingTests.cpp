@@ -88,7 +88,8 @@ TEST_CASE("EnumThreadWindows", "[windowing]")
                 DWORD size = MAX_PATH;
                 if (QueryFullProcessImageNameW(proc.get(), 0, processName, &size))
                 {
-                    if (::wcsstr(processName, L"explorer.exe") != nullptr)
+                    auto len = ::wcslen(processName);
+                    if ((len >= 13) && (::wcscmp(processName + len - 13, L"\\explorer.exe") == 0))
                     {
                         // Assume long lived process - stop searching
                         return false;
