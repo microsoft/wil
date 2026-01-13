@@ -3801,8 +3801,8 @@ using unique_mapview_ptr = wistd::unique_ptr<details::ensure_trivially_destructi
 enum class event_watcher_options
 {
     none = 0x0,
-    manual_reset = 0x1,
-    manual_start = 0x2,
+    manual_reset = 0x1 << 0,
+    manual_start = 0x1 << 1,
 };
 
 DEFINE_ENUM_FLAG_OPERATORS(event_watcher_options);
