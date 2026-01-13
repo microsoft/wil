@@ -78,7 +78,9 @@ TEST_CASE("EnumThreadWindows", "[windowing]")
             DWORD pid;
             thread_id = GetWindowThreadProcessId(hwnd, &pid);
 
-            std::printf("Found window 0x%p for thread %lu process %lu\n", hwnd, thread_id, pid);
+            // Ideally, the window handle will be from a long lived process like Explorer so that it doesn't get
+            // destroyed - or perhaps more accurately so that the thread doesn't exist - before we're done with this
+            // test.
             wil::unique_handle proc{::OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid)};
             if (proc)
             {
@@ -86,11 +88,16 @@ TEST_CASE("EnumThreadWindows", "[windowing]")
                 DWORD size = MAX_PATH;
                 if (QueryFullProcessImageNameW(proc.get(), 0, processName, &size))
                 {
-                    std::printf("    From process: %ls\n", processName);
+                    if (::wcsstr(processName, L"explorer.exe") != nullptr)
+                    {
+                        // Assume long lived process - stop searching
+                        return false;
+                    }
                 }
             }
 
-            return false;
+            // Not Explorer - we'll save the thread id, but continue iteration to try and find a better handle
+            return true;
         }
         return true;
     });
