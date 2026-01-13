@@ -73,6 +73,11 @@ TEST_CASE("EnumThreadWindows", "[windowing]")
     // find any window
     DWORD thread_id{};
     wil::for_each_window_nothrow([&thread_id](HWND hwnd) {
+
+        std::printf("Found window: 0x%p\n", hwnd);
+        std::printf("    With thread id: %lu\n", GetWindowThreadProcessId(hwnd, nullptr));
+        std::printf("    IsWindow: %s\n", IsWindow(hwnd) ? "true" : "false");
+        std::printf("    IsWindowVisible: %s\n", IsWindowVisible(hwnd) ? "true" : "false");
         if (IsWindow(hwnd) && IsWindowVisible(hwnd))
         {
             thread_id = GetWindowThreadProcessId(hwnd, nullptr);
