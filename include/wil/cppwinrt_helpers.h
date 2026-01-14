@@ -39,7 +39,7 @@ template <typename Dispatcher>
 struct dispatcher_traits;
 } // namespace wil::details
 
-#if defined(_RESUMABLE_FUNCTIONS_SUPPORTED)
+#ifdef _RESUMABLE_FUNCTIONS_SUPPORTED
 #include <experimental/coroutine>
 namespace wil::details
 {

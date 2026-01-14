@@ -48,6 +48,36 @@ jobs:
             exit /b 1
           )
 
+  clang-tidy:
+    name: Clang-Tidy Check
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install/Update Clang
+        shell: cmd
+        run: |
+          choco upgrade llvm -y
+          if %ERRORLEVEL% NEQ 0 exit /b %ERRORLEVEL%
+
+          REM This is somewhat of a hack... we want to use the path to LLVM instead of MSVC's LLVM installation, but
+          REM _only_ when we're actually building with Clang. This is taking advantage of the fact that we're only
+          REM setting this variable when 'matrix.compiler' is 'clang'.
+          echo C:\Program Files\LLVM\bin >> %GITHUB_PATH%
+
+      - name: Run Clang-Tidy
+        shell: cmd
+        run: |
+          call scripts\call-vcvars.cmd x64
+          if %ERRORLEVEL% NEQ 0 goto :eof
+
+          call scripts\init.cmd -c clang -b relwithdebinfo
+          if %ERRORLEVEL% NEQ 0 goto :eof
+
+          ninja -C build\clang-x64-relwithdebinfo run-clang-tidy
+
   build_and_test:
     name: Build and Test
     strategy:

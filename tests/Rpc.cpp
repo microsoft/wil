@@ -93,6 +93,7 @@ TEST_CASE("Rpc::NonThrowing", "[rpc]")
 
 #include <sstream>
 
+// NOLINTNEXTLINE(portability-template-virtual-member-function): 'match' on base class not instantiated
 class WilExceptionMatcher : public Catch::Matchers::MatcherBase<wil::ResultException>
 {
     HRESULT m_expected;

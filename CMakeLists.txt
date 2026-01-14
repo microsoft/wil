@@ -40,7 +40,7 @@ if (${WIL_BUILD_TESTS})
             DEPENDS witest.cpplatest # Clang needs the pch, otherwise it fails
             USES_TERMINAL # Otherwise, we don't get any output until the command is done, which takes _a while_
             WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-            COMMAND clang-tidy -p ${PROJECT_BINARY_DIR}/compile_commands.json tests/*.cpp
+            COMMAND clang-tidy -p ${PROJECT_BINARY_DIR}/compile_commands.json --warnings-as-errors=* tests/*.cpp
             )
     endif()
 endif()

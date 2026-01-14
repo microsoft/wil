@@ -18,7 +18,7 @@ constexpr auto* testSubkey = L"Software\\Microsoft\\BasicRegistryTest";
 constexpr auto* dwordValueName = L"MyDwordValue";
 constexpr auto* qwordValueName = L"MyQwordValue";
 constexpr auto* stringValueName = L"MyStringValue";
-#if defined(WIL_ENABLE_EXCEPTIONS)
+#ifdef WIL_ENABLE_EXCEPTIONS
 constexpr auto* multiStringValueName = L"MyMultiStringValue";
 #endif
 constexpr auto* invalidValueName = L"NonExistentValue";
@@ -178,7 +178,7 @@ static bool AreStringsEqual(const wil::unique_bstr& lhs, const std::wstring& rhs
     return (0 == wcscmp(lhs.get(), rhs.c_str()));
 }
 
-#if defined(__WIL_OLEAUTO_H_STL)
+#ifdef __WIL_OLEAUTO_H_STL
 static bool AreStringsEqual(const wil::shared_bstr& lhs, const std::wstring& rhs) noexcept
 {
     if (!lhs && rhs.empty())
@@ -203,7 +203,7 @@ static bool AreStringsEqual(const wil::unique_cotaskmem_string& lhs, const std::
     return (0 == wcscmp(lhs.get(), rhs.c_str()));
 }
 
-#if defined(__WIL_OBJBASE_H_STL)
+#ifdef __WIL_OBJBASE_H_STL
 static bool AreStringsEqual(const wil::shared_cotaskmem_string& lhs, const std::wstring& rhs) noexcept
 {
     if (!lhs && rhs.empty())
@@ -333,7 +333,7 @@ static void VerifyThrowsHr(HRESULT hr, const std::function<void()>& fn)
 //
 // They don't assert much: they simply validate that the code in the
 // documentation works.
-#if defined(WIL_ENABLE_EXCEPTIONS)
+#ifdef WIL_ENABLE_EXCEPTIONS
 TEST_CASE("BasicRegistryTests::ExampleUsage", "[registry]")
 {
     // These examples use the explicit registry key, to make the usage more
@@ -348,7 +348,7 @@ TEST_CASE("BasicRegistryTests::ExampleUsage", "[registry]")
 
     // Disable "unused variable" warnings for these examples
 #pragma warning(disable : 4189)
-#if defined(__clang__)
+#ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
@@ -379,7 +379,7 @@ TEST_CASE("BasicRegistryTests::ExampleUsage", "[registry]")
             HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Explorer", nothrow_key, wil::reg::key_access::readwrite));
     }
 
-#if defined(__cpp_lib_optional)
+#ifdef __cpp_lib_optional
     SECTION("Read values")
     {
         // Get values (or try_get if the value might not exist)
@@ -451,7 +451,7 @@ TEST_CASE("BasicRegistryTests::ExampleUsage", "[registry]")
         REQUIRE(wil::reg::is_registry_not_found(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND)));
         REQUIRE(wil::reg::is_registry_not_found(HRESULT_FROM_WIN32(ERROR_PATH_NOT_FOUND)));
     }
-#if defined(__clang__)
+#ifdef __clang__
 #pragma clang diagnostic pop
 #endif
 #pragma warning(default : 4189)
@@ -598,7 +598,7 @@ TEST_CASE("BasicRegistryTests::Open", "[registry]")
         REQUIRE_SUCCEEDED(wil::reg::get_child_value_count_nothrow(hkey.get(), &valueCount));
         REQUIRE(valueCount == 4);
     }
-#if defined(__WIL_WINREG_STL)
+#ifdef __WIL_WINREG_STL
     SECTION("open_shared_key_nothrow: with opened key")
     {
         constexpr auto* subSubKey = L"subkey";
@@ -681,9 +681,9 @@ TEST_CASE("BasicRegistryTests::Open", "[registry]")
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
         REQUIRE(wil::reg::is_registry_not_found(hr));
     }
-#endif // #if defined(__WIL_WINREG_STL)
+#endif // #ifdef __WIL_WINREG_STL
 
-#if defined(WIL_ENABLE_EXCEPTIONS)
+#ifdef WIL_ENABLE_EXCEPTIONS
     SECTION("open_unique_key: with opened key")
     {
         constexpr auto* subSubKey = L"subkey";
@@ -772,7 +772,7 @@ TEST_CASE("BasicRegistryTests::Open", "[registry]")
         REQUIRE(valueCount == 4);
     }
 
-#if defined(__WIL_WINREG_STL)
+#ifdef __WIL_WINREG_STL
     SECTION("open_shared_key: with opened key")
     {
         constexpr auto* subSubKey = L"subkey";
@@ -899,7 +899,7 @@ struct GenericBaseFns
         return wil::reg::get_value_nothrow(key, subkey, valueName, output);
     }
 
-#if defined(WIL_ENABLE_EXCEPTIONS)
+#ifdef WIL_ENABLE_EXCEPTIONS
     static void set(wil::unique_hkey const& key, PCWSTR valueName, SetType const& value)
     {
         wil::reg::set_value(key.get(), valueName, value);
@@ -917,7 +917,7 @@ struct GenericBaseFns
     {
         return wil::reg::get_value<RetType>(key, subkey, valueName);
     }
-#if defined(__cpp_lib_optional)
+#ifdef __cpp_lib_optional
     static std::optional<RetType> try_get(wil::unique_hkey const& key, PCWSTR valueName)
     {
         return wil::reg::try_get_value<RetType>(key.get(), valueName);
@@ -976,7 +976,7 @@ struct DwordFns
         return wil::reg::get_value_dword_nothrow(key, subkey, valueName, output);
     }
 
-#if defined(WIL_ENABLE_EXCEPTIONS)
+#ifdef WIL_ENABLE_EXCEPTIONS
     static void set(wil::unique_hkey const& key, PCWSTR valueName, SetType const& value)
     {
         wil::reg::set_value_dword(key.get(), valueName, value);
@@ -994,7 +994,7 @@ struct DwordFns
     {
         return wil::reg::get_value_dword(key, subkey, valueName);
     }
-#if defined(__cpp_lib_optional)
+#ifdef __cpp_lib_optional
     static std::optional<RetType> try_get(wil::unique_hkey const& key, PCWSTR valueName)
     {
         return wil::reg::try_get_value_dword(key.get(), valueName);
@@ -1082,7 +1082,7 @@ struct QwordFns
         return wil::reg::get_value_qword_nothrow(key, subkey, valueName, output);
     }
 
-#if defined(WIL_ENABLE_EXCEPTIONS)
+#ifdef WIL_ENABLE_EXCEPTIONS
     static void set(wil::unique_hkey const& key, PCWSTR valueName, SetType const& value)
     {
         wil::reg::set_value_qword(key.get(), valueName, value);
@@ -1101,7 +1101,7 @@ struct QwordFns
         return wil::reg::get_value_qword(key, subkey, valueName);
     }
 
-#if defined(__cpp_lib_optional)
+#ifdef __cpp_lib_optional
     static std::optional<RetType> try_get(wil::unique_hkey const& key, PCWSTR valueName)
     {
         return wil::reg::try_get_value_qword(key.get(), valueName);
@@ -1143,7 +1143,7 @@ struct GenericQwordFns : GenericBaseFns<DWORD64, uint64_t>
     }
 };
 
-#if defined(WIL_ENABLE_EXCEPTIONS)
+#ifdef WIL_ENABLE_EXCEPTIONS
 struct MultiStringVectorFns
 {
     using RetType = std::vector<std::wstring>;
@@ -1200,7 +1200,7 @@ struct MultiStringVectorFns
         return wil::reg::get_value_multistring(key, subkey, valueName);
     }
 
-#if defined(__cpp_lib_optional)
+#ifdef __cpp_lib_optional
     static std::optional<RetType> try_get(wil::unique_hkey const& key, PCWSTR valueName)
     {
         return wil::reg::try_get_value_multistring(key.get(), valueName);
@@ -1242,7 +1242,7 @@ struct GenericMultiStringVectorFns : GenericBaseFns<std::vector<std::wstring>, s
 };
 #endif // defined(WIL_ENABLE_EXCEPTIONS)
 
-#if defined(WIL_ENABLE_EXCEPTIONS)
+#ifdef WIL_ENABLE_EXCEPTIONS
 using NoThrowTypesToTest = std::tuple<DwordFns, GenericDwordFns, QwordFns, GenericQwordFns>;
 using ThrowingTypesToTest =
     std::tuple<DwordFns, GenericDwordFns, QwordFns, GenericQwordFns, MultiStringVectorFns, GenericMultiStringVectorFns>;
@@ -1337,7 +1337,7 @@ TEMPLATE_LIST_TEST_CASE("BasicRegistryTests::simple types typed nothrow gets/set
     }
 }
 
-#if defined(WIL_ENABLE_EXCEPTIONS)
+#ifdef WIL_ENABLE_EXCEPTIONS
 TEMPLATE_LIST_TEST_CASE("BasicRegistryTests::simple types typed gets/sets/try_gets", "[registry]", ThrowingTypesToTest)
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
@@ -1410,7 +1410,7 @@ TEMPLATE_LIST_TEST_CASE("BasicRegistryTests::simple types typed gets/sets/try_ge
         }
     }
 
-#if defined(__cpp_lib_optional)
+#ifdef __cpp_lib_optional
     SECTION("try_get")
     {
         SECTION("with opened key")
@@ -1476,7 +1476,7 @@ TEMPLATE_LIST_TEST_CASE("BasicRegistryTests::simple types typed gets/sets/try_ge
 }
 #endif // defined(WIL_ENABLE_EXCEPTIONS)
 
-#if defined(WIL_ENABLE_EXCEPTIONS)
+#ifdef WIL_ENABLE_EXCEPTIONS
 TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
@@ -1853,7 +1853,7 @@ void verify_string_generic_get_value_subkey()
         });
 }
 
-#if defined(__cpp_lib_optional)
+#ifdef __cpp_lib_optional
 template <typename StringT, typename StringSetT = PCWSTR>
 void verify_try_string(
     const std::function<std::optional<StringT>(PCWSTR)>& tryGetFn,
@@ -1971,16 +1971,16 @@ TEST_CASE("BasicRegistryTests::string types", "[registry]")
         REQUIRE(wcslen(pcwstr_result) == wcslen(test_empty_null_terminated_string));
         REQUIRE(wcscmp(pcwstr_result, test_empty_null_terminated_string) == 0);
 
-#if defined(__WIL_OLEAUTO_H_)
+#ifdef __WIL_OLEAUTO_H_
         verify_string_nothrow<wil::unique_bstr>(hkey.get());
-#if defined(__WIL_OLEAUTO_H_STL)
+#ifdef __WIL_OLEAUTO_H_STL
         verify_string_nothrow<wil::shared_bstr>(hkey.get());
 #endif
 #endif
 
-#if defined(__WIL_OBJBASE_H_)
+#ifdef __WIL_OBJBASE_H_
         verify_string_nothrow<wil::unique_cotaskmem_string>(hkey.get());
-#if defined(__WIL_OBJBASE_H_STL)
+#ifdef __WIL_OBJBASE_H_STL
         verify_string_nothrow<wil::shared_cotaskmem_string>(hkey.get());
 #endif
 #endif
@@ -2001,16 +2001,16 @@ TEST_CASE("BasicRegistryTests::string types", "[registry]")
         REQUIRE(wcslen(pcwstr_result) == wcslen(test_empty_null_terminated_string));
         REQUIRE(wcscmp(pcwstr_result, test_empty_null_terminated_string) == 0);
 
-#if defined(__WIL_OLEAUTO_H_)
+#ifdef __WIL_OLEAUTO_H_
         verify_string_nothrow<wil::unique_bstr>(HKEY_CURRENT_USER, testSubkey);
-#if defined(__WIL_OLEAUTO_H_STL)
+#ifdef __WIL_OLEAUTO_H_STL
         verify_string_nothrow<wil::shared_bstr>(HKEY_CURRENT_USER, testSubkey);
 #endif
 #endif
 
-#if defined(__WIL_OBJBASE_H_)
+#ifdef __WIL_OBJBASE_H_
         verify_string_nothrow<wil::unique_cotaskmem_string>(HKEY_CURRENT_USER, testSubkey);
-#if defined(__WIL_OBJBASE_H_STL)
+#ifdef __WIL_OBJBASE_H_STL
         verify_string_nothrow<wil::shared_cotaskmem_string>(HKEY_CURRENT_USER, testSubkey);
 #endif
 #endif
@@ -2033,16 +2033,16 @@ TEST_CASE("BasicRegistryTests::string types", "[registry]")
         REQUIRE(wcslen(pcwstr_result) == wcslen(test_empty_null_terminated_string));
         REQUIRE(wcscmp(pcwstr_result, test_empty_null_terminated_string) == 0);
 
-#if defined(__WIL_OLEAUTO_H_)
+#ifdef __WIL_OLEAUTO_H_
         verify_string_generic_get_value_nothrow<wil::unique_bstr>(hkey.get());
-#if defined(__WIL_OLEAUTO_H_STL)
+#ifdef __WIL_OLEAUTO_H_STL
         verify_string_generic_get_value_nothrow<wil::shared_bstr>(hkey.get());
 #endif
 #endif
 
-#if defined(__WIL_OBJBASE_H_)
+#ifdef __WIL_OBJBASE_H_
         verify_string_generic_get_value_nothrow<wil::unique_cotaskmem_string>(hkey.get());
-#if defined(__WIL_OBJBASE_H_STL)
+#ifdef __WIL_OBJBASE_H_STL
         verify_string_generic_get_value_nothrow<wil::shared_cotaskmem_string>(hkey.get());
 #endif
 #endif
@@ -2062,16 +2062,16 @@ TEST_CASE("BasicRegistryTests::string types", "[registry]")
         REQUIRE(wcslen(pcwstr_result) == wcslen(test_empty_null_terminated_string));
         REQUIRE(wcscmp(pcwstr_result, test_empty_null_terminated_string) == 0);
 
-#if defined(__WIL_OLEAUTO_H_)
+#ifdef __WIL_OLEAUTO_H_
         verify_string_generic_get_value_nothrow<wil::unique_bstr>(HKEY_CURRENT_USER, testSubkey);
-#if defined(__WIL_OLEAUTO_H_STL)
+#ifdef __WIL_OLEAUTO_H_STL
         verify_string_generic_get_value_nothrow<wil::shared_bstr>(HKEY_CURRENT_USER, testSubkey);
 #endif
 #endif
 
-#if defined(__WIL_OBJBASE_H_)
+#ifdef __WIL_OBJBASE_H_
         verify_string_generic_get_value_nothrow<wil::unique_cotaskmem_string>(HKEY_CURRENT_USER, testSubkey);
-#if defined(__WIL_OBJBASE_H_STL)
+#ifdef __WIL_OBJBASE_H_STL
         verify_string_generic_get_value_nothrow<wil::shared_cotaskmem_string>(HKEY_CURRENT_USER, testSubkey);
 #endif
 #endif
@@ -2094,16 +2094,16 @@ TEST_CASE("BasicRegistryTests::string types", "[registry]")
         REQUIRE(pcwstr_result.size() == wcslen(test_empty_null_terminated_string));
         REQUIRE(pcwstr_result == test_empty_null_terminated_string);
 
-#if defined(__WIL_OLEAUTO_H_)
+#ifdef __WIL_OLEAUTO_H_
         verify_string<wil::unique_bstr>();
-#if defined(__WIL_OLEAUTO_H_STL)
+#ifdef __WIL_OLEAUTO_H_STL
         verify_string<wil::shared_bstr>();
 #endif
 #endif
 
-#if defined(__WIL_OBJBASE_H_)
+#ifdef __WIL_OBJBASE_H_
         verify_string<wil::unique_cotaskmem_string>();
-#if defined(__WIL_OBJBASE_H_STL)
+#ifdef __WIL_OBJBASE_H_STL
         verify_string<wil::shared_cotaskmem_string>();
 #endif
 #endif
@@ -2122,16 +2122,16 @@ TEST_CASE("BasicRegistryTests::string types", "[registry]")
         REQUIRE(pcwstr_result.size() == wcslen(test_empty_null_terminated_string));
         REQUIRE(pcwstr_result == test_empty_null_terminated_string);
 
-#if defined(__WIL_OLEAUTO_H_)
+#ifdef __WIL_OLEAUTO_H_
         verify_string_subkey<wil::unique_bstr>();
-#if defined(__WIL_OLEAUTO_H_STL)
+#ifdef __WIL_OLEAUTO_H_STL
         verify_string_subkey<wil::shared_bstr>();
 #endif
 #endif
 
-#if defined(__WIL_OBJBASE_H_)
+#ifdef __WIL_OBJBASE_H_
         verify_string_subkey<wil::unique_cotaskmem_string>();
-#if defined(__WIL_OBJBASE_H_STL)
+#ifdef __WIL_OBJBASE_H_STL
         verify_string_subkey<wil::shared_cotaskmem_string>();
 #endif
 #endif
@@ -2153,16 +2153,16 @@ TEST_CASE("BasicRegistryTests::string types", "[registry]")
         REQUIRE(pcwstr_result.size() == wcslen(test_empty_null_terminated_string));
         REQUIRE(pcwstr_result == test_empty_null_terminated_string);
 
-#if defined(__WIL_OLEAUTO_H_)
+#ifdef __WIL_OLEAUTO_H_
         verify_string_generic_get_value<wil::unique_bstr>();
-#if defined(__WIL_OLEAUTO_H_STL)
+#ifdef __WIL_OLEAUTO_H_STL
         verify_string_generic_get_value<wil::shared_bstr>();
 #endif
 #endif
 
-#if defined(__WIL_OBJBASE_H_)
+#ifdef __WIL_OBJBASE_H_
         verify_string_generic_get_value<wil::unique_cotaskmem_string>();
-#if defined(__WIL_OBJBASE_H_STL)
+#ifdef __WIL_OBJBASE_H_STL
         verify_string_generic_get_value<wil::shared_cotaskmem_string>();
 #endif
 #endif
@@ -2181,34 +2181,34 @@ TEST_CASE("BasicRegistryTests::string types", "[registry]")
         REQUIRE(pcwstr_result.size() == wcslen(test_empty_null_terminated_string));
         REQUIRE(pcwstr_result == test_empty_null_terminated_string);
 
-#if defined(__WIL_OLEAUTO_H_)
+#ifdef __WIL_OLEAUTO_H_
         verify_string_generic_get_value_subkey<wil::unique_bstr>();
-#if defined(__WIL_OLEAUTO_H_STL)
+#ifdef __WIL_OLEAUTO_H_STL
         verify_string_generic_get_value_subkey<wil::shared_bstr>();
 #endif
 #endif
 
-#if defined(__WIL_OBJBASE_H_)
+#ifdef __WIL_OBJBASE_H_
         verify_string_generic_get_value_subkey<wil::unique_cotaskmem_string>();
-#if defined(__WIL_OBJBASE_H_STL)
+#ifdef __WIL_OBJBASE_H_STL
         verify_string_generic_get_value_subkey<wil::shared_cotaskmem_string>();
 #endif
 #endif
     }
 
-#if defined(__cpp_lib_optional)
+#ifdef __cpp_lib_optional
     SECTION("strings set_value_string/try_get_value_string: with open key")
     {
         verify_try_string<std::wstring>();
 
-#if defined(__WIL_OLEAUTO_H_)
-#if defined(__WIL_OLEAUTO_H_STL)
+#ifdef __WIL_OLEAUTO_H_
+#ifdef __WIL_OLEAUTO_H_STL
         verify_try_string<wil::shared_bstr>();
 #endif
 #endif
 
-#if defined(__WIL_OBJBASE_H_)
-#if defined(__WIL_OBJBASE_H_STL)
+#ifdef __WIL_OBJBASE_H_
+#ifdef __WIL_OBJBASE_H_STL
         verify_try_string<wil::shared_cotaskmem_string>();
 #endif
 #endif
@@ -2218,14 +2218,14 @@ TEST_CASE("BasicRegistryTests::string types", "[registry]")
     {
         verify_try_string_subkey<std::wstring>();
 
-#if defined(__WIL_OLEAUTO_H_)
-#if defined(__WIL_OLEAUTO_H_STL)
+#ifdef __WIL_OLEAUTO_H_
+#ifdef __WIL_OLEAUTO_H_STL
         verify_try_string_subkey<wil::shared_bstr>();
 #endif
 #endif
 
-#if defined(__WIL_OBJBASE_H_)
-#if defined(__WIL_OBJBASE_H_STL)
+#ifdef __WIL_OBJBASE_H_
+#ifdef __WIL_OBJBASE_H_STL
         verify_try_string_subkey<wil::shared_cotaskmem_string>();
 #endif
 #endif
@@ -2235,18 +2235,18 @@ TEST_CASE("BasicRegistryTests::string types", "[registry]")
     {
         verify_try_string_generic_get_value<std::wstring>();
 
-#if defined(__WIL_OLEAUTO_H_)
+#ifdef __WIL_OLEAUTO_H_
         // must fail to compile try_* with wil::unique_bstr
         // verify_try_string_generic_get_value<wil::unique_bstr>();
-#if defined(__WIL_OLEAUTO_H_STL)
+#ifdef __WIL_OLEAUTO_H_STL
         verify_try_string_generic_get_value<wil::shared_bstr>();
 #endif
 #endif
 
-#if defined(__WIL_OBJBASE_H_)
+#ifdef __WIL_OBJBASE_H_
         // must fail to compile try_* with wil::unique_cotaskmem_string
         // verify_try_string_generic_get_value<wil::unique_cotaskmem_string>();
-#if defined(__WIL_OBJBASE_H_STL)
+#ifdef __WIL_OBJBASE_H_STL
         verify_try_string_generic_get_value<wil::shared_cotaskmem_string>();
 #endif
 #endif
@@ -2256,18 +2256,18 @@ TEST_CASE("BasicRegistryTests::string types", "[registry]")
     {
         verify_try_string_generic_get_value_subkey<std::wstring>();
 
-#if defined(__WIL_OLEAUTO_H_)
+#ifdef __WIL_OLEAUTO_H_
         // must fail to compile try_* with wil::unique_bstr
         // verify_try_string_generic_get_value_subkey<wil::unique_bstr>();
-#if defined(__WIL_OLEAUTO_H_STL)
+#ifdef __WIL_OLEAUTO_H_STL
         verify_try_string_generic_get_value_subkey<wil::shared_bstr>();
 #endif
 #endif
 
-#if defined(__WIL_OBJBASE_H_)
+#ifdef __WIL_OBJBASE_H_
         // must fail to compile try_* with wil::unique_cotaskmem_string
         // verify_try_string_generic_get_value_subkey<wil::unique_cotaskmem_string>();
-#if defined(__WIL_OBJBASE_H_STL)
+#ifdef __WIL_OBJBASE_H_STL
         verify_try_string_generic_get_value_subkey<wil::shared_cotaskmem_string>();
 #endif
 #endif
@@ -2518,7 +2518,7 @@ void verify_expanded_string(
     });
 }
 
-#if defined(WIL_ENABLE_EXCEPTIONS)
+#ifdef WIL_ENABLE_EXCEPTIONS
 void verify_expanded_string()
 {
     wil::unique_hkey hkey;
@@ -2583,7 +2583,7 @@ void verify_expanded_string_subkey()
         });
 }
 
-#if defined(__cpp_lib_optional)
+#ifdef __cpp_lib_optional
 template <typename StringT, typename SetStringT = PCWSTR>
 void verify_try_expanded_string(
     const std::function<std::optional<typename type_identity<StringT>::type>(PCWSTR)>& getFn,
@@ -2683,7 +2683,7 @@ void verify_try_expanded_string_subkey()
         });
 }
 #endif // defined(__cpp_lib_optional)
-#endif // #if defined(WIL_ENABLE_EXCEPTIONS)
+#endif // #ifdef WIL_ENABLE_EXCEPTIONS
 } // namespace
 
 TEST_CASE("BasicRegistryTests::expanded_string", "[registry]")
@@ -2696,16 +2696,16 @@ TEST_CASE("BasicRegistryTests::expanded_string", "[registry]")
 
     SECTION("set_value_expanded_string_nothrow/get_value_expanded_string_nothrow: with opened key")
     {
-#if defined(__WIL_OLEAUTO_H_)
+#ifdef __WIL_OLEAUTO_H_
         verify_expanded_string_nothrow<wil::unique_bstr>();
-#if defined(__WIL_OLEAUTO_H_STL)
+#ifdef __WIL_OLEAUTO_H_STL
         verify_expanded_string_nothrow<wil::shared_bstr>();
 #endif
 #endif
 
-#if defined(__WIL_OLEAUTO_H_)
+#ifdef __WIL_OLEAUTO_H_
         verify_expanded_string_nothrow<wil::unique_cotaskmem_string>();
-#if defined(__WIL_OLEAUTO_H_STL)
+#ifdef __WIL_OLEAUTO_H_STL
         verify_expanded_string_nothrow<wil::shared_cotaskmem_string>();
 #endif
 #endif
@@ -2713,37 +2713,37 @@ TEST_CASE("BasicRegistryTests::expanded_string", "[registry]")
 
     SECTION("set_value_expanded_string_nothrow/get_value_expanded_string_nothrow: with string key")
     {
-#if defined(__WIL_OLEAUTO_H_)
+#ifdef __WIL_OLEAUTO_H_
         verify_expanded_string_subkey_nothrow<wil::unique_bstr>();
-#if defined(__WIL_OLEAUTO_H_STL)
+#ifdef __WIL_OLEAUTO_H_STL
         verify_expanded_string_subkey_nothrow<wil::shared_bstr>();
 #endif
 #endif
 
-#if defined(__WIL_OLEAUTO_H_)
+#ifdef __WIL_OLEAUTO_H_
         verify_expanded_string_subkey_nothrow<wil::unique_cotaskmem_string>();
-#if defined(__WIL_OLEAUTO_H_STL)
+#ifdef __WIL_OLEAUTO_H_STL
         verify_expanded_string_subkey_nothrow<wil::shared_cotaskmem_string>();
 #endif
 #endif
     }
 
-#if defined(WIL_ENABLE_EXCEPTIONS)
+#ifdef WIL_ENABLE_EXCEPTIONS
     SECTION("set_value_expanded_string/get_value_expanded_string: with opened key")
     {
         verify_expanded_string();
         verify_expanded_string<std::wstring>();
 
-#if defined(__WIL_OLEAUTO_H_)
+#ifdef __WIL_OLEAUTO_H_
         verify_expanded_string<wil::unique_bstr>();
-#if defined(__WIL_OLEAUTO_H_STL)
+#ifdef __WIL_OLEAUTO_H_STL
         verify_expanded_string<wil::shared_bstr>();
 #endif
 #endif
 
-#if defined(__WIL_OLEAUTO_H_)
+#ifdef __WIL_OLEAUTO_H_
         verify_expanded_string<wil::unique_cotaskmem_string>();
-#if defined(__WIL_OLEAUTO_H_STL)
+#ifdef __WIL_OLEAUTO_H_STL
         verify_expanded_string<wil::shared_cotaskmem_string>();
 #endif
 #endif
@@ -2754,33 +2754,33 @@ TEST_CASE("BasicRegistryTests::expanded_string", "[registry]")
         verify_expanded_string_subkey();
         verify_expanded_string_subkey<std::wstring>();
 
-#if defined(__WIL_OLEAUTO_H_)
+#ifdef __WIL_OLEAUTO_H_
         verify_expanded_string_subkey<wil::unique_bstr>();
-#if defined(__WIL_OLEAUTO_H_STL)
+#ifdef __WIL_OLEAUTO_H_STL
         verify_expanded_string_subkey<wil::shared_bstr>();
 #endif
 #endif
 
-#if defined(__WIL_OLEAUTO_H_)
+#ifdef __WIL_OLEAUTO_H_
         verify_expanded_string_subkey<wil::unique_cotaskmem_string>();
-#if defined(__WIL_OLEAUTO_H_STL)
+#ifdef __WIL_OLEAUTO_H_STL
         verify_expanded_string_subkey<wil::shared_cotaskmem_string>();
 #endif
 #endif
     }
 
-#if defined(__cpp_lib_optional)
+#ifdef __cpp_lib_optional
     SECTION("set_value_expanded_string/try_get_value_expanded_string: with open key")
     {
         verify_try_expanded_string();
         verify_try_expanded_string<std::wstring>();
 
-#if defined(__WIL_OLEAUTO_H_STL)
+#ifdef __WIL_OLEAUTO_H_STL
         verify_try_expanded_string<wil::shared_bstr>();
 #endif
 
-#if defined(__WIL_OLEAUTO_H_)
-#if defined(__WIL_OLEAUTO_H_STL)
+#ifdef __WIL_OLEAUTO_H_
+#ifdef __WIL_OLEAUTO_H_STL
         verify_try_expanded_string<wil::shared_cotaskmem_string>();
 #endif
 #endif
@@ -2791,18 +2791,18 @@ TEST_CASE("BasicRegistryTests::expanded_string", "[registry]")
         verify_try_expanded_string_subkey();
         verify_try_expanded_string_subkey<std::wstring>();
 
-#if defined(__WIL_OLEAUTO_H_STL)
+#ifdef __WIL_OLEAUTO_H_STL
         verify_try_expanded_string_subkey<wil::shared_bstr>();
 #endif
 
-#if defined(__WIL_OLEAUTO_H_)
-#if defined(__WIL_OLEAUTO_H_STL)
+#ifdef __WIL_OLEAUTO_H_
+#ifdef __WIL_OLEAUTO_H_STL
         verify_try_expanded_string_subkey<wil::shared_cotaskmem_string>();
 #endif
 #endif
     }
 #endif
-#endif // #if defined(WIL_ENABLE_EXCEPTIONS)
+#endif // #ifdef WIL_ENABLE_EXCEPTIONS
 }
 
 TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
@@ -2813,7 +2813,7 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
         REQUIRE_SUCCEEDED(deleteHr);
     }
 
-#if defined(__WIL_OBJBASE_H_)
+#ifdef __WIL_OBJBASE_H_
     SECTION("set_value_nothrow/get_value_nothrow: empty array with opened key")
     {
         wil::unique_hkey hkey;
@@ -2910,7 +2910,7 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
     }
 #endif // #define __WIL_OBJBASE_H_
 
-#if defined(WIL_ENABLE_EXCEPTIONS)
+#ifdef WIL_ENABLE_EXCEPTIONS
     SECTION("set_value_multistring/get_value_multistring: odd values with string key")
     {
         REQUIRE(multiStringRawTestVector.size() == multiStringRawExpectedValues.size());
@@ -2977,7 +2977,7 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
 #endif // #ifdef __WIL_WINREG_STL
     }
 
-#if defined(__cpp_lib_optional)
+#ifdef __cpp_lib_optional
     SECTION("set_value/try_get_value_multistring: empty array with open key")
     {
         wil::unique_hkey hkey;
@@ -3030,7 +3030,7 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
 #endif
 }
 
-#if defined(__WIL_OBJBASE_H_)
+#ifdef __WIL_OBJBASE_H_
 static void verify_cotaskmem_array_nothrow(
     const std::function<HRESULT(PCWSTR, DWORD, wil::unique_cotaskmem_array_ptr<BYTE>&)>& getFn,
     const std::function<HRESULT(PCWSTR, DWORD, const wil::unique_cotaskmem_array_ptr<BYTE>&)>& setFn,
@@ -3175,7 +3175,7 @@ void verify_byte_vector(
     REQUIRE(result[3] == 0xff);
 }
 
-#if defined(__cpp_lib_optional)
+#ifdef __cpp_lib_optional
 void verify_try_byte_vector(
     const std::function<std::optional<std::vector<BYTE>>(PCWSTR, DWORD)>& tryGetFn,
     const std::function<void(PCWSTR, DWORD, const std::vector<BYTE>&)>& setFn,
@@ -3212,7 +3212,7 @@ void verify_try_byte_vector(
     REQUIRE(result->at(2) == 0xff);
     REQUIRE(result->at(3) == 0xff);
 }
-#endif // #if defined(__cpp_lib_optional)
+#endif // #ifdef __cpp_lib_optional
 } // namespace
 
 TEST_CASE("BasicRegistryTests::vector-bytes", "[registry]")
@@ -3275,7 +3275,7 @@ TEST_CASE("BasicRegistryTests::vector-bytes", "[registry]")
             });
     }
 
-#if defined(__cpp_lib_optional)
+#ifdef __cpp_lib_optional
     SECTION("set_value_binary/try_get_value_binary: with open key")
     {
         wil::unique_hkey hkey;
@@ -3306,11 +3306,11 @@ TEST_CASE("BasicRegistryTests::vector-bytes", "[registry]")
                 wil::reg::set_value_dword(HKEY_CURRENT_USER, testSubkey, valueName, input);
             });
     }
-#endif // #if defined(__cpp_lib_optional)
+#endif // #ifdef __cpp_lib_optional
 }
 #endif
 
-#if defined(__WIL_OBJBASE_H_)
+#ifdef __WIL_OBJBASE_H_
 TEST_CASE("BasicRegistryTests::cotaskmem_array-bytes", "[registry]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
@@ -3349,9 +3349,9 @@ TEST_CASE("BasicRegistryTests::cotaskmem_array-bytes", "[registry]")
             });
     }
 }
-#endif // #if defined(__WIL_OBJBASE_H_)
+#endif // #ifdef __WIL_OBJBASE_H_
 
-#if defined(WIL_ENABLE_EXCEPTIONS)
+#ifdef WIL_ENABLE_EXCEPTIONS
 TEST_CASE("BasicRegistryTests::value_iterator", "[registry]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
@@ -3876,7 +3876,7 @@ TEST_CASE("BasicRegistryTests::key_iterator", "[registry]")
             wil::reg::key_iterator(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey).get()), wil::reg::key_iterator{}, L"xyz");
         REQUIRE(std_count == 0);
 
-#if defined(__WIL_WINREG_STL)
+#ifdef __WIL_WINREG_STL
         // repeat with wil::shared_hkey
         std_count = std::count(
             wil::reg::key_iterator(wil::reg::open_shared_key(HKEY_CURRENT_USER, testSubkey).get()), wil::reg::key_iterator{}, test_enum_KeyName1);
@@ -3897,7 +3897,7 @@ TEST_CASE("BasicRegistryTests::key_iterator", "[registry]")
         std_count = std::count(
             wil::reg::key_iterator(wil::reg::open_shared_key(HKEY_CURRENT_USER, testSubkey).get()), wil::reg::key_iterator{}, L"xyz");
         REQUIRE(std_count == 0);
-#endif // #if defined(__WIL_WINREG_STL)
+#endif // #ifdef __WIL_WINREG_STL
     }
 
     SECTION("key_iterator with many subkeys - range-for iterator usage")
@@ -3937,7 +3937,7 @@ TEST_CASE("BasicRegistryTests::key_iterator", "[registry]")
     }
 }
 
-#if defined(__WIL_OLEAUTO_H_)
+#ifdef __WIL_OLEAUTO_H_
 TEST_CASE("BasicRegistryTests::value_bstr_iterator", "[registry]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
@@ -4470,7 +4470,7 @@ TEST_CASE("BasicRegistryTests::key_bstr_iterator", "[registry]")
             });
         REQUIRE(std_count == 0);
 
-#if defined(__WIL_WINREG_STL)
+#ifdef __WIL_WINREG_STL
         // repeat with wil::shared_hkey
         std_count = std::count_if(
             wil::reg::key_bstr_iterator(wil::reg::open_shared_key(HKEY_CURRENT_USER, testSubkey).get()),
@@ -4511,7 +4511,7 @@ TEST_CASE("BasicRegistryTests::key_bstr_iterator", "[registry]")
                 return 0 == wcscmp(test_data.name.get(), L"xyz");
             });
         REQUIRE(std_count == 0);
-#endif // #if defined(__WIL_WINREG_STL)
+#endif // #ifdef __WIL_WINREG_STL
     }
 
     SECTION("key_bstr_iterator with many subkeys - range-for iterator usage")
@@ -5075,7 +5075,7 @@ TEST_CASE("BasicRegistryTests::key_heap_string_iterator", "[registry]")
             });
         REQUIRE(std_count == 0);
 
-#if defined(__WIL_WINREG_STL)
+#ifdef __WIL_WINREG_STL
         // repeat with wil::shared_hkey
         std_count = std::count_if(
             wil::reg::key_heap_string_iterator(wil::reg::open_shared_key(HKEY_CURRENT_USER, testSubkey).get()),
@@ -5116,7 +5116,7 @@ TEST_CASE("BasicRegistryTests::key_heap_string_iterator", "[registry]")
                 return 0 == wcscmp(test_data.name.get(), L"xyz");
             });
         REQUIRE(std_count == 0);
-#endif // #if defined(__WIL_WINREG_STL)
+#endif // #ifdef __WIL_WINREG_STL
     }
 
     SECTION("key_heap_string_iterator with many subkeys - range-for iterator usage")
@@ -5152,9 +5152,9 @@ TEST_CASE("BasicRegistryTests::key_heap_string_iterator", "[registry]")
         }
     }
 }
-#endif // #if defined(WIL_ENABLE_EXCEPTIONS)
+#endif // #ifdef WIL_ENABLE_EXCEPTIONS
 
-#if defined(__WIL_OLEAUTO_H_)
+#ifdef __WIL_OLEAUTO_H_
 TEST_CASE("BasicRegistryTests::value_bstr_nothrow_iterator", "[registry]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
