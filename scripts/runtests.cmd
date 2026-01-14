@@ -40,7 +40,7 @@ if not exist %BUILD_DIR% ( goto :eof )
 :: MSVC does not currently ship a version of the x64 ASan DLL that can be run on an arm64 host. MSVC _does_ ship a lib
 :: so we _can_ build the ASan tests, which is at least something. For now we're going to handle this limitation here and
 :: avoid running the ASan test in this specific scenario
-set RUN_ASAN_TEST=1
+if not %RUN_ASAN_TEST%=='' set RUN_ASAN_TEST=1
 if %PROCESSOR_ARCHITECTURE%==ARM64 (
     if %2==x64 set RUN_ASAN_TEST=0
 )
@@ -69,11 +69,15 @@ if %ERRORLEVEL% NEQ 0 ( goto :execute_tests_done )
 
 :execute_tests_done
 set EXIT_CODE=%ERRORLEVEL%
+if %EXIT_CODE% NEQ 0 (
+    echo Tests failed in %BUILD_DIR% with exit code %EXIT_CODE%
+    goto :eof
+)
 popd
 exit /B %EXIT_CODE%
 
 :execute_test
 if not exist tests\%1\%2 ( goto :eof )
-echo Running %1 tests...
+echo Running tests\%1\%2 %TEST_ARGS%
 tests\%1\%2 %TEST_ARGS%
 goto :eof
