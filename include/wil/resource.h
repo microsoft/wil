@@ -1840,6 +1840,28 @@ PCWSTR str_raw_ptr(const unique_any_t<T>& val)
 /// @cond
 namespace details
 {
+    struct string_view_t
+    {
+        wchar_t const* data;
+        size_t length;
+    };
+
+    inline string_view_t view_from_string(string_view_t const& s)
+    {
+        return s;
+    }
+
+    inline string_view_t view_from_string(PCWSTR str)
+    {
+        return string_view_t{str, str ? wcslen(str) : 0};
+    }
+
+    template <typename T>
+    inline string_view_t view_from_string(wil::unique_any_t<T> const& str)
+    {
+        return view_from_string(str.get());
+    }
+
     // Forward declaration
     template <typename string_type>
     struct string_maker;
@@ -1847,12 +1869,12 @@ namespace details
     // Concatenate any number of strings together and store it in an automatically allocated string.  If a string is present
     // in the input buffer, it is overwritten.
     template <typename string_type>
-    HRESULT str_build_nothrow(string_type& result, _In_reads_(strCount) PCWSTR* strList, size_t strCount)
+    HRESULT str_build_nothrow_(string_type& result, _In_reads_(strCount) string_view_t const* strList, size_t strCount)
     {
         size_t lengthRequiredWithoutNull{};
         for (auto& string : make_range(strList, strCount))
         {
-            lengthRequiredWithoutNull += string ? wcslen(string) : 0;
+            lengthRequiredWithoutNull += string.length;
         }
 
         details::string_maker<string_type> maker;
@@ -1862,9 +1884,10 @@ namespace details
         auto bufferEnd = buffer + lengthRequiredWithoutNull + 1;
         for (auto& string : make_range(strList, strCount))
         {
-            if (string)
+            if (string.data)
             {
-                RETURN_IF_FAILED(StringCchCopyExW(buffer, (bufferEnd - buffer), string, &buffer, nullptr, STRSAFE_IGNORE_NULLS));
+                RETURN_IF_FAILED(StringCchCopyNExW(
+                    buffer, (bufferEnd - buffer), string.data, string.length, &buffer, nullptr, STRSAFE_IGNORE_NULLS));
             }
         }
 
@@ -1872,12 +1895,11 @@ namespace details
         return S_OK;
     }
 
-    // NOTE: 'Strings' must all be PCWSTR, or convertible to PCWSTR, but C++ doesn't allow us to express that cleanly
     template <typename string_type, typename... Strings>
     HRESULT str_build_nothrow(string_type& result, Strings... strings)
     {
-        PCWSTR localStrings[] = {strings...};
-        return str_build_nothrow(result, localStrings, sizeof...(Strings));
+        string_view_t localStrings[] = {strings...};
+        return str_build_nothrow_<string_type>(result, localStrings, ARRAYSIZE(localStrings));
     }
 } // namespace details
 /// @endcond
@@ -1888,7 +1910,8 @@ template <typename string_type, typename... strings>
 HRESULT str_concat_nothrow(string_type& buffer, const strings&... str)
 {
     static_assert(sizeof...(str) > 0, "attempting to concatenate no strings");
-    return details::str_build_nothrow(buffer, details::string_maker<string_type>::get(buffer), str_raw_ptr(str)...);
+    return details::str_build_nothrow(
+        buffer, details::view_from_string(details::string_maker<string_type>::get(buffer)), details::view_from_string(str)...);
 }
 #endif // !defined(__WIL_MIN_KERNEL) && !defined(WIL_KERNEL_MODE)
 
@@ -5045,6 +5068,21 @@ inline PCWSTR str_raw_ptr(const unique_hstring& str)
 {
     return str_raw_ptr(str.get());
 }
+
+namespace details
+{
+    inline string_view_t view_from_string(HSTRING str)
+    {
+        UINT32 length = 0;
+        PCWSTR rawBuffer = WindowsGetStringRawBuffer(str, &length);
+        return string_view_t{rawBuffer, length};
+    }
+
+    inline string_view_t view_from_string(const unique_hstring& str)
+    {
+        return view_from_string(str.get());
+    }
+} // namespace details
 
 #endif // __WIL__WINSTRING_H_
 #if (defined(__WIL__WINSTRING_H_) && !defined(__WIL__WINSTRING_H_STL) && defined(WIL_RESOURCE_STL)) || defined(WIL_DOXYGEN)
