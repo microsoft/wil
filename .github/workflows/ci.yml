@@ -5,10 +5,10 @@ permissions:
 
 on:
   pull_request:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       pr_number:
-        description: 'PR number to test (leave empty to use current branch)'
+        description: 'PR number to test'
         required: false
         type: number
   push:
