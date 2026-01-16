@@ -282,7 +282,7 @@ namespace details
             return *this;
         }
 
-        StoredCallContextInfo(StoredCallContextInfo const& other) WI_NOEXCEPT : m_ownsMessage(false)
+        StoredCallContextInfo(StoredCallContextInfo const& other) WI_NOEXCEPT
         {
             contextId = other.contextId;
             contextName = other.contextName;
@@ -296,7 +296,7 @@ namespace details
             }
         }
 
-        StoredCallContextInfo(_In_opt_ PCSTR staticContextName) WI_NOEXCEPT : m_ownsMessage(false)
+        StoredCallContextInfo(_In_opt_ PCSTR staticContextName) WI_NOEXCEPT
         {
             contextId = 0;
             contextName = staticContextName;
@@ -365,7 +365,7 @@ namespace details
             }
         }
 
-        bool m_ownsMessage;
+        bool m_ownsMessage{false};
     };
 
     template <typename TActivity>

@@ -24,10 +24,7 @@ endif()
 
 target_sources(witest.noexcept PRIVATE
     ${COMMON_SOURCES}
-    ${CMAKE_CURRENT_SOURCE_DIR}/../RegistryTests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../TokenHelpersTests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../UniqueWinRTEventTokenTests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../WatcherTests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../WinRTTests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../WinVerifyTrustTest.cpp
+    ${DOWNLEVEL_SOURCES}
+    ${WINRT_SOURCES}
+    ${WIN11_DESTKTOP_SOURCES}
     )

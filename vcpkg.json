@@ -1,7 +1,12 @@
 {
   "dependencies": [
     "detours",
-    "catch2"
+    {
+      "name": "catch2",
+      "features": [
+        "thread-safe-assertions"
+      ]
+    }
   ],
-  "builtin-baseline": "64e15f6669480b2d2bff1e5e815c571a8213421e"
+  "builtin-baseline": "7213cf8135c329c37c7e2778e40774489a0583a8"
 }

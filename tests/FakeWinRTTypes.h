@@ -32,7 +32,7 @@ struct WinRTStorage
 
     bool Equals(T val)
     {
-        // NOTE: Padding can through this off, but this isn't intended to be a robust solution...
+        // NOLINTNEXTLINE(bugprone-suspicious-memory-comparison): Padding can throw this off, but this isn't intended to be a robust solution...
         return memcmp(&value, &val, sizeof(T)) == 0;
     }
 };

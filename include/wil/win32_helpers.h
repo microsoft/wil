@@ -41,7 +41,7 @@
 #if WIL_USE_STL && (__cpp_lib_bit_cast >= 201806L)
 #define __WI_CONSTEXPR_BIT_CAST constexpr
 #else
-#define __WI_CONSTEXPR_BIT_CAST inline
+#define __WI_CONSTEXPR_BIT_CAST // All uses are templates, which is implicitly inline
 #endif
 /// @endcond
 
@@ -130,9 +130,9 @@ struct weak_ordering
     signed char m_value;
 };
 
-inline constexpr weak_ordering weak_ordering::less{static_cast<signed char>(-1)};
-inline constexpr weak_ordering weak_ordering::equivalent{static_cast<signed char>(0)};
-inline constexpr weak_ordering weak_ordering::greater{static_cast<signed char>(1)};
+__WI_LIBCPP_INLINE_VAR constexpr weak_ordering weak_ordering::less{static_cast<signed char>(-1)};
+__WI_LIBCPP_INLINE_VAR constexpr weak_ordering weak_ordering::equivalent{static_cast<signed char>(0)};
+__WI_LIBCPP_INLINE_VAR constexpr weak_ordering weak_ordering::greater{static_cast<signed char>(1)};
 
 #endif
 } // namespace wistd
@@ -207,43 +207,56 @@ namespace filetime_duration
 
 namespace filetime
 {
-    constexpr unsigned long long to_int64(const FILETIME& ft) WI_NOEXCEPT
+    template <typename Int64 = unsigned long long, wistd::enable_if_t<wistd::is_integral_v<Int64> && (sizeof(Int64) == sizeof(FILETIME)), int> = 0>
+    constexpr Int64 to_int64(const FILETIME& val) WI_NOEXCEPT
     {
 #if WIL_USE_STL && (__cpp_lib_bit_cast >= 201806L)
-        return std::bit_cast<unsigned long long>(ft);
+        return std::bit_cast<Int64>(val);
 #else
-        // Cannot reinterpret_cast FILETIME* to unsigned long long*
-        // due to alignment differences.
-        return (static_cast<unsigned long long>(ft.dwHighDateTime) << 32) + ft.dwLowDateTime;
+        // Cannot reinterpret_cast FILETIME* to Int64* due to alignment differences.
+        return (static_cast<Int64>(val.dwHighDateTime) << 32) + val.dwLowDateTime;
 #endif
     }
 
-    __WI_CONSTEXPR_BIT_CAST FILETIME from_int64(unsigned long long i64) WI_NOEXCEPT
+    namespace details
     {
+        template <typename Int>
+        using select_int64 =
+            wistd::conditional_t<sizeof(Int) == 8, Int, wistd::conditional_t<wistd::is_signed_v<Int>, long long, unsigned long long>>;
+    }
+
+    template <typename Int, wistd::enable_if_t<wistd::is_integral_v<Int> && (sizeof(Int) <= sizeof(FILETIME)), int> = 0>
+    __WI_CONSTEXPR_BIT_CAST FILETIME from_int64(Int val) WI_NOEXCEPT
+    {
+        using Int64 = details::select_int64<Int>;
+        auto i64 = static_cast<Int64>(val);
+
 #if WIL_USE_STL && (__cpp_lib_bit_cast >= 201806L)
         return std::bit_cast<FILETIME>(i64);
 #else
         static_assert(sizeof(i64) == sizeof(FILETIME), "sizes don't match");
-        static_assert(__alignof(unsigned long long) >= __alignof(FILETIME), "alignment not compatible with type pun");
+        static_assert(__alignof(Int64) >= __alignof(FILETIME), "alignment not compatible with type pun");
         return *reinterpret_cast<FILETIME*>(&i64);
 #endif
     }
 
-    __WI_CONSTEXPR_BIT_CAST FILETIME add(_In_ FILETIME const& ft, long long delta100ns) WI_NOEXCEPT
+    template <typename Int, wistd::enable_if_t<wistd::is_integral_v<Int> && (sizeof(Int) <= sizeof(FILETIME)), int> = 0>
+    __WI_CONSTEXPR_BIT_CAST FILETIME add(FILETIME const& baseTime, Int delta100ns) WI_NOEXCEPT
     {
-        return from_int64(to_int64(ft) + delta100ns);
+        using Int64 = details::select_int64<Int>;
+        return from_int64(to_int64<Int64>(baseTime) + delta100ns);
     }
 
-    constexpr bool is_empty(const FILETIME& ft) WI_NOEXCEPT
+    constexpr bool is_empty(const FILETIME& val) WI_NOEXCEPT
     {
-        return (ft.dwHighDateTime == 0) && (ft.dwLowDateTime == 0);
+        return (val.dwHighDateTime == 0) && (val.dwLowDateTime == 0);
     }
 
     inline FILETIME get_system_time() WI_NOEXCEPT
     {
-        FILETIME ft;
-        GetSystemTimeAsFileTime(&ft);
-        return ft;
+        FILETIME now;
+        GetSystemTimeAsFileTime(&now);
+        return now;
     }
 
     /// Convert time as units of 100 nanoseconds to milliseconds. Fractional milliseconds are truncated.
@@ -340,7 +353,7 @@ constexpr rect_type rect_from_size(length_type x, length_type y, length_type wid
 // Adjust stackBufferLength based on typical result sizes to optimize use and
 // to test the boundary cases.
 template <typename string_type, size_t stackBufferLength = 256>
-HRESULT AdaptFixedSizeToAllocatedResult(string_type& result, wistd::function<HRESULT(PWSTR, size_t, size_t*)> callback) WI_NOEXCEPT
+HRESULT AdaptFixedSizeToAllocatedResult(string_type& result, const wistd::function<HRESULT(PWSTR, size_t, size_t*)>& callback) WI_NOEXCEPT
 {
     details::string_maker<string_type> maker;
 
@@ -670,7 +683,8 @@ namespace details
             wil::unique_cotaskmem_string keyPath;
             RETURN_IF_FAILED(wil::str_concat_nothrow<wil::unique_cotaskmem_string>(
                 keyPath, LR"(SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\)", fileName));
-            DWORD value{}, sizeofValue = sizeof(value);
+            DWORD value{};
+            DWORD sizeofValue = sizeof(value);
             if (::RegGetValueW(
                     HKEY_LOCAL_MACHINE,
                     keyPath.get(),
@@ -771,7 +785,7 @@ inline void WaitForDebuggerPresent(bool checkRegistryConfig = true)
 
 inline void WaitForDebuggerPresentNoThrow(bool checkRegistryConfig = true)
 {
-    (void)details::WaitForDebuggerPresent<err_returncode_policy>(checkRegistryConfig);
+    details::WaitForDebuggerPresent<err_returncode_policy>(checkRegistryConfig);
 }
 
 inline void WaitForDebuggerPresentFailFast(bool checkRegistryConfig = true)
@@ -948,10 +962,8 @@ bool init_once(_Inout_ INIT_ONCE& initOnce, T func)
         completion.success();
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 #endif // WIL_ENABLE_EXCEPTIONS
 
@@ -959,17 +971,40 @@ bool init_once(_Inout_ INIT_ONCE& initOnce, T func)
 /// @cond
 namespace details
 {
+    // NOTE: We can't have a 'using std::begin' at class scope, hence the workaround for handling both 'begin' with ADL
+    // and 'std::begin' separately. We want to handle both because there's no guarantee the type has a 'begin' method
     template <typename RangeT>
+    struct deduce_char_type_from_string_range_traits
+    {
+        template <typename U>
+        static std::true_type deduce_has_adl_begin(U&& range, std::void_t<decltype((*begin(range))[0])>*);
+        template <typename U>
+        static std::false_type deduce_has_adl_begin(U&&, ...);
+
+        template <typename U>
+        static std::true_type deduce_has_std_begin(U&& range, std::void_t<decltype((*std::begin(range))[0])>*);
+        template <typename U>
+        static std::false_type deduce_has_std_begin(U&&, ...);
+
+        static constexpr bool has_adl_begin = decltype(deduce_has_adl_begin(std::declval<RangeT>(), nullptr))::value;
+        static constexpr bool has_std_begin = decltype(deduce_has_std_begin(std::declval<RangeT>(), nullptr))::value;
+    };
+
+    template <typename RangeT, bool hasAdlBegin = deduce_char_type_from_string_range_traits<RangeT>::has_adl_begin, bool hasStdBegin = deduce_char_type_from_string_range_traits<RangeT>::has_std_begin>
     struct deduce_char_type_from_string_range
     {
-        template <typename T = RangeT>
-        static auto deduce(T& range)
-        {
-            using std::begin;
-            return (*begin(range))[0];
-        }
+    };
 
-        using type = decltype(deduce(wistd::declval<RangeT&>()));
+    template <typename RangeT, bool hasStdBegin>
+    struct deduce_char_type_from_string_range<RangeT, true, hasStdBegin>
+    {
+        using type = std::decay_t<decltype((*begin(std::declval<RangeT>()))[0])>;
+    };
+
+    template <typename RangeT>
+    struct deduce_char_type_from_string_range<RangeT, false, true>
+    {
+        using type = std::decay_t<decltype((*std::begin(std::declval<RangeT>()))[0])>;
     };
 
     template <typename RangeT>
@@ -1041,6 +1076,7 @@ inline std::basic_string<CharT> ArgvToCommandLine(RangeT&& range, ArgvToCommandL
     // Somewhat of a hack to avoid the fact that we can't conditionalize a string literal on a template
     static constexpr const CharT empty_string[] = {'\0'};
     static constexpr const CharT single_quote_string[] = {'"', '\0'};
+    static constexpr const CharT double_quote_string[] = {'"', '"', '\0'};
     static constexpr const CharT space_string[] = {' ', '\0'};
     static constexpr const CharT quoted_space_string[] = {'"', ' ', '"', '\0'};
 
@@ -1058,6 +1094,7 @@ inline std::basic_string<CharT> ArgvToCommandLine(RangeT&& range, ArgvToCommandL
     {
         auto currentIndex = index++;
         result += prefix;
+        prefix = nextPrefix;
 
         const CharT* searchString = initialSearchString;
 
@@ -1067,6 +1104,14 @@ inline std::basic_string<CharT> ArgvToCommandLine(RangeT&& range, ArgvToCommandL
 
         // We need to escape any quotes and CONDITIONALLY any backslashes
         string_view_type str(strRaw);
+        if (str.empty() && !forceQuotes)
+        {
+            // The argument is empty. If we want to preserve it in the command line string, we need to manually insert
+            // a pair of quotes since normal parsing won't handle this case
+            result.append(double_quote_string);
+            continue;
+        }
+
         size_t pos = 0;
         while (pos < str.size())
         {
@@ -1085,7 +1130,9 @@ inline std::basic_string<CharT> ArgvToCommandLine(RangeT&& range, ArgvToCommandL
             result.append(str, pos, nextPos - pos);
             pos = nextPos;
             if (pos == str.npos)
+            {
                 break;
+            }
 
             if (str[pos] == '"')
             {
@@ -1164,8 +1211,6 @@ inline std::basic_string<CharT> ArgvToCommandLine(RangeT&& range, ArgvToCommandL
         {
             result.push_back('"');
         }
-
-        prefix = nextPrefix;
     }
 
     // NOTE: We optimize the force quotes case by including them in the prefix string. We're not appending a prefix
@@ -1199,6 +1244,6 @@ inline std::basic_string<wistd::remove_cv_t<CharT>> ArgvToCommandLine(
 //    sendMail(0, 0, pmm, MAPI_USE_DEFAULT, 0);
 // }
 //  Declaration
-#define GetProcAddressByFunctionDeclaration(hinst, fn) reinterpret_cast<decltype(::fn)*>(GetProcAddress(hinst, #fn))
+#define GetProcAddressByFunctionDeclaration(hinst, fn) (reinterpret_cast<decltype(::fn)*>(GetProcAddress(hinst, #fn)))
 
 #endif // __WIL_WIN32_HELPERS_INCLUDED

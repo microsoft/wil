@@ -133,6 +133,20 @@ inline PCWSTR str_raw_ptr(const std::wstring& str)
 }
 
 #if __cpp_lib_string_view >= 201606L
+
+namespace details
+{
+    inline string_view_t view_from_string(std::wstring_view const& s)
+    {
+        return string_view_t{s.data(), s.length()};
+    }
+
+    inline string_view_t view_from_string(std::wstring const& s)
+    {
+        return string_view_t{s.data(), s.length()};
+    }
+} // namespace details
+
 /**
     zstring_view. A zstring_view is identical to a std::string_view except it is always nul-terminated (unless empty).
     * zstring_view can be used for storing string literals without "forgetting" the length or that it is nul-terminated.
@@ -144,6 +158,26 @@ template <class TChar>
 class basic_zstring_view : public std::basic_string_view<TChar>
 {
     using size_type = typename std::basic_string_view<TChar>::size_type;
+
+    template <typename T>
+    struct has_c_str
+    {
+        template <typename U>
+        static auto test(int) -> decltype(std::declval<U>().c_str(), std::true_type());
+        template <typename U>
+        static std::false_type test(...);
+        static constexpr bool value = decltype(test<T>(0))::value;
+    };
+
+    template <typename T>
+    struct has_size
+    {
+        template <typename U>
+        static auto test(int) -> decltype(std::declval<U>().size() == 1, std::true_type());
+        template <typename U>
+        static std::false_type test(...);
+        static constexpr bool value = decltype(test<T>(0))::value;
+    };
 
 public:
     constexpr basic_zstring_view() noexcept = default;
@@ -174,6 +208,16 @@ public:
 
     constexpr basic_zstring_view(const std::basic_string<TChar>& str) noexcept :
         std::basic_string_view<TChar>(&str[0], str.size())
+    {
+    }
+
+    template <typename TSrc, std::enable_if_t<has_c_str<TSrc>::value && has_size<TSrc>::value>* = nullptr>
+    constexpr basic_zstring_view(TSrc const& src) noexcept : std::basic_string_view<TChar>(src.c_str(), src.size())
+    {
+    }
+
+    template <typename TSrc, std::enable_if_t<has_c_str<TSrc>::value && !has_size<TSrc>::value>* = nullptr>
+    constexpr basic_zstring_view(TSrc const& src) noexcept : std::basic_string_view<TChar>(src.c_str())
     {
     }
 
@@ -211,16 +255,32 @@ private:
 using zstring_view = basic_zstring_view<char>;
 using zwstring_view = basic_zstring_view<wchar_t>;
 
+// str_raw_ptr is an overloaded function that retrieves a const pointer to the first character in a string's buffer.
+// This is the overload for std::wstring.  Other overloads available in resource.h.
+template <typename TChar>
+inline auto str_raw_ptr(basic_zstring_view<TChar> str)
+{
+    return str.c_str();
+}
+
+namespace details
+{
+    inline string_view_t view_from_string(zwstring_view const& s)
+    {
+        return string_view_t{s.data(), s.length()};
+    }
+} // namespace details
+
 inline namespace literals
 {
     constexpr zstring_view operator""_zv(const char* str, std::size_t len) noexcept
     {
-        return zstring_view(str, len);
+        return {str, len};
     }
 
     constexpr zwstring_view operator""_zv(const wchar_t* str, std::size_t len) noexcept
     {
-        return zwstring_view(str, len);
+        return {str, len};
     }
 } // namespace literals
 
@@ -273,6 +333,14 @@ overloaded(T...) -> overloaded<T...>;
 #endif // __WI_LIBCPP_STD_VER >= 17
 
 } // namespace wil
+
+#if (__WI_LIBCPP_STD_VER >= 20) && WI_HAS_INCLUDE(<format>, 1) // Assume present if C++20
+#include <format>
+template <typename TChar>
+struct std::formatter<wil::basic_zstring_view<TChar>, TChar> : std::formatter<std::basic_string_view<TChar>, TChar>
+{
+};
+#endif
 
 #endif // WIL_ENABLE_EXCEPTIONS
 

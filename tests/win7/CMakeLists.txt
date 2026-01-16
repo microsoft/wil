@@ -9,8 +9,5 @@ target_compile_definitions(witest.win7 PRIVATE
 
 target_sources(witest.win7 PRIVATE
     ${COMMON_SOURCES}
-    ${CMAKE_CURRENT_SOURCE_DIR}/../RegistryTests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../StlTests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../TokenHelpersTests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../WatcherTests.cpp
+    ${DOWNLEVEL_SOURCES}
     )

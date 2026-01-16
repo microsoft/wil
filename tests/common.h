@@ -165,7 +165,7 @@ public:
         if (Leaked())
         {
             // NOTE: This runs when no test is active, but will still cause an assert failure to notify
-            FAIL("GlobalCount is non-zero; there is a leak somewhere");
+            FAIL_FAST_MSG("GlobalCount is non-zero; there is a leak somewhere");
         }
     }
 };
@@ -210,15 +210,20 @@ template <typename TLambda>
 bool DoesCodeCrash(TLambda&& lambda)
 {
     bool crashed = false;
+#if defined(_MSC_VER)
     __try
+#endif
     {
         // for the purposes of this test, throwing an exception is not a crash
         DoesCodeThrow(wistd::forward<TLambda>(lambda));
     }
+#if defined(_MSC_VER)
     __except (EXCEPTION_EXECUTE_HANDLER)
+
     {
         crashed = true;
     }
+#endif
     return crashed;
 }
 
@@ -226,15 +231,17 @@ template <typename TLambda>
 bool DoesCodeFailFast(TLambda&& callOp)
 {
     bool failFast = false;
-    witest::detoured_thread_function<&wil::details::ReportFailure_Base<wil::FailureType::FailFast, false>> detour;
-    REQUIRE_SUCCEEDED(detour.reset([&](__R_FN_PARAMS_FULL,
-                                       const wil::details::ResultStatus& resultPair,
-                                       PCWSTR message,
-                                       wil::details::ReportFailureOptions options,
-                                       wil::FailureFlags flags) {
-        failFast = true;
-        wil::details::ReportFailure_Base<wil::FailureType::FailFast, true>(__R_FN_CALL_FULL, resultPair, message, options, flags);
-    }));
+
+    // NOTE: 'ReportFailure_Base<wil::FailureType::FailFast, false>' is the entrypoint for failfasts, however this just
+    // calls ReportFailure_NoReturn and under optimization, primarily on arm64, this can turn into just a jump
+    // instruction. The end result is that the function is too "small" to detour. Detouring 'ReportFailure_NoReturn'
+    // gives us effectively the same result
+    witest::detoured_thread_function<&wil::details::ReportFailure_NoReturn<wil::FailureType::FailFast>> detour;
+    REQUIRE_SUCCEEDED(detour.reset(
+        [&](__R_FN_PARAMS_FULL, const wil::details::ResultStatus& resultPair, PCWSTR message, wil::details::ReportFailureOptions options) {
+            failFast = true;
+            wil::details::ReportFailure_Base<wil::FailureType::FailFast, true>(__R_FN_CALL_FULL, resultPair, message, options);
+        }));
 
     callOp();
 
@@ -295,6 +302,7 @@ public:
     }
 
     // IFailureCallback
+    // NOLINTNEXTLINE(bugprone-exception-escape): Test code; let it crash
     bool NotifyFailure(wil::FailureInfo const& failure) WI_NOEXCEPT override
     {
         m_failures.emplace_back(failure);
@@ -337,7 +345,7 @@ inline HRESULT CreateUniqueFolderPath(wchar_t (&buffer)[MAX_PATH], PCWSTR root =
 inline void RequireRestrictedErrorInfo(HRESULT error, wchar_t const* message)
 {
     wil::com_ptr_nothrow<IRestrictedErrorInfo> errorInfo;
-    REQUIRE_SUCCEEDED(GetRestrictedErrorInfo(&errorInfo));
+    REQUIRE(GetRestrictedErrorInfo(&errorInfo) == S_OK); // S_FALSE means no restricted error info for the thread
     REQUIRE(errorInfo != nullptr);
     wil::unique_bstr description;
     wil::unique_bstr restrictedDescription;
@@ -372,7 +380,7 @@ struct TestFolder
     TestFolder(const TestFolder&) = delete;
     TestFolder& operator=(const TestFolder&) = delete;
 
-    TestFolder(TestFolder&& other)
+    TestFolder(TestFolder&& other) WI_NOEXCEPT
     {
         if (other.m_valid)
         {
@@ -431,7 +439,7 @@ struct TestFile
     TestFile(const TestFile&) = delete;
     TestFile& operator=(const TestFile&) = delete;
 
-    TestFile(TestFile&& other)
+    TestFile(TestFile&& other) WI_NOEXCEPT
     {
         if (other.m_valid)
         {

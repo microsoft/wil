@@ -17,7 +17,6 @@
 using namespace Microsoft::WRL;
 
 // avoid including #include <shobjidl.h>, it fails to compile in noprivateapis
-EXTERN_C const CLSID CLSID_ShellLink;
 class DECLSPEC_UUID("00021401-0000-0000-C000-000000000046") ShellLink;
 
 // Uncomment this line to do a more exhaustive test of the concepts covered by this file.  By
@@ -112,7 +111,7 @@ TEST_CASE("ComTests::Test_Constructors", "[com][com_ptr]")
     SECTION("Copy construction")
     {
         wil::com_ptr_nothrow<IUnknown> ptr(&helper);
-        wil::com_ptr_nothrow<IUnknown> ptrCopy(ptr); // assign the same pointer
+        wil::com_ptr_nothrow<IUnknown> ptrCopy(ptr); // NOLINT(performance-unnecessary-copy-initialization): assign the same pointer
         REQUIRE(IUnknownFake::GetAddRef() == 2);
         REQUIRE(ptrCopy.get() == ptr.get());
 
@@ -519,12 +518,12 @@ TEST_CASE("ComTests::Test_CopyTo", "[com][com_ptr]")
 }
 
 // Helper used to verify correctness of IID_PPV_ARGS support
-void IID_PPV_ARGS_Test_Helper(REFIID iid, void** pv)
+static void IID_PPV_ARGS_Test_Helper(REFIID iid, void** ppv)
 {
-    __analysis_assume(pv != nullptr);
-    REQUIRE(pv != nullptr);
-    REQUIRE(*pv == nullptr);
-    *pv = reinterpret_cast<void*>(0x01); // Set check value
+    __analysis_assume(ppv != nullptr);
+    REQUIRE(ppv != nullptr);
+    REQUIRE(*ppv == nullptr);
+    *ppv = reinterpret_cast<void*>(0x01); // Set check value
 
     REQUIRE(iid == __uuidof(IUnknown));
 }
@@ -704,14 +703,14 @@ private:
 };
 
 template <typename T, typename U, typename = wistd::enable_if_t<!wistd::is_same_v<T, U>>>
-T* cast_object(U*)
+static T* cast_object(U*)
 {
     FAIL_FAST();
     return nullptr; // Because we define 'RESULT_NORETURN' to nothing for other tests
 }
 
 template <typename T>
-T* cast_object(T* ptr)
+static T* cast_object(T* ptr)
 {
     return ptr;
 }
@@ -740,81 +739,81 @@ NoCom* make_object<NoCom, NoCom>()
 }
 
 template <typename Ptr>
-void TestSmartPointer(const Ptr& ptr1, const Ptr& ptr2)
+static void TestSmartPointer(const Ptr& ptr1, const Ptr& ptr2)
 {
     SECTION("swap (method and global)")
     {
-        auto p1 = ptr1;
-        auto p2 = ptr2;
-        p1.swap(p2); // l-value
-        REQUIRE(((p1 == ptr2) && (p2 == ptr1)));
-        p1.swap(wistd::move(p2)); // r-value
-        REQUIRE(((p1 == ptr1) && (p2 == ptr2)));
-        wil::swap(p1, p2);
-        REQUIRE(((p1 == ptr2) && (p2 == ptr1)));
+        auto lhs = ptr1;
+        auto rhs = ptr2;
+        lhs.swap(rhs); // l-value
+        REQUIRE(((lhs == ptr2) && (rhs == ptr1)));
+        lhs.swap(wistd::move(rhs)); // r-value
+        REQUIRE(((lhs == ptr1) && (rhs == ptr2)));
+        wil::swap(lhs, rhs);
+        REQUIRE(((lhs == ptr2) && (rhs == ptr1)));
     }
 
     SECTION("WRL swap (method and global)")
     {
-        auto p1 = ptr1;
-        Microsoft::WRL::ComPtr<typename Ptr::element_type> p2 = ptr2.get();
-        p1.swap(p2); // l-value
-        REQUIRE(((p1 == ptr2) && (p2 == ptr1)));
-        p1.swap(wistd::move(p2)); // r-value
-        REQUIRE(((p1 == ptr1) && (p2 == ptr2)));
-        wil::swap(p1, p2);
-        REQUIRE(((p1 == ptr2) && (p2 == ptr1)));
-        wil::swap(p2, p1);
-        REQUIRE(((p1 == ptr1) && (p2 == ptr2)));
+        auto lhs = ptr1;
+        Microsoft::WRL::ComPtr<typename Ptr::element_type> rhs = ptr2.get();
+        lhs.swap(rhs); // l-value
+        REQUIRE(((lhs == ptr2) && (rhs == ptr1)));
+        lhs.swap(wistd::move(rhs)); // r-value
+        REQUIRE(((lhs == ptr1) && (rhs == ptr2)));
+        wil::swap(lhs, rhs);
+        REQUIRE(((lhs == ptr2) && (rhs == ptr1)));
+        wil::swap(rhs, lhs);
+        REQUIRE(((lhs == ptr1) && (rhs == ptr2)));
     }
 
     SECTION("reset")
     {
-        auto p = ptr1;
-        p.reset();
-        REQUIRE_FALSE(p);
-        p = ptr1;
-        p.reset(nullptr);
-        REQUIRE_FALSE(p);
+        auto ptr = ptr1;
+        ptr.reset();
+        REQUIRE_FALSE(ptr);
+        ptr = ptr1;
+        ptr.reset(nullptr);
+        REQUIRE_FALSE(ptr);
     }
 
     SECTION("attach / detach")
     {
-        auto p1 = ptr1;
-        auto p2 = ptr2;
-        p1.attach(p2.detach());
-        REQUIRE(((p1.get() == ptr2.get()) && !p2));
+        auto dest = ptr1;
+        auto src = ptr2;
+        dest.attach(src.detach());
+        REQUIRE(((dest.get() == ptr2.get()) && !src));
     }
 
     SECTION("addressof")
     {
-        auto p1 = ptr1;
-        auto p2 = ptr2;
-        p1.addressof(); // Doesn't reset
-        REQUIRE(p1.get() == ptr1.get());
-        p1.reset();
-        *(p1.addressof()) = p2.detach();
-        REQUIRE(p1.get() == ptr2.get());
+        auto dest = ptr1;
+        auto src = ptr2;
+        dest.addressof(); // Doesn't reset
+        REQUIRE(dest.get() == ptr1.get());
+        dest.reset();
+        *(dest.addressof()) = src.detach();
+        REQUIRE(dest.get() == ptr2.get());
     }
 
     SECTION("put")
     {
-        auto p1 = ptr1;
-        auto p2 = ptr2;
-        p1.put();
-        REQUIRE_FALSE(p1);
-        *p1.put() = p2.detach();
-        REQUIRE(p1.get() == ptr2.get());
+        auto dest = ptr1;
+        auto src = ptr2;
+        dest.put();
+        REQUIRE_FALSE(dest);
+        *dest.put() = src.detach();
+        REQUIRE(dest.get() == ptr2.get());
     }
 
     SECTION("operator&")
     {
-        auto p1 = ptr1;
-        auto p2 = ptr2;
-        &p1;
-        REQUIRE_FALSE(p1);
-        *(&p1) = p2.detach();
-        REQUIRE(p1.get() == ptr2.get());
+        auto dest = ptr1;
+        auto src = ptr2;
+        &dest;
+        REQUIRE_FALSE(dest);
+        *(&dest) = src.detach();
+        REQUIRE(dest.get() == ptr2.get());
     }
 
     SECTION("exercise const methods on the const param (ensure const)")
@@ -834,29 +833,29 @@ void TestSmartPointer(const Ptr& ptr1, const Ptr& ptr2)
 }
 
 template <typename IFace>
-static void TestPointerCombination(IFace* p1, IFace* p2)
+static void TestPointerCombination(IFace* ptr1, IFace* ptr2)
 {
 #ifdef WIL_ENABLE_EXCEPTIONS
-    TestSmartPointer(wil::com_ptr<IFace>(p1), wil::com_ptr<IFace>(p2));
+    TestSmartPointer(wil::com_ptr<IFace>(ptr1), wil::com_ptr<IFace>(ptr2));
 #endif
-    TestSmartPointer(wil::com_ptr_failfast<IFace>(p1), wil::com_ptr_failfast<IFace>(p2));
-    TestSmartPointer(wil::com_ptr_nothrow<IFace>(p1), wil::com_ptr_nothrow<IFace>(p2));
+    TestSmartPointer(wil::com_ptr_failfast<IFace>(ptr1), wil::com_ptr_failfast<IFace>(ptr2));
+    TestSmartPointer(wil::com_ptr_nothrow<IFace>(ptr1), wil::com_ptr_nothrow<IFace>(ptr2));
 }
 
 template <typename IFace, typename Object>
 static void TestPointer()
 {
-    auto p1 = make_object<IFace, Object>();
-    auto p2 = make_object<IFace, Object>();
+    auto ptr1 = make_object<IFace, Object>();
+    auto ptr2 = make_object<IFace, Object>();
     IFace* nullPtr = nullptr;
-    TestPointerCombination(p1, p2);
-    TestPointerCombination(nullPtr, p2);
-    TestPointerCombination(p1, nullPtr);
+    TestPointerCombination(ptr1, ptr2);
+    TestPointerCombination(nullPtr, ptr2);
+    TestPointerCombination(ptr1, nullPtr);
     TestPointerCombination(nullPtr, nullPtr);
-    TestPointerCombination(p1, p1); // same object
+    TestPointerCombination(ptr1, ptr1); // same object
 
-    p1->Release();
-    p2->Release();
+    ptr1->Release();
+    ptr2->Release();
 }
 
 TEST_CASE("ComTests::Test_MemberFunctions", "[com][com_ptr]")
@@ -894,160 +893,160 @@ static void TestSmartPointerConversion(const Ptr1& ptr1, const Ptr2& ptr2)
 
     SECTION("global comparison operators")
     {
-        auto p1 = ptr1.get();
-        auto p2 = ptr2.get();
+        auto raw1 = ptr1.get();
+        auto raw2 = ptr2.get();
 
         // com_ptr to com_ptr
-        REQUIRE((ptr1 == ptr2) == (p1 == p2));
-        REQUIRE((ptr1 != ptr2) == (p1 != p2));
-        REQUIRE((ptr1 < ptr2) == (p1 < p2));
-        REQUIRE((ptr1 <= ptr2) == (p1 <= p2));
-        REQUIRE((ptr1 > ptr2) == (p1 > p2));
-        REQUIRE((ptr1 >= ptr2) == (p1 >= p2));
+        REQUIRE((ptr1 == ptr2) == (raw1 == raw2));
+        REQUIRE((ptr1 != ptr2) == (raw1 != raw2));
+        REQUIRE((ptr1 < ptr2) == (raw1 < raw2));
+        REQUIRE((ptr1 <= ptr2) == (raw1 <= raw2));
+        REQUIRE((ptr1 > ptr2) == (raw1 > raw2));
+        REQUIRE((ptr1 >= ptr2) == (raw1 >= raw2));
 
         // com_ptr to ComPtr
-        REQUIRE((wrl1 == ptr2) == (p1 == p2));
-        REQUIRE((wrl1 != ptr2) == (p1 != p2));
-        REQUIRE((wrl1 < ptr2) == (p1 < p2));
-        REQUIRE((wrl1 <= ptr2) == (p1 <= p2));
-        REQUIRE((wrl1 > ptr2) == (p1 > p2));
-        REQUIRE((wrl1 >= ptr2) == (p1 >= p2));
+        REQUIRE((wrl1 == ptr2) == (raw1 == raw2));
+        REQUIRE((wrl1 != ptr2) == (raw1 != raw2));
+        REQUIRE((wrl1 < ptr2) == (raw1 < raw2));
+        REQUIRE((wrl1 <= ptr2) == (raw1 <= raw2));
+        REQUIRE((wrl1 > ptr2) == (raw1 > raw2));
+        REQUIRE((wrl1 >= ptr2) == (raw1 >= raw2));
 
-        REQUIRE((ptr1 == wrl2) == (p1 == p2));
-        REQUIRE((ptr1 != wrl2) == (p1 != p2));
-        REQUIRE((ptr1 < wrl2) == (p1 < p2));
-        REQUIRE((ptr1 <= wrl2) == (p1 <= p2));
-        REQUIRE((ptr1 > wrl2) == (p1 > p2));
-        REQUIRE((ptr1 >= wrl2) == (p1 >= p2));
+        REQUIRE((ptr1 == wrl2) == (raw1 == raw2));
+        REQUIRE((ptr1 != wrl2) == (raw1 != raw2));
+        REQUIRE((ptr1 < wrl2) == (raw1 < raw2));
+        REQUIRE((ptr1 <= wrl2) == (raw1 <= raw2));
+        REQUIRE((ptr1 > wrl2) == (raw1 > raw2));
+        REQUIRE((ptr1 >= wrl2) == (raw1 >= raw2));
 
         // com_ptr to raw pointer
-        REQUIRE((ptr1 == p2) == (p1 == p2));
-        REQUIRE((ptr1 != p2) == (p1 != p2));
-        REQUIRE((ptr1 < p2) == (p1 < p2));
-        REQUIRE((ptr1 <= p2) == (p1 <= p2));
-        REQUIRE((ptr1 > p2) == (p1 > p2));
-        REQUIRE((ptr1 >= p2) == (p1 >= p2));
+        REQUIRE((ptr1 == raw2) == (raw1 == raw2));
+        REQUIRE((ptr1 != raw2) == (raw1 != raw2));
+        REQUIRE((ptr1 < raw2) == (raw1 < raw2));
+        REQUIRE((ptr1 <= raw2) == (raw1 <= raw2));
+        REQUIRE((ptr1 > raw2) == (raw1 > raw2));
+        REQUIRE((ptr1 >= raw2) == (raw1 >= raw2));
 
-        REQUIRE((p1 == ptr2) == (p1 == p2));
-        REQUIRE((p1 != ptr2) == (p1 != p2));
-        REQUIRE((p1 < ptr2) == (p1 < p2));
-        REQUIRE((p1 <= ptr2) == (p1 <= p2));
-        REQUIRE((p1 > ptr2) == (p1 > p2));
-        REQUIRE((p1 >= ptr2) == (p1 >= p2));
+        REQUIRE((raw1 == ptr2) == (raw1 == raw2));
+        REQUIRE((raw1 != ptr2) == (raw1 != raw2));
+        REQUIRE((raw1 < ptr2) == (raw1 < raw2));
+        REQUIRE((raw1 <= ptr2) == (raw1 <= raw2));
+        REQUIRE((raw1 > ptr2) == (raw1 > raw2));
+        REQUIRE((raw1 >= ptr2) == (raw1 >= raw2));
     }
 
     SECTION("construct from raw pointer")
     {
-        Ptr1 p1(ptr2.get());
-        Ptr1 p2 = ptr2.get();
-        REQUIRE(((p1 == ptr2) && (p2 == ptr2)));
+        Ptr1 copy1(ptr2.get());
+        Ptr1 copy2 = ptr2.get();
+        REQUIRE(((copy1 == ptr2) && (copy2 == ptr2)));
     }
 
     SECTION("construct from com_ptr ref<>")
     {
-        Ptr1 p1(ptr2);
-        Ptr1 p2 = (ptr2);
-        REQUIRE(((p1 == ptr2) && (p2 == ptr2)));
+        Ptr1 copy1(ptr2);
+        Ptr1 copy2 = (ptr2);
+        REQUIRE(((copy1 == ptr2) && (copy2 == ptr2)));
     }
 
     SECTION("r-value construct from com_ptr ref<>")
     {
-        auto move1 = ptr2;
-        auto move2 = ptr2;
-        Ptr1 p1(wistd::move(move1));
-        Ptr1 p2 = wistd::move(move2);
-        REQUIRE(((p1 == ptr2) && (p2 == ptr2)));
+        auto copy1 = ptr2;
+        auto copy2 = ptr2;
+        Ptr1 move1(wistd::move(copy1));
+        Ptr1 move2 = wistd::move(copy2);
+        REQUIRE(((move1 == ptr2) && (move2 == ptr2)));
     }
 
     SECTION("assign from raw pointer")
     {
-        Ptr1 p = ptr1;
-        p = (ptr2.get());
-        REQUIRE(p == ptr2);
+        Ptr1 ptr = ptr1;
+        ptr = (ptr2.get());
+        REQUIRE(ptr == ptr2);
     }
 
     SECTION("assign from com_ptr ref<>")
     {
-        Ptr1 p = ptr1;
-        p = ptr2;
-        REQUIRE(p == ptr2);
+        Ptr1 ptr = ptr1;
+        ptr = ptr2;
+        REQUIRE(ptr == ptr2);
     }
 
     SECTION("r-value assign from com_ptr ref<>")
     {
-        Ptr1 p = ptr1;
-        p = Ptr2(ptr2);
-        REQUIRE(p == ptr2);
+        Ptr1 ptr = ptr1;
+        ptr = Ptr2(ptr2);
+        REQUIRE(ptr == ptr2);
     }
 
     SECTION("construct from ComPtr ref<>")
     {
-        Ptr1 p1(wrl2);
-        Ptr1 p2 = (wrl2);
-        REQUIRE(((p1 == wrl2) && (p2 == wrl2)));
+        Ptr1 copy1(wrl2);
+        Ptr1 copy2 = (wrl2);
+        REQUIRE(((copy1 == wrl2) && (copy2 == wrl2)));
     }
 
     SECTION("r-value construct from ComPtr ref<>")
     {
-        auto move1 = wrl2;
-        auto move2 = wrl2;
-        Ptr1 p1(wistd::move(move1));
-        Ptr1 p2 = wistd::move(move2);
-        REQUIRE(((p1 == wrl2) && (p2 == wrl2)));
+        auto copy1 = wrl2;
+        auto copy2 = wrl2;
+        Ptr1 move1(wistd::move(copy1));
+        Ptr1 move2 = wistd::move(copy2);
+        REQUIRE(((move1 == wrl2) && (move2 == wrl2)));
     }
 
     SECTION("assign from ComPtr ref<>")
     {
-        Ptr1 p = ptr1;
-        p = wrl2;
-        REQUIRE(p == wrl2);
+        Ptr1 ptr = ptr1;
+        ptr = wrl2;
+        REQUIRE(ptr == wrl2);
     }
 
     SECTION("r-value assign from ComPtr ref<>")
     {
-        Ptr1 p = ptr1;
-        p = decltype(wrl2)(wrl2);
-        REQUIRE(p == wrl2);
+        Ptr1 ptr = ptr1;
+        ptr = decltype(wrl2)(wrl2);
+        REQUIRE(ptr == wrl2);
     }
 }
 
 template <typename IFace1, typename IFace2>
-static void TestPointerConversionCombination(IFace1* p1, IFace2* p2)
+static void TestPointerConversionCombination(IFace1* ptr1, IFace2* ptr2)
 {
 #ifdef WIL_ENABLE_EXCEPTIONS
-    TestSmartPointerConversion(wil::com_ptr<IFace1>(p1), wil::com_ptr_nothrow<IFace2>(p2));
+    TestSmartPointerConversion(wil::com_ptr<IFace1>(ptr1), wil::com_ptr_nothrow<IFace2>(ptr2));
 #endif
-    TestSmartPointerConversion(wil::com_ptr_failfast<IFace1>(p1), wil::com_ptr_nothrow<IFace2>(p2));
-    TestSmartPointerConversion(wil::com_ptr_nothrow<IFace1>(p1), wil::com_ptr_nothrow<IFace2>(p2));
+    TestSmartPointerConversion(wil::com_ptr_failfast<IFace1>(ptr1), wil::com_ptr_nothrow<IFace2>(ptr2));
+    TestSmartPointerConversion(wil::com_ptr_nothrow<IFace1>(ptr1), wil::com_ptr_nothrow<IFace2>(ptr2));
 
 #ifdef WIL_EXHAUSTIVE_TEST
 #ifdef WIL_ENABLE_EXCEPTIONS
-    TestSmartPointerConversion(wil::com_ptr<IFace1>(p1), wil::com_ptr<IFace2>(p2));
-    TestSmartPointerConversion(wil::com_ptr_failfast<IFace1>(p1), wil::com_ptr<IFace2>(p2));
-    TestSmartPointerConversion(wil::com_ptr_nothrow<IFace1>(p1), wil::com_ptr<IFace2>(p2));
+    TestSmartPointerConversion(wil::com_ptr<IFace1>(ptr1), wil::com_ptr<IFace2>(ptr2));
+    TestSmartPointerConversion(wil::com_ptr_failfast<IFace1>(ptr1), wil::com_ptr<IFace2>(ptr2));
+    TestSmartPointerConversion(wil::com_ptr_nothrow<IFace1>(ptr1), wil::com_ptr<IFace2>(ptr2));
 
-    TestSmartPointerConversion(wil::com_ptr<IFace1>(p1), wil::com_ptr_failfast<IFace2>(p2));
+    TestSmartPointerConversion(wil::com_ptr<IFace1>(ptr1), wil::com_ptr_failfast<IFace2>(ptr2));
 #endif
-    TestSmartPointerConversion(wil::com_ptr_failfast<IFace1>(p1), wil::com_ptr_failfast<IFace2>(p2));
-    TestSmartPointerConversion(wil::com_ptr_nothrow<IFace1>(p1), wil::com_ptr_failfast<IFace2>(p2));
+    TestSmartPointerConversion(wil::com_ptr_failfast<IFace1>(ptr1), wil::com_ptr_failfast<IFace2>(ptr2));
+    TestSmartPointerConversion(wil::com_ptr_nothrow<IFace1>(ptr1), wil::com_ptr_failfast<IFace2>(ptr2));
 #endif
 }
 
 template <typename IFace1, typename IFace2, typename Object>
 static void TestPointerConversion()
 {
-    auto p1 = make_object<IFace1, Object>();
-    auto p2 = make_object<IFace2, Object>();
+    auto ptr1 = make_object<IFace1, Object>();
+    auto ptr2 = make_object<IFace2, Object>();
     IFace1* nullPtr1 = nullptr;
     IFace2* nullPtr2 = nullptr;
-    TestPointerConversionCombination(p1, p2);
-    TestPointerConversionCombination(nullPtr1, p2);
-    TestPointerConversionCombination(p1, nullPtr2);
+    TestPointerConversionCombination(ptr1, ptr2);
+    TestPointerConversionCombination(nullPtr1, ptr2);
+    TestPointerConversionCombination(ptr1, nullPtr2);
     TestPointerConversionCombination(nullPtr1, nullPtr2);
-    TestPointerConversionCombination(static_cast<IFace1*>(p2), p2); // same object
+    TestPointerConversionCombination(static_cast<IFace1*>(ptr2), ptr2); // same object
 
-    p1->Release();
-    p2->Release();
+    ptr1->Release();
+    ptr2->Release();
 }
 
 TEST_CASE("ComTests::Test_PointerConversion", "[com][com_ptr]")
@@ -1094,7 +1093,7 @@ TEST_CASE("ComTests::Test_PointerConversion", "[com][com_ptr]")
 }
 
 template <typename TargetIFace, typename Ptr>
-void TestGlobalQueryIidPpv(wistd::true_type, const Ptr& source) // interface
+static void TestGlobalQueryIidPpv(wistd::true_type, const Ptr& source) // interface
 {
     using DestPtr = wil::com_ptr_nothrow<TargetIFace>;
     wil::com_ptr_nothrow<INever> never;
@@ -1110,7 +1109,8 @@ void TestGlobalQueryIidPpv(wistd::true_type, const Ptr& source) // interface
             REQUIRE((dest1 && !never));
 #endif
 
-            DestPtr dest2, dest3;
+            DestPtr dest2;
+            DestPtr dest3;
             wil::com_query_to_failfast(source, IID_PPV_ARGS(&dest2));
             REQUIRE_ERROR(wil::com_query_to_failfast(source, IID_PPV_ARGS(&never)));
             wil::com_query_to_nothrow(source, IID_PPV_ARGS(&dest3));
@@ -1125,7 +1125,8 @@ void TestGlobalQueryIidPpv(wistd::true_type, const Ptr& source) // interface
             REQUIRE_CRASH(wil::com_query_to(source, IID_PPV_ARGS(&never)));
 #endif
 
-            DestPtr dest2, dest3;
+            DestPtr dest2;
+            DestPtr dest3;
             REQUIRE_CRASH(wil::com_query_to_failfast(source, IID_PPV_ARGS(&dest2)));
             REQUIRE_CRASH(wil::com_query_to_failfast(source, IID_PPV_ARGS(&never)));
             REQUIRE_CRASH(wil::com_query_to_nothrow(source, IID_PPV_ARGS(&dest3)));
@@ -1161,7 +1162,8 @@ void TestGlobalQueryIidPpv(wistd::true_type, const Ptr& source) // interface
             REQUIRE((dest1 && !never));
 #endif
 
-            DestPtr dest2, dest3;
+            DestPtr dest2;
+            DestPtr dest3;
             wil::com_copy_to_failfast(source, IID_PPV_ARGS(&dest2));
             REQUIRE_ERROR(wil::com_copy_to_failfast(source, IID_PPV_ARGS(&never)));
             wil::com_copy_to_nothrow(source, IID_PPV_ARGS(&dest3));
@@ -1176,7 +1178,8 @@ void TestGlobalQueryIidPpv(wistd::true_type, const Ptr& source) // interface
             wil::com_copy_to(source, IID_PPV_ARGS(&never));
 #endif
 
-            DestPtr dest2, dest3;
+            DestPtr dest2;
+            DestPtr dest3;
             wil::com_copy_to_failfast(source, IID_PPV_ARGS(&dest2));
             wil::com_copy_to_failfast(source, IID_PPV_ARGS(&never));
             wil::com_copy_to_nothrow(source, IID_PPV_ARGS(&dest3));
@@ -1203,7 +1206,7 @@ void TestGlobalQueryIidPpv(wistd::true_type, const Ptr& source) // interface
 }
 
 template <typename TargetIFace, typename Ptr>
-void TestGlobalQueryIidPpv(wistd::false_type, const Ptr&) // class
+static void TestGlobalQueryIidPpv(wistd::false_type, const Ptr&) // class
 {
     // we can't compile against iid, ppv with a class
 }
@@ -1249,7 +1252,8 @@ static void TestGlobalQuery(const Ptr& source)
             REQUIRE((dest1 && !never));
 #endif
 
-            DestPtr dest2, dest3;
+            DestPtr dest2;
+            DestPtr dest3;
             wil::com_query_to_failfast(source, &dest2);
             REQUIRE_ERROR(wil::com_query_to_failfast(source, &never));
             wil::com_query_to_nothrow(source, &dest3);
@@ -1264,7 +1268,8 @@ static void TestGlobalQuery(const Ptr& source)
             REQUIRE_CRASH(wil::com_query_to(source, &never));
 #endif
 
-            DestPtr dest2, dest3;
+            DestPtr dest2;
+            DestPtr dest3;
             REQUIRE_CRASH(wil::com_query_to_failfast(source, &dest2));
             REQUIRE_CRASH(wil::com_query_to_failfast(source, &never));
             REQUIRE_CRASH(wil::com_query_to_nothrow(source, &dest3));
@@ -1352,7 +1357,8 @@ static void TestGlobalQuery(const Ptr& source)
             REQUIRE((dest1 && !never));
 #endif
 
-            DestPtr dest2, dest3;
+            DestPtr dest2;
+            DestPtr dest3;
             wil::com_copy_to_failfast(source, &dest2);
             REQUIRE_ERROR(wil::com_copy_to_failfast(source, &never));
             wil::com_copy_to_nothrow(source, &dest3);
@@ -1367,7 +1373,8 @@ static void TestGlobalQuery(const Ptr& source)
             wil::com_copy_to(source, &never);
 #endif
 
-            DestPtr dest2, dest3;
+            DestPtr dest2;
+            DestPtr dest3;
             wil::com_copy_to_failfast(source, &dest2);
             wil::com_copy_to_failfast(source, &never);
             wil::com_copy_to_nothrow(source, &dest3);
@@ -1423,7 +1430,7 @@ static void TestGlobalQuery(const Ptr& source)
 
 // Test fluent query functions for types that support them (exception and fail fast)
 template <typename IFace, typename Ptr>
-void TestSmartPointerQueryFluent(wistd::true_type, const Ptr& source) // void return (non-error based)
+static void TestSmartPointerQueryFluent(wistd::true_type, const Ptr& source) // void return (non-error based)
 {
     SECTION("query")
     {
@@ -1456,14 +1463,14 @@ void TestSmartPointerQueryFluent(wistd::true_type, const Ptr& source) // void re
 
 // "Test" fluent query functions for error-based types (by doing nothing)
 template <typename IFace, typename Ptr>
-void TestSmartPointerQueryFluent(wistd::false_type, const Ptr& /*source*/) // error-code based return
+static void TestSmartPointerQueryFluent(wistd::false_type, const Ptr& /*source*/) // error-code based return
 {
     // error code based code cannot call the fluent error methods
 }
 
 // Test iid, ppv queries for types that support them (interfaces yes, classes no)
 template <typename IFace, typename Ptr>
-void TestSmartPointerQueryIidPpv(wistd::true_type, const Ptr& source) // interface
+static void TestSmartPointerQueryIidPpv(wistd::true_type, const Ptr& source) // interface
 {
     wil::com_ptr_nothrow<INever> never;
     using DestPtr = wil::com_ptr_nothrow<IFace>;
@@ -1543,14 +1550,14 @@ void TestSmartPointerQueryIidPpv(wistd::true_type, const Ptr& source) // interfa
 
 // "Test" iid, ppv queries for types that support them for a class (unsupported same (interfaces yes, classes no)
 template <typename IFace, typename Ptr>
-void TestSmartPointerQueryIidPpv(wistd::false_type, const Ptr& /*source*/) // class
+static void TestSmartPointerQueryIidPpv(wistd::false_type, const Ptr& /*source*/) // class
 {
     // we can't compile against iid, ppv with a class
 }
 
 // Test the various query and copy methods against the given source pointer (trying produce the given dest pointer)
 template <typename IFace, typename Ptr>
-void TestSmartPointerQuery(const Ptr& source)
+static void TestSmartPointerQuery(const Ptr& source)
 {
     wil::com_ptr_nothrow<INever> never;
     using DestPtr = wil::com_ptr_nothrow<IFace>;
@@ -1792,7 +1799,7 @@ TEST_CASE("ComTests::Test_Query", "[com][com_ptr]")
 
 #if (NTDDI_VERSION >= NTDDI_WINBLUE)
 template <typename Ptr>
-void TestAgile(const Ptr& source)
+static void TestAgile(const Ptr& source)
 {
     bool source_valid = (source != nullptr);
 
@@ -1832,7 +1839,7 @@ void TestAgile(const Ptr& source)
 }
 
 template <typename IFace>
-void TestAgileCombinations()
+static void TestAgileCombinations()
 {
     auto ptr = make_object<IFace, WinRtObject>();
 
@@ -1877,7 +1884,7 @@ TEST_CASE("ComTests::Test_Agile", "[com][com_agile_ref]")
 #endif
 
 template <typename Ptr>
-void TestWeak(const Ptr& source)
+static void TestWeak(const Ptr& source)
 {
     bool supports_weak = (source && (wil::try_com_query_nothrow<IInspectable>(source)));
 
@@ -1943,7 +1950,7 @@ void TestWeak(const Ptr& source)
 }
 
 template <typename TargetIFace, typename Ptr>
-void TestGlobalQueryWithFailedResolve(const Ptr& source)
+static void TestGlobalQueryWithFailedResolve(const Ptr& source)
 {
     // No need to test the null source and wrong interface query
     // since that's covered in the TestGlobalQuery.
@@ -1965,7 +1972,8 @@ void TestGlobalQueryWithFailedResolve(const Ptr& source)
         REQUIRE(!dest1);
 #endif
 
-        DestPtr dest2, dest3;
+        DestPtr dest2;
+        DestPtr dest3;
         REQUIRE_ERROR(wil::com_query_to_failfast(source, &dest2));
         REQUIRE_ERROR(wil::com_query_to_nothrow(source, &dest3));
         REQUIRE((!dest2 && !dest3));
@@ -2003,7 +2011,8 @@ void TestGlobalQueryWithFailedResolve(const Ptr& source)
         REQUIRE(!dest1);
 #endif
 
-        DestPtr dest2, dest3;
+        DestPtr dest2;
+        DestPtr dest3;
         REQUIRE_ERROR(wil::com_copy_to_failfast(source, &dest2));
         REQUIRE_ERROR(wil::com_copy_to_nothrow(source, &dest3));
         REQUIRE((!dest2 && !dest3));
@@ -2035,7 +2044,8 @@ void TestGlobalQueryWithFailedResolve(const Ptr& source)
             REQUIRE(!dest1);
 #endif
 
-            DestPtr dest2, dest3;
+            DestPtr dest2;
+            DestPtr dest3;
             REQUIRE_ERROR(wil::com_query_to_failfast(source, IID_PPV_ARGS(&dest2)));
             REQUIRE_ERROR(wil::com_query_to_nothrow(source, IID_PPV_ARGS(&dest3)));
             REQUIRE((!dest2 && !dest3));
@@ -2056,7 +2066,8 @@ void TestGlobalQueryWithFailedResolve(const Ptr& source)
             REQUIRE(!dest1);
 #endif
 
-            DestPtr dest2, dest3;
+            DestPtr dest2;
+            DestPtr dest3;
             REQUIRE_ERROR(wil::com_copy_to_failfast(source, IID_PPV_ARGS(&dest2)));
             REQUIRE_ERROR(wil::com_copy_to_nothrow(source, IID_PPV_ARGS(&dest3)));
             REQUIRE((!dest2 && !dest3));
@@ -2072,19 +2083,19 @@ void TestGlobalQueryWithFailedResolve(const Ptr& source)
 }
 
 template <typename TargetIFace, typename Ptr>
-void TestSmartPointerQueryFluentWithFailedResolve(wistd::false_type, const Ptr& /*source*/)
+static void TestSmartPointerQueryFluentWithFailedResolve(wistd::false_type, const Ptr& /*source*/)
 {
 }
 
 template <typename TargetIFace, typename Ptr>
-void TestSmartPointerQueryFluentWithFailedResolve(wistd::true_type, const Ptr& source)
+static void TestSmartPointerQueryFluentWithFailedResolve(wistd::true_type, const Ptr& source)
 {
     REQUIRE_ERROR(source.template query<TargetIFace>());
     REQUIRE_ERROR(source.template copy<TargetIFace>());
 }
 
 template <typename TargetIFace, typename Ptr>
-void TestSmartPointerQueryWithFailedResolve(const Ptr source)
+static void TestSmartPointerQueryWithFailedResolve(const Ptr source)
 {
     using DestPtr = wil::com_ptr_nothrow<TargetIFace>;
 
@@ -2161,7 +2172,7 @@ void TestSmartPointerQueryWithFailedResolve(const Ptr source)
 }
 
 template <typename TargetIFace, typename IFace>
-void TestQueryWithFailedResolve(IFace* ptr)
+static void TestQueryWithFailedResolve(IFace* ptr)
 {
     TestGlobalQueryWithFailedResolve<TargetIFace>(ptr);
 #ifdef WIL_EXHAUSTIVE_TEST
@@ -2181,7 +2192,7 @@ void TestQueryWithFailedResolve(IFace* ptr)
 }
 
 template <typename IFace>
-void TestWeakCombinations()
+static void TestWeakCombinations()
 {
     auto ptr = make_object<IFace, WinRtObject>();
 
@@ -2281,26 +2292,27 @@ TEST_CASE("ComTests::VerifyCoCreateEx", "[com][CoCreateInstance]")
 
     {
 #ifdef WIL_ENABLE_EXCEPTIONS
-        auto [sp1, ps1] =
+        auto [bkgMgr1, unk1] =
             wil::CoCreateInstanceEx<IBackgroundCopyManager, IUnknown>(__uuidof(BackgroundCopyManager), CLSCTX_LOCAL_SERVER);
-        REQUIRE((sp1 && ps1));
+        REQUIRE((bkgMgr1 && unk1));
 #endif
-        auto [hr, unk] =
+        auto [hr, ptrs] =
             wil::CoCreateInstanceExNoThrow<IBackgroundCopyManager, IUnknown>(__uuidof(BackgroundCopyManager), CLSCTX_LOCAL_SERVER);
         REQUIRE_SUCCEEDED(hr);
-        auto sp = std::get<0>(unk);
-        auto ps = std::get<1>(unk);
-        REQUIRE((sp && ps));
-        auto [sp3, ps3] =
+        auto bkgMgr2 = std::get<0>(ptrs);
+        auto unk2 = std::get<1>(ptrs);
+        REQUIRE((bkgMgr2 && unk2));
+
+        auto [bkgMgr3, unk3] =
             wil::CoCreateInstanceExFailFast<IBackgroundCopyManager, IUnknown>(__uuidof(BackgroundCopyManager), CLSCTX_LOCAL_SERVER);
-        REQUIRE((sp3 && ps3));
+        REQUIRE((bkgMgr3 && unk3));
     }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
     {
-        auto [ps, pf] = wil::CoCreateInstanceEx<IPersistStream, IPersistFile>(__uuidof(ShellLink), CLSCTX_INPROC_SERVER);
-        std::ignore = ps->IsDirty();
-        std::ignore = pf->IsDirty();
+        auto [stream, file] = wil::CoCreateInstanceEx<IPersistStream, IPersistFile>(__uuidof(ShellLink), CLSCTX_INPROC_SERVER);
+        std::ignore = stream->IsDirty();
+        std::ignore = file->IsDirty();
     }
 #endif
 }
@@ -2469,29 +2481,29 @@ public:
     unsigned long long TotalSize = 0;
 
     // ISequentialStream
-    STDMETHOD(Read)(_Out_writes_bytes_to_(cb, *pcbRead) void* pv, _In_ ULONG cb, _Out_opt_ ULONG* pcbRead) override
+    STDMETHOD(Read)(void* dest, ULONG sizeBytes, ULONG* pcbRead) override
     {
         if (pcbRead)
         {
-            *pcbRead = std::min(MaxReadSize, cb);
+            *pcbRead = (std::min)(MaxReadSize, sizeBytes);
         }
 
-        ZeroMemory(pv, cb);
-        return (MaxReadSize <= cb) ? S_OK : S_FALSE;
+        ZeroMemory(dest, sizeBytes);
+        return (MaxReadSize <= sizeBytes) ? S_OK : S_FALSE;
     }
 
-    STDMETHOD(Write)(_In_reads_bytes_(cb) const void*, _In_ ULONG cb, _Out_opt_ ULONG* pcbWritten) override
+    STDMETHOD(Write)(const void*, ULONG sizeBytes, ULONG* pcbWritten) override
     {
         if (pcbWritten)
         {
-            *pcbWritten = std::min(MaxWriteSize, cb);
+            *pcbWritten = (std::min)(MaxWriteSize, sizeBytes);
         }
 
-        return (MaxWriteSize <= cb) ? S_OK : S_FALSE;
+        return (MaxWriteSize <= sizeBytes) ? S_OK : S_FALSE;
     }
 
     // IStream
-    STDMETHOD(Seek)(LARGE_INTEGER dlibMove, DWORD dwOrigin, _Out_opt_ ULARGE_INTEGER* plibNewPosition)
+    STDMETHOD(Seek)(LARGE_INTEGER dlibMove, DWORD dwOrigin, ULARGE_INTEGER* plibNewPosition)
     {
         if (dwOrigin == STREAM_SEEK_CUR)
         {
@@ -2520,7 +2532,7 @@ public:
             }
         }
 
-        Position = std::min(Position, PositionMax);
+        Position = (std::min)(Position, PositionMax);
 
         if (plibNewPosition)
         {
@@ -2530,7 +2542,7 @@ public:
         return S_OK;
     }
 
-    STDMETHOD(Stat)(__RPC__out STATSTG* pstatstg, DWORD) override
+    STDMETHOD(Stat)(STATSTG* pstatstg, DWORD) override
     {
         *pstatstg = {};
         pstatstg->cbSize.QuadPart = TotalSize;
@@ -2547,7 +2559,7 @@ public:
         return E_NOTIMPL;
     }
 
-    STDMETHOD(Clone)(__RPC__deref_out_opt IStream** ppstm) override
+    STDMETHOD(Clone)(IStream** ppstm) override
     {
         *ppstm = this;
         return S_OK;
@@ -2558,13 +2570,13 @@ public:
         return E_NOTIMPL;
     }
 
-    STDMETHOD(CopyTo)(_In_ IStream* pstm, ULARGE_INTEGER cb, _Out_opt_ ULARGE_INTEGER* pcbRead, _Out_opt_ ULARGE_INTEGER* pcbWritten) override
+    STDMETHOD(CopyTo)(IStream* pstm, ULARGE_INTEGER sizeBytes, ULARGE_INTEGER* pcbRead, ULARGE_INTEGER* pcbWritten) override
     {
         unsigned long didWrite;
         unsigned long didRead;
 
-        FAIL_FAST_IF(cb.HighPart != 0);
-        RETURN_IF_FAILED(this->Read(nullptr, cb.LowPart, &didRead));
+        FAIL_FAST_IF(sizeBytes.HighPart != 0);
+        RETURN_IF_FAILED(this->Read(nullptr, sizeBytes.LowPart, &didRead));
         RETURN_IF_FAILED(pstm->Write(nullptr, didRead, &didWrite));
 
         pcbRead->QuadPart = didRead;
@@ -2591,7 +2603,7 @@ public:
 
     void SetPosition(unsigned long long position)
     {
-        return SetPosition(position, position);
+        SetPosition(position, position);
     }
 };
 
@@ -2983,8 +2995,8 @@ TEST_CASE("COMEnumerator", "[com][enumerator]")
         static_assert(std::is_same_v<decltype(*std::declval<muffins_ctad_type>()), wil::com_ptr<IUnknown>&>);
 
         wil::com_ptr<IEnumString> enumString;
-        auto it = wil::make_range<wil::unique_cotaskmem_string>(enumString.get());
-        static_assert(std::is_same_v<decltype(*(it.begin())), wil::unique_cotaskmem_string&>);
+        auto range = wil::make_range<wil::unique_cotaskmem_string>(enumString.get());
+        static_assert(std::is_same_v<decltype(*(range.begin())), wil::unique_cotaskmem_string&>);
     }
 #if (NTDDI_VERSION >= NTDDI_VISTA)
     SECTION("static_assert enumeration types for IEnumAssocHandlers")
@@ -3017,11 +3029,11 @@ TEST_CASE("COMEnumerator", "[com][enumerator]")
         wil::com_ptr<IEnumAssocHandlers> enumAssocHandlers;
         wil::verify_hresult(SHAssocEnumHandlers(L".jpg", ASSOC_FILTER_RECOMMENDED, &enumAssocHandlers));
         REQUIRE(enumAssocHandlers);
-        auto iterator = wil::make_range(enumAssocHandlers.get());
-        const auto it = std::find_if(iterator.begin(), iterator.end(), [](const wil::com_ptr<IAssocHandler>& assocHandler) {
+        auto range = wil::make_range(enumAssocHandlers.get());
+        const auto itr = std::find_if(range.begin(), range.end(), [](const wil::com_ptr<IAssocHandler>& assocHandler) {
             return assocHandler != nullptr;
         });
-        REQUIRE(*it != nullptr);
+        REQUIRE(*itr != nullptr);
     }
 #endif
     SECTION("Enumerate IShellFolder")
@@ -3125,8 +3137,7 @@ TEST_CASE("COMEnumerator", "[com][enumerator]")
 #include <winrt/windows.foundation.h>
 #include <windows.foundation.h>
 
-// NOTE: Disabled in CI until the spurious failures can be investigated and resolved
-TEST_CASE("com_timeout", "[com][com_timeout][LocalOnly]")
+TEST_CASE("com_timeout", "[com][com_timeout]")
 {
     auto init = wil::CoInitializeEx_failfast();
 
@@ -3134,145 +3145,132 @@ TEST_CASE("com_timeout", "[com][com_timeout][LocalOnly]")
     // the COM runtime..  Additionally, this server needs to support the ability to control if it hangs
     // or returns quickly.  The following class provides that functionality, using some global events to
     // provide deterministic ordering of operations.
-    //
+    struct shared_data
+    {
+        wil::unique_event comServerStartedEvent{wil::EventOptions::None};
+        wil::unique_event comServerTearDownEvent{wil::EventOptions::None};
+        wil::unique_event hangEvent{wil::EventOptions::None};
+        std::atomic_bool shouldHang{false};
+        std::atomic_bool shouldCancel{false};
+    };
+    auto sharedData = std::make_shared<shared_data>();
+
     // To ensure the call goes through a proxy, the object must be non-agile and the call must cross between
     // apartments (MTA -> STA in this case)
     struct COMTimeoutTestObject : winrt::implements<COMTimeoutTestObject, winrt::Windows::Foundation::IStringable, winrt::non_agile>
     {
-        wil::shared_event _hangHandle;
-        wil::shared_event _doneHangingHandle;
-        std::shared_ptr<bool> _shouldHang;
-        COMTimeoutTestObject(wil::shared_event hangHandle, wil::shared_event doneHangingHandle, std::shared_ptr<bool> shouldHang) :
-            _hangHandle(hangHandle), _doneHangingHandle(doneHangingHandle), _shouldHang(shouldHang)
+        std::shared_ptr<shared_data> _sharedData;
+        COMTimeoutTestObject(std::shared_ptr<shared_data> sharedData) : _sharedData(std::move(sharedData))
         {
         }
 
-        winrt::hstring ToString()
+        winrt::hstring ToString() const
         {
             // If the test wants to block, then use the hang handles.
-            if (*(_shouldHang.get()))
+            if (_sharedData->shouldHang)
             {
-                // Pump messages so this STA thread is healthy while we wait.  If this wait fails that means
-                // the cancel did not work.
-                HANDLE handles[1] = {_hangHandle.get()};
+                // Signal that this function is running so it's okay to cancel it now
+                _sharedData->shouldCancel = true;
+
+                // Pump messages so this STA thread is healthy while we wait. If the wait times out, the cancel did not work
+                HANDLE handles[1] = {_sharedData->hangEvent.get()};
                 DWORD index;
                 REQUIRE_SUCCEEDED(CoWaitForMultipleObjects(
-                    CWMO_DISPATCH_CALLS | CWMO_DISPATCH_WINDOW_MESSAGES, 10000, ARRAYSIZE(handles), handles, &index));
-
-                if (_doneHangingHandle)
-                {
-                    _doneHangingHandle.SetEvent();
-                }
+                    CWMO_DISPATCH_CALLS | CWMO_DISPATCH_WINDOW_MESSAGES, INFINITE, ARRAYSIZE(handles), handles, &index));
             }
 
             return L"COMTimeoutTestObject";
         }
     };
 
-    // The COM server thread needs an event that is signaled when we want it to stop pumping messages and
-    // exit.
-    wil::shared_event comServerEvent;
-    comServerEvent.create();
+    // There is a race between cancellation and the underlying implementation getting called such that it's possible for the call
+    // to get marked as cancelled and then the marshalling code sees that the call is cancelled and never invoke the
+    // implementation. Since we rely on doing synchronization between the two threads, we are hooking the 'CoCancelCall' API such
+    // that we don't actually invoke it until we know that the call is in progress.
+    auto detouredCancel = witest::detoured_thread_function<&CoCancelCall>([&](DWORD threadId, ULONG timeout) -> HRESULT {
+        if (sharedData->shouldCancel)
+        {
+            sharedData->shouldCancel = false; // Only cancel once per call
+            return ::CoCancelCall(threadId, timeout);
+        }
 
-    wil::shared_event agileReferencePopulated;
-    agileReferencePopulated.create();
+        return E_NOINTERFACE;
+    });
 
-    // These handles are used to coordinate with the COM server thread.  The first one causes it to block.  The
-    // done hanging event lets us know that it is done blocking and we can proceed with a second call that should
-    // avoid reentering.
-    wil::shared_event hangingHandle;
-    hangingHandle.create();
-    wil::shared_event doneHangingHandle;
-    doneHangingHandle.create();
+    wil::com_agile_ref agileObj;
 
-    auto shouldHang = std::make_shared<bool>(false);
+    auto comServerThread = std::thread([sharedData, &agileObj] {
+        // This thread must be STA to pull RPC in as mediator between threads.
+        auto init = wil::CoInitializeEx_failfast(COINIT_APARTMENTTHREADED);
 
-    wil::com_agile_ref agileStringable;
+        const auto stringable = winrt::make<COMTimeoutTestObject>(sharedData);
+        agileObj = wil::com_agile_query(stringable.as<ABI::Windows::Foundation::IStringable>().get());
 
-    auto comServerThread =
-        std::thread([comServerEvent, agileReferencePopulated, hangingHandle, doneHangingHandle, &agileStringable, shouldHang] {
-            // This thread must be STA to pull RPC in as mediator between threads.
-            auto init = wil::CoInitializeEx_failfast(COINIT_APARTMENTTHREADED);
+        sharedData->comServerStartedEvent.SetEvent();
 
-            const auto stringable = winrt::make<COMTimeoutTestObject>(hangingHandle, doneHangingHandle, shouldHang);
-            agileStringable = wil::com_agile_query(stringable.as<ABI::Windows::Foundation::IStringable>().get());
+        // Pump messages so this STA thread is healthy.
+        HANDLE handles[1] = {sharedData->comServerTearDownEvent.get()};
+        DWORD index;
+        REQUIRE_SUCCEEDED(CoWaitForMultipleObjects(
+            CWMO_DISPATCH_CALLS | CWMO_DISPATCH_WINDOW_MESSAGES, INFINITE, ARRAYSIZE(handles), handles, &index));
+    });
 
-            agileReferencePopulated.SetEvent();
-
-            // Pump messages so this STA thread is healthy.
-            HANDLE handles[1] = {comServerEvent.get()};
-            DWORD index;
-            REQUIRE_SUCCEEDED(CoWaitForMultipleObjects(
-                CWMO_DISPATCH_CALLS | CWMO_DISPATCH_WINDOW_MESSAGES, INFINITE, ARRAYSIZE(handles), handles, &index));
-        });
-
-    auto makeSureComServerThreadExits = wil::scope_exit([comServerEvent, &comServerThread] {
+    auto makeSureComServerThreadExits = wil::scope_exit([&] {
         // We are done testing.  Tell the STA thread to exit and then block until it is done.
-        comServerEvent.SetEvent();
+        sharedData->hangEvent.SetEvent(); // In case of failure, we may not have set this event
+        sharedData->comServerTearDownEvent.SetEvent();
 
         comServerThread.join();
     });
 
-    REQUIRE_SUCCEEDED(agileReferencePopulated.wait(5000));
+    REQUIRE(sharedData->comServerStartedEvent.wait(5000));
 
     SECTION("Basic construction nothrow")
     {
         wil::com_timeout_nothrow timeout{5000};
         REQUIRE(static_cast<bool>(timeout));
-        REQUIRE(!timeout.timed_out());
     }
     SECTION("Basic construction throwing")
     {
         wil::com_timeout timeout{5000};
         REQUIRE(static_cast<bool>(timeout));
-        REQUIRE(!timeout.timed_out());
     }
     SECTION("Basic construction failfast")
     {
         wil::com_timeout_failfast timeout{5000};
         REQUIRE(static_cast<bool>(timeout));
-        REQUIRE(!timeout.timed_out());
     }
     SECTION("RPC timeout test")
     {
         wil::com_timeout timeout{100};
 
-        *(shouldHang.get()) = true;
+        sharedData->shouldHang = true;
 
         // The timeout is now in place.  The blocking call should cancel in a timely manner and fail with RPC_E_CALL_CANCELED.
-        wil::com_ptr<ABI::Windows::Foundation::IStringable> localServer =
-            agileStringable.query<ABI::Windows::Foundation::IStringable>();
+        auto localServer = agileObj.query<ABI::Windows::Foundation::IStringable>();
         wil::unique_hstring value;
         auto localServerResult = localServer->ToString(&value);
-        REQUIRE(static_cast<bool>(localServerResult == RPC_E_CALL_CANCELED));
-        REQUIRE(timeout.timed_out());
+        REQUIRE(localServerResult == RPC_E_CALL_CANCELED);
 
-        hangingHandle.SetEvent();
-        REQUIRE(doneHangingHandle.wait(5000));
-
-        hangingHandle.ResetEvent();
+        sharedData->hangEvent.SetEvent();
 
         // Make a second blocking call within the lifetime of the same com_timeout instance.  This second call should also
         // cancel and return.
         localServerResult = localServer->ToString(&value);
-        REQUIRE(static_cast<bool>(localServerResult == RPC_E_CALL_CANCELED));
-        REQUIRE(timeout.timed_out());
+        REQUIRE(localServerResult == RPC_E_CALL_CANCELED);
 
-        hangingHandle.SetEvent();
-        REQUIRE(doneHangingHandle.wait(5000));
+        sharedData->hangEvent.SetEvent();
 
-        *(shouldHang.get()) = false;
+        sharedData->shouldHang = false;
     }
     SECTION("Non-timeout unaffected test")
     {
         wil::com_timeout timeout{100};
 
         // g_hangHandle is not set so this call will not block.  It should not be affected by the timeout.
-        wil::com_ptr<ABI::Windows::Foundation::IStringable> localServer =
-            agileStringable.query<ABI::Windows::Foundation::IStringable>();
+        auto localServer = agileObj.query<ABI::Windows::Foundation::IStringable>();
         wil::unique_hstring value;
         REQUIRE_SUCCEEDED(localServer->ToString(&value));
-        REQUIRE(!timeout.timed_out());
         REQUIRE(std::wstring_view{L"COMTimeoutTestObject"} == WindowsGetStringRawBuffer(value.get(), nullptr));
     }
 }

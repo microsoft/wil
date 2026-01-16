@@ -58,7 +58,7 @@ struct object_counter_state
     volatile LONG copy_count = 0;
     volatile LONG move_count = 0;
 
-    LONG instance_count()
+    LONG instance_count() const
     {
         return constructed_count - destructed_count;
     }
@@ -68,9 +68,9 @@ struct object_counter
 {
     object_counter_state* state;
 
-    object_counter(object_counter_state& s) : state(&s)
+    object_counter(object_counter_state& state) : state(&state)
     {
-        ::InterlockedIncrement(&state->constructed_count);
+        ::InterlockedIncrement(&this->state->constructed_count);
     }
 
     object_counter(const object_counter& other) : state(other.state)
@@ -91,6 +91,7 @@ struct object_counter
         state = nullptr;
     }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment): This type is not used in situations where self-assignment should occur
     object_counter& operator=(const object_counter&)
     {
         ::InterlockedIncrement(&state->copy_count);
