@@ -226,6 +226,52 @@ inline namespace literals
 
 #endif // __cpp_lib_string_view >= 201606L
 
+#if __WI_LIBCPP_STD_VER >= 17
+// This is a helper that allows one to construct a functor that has an overloaded operator()
+// composed from the operator()s of multiple lambdas. It is most useful as the "visitor" for a
+// std::visit call on a std::variant. A lambda for each type in the variant, and optionally one
+// generic lambda, can be provided to perform compile time visitation of the std::variant.
+//
+// Example:
+//        std::variant<int, bool, double, void*> theVariant;
+//        std::visit(wil::overloaded{
+//           [](int theInt)
+//           {
+//                // Handle int.
+//           },
+//           [](double theDouble)
+//           {
+//                // Handle double.
+//           },
+//           [](auto boolOrVoidPtr)
+//           {
+//                // This will receive all the remaining types. Alternatively, handle each type with
+//                // a lambda that accepts that type. If all types are not handled, you get a
+//                // compile-time error, which makes std::visit superior to an if-else ladder that
+//                // tries to handle each type in the variant.
+//           }},
+//           theVariant);
+//
+template <typename... T>
+struct overloaded final : T...
+{
+    using T::operator()...;
+
+    // This allows one to use the () syntax to construct the visitor, instead of {}. Both are
+    // equivalent, and the choice ultimately boils down to preference of style.
+    template <typename ...Fs>
+    constexpr explicit overloaded(Fs&&... fs) :
+        T{std::forward<Fs>(fs)}...
+    {
+    }
+};
+
+// Deduction guide to aid CTAD.
+template <typename... T>
+overloaded(T...) -> overloaded<T...>;
+
+#endif // __WI_LIBCPP_STD_VER >= 17
+
 } // namespace wil
 
 #endif // WIL_ENABLE_EXCEPTIONS
