@@ -319,9 +319,8 @@ struct overloaded final : T...
 
     // This allows one to use the () syntax to construct the visitor, instead of {}. Both are
     // equivalent, and the choice ultimately boils down to preference of style.
-    template <typename ...Fs>
-    constexpr explicit overloaded(Fs&&... fs) :
-        T{std::forward<Fs>(fs)}...
+    template <typename... Fs>
+    constexpr explicit overloaded(Fs&&... fs) : T{std::forward<Fs>(fs)}...
     {
     }
 };

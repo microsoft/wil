@@ -535,7 +535,8 @@ struct task_promise : promise_base<T>
     // Using a constraint is simpler and does not have the issue.
 #if _HAS_CXX20
 
-    void return_value(T const& value) requires (!wistd::is_reference_v<T>)
+    void return_value(T const& value)
+        requires(!wistd::is_reference_v<T>)
     {
         this->emplace_value(value);
     }
@@ -549,7 +550,6 @@ struct task_promise : promise_base<T>
     }
 
 #endif
-
 };
 
 template <>

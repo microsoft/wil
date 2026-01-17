@@ -1426,11 +1426,8 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 #define CATCH_LOG_RETURN() \
     catch (...) \
     { \
-        __pragma(warning(push)) \
-        __pragma(warning(disable : 4297)) \
-        LOG_CAUGHT_EXCEPTION(); \
-        __pragma(warning(pop)) \
-        return; \
+        __pragma(warning(push)) __pragma(warning(disable : 4297)) LOG_CAUGHT_EXCEPTION(); \
+        __pragma(warning(pop)) return; \
     }
 #define CATCH_LOG_MSG(fmt, ...) \
     catch (...) \
@@ -1441,11 +1438,8 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 #define CATCH_LOG_RETURN_MSG(fmt, ...) \
     catch (...) \
     { \
-        __pragma(warning(push)) \
-        __pragma(warning(disable : 4297)) \
-        LOG_CAUGHT_EXCEPTION_MSG(fmt, ##__VA_ARGS__); \
-        __pragma(warning(pop)) \
-        return; \
+        __pragma(warning(push)) __pragma(warning(disable : 4297)) LOG_CAUGHT_EXCEPTION_MSG(fmt, ##__VA_ARGS__); \
+        __pragma(warning(pop)) return; \
     }
 #define CATCH_FAIL_FAST() \
     catch (...) \

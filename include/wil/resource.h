@@ -23,7 +23,7 @@
 #pragma warning(push)
 #pragma warning(disable : 26135 26110) // Missing locking annotation, Caller failing to hold lock
 #pragma warning(disable : 4714)        // __forceinline not honored
-#pragma warning(disable : 4820) // padding added after data member
+#pragma warning(disable : 4820)        // padding added after data member
 
 #ifndef __WIL_RESOURCE
 #define __WIL_RESOURCE
@@ -1248,8 +1248,7 @@ public:
             // pointer-only version, since that is the version we initially supported. And if we can't invoke it with either
             // parameter set, we'll allow the compiler to still try to invoke the pointer-only version and cause it to emit an
             // error message that will tell the developer what the mismatch is.
-            if constexpr (wistd::is_invocable_v<ArrayDeleter, pointer> ||
-                          !wistd::is_invocable_v<ArrayDeleter, pointer, size_type>)
+            if constexpr (wistd::is_invocable_v<ArrayDeleter, pointer> || !wistd::is_invocable_v<ArrayDeleter, pointer, size_type>)
             {
                 ArrayDeleter()(m_ptr);
             }
