@@ -32,9 +32,11 @@
 #error This header is not supported in kernel-mode.
 #endif
 
-// The updated behavior of running init-list ctors during placement new is proper & correct, disable the warning that requests developers verify they want it
 #pragma warning(push)
+// The updated behavior of running init-list ctors during placement new is proper & correct, disable the warning that requests developers verify they want it
 #pragma warning(disable : 4351)
+// remove this after fixing - volatile access of '<expression>' is subject to /volatile:<iso|ms> setting; consider using __iso_volatile_load/store intrinsic functions
+#pragma warning(disable : 4746)
 
 namespace wil
 {
