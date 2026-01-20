@@ -211,12 +211,12 @@ public:
     {
     }
 
-    template <typename TSrc, std::enable_if_t<has_c_str<TSrc>::value && has_size<TSrc>::value>* = nullptr>
+    template <typename TSrc, std::enable_if_t<has_c_str<TSrc>::value && has_size<TSrc>::value && std::is_same_v<typename TSrc::value_type, TChar>>* = nullptr>
     constexpr basic_zstring_view(TSrc const& src) noexcept : std::basic_string_view<TChar>(src.c_str(), src.size())
     {
     }
 
-    template <typename TSrc, std::enable_if_t<has_c_str<TSrc>::value && !has_size<TSrc>::value>* = nullptr>
+    template <typename TSrc, std::enable_if_t<has_c_str<TSrc>::value && !has_size<TSrc>::value && std::is_same_v<typename TSrc::value_type, TChar>>* = nullptr>
     constexpr basic_zstring_view(TSrc const& src) noexcept : std::basic_string_view<TChar>(src.c_str())
     {
     }

@@ -38,7 +38,11 @@
 
 /// @cond
 #if defined(_PREFAST_)
+#ifdef __cplusplus
 #define __WI_ANALYSIS_ASSUME(_exp) _Analysis_assume_(static_cast<bool>(_exp))
+#else
+#define __WI_ANALYSIS_ASSUME(_exp) _Analysis_assume_(_exp)
+#endif
 #else
 #ifdef RESULT_DEBUG
 #define __WI_ANALYSIS_ASSUME(_exp) ((void)0)
