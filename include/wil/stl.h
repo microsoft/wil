@@ -333,12 +333,16 @@ overloaded(T...) -> overloaded<T...>;
 
 } // namespace wil
 
+// This suppression is a temporary workaround to allow libraries built with C++20 to link into binaries built with
+// earlier standard versions such as C++17. This appears to be an issue even when this specialization goes unused
+#ifndef WIL_SUPPRESS_STD_FORMAT_USE
 #if (__WI_LIBCPP_STD_VER >= 20) && WI_HAS_INCLUDE(<format>, 1) // Assume present if C++20
 #include <format>
 template <typename TChar>
 struct std::formatter<wil::basic_zstring_view<TChar>, TChar> : std::formatter<std::basic_string_view<TChar>, TChar>
 {
 };
+#endif
 #endif
 
 #endif // WIL_ENABLE_EXCEPTIONS
