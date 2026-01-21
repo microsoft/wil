@@ -7851,6 +7851,11 @@ namespace details
     struct lock_proof_traits<std::lock_guard<TMutex>> : exclusive_lock_proof
     {
     };
+
+    template <typename TMutex>
+    struct lock_proof_traits<std::scoped_lock<TMutex>> : exclusive_lock_proof
+    {
+    };
 } // namespace details
 /// @endcond
 
