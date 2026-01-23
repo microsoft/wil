@@ -1048,7 +1048,7 @@ struct priority_tag<0>
 namespace details
 {
     // Helper type to determine if a type "behaves like a std::basic_string_view." Note that this type is designed to
-    // match types such as std::basic_string_view and std::basic_string, and winrt::hstring while _not_ matching against
+    // match types such as std::basic_string_view, std::basic_string, and winrt::hstring while _not_ matching against
     // things like std::array or std::vector.
     template <typename T, typename CharT>
     struct is_string_view_like_t
