@@ -1846,21 +1846,50 @@ namespace details
         size_t length;
     };
 
-    inline string_view_t view_from_string(string_view_t const& s)
+    template <typename StringT>
+    struct view_from_string_t
     {
-        return s;
-    }
+        // Prioritize types that behave like string views as we already know their lengths
+        template <typename T, wistd::enable_if_t<is_string_view_like<T, wchar_t>, int> = 0>
+        static constexpr string_view_t get_impl(const T& str, priority_tag<2>) WI_NOEXCEPT
+        {
+            return string_view_t{str.data(), str.size()};
+        }
 
-    inline string_view_t view_from_string(PCWSTR str)
+        // Finally, assume PCWSTR or convertible to PCWSTR
+        template <typename T, wistd::enable_if_t<wistd::is_convertible_v<T, PCWSTR>, int> = 0>
+        static string_view_t get_impl(const T& str, priority_tag<1>) WI_NOEXCEPT
+        {
+            return string_view_t{str, str ? ::wcslen(str) : 0u};
+        }
+
+        // Catch-all when nothing matches to display a more helpful error message
+        template <typename T>
+        static constexpr string_view_t get_impl(const T&, priority_tag<0>) WI_NOEXCEPT
+        {
+            static_assert(!wistd::is_same_v<T, T>, "Argument is of an unknown string type");
+        }
+
+        static constexpr string_view_t get(const StringT& str) WI_NOEXCEPT
+        {
+            return get_impl(str, priority_tag<2>{});
+        }
+    };
+
+    template <typename StringT>
+    constexpr string_view_t view_from_string(const StringT& str)
     {
-        return string_view_t{str, str ? wcslen(str) : 0};
+        return view_from_string_t<StringT>::get(str);
     }
 
     template <typename T>
-    inline string_view_t view_from_string(wil::unique_any_t<T> const& str)
+    struct view_from_string_t<wil::unique_any_t<T>>
     {
-        return view_from_string(str.get());
-    }
+        static string_view_t get(const wil::unique_any_t<T>& str) WI_NOEXCEPT
+        {
+            return view_from_string(str.get());
+        }
+    };
 
     // Forward declaration
     template <typename string_type>
@@ -5071,17 +5100,25 @@ inline PCWSTR str_raw_ptr(const unique_hstring& str)
 
 namespace details
 {
-    inline string_view_t view_from_string(HSTRING str)
+    template <>
+    struct view_from_string_t<HSTRING>
     {
-        UINT32 length = 0;
-        PCWSTR rawBuffer = WindowsGetStringRawBuffer(str, &length);
-        return string_view_t{rawBuffer, length};
-    }
+        static string_view_t get(HSTRING str) WI_NOEXCEPT
+        {
+            UINT32 length = 0;
+            PCWSTR rawBuffer = WindowsGetStringRawBuffer(str, &length);
+            return string_view_t{rawBuffer, length};
+        }
+    };
 
-    inline string_view_t view_from_string(const unique_hstring& str)
+    template <>
+    struct view_from_string_t<unique_hstring>
     {
-        return view_from_string(str.get());
-    }
+        static string_view_t get(const unique_hstring& str)
+        {
+            return view_from_string(str.get());
+        }
+    };
 } // namespace details
 
 #endif // __WIL__WINSTRING_H_
