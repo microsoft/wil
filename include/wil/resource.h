@@ -3086,19 +3086,6 @@ namespace details
     //
     // Additional type patterns can be supported by adding overloads here or in client code.
 
-    // Priority tag used for tag dispatching to determine which method to invoke.
-    // Higher numerical priorities take precedence. If SFINAE excludes a higher priority,
-    // the next lower priority is considered as a match.
-    template <int N>
-    struct priority_tag : priority_tag<N - 1>
-    {
-    };
-
-    template <>
-    struct priority_tag<0>
-    {
-    };
-
     // Overload for .get()
     template <typename T>
     constexpr auto get_object_handle_impl(const T& object, priority_tag<3>)
