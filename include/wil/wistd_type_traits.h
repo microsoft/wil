@@ -1193,8 +1193,13 @@ using type_identity_t = typename type_identity<_Tp>::type;
 
 // is_signed
 
+__WI_PUSH_WARNINGS
+__WI_MSVC_DISABLE_WARNING(4296) // error C4296: '<': expression is always false
+
 template <class _Tp, bool = is_integral<_Tp>::value>
 struct __libcpp_is_signed_impl : public __WI_LIBCPP_BOOL_CONSTANT(_Tp(-1) < _Tp(0)){};
+
+__WI_POP_WARNINGS
 
 template <class _Tp>
 struct __libcpp_is_signed_impl<_Tp, false> : public true_type

@@ -235,6 +235,7 @@ TEST_CASE("StlTests::TestZWStringView", "[stl][zstring_view]")
     // Test constructing from a type that has a c_str() method only
     struct string_with_c_str
     {
+        using value_type = wchar_t;
         constexpr PCWSTR c_str() const
         {
             return L"hello";

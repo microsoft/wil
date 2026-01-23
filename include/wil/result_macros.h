@@ -38,7 +38,11 @@
 
 /// @cond
 #if defined(_PREFAST_)
+#ifdef __cplusplus
 #define __WI_ANALYSIS_ASSUME(_exp) _Analysis_assume_(static_cast<bool>(_exp))
+#else
+#define __WI_ANALYSIS_ASSUME(_exp) _Analysis_assume_(_exp)
+#endif
 #else
 #ifdef RESULT_DEBUG
 #define __WI_ANALYSIS_ASSUME(_exp) ((void)0)
@@ -1426,9 +1430,8 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 #define CATCH_LOG_RETURN() \
     catch (...) \
     { \
-        __pragma(warning(suppress : 4297)); \
-        LOG_CAUGHT_EXCEPTION(); \
-        return; \
+        __pragma(warning(push)) __pragma(warning(disable : 4297)) LOG_CAUGHT_EXCEPTION(); \
+        __pragma(warning(pop)) return; \
     }
 #define CATCH_LOG_MSG(fmt, ...) \
     catch (...) \
@@ -1439,9 +1442,8 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 #define CATCH_LOG_RETURN_MSG(fmt, ...) \
     catch (...) \
     { \
-        __pragma(warning(suppress : 4297)); \
-        LOG_CAUGHT_EXCEPTION_MSG(fmt, ##__VA_ARGS__); \
-        return; \
+        __pragma(warning(push)) __pragma(warning(disable : 4297)) LOG_CAUGHT_EXCEPTION_MSG(fmt, ##__VA_ARGS__); \
+        __pragma(warning(pop)) return; \
     }
 #define CATCH_FAIL_FAST() \
     catch (...) \
