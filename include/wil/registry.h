@@ -31,7 +31,7 @@ namespace wil
 //! Functions and classes that support reading and writing values to/from the registry.
 namespace reg
 {
-#if defined(WIL_ENABLE_EXCEPTIONS)
+#ifdef WIL_ENABLE_EXCEPTIONS
     /**
      * @brief Opens a new HKEY to the specified path - see RegOpenKeyExW
      * @param key An open or well-known registry key
@@ -101,7 +101,7 @@ namespace reg
         return return_value;
     }
 #endif // #if defined(__WIL_WINREG_STL)
-#endif // #if defined(WIL_ENABLE_EXCEPTIONS)
+#endif // #ifdef WIL_ENABLE_EXCEPTIONS
 
     /**
      * @brief Opens a new HKEY to the specified path - see RegOpenKeyExW
@@ -221,7 +221,7 @@ namespace reg
     //         // the HRESULT last_error() returns the registry error that prevented enumeration
     //     }
     //
-#if defined(WIL_ENABLE_EXCEPTIONS)
+#ifdef WIL_ENABLE_EXCEPTIONS
 
 #if WIL_USE_STL || defined(WIL_DOXYGEN)
     using key_iterator = ::wil::reg::iterator_t<::wil::reg::key_iterator_data<::std::wstring>>;
@@ -236,7 +236,7 @@ namespace reg
     using key_heap_string_iterator = ::wil::reg::iterator_t<::wil::reg::key_iterator_data<::wil::unique_process_heap_string>>;
     using value_heap_string_iterator = ::wil::reg::iterator_t<::wil::reg::value_iterator_data<::wil::unique_process_heap_string>>;
 
-#endif // #if defined(WIL_ENABLE_EXCEPTIONS)
+#endif // #ifdef WIL_ENABLE_EXCEPTIONS
 
     // no-throw versions of applicable registry iterators
 #if defined(__WIL_OLEAUTO_H_) || defined(WIL_DOXYGEN)
@@ -337,7 +337,7 @@ namespace reg
         return S_OK;
     }
 
-#if defined(WIL_ENABLE_EXCEPTIONS)
+#ifdef WIL_ENABLE_EXCEPTIONS
     /**
      * @brief Queries for number of sub-keys
      * @param key The HKEY to query for number of sub-keys
@@ -376,9 +376,9 @@ namespace reg
         THROW_IF_FAILED(::wil::reg::get_last_write_filetime_nothrow(key, &lastModified));
         return lastModified;
     }
-#endif // #if defined(WIL_ENABLE_EXCEPTIONS)
+#endif // #ifdef WIL_ENABLE_EXCEPTIONS
 
-#if defined(WIL_ENABLE_EXCEPTIONS)
+#ifdef WIL_ENABLE_EXCEPTIONS
     //
     // template <typename T>
     // void set_value(...)
@@ -920,7 +920,7 @@ namespace reg
     }
 #endif
 
-#if defined(WIL_ENABLE_EXCEPTIONS)
+#ifdef WIL_ENABLE_EXCEPTIONS
     //
     // template <typename T>
     // T get_value(...)
@@ -1720,14 +1720,14 @@ namespace reg
     template <typename T>
     ::std::optional<T> try_get_value(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name)
     {
-#if defined(__WIL_OLEAUTO_H_)
+#ifdef __WIL_OLEAUTO_H_
         // not allowing unique types with try_get_value: wil::unique_bstr cannot be copied and thus is difficult to work with a std::optional
         static_assert(!wistd::is_same_v<T, ::wil::unique_bstr>, "try_get with wil::unique_bstr is disabled");
-#endif // #if defined(__WIL_OLEAUTO_H_)
-#if defined(__WIL_OBJBASE_H_)
+#endif // #ifdef __WIL_OLEAUTO_H_
+#ifdef __WIL_OBJBASE_H_
         // not allowing unique types with try_get_value: wil::unique_cotaskmem_string cannot be copied and thus is difficult to work with a std::optional
         static_assert(!wistd::is_same_v<T, ::wil::unique_cotaskmem_string>, "try_get with wil::unique_cotaskmem_string is disabled");
-#endif // #if defined(__WIL_OBJBASE_H_)
+#endif // #ifdef __WIL_OBJBASE_H_
 
         const reg_view_details::reg_view regview{key};
         return regview.try_get_value<T>(subkey, value_name);
@@ -1747,14 +1747,14 @@ namespace reg
     template <typename T>
     ::std::optional<T> try_get_value(HKEY key, _In_opt_ PCWSTR value_name)
     {
-#if defined(__WIL_OLEAUTO_H_)
+#ifdef __WIL_OLEAUTO_H_
         // not allowing unique types with try_get_value: wil::unique_bstr cannot be copied and thus is difficult to work with a std::optional
         static_assert(!wistd::is_same_v<T, ::wil::unique_bstr>, "try_get with wil::unique_bstr is disabled");
-#endif // #if defined(__WIL_OLEAUTO_H_)
-#if defined(__WIL_OBJBASE_H_)
+#endif // #ifdef __WIL_OLEAUTO_H_
+#ifdef __WIL_OBJBASE_H_
         // not allowing unique types with try_get_value: wil::unique_cotaskmem_string cannot be copied and thus is difficult to work with a std::optional
         static_assert(!wistd::is_same_v<T, ::wil::unique_cotaskmem_string>, "try_get with wil::unique_cotaskmem_string is disabled");
-#endif // #if defined(__WIL_OBJBASE_H_)
+#endif // #ifdef __WIL_OBJBASE_H_
 
         return ::wil::reg::try_get_value<T>(key, nullptr, value_name);
     }

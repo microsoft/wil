@@ -270,7 +270,7 @@ TEST_CASE("CppWinRTAuthoringTests::EventsAndCppWinRt", "[property]")
 
 TEST_CASE("CppWinRTAuthoringTests::NotifyPropertyChanged", "[property]")
 {
-#if defined(WIL_ENABLE_EXCEPTIONS)
+#ifdef WIL_ENABLE_EXCEPTIONS
     auto uninit = wil::RoInitialize_failfast(RO_INIT_MULTITHREADED);
 
     // Since we're uninitializing COM, we need to clear the factory cache when we're done, otherwise DLLs might unload while we

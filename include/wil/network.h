@@ -87,7 +87,7 @@ namespace network
         return {};
     }
 
-#if defined(WIL_ENABLE_EXCEPTIONS)
+#ifdef WIL_ENABLE_EXCEPTIONS
     // Calls WSAStartup and throws on error; returns an RAII object that reverts
     WI_NODISCARD inline ::wil::network::unique_wsacleanup_call WSAStartup()
     {
@@ -173,7 +173,7 @@ namespace network
         explicit socket_address(const SOCKET_ADDRESS* addr) WI_NOEXCEPT;
         explicit socket_address(const IN_ADDR* addr, unsigned short port = 0) WI_NOEXCEPT;
         explicit socket_address(const IN6_ADDR* addr, unsigned short port = 0) WI_NOEXCEPT;
-#if defined(WIL_ENABLE_EXCEPTIONS)
+#ifdef WIL_ENABLE_EXCEPTIONS
         explicit socket_address(PCWSTR addr, unsigned short port = 0);
 #endif
 
@@ -202,7 +202,7 @@ namespace network
         void set_address(const IN_ADDR* addr) WI_NOEXCEPT;
         void set_address(const IN6_ADDR* addr) WI_NOEXCEPT;
 
-#if defined(WIL_ENABLE_EXCEPTIONS)
+#ifdef WIL_ENABLE_EXCEPTIONS
         void reset_address(SOCKET s);
         void reset_address(PCWSTR address);
         void reset_address(PCSTR address);
@@ -407,7 +407,7 @@ namespace network
     // not defining a type for ADDRINFOEXA as that type is formally __declspec(deprecated)
     using addr_infoex_iterator = addr_info_iterator_t<ADDRINFOEXW>;
 
-#if defined(WIL_ENABLE_EXCEPTIONS)
+#ifdef WIL_ENABLE_EXCEPTIONS
     // function to capture resolving IP addresses assigned to the local machine, throwing on error
     // returning an RAII object containing the results
     inline ::wil::unique_addrinfo resolve_name(PCWSTR name)
@@ -711,7 +711,7 @@ namespace network
         set_port(port);
     }
 
-#if defined(WIL_ENABLE_EXCEPTIONS)
+#ifdef WIL_ENABLE_EXCEPTIONS
     inline socket_address::socket_address(PCWSTR addr, unsigned short port)
     {
         reset_address(addr);
@@ -1020,7 +1020,7 @@ namespace network
         m_sockaddr.Ipv6.sin6_port = original_port;
     }
 
-#if defined(WIL_ENABLE_EXCEPTIONS)
+#ifdef WIL_ENABLE_EXCEPTIONS
     inline void socket_address::reset_address(SOCKET s)
     {
         THROW_IF_FAILED(reset_address_nothrow(s));
@@ -1176,7 +1176,7 @@ namespace network
     }
 
     // the Winsock headers require having set this #define to access ANSI-string versions of the Winsock API
-#if defined(_WINSOCK_DEPRECATED_NO_WARNINGS)
+#ifdef _WINSOCK_DEPRECATED_NO_WARNINGS
     inline HRESULT socket_address::format_complete_address_nothrow(socket_address_string& address) const WI_NOEXCEPT
     {
         ::memset(address, 0, sizeof(socket_address_string));

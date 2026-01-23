@@ -40,7 +40,7 @@ constexpr int version_from_string(const char* versionString)
     int result = 0;
     while ((*versionString >= '0') && (*versionString <= '9'))
     {
-        result = result * 10 + (*versionString - '0');
+        result = (result * 10) + (*versionString - '0');
         ++versionString;
     }
 

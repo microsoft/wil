@@ -5153,7 +5153,7 @@ typedef weak_any<shared_hkey> weak_hkey;
 #define _WIL__propidl_h__
 /// @endcond
 // if language extensions (/Za) disabled, PropVariantInit will not exist, PROPVARIANT has forward declaration only
-#if defined(_MSC_EXTENSIONS)
+#ifdef _MSC_EXTENSIONS
 using unique_prop_variant =
     wil::unique_struct<PROPVARIANT, decltype(&::PropVariantClear), ::PropVariantClear, decltype(&::PropVariantInit), ::PropVariantInit>;
 #endif
@@ -6522,7 +6522,7 @@ using unique_wdf_collection = unique_wdf_any<WDFCOLLECTION>;
 using wdf_wait_lock_release_scope_exit =
     unique_any<WDFWAITLOCK, decltype(&::WdfWaitLockRelease), ::WdfWaitLockRelease, details::pointer_access_none>;
 
-#if defined(WIL_KERNEL_MODE)
+#ifdef WIL_KERNEL_MODE
 using unique_wdf_device_init = unique_any<WDFDEVICE_INIT*, decltype(&::WdfDeviceInitFree), ::WdfDeviceInitFree>;
 #endif
 
@@ -6806,7 +6806,7 @@ public:
     wdf_request_completer(wdf_request_completer&& other) WI_NOEXCEPT : m_wdfRequest(other.m_wdfRequest),
                                                                        m_status(other.m_status),
                                                                        m_information(other.m_information),
-#if defined(WIL_KERNEL_MODE)
+#ifdef WIL_KERNEL_MODE
                                                                        m_priorityBoost(other.m_priorityBoost),
 #endif
                                                                        m_completionFlags(other.m_completionFlags)
@@ -6822,7 +6822,7 @@ public:
             m_wdfRequest = other.m_wdfRequest;
             m_status = other.m_status;
             m_information = other.m_information;
-#if defined(WIL_KERNEL_MODE)
+#ifdef WIL_KERNEL_MODE
             m_priorityBoost = other.m_priorityBoost;
 #endif
             m_completionFlags = other.m_completionFlags;
@@ -6872,7 +6872,7 @@ public:
         m_information = information;
     }
 
-#if defined(WIL_KERNEL_MODE)
+#ifdef WIL_KERNEL_MODE
     //! Set the priority boost with which the WDFREQUEST will be completed. If this method is
     //! called, the WDFREQUEST will eventually be completed with
     //! WdfRequestCompleteWithPriorityBoost. No effect if this object currently does not have
@@ -6923,7 +6923,7 @@ public:
         wistd::swap_wil(m_wdfRequest, other.m_wdfRequest);
         wistd::swap_wil(m_information, other.m_information);
         wistd::swap_wil(m_status, other.m_status);
-#if defined(WIL_KERNEL_MODE)
+#ifdef WIL_KERNEL_MODE
         wistd::swap_wil(m_priorityBoost, other.m_priorityBoost);
 #endif
         wistd::swap_wil(m_completionFlags, other.m_completionFlags);
@@ -6938,7 +6938,7 @@ public:
             // call WdfRequestCompleteWithInformation instead of calling WdfRequestSetInformation
             // followed by WdfRequestComplete.
 
-#if defined(WIL_KERNEL_MODE)
+#ifdef WIL_KERNEL_MODE
             if (m_completionFlags.priorityBoostSet)
             {
                 if (m_completionFlags.informationSet)
@@ -6973,7 +6973,7 @@ private:
         completer.m_wdfRequest = newWdfRequest;
         completer.m_status = STATUS_UNSUCCESSFUL;
         completer.m_information = 0;
-#if defined(WIL_KERNEL_MODE)
+#ifdef WIL_KERNEL_MODE
         completer.m_priorityBoost = 0;
 #endif
         completer.m_completionFlags = {};
@@ -6991,7 +6991,7 @@ private:
     NTSTATUS m_status = STATUS_UNSUCCESSFUL;
 
 // UMDF does not support WdfRequestCompleteWithPriorityBoost.
-#if defined(WIL_KERNEL_MODE)
+#ifdef WIL_KERNEL_MODE
     // This will not be used unless m_completionFlags.priorityBoostSet is set.
     CCHAR m_priorityBoost = 0;
 #endif
@@ -6999,7 +6999,7 @@ private:
     struct
     {
         UINT8 informationSet : 1;
-#if defined(WIL_KERNEL_MODE)
+#ifdef WIL_KERNEL_MODE
         UINT8 priorityBoostSet : 1;
 #endif
     } m_completionFlags = {};
@@ -7497,7 +7497,7 @@ namespace details
 /// @endcond
 typedef wil::unique_any<HCATADMIN, decltype(&details::CryptCATAdminReleaseContextNoFlags), details::CryptCATAdminReleaseContextNoFlags> unique_hcatadmin;
 
-#if defined(WIL_RESOURCE_STL)
+#ifdef WIL_RESOURCE_STL
 typedef shared_any<unique_hcatadmin> shared_hcatadmin;
 struct hcatinfo_deleter
 {
