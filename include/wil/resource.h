@@ -1868,6 +1868,7 @@ namespace details
         static constexpr string_view_t get_impl(const T&, priority_tag<0>) WI_NOEXCEPT
         {
             static_assert(!wistd::is_same_v<T, T>, "Argument is of an unknown string type");
+            return {};
         }
 
         static constexpr string_view_t get(const StringT& str) WI_NOEXCEPT
