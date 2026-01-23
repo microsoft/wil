@@ -459,8 +459,7 @@ TEST_CASE("FileSystemTests::VerifyStrConcat", "[filesystem]")
         PCWSTR expectedStr = L"Test1Test2Test3Test4Test5Test6Test7";
 
 #ifdef WIL_ENABLE_EXCEPTIONS
-        auto combinedString =
-            wil::str_concat<wil::unique_cotaskmem_string>(test1, test2, test3, test4, test5, test6, test7);
+        auto combinedString = wil::str_concat<wil::unique_cotaskmem_string>(test1, test2, test3, test4, test5, test6, test7);
         REQUIRE(CompareStringOrdinal(combinedString.get(), -1, expectedStr, -1, TRUE) == CSTR_EQUAL);
 #endif
 
@@ -468,8 +467,7 @@ TEST_CASE("FileSystemTests::VerifyStrConcat", "[filesystem]")
         REQUIRE_SUCCEEDED(wil::str_concat_nothrow(combinedStringNT, test1, test2, test3, test4, test5, test6, test7));
         REQUIRE(CompareStringOrdinal(combinedStringNT.get(), -1, expectedStr, -1, TRUE) == CSTR_EQUAL);
 
-        auto combinedStringFF =
-            wil::str_concat_failfast<wil::unique_cotaskmem_string>(test1, test2, test3, test4, test5, test6, test7);
+        auto combinedStringFF = wil::str_concat_failfast<wil::unique_cotaskmem_string>(test1, test2, test3, test4, test5, test6, test7);
         REQUIRE(CompareStringOrdinal(combinedStringFF.get(), -1, expectedStr, -1, TRUE) == CSTR_EQUAL);
     }
 
