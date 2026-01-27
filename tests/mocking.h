@@ -451,8 +451,8 @@ public:
                 entryPtr = &(*entryPtr)->m_next;
             }
 
-            // Faling this check would likely imply that this object is being destroyed on the wrong thread. No matter the reason,
-            // this should be considered a pretty fatal error
+            // Failing this check would likely imply that this object is being destroyed on the wrong thread. No matter the
+            // reason, this should be considered a pretty fatal error
             FAIL_FAST_IF_NULL(*entryPtr);
             *entryPtr = m_next;
 

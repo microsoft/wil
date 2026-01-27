@@ -60,6 +60,6 @@ target_sources(witest.asan PUBLIC
     ${COMMON_SOURCES}
     ${DOWNLEVEL_SOURCES}
     ${WINRT_SOURCES}
-    ${WIN11_DESTKTOP_SOURCES}
+    ${WIN11_DESKTOP_SOURCES}
     ${EXTRA_SOURCES}
     )

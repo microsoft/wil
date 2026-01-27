@@ -1126,7 +1126,7 @@ inline bool operator<=(const ::Microsoft::WRL::ComPtr<TLeft>& left, const com_pt
 
 // raw COM pointer support
 //
-// Use these for convenience and to avoid unnecessary AddRef/Release cyles when using raw
+// Use these for convenience and to avoid unnecessary AddRef/Release cycles when using raw
 // pointers to access STL containers. Specify std::less<> to benefit from operator<.
 //
 // Example: std::set<wil::com_ptr<IUnknown>, std::less<>> set;
