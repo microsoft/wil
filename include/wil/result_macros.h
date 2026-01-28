@@ -159,7 +159,7 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 // RESULT_DIAGNOSTICS_LEVEL
 // This define controls the level of diagnostic instrumentation that is built into the binary as a
 // byproduct of using the macros.  The amount of diagnostic instrumentation that is supplied is
-// a trade-off between diagnosibility of issues and code size and performance.  The modes are:
+// a trade-off between diagnosability of issues and code size and performance.  The modes are:
 //      0   - No diagnostics, smallest & fastest (subject to tail-merge)
 //      1   - No diagnostics, unique call sites for each macro (defeat's tail-merge)
 //      2   - Line number
@@ -4373,8 +4373,8 @@ namespace details
 
     // Returns true if a debugger should be considered to be connected.
     // Modules can force this on through setting g_fIsDebuggerPresent explicitly (useful for live debugging),
-    // they can provide a callback function by setting g_pfnIsDebuggerPresent (useful for kernel debbugging),
-    // and finally the user-mode check (IsDebuggerPrsent) is checked. IsDebuggerPresent is a fast call
+    // they can provide a callback function by setting g_pfnIsDebuggerPresent (useful for kernel debugging),
+    // and finally the user-mode check (IsDebuggerPresent) is checked. IsDebuggerPresent is a fast call.
     inline bool IsDebuggerPresent()
     {
         return g_fIsDebuggerPresent ||

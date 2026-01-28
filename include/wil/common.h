@@ -1015,7 +1015,7 @@ template <typename T, std::enable_if_t<condition_b<T>, int> = 0>
 void doit(const T&);
 ~~~
 If `doit` is called with a type `T` that satisfies both `condition_a<T>` and `condition_b<T>`, the code will fail to
-compile. One way to solve this issue is to change the condiiton of the second overload to
+compile. One way to solve this issue is to change the condition of the second overload to
 `condition_b<T> && !condition_a<T>`, however this can get quite complicated and verbose fast. With `priority_tag`, this
 could get simplified down to:
 ~~~

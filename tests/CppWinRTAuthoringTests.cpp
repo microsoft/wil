@@ -80,7 +80,7 @@ static void WaitForWinRTModuleLock()
         {
             FAIL(
                 "C++/WinRT module lock did not reach zero within 5 seconds. This likely signals a memory leak in a previous test. "
-                "If this is the case, the issue should be reproducable locally by running with '--rng-seed <seed>' with the seed "
+                "If this is the case, the issue should be reproducible locally by running with '--rng-seed <seed>' with the seed "
                 "that was printed by Catch2 at the start of this executable's execution.");
         }
 

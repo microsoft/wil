@@ -91,8 +91,8 @@ set(WINRT_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/WinRTTests.cpp
     )
 
-# Source files that can compile on Win11+, but only on the Destkop partition
-set(WIN11_DESTKTOP_SOURCES
+# Source files that can compile on Win11+, but only on the Desktop partition
+set(WIN11_DESKTOP_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/WinVerifyTrustTest.cpp
     )
 

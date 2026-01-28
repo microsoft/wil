@@ -883,7 +883,7 @@ details::out_param_ptr_t<Tcast, T> out_param_ptr(T& ptr)
 
 /** Use unique_struct to define an RAII type for a trivial struct that references resources that must be cleaned up.
 Unique_struct wraps a trivial struct using a custom clean up function and, optionally, custom initializer function. If no custom
-initialier function is defined in the template then ZeroMemory is used.
+initializer function is defined in the template then ZeroMemory is used.
 Unique_struct is modeled off of std::unique_ptr. However, unique_struct inherits from the defined type instead of managing the
 struct through a private member variable.
 
@@ -2653,7 +2653,7 @@ namespace details
     };
 
     // SetThreadpoolTimer(timer, nullptr, 0, 0) will cancel any pending callbacks,
-    // then CloseThreadpoolTimer will asynchronusly close the timer if a callback is running.
+    // then CloseThreadpoolTimer will asynchronously close the timer if a callback is running.
     template <typename threadpool_t, PendingCallbackCancellationBehavior cancellationBehavior>
     struct DestroyThreadPoolTimer
     {

@@ -20,5 +20,5 @@ target_sources(witest.ubsan PUBLIC
     ${COMMON_SOURCES}
     ${DOWNLEVEL_SOURCES}
     ${WINRT_SOURCES}
-    ${WIN11_DESTKTOP_SOURCES}
+    ${WIN11_DESKTOP_SOURCES}
     )
