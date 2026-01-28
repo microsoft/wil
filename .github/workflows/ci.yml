@@ -5,7 +5,12 @@ permissions:
 
 on:
   pull_request:
-  workflow_dispatch:
+  workflow_call:
+    inputs:
+      pr_number:
+        description: 'PR number to test'
+        required: false
+        type: number
   push:
     branches:
       - master
@@ -15,7 +20,16 @@ jobs:
     name: Format Check
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout input branch
+        if: github.event.inputs.pr_number
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: refs/pull/${{ github.event.inputs.pr_number }}/merge
+
+      - name: Checkout trigger branch
+        if: ${{ !github.event.inputs.pr_number }}
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -66,7 +80,15 @@ jobs:
 
     runs-on: ${{matrix.host}}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout input branch
+        if: github.event.inputs.pr_number
+        uses: actions/checkout@v4
+        with:
+          ref: refs/pull/${{ github.event.inputs.pr_number }}/merge
+
+      - name: Checkout trigger branch
+        if: ${{ !github.event.inputs.pr_number }}
+        uses: actions/checkout@v4
 
       - name: Install/Update Clang
         if: matrix.compiler == 'clang'
