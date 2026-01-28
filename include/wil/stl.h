@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 #include <utility>
+#include <TraceLoggingProvider.h>
 #if (__WI_LIBCPP_STD_VER >= 17) && WI_HAS_INCLUDE(<string_view>, 1) // Assume present if C++17
 #include <string_view>
 #endif
@@ -323,6 +324,76 @@ struct std::formatter<wil::basic_zstring_view<TChar>, TChar> : std::formatter<st
 };
 #endif
 #endif
+
+#if __cpp_lib_string_view >= 201606L
+
+template <typename TContainer>
+struct _tlgWrapBufferStlContainer
+{
+    static const unsigned DataDescCount = 2;
+
+    TContainer const& view;
+
+    __forceinline explicit _tlgWrapBufferStlContainer(_In_ TContainer const& ref) : view(ref)
+    {
+    }
+
+    __forceinline void* Fill(_Out_writes_(DataDescCount) EVENT_DATA_DESCRIPTOR* pDesc) const
+    {
+        EventDataDescCreate(&pDesc[0], &pDesc[1].Size, 2);
+        EventDataDescCreate(&pDesc[1], view.data(), static_cast<UINT16>(view.size() * sizeof(*view.data())));
+        return pDesc;
+    }
+};
+
+template <typename TChar>
+struct _tlgTypeMapStlString
+{
+    typedef UINT8 _tlgTypeType0;
+    typedef UINT16 _tlgTypeType1;
+    static bool const _tlgIsSimple = false;
+    static TlgIn_t const _tlgViewIn = wistd::is_same_v<TChar, char> ? TlgInCOUNTEDANSISTRING : TlgInCOUNTEDSTRING;
+    static _tlgTypeType0 const _tlgType0 = _tlgViewIn | 0x0000;
+    static _tlgTypeType1 const _tlgType1 = _tlgViewIn | 0x8080;
+};
+
+template <typename TChar, typename TTraits>
+struct _tlgTypeMapBase<std::basic_string_view<TChar, TTraits>> : _tlgTypeMapStlString<TChar>
+{
+};
+
+template <typename TChar, typename TTraits>
+TLG_INLINE auto _tlg_CALL _tlgWrapAuto(std::basic_string_view<TChar, TTraits> const& value)
+{
+    return _tlgWrapBufferStlContainer<std::basic_string_view<TChar, TTraits>>(value);
+}
+
+template <typename TChar, typename TTraits>
+struct _tlgTypeMapBase<std::basic_string<TChar, TTraits>> : _tlgTypeMapStlString<TChar>
+{
+};
+
+template <typename TChar, typename TTraits>
+TLG_INLINE auto _tlg_CALL _tlgWrapAuto(std::basic_string<TChar, TTraits> const& value)
+{
+    return _tlgWrapBufferStlContainer<std::basic_string<TChar, TTraits>>(value);
+}
+
+template <typename TChar>
+struct _tlgTypeMapBase<wil::basic_zstring_view<TChar>> : _tlgTypeMapStlString<TChar>
+{
+};
+
+template <typename TChar>
+TLG_INLINE auto _tlg_CALL _tlgWrapAuto(wil::basic_zstring_view<TChar> const& value)
+{
+    return _tlgWrapBufferStlContainer<wil::basic_zstring_view<TChar>>(value);
+}
+
+#define TraceLoggingStringView(pValue, ...) _tlgArgAuto(static_cast<std::string_view>(pValue), __VA_ARGS__)
+#define TraceLoggingWideStringView(pValue, ...) _tlgArgAuto(static_cast<std::wstring_view>(pValue), __VA_ARGS__)
+
+#endif // __cpp_lib_string_view >= 201606L
 
 #endif // WIL_ENABLE_EXCEPTIONS
 
