@@ -18,17 +18,6 @@ PCWSTR str_raw_ptr(const std::wstring&);
 #endif
 } // namespace wil
 
-namespace wil::details
-{
-struct string_view_t;
-
-string_view_t view_from_string(HSTRING);
-#ifdef WIL_ENABLE_EXCEPTIONS
-string_view_t view_from_string(std::wstring const&);
-string_view_t view_from_string(std::wstring_view const&);
-#endif
-} // namespace wil::details
-
 #include <wil/resource.h>
 #include <wil/filesystem.h>
 
@@ -449,27 +438,6 @@ struct has_operator_pwstr
     }
 };
 
-#ifdef WIL_ENABLE_EXCEPTIONS
-struct has_operator_wstr_ref
-{
-    std::wstring value;
-    operator const std::wstring&() const
-    {
-        return value;
-    }
-};
-
-// E.g. mimics something like std::filesystem::path
-struct has_operator_wstr
-{
-    std::wstring value;
-    operator std::wstring() const
-    {
-        return value;
-    }
-};
-#endif
-
 TEST_CASE("FileSystemTests::VerifyStrConcat", "[filesystem]")
 {
     SECTION("Concat with multiple strings")
@@ -488,27 +456,18 @@ TEST_CASE("FileSystemTests::VerifyStrConcat", "[filesystem]")
         WCHAR test7Buffer[] = L"Test7";
         has_operator_pwstr test7{test7Buffer};
 
-#ifdef WIL_ENABLE_EXCEPTIONS
-        has_operator_wstr_ref test8{L"Test8"};
-        has_operator_wstr test9{L"Test9"};
-#else
-        PCWSTR test8 = L"Test8";
-        PCWSTR test9 = L"Test9";
-#endif
-        PCWSTR expectedStr = L"Test1Test2Test3Test4Test5Test6Test7Test8Test9";
+        PCWSTR expectedStr = L"Test1Test2Test3Test4Test5Test6Test7";
 
 #ifdef WIL_ENABLE_EXCEPTIONS
-        auto combinedString =
-            wil::str_concat<wil::unique_cotaskmem_string>(test1, test2, test3, test4, test5, test6, test7, test8, test9);
+        auto combinedString = wil::str_concat<wil::unique_cotaskmem_string>(test1, test2, test3, test4, test5, test6, test7);
         REQUIRE(CompareStringOrdinal(combinedString.get(), -1, expectedStr, -1, TRUE) == CSTR_EQUAL);
 #endif
 
         wil::unique_cotaskmem_string combinedStringNT;
-        REQUIRE_SUCCEEDED(wil::str_concat_nothrow(combinedStringNT, test1, test2, test3, test4, test5, test6, test7, test8, test9));
+        REQUIRE_SUCCEEDED(wil::str_concat_nothrow(combinedStringNT, test1, test2, test3, test4, test5, test6, test7));
         REQUIRE(CompareStringOrdinal(combinedStringNT.get(), -1, expectedStr, -1, TRUE) == CSTR_EQUAL);
 
-        auto combinedStringFF =
-            wil::str_concat_failfast<wil::unique_cotaskmem_string>(test1, test2, test3, test4, test5, test6, test7, test8, test9);
+        auto combinedStringFF = wil::str_concat_failfast<wil::unique_cotaskmem_string>(test1, test2, test3, test4, test5, test6, test7);
         REQUIRE(CompareStringOrdinal(combinedStringFF.get(), -1, expectedStr, -1, TRUE) == CSTR_EQUAL);
     }
 

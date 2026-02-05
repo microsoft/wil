@@ -1004,6 +1004,88 @@ using integral_from_enum = typename details::variable_size_mapping<T>::type;
 //! Declares a name that intentionally hides a name from an outer scope.
 //! Use this to prevent accidental use of a parameter or lambda captured variable.
 using hide_name = void(struct hidden_name);
+
+/** A helper tag type used to disambiguate function overloads by assigning priority to each overload.
+This is primarily useful when using SFINAE on different properties of a type that might overlap. For example, consider
+the following code:
+~~~
+template <typename T, std::enable_if_t<condition_a<T>, int> = 0>
+void doit(const T&);
+template <typename T, std::enable_if_t<condition_b<T>, int> = 0>
+void doit(const T&);
+~~~
+If `doit` is called with a type `T` that satisfies both `condition_a<T>` and `condition_b<T>`, the code will fail to
+compile. One way to solve this issue is to change the condition of the second overload to
+`condition_b<T> && !condition_a<T>`, however this can get quite complicated and verbose fast. With `priority_tag`, this
+could get simplified down to:
+~~~
+template <typename T, std::enable_if_t<condition_a<T>, int> = 0>
+void doit_impl(const T&, priority_tag<1>);
+template <typename T, std::enable_if_t<condition_b<T>, int> = 0>
+void doit_impl(const T&, priority_tag<0>);
+
+template <typename T>
+void doit(const T& val)
+{
+    doit_impl(val, priority_tag<1>{});
+}
+~~~
+This will invoke the first overload if a type `T` satisfies both `condition_a<T>` and `condition_b<T>`.
+*/
+template <int N>
+struct priority_tag : priority_tag<N - 1>
+{
+};
+
+/// @cond
+template <>
+struct priority_tag<0>
+{
+};
+/// @endcond
+
+/// @cond
+namespace details
+{
+    // Helper type to determine if a type "behaves like a std::basic_string_view." Note that this type is designed to
+    // match types such as std::basic_string_view, std::basic_string, and winrt::hstring while _not_ matching against
+    // things like std::array or std::vector.
+    template <typename T, typename CharT>
+    struct is_string_view_like_t
+    {
+    private:
+        // winrt::hstring doesn't have much to differentiate itself from std::array/std::vector apart from 'c_str' which
+        // std::basic_string_view lacks. Therefore we need an "OR" condition to get the behavior we want
+        template <typename U>
+        static wistd::true_type has_cstr(
+            U* ptr, wistd::enable_if_t<wistd::is_convertible_v<decltype(ptr->c_str()), wistd::add_const_t<CharT>*>>*);
+        template <typename U>
+        static wistd::false_type has_cstr(U* ptr, ...);
+
+        template <typename U>
+        static wistd::true_type has_substr(U* ptr, wistd::enable_if_t<wistd::is_same_v<decltype(ptr->substr(0, 0)), U>>*);
+        template <typename U>
+        static wistd::false_type has_substr(U*, ...);
+
+        template <typename U>
+        static wistd::true_type test(
+            U* obj,
+            wistd::enable_if_t<wistd::is_same_v<typename U::value_type, CharT>>*, // T::value_type == CharT
+            wistd::enable_if_t<wistd::is_convertible_v<decltype(obj->size()), size_t>>*, // T::size() well formed and convertible to size_t
+            wistd::enable_if_t<wistd::is_convertible_v<decltype(obj->data()), wistd::add_const_t<CharT>*>>*, // T::data() well formed and convertible to const CharT*
+            wistd::enable_if_t<decltype(has_cstr<U>(nullptr, nullptr))::value || decltype(has_substr<U>(nullptr, nullptr))::value>*); // T::c_str() or T::substr() well formed
+
+        template <typename U>
+        static wistd::false_type test(U*, ...);
+
+    public:
+        static constexpr bool value = decltype(test<T>(nullptr, nullptr, nullptr, nullptr, nullptr))::value;
+    };
+
+    template <typename T, typename CharT>
+    constexpr bool is_string_view_like = is_string_view_like_t<T, CharT>::value;
+} // namespace details
+/// @endcond
 } // namespace wil
 
 #pragma warning(pop)

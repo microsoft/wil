@@ -161,8 +161,8 @@ constexpr size_t guid_string_length = 38;
 #pragma region String and identifier comparisons
 // Using CompareStringOrdinal functions:
 //
-// Indentifiers require a locale-less (ordinal), and often case-insensitive, comparison (filenames, registry keys, XML node names,
-// etc). DO NOT use locale-sensitive (lexical) comparisons for resource identifiers (e.g.wcs*() functions in the CRT).
+// Identifiers require a locale-less (ordinal), and often case-insensitive, comparison (filenames, registry keys, XML node names,
+// etc). DO NOT use locale-sensitive (lexical) comparisons for resource identifiers (e.g. wcs*() functions in the CRT).
 
 #if WIL_USE_STL && (__cpp_lib_string_view >= 201606L)
 /// @cond
@@ -1147,7 +1147,7 @@ inline std::basic_string<CharT> ArgvToCommandLine(RangeT&& range, ArgvToCommandL
                     // behavior of CommandLineToArgvW is to just preserve "interior" quotes, so we do that.
                     // NOTE: 'CommandLineToArgvW' treats "interior" quotes as terminating quotes when the executable
                     // path begins with a quote, even if the next character is not a space. This assert won't catch all
-                    // of such issues as we may detect a space, and therefore the need to surroud the argument with
+                    // of such issues as we may detect a space, and therefore the need to surround the argument with
                     // quotes, later in the string; this is best effort. Such arguments wouldn't be valid and are not
                     // representable anyway
                     WI_ASSERT((pos > 0) && !WI_IsFlagSet(flags, ArgvToCommandLineFlags::ForceQuotes) && !terminateWithQuotes);

@@ -8,6 +8,7 @@
 
 // Headers to "light up" functionality in resource.h
 #include <memory>
+#include <shared_mutex>
 #include <roapi.h>
 #include <winstring.h>
 #include <WinUser.h>
@@ -914,4 +915,46 @@ TEST_CASE("UniqueCloseClipboardCall", "[resource]")
         REQUIRE(::EmptyClipboard());
     }
 #endif
+}
+
+void read_lock_function([[maybe_unused]] wil::read_lock_required lock)
+{
+}
+
+void write_lock_function([[maybe_unused]] wil::write_lock_required lock)
+{
+}
+
+TEST_CASE("read_lock_required", "[resource]")
+{
+    wil::srwlock lock;
+    read_lock_function(lock.lock_shared());
+    read_lock_function(lock.lock_exclusive()); // an exclusive lock also counts as a read lock
+
+    wil::critical_section cs;
+    read_lock_function(cs.lock());
+
+    std::recursive_mutex mutex;
+    read_lock_function(std::lock_guard<std::recursive_mutex>(mutex));
+    read_lock_function(std::scoped_lock(mutex));
+
+    std::shared_mutex sharedMutex;
+    read_lock_function(std::shared_lock<std::shared_mutex>(sharedMutex));
+    read_lock_function(std::unique_lock<std::shared_mutex>(sharedMutex));
+}
+
+TEST_CASE("write_lock_required", "[resource]")
+{
+    wil::srwlock lock;
+    write_lock_function(lock.lock_exclusive());
+
+    wil::critical_section cs;
+    write_lock_function(cs.lock());
+
+    std::recursive_mutex mutex;
+    write_lock_function(std::lock_guard<std::recursive_mutex>(mutex));
+    write_lock_function(std::scoped_lock(mutex));
+
+    std::shared_mutex sharedMutex;
+    write_lock_function(std::unique_lock<std::shared_mutex>(sharedMutex));
 }
