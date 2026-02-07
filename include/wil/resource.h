@@ -8322,7 +8322,7 @@ namespace details
     {
     };
 
-#ifdef __cpp_lib_scoped_lock
+#if __cpp_lib_scoped_lock >= 201703L
     template <typename TMutex>
     struct lock_proof_traits<std::scoped_lock<TMutex>> : exclusive_lock_proof
     {
