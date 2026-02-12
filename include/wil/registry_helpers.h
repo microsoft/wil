@@ -65,7 +65,7 @@ namespace reg
     // Access rights for opening registry keys. See https://learn.microsoft.com/en-us/windows/win32/sysinfo/registry-key-security-and-access-rights.
     enum class key_access
     {
-        // Open key for reading.
+        // Open key for reading. Equivalent to KEY_READ.
         read,
 
         // Open key for writing. Equivalent to KEY_WRITE.
@@ -74,14 +74,23 @@ namespace reg
         // Open key for reading and writing. Equivalent to KEY_ALL_ACCESS.
         readwrite,
 
-        // Open key for reading from 64-bit registry.
+        // Open key for reading from 64-bit registry. Equivalent to KEY_READ | KEY_WOW64_64KEY.
         read64,
 
         // Open key for writing from 64-bit registry. Equivalent to KEY_WRITE | KEY_WOW64_64KEY.
         write64,
 
-        // Open key for reading and writing from 64-bit registry. Equivalent to KEY_ALL_ACCESS.
+        // Open key for reading and writing from 64-bit registry. Equivalent to KEY_ALL_ACCESS | KEY_WOW64_64KEY.
         readwrite64,
+
+        // Open key for reading from 32-bit registry. Equivalent to KEY_READ | KEY_WOW64_32KEY.
+        read32,
+
+        // Open key for writing from 32-bit registry. Equivalent to KEY_WRITE | KEY_WOW64_32KEY.
+        write32,
+
+        // Open key for reading and writing from 32-bit registry. Equivalent to KEY_ALL_ACCESS | KEY_WOW64_32KEY.
+        readwrite32,
     };
 
     /// @cond
@@ -125,6 +134,12 @@ namespace reg
                 return KEY_WRITE | KEY_WOW64_64KEY;
             case key_access::readwrite64:
                 return KEY_ALL_ACCESS | KEY_WOW64_64KEY;
+            case key_access::read32:
+                return KEY_READ | KEY_WOW64_32KEY;
+            case key_access::write32:
+                return KEY_WRITE | KEY_WOW64_32KEY;
+            case key_access::readwrite32:
+                return KEY_ALL_ACCESS | KEY_WOW64_32KEY;
             }
             FAIL_FAST();
             RESULT_NORETURN_RESULT(0);
