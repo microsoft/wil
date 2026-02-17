@@ -4987,7 +4987,7 @@ struct hlocal_secure_deleter
     {
         if (ptr)
         {
-#pragma warning(suppress : 26006 26007)            // LocalSize() ensures proper buffer length
+#pragma warning(suppress : 26006 26007)                // LocalSize() ensures proper buffer length
             ::SecureZeroMemory(ptr, ::LocalSize(ptr)); // this is safe since LocalSize() returns 0 on failure
             ::LocalFree(ptr);
         }
@@ -8322,10 +8322,12 @@ namespace details
     {
     };
 
+#if __cpp_lib_scoped_lock >= 201703L
     template <typename TMutex>
     struct lock_proof_traits<std::scoped_lock<TMutex>> : exclusive_lock_proof
     {
     };
+#endif
 } // namespace details
 /// @endcond
 
