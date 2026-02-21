@@ -142,9 +142,7 @@ TEST_CASE("FileSystemTests::VerifyRemoveDirectoryRecursiveCanDeleteReadOnlyFiles
 
     auto CreateReadOnlyDirectory = [](PCWSTR path) {
         REQUIRE(::CreateDirectoryW(path, nullptr));
-
         DWORD directoryAttr = ::GetFileAttributesW(path);
-
         REQUIRE(::SetFileAttributesW(path, directoryAttr | FILE_ATTRIBUTE_READONLY));
     };
 
