@@ -378,7 +378,29 @@ inline HRESULT RemoveDirectoryRecursiveNoThrow(
         }
         else
         {
-            RETURN_IF_WIN32_BOOL_FALSE(::RemoveDirectoryW(path.get()));
+            // Try a RemoveDirectory.  Some errors may be recoverable.
+            if (!::RemoveDirectoryW(path.get()))
+            {
+                // Fail for anything other than ERROR_ACCESS_DENIED with option to RemoveReadOnly available
+                bool potentiallyFixableReadOnlyProblem =
+                    WI_IsFlagSet(options, RemoveDirectoryOptions::RemoveReadOnly) && ::GetLastError() == ERROR_ACCESS_DENIED;
+                RETURN_LAST_ERROR_IF(!potentiallyFixableReadOnlyProblem);
+
+                // Fail if the directory does not have read-only set, likely just an ACL problem
+                DWORD directoryAttr = ::GetFileAttributesW(path.get());
+                RETURN_LAST_ERROR_IF(!WI_IsFlagSet(directoryAttr, FILE_ATTRIBUTE_READONLY));
+
+                // Remove read-only flag, setting to NORMAL if completely empty
+                WI_ClearFlag(directoryAttr, FILE_ATTRIBUTE_READONLY);
+                if (directoryAttr == 0)
+                {
+                    directoryAttr = FILE_ATTRIBUTE_NORMAL;
+                }
+
+                // Set the new attributes and try to delete the directory again, returning any failure
+                ::SetFileAttributesW(path.get(), directoryAttr);
+                RETURN_IF_WIN32_BOOL_FALSE(::RemoveDirectoryW(path.get()));
+            }
         }
     }
     return S_OK;
