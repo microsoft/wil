@@ -266,6 +266,102 @@ TEST_CASE("CppWinRTAuthoringTests::EventsAndCppWinRt", "[property]")
     test.Closed(token);
 }
 
+TEST_CASE("CppWinRTAuthoringTests::WinrtEvent", "[winrt_event]")
+{
+    // Basic smoke test: register, invoke, unregister
+    struct Test
+    {
+        wil::winrt_event<winrt::Windows::Foundation::EventHandler<int>> MyEvent;
+    } test;
+
+    int value = 0;
+    auto token = test.MyEvent([&](const winrt::Windows::Foundation::IInspectable&, int args) {
+        value = args;
+    });
+    test.MyEvent.invoke(nullptr, 42);
+    REQUIRE(value == 42);
+    test.MyEvent(token);
+}
+
+TEST_CASE("CppWinRTAuthoringTests::WinrtEventSwallowExceptions", "[winrt_event]")
+{
+    // Default (swallow) traits: all handlers are called even if some throw
+    struct Test
+    {
+        wil::winrt_event<winrt::Windows::Foundation::EventHandler<int>> MyEvent;
+    } test;
+
+    int callCount = 0;
+
+    // First handler throws
+    auto token1 = test.MyEvent([&](const winrt::Windows::Foundation::IInspectable&, int) {
+        ++callCount;
+        throw winrt::hresult_not_implemented{};
+    });
+
+    // Second handler should still be called
+    auto token2 = test.MyEvent([&](const winrt::Windows::Foundation::IInspectable&, int args) {
+        ++callCount;
+        REQUIRE(args == 42);
+    });
+
+    // invoke() must not throw even though first handler throws
+    REQUIRE_NOTHROW(test.MyEvent.invoke(nullptr, 42));
+
+    // Both handlers must have been called
+    REQUIRE(callCount == 2);
+
+    test.MyEvent(token1);
+    test.MyEvent(token2);
+}
+
+TEST_CASE("CppWinRTAuthoringTests::WinrtEventPropagateExceptions", "[winrt_event]")
+{
+    // Propagate traits: first exception propagates and remaining handlers are skipped
+    struct Test
+    {
+        wil::winrt_event<winrt::Windows::Foundation::EventHandler<int>, wil::propagate_event_errors_traits> MyEvent;
+    } test;
+
+    int callCount = 0;
+
+    auto token1 = test.MyEvent([&](const winrt::Windows::Foundation::IInspectable&, int) {
+        ++callCount;
+        throw winrt::hresult_not_implemented{};
+    });
+
+    // This handler should NOT be called because the first one throws
+    auto token2 = test.MyEvent([&](const winrt::Windows::Foundation::IInspectable&, int) {
+        ++callCount;
+    });
+
+    // invoke() must throw
+    REQUIRE_THROWS_AS(test.MyEvent.invoke(nullptr, 42), winrt::hresult_not_implemented);
+
+    // Only the first handler ran
+    REQUIRE(callCount == 1);
+
+    test.MyEvent(token1);
+    test.MyEvent(token2);
+}
+
+TEST_CASE("CppWinRTAuthoringTests::WinrtEventTypedDelegate", "[winrt_event]")
+{
+    // winrt_event works with TypedEventHandler delegates
+    struct Test
+    {
+        wil::winrt_event<winrt::Windows::Foundation::TypedEventHandler<winrt::Windows::Foundation::IInspectable, int>> MyEvent;
+    } test;
+
+    int value = 0;
+    auto token = test.MyEvent([&](const winrt::Windows::Foundation::IInspectable&, int args) {
+        value = args;
+    });
+    test.MyEvent.invoke(nullptr, 99);
+    REQUIRE(value == 99);
+    test.MyEvent(token);
+}
+
 #include <winrt/Windows.UI.Xaml.Hosting.h>
 
 TEST_CASE("CppWinRTAuthoringTests::NotifyPropertyChanged", "[property]")

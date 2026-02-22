@@ -251,6 +251,92 @@ struct typed_event : wil::details::event_base<winrt::Windows::Foundation::TypedE
 {
 };
 
+/**
+ * @brief Traits for wil::winrt_event that swallows exceptions thrown by event handlers.
+ * All handlers are called even if some throw; exceptions are discarded.
+ * This provides crash-resistant behavior and is the default for wil::winrt_event.
+ */
+struct swallow_event_errors_traits
+{
+    static void on_handler_exception(std::exception_ptr) noexcept
+    {
+        // Intentionally discard the exception to allow remaining handlers to run.
+    }
+};
+
+/**
+ * @brief Traits for wil::winrt_event that propagates exceptions thrown by event handlers.
+ * If a handler throws, the exception propagates out of invoke() and remaining handlers
+ * are not called. This matches the behavior of winrt::event.
+ */
+struct propagate_event_errors_traits
+{
+    static void on_handler_exception(std::exception_ptr ep)
+    {
+        std::rethrow_exception(ep);
+    }
+};
+
+/**
+ * @brief Traits for wil::winrt_event that calls FAIL_FAST when an event handler throws.
+ * Requires wil/result.h or wil/result_macros.h to be included.
+ */
+struct failfast_event_errors_traits
+{
+    [[noreturn]] static void on_handler_exception(std::exception_ptr) noexcept
+    {
+        FAIL_FAST();
+    }
+};
+
+/**
+ * @brief A WinRT event with configurable exception handling for individual handlers.
+ * @tparam T The delegate type (e.g., winrt::Windows::Foundation::TypedEventHandler<S, A>).
+ * @tparam Traits Traits class controlling what happens when a handler throws an exception.
+ *                Defaults to swallow_event_errors_traits for crash-resistant behavior where
+ *                all handlers are invoked regardless of whether earlier ones threw.
+ * @details Usage example:
+ * @code
+ *         // Crash-resistant event (default): exceptions from handlers are swallowed
+ *         wil::winrt_event<winrt::Windows::Foundation::TypedEventHandler<IFoo, IBar>> MyEvent;
+ *
+ *         // Event that propagates exceptions (same behavior as winrt::event):
+ *         wil::winrt_event<winrt::Windows::Foundation::TypedEventHandler<IFoo, IBar>,
+ *                          wil::propagate_event_errors_traits> MyStrictEvent;
+ * @endcode
+ */
+template <typename T, typename Traits = swallow_event_errors_traits>
+struct winrt_event
+{
+    winrt::event_token operator()(T const& handler)
+    {
+        return m_handler.add([handler](auto&&... args) {
+            try
+            {
+                handler(std::forward<decltype(args)>(args)...);
+            }
+            catch (...)
+            {
+                Traits::on_handler_exception(std::current_exception());
+            }
+        });
+    }
+
+    void operator()(winrt::event_token const& token) noexcept
+    {
+        m_handler.remove(token);
+    }
+
+    template <typename... TArgs>
+    void invoke(TArgs&&... args)
+    {
+        m_handler(std::forward<TArgs>(args)...);
+    }
+
+private:
+    winrt::event<T> m_handler;
+};
+
 #endif // !defined(__WIL_CPPWINRT_AUTHORING_INCLUDED_FOUNDATION) && defined(WINRT_Windows_Foundation_H)
 
 #if (!defined(__WIL_CPPWINRT_AUTHORING_INCLUDED_XAML_DATA) && (defined(WINRT_Microsoft_UI_Xaml_Data_H) || defined(WINRT_Windows_UI_Xaml_Data_H))) || \
