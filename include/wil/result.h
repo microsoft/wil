@@ -992,6 +992,21 @@ namespace details
             }
         }
 
+        bool suspend() WI_NOEXCEPT
+        {
+            const bool wasWatching = IsWatching();
+            if (wasWatching)
+            {
+                StopWatching();
+            }
+            return wasWatching;
+        }
+
+        void resume() WI_NOEXCEPT
+        {
+            StartWatching();
+        }
+
         static bool GetThreadContext(
             _Inout_ FailureInfo* pFailure,
             _In_opt_ ThreadFailureCallbackHolder* pCallback,
@@ -1093,14 +1108,14 @@ namespace details
     {
     public:
         explicit ThreadFailureCallbackFn(_In_opt_ CallContextInfo* pContext, _Inout_ TLambda&& errorFunction) WI_NOEXCEPT
-            : m_errorFunction(wistd::move(errorFunction)),
-              m_callbackHolder(this, pContext)
+            : m_callbackHolder(this, pContext),
+              m_errorFunction(wistd::move(errorFunction))
         {
         }
 
         ThreadFailureCallbackFn(_Inout_ ThreadFailureCallbackFn&& other) WI_NOEXCEPT
-            : m_errorFunction(wistd::move(other.m_errorFunction)),
-              m_callbackHolder(this, other.m_callbackHolder.CallContextInfo())
+            : m_callbackHolder(this, other.m_callbackHolder.CallContextInfo()),
+              m_errorFunction(wistd::move(other.m_errorFunction))
         {
         }
 
@@ -1109,12 +1124,22 @@ namespace details
             return m_errorFunction(failure);
         }
 
+        bool suspend() WI_NOEXCEPT
+        {
+            return m_callbackHolder.suspend();
+        }
+
+        void resume() WI_NOEXCEPT
+        {
+            m_callbackHolder.resume();
+        }
+
     private:
         ThreadFailureCallbackFn(_In_ ThreadFailureCallbackFn const&);
         ThreadFailureCallbackFn& operator=(_In_ ThreadFailureCallbackFn const&);
 
-        TLambda m_errorFunction;
         ThreadFailureCallbackHolder m_callbackHolder;
+        TLambda m_errorFunction;
     };
 
     // returns true if telemetry was reported for this error

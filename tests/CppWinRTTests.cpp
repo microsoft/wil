@@ -745,6 +745,69 @@ TEST_CASE("CppWinRTTests::ResumeForegroundTests", "[cppwinrt]")
     }()
                 .get();
 }
+
+namespace
+{
+struct resume_new_cpp_thread_for_watcher
+{
+    bool await_ready() noexcept { return false; }
+    template<typename Handle>
+    void await_suspend(Handle handle) noexcept
+    {
+        std::thread([handle]
+        {
+            handle();
+        }).detach();
+    }
+    void await_resume() {}
+};
+} // namespace
+
+TEST_CASE("CppWinRTTests::WithWatcherThreadFailureCallback", "[cppwinrt][coroutine]")
+{
+    // Test that wil::with_watcher correctly pauses/resumes a ThreadFailureCallback across co_await.
+    auto test = []() -> wil::task<void>
+    {
+        auto watcher = wil::ThreadFailureCallback([](wil::FailureInfo const&) { return false; });
+        co_await wil::with_watcher(watcher, resume_new_cpp_thread_for_watcher{});
+    };
+
+    std::move(test()).get();
+}
+
+TEST_CASE("CppWinRTTests::WithWatcherWinRTAction", "[cppwinrt][coroutine]")
+{
+    // Test that wil::with_watcher works with a WinRT IAsyncAction.
+    auto test = []() -> winrt::Windows::Foundation::IAsyncAction
+    {
+        auto tid = ::GetCurrentThreadId();
+        auto watcher = wil::ThreadFailureCallback([](wil::FailureInfo const&) { return false; });
+        co_await wil::with_watcher(watcher, winrt::resume_background());
+        REQUIRE(tid != ::GetCurrentThreadId());
+    };
+
+    test().get();
+}
+
+TEST_CASE("CppWinRTTests::WithWatcherWinRTOperation", "[cppwinrt][coroutine]")
+{
+    // Test that wil::with_watcher works with a WinRT IAsyncOperation.
+    auto inner = []() -> winrt::Windows::Foundation::IAsyncOperation<winrt::hstring>
+    {
+        co_await winrt::resume_background();
+        co_return winrt::hstring(L"kittens");
+    };
+
+    auto test = [&inner]() -> winrt::Windows::Foundation::IAsyncAction
+    {
+        auto watcher = wil::ThreadFailureCallback([](wil::FailureInfo const&) { return false; });
+        auto result = co_await wil::with_watcher(watcher, inner());
+        REQUIRE(result == L"kittens");
+    };
+
+    test().get();
+}
+
 #endif // coroutines
 
 TEST_CASE("CppWinRTTests::ThrownExceptionWithMessage", "[cppwinrt]")
