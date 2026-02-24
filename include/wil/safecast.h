@@ -265,7 +265,7 @@ namespace details
 
 // Unsafe conversion where failure results in fail fast.
 template <typename NewT, typename OldT, wistd::enable_if_t<details::is_supported_unsafe_cast_no_wchar_v<NewT, OldT>, int> = 0>
-NewT safe_cast_failfast(const OldT var)
+_Out_range_(==, var) NewT safe_cast_failfast(const OldT var)
 {
     NewT newVar;
     FAIL_FAST_IF_FAILED((details::intsafe_conversion<OldT, NewT>(var, &newVar)));
@@ -274,7 +274,7 @@ NewT safe_cast_failfast(const OldT var)
 
 // Unsafe conversion where failure results in fail fast.
 template <typename NewT, typename OldT, wistd::enable_if_t<details::is_supported_unsafe_cast_from_wchar_v<NewT, OldT>, int> = 0>
-NewT safe_cast_failfast(const OldT var)
+_Out_range_(==, var) NewT safe_cast_failfast(const OldT var)
 {
     NewT newVar;
     FAIL_FAST_IF_FAILED((details::intsafe_conversion<unsigned short, NewT>(static_cast<unsigned short>(var), &newVar)));
@@ -283,7 +283,7 @@ NewT safe_cast_failfast(const OldT var)
 
 // Unsafe conversion where failure results in fail fast.
 template <typename NewT, typename OldT, wistd::enable_if_t<details::is_supported_unsafe_cast_to_wchar_v<NewT, OldT>, int> = 0>
-NewT safe_cast_failfast(const OldT var)
+_Out_range_(==, var) NewT safe_cast_failfast(const OldT var)
 {
     unsigned short newVar;
     FAIL_FAST_IF_FAILED((details::intsafe_conversion<OldT, unsigned short>(var, &newVar)));
@@ -292,7 +292,7 @@ NewT safe_cast_failfast(const OldT var)
 
 // This conversion is always safe, therefore a static_cast is fine.
 template <typename NewT, typename OldT, wistd::enable_if_t<details::is_supported_safe_static_cast_v<NewT, OldT>, int> = 0>
-NewT safe_cast_failfast(const OldT var)
+_Out_range_(==, var) NewT safe_cast_failfast(const OldT var)
 {
     return static_cast<NewT>(var);
 }
@@ -300,7 +300,7 @@ NewT safe_cast_failfast(const OldT var)
 #ifdef WIL_ENABLE_EXCEPTIONS
 // Unsafe conversion where failure results in a thrown exception.
 template <typename NewT, typename OldT, wistd::enable_if_t<details::is_supported_unsafe_cast_no_wchar_v<NewT, OldT>, int> = 0>
-NewT safe_cast(const OldT var)
+_Out_range_(==, var) NewT safe_cast(const OldT var)
 {
     NewT newVar;
     THROW_IF_FAILED((details::intsafe_conversion<OldT, NewT>(var, &newVar)));
@@ -309,7 +309,7 @@ NewT safe_cast(const OldT var)
 
 // Unsafe conversion where failure results in a thrown exception.
 template <typename NewT, typename OldT, wistd::enable_if_t<details::is_supported_unsafe_cast_from_wchar_v<NewT, OldT>, int> = 0>
-NewT safe_cast(const OldT var)
+_Out_range_(==, var) NewT safe_cast(const OldT var)
 {
     NewT newVar;
     THROW_IF_FAILED((details::intsafe_conversion<unsigned short, NewT>(static_cast<unsigned short>(var), &newVar)));
@@ -318,7 +318,7 @@ NewT safe_cast(const OldT var)
 
 // Unsafe conversion where failure results in a thrown exception.
 template <typename NewT, typename OldT, wistd::enable_if_t<details::is_supported_unsafe_cast_to_wchar_v<NewT, OldT>, int> = 0>
-NewT safe_cast(const OldT var)
+_Out_range_(==, var) NewT safe_cast(const OldT var)
 {
     unsigned short newVar;
     THROW_IF_FAILED((details::intsafe_conversion<OldT, unsigned short>(var, &newVar)));
@@ -327,7 +327,7 @@ NewT safe_cast(const OldT var)
 
 // This conversion is always safe, therefore a static_cast is fine.
 template <typename NewT, typename OldT, wistd::enable_if_t<details::is_supported_safe_static_cast_v<NewT, OldT>, int> = 0>
-NewT safe_cast(const OldT var)
+_Out_range_(==, var) NewT safe_cast(const OldT var)
 {
     return static_cast<NewT>(var);
 }
@@ -335,35 +335,35 @@ NewT safe_cast(const OldT var)
 
 // This conversion is unsafe, therefore the two parameter version of safe_cast_nothrow must be used
 template <typename NewT, typename OldT, wistd::enable_if_t<details::is_supported_unsafe_cast_v<NewT, OldT>, int> = 0>
-NewT safe_cast_nothrow(const OldT /*var*/)
+_Out_range_(==, _Param_(1)) NewT safe_cast_nothrow(const OldT /*var*/)
 {
     static_assert(!wistd::is_same_v<NewT, NewT>, "This cast has the potential to fail, use the two parameter safe_cast_nothrow instead");
 }
 
 // This conversion is always safe, therefore a static_cast is fine.
 template <typename NewT, typename OldT, wistd::enable_if_t<details::is_supported_safe_static_cast_v<NewT, OldT>, int> = 0>
-NewT safe_cast_nothrow(const OldT var)
+_Out_range_(==, var) NewT safe_cast_nothrow(const OldT var)
 {
     return static_cast<NewT>(var);
 }
 
 // Unsafe conversion where an HRESULT is returned. It is up to the callee to check and handle the HRESULT
 template <typename NewT, typename OldT, wistd::enable_if_t<details::is_supported_unsafe_cast_no_wchar_v<NewT, OldT>, int> = 0>
-HRESULT safe_cast_nothrow(const OldT var, NewT* newTResult)
+_At_(*newTResult, _Out_range_(==, var)) HRESULT safe_cast_nothrow(const OldT var, NewT* newTResult)
 {
     return details::intsafe_conversion<OldT, NewT>(var, newTResult);
 }
 
 // Unsafe conversion where an HRESULT is returned. It is up to the callee to check and handle the HRESULT
 template <typename NewT, typename OldT, wistd::enable_if_t<details::is_supported_unsafe_cast_from_wchar_v<NewT, OldT>, int> = 0>
-HRESULT safe_cast_nothrow(const OldT var, NewT* newTResult)
+_At_(*newTResult, _Out_range_(==, var)) HRESULT safe_cast_nothrow(const OldT var, NewT* newTResult)
 {
     return details::intsafe_conversion<unsigned short, NewT>(static_cast<unsigned short>(var), newTResult);
 }
 
 // Unsafe conversion where an HRESULT is returned. It is up to the callee to check and handle the HRESULT
 template <typename NewT, typename OldT, wistd::enable_if_t<details::is_supported_unsafe_cast_to_wchar_v<NewT, OldT>, int> = 0>
-HRESULT safe_cast_nothrow(const OldT var, NewT* newTResult)
+_At_(*newTResult, _Out_range_(==, var)) HRESULT safe_cast_nothrow(const OldT var, NewT* newTResult)
 {
     return details::intsafe_conversion<OldT, unsigned short>(var, reinterpret_cast<unsigned short*>(newTResult));
 }
@@ -372,7 +372,7 @@ HRESULT safe_cast_nothrow(const OldT var, NewT* newTResult)
 // does not involve a variably sized type, then the compilation will fail and say the single parameter version
 // of safe_cast_nothrow should be used instead.
 template <typename NewT, typename OldT, wistd::enable_if_t<details::is_supported_safe_static_cast_v<NewT, OldT>, int> = 0>
-HRESULT safe_cast_nothrow(const OldT var, NewT* newTResult)
+_At_(*newTResult, _Out_range_(==, var)) HRESULT safe_cast_nothrow(const OldT var, NewT* newTResult)
 {
     static_assert(
         details::is_potentially_variably_sized_cast_v<OldT, NewT>,
@@ -389,7 +389,7 @@ HRESULT safe_cast_nothrow(const OldT var, NewT* newTResult)
 //      wil::safe_zero_extending_cast<ULONG_PTR>(-1)
 // will return 0x00000000`FFFFFFFF on a 64-bit system.
 template <typename NewT, typename OldT, wistd::enable_if_t<details::is_sign_extending_cast_v<NewT, OldT>, int> = 0>
-NewT safe_zero_extending_cast(const OldT var)
+_Out_range_(==, var) NewT safe_zero_extending_cast(const OldT var)
 {
     // The first cast is to an unsigned type of the same size as the original.  The second cast is to the
     // larger type.  Being an unsigned cast, the upper bits are zeroed out.
