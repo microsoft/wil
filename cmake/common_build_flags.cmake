@@ -13,6 +13,13 @@ endmacro()
 
 # Fixup default compiler settings
 if (MSVC)
+    # Ensure exception handling is enabled; some CMake versions don't add /EHsc by default for all
+    # MSVC-compatible compilers (e.g. clang-cl). Adding it to CMAKE_CXX_FLAGS allows targets that
+    # need to disable exceptions (e.g. noexcept) to remove it via replace_cxx_flag.
+    if (NOT CMAKE_CXX_FLAGS MATCHES "/EHsc")
+        string(APPEND CMAKE_CXX_FLAGS " /EHsc")
+    endif()
+
     add_compile_options(
         # Be as strict as reasonably possible, since we want to support consumers using strict warning levels
         /W4 /WX
