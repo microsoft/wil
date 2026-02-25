@@ -1004,7 +1004,10 @@ namespace details
 
         void resume() WI_NOEXCEPT
         {
-            StartWatching();
+            if (!IsWatching())
+            {
+                StartWatching();
+            }
         }
 
         static bool GetThreadContext(
