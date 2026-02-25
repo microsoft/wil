@@ -658,13 +658,13 @@ struct coroutine_withsuspend_awaiter
     }
 
     template <typename T>
-    auto await_suspend(T&& handle) noexcept(noexcept(wistd::declval<TChildAwaitable>().await_suspend(wistd::forward<T>(handle))) && noexcept(pausable.suspend()))
+    auto await_suspend(T&& handle) noexcept(noexcept(std::declval<TChildAwaitable>().await_suspend(std::forward<T>(handle))) && noexcept(pausable.suspend()))
     {
         resume_needed = pausable.suspend();
-        return child_awaitable.await_suspend(wistd::forward<T>(handle));
+        return child_awaitable.await_suspend(std::forward<T>(handle));
     }
 
-    auto await_resume() noexcept(noexcept(wistd::declval<TChildAwaitable>().await_resume()))
+    auto await_resume() noexcept(noexcept(std::declval<TChildAwaitable>().await_resume()))
     {
         if (resume_needed)
         {
@@ -682,31 +682,31 @@ struct get_awaiter_priority_member_op : get_awaiter_priority_free_op {};
 // Highest priority: member operator co_await
 template <typename T>
 auto get_awaiter_impl(T&& awaitable, get_awaiter_priority_member_op)
-    -> decltype(wistd::forward<T>(awaitable).operator co_await())
+    -> decltype(std::forward<T>(awaitable).operator co_await())
 {
-    return wistd::forward<T>(awaitable).operator co_await();
+    return std::forward<T>(awaitable).operator co_await();
 }
 
 // Second priority: free operator co_await
 template <typename T>
 auto get_awaiter_impl(T&& awaitable, get_awaiter_priority_free_op)
-    -> decltype(operator co_await(wistd::forward<T>(awaitable)))
+    -> decltype(operator co_await(std::forward<T>(awaitable)))
 {
-    return operator co_await(wistd::forward<T>(awaitable));
+    return operator co_await(std::forward<T>(awaitable));
 }
 
 // Fallback: return the awaitable itself
 template <typename T>
 T&& get_awaiter_impl(T&& awaitable, get_awaiter_priority_fallback)
 {
-    return wistd::forward<T>(awaitable);
+    return std::forward<T>(awaitable);
 }
 
 template <typename T>
 auto get_awaiter(T&& awaitable)
-    -> decltype(get_awaiter_impl(wistd::forward<T>(awaitable), get_awaiter_priority_member_op{}))
+    -> decltype(get_awaiter_impl(std::forward<T>(awaitable), get_awaiter_priority_member_op{}))
 {
-    return get_awaiter_impl(wistd::forward<T>(awaitable), get_awaiter_priority_member_op{});
+    return get_awaiter_impl(std::forward<T>(awaitable), get_awaiter_priority_member_op{});
 }
 
 } // namespace wil::details::coro
@@ -770,17 +770,34 @@ task(com_task<T>&&) -> task<T>;
 template <typename T>
 com_task(task<T>&&) -> com_task<T>;
 
-// Wrap an awaitable with a suspend/resume watcher; the watcher will be paused while the awaitable
-// is suspended and resumed when the coroutine continues. This prevents capturing errors from other
-// threads or unrelated code paths while awaiting.
-//
-// The watcher type must provide:
-//   bool suspend() - called before suspension, returns true if resume() should be called
-//   void resume()  - called after resumption if suspend() returned true
-//
-// Usage:
-//     ThreadFailureCache cache;
-//     auto result = co_await wil::with_watcher(cache, SomethingAsync());
+/**
+ * @brief Wraps an awaitable with a suspend/resume watcher.
+ *
+ * Suspends and resumes the watcher when the coroutine is suspended and resumed.
+ * Thread-bound objects such as `ThreadFailureCache` or a WIL Activity are good candidates.
+ *
+ * @code
+ * ThreadFailureCache cache;
+ * auto result = co_await wil::with_watcher(cache, SomethingAsync());
+ * @endcode
+ *
+ * The watcher type must provide `bool suspend()` and `void resume()` methods:
+ * @code
+ * struct MyThreadWatcher {
+ *     bool suspend() {
+ *         // pause temporarily; return true if resume() should be called on coroutine resume
+ *     }
+ *     void resume() {
+ *         // resume after the coroutine resumes
+ *     }
+ * };
+ * @endcode
+ *
+ * @tparam TWatcher Type of watcher invoked on suspend/resume.
+ * @tparam TAwaitable Type of wrapped awaitable.
+ * @param watcher The watcher to suspend and resume with the coroutine.
+ * @param awaitable The awaitable to wrap.
+ */
 template <typename TWatcher, typename TAwaitable>
 auto with_watcher(TWatcher& watcher, TAwaitable&& awaitable)
 {
