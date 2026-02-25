@@ -34,16 +34,20 @@ wil::task<void> void_task(std::shared_ptr<int> value)
 
 struct resume_new_cpp_thread
 {
-    bool await_ready() noexcept { return false; }
-    template<typename Handle>
+    bool await_ready() noexcept
+    {
+        return false;
+    }
+    template <typename Handle>
     void await_suspend(Handle handle) noexcept
     {
-        std::thread([handle]
-        {
+        std::thread([handle] {
             handle();
         }).detach();
     }
-    void await_resume() {}
+    void await_resume()
+    {
+    }
 };
 
 } // namespace
@@ -65,12 +69,18 @@ TEST_CASE("CoroutineTests::WithWatcherBasic", "[coroutine]")
     {
         int suspend_count = 0;
         int resume_count = 0;
-        bool suspend() noexcept { ++suspend_count; return true; }
-        void resume() noexcept { ++resume_count; }
+        bool suspend() noexcept
+        {
+            ++suspend_count;
+            return true;
+        }
+        void resume() noexcept
+        {
+            ++resume_count;
+        }
     };
 
-    auto test = [](mock_watcher& watcher) -> wil::task<void>
-    {
+    auto test = [](mock_watcher& watcher) -> wil::task<void> {
         co_await wil::with_watcher(watcher, resume_new_cpp_thread{});
     };
 
@@ -89,12 +99,18 @@ TEST_CASE("CoroutineTests::WithWatcherSuspendReturnsFalse", "[coroutine]")
     {
         int suspend_count = 0;
         int resume_count = 0;
-        bool suspend() noexcept { ++suspend_count; return false; }
-        void resume() noexcept { ++resume_count; }
+        bool suspend() noexcept
+        {
+            ++suspend_count;
+            return false;
+        }
+        void resume() noexcept
+        {
+            ++resume_count;
+        }
     };
 
-    auto test = [](mock_watcher& watcher) -> wil::task<void>
-    {
+    auto test = [](mock_watcher& watcher) -> wil::task<void> {
         co_await wil::with_watcher(watcher, resume_new_cpp_thread{});
     };
 

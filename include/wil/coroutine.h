@@ -658,7 +658,8 @@ struct coroutine_withsuspend_awaiter
     }
 
     template <typename T>
-    auto await_suspend(T&& handle) noexcept(noexcept(std::declval<TChildAwaitable>().await_suspend(std::forward<T>(handle))) && noexcept(pausable.suspend()))
+    auto await_suspend(T&& handle) noexcept(
+        noexcept(std::declval<TChildAwaitable>().await_suspend(std::forward<T>(handle))) && noexcept(pausable.suspend()))
     {
         resume_needed = pausable.suspend();
         return child_awaitable.await_suspend(std::forward<T>(handle));
@@ -675,22 +676,26 @@ struct coroutine_withsuspend_awaiter
 };
 
 // Priority tags for SFINAE-based overload resolution
-struct get_awaiter_priority_fallback {};
-struct get_awaiter_priority_free_op : get_awaiter_priority_fallback {};
-struct get_awaiter_priority_member_op : get_awaiter_priority_free_op {};
+struct get_awaiter_priority_fallback
+{
+};
+struct get_awaiter_priority_free_op : get_awaiter_priority_fallback
+{
+};
+struct get_awaiter_priority_member_op : get_awaiter_priority_free_op
+{
+};
 
 // Highest priority: member operator co_await
 template <typename T>
-auto get_awaiter_impl(T&& awaitable, get_awaiter_priority_member_op)
-    -> decltype(std::forward<T>(awaitable).operator co_await())
+auto get_awaiter_impl(T&& awaitable, get_awaiter_priority_member_op) -> decltype(std::forward<T>(awaitable).operator co_await())
 {
     return std::forward<T>(awaitable).operator co_await();
 }
 
 // Second priority: free operator co_await
 template <typename T>
-auto get_awaiter_impl(T&& awaitable, get_awaiter_priority_free_op)
-    -> decltype(operator co_await(std::forward<T>(awaitable)))
+auto get_awaiter_impl(T&& awaitable, get_awaiter_priority_free_op) -> decltype(operator co_await(std::forward<T>(awaitable)))
 {
     return operator co_await(std::forward<T>(awaitable));
 }
@@ -703,8 +708,7 @@ T&& get_awaiter_impl(T&& awaitable, get_awaiter_priority_fallback)
 }
 
 template <typename T>
-auto get_awaiter(T&& awaitable)
-    -> decltype(get_awaiter_impl(std::forward<T>(awaitable), get_awaiter_priority_member_op{}))
+auto get_awaiter(T&& awaitable) -> decltype(get_awaiter_impl(std::forward<T>(awaitable), get_awaiter_priority_member_op{}))
 {
     return get_awaiter_impl(std::forward<T>(awaitable), get_awaiter_priority_member_op{});
 }
