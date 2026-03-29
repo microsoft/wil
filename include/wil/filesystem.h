@@ -200,6 +200,8 @@ enum class RemoveDirectoryOptions
     None = 0,
     KeepRootDirectory = 0x1,
     RemoveReadOnly = 0x2,
+    RemoveReadOnlyFile = RemoveReadOnly,
+    RemoveReadOnlyDirectory = 0x4,
 };
 DEFINE_ENUM_FLAG_OPERATORS(RemoveDirectoryOptions);
 
@@ -315,9 +317,9 @@ inline HRESULT RemoveDirectoryRecursiveNoThrow(
                 // Try a DeleteFile.  Some errors may be recoverable.
                 if (!::DeleteFileW(pathToDelete.get()))
                 {
-                    // Fail for anything other than ERROR_ACCESS_DENIED with option to RemoveReadOnly available
+                    // Fail for anything other than ERROR_ACCESS_DENIED with option to RemoveReadOnlyFile available
                     bool potentiallyFixableReadOnlyProblem =
-                        WI_IsFlagSet(options, RemoveDirectoryOptions::RemoveReadOnly) && ::GetLastError() == ERROR_ACCESS_DENIED;
+                        WI_IsFlagSet(options, RemoveDirectoryOptions::RemoveReadOnlyFile) && ::GetLastError() == ERROR_ACCESS_DENIED;
                     RETURN_LAST_ERROR_IF(!potentiallyFixableReadOnlyProblem);
 
                     // Fail if the file does not have read-only set, likely just an ACL problem
@@ -381,9 +383,9 @@ inline HRESULT RemoveDirectoryRecursiveNoThrow(
             // Try a RemoveDirectory.  Some errors may be recoverable.
             if (!::RemoveDirectoryW(path.get()))
             {
-                // Fail for anything other than ERROR_ACCESS_DENIED with option to RemoveReadOnly available
+                // Fail for anything other than ERROR_ACCESS_DENIED with option to RemoveReadOnlyDirectory available
                 bool potentiallyFixableReadOnlyProblem =
-                    WI_IsFlagSet(options, RemoveDirectoryOptions::RemoveReadOnly) && ::GetLastError() == ERROR_ACCESS_DENIED;
+                    WI_IsFlagSet(options, RemoveDirectoryOptions::RemoveReadOnlyDirectory) && ::GetLastError() == ERROR_ACCESS_DENIED;
                 RETURN_LAST_ERROR_IF(!potentiallyFixableReadOnlyProblem);
 
                 // Fail if the directory does not have read-only set, likely just an ACL problem

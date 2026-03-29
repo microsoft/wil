@@ -152,16 +152,17 @@ TEST_CASE("FileSystemTests::VerifyRemoveDirectoryRecursiveCanDeleteReadOnlyFiles
     REQUIRE_SUCCEEDED(wil::CreateDirectoryDeepNoThrow(basePath.get()));
 
     auto scopeGuard = wil::scope_exit([&] {
-        wil::RemoveDirectoryRecursiveNoThrow(basePath.get(), wil::RemoveDirectoryOptions::RemoveReadOnly);
+        wil::RemoveDirectoryRecursiveNoThrow(
+            basePath.get(), wil::RemoveDirectoryOptions::RemoveReadOnlyFile | wil::RemoveDirectoryOptions::RemoveReadOnlyDirectory);
     });
 
     // Create a reparse point and a target folder that shouldn't get deleted
     auto folderToDelete = CreateRelativePath(basePath.get(), L"folderToDelete");
     REQUIRE(::CreateDirectoryW(folderToDelete.get(), nullptr));
-    
+
     auto topLevelReadOnlyDirectory = CreateRelativePath(folderToDelete.get(), L"topLevelReadOnly");
     CreateReadOnlyDirectory(topLevelReadOnlyDirectory.get());
-    
+
     auto topLevelReadOnlyFile = CreateRelativePath(folderToDelete.get(), L"topLevelReadOnly.txt");
     CreateReadOnlyFile(topLevelReadOnlyFile.get());
 
@@ -170,13 +171,15 @@ TEST_CASE("FileSystemTests::VerifyRemoveDirectoryRecursiveCanDeleteReadOnlyFiles
 
     auto subLevelReadOnlyDirectory = CreateRelativePath(subLevel.get(), L"subLevelReadOnly");
     CreateReadOnlyDirectory(subLevelReadOnlyDirectory.get());
-    
+
     auto subLevelReadOnlyFile = CreateRelativePath(subLevel.get(), L"subLevelReadOnly.txt");
     CreateReadOnlyFile(subLevelReadOnlyFile.get());
 
-    // Delete will fail without the RemoveReadOnlyFlag
+    // Delete will fail without the RemoveReadOnlyFile | RemoveReadOnlyDirectory flags
     REQUIRE_FAILED(wil::RemoveDirectoryRecursiveNoThrow(folderToDelete.get()));
-    REQUIRE_SUCCEEDED(wil::RemoveDirectoryRecursiveNoThrow(folderToDelete.get(), wil::RemoveDirectoryOptions::RemoveReadOnly));
+    REQUIRE_SUCCEEDED(
+        wil::RemoveDirectoryRecursiveNoThrow(
+            folderToDelete.get(), wil::RemoveDirectoryOptions::RemoveReadOnlyFile | wil::RemoveDirectoryOptions::RemoveReadOnlyDirectory));
 
     // Verify all files have been deleted
     REQUIRE_FALSE(FileExists(subLevelReadOnlyFile.get()));
