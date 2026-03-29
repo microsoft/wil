@@ -396,7 +396,7 @@ inline HRESULT RemoveDirectoryRecursiveNoThrow(
                 WI_ClearFlag(directoryAttr, FILE_ATTRIBUTE_READONLY);
                 if (directoryAttr == 0)
                 {
-                    directoryAttr = FILE_ATTRIBUTE_NORMAL;
+                    directoryAttr = FILE_ATTRIBUTE_DIRECTORY;
                 }
 
                 // Set the new attributes and try to delete the directory again, returning any failure
