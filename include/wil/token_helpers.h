@@ -732,6 +732,41 @@ namespace details
         }
     };
 
+    // Tagged wrapper types for sd_owner() / sd_group() convenience helpers.
+    template <typename SidType>
+    struct sd_owner_t
+    {
+        SidType sid;
+
+        static constexpr size_t byte_size()
+        {
+            return SidType::byte_size();
+        }
+    };
+
+    template <typename SidType>
+    struct sd_group_t
+    {
+        SidType sid;
+
+        static constexpr size_t byte_size()
+        {
+            return SidType::byte_size();
+        }
+    };
+
+    template <typename SidType>
+    constexpr void write_sid(BYTE* dest, size_t& offset, const sd_owner_t<SidType>& owner)
+    {
+        write_sid(dest, offset, owner.sid);
+    }
+
+    template <typename SidType>
+    constexpr void write_sid(BYTE* dest, size_t& offset, const sd_group_t<SidType>& group)
+    {
+        write_sid(dest, offset, group.sid);
+    }
+
     // Runtime/constexpr check: deny ACEs must precede allow ACEs in the variadic pack.
     constexpr bool deny_before_allow_check(const BYTE* types, size_t count)
     {
@@ -754,6 +789,20 @@ namespace details
 
 //! Sentinel value for omitting the group SID in make_self_relative_sd.
 inline constexpr details::no_sid_t no_sid{};
+
+//! Tags a SID as the owner for use with make_self_relative_sd.
+template <typename T>
+constexpr auto sd_owner(const T& sid)
+{
+    return details::sd_owner_t<T>{sid};
+}
+
+//! Tags a SID (or no_sid) as the group for use with make_self_relative_sd.
+template <typename T>
+constexpr auto sd_group(const T& sid)
+{
+    return details::sd_group_t<T>{sid};
+}
 
 /** Constructs a constexpr ACCESS_ALLOWED ACE with the given access mask and SID.
 @code
@@ -810,15 +859,15 @@ Pass wil::no_sid to omit the group SID.
 
 @code
 constexpr auto sd = wil::make_self_relative_sd(
-    wil::make_static_nt_sid(SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS),       // owner
-    wil::no_sid,                                                                           // no group
-    wil::make_deny_ace(GENERIC_WRITE, wil::make_static_nt_sid(SECURITY_WORLD_RID)),        // deny guests write
+    wil::sd_owner(wil::make_static_nt_sid(SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS)),
+    wil::sd_group(wil::no_sid),
+    wil::make_deny_ace(GENERIC_WRITE, wil::make_static_nt_sid(SECURITY_WORLD_RID)),
     wil::make_allow_ace(GENERIC_READ | GENERIC_WRITE,
-        wil::make_static_nt_sid(SECURITY_AUTHENTICATED_USER_RID)));                        // allow authenticated users
+        wil::make_static_nt_sid(SECURITY_AUTHENTICATED_USER_RID)));
 @endcode
 
-@param owner The owner SID (a static_sid_t or no_sid).
-@param group The group SID (a static_sid_t or no_sid).
+@param owner The owner SID (a static_sid_t, sd_owner_t, or no_sid).
+@param group The group SID (a static_sid_t, sd_group_t, or no_sid).
 @param aces One or more ACEs built with make_allow_ace or make_deny_ace.
 @return A static_security_descriptor_t containing a valid self-relative SECURITY_DESCRIPTOR.
 */

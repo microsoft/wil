@@ -386,15 +386,41 @@ TEST_CASE("TokenHelpersTests::SelfRelativeSD_InheritanceFlags", "[token_helpers]
 
 TEST_CASE("TokenHelpersTests::SelfRelativeSD_Constexpr", "[token_helpers]")
 {
-    // Verify the SD can be constructed at compile time
+    // Verify the SD can be constructed at compile time using sd_owner/sd_group helpers
     constexpr auto sd = wil::make_self_relative_sd(
-        wil::make_static_nt_sid(SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS),
-        wil::no_sid,
+        wil::sd_owner(wil::make_static_nt_sid(SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS)),
+        wil::sd_group(wil::no_sid),
         wil::make_allow_ace(GENERIC_READ, wil::make_static_nt_sid(SECURITY_AUTHENTICATED_USER_RID)));
 
     // Validate at runtime that the constexpr result is a valid SD
     auto mutableSd = sd;
     REQUIRE(IsValidSecurityDescriptor(mutableSd.get()));
+}
+
+TEST_CASE("TokenHelpersTests::SelfRelativeSD_OwnerGroupHelpers", "[token_helpers]")
+{
+    // sd_owner + sd_group with real SIDs
+    auto sd = wil::make_self_relative_sd(
+        wil::sd_owner(wil::make_static_nt_sid(SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS)),
+        wil::sd_group(wil::make_static_nt_sid(SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_USERS)),
+        wil::make_allow_ace(GENERIC_READ, wil::make_static_nt_sid(SECURITY_AUTHENTICATED_USER_RID)));
+
+    REQUIRE(IsValidSecurityDescriptor(sd.get()));
+
+    // Verify owner
+    PSID pOwner = nullptr;
+    BOOL ownerDefaulted = FALSE;
+    REQUIRE(GetSecurityDescriptorOwner(sd.get(), &pOwner, &ownerDefaulted));
+    auto expectedOwner = wil::make_static_nt_sid(SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS);
+    REQUIRE(EqualSid(pOwner, expectedOwner.get()));
+
+    // Verify group
+    PSID pGroup = nullptr;
+    BOOL groupDefaulted = FALSE;
+    REQUIRE(GetSecurityDescriptorGroup(sd.get(), &pGroup, &groupDefaulted));
+    REQUIRE(pGroup != nullptr);
+    auto expectedGroup = wil::make_static_nt_sid(SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_USERS);
+    REQUIRE(EqualSid(pGroup, expectedGroup.get()));
 }
 #endif // _HAS_CXX20
 
