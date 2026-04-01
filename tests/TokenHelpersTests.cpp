@@ -280,6 +280,124 @@ TEST_CASE("TokenHelpersTests::StaticSid", "[token_helpers]")
     REQUIRE(*GetSidSubAuthority(staticSid.get(), 1) == DOMAIN_ALIAS_RID_GUESTS);
 }
 
+#ifdef _HAS_CXX20
+TEST_CASE("TokenHelpersTests::SelfRelativeSD_BasicAllowAce", "[token_helpers]")
+{
+    auto ownerSid = wil::make_static_nt_sid(SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS);
+    auto sd = wil::make_self_relative_sd(
+        ownerSid,
+        wil::no_sid,
+        wil::make_allow_ace(GENERIC_READ, wil::make_static_nt_sid(SECURITY_AUTHENTICATED_USER_RID)));
+
+    REQUIRE(IsValidSecurityDescriptor(sd.get()));
+
+    // Verify owner
+    PSID pOwner = nullptr;
+    BOOL ownerDefaulted = FALSE;
+    REQUIRE(GetSecurityDescriptorOwner(sd.get(), &pOwner, &ownerDefaulted));
+    REQUIRE(pOwner != nullptr);
+    REQUIRE(EqualSid(pOwner, ownerSid.get()));
+
+    // Verify no group
+    PSID pGroup = nullptr;
+    BOOL groupDefaulted = FALSE;
+    REQUIRE(GetSecurityDescriptorGroup(sd.get(), &pGroup, &groupDefaulted));
+    REQUIRE(pGroup == nullptr);
+
+    // Verify DACL present
+    BOOL daclPresent = FALSE;
+    PACL pDacl = nullptr;
+    BOOL daclDefaulted = FALSE;
+    REQUIRE(GetSecurityDescriptorDacl(sd.get(), &daclPresent, &pDacl, &daclDefaulted));
+    REQUIRE(daclPresent);
+    REQUIRE(pDacl != nullptr);
+
+    // Verify ACE
+    LPVOID pAce = nullptr;
+    REQUIRE(GetAce(pDacl, 0, &pAce));
+    auto* ace = static_cast<ACCESS_ALLOWED_ACE*>(pAce);
+    REQUIRE(ace->Header.AceType == ACCESS_ALLOWED_ACE_TYPE);
+    REQUIRE(ace->Mask == GENERIC_READ);
+    auto aceSid = wil::make_static_nt_sid(SECURITY_AUTHENTICATED_USER_RID);
+    REQUIRE(EqualSid(reinterpret_cast<PSID>(&ace->SidStart), aceSid.get()));
+}
+
+TEST_CASE("TokenHelpersTests::SelfRelativeSD_DenyAndAllowAces", "[token_helpers]")
+{
+    auto sd = wil::make_self_relative_sd(
+        wil::make_static_nt_sid(SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS),
+        wil::make_static_nt_sid(SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_USERS),
+        wil::make_deny_ace(GENERIC_WRITE, wil::make_static_nt_sid(SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_GUESTS)),
+        wil::make_allow_ace(GENERIC_READ | GENERIC_WRITE, wil::make_static_nt_sid(SECURITY_AUTHENTICATED_USER_RID)));
+
+    REQUIRE(IsValidSecurityDescriptor(sd.get()));
+
+    // Verify group SID is present
+    PSID pGroup = nullptr;
+    BOOL groupDefaulted = FALSE;
+    REQUIRE(GetSecurityDescriptorGroup(sd.get(), &pGroup, &groupDefaulted));
+    REQUIRE(pGroup != nullptr);
+    auto expectedGroup = wil::make_static_nt_sid(SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_USERS);
+    REQUIRE(EqualSid(pGroup, expectedGroup.get()));
+
+    // Verify DACL with 2 ACEs
+    BOOL daclPresent = FALSE;
+    PACL pDacl = nullptr;
+    BOOL daclDefaulted = FALSE;
+    REQUIRE(GetSecurityDescriptorDacl(sd.get(), &daclPresent, &pDacl, &daclDefaulted));
+    REQUIRE(daclPresent);
+    REQUIRE(pDacl->AceCount == 2);
+
+    // First ACE: deny
+    LPVOID pAce = nullptr;
+    REQUIRE(GetAce(pDacl, 0, &pAce));
+    REQUIRE(static_cast<ACCESS_DENIED_ACE*>(pAce)->Header.AceType == ACCESS_DENIED_ACE_TYPE);
+    REQUIRE(static_cast<ACCESS_DENIED_ACE*>(pAce)->Mask == GENERIC_WRITE);
+
+    // Second ACE: allow
+    REQUIRE(GetAce(pDacl, 1, &pAce));
+    REQUIRE(static_cast<ACCESS_ALLOWED_ACE*>(pAce)->Header.AceType == ACCESS_ALLOWED_ACE_TYPE);
+    REQUIRE(static_cast<ACCESS_ALLOWED_ACE*>(pAce)->Mask == (GENERIC_READ | GENERIC_WRITE));
+}
+
+TEST_CASE("TokenHelpersTests::SelfRelativeSD_InheritanceFlags", "[token_helpers]")
+{
+    auto sd = wil::make_self_relative_sd(
+        wil::make_static_nt_sid(SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS),
+        wil::no_sid,
+        wil::make_allow_ace(
+            static_cast<BYTE>(CONTAINER_INHERIT_ACE | OBJECT_INHERIT_ACE),
+            GENERIC_READ,
+            wil::make_static_nt_sid(SECURITY_AUTHENTICATED_USER_RID)));
+
+    REQUIRE(IsValidSecurityDescriptor(sd.get()));
+
+    BOOL daclPresent = FALSE;
+    PACL pDacl = nullptr;
+    BOOL daclDefaulted = FALSE;
+    REQUIRE(GetSecurityDescriptorDacl(sd.get(), &daclPresent, &pDacl, &daclDefaulted));
+
+    LPVOID pAce = nullptr;
+    REQUIRE(GetAce(pDacl, 0, &pAce));
+    auto* ace = static_cast<ACCESS_ALLOWED_ACE*>(pAce);
+    REQUIRE((ace->Header.AceFlags & CONTAINER_INHERIT_ACE) != 0);
+    REQUIRE((ace->Header.AceFlags & OBJECT_INHERIT_ACE) != 0);
+}
+
+TEST_CASE("TokenHelpersTests::SelfRelativeSD_Constexpr", "[token_helpers]")
+{
+    // Verify the SD can be constructed at compile time
+    constexpr auto sd = wil::make_self_relative_sd(
+        wil::make_static_nt_sid(SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS),
+        wil::no_sid,
+        wil::make_allow_ace(GENERIC_READ, wil::make_static_nt_sid(SECURITY_AUTHENTICATED_USER_RID)));
+
+    // Validate at runtime that the constexpr result is a valid SD
+    auto mutableSd = sd;
+    REQUIRE(IsValidSecurityDescriptor(mutableSd.get()));
+}
+#endif // _HAS_CXX20
+
 #if (_WIN32_WINNT >= _WIN32_WINNT_WIN8)
 TEST_CASE("TokenHelpersTests::TestMembership", "[token_helpers]")
 {
