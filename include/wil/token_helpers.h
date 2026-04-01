@@ -615,9 +615,97 @@ constexpr auto make_static_nt_sid(Ts&&... subAuthorities)
 
 #ifdef _HAS_CXX20
 
+// Class-type NTTPs: MSVC defines __cpp_nontype_template_args; Clang supports it in C++20+ mode without the macro.
+#if __cpp_nontype_template_args >= 201911L || (defined(__clang__) && __clang_major__ >= 12 && _HAS_CXX20)
+#define __WIL_HAS_CLASS_NTTP 1
+#endif
+
 /// @cond
 namespace details
 {
+#ifdef __WIL_HAS_CLASS_NTTP
+    // Fixed-size string for use as a non-type template parameter (C++20).
+    template <size_t N>
+    struct fixed_string
+    {
+        char data[N]{};
+
+        consteval fixed_string(const char (&str)[N])
+        {
+            for (size_t i = 0; i < N; ++i)
+                data[i] = str[i];
+        }
+
+        static constexpr size_t length = N - 1;
+    };
+
+    // Count '-' characters in a fixed_string.
+    template <fixed_string S>
+    consteval size_t count_dashes()
+    {
+        size_t count = 0;
+        for (size_t i = 0; i < S.length; ++i)
+        {
+            if (S.data[i] == '-')
+                ++count;
+        }
+        return count;
+    }
+
+    // Parse an unsigned decimal integer from a string starting at pos, advancing pos past the digits.
+    consteval uint64_t parse_uint(const char* str, size_t len, size_t& pos)
+    {
+        uint64_t value = 0;
+        while (pos < len && str[pos] >= '0' && str[pos] <= '9')
+        {
+            value = value * 10 + static_cast<uint64_t>(str[pos] - '0');
+            ++pos;
+        }
+        return value;
+    }
+
+    // Parse a SID string "S-1-{authority}-{sub1}-{sub2}-..." into a static_sid_t.
+    template <fixed_string S>
+    consteval auto parse_sid_string()
+    {
+        // "S-R-IA" has 2 dashes; each sub-authority adds one more.
+        constexpr size_t subAuthCount = count_dashes<S>() - 2;
+        static_assert(subAuthCount <= SID_MAX_SUB_AUTHORITIES, "too many sub authorities in SID string");
+
+        static_sid_t<subAuthCount> result{};
+        size_t pos = 0;
+
+        // Expect 'S' or 's'
+        ++pos; // skip 'S'
+        ++pos; // skip '-'
+
+        // Revision
+        result.Revision = static_cast<uint8_t>(parse_uint(S.data, S.length, pos));
+        ++pos; // skip '-'
+
+        // Identifier authority (big-endian 6-byte value; common authorities fit in the low bytes)
+        uint64_t authority = parse_uint(S.data, S.length, pos);
+        result.IdentifierAuthority = {};
+        result.IdentifierAuthority.Value[5] = static_cast<BYTE>(authority & 0xFF);
+        result.IdentifierAuthority.Value[4] = static_cast<BYTE>((authority >> 8) & 0xFF);
+        result.IdentifierAuthority.Value[3] = static_cast<BYTE>((authority >> 16) & 0xFF);
+        result.IdentifierAuthority.Value[2] = static_cast<BYTE>((authority >> 24) & 0xFF);
+        result.IdentifierAuthority.Value[1] = static_cast<BYTE>((authority >> 32) & 0xFF);
+        result.IdentifierAuthority.Value[0] = static_cast<BYTE>((authority >> 40) & 0xFF);
+
+        result.SubAuthorityCount = static_cast<uint8_t>(subAuthCount);
+
+        // Sub-authorities
+        for (size_t i = 0; i < subAuthCount; ++i)
+        {
+            ++pos; // skip '-'
+            result.SubAuthority[i] = static_cast<DWORD>(parse_uint(S.data, S.length, pos));
+        }
+
+        return result;
+    }
+#endif // __WIL_HAS_CLASS_NTTP
+
     // Byte-level constexpr writers for building self-relative security descriptors.
     constexpr void write_byte(uint8_t* dest, size_t& offset, uint8_t value)
     {
@@ -789,6 +877,26 @@ namespace details
 
 //! Sentinel value for omitting the group SID in make_self_relative_sd.
 inline constexpr details::no_sid_t no_sid{};
+
+#ifdef __WIL_HAS_CLASS_NTTP
+/** Constructs a static SID from a SID string literal at compile time.
+The string must be in standard SID notation: "S-{revision}-{authority}-{sub1}-{sub2}-..."
+@code
+constexpr auto localSystem = wil::make_static_sid<"S-1-5-18">();
+constexpr auto admins = wil::make_static_sid<"S-1-5-32-544">();
+auto sd = wil::make_self_relative_sd(
+    wil::sd_owner(wil::make_static_sid<"S-1-5-32-544">()),
+    wil::sd_group(wil::no_sid),
+    wil::make_allow_ace(GENERIC_READ, wil::make_static_sid<"S-1-5-11">()));
+@endcode
+@return A static_sid_t with the parsed SID.
+*/
+template <details::fixed_string S>
+consteval auto make_static_sid()
+{
+    return details::parse_sid_string<S>();
+}
+#endif // __WIL_HAS_CLASS_NTTP
 
 //! Tags a SID as the owner for use with make_self_relative_sd.
 template <typename T>

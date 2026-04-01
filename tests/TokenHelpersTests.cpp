@@ -422,6 +422,46 @@ TEST_CASE("TokenHelpersTests::SelfRelativeSD_OwnerGroupHelpers", "[token_helpers
     auto expectedGroup = wil::make_static_nt_sid(SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_USERS);
     REQUIRE(EqualSid(pGroup, expectedGroup.get()));
 }
+
+#ifdef __WIL_HAS_CLASS_NTTP
+TEST_CASE("TokenHelpersTests::SelfRelativeSD_StringSid", "[token_helpers]")
+{
+    // Parse SID from string literal at compile time
+    constexpr auto localSystem = wil::make_static_sid<"S-1-5-18">();
+
+    // Verify sub-authority count and values
+    auto mutableSid = localSystem;
+    REQUIRE(IsValidSid(mutableSid.get()));
+    REQUIRE(*GetSidSubAuthorityCount(mutableSid.get()) == 1);
+    REQUIRE(*GetSidSubAuthority(mutableSid.get(), 0) == 18);
+
+    // Use string SIDs in make_self_relative_sd via sd_owner
+    auto sd = wil::make_self_relative_sd(
+        wil::sd_owner(wil::make_static_sid<"S-1-5-32-544">()),   // BUILTIN\Administrators
+        wil::sd_group(wil::no_sid),
+        wil::make_allow_ace(GENERIC_READ, wil::make_static_sid<"S-1-5-11">()));  // Authenticated Users
+
+    REQUIRE(IsValidSecurityDescriptor(sd.get()));
+
+    // Verify owner matches the equivalent numeric SID
+    PSID pOwner = nullptr;
+    BOOL ownerDefaulted = FALSE;
+    REQUIRE(GetSecurityDescriptorOwner(sd.get(), &pOwner, &ownerDefaulted));
+    auto expectedOwner = wil::make_static_nt_sid(SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS);
+    REQUIRE(EqualSid(pOwner, expectedOwner.get()));
+
+    // Verify ACE SID matches the equivalent numeric SID
+    BOOL daclPresent = FALSE;
+    PACL pDacl = nullptr;
+    BOOL daclDefaulted = FALSE;
+    REQUIRE(GetSecurityDescriptorDacl(sd.get(), &daclPresent, &pDacl, &daclDefaulted));
+    LPVOID pAce = nullptr;
+    REQUIRE(GetAce(pDacl, 0, &pAce));
+    auto expectedAceSid = wil::make_static_nt_sid(SECURITY_AUTHENTICATED_USER_RID);
+    REQUIRE(EqualSid(reinterpret_cast<PSID>(&static_cast<ACCESS_ALLOWED_ACE*>(pAce)->SidStart), expectedAceSid.get()));
+}
+#endif // __WIL_HAS_CLASS_NTTP
+
 #endif // _HAS_CXX20
 
 #if (_WIN32_WINNT >= _WIN32_WINNT_WIN8)
