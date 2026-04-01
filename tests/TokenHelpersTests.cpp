@@ -460,6 +460,46 @@ TEST_CASE("TokenHelpersTests::SelfRelativeSD_StringSid", "[token_helpers]")
     auto expectedAceSid = wil::make_static_nt_sid(SECURITY_AUTHENTICATED_USER_RID);
     REQUIRE(EqualSid(reinterpret_cast<PSID>(&static_cast<ACCESS_ALLOWED_ACE*>(pAce)->SidStart), expectedAceSid.get()));
 }
+
+TEST_CASE("TokenHelpersTests::SelfRelativeSD_AllStringSyntax", "[token_helpers]")
+{
+    // Full SD using only string-based SIDs — the most compact form
+    constexpr auto sd = wil::make_self_relative_sd(
+        wil::sd_owner<"S-1-5-32-544">(),                     // BUILTIN\Administrators
+        wil::sd_group<"S-1-5-32-545">(),                     // BUILTIN\Users
+        wil::make_deny_ace<"S-1-5-7">(GENERIC_WRITE),        // deny ANONYMOUS LOGON
+        wil::make_allow_ace<"S-1-5-11">(GENERIC_READ));       // allow Authenticated Users
+
+    auto mutableSd = sd;
+    REQUIRE(IsValidSecurityDescriptor(mutableSd.get()));
+
+    // Verify owner = S-1-5-32-544
+    PSID pOwner = nullptr;
+    BOOL ownerDefaulted = FALSE;
+    REQUIRE(GetSecurityDescriptorOwner(mutableSd.get(), &pOwner, &ownerDefaulted));
+    auto expectedOwner = wil::make_static_nt_sid(SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS);
+    REQUIRE(EqualSid(pOwner, expectedOwner.get()));
+
+    // Verify group = S-1-5-32-545
+    PSID pGroup = nullptr;
+    BOOL groupDefaulted = FALSE;
+    REQUIRE(GetSecurityDescriptorGroup(mutableSd.get(), &pGroup, &groupDefaulted));
+    auto expectedGroup = wil::make_static_nt_sid(SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_USERS);
+    REQUIRE(EqualSid(pGroup, expectedGroup.get()));
+
+    // Verify DACL: deny then allow
+    BOOL daclPresent = FALSE;
+    PACL pDacl = nullptr;
+    BOOL daclDefaulted = FALSE;
+    REQUIRE(GetSecurityDescriptorDacl(mutableSd.get(), &daclPresent, &pDacl, &daclDefaulted));
+    REQUIRE(pDacl->AceCount == 2);
+
+    LPVOID pAce = nullptr;
+    REQUIRE(GetAce(pDacl, 0, &pAce));
+    REQUIRE(static_cast<ACCESS_DENIED_ACE*>(pAce)->Header.AceType == ACCESS_DENIED_ACE_TYPE);
+    REQUIRE(GetAce(pDacl, 1, &pAce));
+    REQUIRE(static_cast<ACCESS_ALLOWED_ACE*>(pAce)->Header.AceType == ACCESS_ALLOWED_ACE_TYPE);
+}
 #endif // __WIL_HAS_CLASS_NTTP
 
 #endif // _HAS_CXX20

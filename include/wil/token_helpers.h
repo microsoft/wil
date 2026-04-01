@@ -912,6 +912,49 @@ constexpr auto sd_group(const T& sid)
     return details::sd_group_t<T>{sid};
 }
 
+#ifdef __WIL_HAS_CLASS_NTTP
+//! Tags a SID parsed from a string literal as the owner. Example: `wil::sd_owner<"S-1-5-18">()`
+template <details::fixed_string S>
+consteval auto sd_owner()
+{
+    return details::sd_owner_t{details::parse_sid_string<S>()};
+}
+
+//! Tags a SID parsed from a string literal as the group. Example: `wil::sd_group<"S-1-5-32-545">()`
+template <details::fixed_string S>
+consteval auto sd_group()
+{
+    return details::sd_group_t{details::parse_sid_string<S>()};
+}
+
+//! Constructs a constexpr ACCESS_ALLOWED ACE from a SID string literal.
+template <details::fixed_string S>
+consteval auto make_allow_ace(uint32_t mask)
+{
+    return details::static_ace_t{ACCESS_ALLOWED_ACE_TYPE, uint8_t{0}, mask, details::parse_sid_string<S>()};
+}
+
+//! Constructs a constexpr ACCESS_ALLOWED ACE with inheritance flags from a SID string literal.
+template <details::fixed_string S>
+consteval auto make_allow_ace(uint8_t flags, uint32_t mask)
+{
+    return details::static_ace_t{ACCESS_ALLOWED_ACE_TYPE, flags, mask, details::parse_sid_string<S>()};
+}
+
+//! Constructs a constexpr ACCESS_DENIED ACE from a SID string literal.
+template <details::fixed_string S>
+consteval auto make_deny_ace(uint32_t mask)
+{
+    return details::static_ace_t{ACCESS_DENIED_ACE_TYPE, uint8_t{0}, mask, details::parse_sid_string<S>()};
+}
+
+//! Constructs a constexpr ACCESS_DENIED ACE with inheritance flags from a SID string literal.
+template <details::fixed_string S>
+consteval auto make_deny_ace(uint8_t flags, uint32_t mask)
+{
+    return details::static_ace_t{ACCESS_DENIED_ACE_TYPE, flags, mask, details::parse_sid_string<S>()};
+}
+#endif // __WIL_HAS_CLASS_NTTP
 /** Constructs a constexpr ACCESS_ALLOWED ACE with the given access mask and SID.
 @code
 auto ace = wil::make_allow_ace(GENERIC_READ, wil::make_static_nt_sid(SECURITY_AUTHENTICATED_USER_RID));
