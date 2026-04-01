@@ -366,7 +366,7 @@ TEST_CASE("TokenHelpersTests::SelfRelativeSD_InheritanceFlags", "[token_helpers]
         wil::make_static_nt_sid(SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS),
         wil::no_sid,
         wil::make_allow_ace(
-            static_cast<BYTE>(CONTAINER_INHERIT_ACE | OBJECT_INHERIT_ACE),
+            static_cast<uint8_t>(CONTAINER_INHERIT_ACE | OBJECT_INHERIT_ACE),
             GENERIC_READ,
             wil::make_static_nt_sid(SECURITY_AUTHENTICATED_USER_RID)));
 

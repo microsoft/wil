@@ -619,27 +619,27 @@ constexpr auto make_static_nt_sid(Ts&&... subAuthorities)
 namespace details
 {
     // Byte-level constexpr writers for building self-relative security descriptors.
-    constexpr void write_byte(BYTE* dest, size_t& offset, BYTE value)
+    constexpr void write_byte(uint8_t* dest, size_t& offset, uint8_t value)
     {
         dest[offset++] = value;
     }
 
-    constexpr void write_word(BYTE* dest, size_t& offset, WORD value)
+    constexpr void write_word(uint8_t* dest, size_t& offset, uint16_t value)
     {
-        dest[offset++] = static_cast<BYTE>(value & 0xFF);
-        dest[offset++] = static_cast<BYTE>((value >> 8) & 0xFF);
+        dest[offset++] = static_cast<uint8_t>(value & 0xFF);
+        dest[offset++] = static_cast<uint8_t>((value >> 8) & 0xFF);
     }
 
-    constexpr void write_dword(BYTE* dest, size_t& offset, DWORD value)
+    constexpr void write_dword(uint8_t* dest, size_t& offset, uint32_t value)
     {
-        dest[offset++] = static_cast<BYTE>(value & 0xFF);
-        dest[offset++] = static_cast<BYTE>((value >> 8) & 0xFF);
-        dest[offset++] = static_cast<BYTE>((value >> 16) & 0xFF);
-        dest[offset++] = static_cast<BYTE>((value >> 24) & 0xFF);
+        dest[offset++] = static_cast<uint8_t>(value & 0xFF);
+        dest[offset++] = static_cast<uint8_t>((value >> 8) & 0xFF);
+        dest[offset++] = static_cast<uint8_t>((value >> 16) & 0xFF);
+        dest[offset++] = static_cast<uint8_t>((value >> 24) & 0xFF);
     }
 
     template <size_t N>
-    constexpr void write_sid(BYTE* dest, size_t& offset, const static_sid_t<N>& sid)
+    constexpr void write_sid(uint8_t* dest, size_t& offset, const static_sid_t<N>& sid)
     {
         write_byte(dest, offset, sid.Revision);
         write_byte(dest, offset, sid.SubAuthorityCount);
@@ -664,9 +664,9 @@ namespace details
     template <size_t SubAuthorityCount>
     struct static_ace_t
     {
-        BYTE AceType;
-        BYTE AceFlags;
-        ACCESS_MASK Mask;
+        uint8_t AceType;
+        uint8_t AceFlags;
+        uint32_t Mask;
         static_sid_t<SubAuthorityCount> Sid;
 
         static constexpr size_t byte_size()
@@ -677,9 +677,9 @@ namespace details
     };
 
     template <size_t N>
-    constexpr void write_ace(BYTE* dest, size_t& offset, const static_ace_t<N>& ace)
+    constexpr void write_ace(uint8_t* dest, size_t& offset, const static_ace_t<N>& ace)
     {
-        auto aceSize = static_cast<WORD>(static_ace_t<N>::byte_size());
+        auto aceSize = static_cast<uint16_t>(static_ace_t<N>::byte_size());
         // ACE_HEADER
         write_byte(dest, offset, ace.AceType);
         write_byte(dest, offset, ace.AceFlags);
@@ -711,7 +711,7 @@ namespace details
         return 0;
     }
 
-    constexpr void write_sid(BYTE*, size_t&, const no_sid_t&)
+    constexpr void write_sid(uint8_t*, size_t&, const no_sid_t&)
     {
     }
 
@@ -719,7 +719,7 @@ namespace details
     template <size_t TotalSize>
     struct static_security_descriptor_t
     {
-        alignas(DWORD) BYTE data[TotalSize]{};
+        alignas(uint32_t) uint8_t data[TotalSize]{};
 
         PSECURITY_DESCRIPTOR get()
         {
@@ -728,7 +728,7 @@ namespace details
 
         PSECURITY_DESCRIPTOR get() const
         {
-            return reinterpret_cast<PSECURITY_DESCRIPTOR>(const_cast<BYTE*>(data));
+            return reinterpret_cast<PSECURITY_DESCRIPTOR>(const_cast<uint8_t*>(data));
         }
     };
 
@@ -756,19 +756,19 @@ namespace details
     };
 
     template <typename SidType>
-    constexpr void write_sid(BYTE* dest, size_t& offset, const sd_owner_t<SidType>& owner)
+    constexpr void write_sid(uint8_t* dest, size_t& offset, const sd_owner_t<SidType>& owner)
     {
         write_sid(dest, offset, owner.sid);
     }
 
     template <typename SidType>
-    constexpr void write_sid(BYTE* dest, size_t& offset, const sd_group_t<SidType>& group)
+    constexpr void write_sid(uint8_t* dest, size_t& offset, const sd_group_t<SidType>& group)
     {
         write_sid(dest, offset, group.sid);
     }
 
     // Runtime/constexpr check: deny ACEs must precede allow ACEs in the variadic pack.
-    constexpr bool deny_before_allow_check(const BYTE* types, size_t count)
+    constexpr bool deny_before_allow_check(const uint8_t* types, size_t count)
     {
         bool seenAllow = false;
         for (size_t i = 0; i < count; ++i)
@@ -824,7 +824,7 @@ constexpr auto make_allow_ace(ACCESS_MASK mask, const details::static_sid_t<N>& 
 @param sid A static SID identifying the trustee.
 */
 template <size_t N>
-constexpr auto make_allow_ace(BYTE flags, ACCESS_MASK mask, const details::static_sid_t<N>& sid)
+constexpr auto make_allow_ace(uint8_t flags, uint32_t mask, const details::static_sid_t<N>& sid)
 {
     return details::static_ace_t<N>{ACCESS_ALLOWED_ACE_TYPE, flags, mask, sid};
 }
@@ -834,7 +834,7 @@ constexpr auto make_allow_ace(BYTE flags, ACCESS_MASK mask, const details::stati
 @param sid A static SID identifying the trustee.
 */
 template <size_t N>
-constexpr auto make_deny_ace(ACCESS_MASK mask, const details::static_sid_t<N>& sid)
+constexpr auto make_deny_ace(uint32_t mask, const details::static_sid_t<N>& sid)
 {
     return details::static_ace_t<N>{ACCESS_DENIED_ACE_TYPE, 0, mask, sid};
 }
@@ -845,7 +845,7 @@ constexpr auto make_deny_ace(ACCESS_MASK mask, const details::static_sid_t<N>& s
 @param sid A static SID identifying the trustee.
 */
 template <size_t N>
-constexpr auto make_deny_ace(BYTE flags, ACCESS_MASK mask, const details::static_sid_t<N>& sid)
+constexpr auto make_deny_ace(uint8_t flags, uint32_t mask, const details::static_sid_t<N>& sid)
 {
     return details::static_ace_t<N>{ACCESS_DENIED_ACE_TYPE, flags, mask, sid};
 }
@@ -884,18 +884,18 @@ constexpr auto make_self_relative_sd(const OwnerSid& owner, const GroupSid& grou
     constexpr size_t totalSize = sdHeaderSize + ownerSize + groupSize + aclHeaderSize + acesSize;
 
     // Deny ACEs must precede allow ACEs — will fail constexpr evaluation if violated.
-    BYTE aceTypes[] = {aces.AceType...};
+    uint8_t aceTypes[] = {aces.AceType...};
     WI_ASSERT(details::deny_before_allow_check(aceTypes, sizeof...(aces)));
 
     details::static_security_descriptor_t<totalSize> result{};
     size_t offset = 0;
 
     // SECURITY_DESCRIPTOR_RELATIVE header
-    constexpr WORD control = SE_SELF_RELATIVE | SE_DACL_PRESENT;
-    constexpr DWORD offsetOwner = (ownerSize > 0) ? static_cast<DWORD>(sdHeaderSize) : 0;
-    constexpr DWORD offsetGroup = (groupSize > 0) ? static_cast<DWORD>(sdHeaderSize + ownerSize) : 0;
-    constexpr DWORD offsetSacl = 0; // no SACL
-    constexpr DWORD offsetDacl = static_cast<DWORD>(sdHeaderSize + ownerSize + groupSize);
+    constexpr uint16_t control = SE_SELF_RELATIVE | SE_DACL_PRESENT;
+    constexpr uint32_t offsetOwner = (ownerSize > 0) ? static_cast<uint32_t>(sdHeaderSize) : 0;
+    constexpr uint32_t offsetGroup = (groupSize > 0) ? static_cast<uint32_t>(sdHeaderSize + ownerSize) : 0;
+    constexpr uint32_t offsetSacl = 0; // no SACL
+    constexpr uint32_t offsetDacl = static_cast<uint32_t>(sdHeaderSize + ownerSize + groupSize);
 
     details::write_byte(result.data, offset, SECURITY_DESCRIPTOR_REVISION);  // Revision
     details::write_byte(result.data, offset, 0);                             // Sbz1
@@ -912,8 +912,8 @@ constexpr auto make_self_relative_sd(const OwnerSid& owner, const GroupSid& grou
     details::write_sid(result.data, offset, group);
 
     // DACL: ACL header
-    constexpr auto aclSize = static_cast<WORD>(aclHeaderSize + acesSize);
-    constexpr auto aceCount = static_cast<WORD>(sizeof...(aces));
+    constexpr auto aclSize = static_cast<uint16_t>(aclHeaderSize + acesSize);
+    constexpr auto aceCount = static_cast<uint16_t>(sizeof...(aces));
     details::write_byte(result.data, offset, ACL_REVISION);  // AclRevision
     details::write_byte(result.data, offset, 0);             // Sbz1
     details::write_word(result.data, offset, aclSize);       // AclSize
