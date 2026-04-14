@@ -22,6 +22,7 @@
 
 #pragma warning(push)
 #pragma warning(disable : 26135 26110) // Missing locking annotation, Caller failing to hold lock
+#pragma warning(disable : 28167) // Prevent false positive by PREfast checker due to inability to detect unlocking in C++ destructors
 #pragma warning(disable : 4714)        // __forceinline not honored
 #pragma warning(disable : 4820)        // padding added after data member
 
