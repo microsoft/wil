@@ -3234,6 +3234,8 @@ private:
                 break;
 
             case ERROR_KEY_DELETED:
+            case ERROR_FILE_NOT_FOUND:
+            case ERROR_PATH_NOT_FOUND:
                 // Key deleted, send RegistryChangeKind::Delete, do not re-arm.
                 watcherState->m_callback(RegistryChangeKind::Delete);
                 watcherState->ReleaseFromCallback(false);
