@@ -884,6 +884,43 @@ namespace reg
         return ::wil::reg::set_value_expanded_string_nothrow(key, nullptr, value_name, data);
     }
 
+#if (WIL_USE_STL && defined(WIL_ENABLE_EXCEPTIONS)) || defined(WIL_DOXYGEN)
+    /**
+     * @brief Writes a REG_MULTI_SZ value from a std::vector<std::wstring>
+     * @param key An open or well-known registry key
+     * @param subkey The name of the subkey to append to `key`.
+     *        If `nullptr`, then `key` is used without modification.
+     * @param value_name The name of the registry value whose data is to be updated.
+     *        Can be nullptr to write to the unnamed default registry value.
+     * @param data A std::vector<std::wstring> to write to the specified registry value.
+     *        Each string will be marshaled to a contiguous null-terminator-delimited multi-sz string
+     * @return HRESULT error code indicating success or failure (does not throw C++ exceptions)
+     */
+    inline HRESULT set_value_multistring_nothrow(
+        HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const ::std::vector<::std::wstring>& data) WI_NOEXCEPT
+    try
+    {
+        const auto multiStringWcharVector(reg_view_details::get_multistring_from_wstrings(::std::begin(data), ::std::end(data)));
+        const reg_view_details::reg_view_nothrow regview{key};
+        return regview.set_value(subkey, value_name, multiStringWcharVector, REG_MULTI_SZ);
+    }
+    CATCH_RETURN();
+
+    /**
+     * @brief Writes a REG_MULTI_SZ value from a std::vector<std::wstring>
+     * @param key An open or well-known registry key
+     * @param value_name The name of the registry value whose data is to be updated.
+     *        Can be nullptr to write to the unnamed default registry value.
+     * @param data A std::vector<std::wstring> to write to the specified registry value.
+     *        Each string will be marshaled to a contiguous null-terminator-delimited multi-sz string.
+     * @return HRESULT error code indicating success or failure (does not throw C++ exceptions)
+     */
+    inline HRESULT set_value_multistring_nothrow(HKEY key, _In_opt_ PCWSTR value_name, const ::std::vector<::std::wstring>& data) WI_NOEXCEPT
+    {
+        return ::wil::reg::set_value_multistring_nothrow(key, nullptr, value_name, data);
+    }
+#endif // (WIL_USE_STL && defined(WIL_ENABLE_EXCEPTIONS))
+
 #if defined(__WIL_OBJBASE_H_) || defined(WIL_DOXYGEN)
     /**
      * @brief Writes raw bytes into a registry value under a specified key of the specified type
