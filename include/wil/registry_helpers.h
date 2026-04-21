@@ -1016,7 +1016,7 @@ namespace reg
             }
 
             template <>
-            constexpr DWORD set_value_type<const ::std::wstring>() WI_NOEXCEPT
+            constexpr DWORD set_value_type<::std::wstring>() WI_NOEXCEPT
             {
                 return REG_SZ;
             }
@@ -1035,13 +1035,13 @@ namespace reg
             }
 
             template <>
-            constexpr DWORD set_value_type<const BSTR>() WI_NOEXCEPT
+            constexpr DWORD set_value_type<BSTR>() WI_NOEXCEPT
             {
                 return REG_SZ;
             }
 
             template <>
-            constexpr DWORD set_value_type<const ::wil::unique_bstr>() WI_NOEXCEPT
+            constexpr DWORD set_value_type<::wil::unique_bstr>() WI_NOEXCEPT
             {
                 return REG_SZ;
             }
@@ -1056,7 +1056,7 @@ namespace reg
             }
 
             template <>
-            constexpr DWORD set_value_type<const ::wil::shared_bstr>() WI_NOEXCEPT
+            constexpr DWORD set_value_type<::wil::shared_bstr>() WI_NOEXCEPT
             {
                 return REG_SZ;
             }
@@ -1070,7 +1070,7 @@ namespace reg
             }
 
             template <>
-            constexpr DWORD set_value_type<const ::wil::unique_cotaskmem_string>() WI_NOEXCEPT
+            constexpr DWORD set_value_type<::wil::unique_cotaskmem_string>() WI_NOEXCEPT
             {
                 return REG_SZ;
             }
@@ -1084,7 +1084,7 @@ namespace reg
             }
 
             template <>
-            constexpr DWORD set_value_type<const ::wil::shared_cotaskmem_string>() WI_NOEXCEPT
+            constexpr DWORD set_value_type<::wil::shared_cotaskmem_string>() WI_NOEXCEPT
             {
                 return REG_SZ;
             }
