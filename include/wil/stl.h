@@ -132,6 +132,28 @@ inline PCWSTR str_raw_ptr(const std::wstring& str)
     return str.c_str();
 }
 
+#if defined(__WIL_OLEAUTO_H_)
+#if defined(_STRING_VIEW_) || defined(__cpp_lib_string_view)
+// Create wil::unique_bstr from std::wstring_view (regardless if not null terminated, or if it contains embedded nulls)
+inline wil::unique_bstr make_bstr_nothrow(std::wstring_view source) noexcept
+{
+    return wil::unique_bstr(::SysAllocStringLen(source.data(), static_cast<UINT>(source.size())));
+}
+inline wil::unique_bstr make_bstr_failfast(std::wstring_view source) noexcept
+{
+    return wil::unique_bstr(FAIL_FAST_IF_NULL_ALLOC(::SysAllocStringLen(source.data(), static_cast<UINT>(source.size()))));
+}
+#ifdef WIL_ENABLE_EXCEPTIONS
+inline wil::unique_bstr make_bstr(std::wstring_view source)
+{
+    wil::unique_bstr result(make_bstr_nothrow(source));
+    THROW_IF_NULL_ALLOC(result);
+    return result;
+}
+#endif // WIL_ENABLE_EXCEPTIONS
+#endif // defined(_STRING_VIEW_) || defined(__cpp_lib_string_view)
+#endif // defined(__WIL_OLEAUTO_H_)
+
 #if __cpp_lib_string_view >= 201606L
 
 /**
