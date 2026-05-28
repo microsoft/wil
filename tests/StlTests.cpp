@@ -66,10 +66,11 @@ struct CustomNoncopyableString
 
 TEST_CASE("StlTests::TestZStringView", "[stl][zstring_view]")
 {
-    // Test empty cases
+    // Test empty cases — default-constructed view points at a static empty buffer so
+    // c_str() is always safe to dereference (returns "" rather than nullptr).
     REQUIRE(wil::zstring_view{}.empty());
-    REQUIRE(wil::zstring_view{}.data() == nullptr);
-    REQUIRE(wil::zstring_view{}.c_str() == nullptr);
+    REQUIRE(wil::zstring_view{}.data() != nullptr);
+    REQUIRE(wil::zstring_view{}.c_str()[0] == '\0');
 
     // Test empty string cases
     REQUIRE(wil::zstring_view{""}[0] == '\0');
@@ -173,10 +174,11 @@ TEST_CASE("StlTests::TestZStringView formatting", "[stl][zstring_view]")
 
 TEST_CASE("StlTests::TestZWStringView", "[stl][zstring_view]")
 {
-    // Test empty cases
+    // Test empty cases — default-constructed view points at a static empty buffer so
+    // c_str() is always safe to dereference (returns L"" rather than nullptr).
     REQUIRE(wil::zwstring_view{}.empty());
-    REQUIRE(wil::zwstring_view{}.data() == nullptr);
-    REQUIRE(wil::zwstring_view{}.c_str() == nullptr);
+    REQUIRE(wil::zwstring_view{}.data() != nullptr);
+    REQUIRE(wil::zwstring_view{}.c_str()[0] == L'\0');
 
     // Test empty string cases
     REQUIRE(wil::zwstring_view{L""}[0] == L'\0');
@@ -243,6 +245,649 @@ TEST_CASE("StlTests::TestZWStringView", "[stl][zstring_view]")
     };
     string_with_c_str fake_path{};
     REQUIRE(wil::zwstring_view(fake_path) == L"hello");
+}
+
+// Tests for the default-construct safety contract: data() points at a static empty buffer,
+// so c_str() always returns a dereferenceable null-terminated pointer. Exercises c_str() use
+// patterns (strlen, %s, std::string ctor, C-API handoff), observable equivalence with an
+// empty-literal view, and defensive `if (zv.data())` guards.
+
+TEST_CASE("StlTests::TestZStringView default-construct safety", "[stl][zstring_view]")
+{
+    SECTION("c_str()-style operations on a default-constructed view are well-defined")
+    {
+        wil::zstring_view zv;
+
+        // c_str() returns a dereferenceable pointer; first character is '\0'.
+        REQUIRE(zv.c_str() != nullptr);
+        REQUIRE(zv.c_str()[0] == '\0');
+        REQUIRE(*zv.c_str() == '\0');
+
+        // strlen and equivalent C APIs see an empty string rather than UB.
+        REQUIRE(strlen(zv.c_str()) == 0);
+
+        // Constructing a std::string from c_str() produces an empty string.
+        REQUIRE(std::string(zv.c_str()).empty());
+    }
+
+    SECTION("container-style operations on a default-constructed view")
+    {
+        wil::zstring_view zv;
+
+        REQUIRE(zv.empty());
+        REQUIRE(zv.size() == 0);
+        REQUIRE(zv.length() == 0);
+
+        // Decay to std::string_view and use it as empty.
+        std::string_view sv = zv;
+        REQUIRE(sv.empty());
+        REQUIRE(sv.size() == 0);
+
+        // Self-equality and equality with an empty zstring_view.
+        REQUIRE(zv == wil::zstring_view{});
+
+        // Iteration yields zero passes.
+        int count = 0;
+        for (auto c : zv)
+        {
+            (void)c;
+            ++count;
+        }
+        REQUIRE(count == 0);
+    }
+
+    SECTION("default-constructed and empty-literal views are observably equivalent")
+    {
+        wil::zstring_view defaulted;
+        wil::zstring_view fromEmptyLiteral{""};
+
+        REQUIRE(defaulted.empty() == fromEmptyLiteral.empty());
+        REQUIRE(defaulted.size() == fromEmptyLiteral.size());
+        REQUIRE(strlen(defaulted.c_str()) == strlen(fromEmptyLiteral.c_str()));
+        REQUIRE(defaulted == fromEmptyLiteral);
+    }
+
+    SECTION("defensive `if (zv.data())` guards compile and behave correctly")
+    {
+        wil::zstring_view zv;
+
+        // `if (zv.data())` is always true on a default-constructed view; the body operates
+        // on a valid empty C-string.
+        bool sawValidPointer = false;
+        if (zv.data())
+        {
+            sawValidPointer = true;
+            REQUIRE(strlen(zv.c_str()) == 0);
+        }
+        REQUIRE(sawValidPointer);
+
+        // `if (!zv.empty())` skips the body for any empty view.
+        bool sawNonEmpty = false;
+        if (!zv.empty())
+        {
+            sawNonEmpty = true;
+        }
+        REQUIRE(!sawNonEmpty);
+    }
+}
+
+TEST_CASE("StlTests::TestZWStringView default-construct safety", "[stl][zstring_view]")
+{
+    SECTION("c_str()-style operations on a default-constructed view are well-defined")
+    {
+        wil::zwstring_view zv;
+
+        REQUIRE(zv.c_str() != nullptr);
+        REQUIRE(zv.c_str()[0] == L'\0');
+        REQUIRE(*zv.c_str() == L'\0');
+
+        REQUIRE(wcslen(zv.c_str()) == 0);
+
+        REQUIRE(std::wstring(zv.c_str()).empty());
+    }
+
+    SECTION("container-style operations on a default-constructed view")
+    {
+        wil::zwstring_view zv;
+
+        REQUIRE(zv.empty());
+        REQUIRE(zv.size() == 0);
+        REQUIRE(zv.length() == 0);
+
+        std::wstring_view sv = zv;
+        REQUIRE(sv.empty());
+        REQUIRE(sv.size() == 0);
+
+        REQUIRE(zv == wil::zwstring_view{});
+
+        int count = 0;
+        for (auto c : zv)
+        {
+            (void)c;
+            ++count;
+        }
+        REQUIRE(count == 0);
+    }
+
+    SECTION("default-constructed and empty-literal views are observably equivalent")
+    {
+        wil::zwstring_view defaulted;
+        wil::zwstring_view fromEmptyLiteral{L""};
+
+        REQUIRE(defaulted.empty() == fromEmptyLiteral.empty());
+        REQUIRE(defaulted.size() == fromEmptyLiteral.size());
+        REQUIRE(wcslen(defaulted.c_str()) == wcslen(fromEmptyLiteral.c_str()));
+        REQUIRE(defaulted == fromEmptyLiteral);
+    }
+
+    SECTION("defensive `if (zv.data())` guards compile and behave correctly")
+    {
+        wil::zwstring_view zv;
+
+        bool sawValidPointer = false;
+        if (zv.data())
+        {
+            sawValidPointer = true;
+            REQUIRE(wcslen(zv.c_str()) == 0);
+        }
+        REQUIRE(sawValidPointer);
+
+        bool sawNonEmpty = false;
+        if (!zv.empty())
+        {
+            sawNonEmpty = true;
+        }
+        REQUIRE(!sawNonEmpty);
+    }
+}
+
+// Templated tests using Catch2's TEMPLATE_TEST_CASE to share the same body across char
+// and wchar_t. Tagged [templated] so they can be filtered separately. Covers the
+// null-termination invariant, the substr split, the contains backport, safe default-construct
+// semantics, and the read-only base-class interface as seen through the derived type.
+
+namespace zsv_test_helpers
+{
+template <typename TChar>
+struct strings;
+
+template <>
+struct strings<char>
+{
+    static constexpr const char* hello_world = "Hello, World!";
+    static constexpr const char* hello = "Hello";
+    static constexpr const char* world = "World!";
+    static constexpr const char* empty = "";
+    static constexpr const char* not_present = "xyz";
+    static constexpr char test_char = 'o';
+    static constexpr char absent_char = 'Z';
+    // "abc" literal in each character type, used by the construction-matrix tests.
+    static constexpr const char* abc = "abc";
+};
+
+template <>
+struct strings<wchar_t>
+{
+    static constexpr const wchar_t* hello_world = L"Hello, World!";
+    static constexpr const wchar_t* hello = L"Hello";
+    static constexpr const wchar_t* world = L"World!";
+    static constexpr const wchar_t* empty = L"";
+    static constexpr const wchar_t* not_present = L"xyz";
+    static constexpr wchar_t test_char = L'o';
+    static constexpr wchar_t absent_char = L'Z';
+    static constexpr const wchar_t* abc = L"abc";
+};
+
+// Asserts the core null-termination invariant.
+template <typename TChar>
+void assert_null_terminated(wil::basic_zstring_view<TChar> v)
+{
+    REQUIRE(v.data() != nullptr);
+    REQUIRE(v.data()[v.size()] == TChar());
+}
+
+// Templated source type providing only c_str() (no size()) -- exercises the
+// SFINAE constructor that accepts c_str()-only sources.
+template <typename TChar>
+struct string_with_c_str_only
+{
+    using value_type = TChar;
+    constexpr const TChar* c_str() const
+    {
+        if constexpr (std::is_same_v<TChar, char>)
+        {
+            return "hello";
+        }
+        else
+        {
+            return L"hello";
+        }
+    }
+};
+} // namespace zsv_test_helpers
+
+#define ZSV_TYPES char, wchar_t
+
+TEMPLATE_TEST_CASE("StlTests::ZStringView construction", "[stl][zstring_view][templated]", ZSV_TYPES)
+{
+    using TChar = TestType;
+    using ZSV = wil::basic_zstring_view<TChar>;
+    using S = zsv_test_helpers::strings<TChar>;
+
+    SECTION("default and empty-literal views are both empty and read as null-terminated")
+    {
+        // Default-construct: data() != nullptr, c_str()[0] == '\0', empty().
+        REQUIRE(ZSV{}.empty());
+        REQUIRE(ZSV{}.data() != nullptr);
+        REQUIRE(ZSV{}.c_str()[0] == TChar());
+        // Empty literal: subscript reads '\0', c_str() reads '\0', empty().
+        REQUIRE(ZSV{S::empty}[0] == TChar());
+        REQUIRE(ZSV{S::empty}.c_str()[0] == TChar());
+        REQUIRE(ZSV{S::empty}.empty());
+    }
+
+    SECTION("all ctor paths produce equivalent views")
+    {
+        // ctor from string literal (and length matches char_traits::length).
+        ZSV fromLiteral = S::abc;
+        REQUIRE(fromLiteral.length() == std::char_traits<TChar>::length(S::abc));
+
+        // ctor from std::basic_string.
+        std::basic_string<TChar> stlString = S::abc;
+        ZSV fromString(stlString);
+        // ctor from TChar* (pointer).
+        ZSV fromPtr(stlString.data());
+        // ctor from null-terminated array.
+        static constexpr TChar charArray[] = {TChar('a'), TChar('b'), TChar('c'), TChar()};
+        ZSV fromArray(charArray);
+        // ctor from extended array (trailing zeros beyond the first null).
+        static constexpr TChar extendedCharArray[] = {TChar('a'), TChar('b'), TChar('c'), TChar(), TChar(), TChar(), TChar(), TChar()};
+        ZSV fromExtendedArray(extendedCharArray);
+        // copy ctor.
+        ZSV copy = fromLiteral;
+
+        REQUIRE(fromLiteral == stlString);
+        REQUIRE(fromLiteral == fromString);
+        REQUIRE(fromLiteral == fromPtr);
+        REQUIRE(fromLiteral == fromArray);
+        REQUIRE(fromLiteral == fromExtendedArray);
+        REQUIRE(fromLiteral == copy);
+    }
+
+    SECTION("decays to base string_view")
+    {
+        ZSV fromLiteral = S::abc;
+        std::basic_string_view<TChar> view = fromLiteral;
+        REQUIRE(view == fromLiteral);
+    }
+
+    SECTION("operator[] reads each char including the trailing null")
+    {
+        ZSV fromLiteral = S::abc;
+        REQUIRE(fromLiteral[0] == TChar('a'));
+        REQUIRE(fromLiteral[1] == TChar('b'));
+        REQUIRE(fromLiteral[2] == TChar('c'));
+        // WIL's operator[] override allows reading view[size()] (the null terminator),
+        // unlike base basic_string_view which forbids it.
+        REQUIRE(fromLiteral[3] == TChar());
+    }
+
+    SECTION("fail-fast on no-NULL-in-range for explicit-length and array ctors")
+    {
+        static constexpr TChar badCharArray[2][3] = {{TChar('a'), TChar('b'), TChar('c')}, {TChar('a'), TChar('b'), TChar('c')}};
+        REQUIRE_ERROR((ZSV{&badCharArray[0][0], _countof(badCharArray[0])}));
+        REQUIRE_ERROR((ZSV{badCharArray[0]}));
+    }
+
+    SECTION("explicit-length ctor accepts the off-by-one valid boundary case")
+    {
+        ZSV fromLiteral = S::abc;
+        static constexpr TChar badCharArrayOffByOne[2][3] = {{TChar('a'), TChar('b'), TChar('c')}, {}};
+        const ZSV fromTerminatedCharArray(&badCharArrayOffByOne[0][0], _countof(badCharArrayOffByOne[0]));
+        REQUIRE(fromLiteral == fromTerminatedCharArray);
+        REQUIRE_ERROR((ZSV{badCharArrayOffByOne[0]}));
+    }
+
+    SECTION("ctor from a type implicitly convertible to a C-string pointer")
+    {
+        CustomNoncopyableString customString;
+        ZSV fromCustomString(customString);
+        if constexpr (std::is_same_v<TChar, char>)
+        {
+            REQUIRE(fromCustomString == static_cast<PCSTR>(customString));
+        }
+        else
+        {
+            REQUIRE(fromCustomString == static_cast<PCWSTR>(customString));
+        }
+    }
+
+    SECTION("ctor from a type with only c_str() (no size())")
+    {
+        zsv_test_helpers::string_with_c_str_only<TChar> fake_path{};
+        ZSV view(fake_path);
+        if constexpr (std::is_same_v<TChar, char>)
+        {
+            REQUIRE(view == "hello");
+        }
+        else
+        {
+            REQUIRE(view == L"hello");
+        }
+    }
+}
+
+TEMPLATE_TEST_CASE("StlTests::ZStringView _zv literal", "[stl][zstring_view][templated]", ZSV_TYPES)
+{
+    using TChar = TestType;
+
+    SECTION("_zv literal preserves length and content")
+    {
+        if constexpr (std::is_same_v<TChar, char>)
+        {
+            auto str = "Hello, world!"_zv;
+            STATIC_REQUIRE(std::is_same_v<decltype(str), wil::zstring_view>);
+            REQUIRE(str.length() == 13);
+            REQUIRE(str[0] == 'H');
+            REQUIRE(str[12] == '!');
+        }
+        else
+        {
+            auto str = L"Hello, world!"_zv;
+            STATIC_REQUIRE(std::is_same_v<decltype(str), wil::zwstring_view>);
+            REQUIRE(str.length() == 13);
+            REQUIRE(str[0] == L'H');
+            REQUIRE(str[12] == L'!');
+        }
+    }
+}
+
+#if __cpp_lib_format >= 201907L
+TEMPLATE_TEST_CASE("StlTests::ZStringView std::format support", "[stl][zstring_view][templated]", ZSV_TYPES)
+{
+    using TChar = TestType;
+
+    SECTION("round-trips through std::format")
+    {
+        if constexpr (std::is_same_v<TChar, char>)
+        {
+            auto str = "kittens"_zv;
+            auto fmtStr = std::format("Hello {}", str);
+            REQUIRE(fmtStr == "Hello kittens");
+        }
+        else
+        {
+            auto str = L"kittens"_zv;
+            auto fmtStr = std::format(L"Hello {}", str);
+            REQUIRE(fmtStr == L"Hello kittens");
+        }
+    }
+}
+#endif // __cpp_lib_format >= 201907L
+
+TEST_CASE("StlTests::ZStringView type aliases", "[stl][zstring_view]")
+{
+    STATIC_REQUIRE(std::is_same_v<wil::zstring_view, wil::basic_zstring_view<char>>);
+    STATIC_REQUIRE(std::is_same_v<wil::zwstring_view, wil::basic_zstring_view<wchar_t>>);
+    STATIC_REQUIRE(std::is_same_v<decltype("hello"_zv), wil::zstring_view>);
+    STATIC_REQUIRE(std::is_same_v<decltype(L"hello"_zv), wil::zwstring_view>);
+}
+
+TEMPLATE_TEST_CASE("StlTests::ZStringView element access (data/c_str identity)", "[stl][zstring_view][templated]", ZSV_TYPES)
+{
+    using TChar = TestType;
+    using ZSV = wil::basic_zstring_view<TChar>;
+    using S = zsv_test_helpers::strings<TChar>;
+
+    ZSV zv = S::hello_world;
+
+    SECTION("data() and c_str() return the same pointer and are null-terminated")
+    {
+        REQUIRE(zv.data() == zv.c_str());
+        REQUIRE(zv.c_str()[zv.size()] == TChar());
+    }
+}
+
+#if defined(__cpp_lib_starts_ends_with) && __cpp_lib_starts_ends_with >= 201711L
+TEMPLATE_TEST_CASE("StlTests::ZStringView starts_with and ends_with", "[stl][zstring_view][templated]", ZSV_TYPES)
+{
+    using TChar = TestType;
+    using ZSV = wil::basic_zstring_view<TChar>;
+    using S = zsv_test_helpers::strings<TChar>;
+
+    ZSV zv = S::hello_world;
+
+    SECTION("starts_with matches a known prefix")
+    {
+        REQUIRE(zv.starts_with(S::hello));
+        REQUIRE(!zv.starts_with(S::world));
+        REQUIRE(zv.starts_with(S::hello_world[0])); // single char
+    }
+
+    SECTION("ends_with matches a known suffix")
+    {
+        REQUIRE(zv.ends_with(S::world));
+        REQUIRE(!zv.ends_with(S::hello));
+    }
+
+    SECTION("empty pattern always starts_with and ends_with anything")
+    {
+        REQUIRE(zv.starts_with(S::empty));
+        REQUIRE(zv.ends_with(S::empty));
+    }
+}
+#endif // __cpp_lib_starts_ends_with
+
+TEMPLATE_TEST_CASE("StlTests::ZStringView contains", "[stl][zstring_view][templated]", ZSV_TYPES)
+{
+    using TChar = TestType;
+    using ZSV = wil::basic_zstring_view<TChar>;
+    using S = zsv_test_helpers::strings<TChar>;
+
+    ZSV zv = S::hello_world;
+
+    SECTION("contains(string_view) finds embedded substrings")
+    {
+        REQUIRE(zv.contains(ZSV(S::hello)));
+        REQUIRE(zv.contains(ZSV(S::world)));
+        REQUIRE(!zv.contains(ZSV(S::not_present)));
+    }
+
+    SECTION("contains(char) finds a present character")
+    {
+        REQUIRE(zv.contains(S::test_char));
+        REQUIRE(!zv.contains(S::absent_char));
+    }
+
+    SECTION("contains(const TChar*) finds embedded substrings via raw pointer")
+    {
+        REQUIRE(zv.contains(S::hello));
+        REQUIRE(!zv.contains(S::not_present));
+    }
+
+    SECTION("empty view contains nothing except the empty substring")
+    {
+        ZSV empty;
+        REQUIRE(!empty.contains(S::test_char));
+        REQUIRE(!empty.contains(S::hello));
+        REQUIRE(empty.contains(ZSV()));
+    }
+
+    SECTION("contains return type is bool")
+    {
+        STATIC_REQUIRE(std::is_same_v<decltype(zv.contains(S::test_char)), bool>);
+        STATIC_REQUIRE(std::is_same_v<decltype(zv.contains(S::hello)), bool>);
+        STATIC_REQUIRE(std::is_same_v<decltype(zv.contains(ZSV(S::hello))), bool>);
+    }
+}
+
+TEMPLATE_TEST_CASE("StlTests::ZStringView substr(pos) is covariant and preserves null-termination", "[stl][zstring_view][templated][substr]", ZSV_TYPES)
+{
+    using TChar = TestType;
+    using ZSV = wil::basic_zstring_view<TChar>;
+    using S = zsv_test_helpers::strings<TChar>;
+
+    ZSV zv = S::hello_world;
+    const std::size_t n = std::char_traits<TChar>::length(S::hello_world);
+
+    SECTION("substr(pos) returns a basic_zstring_view (covariant return type)")
+    {
+        STATIC_REQUIRE(std::is_same_v<decltype(zv.substr(0)), ZSV>);
+        STATIC_REQUIRE(std::is_same_v<decltype(zv.substr()), ZSV>);
+    }
+
+    SECTION("substr(pos) returns the null-terminated tail")
+    {
+        auto tail = zv.substr(7);
+        REQUIRE(tail.size() == n - 7);
+        REQUIRE(tail == ZSV(S::world));
+        zsv_test_helpers::assert_null_terminated(tail);
+    }
+
+    SECTION("substr(0) returns a copy of the whole view")
+    {
+        auto whole = zv.substr(0);
+        REQUIRE(whole == zv);
+        zsv_test_helpers::assert_null_terminated(whole);
+    }
+
+    SECTION("substr(size()) returns an empty view at the trailing null")
+    {
+        auto empty = zv.substr(n);
+        REQUIRE(empty.empty());
+        REQUIRE(empty.size() == 0);
+        zsv_test_helpers::assert_null_terminated(empty);
+    }
+
+    SECTION("substr(pos > size()) throws out_of_range, propagating from base")
+    {
+        REQUIRE_THROWS_AS(zv.substr(n + 1), std::out_of_range);
+    }
+
+    SECTION("substr chaining preserves null-termination at each step")
+    {
+        auto step1 = zv.substr(0);    // "Hello, World!"
+        auto step2 = step1.substr(7); // "World!"
+        auto step3 = step2.substr(0); // "World!"
+        zsv_test_helpers::assert_null_terminated(step1);
+        zsv_test_helpers::assert_null_terminated(step2);
+        zsv_test_helpers::assert_null_terminated(step3);
+        REQUIRE(step3 == ZSV(S::world));
+    }
+}
+
+TEMPLATE_TEST_CASE("StlTests::ZStringView substr(pos, count) returns string_view", "[stl][zstring_view][templated][substr]", ZSV_TYPES)
+{
+    using TChar = TestType;
+    using ZSV = wil::basic_zstring_view<TChar>;
+    using SV = std::basic_string_view<TChar>;
+    using S = zsv_test_helpers::strings<TChar>;
+
+    ZSV zv = S::hello_world;
+
+    SECTION("substr(pos, count) returns a std::basic_string_view, not a basic_zstring_view")
+    {
+        STATIC_REQUIRE(std::is_same_v<decltype(zv.substr(0, 5)), SV>);
+        STATIC_REQUIRE(std::is_same_v<decltype(zv.substr(7, 5)), SV>);
+    }
+
+    SECTION("substr(0, prefix_len) returns the prefix as a string_view")
+    {
+        auto prefix = zv.substr(0, 5);
+        REQUIRE(prefix.size() == 5);
+        REQUIRE(prefix == SV(S::hello));
+    }
+
+    SECTION("substr(pos, count) clamps count to size() - pos")
+    {
+        auto slice = zv.substr(7, 1000);
+        REQUIRE(slice.size() == std::char_traits<TChar>::length(S::hello_world) - 7);
+    }
+
+    SECTION("substr(pos, 0) returns an empty string_view")
+    {
+        auto empty = zv.substr(3, 0);
+        REQUIRE(empty.empty());
+        REQUIRE(empty.size() == 0);
+    }
+
+    SECTION("substr(size(), count) returns an empty string_view at the trailing null")
+    {
+        const auto n = zv.size();
+        auto empty = zv.substr(n, 5);
+        REQUIRE(empty.empty());
+    }
+}
+
+TEMPLATE_TEST_CASE("StlTests::ZStringView remove_prefix preserves null-termination", "[stl][zstring_view][templated]", ZSV_TYPES)
+{
+    using TChar = TestType;
+    using ZSV = wil::basic_zstring_view<TChar>;
+    using S = zsv_test_helpers::strings<TChar>;
+
+    SECTION("after remove_prefix the view remains null-terminated and c_str() == data()")
+    {
+        ZSV zv = S::hello_world;
+        zv.remove_prefix(7);
+        zsv_test_helpers::assert_null_terminated(zv);
+        REQUIRE(zv.c_str() == zv.data());
+        REQUIRE(zv.c_str()[zv.size()] == TChar());
+    }
+}
+
+TEMPLATE_TEST_CASE("StlTests::ZStringView conversion to string_view", "[stl][zstring_view][templated]", ZSV_TYPES)
+{
+    using TChar = TestType;
+    using ZSV = wil::basic_zstring_view<TChar>;
+    using SV = std::basic_string_view<TChar>;
+    using S = zsv_test_helpers::strings<TChar>;
+
+    SECTION("implicit conversion to string_view preserves size and data")
+    {
+        ZSV zv = S::hello_world;
+        SV sv = zv;
+        REQUIRE(sv.size() == zv.size());
+        REQUIRE(sv.data() == zv.data());
+    }
+
+    SECTION("can pass a basic_zstring_view to a function expecting basic_string_view")
+    {
+        auto take_sv = [](SV sv) {
+            return sv.size();
+        };
+        ZSV zv = S::hello_world;
+        REQUIRE(take_sv(zv) == zv.size());
+    }
+
+    SECTION("can construct a std::basic_string from a basic_zstring_view")
+    {
+        ZSV zv = S::hello_world;
+        std::basic_string<TChar> str(zv);
+        REQUIRE(str.size() == zv.size());
+        REQUIRE(str == zv);
+    }
+}
+
+TEMPLATE_TEST_CASE("StlTests::ZStringView constexpr usage", "[stl][zstring_view][templated]", ZSV_TYPES)
+{
+    using TChar = TestType;
+    using ZSV = wil::basic_zstring_view<TChar>;
+    using S = zsv_test_helpers::strings<TChar>;
+
+    SECTION("default ctor, copy ctor, and basic accessors are constexpr-usable")
+    {
+        constexpr ZSV defaulted;
+        STATIC_REQUIRE(defaulted.empty());
+        STATIC_REQUIRE(defaulted.size() == 0);
+        STATIC_REQUIRE(defaulted.data() != nullptr);
+    }
+
+    SECTION("substr(pos) is constexpr-usable when constructed from a literal")
+    {
+        constexpr ZSV zv = S::hello_world;
+        constexpr auto tail = zv.substr(7);
+        STATIC_REQUIRE(tail.size() == std::char_traits<TChar>::length(S::hello_world) - 7);
+    }
 }
 
 #endif

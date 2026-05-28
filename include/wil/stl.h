@@ -135,11 +135,34 @@ inline PCWSTR str_raw_ptr(const std::wstring& str)
 #if __cpp_lib_string_view >= 201606L
 
 /**
-    zstring_view. A zstring_view is identical to a std::string_view except it is always nul-terminated (unless empty).
-    * zstring_view can be used for storing string literals without "forgetting" the length or that it is nul-terminated.
-    * A zstring_view can be converted implicitly to a std::string_view because it is always safe to use a nul-terminated
-      string_view as a plain string view.
-    * A zstring_view can be constructed from a std::string because the data in std::string is nul-terminated.
+    `basic_zstring_view<TChar>` is a non-owning, read-only view of a *null-terminated* sequence of `TChar`.
+
+    Core invariant: a constructed `basic_zstring_view` always satisfies `data()[size()] == TChar()`.
+    The class adds null-termination guarantees to `std::basic_string_view`, making it suitable for passing
+    to C APIs that require dereferenceable null-terminated strings (e.g. `printf("%s", v.c_str())`,
+    `fopen(v.c_str(), ...)`). Where `std::basic_string_view` requires the caller to remember the
+    null-termination contract, `basic_zstring_view` enforces it at construction.
+
+    - A `basic_zstring_view` decays implicitly to `std::basic_string_view` (it inherits from it).
+    - A `basic_zstring_view` can be constructed from a string literal, a `(const TChar*, size_type)` pair
+      (with a debug fail-fast verifying the null terminator), a `std::basic_string`, or any user-defined
+      type that exposes `c_str()` (and optionally `size()`) returning `TChar`.
+
+    Default construction yields a view of an internal static empty buffer such that `data() != nullptr`
+    and `c_str()[0] == TChar()`. This makes a default-constructed `basic_zstring_view` safe to hand to
+    any C API expecting a dereferenceable null-terminated string, even before any value is assigned.
+
+    The substr family follows the design proposed for `std::zstring_view` in P3655R0
+    (https://wg21.link/p3655r0): the one-argument `substr(pos)` returns a `basic_zstring_view`
+    (the tail of a null-terminated string is itself null-terminated), and the two-argument
+    `substr(pos, count)` returns a `std::basic_string_view` because an arbitrary slice is
+    generally not null-terminated.
+
+    @note Public inheritance from `std::basic_string_view` means a caller can bypass the
+    null-termination invariant by casting to the base, e.g.
+    `static_cast<std::basic_string_view<char>&>(zv) = sv` where `sv` is a non-null-terminated view.
+    P3655R0's proposed `std::zstring_view` avoids this by not inheriting. The invariant holds for
+    normal use but isn't airtight against this kind of base-class cast.
 */
 template <class TChar>
 class basic_zstring_view : public std::basic_string_view<TChar>
@@ -167,11 +190,18 @@ class basic_zstring_view : public std::basic_string_view<TChar>
     };
 
 public:
-    constexpr basic_zstring_view() noexcept = default;
+    /**
+     * Default-construct a view of an internal static empty buffer.
+     * Yields `data() != nullptr`, `size() == 0`, and `c_str()[0] == TChar()` so the result is safe
+     * to hand to any C API expecting a dereferenceable null-terminated string.
+     */
+    constexpr basic_zstring_view() noexcept : std::basic_string_view<TChar>(&_empty_storage[0], 0)
+    {
+    }
     constexpr basic_zstring_view(const basic_zstring_view&) noexcept = default;
     constexpr basic_zstring_view& operator=(const basic_zstring_view&) noexcept = default;
 
-    constexpr basic_zstring_view(const TChar* pStringData, size_type stringLength) noexcept :
+    constexpr basic_zstring_view(_In_reads_z_(stringLength + 1) const TChar* pStringData, size_type stringLength) noexcept :
         std::basic_string_view<TChar>(pStringData, stringLength)
     {
         if (pStringData[stringLength] != 0)
@@ -189,7 +219,7 @@ public:
     // Construct from nul-terminated char ptr. To prevent this from overshadowing array construction,
     // we disable this constructor if the value is an array (including string literal).
     template <typename TPtr, std::enable_if_t<std::is_convertible<TPtr, const TChar*>::value && !std::is_array<TPtr>::value>* = nullptr>
-    constexpr basic_zstring_view(TPtr&& pStr) noexcept : std::basic_string_view<TChar>(std::forward<TPtr>(pStr))
+    constexpr basic_zstring_view(_In_z_ TPtr&& pStr) noexcept : std::basic_string_view<TChar>(std::forward<TPtr>(pStr))
     {
     }
 
@@ -215,10 +245,62 @@ public:
         return this->data()[idx];
     }
 
-    WI_NODISCARD constexpr const TChar* c_str() const noexcept
+    WI_NODISCARD _Ret_z_ constexpr const TChar* c_str() const noexcept
     {
         WI_ASSERT(this->data() == nullptr || this->data()[this->size()] == 0);
         return this->data();
+    }
+
+    // contains() backport for builds below C++23. Compiles out once the STL provides
+    // basic_string_view::contains natively (via __cpp_lib_string_contains).
+#if !defined(__cpp_lib_string_contains) || __cpp_lib_string_contains < 202011L
+    WI_NODISCARD constexpr bool contains(std::basic_string_view<TChar> sv) const noexcept
+    {
+        return std::basic_string_view<TChar>(*this).find(sv) != std::basic_string_view<TChar>::npos;
+    }
+
+    WI_NODISCARD constexpr bool contains(TChar ch) const noexcept
+    {
+        return std::basic_string_view<TChar>(*this).find(ch) != std::basic_string_view<TChar>::npos;
+    }
+
+    WI_NODISCARD constexpr bool contains(_In_z_ const TChar* s) const
+    {
+        return std::basic_string_view<TChar>(*this).find(s) != std::basic_string_view<TChar>::npos;
+    }
+#endif // !defined(__cpp_lib_string_contains) || __cpp_lib_string_contains < 202011L
+
+    /**
+     * Returns a `basic_zstring_view` of the tail of this view, starting at `pos`.
+     *
+     * The result is null-terminated because the tail of a null-terminated string is itself
+     * null-terminated.
+     *
+     * @param pos starting position (default 0). Must satisfy `pos <= size()`.
+     * @throws std::out_of_range if `pos > size()` (propagated from `std::basic_string_view::substr`).
+     */
+    WI_NODISCARD constexpr basic_zstring_view substr(size_type pos = 0) const
+    {
+        const auto tail = std::basic_string_view<TChar>(*this).substr(pos);
+        return basic_zstring_view(tail.data(), tail.size());
+    }
+
+    // Re-declared (not just inherited) so the one-arg substr(pos) above doesn't hide the
+    // inherited two-arg overload via standard name-hiding rules.
+    /**
+     * Returns a `std::basic_string_view` of an arbitrary sub-range.
+     *
+     * The return type is `std::basic_string_view` rather than `basic_zstring_view` because the
+     * sub-range is generally not null-terminated. Callers who need a null-terminated tail should
+     * use the one-argument `substr(pos)` overload above.
+     *
+     * @param pos starting position. Must satisfy `pos <= size()`.
+     * @param count maximum number of characters in the resulting sub-range. Clamped to `size() - pos`.
+     * @throws std::out_of_range if `pos > size()` (propagated from `std::basic_string_view::substr`).
+     */
+    WI_NODISCARD constexpr std::basic_string_view<TChar> substr(size_type pos, size_type count) const
+    {
+        return std::basic_string_view<TChar>(*this).substr(pos, count);
     }
 
 private:
@@ -237,6 +319,9 @@ private:
     // The following basic_string_view methods must not be allowed because they break the nul-termination.
     using std::basic_string_view<TChar>::swap;
     using std::basic_string_view<TChar>::remove_suffix;
+
+    // Backing buffer for the default-constructed view.
+    static inline constexpr TChar _empty_storage[1]{TChar()};
 };
 
 using zstring_view = basic_zstring_view<char>;
