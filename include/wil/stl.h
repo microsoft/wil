@@ -134,6 +134,28 @@ inline PCWSTR str_raw_ptr(const std::wstring& str)
 
 #if __cpp_lib_string_view >= 201606L
 
+// WIL_ZSV_DEFAULT_TO_EMPTY_BUFFER (opt-in, off by default):
+//   When defined, basic_zstring_view{}'s data() returns a pointer to a static empty buffer
+//   instead of nullptr. This makes c_str() always safe to dereference and aligns with the
+//   design proposed for std::basic_zstring_view in P3655R0.
+//
+//   The default-off preserves source compatibility with code that uses data() == nullptr as
+//   a "no string" sentinel and matches the documented default of std::basic_string_view.
+//   New callers that want the safer default-construct behaviour opt in by defining the macro
+//   ahead of including this header.
+//
+//   Linkage matrix (enforced by WI_ODR_PRAGMA via MSVC's /detect_mismatch). The relevant
+//   axis is whether the macro is defined when each translation unit includes this header:
+//     * Defined in both:    instances interop normally; default ctor returns a non-null empty buffer.
+//     * Undefined in both:  instances interop normally; default ctor returns nullptr (base behaviour).
+//     * Mismatched:         link error LNK2038 on the mismatch tag
+//                           'ODR_violation_WIL_ZSV_DEFAULT_TO_EMPTY_BUFFER_mismatch'.
+#if defined(WIL_ZSV_DEFAULT_TO_EMPTY_BUFFER)
+WI_ODR_PRAGMA("WIL_ZSV_DEFAULT_TO_EMPTY_BUFFER", "1")
+#else
+WI_ODR_PRAGMA("WIL_ZSV_DEFAULT_TO_EMPTY_BUFFER", "0")
+#endif
+
 /**
     `basic_zstring_view<TChar>` is a non-owning, read-only view of a *null-terminated* sequence of `TChar`.
 
@@ -148,9 +170,11 @@ inline PCWSTR str_raw_ptr(const std::wstring& str)
       (with a debug fail-fast verifying the null terminator), a `std::basic_string`, or any user-defined
       type that exposes `c_str()` (and optionally `size()`) returning `TChar`.
 
-    Default construction yields a view of an internal static empty buffer such that `data() != nullptr`
-    and `c_str()[0] == TChar()`. This makes a default-constructed `basic_zstring_view` safe to hand to
-    any C API expecting a dereferenceable null-terminated string, even before any value is assigned.
+    Default construction matches `std::basic_string_view`: `data() == nullptr`, `size() == 0`. Callers
+    that want a default-constructed view whose `c_str()` is always safe to dereference can opt in by
+    defining `WIL_ZSV_DEFAULT_TO_EMPTY_BUFFER` before including this header; that flips the default
+    constructor to point `data()` at an internal static empty buffer, aligning with the design proposed
+    for `std::basic_zstring_view` in P3655R0 (https://wg21.link/p3655r0).
 
     The substr family follows the design proposed for `std::zstring_view` in P3655R0
     (https://wg21.link/p3655r0): the one-argument `substr(pos)` returns a `basic_zstring_view`
@@ -190,6 +214,7 @@ class basic_zstring_view : public std::basic_string_view<TChar>
     };
 
 public:
+#if defined(WIL_ZSV_DEFAULT_TO_EMPTY_BUFFER)
     /**
      * Default-construct a view of an internal static empty buffer.
      * Yields `data() != nullptr`, `size() == 0`, and `c_str()[0] == TChar()` so the result is safe
@@ -198,6 +223,14 @@ public:
     constexpr basic_zstring_view() noexcept : std::basic_string_view<TChar>(&_empty_storage[0], 0)
     {
     }
+#else
+    /**
+     * Default-construct a view matching `std::basic_string_view`: `data() == nullptr`, `size() == 0`.
+     * Define `WIL_ZSV_DEFAULT_TO_EMPTY_BUFFER` before including this header to flip the default to
+     * a non-null empty buffer (see the class documentation).
+     */
+    constexpr basic_zstring_view() noexcept = default;
+#endif
     constexpr basic_zstring_view(const basic_zstring_view&) noexcept = default;
     constexpr basic_zstring_view& operator=(const basic_zstring_view&) noexcept = default;
 
@@ -282,6 +315,13 @@ public:
     WI_NODISCARD constexpr basic_zstring_view substr(size_type pos = 0) const
     {
         const auto tail = std::basic_string_view<TChar>(*this).substr(pos);
+        // Short-circuit the (nullptr, 0) tail case (substr(0) on a default-constructed view
+        // when WIL_ZSV_DEFAULT_TO_EMPTY_BUFFER is not defined) so we don't round-trip a null
+        // pointer through the verifying (ptr, length) constructor.
+        if (tail.data() == nullptr)
+        {
+            return basic_zstring_view{};
+        }
         return basic_zstring_view(tail.data(), tail.size());
     }
 
@@ -320,8 +360,10 @@ private:
     using std::basic_string_view<TChar>::swap;
     using std::basic_string_view<TChar>::remove_suffix;
 
-    // Backing buffer for the default-constructed view.
+    // Backing buffer for the default-constructed view. Only present when the safer default is opted in.
+#if defined(WIL_ZSV_DEFAULT_TO_EMPTY_BUFFER)
     static inline constexpr TChar _empty_storage[1]{TChar()};
+#endif
 };
 
 using zstring_view = basic_zstring_view<char>;

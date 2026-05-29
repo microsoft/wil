@@ -66,11 +66,14 @@ struct CustomNoncopyableString
 
 TEST_CASE("StlTests::TestZStringView", "[stl][zstring_view]")
 {
-    // Test empty cases — default-constructed view points at a static empty buffer so
-    // c_str() is always safe to dereference (returns "" rather than nullptr).
+    // A default-constructed view is empty in both default-ctor modes.
     REQUIRE(wil::zstring_view{}.empty());
+#if defined(WIL_ZSV_DEFAULT_TO_EMPTY_BUFFER)
+    // Opt-in safe-default mode: data() points at a static empty buffer so c_str() is always
+    // dereferenceable (returns "" rather than nullptr).
     REQUIRE(wil::zstring_view{}.data() != nullptr);
     REQUIRE(wil::zstring_view{}.c_str()[0] == '\0');
+#endif
 
     // Test empty string cases
     REQUIRE(wil::zstring_view{""}[0] == '\0');
@@ -174,11 +177,14 @@ TEST_CASE("StlTests::TestZStringView formatting", "[stl][zstring_view]")
 
 TEST_CASE("StlTests::TestZWStringView", "[stl][zstring_view]")
 {
-    // Test empty cases — default-constructed view points at a static empty buffer so
-    // c_str() is always safe to dereference (returns L"" rather than nullptr).
+    // A default-constructed view is empty in both default-ctor modes.
     REQUIRE(wil::zwstring_view{}.empty());
+#if defined(WIL_ZSV_DEFAULT_TO_EMPTY_BUFFER)
+    // Opt-in safe-default mode: data() points at a static empty buffer so c_str() is always
+    // dereferenceable (returns L"" rather than nullptr).
     REQUIRE(wil::zwstring_view{}.data() != nullptr);
     REQUIRE(wil::zwstring_view{}.c_str()[0] == L'\0');
+#endif
 
     // Test empty string cases
     REQUIRE(wil::zwstring_view{L""}[0] == L'\0');
@@ -247,10 +253,55 @@ TEST_CASE("StlTests::TestZWStringView", "[stl][zstring_view]")
     REQUIRE(wil::zwstring_view(fake_path) == L"hello");
 }
 
-// Tests for the default-construct safety contract: data() points at a static empty buffer,
-// so c_str() always returns a dereferenceable null-terminated pointer. Exercises c_str() use
-// patterns (strlen, %s, std::string ctor, C-API handoff), observable equivalence with an
-// empty-literal view, and defensive `if (zv.data())` guards.
+// Regression tests for the substr(0) round-trip on a default-constructed view. The
+// override returns a basic_zstring_view by routing tail.data()/tail.size() through the
+// verifying (ptr, length) ctor, which would deref a null pointer if substr(0) on a
+// default-constructed view (data() == nullptr in legacy default-ctor mode) reached the
+// ctor. These run in both default-ctor modes; the assertions are mode-conditional so
+// each mode actually proves the right branch was taken (short-circuit in legacy,
+// fall-through to the ctor in opt-in).
+
+TEST_CASE("StlTests::TestZStringView default-constructed substr(0) round-trip is safe", "[stl][zstring_view]")
+{
+    wil::zstring_view zv;
+    auto tail = zv.substr(0);
+    REQUIRE(tail.empty());
+    REQUIRE(tail.size() == 0);
+#if defined(WIL_ZSV_DEFAULT_TO_EMPTY_BUFFER)
+    // Opt-in mode: the source view's data() is &_empty_storage[0], so the short-circuit is
+    // not taken and the tail inherits the same non-null empty buffer.
+    REQUIRE(tail.data() != nullptr);
+    REQUIRE(tail.c_str()[0] == '\0');
+#else
+    // Legacy mode: the source view's data() is nullptr; the short-circuit fires and the tail
+    // is a default-constructed view (data() == nullptr, c_str() == nullptr).
+    REQUIRE(tail.data() == nullptr);
+    REQUIRE(tail.c_str() == nullptr);
+#endif
+}
+
+TEST_CASE("StlTests::TestZWStringView default-constructed substr(0) round-trip is safe", "[stl][zstring_view]")
+{
+    wil::zwstring_view zv;
+    auto tail = zv.substr(0);
+    REQUIRE(tail.empty());
+    REQUIRE(tail.size() == 0);
+#if defined(WIL_ZSV_DEFAULT_TO_EMPTY_BUFFER)
+    REQUIRE(tail.data() != nullptr);
+    REQUIRE(tail.c_str()[0] == L'\0');
+#else
+    REQUIRE(tail.data() == nullptr);
+    REQUIRE(tail.c_str() == nullptr);
+#endif
+}
+
+// Tests for the opt-in default-construct safety contract (WIL_ZSV_DEFAULT_TO_EMPTY_BUFFER).
+// When the macro is defined, data() points at a static empty buffer so c_str() always returns
+// a dereferenceable null-terminated pointer. These cases exercise c_str() use patterns
+// (strlen, %s, std::string ctor, C-API handoff), observable equivalence with an empty-literal
+// view, and defensive `if (zv.data())` guards. They are skipped in legacy mode, where the
+// default constructor preserves the base-class behaviour of data() == nullptr.
+#if defined(WIL_ZSV_DEFAULT_TO_EMPTY_BUFFER)
 
 TEST_CASE("StlTests::TestZStringView default-construct safety", "[stl][zstring_view]")
 {
@@ -401,6 +452,8 @@ TEST_CASE("StlTests::TestZWStringView default-construct safety", "[stl][zstring_
     }
 }
 
+#endif // WIL_ZSV_DEFAULT_TO_EMPTY_BUFFER
+
 // Templated tests using Catch2's TEMPLATE_TEST_CASE to share the same body across char
 // and wchar_t. Tagged [templated] so they can be filtered separately. Covers the
 // null-termination invariant, the substr split, the contains backport, safe default-construct
@@ -476,10 +529,12 @@ TEMPLATE_TEST_CASE("StlTests::ZStringView construction", "[stl][zstring_view][te
 
     SECTION("default and empty-literal views are both empty and read as null-terminated")
     {
-        // Default-construct: data() != nullptr, c_str()[0] == '\0', empty().
+        // Default-construct: empty in both modes; the safe-buffer guarantees are opt-in.
         REQUIRE(ZSV{}.empty());
+#if defined(WIL_ZSV_DEFAULT_TO_EMPTY_BUFFER)
         REQUIRE(ZSV{}.data() != nullptr);
         REQUIRE(ZSV{}.c_str()[0] == TChar());
+#endif
         // Empty literal: subscript reads '\0', c_str() reads '\0', empty().
         REQUIRE(ZSV{S::empty}[0] == TChar());
         REQUIRE(ZSV{S::empty}.c_str()[0] == TChar());
@@ -879,7 +934,9 @@ TEMPLATE_TEST_CASE("StlTests::ZStringView constexpr usage", "[stl][zstring_view]
         constexpr ZSV defaulted;
         STATIC_REQUIRE(defaulted.empty());
         STATIC_REQUIRE(defaulted.size() == 0);
+#if defined(WIL_ZSV_DEFAULT_TO_EMPTY_BUFFER)
         STATIC_REQUIRE(defaulted.data() != nullptr);
+#endif
     }
 
     SECTION("substr(pos) is constexpr-usable when constructed from a literal")

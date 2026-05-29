@@ -151,6 +151,7 @@ add_subdirectory(cppwinrt-notifiable-server-lock)
 add_subdirectory(noexcept)
 add_subdirectory(normal)
 add_subdirectory(win7)
+add_subdirectory(zsvsafe)
 
 add_test(NAME app COMMAND $<TARGET_FILE:witest.app>)
 add_test(NAME cpplatest COMMAND $<TARGET_FILE:witest.cpplatest>)
@@ -158,6 +159,7 @@ add_test(NAME cppwinrt-notifiable-server-lock COMMAND $<TARGET_FILE:witest.cppwi
 add_test(NAME noexcept COMMAND $<TARGET_FILE:witest.noexcept>)
 add_test(NAME normal COMMAND $<TARGET_FILE:witest>)
 add_test(NAME win7 COMMAND $<TARGET_FILE:witest.win7>)
+add_test(NAME zsvsafe COMMAND $<TARGET_FILE:witest.zsvsafe>)
 
 if (${WIL_ENABLE_ASAN})
     add_subdirectory(sanitize-address)
