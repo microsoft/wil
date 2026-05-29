@@ -158,29 +158,40 @@ WI_ODR_PRAGMA("WIL_ZSV_DEFAULT_TO_EMPTY_BUFFER", "0")
 
 /**
     `basic_zstring_view<TChar>` is a non-owning, read-only view of a *null-terminated* sequence of `TChar`.
-
-    Core invariant: a constructed `basic_zstring_view` always satisfies `data()[size()] == TChar()`.
     The class adds null-termination guarantees to `std::basic_string_view`, making it suitable for passing
     to C APIs that require dereferenceable null-terminated strings (e.g. `printf("%s", v.c_str())`,
     `fopen(v.c_str(), ...)`). Where `std::basic_string_view` requires the caller to remember the
-    null-termination contract, `basic_zstring_view` enforces it at construction.
+    null-termination contract, `basic_zstring_view` enforces it at construction for views built from a
+    real buffer.
 
-    - A `basic_zstring_view` decays implicitly to `std::basic_string_view` (it inherits from it).
-    - A `basic_zstring_view` can be constructed from a string literal, a `(const TChar*, size_type)` pair
-      (with a debug fail-fast verifying the null terminator), a `std::basic_string`, or any user-defined
-      type that exposes `c_str()` (and optionally `size()`) returning `TChar`.
+    The opt-in macro `WIL_ZSV_DEFAULT_TO_EMPTY_BUFFER` controls the default-construction behaviour.
+    Define it before including this header to get the stronger invariant; leave it undefined for
+    backward compatibility with the original WIL semantics.
 
-    Default construction matches `std::basic_string_view`: `data() == nullptr`, `size() == 0`. Callers
-    that want a default-constructed view whose `c_str()` is always safe to dereference can opt in by
-    defining `WIL_ZSV_DEFAULT_TO_EMPTY_BUFFER` before including this header; that flips the default
-    constructor to point `data()` at an internal static empty buffer, aligning with the design proposed
-    for `std::basic_zstring_view` in P3655R0 (https://wg21.link/p3655r0).
+    With `WIL_ZSV_DEFAULT_TO_EMPTY_BUFFER` defined:
+      - Every constructed view satisfies `data() != nullptr` and `data()[size()] == TChar()`.
+      - A default-constructed view points at an internal static empty buffer; `size() == 0` and
+        `c_str()[0] == TChar()`.
+      - `c_str()` is always safe to dereference and to hand to a C API.
+      - Aligns with the design proposed for `std::basic_zstring_view` in P3655R0
+        (https://wg21.link/p3655r0).
 
-    The substr family follows the design proposed for `std::zstring_view` in P3655R0
-    (https://wg21.link/p3655r0): the one-argument `substr(pos)` returns a `basic_zstring_view`
-    (the tail of a null-terminated string is itself null-terminated), and the two-argument
-    `substr(pos, count)` returns a `std::basic_string_view` because an arbitrary slice is
-    generally not null-terminated.
+    Without `WIL_ZSV_DEFAULT_TO_EMPTY_BUFFER` (default):
+      - The invariant `data()[size()] == TChar()` applies only when `data() != nullptr`.
+      - A default-constructed view matches `std::basic_string_view`: `data() == nullptr`,
+        `size() == 0`.
+      - `c_str()` returns `nullptr` on a default-constructed view; callers must guard before
+        dereferencing.
+
+    Other behaviour (both modes):
+      - Decays implicitly to `std::basic_string_view` (it inherits from it).
+      - Constructible from a string literal, a `(const TChar*, size_type)` pair (with a debug fail-fast
+        verifying the null terminator), a `std::basic_string`, or any user-defined type that exposes
+        `c_str()` (and optionally `size()`) returning `TChar`.
+      - `substr(pos)` returns a `basic_zstring_view` (the tail of a null-terminated string is itself
+        null-terminated); follows the design proposed for `std::zstring_view` in P3655R0.
+      - `substr(pos, count)` returns a `std::basic_string_view` because an arbitrary slice is generally
+        not null-terminated.
 
     @note Public inheritance from `std::basic_string_view` means a caller can bypass the
     null-termination invariant by casting to the base, e.g.
