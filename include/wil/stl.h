@@ -453,8 +453,7 @@ public:
     // `basic_string_view<C, TraitsB>` conversions for the same reason. Extenders who genuinely
     // want the lossy conversion can write `std::basic_string_view<TChar>(view.data(), view.size())`
     // (one line, intent visible).
-    template <typename T = Traits,
-        std::enable_if_t<std::is_same_v<T, zstring_view_traits_safe<TChar>>, int> = 0>
+    template <typename T = Traits, std::enable_if_t<std::is_same_v<T, zstring_view_traits_safe<TChar>>, int> = 0>
     constexpr operator std::basic_string_view<TChar>() const noexcept
     {
         return {this->data(), this->size()};
@@ -545,8 +544,7 @@ public:
 private:
     // Trusted (non-validating) ctor used by substr() and other internal sites that have already
     // established the invariants.
-    constexpr basic_zstring_view(_trusted_tag, const TChar* p, size_type n) noexcept :
-        std::basic_string_view<TChar, Traits>(p, n)
+    constexpr basic_zstring_view(_trusted_tag, const TChar* p, size_type n) noexcept : std::basic_string_view<TChar, Traits>(p, n)
     {
     }
 

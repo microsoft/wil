@@ -484,8 +484,7 @@ void assert_null_terminated(ZSV v)
 // `wil::zstring_view_traits_safe<TChar>` (derived from `std::char_traits<TChar>` but a
 // distinct type); the nullable variant uses `std::char_traits<TChar>` directly.
 template <typename ZSV>
-constexpr bool is_safe_zsv_v =
-    !std::is_same_v<typename ZSV::traits_type, std::char_traits<typename ZSV::value_type>>;
+constexpr bool is_safe_zsv_v = !std::is_same_v<typename ZSV::traits_type, std::char_traits<typename ZSV::value_type>>;
 
 // Templated source type providing only c_str() (no size()) -- exercises the
 // SFINAE constructor that accepts c_str()-only sources.
@@ -513,8 +512,7 @@ struct string_with_c_str_only
 // test that should hold for either Traits choice. The two outliers that stay on `ZSV_TYPES`
 // are the `_zv` literal and `std::format` blocks, because `_zv` always materialises the
 // nullable variant (the safe-variant equivalent `_zvs` is covered by its own block).
-#define ZSV_VARIANTS \
-    wil::zstring_view, wil::zwstring_view, wil::zstring_view_safe, wil::zwstring_view_safe
+#define ZSV_VARIANTS wil::zstring_view, wil::zwstring_view, wil::zstring_view_safe, wil::zwstring_view_safe
 
 TEMPLATE_TEST_CASE("StlTests::ZStringView construction", "[stl][zstring_view][templated]", ZSV_VARIANTS)
 {
