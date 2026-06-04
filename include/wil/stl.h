@@ -453,8 +453,15 @@ public:
     // `basic_string_view<C, TraitsB>` conversions for the same reason. Extenders who genuinely
     // want the lossy conversion can write `std::basic_string_view<TChar>(view.data(), view.size())`
     // (one line, intent visible).
-    template <typename T = Traits, std::enable_if_t<std::is_same_v<T, zstring_view_traits_safe<TChar>>, int> = 0>
-    constexpr operator std::basic_string_view<TChar>() const noexcept
+    //
+    // The return type is hidden behind `enable_if_t` to make it template-dependent on `T`. This
+    // sidesteps clang's `-Wclass-conversion` warning, which fires syntactically on the default-Traits
+    // instantiation (where `std::basic_string_view<TChar>` happens to be the inherited base) before
+    // SFINAE removes the operator from the candidate set. A template-dependent return type forces
+    // clang to defer the base-class shape check until template-argument deduction, at which point
+    // SFINAE has already eliminated the candidate for default-Traits.
+    template <typename T = Traits>
+    constexpr operator std::enable_if_t<std::is_same_v<T, Traits> && std::is_same_v<Traits, zstring_view_traits_safe<TChar>>, std::basic_string_view<TChar>>() const noexcept
     {
         return {this->data(), this->size()};
     }
