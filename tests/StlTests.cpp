@@ -66,14 +66,10 @@ struct CustomNoncopyableString
 
 TEST_CASE("StlTests::TestZStringView", "[stl][zstring_view]")
 {
-    // A default-constructed view is empty in both default-ctor modes.
+    // A default-constructed nullable view is empty and has data() == nullptr (matches the prior
+    // single-class behaviour). The safe variant gets its own coverage in TestZStringViewSafe
+    // and in the templated matrix below.
     REQUIRE(wil::zstring_view{}.empty());
-#if defined(WIL_ZSV_DEFAULT_TO_EMPTY_BUFFER)
-    // Opt-in safe-default mode: data() points at a static empty buffer so c_str() is always
-    // dereferenceable (returns "" rather than nullptr).
-    REQUIRE(wil::zstring_view{}.data() != nullptr);
-    REQUIRE(wil::zstring_view{}.c_str()[0] == '\0');
-#endif
 
     // Test empty string cases
     REQUIRE(wil::zstring_view{""}[0] == '\0');
@@ -177,14 +173,10 @@ TEST_CASE("StlTests::TestZStringView formatting", "[stl][zstring_view]")
 
 TEST_CASE("StlTests::TestZWStringView", "[stl][zstring_view]")
 {
-    // A default-constructed view is empty in both default-ctor modes.
+    // A default-constructed nullable view is empty and has data() == nullptr (matches the prior
+    // single-class behaviour). The safe variant gets its own coverage in TestZWStringViewSafe
+    // and in the templated matrix below.
     REQUIRE(wil::zwstring_view{}.empty());
-#if defined(WIL_ZSV_DEFAULT_TO_EMPTY_BUFFER)
-    // Opt-in safe-default mode: data() points at a static empty buffer so c_str() is always
-    // dereferenceable (returns L"" rather than nullptr).
-    REQUIRE(wil::zwstring_view{}.data() != nullptr);
-    REQUIRE(wil::zwstring_view{}.c_str()[0] == L'\0');
-#endif
 
     // Test empty string cases
     REQUIRE(wil::zwstring_view{L""}[0] == L'\0');
@@ -253,13 +245,13 @@ TEST_CASE("StlTests::TestZWStringView", "[stl][zstring_view]")
     REQUIRE(wil::zwstring_view(fake_path) == L"hello");
 }
 
-// Regression tests for the substr(0) round-trip on a default-constructed view. The
-// override returns a basic_zstring_view by routing tail.data()/tail.size() through the
-// verifying (ptr, length) ctor, which would deref a null pointer if substr(0) on a
-// default-constructed view (data() == nullptr in legacy default-ctor mode) reached the
-// ctor. These run in both default-ctor modes; the assertions are mode-conditional so
-// each mode actually proves the right branch was taken (short-circuit in legacy,
-// fall-through to the ctor in opt-in).
+// Regression test for the substr(0) round-trip on a default-constructed nullable view. The
+// substr(pos) override returns a basic_zstring_view by routing tail.data()/tail.size() through
+// the trusted (ptr, length) ctor, which would deref a null pointer if substr(0) on a
+// default-constructed nullable view (data() == nullptr) reached that ctor. The short-circuit
+// in substr's body fires for the tail.data() == nullptr case, so the tail is itself a
+// default-constructed view. The safe variant cannot hit this case (its default-constructed
+// data() points at the static empty buffer), so the regression is nullable-only.
 
 TEST_CASE("StlTests::TestZStringView default-constructed substr(0) round-trip is safe", "[stl][zstring_view]")
 {
@@ -267,17 +259,8 @@ TEST_CASE("StlTests::TestZStringView default-constructed substr(0) round-trip is
     auto tail = zv.substr(0);
     REQUIRE(tail.empty());
     REQUIRE(tail.size() == 0);
-#if defined(WIL_ZSV_DEFAULT_TO_EMPTY_BUFFER)
-    // Opt-in mode: the source view's data() is &_empty_storage[0], so the short-circuit is
-    // not taken and the tail inherits the same non-null empty buffer.
-    REQUIRE(tail.data() != nullptr);
-    REQUIRE(tail.c_str()[0] == '\0');
-#else
-    // Legacy mode: the source view's data() is nullptr; the short-circuit fires and the tail
-    // is a default-constructed view (data() == nullptr, c_str() == nullptr).
     REQUIRE(tail.data() == nullptr);
     REQUIRE(tail.c_str() == nullptr);
-#endif
 }
 
 TEST_CASE("StlTests::TestZWStringView default-constructed substr(0) round-trip is safe", "[stl][zstring_view]")
@@ -286,28 +269,23 @@ TEST_CASE("StlTests::TestZWStringView default-constructed substr(0) round-trip i
     auto tail = zv.substr(0);
     REQUIRE(tail.empty());
     REQUIRE(tail.size() == 0);
-#if defined(WIL_ZSV_DEFAULT_TO_EMPTY_BUFFER)
-    REQUIRE(tail.data() != nullptr);
-    REQUIRE(tail.c_str()[0] == L'\0');
-#else
     REQUIRE(tail.data() == nullptr);
     REQUIRE(tail.c_str() == nullptr);
-#endif
 }
 
-// Tests for the opt-in default-construct safety contract (WIL_ZSV_DEFAULT_TO_EMPTY_BUFFER).
-// When the macro is defined, data() points at a static empty buffer so c_str() always returns
-// a dereferenceable null-terminated pointer. These cases exercise c_str() use patterns
+// Safe-variant default-construct contract. The safe variant (basic_zstring_view<TChar,
+// zstring_view_traits_safe<TChar>>, aliased as wil::zstring_view_safe / wil::zwstring_view_safe)
+// guarantees `data() != nullptr` on a default-constructed view: the view points at a static
+// empty buffer so c_str() is always dereferenceable. These cases exercise c_str() use patterns
 // (strlen, %s, std::string ctor, C-API handoff), observable equivalence with an empty-literal
-// view, and defensive `if (zv.data())` guards. They are skipped in legacy mode, where the
-// default constructor preserves the base-class behaviour of data() == nullptr.
-#if defined(WIL_ZSV_DEFAULT_TO_EMPTY_BUFFER)
+// view, and defensive `if (zv.data())` guards. The templated matrix below repeats the same
+// contract for both variants under a single body via `if constexpr (is_safe_zsv_v<ZSV>)`.
 
-TEST_CASE("StlTests::TestZStringView default-construct safety", "[stl][zstring_view]")
+TEST_CASE("StlTests::TestZStringViewSafe default-construct safety", "[stl][zstring_view][safe]")
 {
     SECTION("c_str()-style operations on a default-constructed view are well-defined")
     {
-        wil::zstring_view zv;
+        wil::zstring_view_safe zv;
 
         // c_str() returns a dereferenceable pointer; first character is '\0'.
         REQUIRE(zv.c_str() != nullptr);
@@ -323,19 +301,19 @@ TEST_CASE("StlTests::TestZStringView default-construct safety", "[stl][zstring_v
 
     SECTION("container-style operations on a default-constructed view")
     {
-        wil::zstring_view zv;
+        wil::zstring_view_safe zv;
 
         REQUIRE(zv.empty());
         REQUIRE(zv.size() == 0);
         REQUIRE(zv.length() == 0);
 
-        // Decay to std::string_view and use it as empty.
+        // Decay to std::string_view via the safe variant's implicit conversion operator.
         std::string_view sv = zv;
         REQUIRE(sv.empty());
         REQUIRE(sv.size() == 0);
 
-        // Self-equality and equality with an empty zstring_view.
-        REQUIRE(zv == wil::zstring_view{});
+        // Self-equality and equality with an empty safe view.
+        REQUIRE(zv == wil::zstring_view_safe{});
 
         // Iteration yields zero passes.
         int count = 0;
@@ -349,8 +327,8 @@ TEST_CASE("StlTests::TestZStringView default-construct safety", "[stl][zstring_v
 
     SECTION("default-constructed and empty-literal views are observably equivalent")
     {
-        wil::zstring_view defaulted;
-        wil::zstring_view fromEmptyLiteral{""};
+        wil::zstring_view_safe defaulted;
+        wil::zstring_view_safe fromEmptyLiteral{""};
 
         REQUIRE(defaulted.empty() == fromEmptyLiteral.empty());
         REQUIRE(defaulted.size() == fromEmptyLiteral.size());
@@ -360,10 +338,10 @@ TEST_CASE("StlTests::TestZStringView default-construct safety", "[stl][zstring_v
 
     SECTION("defensive `if (zv.data())` guards compile and behave correctly")
     {
-        wil::zstring_view zv;
+        wil::zstring_view_safe zv;
 
-        // `if (zv.data())` is always true on a default-constructed view; the body operates
-        // on a valid empty C-string.
+        // `if (zv.data())` is always true on a default-constructed safe view; the body
+        // operates on a valid empty C-string.
         bool sawValidPointer = false;
         if (zv.data())
         {
@@ -382,11 +360,11 @@ TEST_CASE("StlTests::TestZStringView default-construct safety", "[stl][zstring_v
     }
 }
 
-TEST_CASE("StlTests::TestZWStringView default-construct safety", "[stl][zstring_view]")
+TEST_CASE("StlTests::TestZWStringViewSafe default-construct safety", "[stl][zstring_view][safe]")
 {
     SECTION("c_str()-style operations on a default-constructed view are well-defined")
     {
-        wil::zwstring_view zv;
+        wil::zwstring_view_safe zv;
 
         REQUIRE(zv.c_str() != nullptr);
         REQUIRE(zv.c_str()[0] == L'\0');
@@ -399,7 +377,7 @@ TEST_CASE("StlTests::TestZWStringView default-construct safety", "[stl][zstring_
 
     SECTION("container-style operations on a default-constructed view")
     {
-        wil::zwstring_view zv;
+        wil::zwstring_view_safe zv;
 
         REQUIRE(zv.empty());
         REQUIRE(zv.size() == 0);
@@ -409,7 +387,7 @@ TEST_CASE("StlTests::TestZWStringView default-construct safety", "[stl][zstring_
         REQUIRE(sv.empty());
         REQUIRE(sv.size() == 0);
 
-        REQUIRE(zv == wil::zwstring_view{});
+        REQUIRE(zv == wil::zwstring_view_safe{});
 
         int count = 0;
         for (auto c : zv)
@@ -422,8 +400,8 @@ TEST_CASE("StlTests::TestZWStringView default-construct safety", "[stl][zstring_
 
     SECTION("default-constructed and empty-literal views are observably equivalent")
     {
-        wil::zwstring_view defaulted;
-        wil::zwstring_view fromEmptyLiteral{L""};
+        wil::zwstring_view_safe defaulted;
+        wil::zwstring_view_safe fromEmptyLiteral{L""};
 
         REQUIRE(defaulted.empty() == fromEmptyLiteral.empty());
         REQUIRE(defaulted.size() == fromEmptyLiteral.size());
@@ -433,7 +411,7 @@ TEST_CASE("StlTests::TestZWStringView default-construct safety", "[stl][zstring_
 
     SECTION("defensive `if (zv.data())` guards compile and behave correctly")
     {
-        wil::zwstring_view zv;
+        wil::zwstring_view_safe zv;
 
         bool sawValidPointer = false;
         if (zv.data())
@@ -451,8 +429,6 @@ TEST_CASE("StlTests::TestZWStringView default-construct safety", "[stl][zstring_
         REQUIRE(!sawNonEmpty);
     }
 }
-
-#endif // WIL_ZSV_DEFAULT_TO_EMPTY_BUFFER
 
 // Templated tests using Catch2's TEMPLATE_TEST_CASE to share the same body across char
 // and wchar_t. Tagged [templated] so they can be filtered separately. Covers the
@@ -491,13 +467,25 @@ struct strings<wchar_t>
     static constexpr const wchar_t* abc = L"abc";
 };
 
-// Asserts the core null-termination invariant.
-template <typename TChar>
-void assert_null_terminated(wil::basic_zstring_view<TChar> v)
+// Asserts the core null-termination invariant. Templated on the ZSV instantiation so it
+// accepts both the nullable (`wil::zstring_view` / `wil::zwstring_view`) and the safe
+// (`wil::zstring_view_safe` / `wil::zwstring_view_safe`) variants without an implicit
+// cross-traits conversion at the call site.
+template <typename ZSV>
+void assert_null_terminated(ZSV v)
 {
+    using TChar = typename ZSV::value_type;
     REQUIRE(v.data() != nullptr);
     REQUIRE(v.data()[v.size()] == TChar());
 }
+
+// Distinguishes the safe Traits variant from the default-traits (nullable) variant by
+// inspecting the ZSV's `traits_type`. The safe variant's traits is
+// `wil::zstring_view_traits_safe<TChar>` (derived from `std::char_traits<TChar>` but a
+// distinct type); the nullable variant uses `std::char_traits<TChar>` directly.
+template <typename ZSV>
+constexpr bool is_safe_zsv_v =
+    !std::is_same_v<typename ZSV::traits_type, std::char_traits<typename ZSV::value_type>>;
 
 // Templated source type providing only c_str() (no size()) -- exercises the
 // SFINAE constructor that accepts c_str()-only sources.
@@ -521,20 +509,37 @@ struct string_with_c_str_only
 
 #define ZSV_TYPES char, wchar_t
 
-TEMPLATE_TEST_CASE("StlTests::ZStringView construction", "[stl][zstring_view][templated]", ZSV_TYPES)
+// Four-way matrix: nullable + safe variants of both narrow and wide. Used by every templated
+// test that should hold for either Traits choice. The two outliers that stay on `ZSV_TYPES`
+// are the `_zv` literal and `std::format` blocks, because `_zv` always materialises the
+// nullable variant (the safe-variant equivalent `_zvs` is covered by its own block).
+#define ZSV_VARIANTS \
+    wil::zstring_view, wil::zwstring_view, wil::zstring_view_safe, wil::zwstring_view_safe
+
+TEMPLATE_TEST_CASE("StlTests::ZStringView construction", "[stl][zstring_view][templated]", ZSV_VARIANTS)
 {
-    using TChar = TestType;
-    using ZSV = wil::basic_zstring_view<TChar>;
+    using ZSV = TestType;
+    using TChar = typename ZSV::value_type;
     using S = zsv_test_helpers::strings<TChar>;
 
     SECTION("default and empty-literal views are both empty and read as null-terminated")
     {
-        // Default-construct: empty in both modes; the safe-buffer guarantees are opt-in.
+        // Default-construct: both variants report empty(); the safe variant additionally
+        // guarantees a dereferenceable null-terminated buffer, while the nullable variant
+        // keeps the legacy nullptr-data behaviour.
         REQUIRE(ZSV{}.empty());
-#if defined(WIL_ZSV_DEFAULT_TO_EMPTY_BUFFER)
-        REQUIRE(ZSV{}.data() != nullptr);
-        REQUIRE(ZSV{}.c_str()[0] == TChar());
-#endif
+        if constexpr (zsv_test_helpers::is_safe_zsv_v<ZSV>)
+        {
+            REQUIRE(ZSV{}.data() != nullptr);
+            REQUIRE(ZSV{}.c_str()[0] == TChar());
+        }
+        else
+        {
+            REQUIRE(ZSV{}.data() == nullptr);
+            // c_str() is a thin alias for data() on the default variant; assert both to pin
+            // down the contract in case c_str() ever grows independent logic.
+            REQUIRE(ZSV{}.c_str() == nullptr);
+        }
         // Empty literal: subscript reads '\0', c_str() reads '\0', empty().
         REQUIRE(ZSV{S::empty}[0] == TChar());
         REQUIRE(ZSV{S::empty}.c_str()[0] == TChar());
@@ -561,7 +566,11 @@ TEMPLATE_TEST_CASE("StlTests::ZStringView construction", "[stl][zstring_view][te
         // copy ctor.
         ZSV copy = fromLiteral;
 
-        REQUIRE(fromLiteral == stlString);
+        // The mixed-traits comparison (basic_string_view<TChar, safe_traits> vs
+        // basic_string<TChar, std::char_traits>) has no matching operator==; route both sides
+        // through std::basic_string_view<TChar> so the nullable variant slices to its
+        // inherited base and the safe variant exercises its implicit conversion operator.
+        REQUIRE(std::basic_string_view<TChar>{fromLiteral} == stlString);
         REQUIRE(fromLiteral == fromString);
         REQUIRE(fromLiteral == fromPtr);
         REQUIRE(fromLiteral == fromArray);
@@ -573,7 +582,8 @@ TEMPLATE_TEST_CASE("StlTests::ZStringView construction", "[stl][zstring_view][te
     {
         ZSV fromLiteral = S::abc;
         std::basic_string_view<TChar> view = fromLiteral;
-        REQUIRE(view == fromLiteral);
+        // Mixed-traits compare: see note in "all ctor paths produce equivalent views".
+        REQUIRE(view == std::basic_string_view<TChar>{fromLiteral});
     }
 
     SECTION("operator[] reads each char including the trailing null")
@@ -657,6 +667,34 @@ TEMPLATE_TEST_CASE("StlTests::ZStringView _zv literal", "[stl][zstring_view][tem
     }
 }
 
+// Parity block for the safe-variant literal. Mirrors the `_zv literal` test above so we keep
+// the matrix-style coverage symmetric across both UDLs; the decltype assertion is the
+// load-bearing piece - it pins down which alias the literal materialises.
+TEMPLATE_TEST_CASE("StlTests::ZStringView _zvs literal", "[stl][zstring_view][templated]", ZSV_TYPES)
+{
+    using TChar = TestType;
+
+    SECTION("_zvs literal preserves length and content and materialises the safe variant")
+    {
+        if constexpr (std::is_same_v<TChar, char>)
+        {
+            auto str = "Hello, world!"_zvs;
+            STATIC_REQUIRE(std::is_same_v<decltype(str), wil::zstring_view_safe>);
+            REQUIRE(str.length() == 13);
+            REQUIRE(str[0] == 'H');
+            REQUIRE(str[12] == '!');
+        }
+        else
+        {
+            auto str = L"Hello, world!"_zvs;
+            STATIC_REQUIRE(std::is_same_v<decltype(str), wil::zwstring_view_safe>);
+            REQUIRE(str.length() == 13);
+            REQUIRE(str[0] == L'H');
+            REQUIRE(str[12] == L'!');
+        }
+    }
+}
+
 #if __cpp_lib_format >= 201907L
 TEMPLATE_TEST_CASE("StlTests::ZStringView std::format support", "[stl][zstring_view][templated]", ZSV_TYPES)
 {
@@ -682,16 +720,70 @@ TEMPLATE_TEST_CASE("StlTests::ZStringView std::format support", "[stl][zstring_v
 
 TEST_CASE("StlTests::ZStringView type aliases", "[stl][zstring_view]")
 {
+    // Nullable variant: default-traits aliases and `_zv` UDL bindings.
     STATIC_REQUIRE(std::is_same_v<wil::zstring_view, wil::basic_zstring_view<char>>);
     STATIC_REQUIRE(std::is_same_v<wil::zwstring_view, wil::basic_zstring_view<wchar_t>>);
     STATIC_REQUIRE(std::is_same_v<decltype("hello"_zv), wil::zstring_view>);
     STATIC_REQUIRE(std::is_same_v<decltype(L"hello"_zv), wil::zwstring_view>);
+
+    // Safe variant: opt-in Traits aliases and `_zvs` UDL bindings.
+    STATIC_REQUIRE(std::is_same_v<wil::zstring_view_safe, wil::basic_zstring_view<char, wil::zstring_view_traits_safe<char>>>);
+    STATIC_REQUIRE(std::is_same_v<wil::zwstring_view_safe, wil::basic_zstring_view<wchar_t, wil::zstring_view_traits_safe<wchar_t>>>);
+    STATIC_REQUIRE(std::is_same_v<decltype("hello"_zvs), wil::zstring_view_safe>);
+    STATIC_REQUIRE(std::is_same_v<decltype(L"hello"_zvs), wil::zwstring_view_safe>);
+
+    // The two variants are distinct types: the Traits parameter changes the instantiation, so
+    // there is no implicit ABI/identity collapse between safe and nullable.
+    STATIC_REQUIRE(!std::is_same_v<wil::zstring_view, wil::zstring_view_safe>);
+    STATIC_REQUIRE(!std::is_same_v<wil::zwstring_view, wil::zwstring_view_safe>);
 }
 
-TEMPLATE_TEST_CASE("StlTests::ZStringView element access (data/c_str identity)", "[stl][zstring_view][templated]", ZSV_TYPES)
+// Pins down the behavioural delta between the safe and nullable variants in one place.
+// Anything that *should* differ between the two Traits choices lives here, so a future change
+// that accidentally collapses the two will trip a focused, well-named failure.
+TEST_CASE("StlTests::ZStringView safe-variant invariants", "[stl][zstring_view][safe]")
 {
-    using TChar = TestType;
-    using ZSV = wil::basic_zstring_view<TChar>;
+    SECTION("safe variant rejects nullptr_t construction at compile time")
+    {
+        // The safe variant SFINAE-deletes its `nullptr_t` constructor; the nullable variant
+        // accepts `nullptr` via its inherited base. Both are intentional.
+        STATIC_REQUIRE(!std::is_constructible_v<wil::zstring_view_safe, std::nullptr_t>);
+        STATIC_REQUIRE(!std::is_constructible_v<wil::zwstring_view_safe, std::nullptr_t>);
+        STATIC_REQUIRE(std::is_constructible_v<wil::zstring_view, std::nullptr_t>);
+        STATIC_REQUIRE(std::is_constructible_v<wil::zwstring_view, std::nullptr_t>);
+    }
+
+    SECTION("safe variant fail-fasts on (nullptr, 0) at runtime")
+    {
+        // The safe variant's `(ptr, len)` constructor routes through `_require_non_null` and
+        // fail-fasts when the pointer is null, *even* for zero-length. The nullable variant
+        // is deliberately not exercised here: its `(ptr, len)` ctor unconditionally reads
+        // `pStringData[stringLength]` and therefore has latent UB when called with
+        // `(nullptr, 0)`. Documenting that gap rather than triggering it.
+        REQUIRE_ERROR((wil::zstring_view_safe{nullptr, 0}));
+        REQUIRE_ERROR((wil::zwstring_view_safe{nullptr, 0}));
+    }
+
+    SECTION("safe variant's default-constructed view has a non-null buffer")
+    {
+        // The whole point of the safe Traits: the default-constructed view dereferences to a
+        // valid empty C-string instead of nullptr. Mirrors the templated `construction` block
+        // but kept here as an at-a-glance, narrative-style guarantee.
+        constexpr wil::zstring_view_safe narrow;
+        constexpr wil::zwstring_view_safe wide;
+        STATIC_REQUIRE(narrow.data() != nullptr);
+        STATIC_REQUIRE(wide.data() != nullptr);
+        STATIC_REQUIRE(narrow.empty());
+        STATIC_REQUIRE(wide.empty());
+        REQUIRE(narrow.c_str()[0] == '\0');
+        REQUIRE(wide.c_str()[0] == L'\0');
+    }
+}
+
+TEMPLATE_TEST_CASE("StlTests::ZStringView element access (data/c_str identity)", "[stl][zstring_view][templated]", ZSV_VARIANTS)
+{
+    using ZSV = TestType;
+    using TChar = typename ZSV::value_type;
     using S = zsv_test_helpers::strings<TChar>;
 
     ZSV zv = S::hello_world;
@@ -704,10 +796,10 @@ TEMPLATE_TEST_CASE("StlTests::ZStringView element access (data/c_str identity)",
 }
 
 #if defined(__cpp_lib_starts_ends_with) && __cpp_lib_starts_ends_with >= 201711L
-TEMPLATE_TEST_CASE("StlTests::ZStringView starts_with and ends_with", "[stl][zstring_view][templated]", ZSV_TYPES)
+TEMPLATE_TEST_CASE("StlTests::ZStringView starts_with and ends_with", "[stl][zstring_view][templated]", ZSV_VARIANTS)
 {
-    using TChar = TestType;
-    using ZSV = wil::basic_zstring_view<TChar>;
+    using ZSV = TestType;
+    using TChar = typename ZSV::value_type;
     using S = zsv_test_helpers::strings<TChar>;
 
     ZSV zv = S::hello_world;
@@ -733,10 +825,10 @@ TEMPLATE_TEST_CASE("StlTests::ZStringView starts_with and ends_with", "[stl][zst
 }
 #endif // __cpp_lib_starts_ends_with
 
-TEMPLATE_TEST_CASE("StlTests::ZStringView contains", "[stl][zstring_view][templated]", ZSV_TYPES)
+TEMPLATE_TEST_CASE("StlTests::ZStringView contains", "[stl][zstring_view][templated]", ZSV_VARIANTS)
 {
-    using TChar = TestType;
-    using ZSV = wil::basic_zstring_view<TChar>;
+    using ZSV = TestType;
+    using TChar = typename ZSV::value_type;
     using S = zsv_test_helpers::strings<TChar>;
 
     ZSV zv = S::hello_world;
@@ -776,10 +868,10 @@ TEMPLATE_TEST_CASE("StlTests::ZStringView contains", "[stl][zstring_view][templa
     }
 }
 
-TEMPLATE_TEST_CASE("StlTests::ZStringView substr(pos) is covariant and preserves null-termination", "[stl][zstring_view][templated][substr]", ZSV_TYPES)
+TEMPLATE_TEST_CASE("StlTests::ZStringView substr(pos) is covariant and preserves null-termination", "[stl][zstring_view][templated][substr]", ZSV_VARIANTS)
 {
-    using TChar = TestType;
-    using ZSV = wil::basic_zstring_view<TChar>;
+    using ZSV = TestType;
+    using TChar = typename ZSV::value_type;
     using S = zsv_test_helpers::strings<TChar>;
 
     ZSV zv = S::hello_world;
@@ -831,11 +923,14 @@ TEMPLATE_TEST_CASE("StlTests::ZStringView substr(pos) is covariant and preserves
     }
 }
 
-TEMPLATE_TEST_CASE("StlTests::ZStringView substr(pos, count) returns string_view", "[stl][zstring_view][templated][substr]", ZSV_TYPES)
+TEMPLATE_TEST_CASE("StlTests::ZStringView substr(pos, count) returns string_view", "[stl][zstring_view][templated][substr]", ZSV_VARIANTS)
 {
-    using TChar = TestType;
-    using ZSV = wil::basic_zstring_view<TChar>;
-    using SV = std::basic_string_view<TChar>;
+    using ZSV = TestType;
+    using TChar = typename ZSV::value_type;
+    // `substr(pos, count)` is the inherited base override, so it returns the base's
+    // own-traits string_view -- not necessarily `std::basic_string_view<TChar>` with default
+    // traits. For the safe variant the base is `basic_string_view<TChar, safe_traits>`.
+    using SV = std::basic_string_view<TChar, typename ZSV::traits_type>;
     using S = zsv_test_helpers::strings<TChar>;
 
     ZSV zv = S::hello_world;
@@ -874,10 +969,10 @@ TEMPLATE_TEST_CASE("StlTests::ZStringView substr(pos, count) returns string_view
     }
 }
 
-TEMPLATE_TEST_CASE("StlTests::ZStringView remove_prefix preserves null-termination", "[stl][zstring_view][templated]", ZSV_TYPES)
+TEMPLATE_TEST_CASE("StlTests::ZStringView remove_prefix preserves null-termination", "[stl][zstring_view][templated]", ZSV_VARIANTS)
 {
-    using TChar = TestType;
-    using ZSV = wil::basic_zstring_view<TChar>;
+    using ZSV = TestType;
+    using TChar = typename ZSV::value_type;
     using S = zsv_test_helpers::strings<TChar>;
 
     SECTION("after remove_prefix the view remains null-terminated and c_str() == data()")
@@ -890,10 +985,14 @@ TEMPLATE_TEST_CASE("StlTests::ZStringView remove_prefix preserves null-terminati
     }
 }
 
-TEMPLATE_TEST_CASE("StlTests::ZStringView conversion to string_view", "[stl][zstring_view][templated]", ZSV_TYPES)
+TEMPLATE_TEST_CASE("StlTests::ZStringView conversion to string_view", "[stl][zstring_view][templated]", ZSV_VARIANTS)
 {
-    using TChar = TestType;
-    using ZSV = wil::basic_zstring_view<TChar>;
+    using ZSV = TestType;
+    using TChar = typename ZSV::value_type;
+    // Deliberately default-traits `std::basic_string_view` here: the test asserts both
+    // variants interoperate with the broad ecosystem of APIs that take the stdlib's
+    // default-traits string_view. The nullable variant gets this via inherited-base
+    // slicing; the safe variant uses its implicit `operator std::basic_string_view<TChar>()`.
     using SV = std::basic_string_view<TChar>;
     using S = zsv_test_helpers::strings<TChar>;
 
@@ -919,14 +1018,85 @@ TEMPLATE_TEST_CASE("StlTests::ZStringView conversion to string_view", "[stl][zst
         ZSV zv = S::hello_world;
         std::basic_string<TChar> str(zv);
         REQUIRE(str.size() == zv.size());
-        REQUIRE(str == zv);
+        // Mixed-traits compare: route through default-traits string_view so the safe variant's
+        // basic_string_view<TChar, safe_traits> doesn't break the inherited operator== match.
+        REQUIRE(str == std::basic_string_view<TChar>{zv});
     }
 }
 
-TEMPLATE_TEST_CASE("StlTests::ZStringView constexpr usage", "[stl][zstring_view][templated]", ZSV_TYPES)
+TEMPLATE_TEST_CASE("StlTests::ZStringView cross-variant constructors preserve data and size", "[stl][zstring_view][templated]", ZSV_TYPES)
 {
     using TChar = TestType;
-    using ZSV = wil::basic_zstring_view<TChar>;
+    using Safe = wil::basic_zstring_view<TChar, wil::zstring_view_traits_safe<TChar>>;
+    using Default = wil::basic_zstring_view<TChar>;
+    using S = zsv_test_helpers::strings<TChar>;
+
+    SECTION("implicit ctor: a non-empty safe view widens to a default view sharing data and size")
+    {
+        Safe safe = S::hello_world;
+        Default def = safe;
+        REQUIRE(def.data() == safe.data());
+        REQUIRE(def.size() == safe.size());
+        REQUIRE(def.c_str() == safe.c_str());
+    }
+
+    SECTION("implicit ctor: a default-constructed safe view widens to a default view with non-null data")
+    {
+        Safe safe;
+        Default def = safe;
+        REQUIRE(def.data() != nullptr);
+        REQUIRE(def.size() == 0);
+        REQUIRE(def.empty());
+    }
+
+    SECTION("explicit ctor: an engaged default view narrows to a safe view sharing data and size")
+    {
+        Default def = S::hello_world;
+        Safe safe{def};
+        REQUIRE(safe.data() == def.data());
+        REQUIRE(safe.size() == def.size());
+    }
+}
+
+TEMPLATE_TEST_CASE("StlTests::ZStringView safe-variant disambiguates between zstring_view and string_view overloads", "[stl][zstring_view][templated]", ZSV_TYPES)
+{
+    using TChar = TestType;
+    using Safe = wil::basic_zstring_view<TChar, wil::zstring_view_traits_safe<TChar>>;
+    using S = zsv_test_helpers::strings<TChar>;
+
+    // Pin down the disambiguation idiom from the class doc-block's overload-resolution caveat.
+    // A call site that has both `f(wil::zstring_view)` and `f(std::string_view)` overloads cannot
+    // accept a `zstring_view_safe` directly (ambiguous: both are single user-defined conversions),
+    // but either explicit wrap form resolves cleanly.
+
+    enum class which
+    {
+        default_variant,
+        default_string_view,
+    };
+
+    struct overloads
+    {
+        static which f(wil::basic_zstring_view<TChar>) noexcept
+        {
+            return which::default_variant;
+        }
+        static which f(std::basic_string_view<TChar>) noexcept
+        {
+            return which::default_string_view;
+        }
+    };
+
+    Safe safe = S::hello_world;
+
+    REQUIRE(overloads::f(wil::basic_zstring_view<TChar>{safe}) == which::default_variant);
+    REQUIRE(overloads::f(std::basic_string_view<TChar>{safe}) == which::default_string_view);
+}
+
+TEMPLATE_TEST_CASE("StlTests::ZStringView constexpr usage", "[stl][zstring_view][templated]", ZSV_VARIANTS)
+{
+    using ZSV = TestType;
+    using TChar = typename ZSV::value_type;
     using S = zsv_test_helpers::strings<TChar>;
 
     SECTION("default ctor, copy ctor, and basic accessors are constexpr-usable")
@@ -934,9 +1104,14 @@ TEMPLATE_TEST_CASE("StlTests::ZStringView constexpr usage", "[stl][zstring_view]
         constexpr ZSV defaulted;
         STATIC_REQUIRE(defaulted.empty());
         STATIC_REQUIRE(defaulted.size() == 0);
-#if defined(WIL_ZSV_DEFAULT_TO_EMPTY_BUFFER)
-        STATIC_REQUIRE(defaulted.data() != nullptr);
-#endif
+        if constexpr (zsv_test_helpers::is_safe_zsv_v<ZSV>)
+        {
+            STATIC_REQUIRE(defaulted.data() != nullptr);
+        }
+        else
+        {
+            STATIC_REQUIRE(defaulted.data() == nullptr);
+        }
     }
 
     SECTION("substr(pos) is constexpr-usable when constructed from a literal")
