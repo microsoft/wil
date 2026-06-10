@@ -884,7 +884,7 @@ namespace reg
         return ::wil::reg::set_value_expanded_string_nothrow(key, nullptr, value_name, data);
     }
 
-#if (WIL_USE_STL && defined(WIL_ENABLE_EXCEPTIONS)) || defined(WIL_DOXYGEN)
+#if WIL_USE_STL || defined(WIL_DOXYGEN)
     /**
      * @brief Writes a REG_MULTI_SZ value from a std::vector<std::wstring>
      * @param key An open or well-known registry key
@@ -898,13 +898,12 @@ namespace reg
      */
     inline HRESULT set_value_multistring_nothrow(
         HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, const ::std::vector<::std::wstring>& data) WI_NOEXCEPT
-    try
     {
-        const auto multiStringWcharVector(reg_view_details::get_multistring_from_wstrings(::std::begin(data), ::std::end(data)));
-        const reg_view_details::reg_view_nothrow regview{key};
-        return regview.set_value(subkey, value_name, multiStringWcharVector, REG_MULTI_SZ);
+        ::wil::unique_process_heap_ptr<wchar_t> buffer;
+        DWORD bufferSizeBytes = 0;
+        RETURN_IF_FAILED(reg_view_details::get_multistring_from_wstrings_nothrow(data, buffer, &bufferSizeBytes));
+        return HRESULT_FROM_WIN32(::RegSetKeyValueW(key, subkey, value_name, REG_MULTI_SZ, buffer.get(), bufferSizeBytes));
     }
-    CATCH_RETURN();
 
     /**
      * @brief Writes a REG_MULTI_SZ value from a std::vector<std::wstring>
@@ -919,7 +918,7 @@ namespace reg
     {
         return ::wil::reg::set_value_multistring_nothrow(key, nullptr, value_name, data);
     }
-#endif // (WIL_USE_STL && defined(WIL_ENABLE_EXCEPTIONS))
+#endif // WIL_USE_STL
 
 #if defined(__WIL_OBJBASE_H_) || defined(WIL_DOXYGEN)
     /**
