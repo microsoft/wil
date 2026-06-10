@@ -1328,6 +1328,61 @@ using ThrowingTypesToTest = std::tuple<DwordFns, GenericDwordFns, QwordFns, Gene
 #endif // defined(WIL_ENABLE_EXCEPTIONS)
 } // namespace
 
+TEST_CASE("BasicRegistryTests::is_key_volatile", "[registry]")
+{
+    const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
+    if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+    {
+        REQUIRE_SUCCEEDED(deleteHr);
+    }
+
+    SECTION("is_key_volatile_nothrow: non-volatile key")
+    {
+        wil::unique_hkey hkey;
+        DWORD disposition{};
+        REQUIRE_SUCCEEDED(HRESULT_FROM_WIN32(::RegCreateKeyExW(
+            HKEY_CURRENT_USER, testSubkey, 0, nullptr, REG_OPTION_NON_VOLATILE, KEY_READ, nullptr, hkey.put(), &disposition)));
+
+        bool isVolatile = true;
+        REQUIRE_SUCCEEDED(wil::reg::is_key_volatile_nothrow(hkey.get(), &isVolatile));
+        REQUIRE(isVolatile == false);
+    }
+
+    SECTION("is_key_volatile_nothrow: volatile key")
+    {
+        wil::unique_hkey hkey;
+        DWORD disposition{};
+        REQUIRE_SUCCEEDED(HRESULT_FROM_WIN32(::RegCreateKeyExW(
+            HKEY_CURRENT_USER, testSubkey, 0, nullptr, REG_OPTION_VOLATILE, KEY_READ, nullptr, hkey.put(), &disposition)));
+        REQUIRE(disposition == REG_CREATED_NEW_KEY);
+
+        bool isVolatile = false;
+        REQUIRE_SUCCEEDED(wil::reg::is_key_volatile_nothrow(hkey.get(), &isVolatile));
+        REQUIRE(isVolatile == true);
+    }
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+    SECTION("is_key_volatile: throwing variant")
+    {
+        // non-volatile parent so that both a volatile and a non-volatile child can be created beneath it
+        wil::unique_hkey parent;
+        DWORD disposition{};
+        REQUIRE_SUCCEEDED(HRESULT_FROM_WIN32(::RegCreateKeyExW(
+            HKEY_CURRENT_USER, testSubkey, 0, nullptr, REG_OPTION_NON_VOLATILE, KEY_READ, nullptr, parent.put(), &disposition)));
+
+        wil::unique_hkey volatileKey;
+        REQUIRE_SUCCEEDED(HRESULT_FROM_WIN32(::RegCreateKeyExW(
+            parent.get(), L"vol", 0, nullptr, REG_OPTION_VOLATILE, KEY_READ, nullptr, volatileKey.put(), &disposition)));
+        REQUIRE(wil::reg::is_key_volatile(volatileKey.get()) == true);
+
+        wil::unique_hkey persistentKey;
+        REQUIRE_SUCCEEDED(HRESULT_FROM_WIN32(::RegCreateKeyExW(
+            parent.get(), L"persist", 0, nullptr, REG_OPTION_NON_VOLATILE, KEY_READ, nullptr, persistentKey.put(), &disposition)));
+        REQUIRE(wil::reg::is_key_volatile(persistentKey.get()) == false);
+    }
+#endif
+}
+
 TEMPLATE_LIST_TEST_CASE("BasicRegistryTests::simple types typed nothrow gets/sets", "[registry]", NoThrowTypesToTest)
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));

@@ -337,6 +337,49 @@ namespace reg
         return S_OK;
     }
 
+    /**
+     * @brief Queries whether the specified registry key is volatile (created with REG_OPTION_VOLATILE and therefore not
+     *        persisted across a reboot)
+     * @param key The HKEY to query
+     * @param[out] isVolatile Receives true if the key is volatile, false otherwise. Only valid on success.
+     * @return HRESULT error code indicating success or failure (does not throw C++ exceptions)
+     * @remark There is no Win32 API that reports key volatility; this relies on NtQueryKey + KeyFlagsInformation, which
+     *         are not declared by the public SDK. NtQueryKey is resolved dynamically from ntdll so that callers are not
+     *         required to link against ntdll, and the minimal information class/struct are declared locally.
+     */
+    inline HRESULT is_key_volatile_nothrow(HKEY key, _Out_ bool* isVolatile) WI_NOEXCEPT
+    {
+        *isVolatile = false;
+
+        // KEY_INFORMATION_CLASS::KeyFlagsInformation and KEY_FLAGS_INFORMATION (from wdm.h) are not part of the public
+        // SDK, so the minimal definitions are reproduced here.
+        constexpr int c_KeyFlagsInformation = 5;
+        struct KEY_FLAGS_INFORMATION_t
+        {
+            ULONG Wow64Flags;
+            ULONG KeyFlags;
+            ULONG ControlFlags;
+        };
+        using NtQueryKey_t = LONG(__stdcall*)(HANDLE, int, PVOID, ULONG, PULONG);
+
+        const auto ntdll = ::GetModuleHandleW(L"ntdll.dll");
+        RETURN_HR_IF_NULL(E_NOINTERFACE, ntdll);
+#pragma warning(suppress : 4191) // unsafe conversion from FARPROC; the signature is known
+        const auto pfnNtQueryKey = reinterpret_cast<NtQueryKey_t>(::GetProcAddress(ntdll, "NtQueryKey"));
+        RETURN_HR_IF_NULL(E_NOINTERFACE, pfnNtQueryKey);
+
+        KEY_FLAGS_INFORMATION_t info{};
+        ULONG resultSize{};
+        const LONG status = pfnNtQueryKey(key, c_KeyFlagsInformation, &info, sizeof(info), &resultSize);
+        if (status < 0)
+        {
+            RETURN_HR(HRESULT_FROM_NT(status));
+        }
+
+        *isVolatile = WI_IsFlagSet(info.KeyFlags, REG_OPTION_VOLATILE);
+        return S_OK;
+    }
+
 #if defined(WIL_ENABLE_EXCEPTIONS)
     /**
      * @brief Queries for number of sub-keys
@@ -375,6 +418,20 @@ namespace reg
         FILETIME lastModified{};
         THROW_IF_FAILED(::wil::reg::get_last_write_filetime_nothrow(key, &lastModified));
         return lastModified;
+    }
+
+    /**
+     * @brief Queries whether the specified registry key is volatile (created with REG_OPTION_VOLATILE and therefore not
+     *        persisted across a reboot)
+     * @param key The HKEY to query
+     * @return true if the key is volatile, false otherwise
+     * @exception std::exception (including wil::ResultException) will be thrown on all failures
+     */
+    inline bool is_key_volatile(HKEY key)
+    {
+        bool isVolatile{};
+        THROW_IF_FAILED(::wil::reg::is_key_volatile_nothrow(key, &isVolatile));
+        return isVolatile;
     }
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS)
 
