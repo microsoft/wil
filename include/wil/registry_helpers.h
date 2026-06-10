@@ -84,6 +84,44 @@ namespace reg
         readwrite64,
     };
 
+    // Accepts either a named wil::reg::key_access value or a raw REGSAM access mask, allowing the registry helpers to be
+    // called with arbitrary access rights (for example KEY_READ | KEY_WOW64_64KEY) while keeping the convenience of the
+    // named key_access values. Both conversions are implicit, so callers can pass either form directly.
+    struct access_mask
+    {
+        DWORD value;
+
+        constexpr access_mask(::wil::reg::key_access access) WI_NOEXCEPT : value(map_key_access(access))
+        {
+        }
+
+        constexpr access_mask(REGSAM mask) WI_NOEXCEPT : value(static_cast<DWORD>(mask))
+        {
+        }
+
+    private:
+        static constexpr DWORD map_key_access(::wil::reg::key_access access) WI_NOEXCEPT
+        {
+            switch (access)
+            {
+            case ::wil::reg::key_access::read:
+                return KEY_READ;
+            case ::wil::reg::key_access::write:
+                return KEY_WRITE;
+            case ::wil::reg::key_access::readwrite:
+                return KEY_ALL_ACCESS;
+            case ::wil::reg::key_access::read64:
+                return KEY_READ | KEY_WOW64_64KEY;
+            case ::wil::reg::key_access::write64:
+                return KEY_WRITE | KEY_WOW64_64KEY;
+            case ::wil::reg::key_access::readwrite64:
+                return KEY_ALL_ACCESS | KEY_WOW64_64KEY;
+            }
+            FAIL_FAST();
+            RESULT_NORETURN_RESULT(0);
+        }
+    };
+
     /// @cond
     namespace reg_view_details
     {
@@ -111,23 +149,7 @@ namespace reg
 
         constexpr DWORD get_access_flags(key_access access) WI_NOEXCEPT
         {
-            switch (access)
-            {
-            case key_access::read:
-                return KEY_READ;
-            case key_access::write:
-                return KEY_WRITE;
-            case key_access::readwrite:
-                return KEY_ALL_ACCESS;
-            case key_access::read64:
-                return KEY_READ | KEY_WOW64_64KEY;
-            case key_access::write64:
-                return KEY_WRITE | KEY_WOW64_64KEY;
-            case key_access::readwrite64:
-                return KEY_ALL_ACCESS | KEY_WOW64_64KEY;
-            }
-            FAIL_FAST();
-            RESULT_NORETURN_RESULT(0);
+            return ::wil::reg::access_mask{access}.value;
         }
 
         /**
@@ -1105,14 +1127,13 @@ namespace reg
             reg_view_t& operator=(reg_view_t&&) = delete;
 
             typename err_policy::result open_key(
-                _In_opt_ PCWSTR subKey, _Out_ HKEY* hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) const
+                _In_opt_ PCWSTR subKey, _Out_ HKEY* hkey, ::wil::reg::access_mask access = ::wil::reg::key_access::read) const
             {
                 constexpr DWORD zero_options{0};
-                return err_policy::HResult(
-                    HRESULT_FROM_WIN32(::RegOpenKeyExW(m_key, subKey, zero_options, get_access_flags(access), hkey)));
+                return err_policy::HResult(HRESULT_FROM_WIN32(::RegOpenKeyExW(m_key, subKey, zero_options, access.value, hkey)));
             }
 
-            typename err_policy::result create_key(PCWSTR subKey, _Out_ HKEY* hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) const
+            typename err_policy::result create_key(PCWSTR subKey, _Out_ HKEY* hkey, ::wil::reg::access_mask access = ::wil::reg::key_access::read) const
             {
                 *hkey = nullptr;
 
@@ -1122,7 +1143,7 @@ namespace reg
                 constexpr SECURITY_ATTRIBUTES* null_security_attributes{nullptr};
                 DWORD disposition{0};
                 return err_policy::HResult(HRESULT_FROM_WIN32(::RegCreateKeyExW(
-                    m_key, subKey, zero_reserved, null_class, zero_options, get_access_flags(access), null_security_attributes, hkey, &disposition)));
+                    m_key, subKey, zero_reserved, null_class, zero_options, access.value, null_security_attributes, hkey, &disposition)));
             }
 
             typename err_policy::result delete_tree(_In_opt_ PCWSTR sub_key) const

@@ -1328,6 +1328,49 @@ using ThrowingTypesToTest = std::tuple<DwordFns, GenericDwordFns, QwordFns, Gene
 #endif // defined(WIL_ENABLE_EXCEPTIONS)
 } // namespace
 
+TEST_CASE("BasicRegistryTests::raw_regsam_access", "[registry]")
+{
+    const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
+    if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+    {
+        REQUIRE_SUCCEEDED(deleteHr);
+    }
+
+    SECTION("create/open with a raw REGSAM mask")
+    {
+        // create with an explicit REGSAM (not expressible via key_access)
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(
+            HKEY_CURRENT_USER, testSubkey, hkey, static_cast<REGSAM>(KEY_QUERY_VALUE | KEY_SET_VALUE)));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(hkey.get(), dwordValueName, test_dword_two));
+
+        // open with KEY_QUERY_VALUE only - reading works, writing is denied
+        wil::unique_hkey readonly;
+        REQUIRE_SUCCEEDED(
+            wil::reg::open_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, readonly, static_cast<REGSAM>(KEY_QUERY_VALUE)));
+        DWORD result{};
+        REQUIRE_SUCCEEDED(wil::reg::get_value_dword_nothrow(readonly.get(), dwordValueName, &result));
+        REQUIRE(result == test_dword_two);
+        REQUIRE(wil::reg::set_value_dword_nothrow(readonly.get(), dwordValueName, test_dword_three) == E_ACCESSDENIED);
+    }
+
+    SECTION("named key_access still works alongside REGSAM overload")
+    {
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
+        REQUIRE(hkey.get() != nullptr);
+    }
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+    SECTION("throwing open with a raw REGSAM mask")
+    {
+        wil::reg::set_value_dword(HKEY_CURRENT_USER, testSubkey, dwordValueName, test_dword_two);
+        const wil::unique_hkey readonly{wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey, static_cast<REGSAM>(KEY_QUERY_VALUE))};
+        REQUIRE(wil::reg::get_value_dword(readonly.get(), dwordValueName) == test_dword_two);
+    }
+#endif
+}
+
 TEMPLATE_LIST_TEST_CASE("BasicRegistryTests::simple types typed nothrow gets/sets", "[registry]", NoThrowTypesToTest)
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
