@@ -1328,6 +1328,58 @@ using ThrowingTypesToTest = std::tuple<DwordFns, GenericDwordFns, QwordFns, Gene
 #endif // defined(WIL_ENABLE_EXCEPTIONS)
 } // namespace
 
+TEST_CASE("BasicRegistryTests::raw_regsam_access", "[registry]")
+{
+    const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
+    if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+    {
+        REQUIRE_SUCCEEDED(deleteHr);
+    }
+
+    // key_access values map directly to their REGSAM masks, and arbitrary masks can be composed with the flag operators.
+    static_assert(static_cast<DWORD>(wil::reg::key_access::read) == KEY_READ, "read must map to KEY_READ");
+    static_assert(static_cast<DWORD>(wil::reg::key_access::write) == KEY_WRITE, "write must map to KEY_WRITE");
+    static_assert(static_cast<DWORD>(wil::reg::key_access::readwrite) == KEY_ALL_ACCESS, "readwrite must map to KEY_ALL_ACCESS");
+    static_assert(static_cast<DWORD>(wil::reg::key_access::read64) == (KEY_READ | KEY_WOW64_64KEY), "read64 must map to KEY_READ | KEY_WOW64_64KEY");
+    static_assert(
+        static_cast<DWORD>(wil::reg::key_access::read | wil::reg::key_access::write) == (KEY_READ | KEY_WRITE),
+        "key_access values must combine with the bitwise OR operator");
+
+    SECTION("create/open with a raw REGSAM mask")
+    {
+        // create with an explicit mask that has no named key_access value
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(
+            wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access{KEY_QUERY_VALUE | KEY_SET_VALUE}));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(hkey.get(), dwordValueName, test_dword_two));
+
+        // open with KEY_QUERY_VALUE only - reading works, writing is denied
+        wil::unique_hkey readonly;
+        REQUIRE_SUCCEEDED(
+            wil::reg::open_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, readonly, wil::reg::key_access{KEY_QUERY_VALUE}));
+        DWORD result{};
+        REQUIRE_SUCCEEDED(wil::reg::get_value_dword_nothrow(readonly.get(), dwordValueName, &result));
+        REQUIRE(result == test_dword_two);
+        REQUIRE(wil::reg::set_value_dword_nothrow(readonly.get(), dwordValueName, test_dword_three) == E_ACCESSDENIED);
+    }
+
+    SECTION("named key_access values still work")
+    {
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
+        REQUIRE(hkey.get() != nullptr);
+    }
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+    SECTION("throwing open with a raw REGSAM mask")
+    {
+        wil::reg::set_value_dword(HKEY_CURRENT_USER, testSubkey, dwordValueName, test_dword_two);
+        const wil::unique_hkey readonly{wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access{KEY_QUERY_VALUE})};
+        REQUIRE(wil::reg::get_value_dword(readonly.get(), dwordValueName) == test_dword_two);
+    }
+#endif
+}
+
 TEMPLATE_LIST_TEST_CASE("BasicRegistryTests::simple types typed nothrow gets/sets", "[registry]", NoThrowTypesToTest)
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
