@@ -1328,6 +1328,68 @@ using ThrowingTypesToTest = std::tuple<DwordFns, GenericDwordFns, QwordFns, Gene
 #endif // defined(WIL_ENABLE_EXCEPTIONS)
 } // namespace
 
+TEST_CASE("BasicRegistryTests::create_key_options_disposition", "[registry]")
+{
+    const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
+    if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+    {
+        REQUIRE_SUCCEEDED(deleteHr);
+    }
+
+    SECTION("create_unique_key_nothrow: disposition reports created vs opened")
+    {
+        wil::unique_hkey hkey;
+        auto disposition = wil::reg::key_disposition::opened_existing;
+        REQUIRE_SUCCEEDED(
+            wil::reg::create_unique_key_nothrow(
+                HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite, wil::reg::key_options::non_volatile, &disposition));
+        REQUIRE(disposition == wil::reg::key_disposition::created_new);
+
+        wil::unique_hkey hkey2;
+        disposition = wil::reg::key_disposition::created_new;
+        REQUIRE_SUCCEEDED(
+            wil::reg::create_unique_key_nothrow(
+                HKEY_CURRENT_USER, testSubkey, hkey2, wil::reg::key_access::readwrite, wil::reg::key_options::non_volatile, &disposition));
+        REQUIRE(disposition == wil::reg::key_disposition::opened_existing);
+    }
+
+    SECTION("create_unique_key_nothrow: volatile key is usable")
+    {
+        wil::unique_hkey hkey;
+        auto disposition = wil::reg::key_disposition::opened_existing;
+        REQUIRE_SUCCEEDED(
+            wil::reg::create_unique_key_nothrow(
+                HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite, wil::reg::key_options::is_volatile, &disposition));
+        REQUIRE(disposition == wil::reg::key_disposition::created_new);
+
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(hkey.get(), dwordValueName, test_dword_two));
+        DWORD result{};
+        REQUIRE_SUCCEEDED(wil::reg::get_value_dword_nothrow(hkey.get(), dwordValueName, &result));
+        REQUIRE(result == test_dword_two);
+    }
+
+    SECTION("create_unique_key_nothrow: defaults remain backward compatible")
+    {
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
+        REQUIRE(hkey.get() != nullptr);
+    }
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+    SECTION("create_unique_key: throwing variant with disposition")
+    {
+        auto disposition = wil::reg::key_disposition::opened_existing;
+        const wil::unique_hkey hkey{wil::reg::create_unique_key(
+            HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite, wil::reg::key_options::non_volatile, &disposition)};
+        REQUIRE(disposition == wil::reg::key_disposition::created_new);
+
+        const wil::unique_hkey hkey2{wil::reg::create_unique_key(
+            HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite, wil::reg::key_options::non_volatile, &disposition)};
+        REQUIRE(disposition == wil::reg::key_disposition::opened_existing);
+    }
+#endif
+}
+
 TEMPLATE_LIST_TEST_CASE("BasicRegistryTests::simple types typed nothrow gets/sets", "[registry]", NoThrowTypesToTest)
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));

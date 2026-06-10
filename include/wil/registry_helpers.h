@@ -84,6 +84,27 @@ namespace reg
         readwrite64,
     };
 
+    // Options controlling how a key is created. See the dwOptions parameter of RegCreateKeyExW.
+    enum class key_options : DWORD
+    {
+        // The key is preserved when the system is restarted (REG_OPTION_NON_VOLATILE).
+        non_volatile = REG_OPTION_NON_VOLATILE,
+
+        // The key is not preserved when the system is restarted (REG_OPTION_VOLATILE).
+        is_volatile = REG_OPTION_VOLATILE,
+    };
+
+    // Indicates whether a created key was newly created or an existing key was opened. See the lpdwDisposition
+    // out-parameter of RegCreateKeyExW.
+    enum class key_disposition
+    {
+        // The key did not exist and was created (REG_CREATED_NEW_KEY).
+        created_new,
+
+        // The key existed and was opened without being changed (REG_OPENED_EXISTING_KEY).
+        opened_existing,
+    };
+
     /// @cond
     namespace reg_view_details
     {
@@ -128,6 +149,11 @@ namespace reg
             }
             FAIL_FAST();
             RESULT_NORETURN_RESULT(0);
+        }
+
+        constexpr DWORD get_options_flags(key_options options) WI_NOEXCEPT
+        {
+            return static_cast<DWORD>(options);
         }
 
         /**
@@ -1112,17 +1138,36 @@ namespace reg
                     HRESULT_FROM_WIN32(::RegOpenKeyExW(m_key, subKey, zero_options, get_access_flags(access), hkey)));
             }
 
-            typename err_policy::result create_key(PCWSTR subKey, _Out_ HKEY* hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) const
+            typename err_policy::result create_key(
+                PCWSTR subKey,
+                _Out_ HKEY* hkey,
+                ::wil::reg::key_access access = ::wil::reg::key_access::read,
+                ::wil::reg::key_options options = ::wil::reg::key_options::non_volatile,
+                _Out_opt_ ::wil::reg::key_disposition* disposition = nullptr) const
             {
                 *hkey = nullptr;
 
                 constexpr DWORD zero_reserved{0};
                 constexpr PWSTR null_class{nullptr};
-                constexpr DWORD zero_options{0};
                 constexpr SECURITY_ATTRIBUTES* null_security_attributes{nullptr};
-                DWORD disposition{0};
-                return err_policy::HResult(HRESULT_FROM_WIN32(::RegCreateKeyExW(
-                    m_key, subKey, zero_reserved, null_class, zero_options, get_access_flags(access), null_security_attributes, hkey, &disposition)));
+                DWORD local_disposition{0};
+                const auto hr = HRESULT_FROM_WIN32(
+                    ::RegCreateKeyExW(
+                        m_key,
+                        subKey,
+                        zero_reserved,
+                        null_class,
+                        get_options_flags(options),
+                        get_access_flags(access),
+                        null_security_attributes,
+                        hkey,
+                        &local_disposition));
+                if (disposition && SUCCEEDED(hr))
+                {
+                    *disposition = (local_disposition == REG_CREATED_NEW_KEY) ? ::wil::reg::key_disposition::created_new
+                                                                              : ::wil::reg::key_disposition::opened_existing;
+                }
+                return err_policy::HResult(hr);
             }
 
             typename err_policy::result delete_tree(_In_opt_ PCWSTR sub_key) const
