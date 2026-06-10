@@ -1328,6 +1328,83 @@ using ThrowingTypesToTest = std::tuple<DwordFns, GenericDwordFns, QwordFns, Gene
 #endif // defined(WIL_ENABLE_EXCEPTIONS)
 } // namespace
 
+TEST_CASE("BasicRegistryTests::delete_value_and_tree", "[registry]")
+{
+    const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
+    if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+    {
+        REQUIRE_SUCCEEDED(deleteHr);
+    }
+
+    SECTION("delete_value_nothrow: from an open key")
+    {
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(hkey.get(), dwordValueName, test_dword_two));
+
+        DWORD result{};
+        REQUIRE_SUCCEEDED(wil::reg::get_value_dword_nothrow(hkey.get(), dwordValueName, &result));
+        REQUIRE(result == test_dword_two);
+
+        REQUIRE_SUCCEEDED(wil::reg::delete_value_nothrow(hkey.get(), dwordValueName));
+        // the value should now be gone
+        REQUIRE(wil::reg::get_value_dword_nothrow(hkey.get(), dwordValueName, &result) == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
+        // deleting a value that doesn't exist returns not-found
+        REQUIRE(wil::reg::delete_value_nothrow(hkey.get(), dwordValueName) == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
+    }
+
+    SECTION("delete_value_nothrow: via subkey path")
+    {
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, test_dword_two));
+
+        DWORD result{};
+        REQUIRE_SUCCEEDED(wil::reg::get_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, &result));
+        REQUIRE(result == test_dword_two);
+
+        REQUIRE_SUCCEEDED(wil::reg::delete_value_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName));
+        REQUIRE(
+            wil::reg::get_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, &result) ==
+            HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
+    }
+
+    SECTION("delete_tree_nothrow: removes subkeys and values")
+    {
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
+        wil::unique_hkey subkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(hkey.get(), L"child", subkey, wil::reg::key_access::readwrite));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(subkey.get(), dwordValueName, test_dword_two));
+
+        REQUIRE_SUCCEEDED(wil::reg::delete_tree_nothrow(HKEY_CURRENT_USER, testSubkey));
+        wil::unique_hkey opened;
+        REQUIRE(wil::reg::open_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, opened) == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
+
+        // deleting a tree that doesn't exist succeeds (is_registry_not_found is swallowed)
+        REQUIRE_SUCCEEDED(wil::reg::delete_tree_nothrow(HKEY_CURRENT_USER, testSubkey));
+    }
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+    SECTION("delete_value/delete_tree: throwing variants")
+    {
+        wil::unique_hkey hkey{wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite)};
+        wil::reg::set_value_dword(hkey.get(), dwordValueName, test_dword_two);
+        wil::reg::set_value_dword(HKEY_CURRENT_USER, testSubkey, stringValueName, test_dword_three);
+
+        wil::reg::delete_value(hkey.get(), dwordValueName);
+        REQUIRE(!wil::reg::try_get_value_dword(hkey.get(), dwordValueName).has_value());
+
+        wil::reg::delete_value(HKEY_CURRENT_USER, testSubkey, stringValueName);
+        REQUIRE(!wil::reg::try_get_value_dword(HKEY_CURRENT_USER, testSubkey, stringValueName).has_value());
+
+        wil::reg::delete_tree(HKEY_CURRENT_USER, testSubkey);
+        wil::unique_hkey opened;
+        REQUIRE(wil::reg::open_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, opened) == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
+        // deleting a non-existent tree does not throw
+        wil::reg::delete_tree(HKEY_CURRENT_USER, testSubkey);
+    }
+#endif
+}
+
 TEMPLATE_LIST_TEST_CASE("BasicRegistryTests::simple types typed nothrow gets/sets", "[registry]", NoThrowTypesToTest)
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
