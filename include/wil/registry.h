@@ -38,14 +38,19 @@ namespace reg
      * @param subKey The name of the registry subkey to be opened.
      *        If `nullptr`, then `key` is used without modification.
      * @param access The requested access desired for the opened key
+     * @param options Options controlling how the key is opened (see wil::reg::open_options); flags may be combined
      * @return A wil::unique_hkey containing the resulting opened HKEY
      * @exception std::exception (including wil::ResultException) will be thrown on all failures
      */
-    inline ::wil::unique_hkey open_unique_key(HKEY key, _In_opt_ PCWSTR subKey, ::wil::reg::key_access access = ::wil::reg::key_access::read)
+    inline ::wil::unique_hkey open_unique_key(
+        HKEY key,
+        _In_opt_ PCWSTR subKey,
+        ::wil::reg::key_access access = ::wil::reg::key_access::read,
+        ::wil::reg::open_options options = ::wil::reg::open_options::none)
     {
         const reg_view_details::reg_view regview{key};
         ::wil::unique_hkey return_value;
-        regview.open_key(subKey, &return_value, access);
+        regview.open_key(subKey, &return_value, access, options);
         return return_value;
     }
 
@@ -73,14 +78,19 @@ namespace reg
      * @param subKey The name of the registry subkey to be opened.
      *        If `nullptr`, then `key` is used without modification.
      * @param access The requested access desired for the opened key
+     * @param options Options controlling how the key is opened (see wil::reg::open_options); flags may be combined
      * @return A wil::shared_hkey containing the resulting opened HKEY
      * @exception std::exception (including wil::ResultException) will be thrown on all failures
      */
-    inline ::wil::shared_hkey open_shared_key(HKEY key, _In_opt_ PCWSTR subKey, ::wil::reg::key_access access = ::wil::reg::key_access::read)
+    inline ::wil::shared_hkey open_shared_key(
+        HKEY key,
+        _In_opt_ PCWSTR subKey,
+        ::wil::reg::key_access access = ::wil::reg::key_access::read,
+        ::wil::reg::open_options options = ::wil::reg::open_options::none)
     {
         const reg_view_details::reg_view regview{key};
         ::wil::shared_hkey return_value;
-        regview.open_key(subKey, &return_value, access);
+        regview.open_key(subKey, &return_value, access, options);
         return return_value;
     }
 
@@ -110,13 +120,18 @@ namespace reg
      *        If `nullptr`, then `key` is used without modification.
      * @param[out] hkey A reference to a wil::unique_hkey to receive the opened HKEY
      * @param access The requested access desired for the opened key
+     * @param options Options controlling how the key is opened (see wil::reg::open_options); flags may be combined
      * @return HRESULT error code indicating success or failure (does not throw C++ exceptions)
      */
     inline HRESULT open_unique_key_nothrow(
-        HKEY key, _In_opt_ PCWSTR subKey, ::wil::unique_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
+        HKEY key,
+        _In_opt_ PCWSTR subKey,
+        ::wil::unique_hkey& hkey,
+        ::wil::reg::key_access access = ::wil::reg::key_access::read,
+        ::wil::reg::open_options options = ::wil::reg::open_options::none) WI_NOEXCEPT
     {
         const reg_view_details::reg_view_nothrow regview{key};
-        return regview.open_key(subKey, hkey.put(), access);
+        return regview.open_key(subKey, hkey.put(), access, options);
     }
 
     /**
@@ -143,13 +158,18 @@ namespace reg
      *        If `nullptr`, then `key` is used without modification.
      * @param[out] hkey A reference to a wil::shared_hkey to receive the opened HKEY
      * @param access The requested access desired for the opened key
+     * @param options Options controlling how the key is opened (see wil::reg::open_options); flags may be combined
      * @return HRESULT error code indicating success or failure (does not throw C++ exceptions)
      */
     inline HRESULT open_shared_key_nothrow(
-        HKEY key, _In_opt_ PCWSTR subKey, ::wil::shared_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
+        HKEY key,
+        _In_opt_ PCWSTR subKey,
+        ::wil::shared_hkey& hkey,
+        ::wil::reg::key_access access = ::wil::reg::key_access::read,
+        ::wil::reg::open_options options = ::wil::reg::open_options::none) WI_NOEXCEPT
     {
         const reg_view_details::reg_view_nothrow regview{key};
-        return regview.open_key(subKey, hkey.put(), access);
+        return regview.open_key(subKey, hkey.put(), access, options);
     }
 
     /**
