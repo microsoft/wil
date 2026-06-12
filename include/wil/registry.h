@@ -169,6 +169,66 @@ namespace reg
     }
 #endif // #define __WIL_WINREG_STL
 
+    /**
+     * @brief Opens a new HKEY to the HKEY_CURRENT_USER subtree for the user the current thread is impersonating - see
+     *        RegOpenCurrentUser
+     * @param[out] hkey A reference to a wil::unique_hkey to receive the opened HKEY
+     * @param access The requested access desired for the opened key
+     * @return HRESULT error code indicating success or failure (does not throw C++ exceptions)
+     * @remark Unlike the HKEY_CURRENT_USER constant, this reflects the impersonated user (if any) rather than the user
+     *         the process is running as.
+     */
+    inline HRESULT open_current_user_key_nothrow(::wil::unique_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
+    {
+        return HRESULT_FROM_WIN32(::RegOpenCurrentUser(reg_view_details::get_access_flags(access), hkey.put()));
+    }
+
+#if defined(__WIL_WINREG_STL) || defined(WIL_DOXYGEN)
+    /**
+     * @brief Opens a new HKEY to the HKEY_CURRENT_USER subtree for the user the current thread is impersonating - see
+     *        RegOpenCurrentUser
+     * @param[out] hkey A reference to a wil::shared_hkey to receive the opened HKEY
+     * @param access The requested access desired for the opened key
+     * @return HRESULT error code indicating success or failure (does not throw C++ exceptions)
+     */
+    inline HRESULT open_current_user_shared_key_nothrow(::wil::shared_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
+    {
+        return HRESULT_FROM_WIN32(::RegOpenCurrentUser(reg_view_details::get_access_flags(access), hkey.put()));
+    }
+#endif // #if defined(__WIL_WINREG_STL)
+
+#if defined(WIL_ENABLE_EXCEPTIONS)
+    /**
+     * @brief Opens a new HKEY to the HKEY_CURRENT_USER subtree for the user the current thread is impersonating - see
+     *        RegOpenCurrentUser
+     * @param access The requested access desired for the opened key
+     * @return A wil::unique_hkey containing the resulting opened HKEY
+     * @exception std::exception (including wil::ResultException) will be thrown on all failures
+     */
+    inline ::wil::unique_hkey open_current_user_key(::wil::reg::key_access access = ::wil::reg::key_access::read)
+    {
+        ::wil::unique_hkey return_value;
+        THROW_IF_FAILED(::wil::reg::open_current_user_key_nothrow(return_value, access));
+        return return_value;
+    }
+
+#if defined(__WIL_WINREG_STL) || defined(WIL_DOXYGEN)
+    /**
+     * @brief Opens a new HKEY to the HKEY_CURRENT_USER subtree for the user the current thread is impersonating - see
+     *        RegOpenCurrentUser
+     * @param access The requested access desired for the opened key
+     * @return A wil::shared_hkey containing the resulting opened HKEY
+     * @exception std::exception (including wil::ResultException) will be thrown on all failures
+     */
+    inline ::wil::shared_hkey open_current_user_shared_key(::wil::reg::key_access access = ::wil::reg::key_access::read)
+    {
+        ::wil::shared_hkey return_value;
+        THROW_IF_FAILED(::wil::reg::open_current_user_shared_key_nothrow(return_value, access));
+        return return_value;
+    }
+#endif // #if defined(__WIL_WINREG_STL)
+#endif // #if defined(WIL_ENABLE_EXCEPTIONS)
+
     //
     //  wil::key_iterator and wil::value_iterator objects enable enumerating registry keys and values.
     //
