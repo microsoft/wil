@@ -558,6 +558,82 @@ TEST_CASE("BasicRegistryTests::Open", "[registry]")
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
         REQUIRE(wil::reg::is_registry_not_found(hr));
     }
+    SECTION("key_access::write with opened key")
+    {
+        constexpr auto* subSubKey = L"subkey";
+
+        // create the key hierarchy with full access
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
+        wil::unique_hkey subkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(hkey.get(), subSubKey, subkey, wil::reg::key_access::readwrite));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(subkey.get(), dwordValueName, test_dword_two));
+        subkey.reset();
+
+        // open with write access
+        wil::unique_hkey write_key;
+        REQUIRE_SUCCEEDED(wil::reg::open_unique_key_nothrow(hkey.get(), subSubKey, write_key, wil::reg::key_access::write));
+
+        // write should succeed
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(write_key.get(), dwordValueName, test_dword_three));
+
+        // read should fail with access denied — proves this is KEY_WRITE, not KEY_ALL_ACCESS
+        DWORD result{};
+        auto hr = wil::reg::get_value_dword_nothrow(write_key.get(), dwordValueName, &result);
+        REQUIRE(hr == E_ACCESSDENIED);
+    }
+    SECTION("key_access::write with string key")
+    {
+        // create the key with full access and write a test value
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(hkey.get(), dwordValueName, test_dword_two));
+        hkey.reset();
+
+        // open with write access
+        wil::unique_hkey write_key;
+        REQUIRE_SUCCEEDED(wil::reg::open_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, write_key, wil::reg::key_access::write));
+
+        // write should succeed
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(write_key.get(), dwordValueName, test_dword_three));
+
+        // read should fail with access denied
+        DWORD result{};
+        auto hr = wil::reg::get_value_dword_nothrow(write_key.get(), dwordValueName, &result);
+        REQUIRE(hr == E_ACCESSDENIED);
+    }
+    SECTION("key_access::write with create_unique_key_nothrow")
+    {
+        // create with write access
+        wil::unique_hkey write_key;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, write_key, wil::reg::key_access::write));
+
+        // write should succeed
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(write_key.get(), dwordValueName, test_dword_two));
+
+        // read should fail with access denied
+        DWORD result{};
+        auto hr = wil::reg::get_value_dword_nothrow(write_key.get(), dwordValueName, &result);
+        REQUIRE(hr == E_ACCESSDENIED);
+    }
+    SECTION("get_access_flags maps key_access values correctly")
+    {
+        // verify the constexpr flag mapping is correct for all key_access values
+        static_assert(wil::reg::reg_view_details::get_access_flags(wil::reg::key_access::read) == KEY_READ, "read must map to KEY_READ");
+        static_assert(wil::reg::reg_view_details::get_access_flags(wil::reg::key_access::write) == KEY_WRITE, "write must map to KEY_WRITE");
+        static_assert(
+            wil::reg::reg_view_details::get_access_flags(wil::reg::key_access::readwrite) == KEY_ALL_ACCESS,
+            "readwrite must map to KEY_ALL_ACCESS");
+        static_assert(
+            wil::reg::reg_view_details::get_access_flags(wil::reg::key_access::read64) == (KEY_READ | KEY_WOW64_64KEY),
+            "read64 must map to KEY_READ | KEY_WOW64_64KEY");
+        static_assert(
+            wil::reg::reg_view_details::get_access_flags(wil::reg::key_access::write64) == (KEY_WRITE | KEY_WOW64_64KEY),
+            "write64 must map to KEY_WRITE | KEY_WOW64_64KEY");
+        static_assert(
+            wil::reg::reg_view_details::get_access_flags(wil::reg::key_access::readwrite64) == (KEY_ALL_ACCESS | KEY_WOW64_64KEY),
+            "readwrite64 must map to KEY_ALL_ACCESS | KEY_WOW64_64KEY");
+    }
     SECTION("get_child_key_count_nothrow, get_child_value_count_nothrow")
     {
         wil::unique_hkey hkey;
