@@ -21,14 +21,14 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout input branch
-        if: github.event.inputs.pr_number
+        if: inputs.pr_number
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: refs/pull/${{ github.event.inputs.pr_number }}/merge
+          ref: refs/pull/${{ inputs.pr_number }}/merge
 
       - name: Checkout trigger branch
-        if: ${{ !github.event.inputs.pr_number }}
+        if: ${{ !inputs.pr_number }}
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -81,13 +81,13 @@ jobs:
     runs-on: ${{matrix.host}}
     steps:
       - name: Checkout input branch
-        if: github.event.inputs.pr_number
+        if: inputs.pr_number
         uses: actions/checkout@v4
         with:
-          ref: refs/pull/${{ github.event.inputs.pr_number }}/merge
+          ref: refs/pull/${{ inputs.pr_number }}/merge
 
       - name: Checkout trigger branch
-        if: ${{ !github.event.inputs.pr_number }}
+        if: ${{ !inputs.pr_number }}
         uses: actions/checkout@v4
 
       - name: Install/Update Clang
