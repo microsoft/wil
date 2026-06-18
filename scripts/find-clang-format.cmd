@@ -5,13 +5,13 @@
 :: installed may get different formatting behavior. In an attempt to ensure consistency, we use the clang-format.exe
 :: that ships with Visual Studio. There may still be issues if two different machines have different versions of Visual
 :: Studio installed, however this will hopefully improve things
-set CLANG_FORMAT=%VCINSTALLDIR%\Tools\Llvm\x64\bin\clang-format.exe
-if not exist "%CLANG_FORMAT%" (
-    set CLANG_FORMAT=%VCINSTALLDIR%\Tools\Llvm\bin\clang-format.exe
-    if not exist "%CLANG_FORMAT%" (
-        set CLANG_FORMAT=
-        echo ERROR: clang-format.exe not found at "%CLANG_FORMAT%"
-        echo ERROR: Ensure that this script is being run from a Visual Studio command prompt
-        exit /B 1
-    )
-)
+set "CLANG_FORMAT=%VCINSTALLDIR%\Tools\Llvm\x64\bin\clang-format.exe"
+if exist "%CLANG_FORMAT%" goto :eof
+
+set "CLANG_FORMAT=%VCINSTALLDIR%\Tools\Llvm\bin\clang-format.exe"
+if exist "%CLANG_FORMAT%" goto :eof
+
+echo ERROR: clang-format.exe not found at %CLANG_FORMAT%
+echo ERROR: Ensure that this script is being run from a Visual Studio command prompt
+set "CLANG_FORMAT="
+exit /B 1
