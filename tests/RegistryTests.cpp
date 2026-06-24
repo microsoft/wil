@@ -5546,6 +5546,13 @@ TEST_CASE("BasicRegistryTests::value_bstr_nothrow_iterator", "[registry]")
         REQUIRE(manual_iterator->at_end());
         REQUIRE(count == 4);
     }
+
+    SECTION("value_bstr_nothrow_iterator with invalid handle")
+    {
+        auto test_iterator = wil::reg::value_bstr_nothrow_iterator{(HKEY)INVALID_HANDLE_VALUE};
+        auto test_end_iterator = wil::reg::value_bstr_nothrow_iterator{};
+        REQUIRE(test_iterator == test_end_iterator);
+    }
 }
 
 TEST_CASE("BasicRegistryTests::key_bstr_nothrow_iterator", "[registry]")
@@ -5833,6 +5840,13 @@ TEST_CASE("BasicRegistryTests::key_bstr_nothrow_iterator", "[registry]")
         REQUIRE_SUCCEEDED(manual_iterator.last_error());
         REQUIRE_SUCCEEDED(manual_iterator.last_error());
         REQUIRE(count == 4);
+    }
+
+    SECTION("key_bstr_nothrow_iterator with invalid handle")
+    {
+        auto test_iterator = wil::reg::key_bstr_nothrow_iterator{(HKEY)INVALID_HANDLE_VALUE};
+        auto test_end_iterator = wil::reg::key_bstr_nothrow_iterator{};
+        REQUIRE(test_iterator == test_end_iterator);
     }
 }
 #endif
@@ -6148,6 +6162,13 @@ TEST_CASE("BasicRegistryTests::value_heap_string_nothrow_iterator", "[registry]"
         REQUIRE(manual_iterator->at_end());
         REQUIRE(count == 4);
     }
+
+    SECTION("value_heap_string_nothrow_iterator with invalid handle")
+    {
+        auto test_iterator = wil::reg::value_heap_string_nothrow_iterator{(HKEY)INVALID_HANDLE_VALUE};
+        auto test_end_iterator = wil::reg::value_heap_string_nothrow_iterator{};
+        REQUIRE(test_iterator == test_end_iterator);
+    }
 }
 
 TEST_CASE("BasicRegistryTests::key_heap_string_nothrow_iterator", "[registry]")
@@ -6432,5 +6453,12 @@ TEST_CASE("BasicRegistryTests::key_heap_string_nothrow_iterator", "[registry]")
         REQUIRE_SUCCEEDED(manual_iterator.last_error());
         REQUIRE_SUCCEEDED(manual_iterator.last_error());
         REQUIRE(count == 4);
+    }
+
+    SECTION("key_heap_string_nothrow_iterator with invalid handle")
+    {
+        auto test_iterator = wil::reg::key_heap_string_nothrow_iterator{(HKEY)INVALID_HANDLE_VALUE};
+        auto test_end_iterator = wil::reg::key_heap_string_nothrow_iterator{};
+        REQUIRE(test_iterator == test_end_iterator);
     }
 }
