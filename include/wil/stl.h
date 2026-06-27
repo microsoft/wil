@@ -252,11 +252,67 @@ inline auto str_raw_ptr(basic_zstring_view<TChar> str)
 
 inline namespace literals
 {
+#if __WI_LIBCPP_STD_VER >= 20
+    /**
+        A statically-allocated, BSTR-shaped literal: a length-prefixed wide string whose data pointer is a valid
+        BSTR (usable with SysStringLen, SysStringByteLen, wcslen). No heap allocation; size is the literal's exact
+        length. Lifetime is tied to the literal object itself.
+
+        Example:
+            void Use(BSTR);
+            Use(L"foo"_bst);
+    */
+    template <std::size_t N>
+    struct wchar_literal_storage
+    {
+        wchar_t value[N];
+        constexpr wchar_literal_storage(const wchar_t (&str)[N]) WI_NOEXCEPT
+        {
+            for (std::size_t i = 0; i < N; ++i)
+            {
+                value[i] = str[i];
+            }
+        }
+    };
+
+    template <std::size_t N>
+    wchar_literal_storage(const wchar_t (&)[N]) -> wchar_literal_storage<N>;
+
+    // N includes the trailing L'\0'; the BSTR byte-length prefix excludes it.
+    template <std::size_t N>
+    struct bstr_literal_t
+    {
+        unsigned long m_byte_length;
+        wchar_t m_data[N];
+
+        constexpr bstr_literal_t(const wchar_t (&text)[N]) WI_NOEXCEPT :
+            m_byte_length(static_cast<unsigned long>((N - 1) * sizeof(wchar_t))), m_data{}
+        {
+            for (std::size_t i = 0; i < N; ++i)
+            {
+                m_data[i] = text[i];
+            }
+        }
+
+        WI_NODISCARD constexpr operator BSTR() const WI_NOEXCEPT
+        {
+            return const_cast<wchar_t*>(&m_data[0]);
+        }
+    };
+
+    template <wchar_literal_storage Lit>
+    WI_NODISCARD constexpr auto operator""_bst() WI_NOEXCEPT
+    {
+        return bstr_literal_t<sizeof(Lit.value) / sizeof(wchar_t)>{Lit.value};
+    }
+
+#endif // __WI_LIBCPP_STD_VER >= 20
+
     constexpr zstring_view operator""_zv(const char* str, std::size_t len) noexcept
     {
         return {str, len};
     }
-
+ 
     constexpr zwstring_view operator""_zv(const wchar_t* str, std::size_t len) noexcept
     {
         return {str, len};
