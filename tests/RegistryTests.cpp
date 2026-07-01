@@ -1326,7 +1326,173 @@ using ThrowingTypesToTest =
 using NoThrowTypesToTest = std::tuple<DwordFns, GenericDwordFns, QwordFns, GenericQwordFns>;
 using ThrowingTypesToTest = std::tuple<DwordFns, GenericDwordFns, QwordFns, GenericQwordFns>;
 #endif // defined(WIL_ENABLE_EXCEPTIONS)
+
+// Creates a volatile registry symbolic link under HKEY_CURRENT_USER at |linkSubkey| that targets the (already existing)
+// key at HKEY_CURRENT_USER\|targetSubkey|. A registry symbolic link stores the absolute NT path of its target in a
+// REG_LINK value named "SymbolicLinkValue"; that path is resolved with NtQueryKey(KeyNameInformation), which is not part
+// of the public SDK and so is resolved dynamically from ntdll. Returns false if the link could not be created.
+inline bool CreateVolatileRegistrySymlink(PCWSTR targetSubkey, PCWSTR linkSubkey)
+{
+    wil::unique_hkey target;
+    if (FAILED(HRESULT_FROM_WIN32(
+            ::RegCreateKeyExW(HKEY_CURRENT_USER, targetSubkey, 0, nullptr, 0, KEY_READ | KEY_WRITE, nullptr, target.put(), nullptr))))
+    {
+        return false;
+    }
+
+    const auto ntdll = ::GetModuleHandleW(L"ntdll.dll");
+    if (!ntdll)
+    {
+        return false;
+    }
+
+    using NtQueryKey_t = LONG(__stdcall*)(HANDLE, int, PVOID, ULONG, PULONG);
+    const auto pfnNtQueryKey = reinterpret_cast<NtQueryKey_t>(::GetProcAddress(ntdll, "NtQueryKey"));
+    if (!pfnNtQueryKey)
+    {
+        return false;
+    }
+
+    // KEY_NAME_INFORMATION { ULONG NameLength; WCHAR Name[1]; }; KeyNameInformation == 3.
+    constexpr int c_KeyNameInformation = 3;
+    BYTE buffer[512]{};
+    ULONG resultSize{};
+    if (pfnNtQueryKey(target.get(), c_KeyNameInformation, buffer, sizeof(buffer), &resultSize) < 0)
+    {
+        return false;
+    }
+
+    const auto nameLength = *reinterpret_cast<const ULONG*>(buffer);
+    const std::wstring targetNtPath(reinterpret_cast<const wchar_t*>(buffer + sizeof(ULONG)), nameLength / sizeof(wchar_t));
+
+    wil::unique_hkey link;
+    if (FAILED(HRESULT_FROM_WIN32(::RegCreateKeyExW(
+            HKEY_CURRENT_USER, linkSubkey, 0, nullptr, REG_OPTION_CREATE_LINK | REG_OPTION_VOLATILE, KEY_WRITE | KEY_CREATE_LINK, nullptr, link.put(), nullptr))))
+    {
+        return false;
+    }
+
+    return SUCCEEDED(HRESULT_FROM_WIN32(::RegSetValueExW(
+        link.get(),
+        L"SymbolicLinkValue",
+        0,
+        REG_LINK,
+        reinterpret_cast<const BYTE*>(targetNtPath.c_str()),
+        static_cast<DWORD>(targetNtPath.size() * sizeof(wchar_t)))));
+}
+
+// Deletes the registry symbolic-link key at HKEY_CURRENT_USER\|linkSubkey| if it exists. A dangling symbolic link cannot
+// be removed by RegDeleteKeyW/RegDeleteTreeW (they follow the link), so the link key is opened with REG_OPTION_OPEN_LINK
+// and deleted via NtDeleteKey, which is resolved dynamically from ntdll. This must be done before deleting the target to
+// avoid leaving a dangling link behind.
+inline void DeleteRegistrySymlinkKey(PCWSTR linkSubkey)
+{
+    wil::unique_hkey link;
+    if (FAILED(HRESULT_FROM_WIN32(::RegOpenKeyExW(HKEY_CURRENT_USER, linkSubkey, REG_OPTION_OPEN_LINK, DELETE, link.put()))))
+    {
+        return;
+    }
+
+    const auto ntdll = ::GetModuleHandleW(L"ntdll.dll");
+    if (!ntdll)
+    {
+        return;
+    }
+
+    using NtDeleteKey_t = LONG(__stdcall*)(HANDLE);
+    if (const auto pfnNtDeleteKey = reinterpret_cast<NtDeleteKey_t>(::GetProcAddress(ntdll, "NtDeleteKey")))
+    {
+        pfnNtDeleteKey(link.get());
+    }
+}
 } // namespace
+
+TEST_CASE("BasicRegistryTests::open_options", "[registry]")
+{
+    // Use a dedicated subkey: a dangling symbolic link can prevent RegDeleteTreeW from cleaning up, so this test must not
+    // share the common testSubkey used by the rest of the suite.
+    constexpr auto* openOptionsSubkey = L"Software\\Microsoft\\BasicRegistryTestOpenOptions";
+    const std::wstring targetSubkey = std::wstring(openOptionsSubkey) + L"\\Target";
+    const std::wstring linkSubkey = std::wstring(openOptionsSubkey) + L"\\Link";
+
+    // Always remove any symbolic link first (it would otherwise block deletion of the subtree) and then the subtree.
+    DeleteRegistrySymlinkKey(linkSubkey.c_str());
+    const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, openOptionsSubkey));
+    if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+    {
+        REQUIRE_SUCCEEDED(deleteHr);
+    }
+
+    // open_options values must forward unchanged to the ulOptions parameter of RegOpenKeyExW.
+    static_assert(static_cast<DWORD>(wil::reg::open_options::none) == 0, "open_options::none must be 0");
+    static_assert(static_cast<DWORD>(wil::reg::open_options::open_link) == REG_OPTION_OPEN_LINK, "open_link must map to REG_OPTION_OPEN_LINK");
+    static_assert(
+        static_cast<DWORD>(wil::reg::open_options::backup_restore) == REG_OPTION_BACKUP_RESTORE,
+        "backup_restore must map to REG_OPTION_BACKUP_RESTORE");
+    static_assert(
+        static_cast<DWORD>(wil::reg::open_options::dont_virtualize) == REG_OPTION_DONT_VIRTUALIZE,
+        "dont_virtualize must map to REG_OPTION_DONT_VIRTUALIZE");
+    static_assert(
+        static_cast<DWORD>(wil::reg::open_options::open_link | wil::reg::open_options::dont_virtualize) ==
+            (REG_OPTION_OPEN_LINK | REG_OPTION_DONT_VIRTUALIZE),
+        "open_options flags must combine with the bitwise OR operator");
+
+    SECTION("open_options::none behaves like a normal open")
+    {
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, targetSubkey.c_str(), dwordValueName, test_dword_two));
+
+        wil::unique_hkey key;
+        REQUIRE_SUCCEEDED(wil::reg::open_unique_key_nothrow(
+            HKEY_CURRENT_USER, targetSubkey.c_str(), key, wil::reg::key_access::read, wil::reg::open_options::none));
+        DWORD result{};
+        REQUIRE_SUCCEEDED(wil::reg::get_value_dword_nothrow(key.get(), dwordValueName, &result));
+        REQUIRE(result == test_dword_two);
+    }
+
+    SECTION("open_options::open_link opens the symbolic link itself instead of its target")
+    {
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, targetSubkey.c_str(), dwordValueName, test_dword_two));
+        REQUIRE(CreateVolatileRegistrySymlink(targetSubkey.c_str(), linkSubkey.c_str()));
+
+        // Opening without open_link follows the link to its target, where dwordValueName is visible.
+        wil::unique_hkey followed;
+        REQUIRE_SUCCEEDED(wil::reg::open_unique_key_nothrow(HKEY_CURRENT_USER, linkSubkey.c_str(), followed, wil::reg::key_access::read));
+        DWORD result{};
+        REQUIRE_SUCCEEDED(wil::reg::get_value_dword_nothrow(followed.get(), dwordValueName, &result));
+        REQUIRE(result == test_dword_two);
+
+        // Opening with open_link returns the link key itself, which does not expose the target's value.
+        wil::unique_hkey rawLink;
+        REQUIRE_SUCCEEDED(wil::reg::open_unique_key_nothrow(
+            HKEY_CURRENT_USER, linkSubkey.c_str(), rawLink, wil::reg::key_access::read, wil::reg::open_options::open_link));
+        DWORD throughLink{};
+        REQUIRE(wil::reg::get_value_dword_nothrow(rawLink.get(), dwordValueName, &throughLink) == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
+    }
+
+#if defined(WIL_ENABLE_EXCEPTIONS)
+    SECTION("open_options::open_link with the throwing open_unique_key overload")
+    {
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, targetSubkey.c_str(), dwordValueName, test_dword_two));
+        REQUIRE(CreateVolatileRegistrySymlink(targetSubkey.c_str(), linkSubkey.c_str()));
+
+        const auto followed = wil::reg::open_unique_key(HKEY_CURRENT_USER, linkSubkey.c_str(), wil::reg::key_access::read);
+        REQUIRE(wil::reg::get_value_dword(followed.get(), dwordValueName) == test_dword_two);
+
+        const auto rawLink = wil::reg::open_unique_key(
+            HKEY_CURRENT_USER, linkSubkey.c_str(), wil::reg::key_access::read, wil::reg::open_options::open_link);
+        DWORD throughLink{};
+        REQUIRE(wil::reg::get_value_dword_nothrow(rawLink.get(), dwordValueName, &throughLink) == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
+    }
+#endif // defined(WIL_ENABLE_EXCEPTIONS)
+
+    // Remove the link before the subtree so RegDeleteTreeW does not encounter a link it cannot follow.
+    DeleteRegistrySymlinkKey(linkSubkey.c_str());
+    const auto cleanupHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, openOptionsSubkey));
+    if (cleanupHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+    {
+        REQUIRE_SUCCEEDED(cleanupHr);
+    }
+}
 
 TEMPLATE_LIST_TEST_CASE("BasicRegistryTests::simple types typed nothrow gets/sets", "[registry]", NoThrowTypesToTest)
 {
