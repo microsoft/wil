@@ -128,7 +128,7 @@ TEST_CASE("StlTests::TestZStringView", "[stl][zstring_view]")
 
 TEST_CASE("StlTests::TestZWStringView literal", "[stl][zwstring_view]")
 {
-
+ 
     SECTION("Literal creates correct zwstring_view")
     {
         auto str = L"Hello, world!"_zv;
@@ -137,7 +137,22 @@ TEST_CASE("StlTests::TestZWStringView literal", "[stl][zwstring_view]")
         REQUIRE(str[12] == L'!');
     }
 }
-
+ 
+TEST_CASE("StlTests::TestBSTR literal", "[stl][bstr]")
+{
+#if __WI_LIBCPP_STD_VER >= 20
+    SECTION("Literal creates a valid BSTR")
+    {
+        const auto literal = L"foo"_bst;
+        const BSTR value = literal;
+        REQUIRE(value != nullptr);
+        REQUIRE(SysStringLen(value) == 3);
+        REQUIRE(SysStringLen(L"zot"_bst) == 3);
+        REQUIRE(std::wstring_view(value) == L"foo");
+    }
+#endif
+}
+ 
 TEST_CASE("StlTests::TestZStringView literal", "[stl][zstring_view]")
 {
 
