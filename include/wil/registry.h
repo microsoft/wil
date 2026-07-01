@@ -41,7 +41,7 @@ namespace reg
      * @return A wil::unique_hkey containing the resulting opened HKEY
      * @exception std::exception (including wil::ResultException) will be thrown on all failures
      */
-    inline ::wil::unique_hkey open_unique_key(HKEY key, _In_opt_ PCWSTR subKey, ::wil::reg::key_access access = ::wil::reg::key_access::read)
+    inline ::wil::unique_hkey open_unique_key(HKEY key, _In_opt_ PCWSTR subKey, ::wil::reg::access_mask access = ::wil::reg::key_access::read)
     {
         const reg_view_details::reg_view regview{key};
         ::wil::unique_hkey return_value;
@@ -58,7 +58,7 @@ namespace reg
      * @return A wil::unique_hkey or wil::shared_hkey containing the resulting opened HKEY
      * @exception std::exception (including wil::ResultException) will be thrown on all failures
      */
-    inline ::wil::unique_hkey create_unique_key(HKEY key, PCWSTR subKey, ::wil::reg::key_access access = ::wil::reg::key_access::read)
+    inline ::wil::unique_hkey create_unique_key(HKEY key, PCWSTR subKey, ::wil::reg::access_mask access = ::wil::reg::key_access::read)
     {
         const reg_view_details::reg_view regview{key};
         ::wil::unique_hkey return_value;
@@ -76,7 +76,7 @@ namespace reg
      * @return A wil::shared_hkey containing the resulting opened HKEY
      * @exception std::exception (including wil::ResultException) will be thrown on all failures
      */
-    inline ::wil::shared_hkey open_shared_key(HKEY key, _In_opt_ PCWSTR subKey, ::wil::reg::key_access access = ::wil::reg::key_access::read)
+    inline ::wil::shared_hkey open_shared_key(HKEY key, _In_opt_ PCWSTR subKey, ::wil::reg::access_mask access = ::wil::reg::key_access::read)
     {
         const reg_view_details::reg_view regview{key};
         ::wil::shared_hkey return_value;
@@ -93,7 +93,7 @@ namespace reg
      * @return A wil::shared_hkey or wil::shared_hkey containing the resulting opened HKEY
      * @exception std::exception (including wil::ResultException) will be thrown on all failures
      */
-    inline ::wil::shared_hkey create_shared_key(HKEY key, PCWSTR subKey, ::wil::reg::key_access access = ::wil::reg::key_access::read)
+    inline ::wil::shared_hkey create_shared_key(HKEY key, PCWSTR subKey, ::wil::reg::access_mask access = ::wil::reg::key_access::read)
     {
         const reg_view_details::reg_view regview{key};
         ::wil::shared_hkey return_value;
@@ -113,7 +113,7 @@ namespace reg
      * @return HRESULT error code indicating success or failure (does not throw C++ exceptions)
      */
     inline HRESULT open_unique_key_nothrow(
-        HKEY key, _In_opt_ PCWSTR subKey, ::wil::unique_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
+        HKEY key, _In_opt_ PCWSTR subKey, ::wil::unique_hkey& hkey, ::wil::reg::access_mask access = ::wil::reg::key_access::read) WI_NOEXCEPT
     {
         const reg_view_details::reg_view_nothrow regview{key};
         return regview.open_key(subKey, hkey.put(), access);
@@ -129,7 +129,7 @@ namespace reg
      * @return HRESULT error code indicating success or failure (does not throw C++ exceptions)
      */
     inline HRESULT create_unique_key_nothrow(
-        HKEY key, PCWSTR subKey, ::wil::unique_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
+        HKEY key, PCWSTR subKey, ::wil::unique_hkey& hkey, ::wil::reg::access_mask access = ::wil::reg::key_access::read) WI_NOEXCEPT
     {
         const reg_view_details::reg_view_nothrow regview{key};
         return regview.create_key(subKey, hkey.put(), access);
@@ -146,7 +146,7 @@ namespace reg
      * @return HRESULT error code indicating success or failure (does not throw C++ exceptions)
      */
     inline HRESULT open_shared_key_nothrow(
-        HKEY key, _In_opt_ PCWSTR subKey, ::wil::shared_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
+        HKEY key, _In_opt_ PCWSTR subKey, ::wil::shared_hkey& hkey, ::wil::reg::access_mask access = ::wil::reg::key_access::read) WI_NOEXCEPT
     {
         const reg_view_details::reg_view_nothrow regview{key};
         return regview.open_key(subKey, hkey.put(), access);
@@ -162,7 +162,7 @@ namespace reg
      * @return HRESULT error code indicating success or failure (does not throw C++ exceptions)
      */
     inline HRESULT create_shared_key_nothrow(
-        HKEY key, PCWSTR subKey, ::wil::shared_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
+        HKEY key, PCWSTR subKey, ::wil::shared_hkey& hkey, ::wil::reg::access_mask access = ::wil::reg::key_access::read) WI_NOEXCEPT
     {
         const reg_view_details::reg_view_nothrow regview{key};
         return regview.create_key(subKey, hkey.put(), access);
