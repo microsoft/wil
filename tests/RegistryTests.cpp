@@ -1328,6 +1328,63 @@ using ThrowingTypesToTest = std::tuple<DwordFns, GenericDwordFns, QwordFns, Gene
 #endif // defined(WIL_ENABLE_EXCEPTIONS)
 } // namespace
 
+TEST_CASE("BasicRegistryTests::open_current_user", "[registry]")
+{
+    const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
+    if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+    {
+        REQUIRE_SUCCEEDED(deleteHr);
+    }
+
+    SECTION("open_current_user_key_nothrow: read/write through the current user hive")
+    {
+        wil::unique_hkey current_user;
+        REQUIRE_SUCCEEDED(wil::reg::open_current_user_key_nothrow(current_user, wil::reg::key_access::readwrite));
+        REQUIRE(current_user.get() != nullptr);
+
+        // a value written under the opened current-user key is visible via HKEY_CURRENT_USER
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(current_user.get(), testSubkey, dwordValueName, test_dword_two));
+
+        DWORD result{};
+        REQUIRE_SUCCEEDED(wil::reg::get_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, &result));
+        REQUIRE(result == test_dword_two);
+    }
+
+    SECTION("open_current_user_key_nothrow: read-only access is honored")
+    {
+        // ensure the subkey exists, with a known value, via a writable handle first
+        wil::unique_hkey writable;
+        REQUIRE_SUCCEEDED(wil::reg::open_current_user_key_nothrow(writable, wil::reg::key_access::readwrite));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(writable.get(), testSubkey, dwordValueName, test_dword_two));
+
+        // open the current-user hive read-only and read the value back through it
+        wil::unique_hkey current_user;
+        REQUIRE_SUCCEEDED(wil::reg::open_current_user_key_nothrow(current_user, wil::reg::key_access::read));
+        REQUIRE(current_user.get() != nullptr);
+
+        // open the subkey read-only through the read-only current-user handle
+        wil::unique_hkey read_only_key;
+        REQUIRE_SUCCEEDED(wil::reg::open_unique_key_nothrow(current_user.get(), testSubkey, read_only_key, wil::reg::key_access::read));
+        DWORD result{};
+        REQUIRE_SUCCEEDED(wil::reg::get_value_dword_nothrow(read_only_key.get(), dwordValueName, &result));
+        REQUIRE(result == test_dword_two);
+
+        // writing directly through the read-only handle must be denied
+        REQUIRE(wil::reg::set_value_dword_nothrow(read_only_key.get(), dwordValueName, test_dword_three) == E_ACCESSDENIED);
+    }
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+    SECTION("open_current_user_key: throwing variant")
+    {
+        const wil::unique_hkey current_user{wil::reg::open_current_user_key(wil::reg::key_access::readwrite)};
+        REQUIRE(current_user.get() != nullptr);
+
+        wil::reg::set_value_dword(current_user.get(), testSubkey, dwordValueName, test_dword_three);
+        REQUIRE(wil::reg::get_value_dword(HKEY_CURRENT_USER, testSubkey, dwordValueName) == test_dword_three);
+    }
+#endif
+}
+
 TEMPLATE_LIST_TEST_CASE("BasicRegistryTests::simple types typed nothrow gets/sets", "[registry]", NoThrowTypesToTest)
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
