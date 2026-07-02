@@ -925,10 +925,17 @@ namespace reg
                 static_assert(!wistd::is_same_v<T, T>, "Unsupported type for get_value_type");
             }
 
-            template <typename T = void>
-            DWORD set_value_type() WI_NOEXCEPT
+            template <typename T>
+            struct set_value_type_t
             {
                 static_assert(!wistd::is_same_v<T, T>, "Unsupported type for set_value_type");
+            };
+
+            // Applies remove_cv_t so callers don't have to strip cv-qualifiers from the deduced type
+            template <typename T = void>
+            constexpr DWORD set_value_type() WI_NOEXCEPT
+            {
+                return set_value_type_t<wistd::remove_cv_t<T>>::value;
             }
 
             template <>
@@ -937,10 +944,10 @@ namespace reg
                 return get_value_flags_from_value_type(REG_DWORD);
             }
             template <>
-            constexpr DWORD set_value_type<int32_t>() WI_NOEXCEPT
+            struct set_value_type_t<int32_t>
             {
-                return REG_DWORD;
-            }
+                static constexpr DWORD value = REG_DWORD;
+            };
 
             template <>
             constexpr DWORD get_value_type<uint32_t>() WI_NOEXCEPT
@@ -948,10 +955,10 @@ namespace reg
                 return get_value_flags_from_value_type(REG_DWORD);
             }
             template <>
-            constexpr DWORD set_value_type<uint32_t>() WI_NOEXCEPT
+            struct set_value_type_t<uint32_t>
             {
-                return REG_DWORD;
-            }
+                static constexpr DWORD value = REG_DWORD;
+            };
 
             template <>
             constexpr DWORD get_value_type<long>() WI_NOEXCEPT
@@ -959,10 +966,10 @@ namespace reg
                 return get_value_flags_from_value_type(REG_DWORD);
             }
             template <>
-            constexpr DWORD set_value_type<long>() WI_NOEXCEPT
+            struct set_value_type_t<long>
             {
-                return REG_DWORD;
-            }
+                static constexpr DWORD value = REG_DWORD;
+            };
 
             template <>
             constexpr DWORD get_value_type<unsigned long>() WI_NOEXCEPT
@@ -970,10 +977,10 @@ namespace reg
                 return get_value_flags_from_value_type(REG_DWORD);
             }
             template <>
-            constexpr DWORD set_value_type<unsigned long>() WI_NOEXCEPT
+            struct set_value_type_t<unsigned long>
             {
-                return REG_DWORD;
-            }
+                static constexpr DWORD value = REG_DWORD;
+            };
 
             template <>
             constexpr DWORD get_value_type<int64_t>() WI_NOEXCEPT
@@ -981,10 +988,10 @@ namespace reg
                 return get_value_flags_from_value_type(REG_QWORD);
             }
             template <>
-            constexpr DWORD set_value_type<int64_t>() WI_NOEXCEPT
+            struct set_value_type_t<int64_t>
             {
-                return REG_QWORD;
-            }
+                static constexpr DWORD value = REG_QWORD;
+            };
 
             template <>
             constexpr DWORD get_value_type<uint64_t>() WI_NOEXCEPT
@@ -992,10 +999,10 @@ namespace reg
                 return get_value_flags_from_value_type(REG_QWORD);
             }
             template <>
-            constexpr DWORD set_value_type<uint64_t>() WI_NOEXCEPT
+            struct set_value_type_t<uint64_t>
             {
-                return REG_QWORD;
-            }
+                static constexpr DWORD value = REG_QWORD;
+            };
 
             template <>
             constexpr DWORD get_value_type<PCWSTR>() WI_NOEXCEPT
@@ -1003,10 +1010,10 @@ namespace reg
                 return get_value_flags_from_value_type(REG_SZ);
             }
             template <>
-            constexpr DWORD set_value_type<PCWSTR>() WI_NOEXCEPT
+            struct set_value_type_t<PCWSTR>
             {
-                return REG_SZ;
-            }
+                static constexpr DWORD value = REG_SZ;
+            };
 
 #if (WIL_USE_STL && defined(WIL_ENABLE_EXCEPTIONS)) || defined(WIL_DOXYGEN)
             template <>
@@ -1016,10 +1023,10 @@ namespace reg
             }
 
             template <>
-            constexpr DWORD set_value_type<const ::std::wstring>() WI_NOEXCEPT
+            struct set_value_type_t<::std::wstring>
             {
-                return REG_SZ;
-            }
+                static constexpr DWORD value = REG_SZ;
+            };
 #endif
 
 #if defined(__WIL_OLEAUTO_H_)
@@ -1035,16 +1042,16 @@ namespace reg
             }
 
             template <>
-            constexpr DWORD set_value_type<const BSTR>() WI_NOEXCEPT
+            struct set_value_type_t<BSTR>
             {
-                return REG_SZ;
-            }
+                static constexpr DWORD value = REG_SZ;
+            };
 
             template <>
-            constexpr DWORD set_value_type<const ::wil::unique_bstr>() WI_NOEXCEPT
+            struct set_value_type_t<::wil::unique_bstr>
             {
-                return REG_SZ;
-            }
+                static constexpr DWORD value = REG_SZ;
+            };
 #endif // #if defined(__WIL_OLEAUTO_H_)
 
 #if defined(__WIL_OLEAUTO_H_STL)
@@ -1056,10 +1063,10 @@ namespace reg
             }
 
             template <>
-            constexpr DWORD set_value_type<const ::wil::shared_bstr>() WI_NOEXCEPT
+            struct set_value_type_t<::wil::shared_bstr>
             {
-                return REG_SZ;
-            }
+                static constexpr DWORD value = REG_SZ;
+            };
 #endif // #if defined(__WIL_OLEAUTO_H_STL)
 
 #if defined(__WIL_OBJBASE_H_)
@@ -1070,10 +1077,10 @@ namespace reg
             }
 
             template <>
-            constexpr DWORD set_value_type<const ::wil::unique_cotaskmem_string>() WI_NOEXCEPT
+            struct set_value_type_t<::wil::unique_cotaskmem_string>
             {
-                return REG_SZ;
-            }
+                static constexpr DWORD value = REG_SZ;
+            };
 #endif // defined(__WIL_OBJBASE_H_)
 
 #if defined(__WIL_OBJBASE_H_STL)
@@ -1084,10 +1091,10 @@ namespace reg
             }
 
             template <>
-            constexpr DWORD set_value_type<const ::wil::shared_cotaskmem_string>() WI_NOEXCEPT
+            struct set_value_type_t<::wil::shared_cotaskmem_string>
             {
-                return REG_SZ;
-            }
+                static constexpr DWORD value = REG_SZ;
+            };
 #endif // #if defined(__WIL_OBJBASE_H_STL)
         } // namespace reg_value_type_info
 
