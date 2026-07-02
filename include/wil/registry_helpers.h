@@ -237,6 +237,67 @@ namespace reg
         }
 #endif
 
+#if WIL_USE_STL
+        /**
+         * @brief A nothrow translation function marshaling a std::vector<std::wstring> into a contiguous
+         *        null-terminator-delimited REG_MULTI_SZ buffer allocated on the process heap.
+         * @param data The std::vector<std::wstring> to marshal into a multi-sz buffer
+         * @param buffer Receives ownership of the process-heap-allocated wchar_t buffer on success
+         * @param bufferSizeBytes Receives the size, in bytes, of the marshaled buffer (including terminators)
+         * @return HRESULT error code indicating success or failure (does not throw C++ exceptions)
+         */
+        inline HRESULT get_multistring_from_wstrings_nothrow(
+            const ::std::vector<::std::wstring>& data, ::wil::unique_process_heap_ptr<wchar_t>& buffer, _Out_ DWORD* bufferSizeBytes) WI_NOEXCEPT
+        {
+            buffer.reset();
+            *bufferSizeBytes = 0;
+
+            size_t total_size_bytes = sizeof(wchar_t); // final double-null terminator
+            for (const auto& str : data)
+            {
+                const size_t entry_size = (str.size() + 1) * sizeof(wchar_t);
+                if (total_size_bytes + entry_size < total_size_bytes || total_size_bytes + entry_size > MAXDWORD)
+                {
+                    return E_INVALIDARG;
+                }
+                total_size_bytes += entry_size;
+            }
+
+            if (data.empty())
+            {
+                // An empty multi-string still requires a leading null plus the final terminator.
+                total_size_bytes = 2 * sizeof(wchar_t);
+            }
+
+            ::wil::unique_process_heap_ptr<wchar_t> result{static_cast<wchar_t*>(::HeapAlloc(::GetProcessHeap(), 0, total_size_bytes))};
+            if (!result)
+            {
+                return E_OUTOFMEMORY;
+            }
+
+            size_t offset = 0;
+            for (const auto& str : data)
+            {
+                // c_str() is guaranteed to be null-terminated and it is valid to read that null character,
+                // so copy size() + 1 characters to include the terminator in a single memcpy.
+                memcpy(result.get() + offset, str.c_str(), (str.size() + 1) * sizeof(wchar_t));
+                offset += str.size() + 1;
+            }
+
+            if (data.empty())
+            {
+                result.get()[offset++] = L'\0'; // leading null for an empty multi-string
+            }
+
+            result.get()[offset++] = L'\0'; // final double-null terminator
+            WI_ASSERT(offset == (total_size_bytes / sizeof(wchar_t)));
+
+            buffer = wistd::move(result);
+            *bufferSizeBytes = static_cast<DWORD>(total_size_bytes);
+            return S_OK;
+        }
+#endif
+
 #if defined(__WIL_OBJBASE_H_)
         template <size_t C>
         void get_multistring_bytearray_from_strings_nothrow(const PCWSTR data[C], ::wil::unique_cotaskmem_array_ptr<BYTE>& multistring) WI_NOEXCEPT

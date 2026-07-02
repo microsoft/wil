@@ -3104,6 +3104,111 @@ TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
     }
 #endif
 #endif
+
+#if WIL_USE_STL && defined(WIL_ENABLE_EXCEPTIONS)
+    SECTION("set_value_multistring_nothrow/get_value_multistring_nothrow: with open key")
+    {
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
+
+        for (const auto& value : multiStringTestVector)
+        {
+            REQUIRE_SUCCEEDED(wil::reg::set_value_multistring_nothrow(hkey.get(), stringValueName, value));
+            auto result = wil::reg::get_value_multistring(hkey.get(), stringValueName);
+            // set_value_multistring_nothrow should produce the same result as set_value_multistring
+            wil::reg::set_value_multistring(hkey.get(), multiStringValueName, value);
+            auto expected = wil::reg::get_value_multistring(hkey.get(), multiStringValueName);
+            REQUIRE(result == expected);
+        }
+
+        // and verify default value name
+        const std::vector<std::wstring> testValue{L"hello", L"world"};
+        REQUIRE_SUCCEEDED(wil::reg::set_value_multistring_nothrow(hkey.get(), nullptr, testValue));
+        auto result = wil::reg::get_value_multistring(hkey.get(), nullptr);
+        REQUIRE(result == testValue);
+    }
+
+    SECTION("set_value_multistring_nothrow/get_value_multistring_nothrow: with string key")
+    {
+        for (const auto& value : multiStringTestVector)
+        {
+            REQUIRE_SUCCEEDED(wil::reg::set_value_multistring_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, value));
+            auto result = wil::reg::get_value_multistring(HKEY_CURRENT_USER, testSubkey, stringValueName);
+            // set_value_multistring_nothrow should produce the same result as set_value_multistring
+            wil::reg::set_value_multistring(HKEY_CURRENT_USER, testSubkey, multiStringValueName, value);
+            auto expected = wil::reg::get_value_multistring(HKEY_CURRENT_USER, testSubkey, multiStringValueName);
+            REQUIRE(result == expected);
+        }
+
+        // and verify default value name
+        const std::vector<std::wstring> testValue{L"hello", L"world"};
+        REQUIRE_SUCCEEDED(wil::reg::set_value_multistring_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, testValue));
+        auto result = wil::reg::get_value_multistring(HKEY_CURRENT_USER, testSubkey, nullptr);
+        REQUIRE(result == testValue);
+    }
+
+    SECTION("set_value_multistring_nothrow: empty array with open key")
+    {
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
+
+        // When passed an empty array, set_value_multistring_nothrow writes 2 null-terminators
+        // (i.e. a single empty string), matching the behavior of set_value_multistring
+        const std::vector<std::wstring> arrayOfOne{L""};
+        REQUIRE_SUCCEEDED(wil::reg::set_value_multistring_nothrow(hkey.get(), stringValueName, test_multistring_empty));
+        auto result = wil::reg::get_value_multistring(hkey.get(), stringValueName);
+        REQUIRE(result == arrayOfOne);
+
+        // and verify default value name
+        REQUIRE_SUCCEEDED(wil::reg::set_value_multistring_nothrow(hkey.get(), nullptr, test_multistring_empty));
+        result = wil::reg::get_value_multistring(hkey.get(), nullptr);
+        REQUIRE(result == arrayOfOne);
+    }
+
+    SECTION("set_value_multistring_nothrow: empty array with string key")
+    {
+        const std::vector<std::wstring> arrayOfOne{L""};
+        REQUIRE_SUCCEEDED(wil::reg::set_value_multistring_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, test_multistring_empty));
+        auto result = wil::reg::get_value_multistring(HKEY_CURRENT_USER, testSubkey, stringValueName);
+        REQUIRE(result == arrayOfOne);
+
+        // and verify default value name
+        REQUIRE_SUCCEEDED(wil::reg::set_value_multistring_nothrow(HKEY_CURRENT_USER, testSubkey, nullptr, test_multistring_empty));
+        result = wil::reg::get_value_multistring(HKEY_CURRENT_USER, testSubkey, nullptr);
+        REQUIRE(result == arrayOfOne);
+    }
+
+    SECTION("set_value_multistring_nothrow: fails with E_ACCESSDENIED on read-only key")
+    {
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
+
+        wil::unique_hkey readOnlyKey;
+        REQUIRE_SUCCEEDED(wil::reg::open_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, readOnlyKey, wil::reg::key_access::read));
+
+        const std::vector<std::wstring> testValue{L"test"};
+        auto hr = wil::reg::set_value_multistring_nothrow(readOnlyKey.get(), stringValueName, testValue);
+        REQUIRE(hr == E_ACCESSDENIED);
+    }
+
+    SECTION("set_value_multistring_nothrow: round-trip with nothrow get via cotaskmem")
+    {
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
+
+        const std::vector<std::wstring> testValue{L"alpha", L"bravo", L"charlie"};
+        REQUIRE_SUCCEEDED(wil::reg::set_value_multistring_nothrow(hkey.get(), stringValueName, testValue));
+
+#if defined(__WIL_OBJBASE_H_)
+        wil::unique_cotaskmem_array_ptr<wil::unique_cotaskmem_string> result{};
+        REQUIRE_SUCCEEDED(wil::reg::get_value_multistring_nothrow(hkey.get(), stringValueName, result));
+        REQUIRE(result.size() == 3);
+        REQUIRE(std::wstring_view(result[0]) == L"alpha");
+        REQUIRE(std::wstring_view(result[1]) == L"bravo");
+        REQUIRE(std::wstring_view(result[2]) == L"charlie");
+#endif // defined(__WIL_OBJBASE_H_)
+    }
+#endif // WIL_USE_STL && defined(WIL_ENABLE_EXCEPTIONS)
 }
 
 #if defined(__WIL_OBJBASE_H_)
