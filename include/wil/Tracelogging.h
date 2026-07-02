@@ -872,6 +872,23 @@ public:
         }
     }
 
+    bool IsWatching() WI_NOEXCEPT
+    {
+        return m_callbackHolder.IsWatching();
+    }
+
+    // Coroutine watcher interface: pause watching during suspension
+    bool suspend() WI_NOEXCEPT
+    {
+        return m_callbackHolder.suspend();
+    }
+
+    // Coroutine watcher interface: resume watching after suspension
+    void resume() WI_NOEXCEPT
+    {
+        m_callbackHolder.resume();
+    }
+
     // Call this API to retrieve an RAII object to watch events on the current thread.  The returned
     // object should only be used on the stack.
 
