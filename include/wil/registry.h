@@ -3123,6 +3123,8 @@ namespace details
             if (0 == ::InterlockedDecrement(&m_refCount))
             {
                 lock.reset(); // leave the lock before deleting it.
+                // Make sure callbacks are not running in parallel to destruction.
+                m_threadPoolWait.reset();
                 delete this;
             }
         }
@@ -3130,7 +3132,8 @@ namespace details
         void ReleaseFromCallback(bool rearm)
         {
             auto lock = m_lock.lock_exclusive();
-            if (0 == ::InterlockedDecrement(&m_refCount))
+            auto refCount = ::InterlockedDecrement(&m_refCount);
+            if (0 == refCount)
             {
                 // Destroy the thread pool wait now to avoid the wait that would occur in the
                 // destructor. That wait would cause a deadlock since we are doing this from the callback.
@@ -3139,7 +3142,7 @@ namespace details
                 delete this;
                 // Sleep(1); // Enable for testing to find use after free bugs.
             }
-            else if (rearm)
+            else if (rearm && refCount > 0)
             {
                 ::SetThreadpoolWait(m_threadPoolWait.get(), m_eventHandle.get(), nullptr);
             }
