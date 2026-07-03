@@ -272,7 +272,7 @@ inline namespace literals
         }
 
         static const std::size_t byte_size = N * sizeof(wchar_t); // includes the trailing L'\0'
-        static const std::size_t length = N - 1; // excludes the trailing L'\0'
+        static const std::size_t length = N - 1;                  // excludes the trailing L'\0'
     };
 
     template <std::size_t N>
@@ -285,9 +285,7 @@ inline namespace literals
         unsigned long m_byte_length;
         wchar_t m_data[N];
 
-        constexpr bstr_literal_t(const wchar_literal_storage<N>& text) WI_NOEXCEPT :
-            m_byte_length(text.byte_size - sizeof(wchar_t)),
-            m_data{}
+        constexpr bstr_literal_t(const wchar_literal_storage<N>& text) WI_NOEXCEPT : m_byte_length(text.byte_size - sizeof(wchar_t)), m_data{}
         {
             static_assert(sizeof(m_byte_length) == 4, "BSTR size must be 32 bits");
             static_assert(offsetof(bstr_literal_t, m_data) == sizeof(m_byte_length), "BSTR data must immediately follow the length prefix");
@@ -312,7 +310,7 @@ inline namespace literals
     {
         return {str, len};
     }
- 
+
     constexpr zwstring_view operator""_zv(const wchar_t* str, std::size_t len) noexcept
     {
         return {str, len};
