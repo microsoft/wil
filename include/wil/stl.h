@@ -268,11 +268,11 @@ inline namespace literals
         wchar_t value[N];
         constexpr wchar_literal_storage(const wchar_t (&str)[N]) WI_NOEXCEPT
         {
-            for (std::size_t i = 0; i < N; ++i)
-            {
-                value[i] = str[i];
-            }
+            std::copy_n(str, N, value);
         }
+
+        static const std::size_t byte_size = N * sizeof(wchar_t); // includes the trailing L'\0'
+        static const std::size_t length = N - 1; // excludes the trailing L'\0'
     };
 
     template <std::size_t N>
@@ -285,13 +285,13 @@ inline namespace literals
         unsigned long m_byte_length;
         wchar_t m_data[N];
 
-        constexpr bstr_literal_t(const wchar_t (&text)[N]) WI_NOEXCEPT :
-            m_byte_length(static_cast<unsigned long>((N - 1) * sizeof(wchar_t))), m_data{}
+        constexpr bstr_literal_t(const wchar_literal_storage<N>& text) WI_NOEXCEPT :
+            m_byte_length(text.byte_size - sizeof(wchar_t)),
+            m_data{}
         {
-            for (std::size_t i = 0; i < N; ++i)
-            {
-                m_data[i] = text[i];
-            }
+            static_assert(sizeof(m_byte_length) == 4, "BSTR size must be 32 bits");
+            static_assert(offsetof(bstr_literal_t, m_data) == sizeof(m_byte_length), "BSTR data must immediately follow the length prefix");
+            std::copy_n(text.value, N, m_data);
         }
 
         WI_NODISCARD constexpr operator BSTR() const WI_NOEXCEPT
@@ -301,9 +301,9 @@ inline namespace literals
     };
 
     template <wchar_literal_storage Lit>
-    WI_NODISCARD constexpr auto operator""_bst() WI_NOEXCEPT
+    WI_NODISCARD constexpr auto operator""_bstr() WI_NOEXCEPT
     {
-        return bstr_literal_t<sizeof(Lit.value) / sizeof(wchar_t)>{Lit.value};
+        return bstr_literal_t<Lit.length + 1>{Lit};
     }
 
 #endif // __WI_LIBCPP_STD_VER >= 20
