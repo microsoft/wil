@@ -1878,6 +1878,11 @@ namespace reg
                 m_data.m_index = 0;
                 m_last_error = m_data.enumerate_current_index();
             }
+
+            if (FAILED(m_last_error))
+            {
+                m_data.make_end_iterator();
+            }
         }
 
         iterator_nothrow_t(const iterator_nothrow_t&) WI_NOEXCEPT = default;
