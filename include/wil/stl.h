@@ -260,7 +260,7 @@ inline namespace literals
 
         Example:
             void Use(BSTR);
-            Use(L"foo"_bst);
+            Use(L"foo"_bstr);
     */
     template <std::size_t N>
     struct wchar_literal_storage
