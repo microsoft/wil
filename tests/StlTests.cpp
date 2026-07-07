@@ -66,7 +66,7 @@ struct CustomNoncopyableString
 
 TEST_CASE("StlTests::TestBstrAllocator", "[stl][bstr][string_view]")
 {
-    std::string_view stlStringView_empty;
+    std::wstring_view stlStringView_empty;
     const wil::unique_bstr bstrEmpty{wil::make_bstr_nothrow(stlStringView_empty)};
     REQUIRE(bstrEmpty.get() == nullptr);
 
