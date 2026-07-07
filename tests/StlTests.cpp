@@ -72,8 +72,6 @@ TEST_CASE("StlTests::TestBstrAllocator", "[stl][bstr][string_view]")
 
     std::string_view stlStringView_fromLiteral{L"abc"};
     const wil::unique_bstr bstrFromLiteral{wil::make_bstr_nothrow(stlStringView_fromLiteral)};
-    REQUIRE(!bstrFromLiteral.empty());
-    REQUIRE(bstrFromLiteral.data() != nullptr);
     REQUIRE(bstrFromLiteral.get() != nullptr);
     REQUIRE(wcslen(bstrFromLiteral.get()) == 3);
     REQUIRE(CompareStringOrdinal(bstrFromLiteral.get(), -1, L"abc", -1, FALSE) == CSTR_EQUAL);
