@@ -70,7 +70,7 @@ TEST_CASE("StlTests::TestBstrAllocator", "[stl][bstr][string_view]")
     const wil::unique_bstr bstrEmpty{wil::make_bstr_nothrow(stlStringView_empty)};
     REQUIRE(bstrEmpty.get() == nullptr);
 
-    std::string_view stlStringView_fromLiteral{L"abc"};
+    std::wstring_view stlStringView_fromLiteral{L"abc"};
     const wil::unique_bstr bstrFromLiteral{wil::make_bstr_nothrow(stlStringView_fromLiteral)};
     REQUIRE(bstrFromLiteral.get() != nullptr);
     REQUIRE(wcslen(bstrFromLiteral.get()) == 3);
