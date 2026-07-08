@@ -55,14 +55,22 @@ namespace reg
      * @param subKey The name of a subkey that this function opens or creates.
      *        Note: this cannot be null (see the above referenced API documentation)
      * @param access The requested access desired for the opened key
+     * @param options Controls whether the created key is volatile - see wil::reg::key_options
+     * @param[out] disposition Optionally receives whether the key was newly created or an existing key was opened.
+     *        Only written on success - see wil::reg::key_disposition
      * @return A wil::unique_hkey or wil::shared_hkey containing the resulting opened HKEY
      * @exception std::exception (including wil::ResultException) will be thrown on all failures
      */
-    inline ::wil::unique_hkey create_unique_key(HKEY key, PCWSTR subKey, ::wil::reg::key_access access = ::wil::reg::key_access::read)
+    inline ::wil::unique_hkey create_unique_key(
+        HKEY key,
+        PCWSTR subKey,
+        ::wil::reg::key_access access = ::wil::reg::key_access::read,
+        ::wil::reg::key_options options = ::wil::reg::key_options::non_volatile,
+        _Out_opt_ ::wil::reg::key_disposition* disposition = nullptr)
     {
         const reg_view_details::reg_view regview{key};
         ::wil::unique_hkey return_value;
-        regview.create_key(subKey, &return_value, access);
+        regview.create_key(subKey, &return_value, access, options, disposition);
         return return_value;
     }
 
@@ -90,14 +98,22 @@ namespace reg
      * @param subKey The name of a subkey that this function opens or creates.
      *        Note: this cannot be null (see the above referenced API documentation)
      * @param access The requested access desired for the opened key
+     * @param options Controls whether the created key is volatile - see wil::reg::key_options
+     * @param[out] disposition Optionally receives whether the key was newly created or an existing key was opened.
+     *        Only written on success - see wil::reg::key_disposition
      * @return A wil::shared_hkey or wil::shared_hkey containing the resulting opened HKEY
      * @exception std::exception (including wil::ResultException) will be thrown on all failures
      */
-    inline ::wil::shared_hkey create_shared_key(HKEY key, PCWSTR subKey, ::wil::reg::key_access access = ::wil::reg::key_access::read)
+    inline ::wil::shared_hkey create_shared_key(
+        HKEY key,
+        PCWSTR subKey,
+        ::wil::reg::key_access access = ::wil::reg::key_access::read,
+        ::wil::reg::key_options options = ::wil::reg::key_options::non_volatile,
+        _Out_opt_ ::wil::reg::key_disposition* disposition = nullptr)
     {
         const reg_view_details::reg_view regview{key};
         ::wil::shared_hkey return_value;
-        regview.create_key(subKey, &return_value, access);
+        regview.create_key(subKey, &return_value, access, options, disposition);
         return return_value;
     }
 #endif // #if defined(__WIL_WINREG_STL)
@@ -126,13 +142,21 @@ namespace reg
      *        Note: this cannot be null (see the above referenced API documentation)
      * @param[out] hkey A reference to a wil::unique_hkey to receive the opened HKEY
      * @param access The requested access desired for the opened key
+     * @param options Controls whether the created key is volatile - see wil::reg::key_options
+     * @param[out] disposition Optionally receives whether the key was newly created or an existing key was opened.
+     *        Only written on success - see wil::reg::key_disposition
      * @return HRESULT error code indicating success or failure (does not throw C++ exceptions)
      */
     inline HRESULT create_unique_key_nothrow(
-        HKEY key, PCWSTR subKey, ::wil::unique_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
+        HKEY key,
+        PCWSTR subKey,
+        ::wil::unique_hkey& hkey,
+        ::wil::reg::key_access access = ::wil::reg::key_access::read,
+        ::wil::reg::key_options options = ::wil::reg::key_options::non_volatile,
+        _Out_opt_ ::wil::reg::key_disposition* disposition = nullptr) WI_NOEXCEPT
     {
         const reg_view_details::reg_view_nothrow regview{key};
-        return regview.create_key(subKey, hkey.put(), access);
+        return regview.create_key(subKey, hkey.put(), access, options, disposition);
     }
 
 #if defined(__WIL_WINREG_STL) || defined(WIL_DOXYGEN)
@@ -162,10 +186,15 @@ namespace reg
      * @return HRESULT error code indicating success or failure (does not throw C++ exceptions)
      */
     inline HRESULT create_shared_key_nothrow(
-        HKEY key, PCWSTR subKey, ::wil::shared_hkey& hkey, ::wil::reg::key_access access = ::wil::reg::key_access::read) WI_NOEXCEPT
+        HKEY key,
+        PCWSTR subKey,
+        ::wil::shared_hkey& hkey,
+        ::wil::reg::key_access access = ::wil::reg::key_access::read,
+        ::wil::reg::key_options options = ::wil::reg::key_options::non_volatile,
+        _Out_opt_ ::wil::reg::key_disposition* disposition = nullptr) WI_NOEXCEPT
     {
         const reg_view_details::reg_view_nothrow regview{key};
-        return regview.create_key(subKey, hkey.put(), access);
+        return regview.create_key(subKey, hkey.put(), access, options, disposition);
     }
 #endif // #define __WIL_WINREG_STL
 
