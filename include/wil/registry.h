@@ -169,6 +169,92 @@ namespace reg
     }
 #endif // #define __WIL_WINREG_STL
 
+#if defined(WIL_ENABLE_EXCEPTIONS)
+    /**
+     * @brief Deletes the specified value from under an open or well-known registry key - see RegDeleteKeyValueW
+     * @param key An open or well-known registry key
+     * @param subKey The name of the subkey to append to `key`.
+     *        If `nullptr`, then the value is deleted from `key` directly.
+     * @param value_name The name of the registry value to delete.
+     *        Can be nullptr to delete the unnamed default registry value.
+     * @exception std::exception (including wil::ResultException) will be thrown on all failures
+     */
+    inline void delete_value(HKEY key, _In_opt_ PCWSTR subKey, _In_opt_ PCWSTR value_name)
+    {
+        const reg_view_details::reg_view regview{key};
+        regview.delete_value(subKey, value_name);
+    }
+
+    /**
+     * @brief Deletes the specified value from under an open or well-known registry key - see RegDeleteValueW
+     * @param key An open or well-known registry key
+     * @param value_name The name of the registry value to delete.
+     *        Can be nullptr to delete the unnamed default registry value.
+     * @exception std::exception (including wil::ResultException) will be thrown on all failures
+     */
+    inline void delete_value(HKEY key, _In_opt_ PCWSTR value_name)
+    {
+        const reg_view_details::reg_view regview{key};
+        regview.delete_value(value_name);
+    }
+
+    /**
+     * @brief Recursively deletes the specified subkey, its values, and all of its descendant subkeys - see RegDeleteTreeW
+     * @param key An open or well-known registry key
+     * @param subKey The name of the subkey to delete (relative to `key`).
+     *        If `nullptr`, then the subkeys and values of `key` are deleted, but `key` itself is not.
+     * @remark Succeeds (does nothing) if the specified subkey does not exist - see wil::reg::is_registry_not_found
+     * @exception std::exception (including wil::ResultException) will be thrown on all failures
+     */
+    inline void delete_tree(HKEY key, _In_opt_ PCWSTR subKey)
+    {
+        const reg_view_details::reg_view regview{key};
+        regview.delete_tree(subKey);
+    }
+#endif // #if defined(WIL_ENABLE_EXCEPTIONS)
+
+    /**
+     * @brief Deletes the specified value from under an open or well-known registry key - see RegDeleteKeyValueW
+     * @param key An open or well-known registry key
+     * @param subKey The name of the subkey to append to `key`.
+     *        If `nullptr`, then the value is deleted from `key` directly.
+     * @param value_name The name of the registry value to delete.
+     *        Can be nullptr to delete the unnamed default registry value.
+     * @return HRESULT error code indicating success or failure (does not throw C++ exceptions)
+     */
+    inline HRESULT delete_value_nothrow(HKEY key, _In_opt_ PCWSTR subKey, _In_opt_ PCWSTR value_name) WI_NOEXCEPT
+    {
+        const reg_view_details::reg_view_nothrow regview{key};
+        return regview.delete_value(subKey, value_name);
+    }
+
+    /**
+     * @brief Deletes the specified value from under an open or well-known registry key - see RegDeleteValueW
+     * @param key An open or well-known registry key
+     * @param value_name The name of the registry value to delete.
+     *        Can be nullptr to delete the unnamed default registry value.
+     * @return HRESULT error code indicating success or failure (does not throw C++ exceptions)
+     */
+    inline HRESULT delete_value_nothrow(HKEY key, _In_opt_ PCWSTR value_name) WI_NOEXCEPT
+    {
+        const reg_view_details::reg_view_nothrow regview{key};
+        return regview.delete_value(value_name);
+    }
+
+    /**
+     * @brief Recursively deletes the specified subkey, its values, and all of its descendant subkeys - see RegDeleteTreeW
+     * @param key An open or well-known registry key
+     * @param subKey The name of the subkey to delete (relative to `key`).
+     *        If `nullptr`, then the subkeys and values of `key` are deleted, but `key` itself is not.
+     * @remark Succeeds (does nothing) if the specified subkey does not exist - see wil::reg::is_registry_not_found
+     * @return HRESULT error code indicating success or failure (does not throw C++ exceptions)
+     */
+    inline HRESULT delete_tree_nothrow(HKEY key, _In_opt_ PCWSTR subKey) WI_NOEXCEPT
+    {
+        const reg_view_details::reg_view_nothrow regview{key};
+        return regview.delete_tree(subKey);
+    }
+
     //
     //  wil::key_iterator and wil::value_iterator objects enable enumerating registry keys and values.
     //
