@@ -265,43 +265,27 @@ inline namespace literals
     template <std::size_t N>
     struct wchar_literal_storage
     {
+        static const std::size_t byte_size = N * sizeof(wchar_t); // includes the trailing L'\0'
+        static const std::size_t length = N - 1;                  // excludes the trailing L'\0'
+        uint32_t m_byte_length = static_cast<uint32_t>(byte_size - sizeof(wchar_t));
         wchar_t value[N];
         constexpr wchar_literal_storage(const wchar_t (&str)[N]) WI_NOEXCEPT
         {
             std::copy_n(str, N, value);
         }
-
-        static const std::size_t byte_size = N * sizeof(wchar_t); // includes the trailing L'\0'
-        static const std::size_t length = N - 1;                  // excludes the trailing L'\0'
     };
 
     template <std::size_t N>
     wchar_literal_storage(const wchar_t (&)[N]) -> wchar_literal_storage<N>;
 
-    // N includes the trailing L'\0'; the BSTR byte-length prefix excludes it.
-    template <std::size_t N>
-    struct bstr_literal_t
-    {
-        unsigned long m_byte_length;
-        wchar_t m_data[N];
-
-        constexpr bstr_literal_t(const wchar_literal_storage<N>& text) WI_NOEXCEPT : m_byte_length(text.byte_size - sizeof(wchar_t)), m_data{}
-        {
-            static_assert(sizeof(m_byte_length) == 4, "BSTR size must be 32 bits");
-            static_assert(offsetof(bstr_literal_t, m_data) == sizeof(m_byte_length), "BSTR data must immediately follow the length prefix");
-            std::copy_n(text.value, N, m_data);
-        }
-
-        WI_NODISCARD constexpr operator BSTR() const WI_NOEXCEPT
-        {
-            return const_cast<wchar_t*>(&m_data[0]);
-        }
-    };
-
     template <wchar_literal_storage Lit>
     WI_NODISCARD constexpr auto operator""_bstr() WI_NOEXCEPT
     {
-        return bstr_literal_t<Lit.length + 1>{Lit};
+        static_assert(sizeof(Lit.m_byte_length) == 4);
+        static_assert(offsetof(decltype(Lit), m_byte_length) == 0);
+        static_assert(offsetof(decltype(Lit), value) == sizeof(uint32_t));
+
+        return const_cast<wchar_t*>(Lit.value);
     }
 
 #endif // __WI_LIBCPP_STD_VER >= 20
