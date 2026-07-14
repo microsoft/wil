@@ -134,6 +134,32 @@ inline PCWSTR str_raw_ptr(const std::wstring& str)
 
 #if __cpp_lib_string_view >= 201606L
 
+#if defined(__WIL_OLEAUTO_H_)
+// Create wil::unique_bstr from std::wstring_view (regardless if not null terminated, or if it contains embedded nulls)
+inline wil::unique_bstr make_bstr_nothrow(std::wstring_view source) noexcept
+{
+    if (source.size() > 0xffffffffUL /*UINT32_MAX*/)
+    {
+        return wil::unique_bstr{};
+    }
+    return wil::unique_bstr(::SysAllocStringLen(source.data(), static_cast<UINT>(source.size())));
+}
+inline wil::unique_bstr make_bstr_failfast(std::wstring_view source) noexcept
+{
+    auto result(make_bstr_nothrow(source));
+    FAIL_FAST_IF_NULL_ALLOC(result);
+    return result;
+}
+#ifdef WIL_ENABLE_EXCEPTIONS
+inline wil::unique_bstr make_bstr(std::wstring_view source)
+{
+    wil::unique_bstr result(make_bstr_nothrow(source));
+    THROW_IF_NULL_ALLOC(result);
+    return result;
+}
+#endif // WIL_ENABLE_EXCEPTIONS
+#endif // defined(__WIL_OLEAUTO_H_)
+
 /**
     zstring_view. A zstring_view is identical to a std::string_view except it is always nul-terminated (unless empty).
     * zstring_view can be used for storing string literals without "forgetting" the length or that it is nul-terminated.

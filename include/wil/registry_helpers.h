@@ -1140,6 +1140,11 @@ namespace reg
                 return err_policy::HResult(HRESULT_FROM_WIN32(::RegDeleteValueW(m_key, value_name)));
             }
 
+            typename err_policy::result delete_value(_In_opt_ PCWSTR subKey, _In_opt_ PCWSTR value_name) const
+            {
+                return err_policy::HResult(HRESULT_FROM_WIN32(::RegDeleteKeyValueW(m_key, subKey, value_name)));
+            }
+
             template <typename R>
             typename err_policy::result get_value(
                 _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, R& return_value, DWORD type = reg_value_type_info::get_value_type<R>()) const
