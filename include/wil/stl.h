@@ -291,12 +291,13 @@ namespace details
 
     template <std::size_t N>
     wchar_literal_storage(const wchar_t (&)[N]) -> wchar_literal_storage<N>;
-}
+} // namespace details
 
 inline namespace literals
 {
 #if __WI_LIBCPP_STD_VER >= 20
-    template<wil::details::wchar_literal_storage Str> struct bstr_storage_t
+    template <wil::details::wchar_literal_storage Str>
+    struct bstr_storage_t
     {
         uint32_t sizeBytes = static_cast<uint32_t>((Str.size - 1) * sizeof(wchar_t));
         decltype(Str) string{Str};
