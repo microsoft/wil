@@ -251,6 +251,184 @@ struct typed_event : wil::details::event_base<winrt::Windows::Foundation::TypedE
 {
 };
 
+/// @cond
+namespace details
+{
+    // Returns true if the HRESULT represents an RPC/IPC disconnection or server unavailability error.
+    // These typically arise when a handler is in a remote process that has gone away.
+    inline bool is_rpc_disconnection_error(HRESULT hr) noexcept
+    {
+        // clang-format off
+        return hr == RPC_E_DISCONNECTED
+            || hr == static_cast<HRESULT>(HRESULT_FROM_WIN32(RPC_S_SERVER_UNAVAILABLE))
+            || hr == RPC_E_SERVER_DIED
+            || hr == RPC_E_SERVER_DIED_DNE
+            || hr == RPC_E_CALL_CANCELED;
+        // clang-format on
+    }
+} // namespace details
+/// @endcond
+
+/**
+ * @brief Traits for wil::winrt_event that logs and swallows exceptions thrown by event handlers.
+ * All handlers are called even if some throw; exceptions are logged via LOG_CAUGHT_EXCEPTION()
+ * and then discarded, allowing remaining handlers to run. This is the default for wil::winrt_event.
+ *
+ * @returns false (never removes the handler).
+ *
+ * @note Requires wil/result.h or wil/result_macros.h to be included for LOG_CAUGHT_EXCEPTION().
+ *       To suppress logging, implement custom traits with an empty on_handler_exception.
+ */
+struct swallow_event_errors_traits
+{
+    static bool on_handler_exception(std::exception_ptr) noexcept
+    {
+        LOG_CAUGHT_EXCEPTION();
+        return false; // Keep the handler for future invocations
+    }
+};
+
+/**
+ * @brief Traits for wil::winrt_event that propagates exceptions thrown by event handlers.
+ * If a handler throws, the exception propagates out of invoke() and remaining handlers
+ * are not called. This matches the behavior of winrt::event.
+ * @note This method never returns; it always rethrows the passed exception.
+ */
+struct propagate_event_errors_traits
+{
+    [[noreturn]] static bool on_handler_exception(std::exception_ptr ep)
+    {
+        std::rethrow_exception(ep);
+    }
+};
+
+/**
+ * @brief Traits for wil::winrt_event that calls FAIL_FAST when an event handler throws.
+ * Requires wil/result.h or wil/result_macros.h to be included.
+ */
+struct failfast_event_errors_traits
+{
+    [[noreturn]] static bool on_handler_exception(std::exception_ptr) noexcept
+    {
+        FAIL_FAST_CAUGHT_EXCEPTION();
+    }
+};
+
+/**
+ * @brief Traits for wil::winrt_event that handles RPC/IPC disconnection errors resiliently.
+ * When a handler throws an RPC disconnection error (e.g., RPC_E_DISCONNECTED,
+ * RPC_S_SERVER_UNAVAILABLE, etc.), the handler is removed from the event so it will not
+ * be called in future invocations. All exceptions (both RPC and non-RPC) are logged via
+ * LOG_CAUGHT_EXCEPTION().
+ *
+ * This is useful when handlers may be in remote processes that can disappear at any time.
+ *
+ * @returns true for RPC disconnection errors (remove the broken handler),
+ *          false for all other errors (keep the handler).
+ */
+struct rpc_resilient_event_errors_traits
+{
+    static bool on_handler_exception(std::exception_ptr ep) noexcept
+    {
+        try
+        {
+            std::rethrow_exception(ep);
+        }
+        catch (winrt::hresult_error const& e)
+        {
+            if (details::is_rpc_disconnection_error(e.code()))
+            {
+                LOG_CAUGHT_EXCEPTION_MSG("Removing disconnected WinRT event handler");
+                return true; // Remove the broken handler
+            }
+            LOG_CAUGHT_EXCEPTION();
+            return false;
+        }
+        catch (...)
+        {
+            LOG_CAUGHT_EXCEPTION();
+            return false;
+        }
+    }
+};
+
+/**
+ * @brief A WinRT event with configurable exception handling for individual handlers.
+ * @tparam T The delegate type (e.g., winrt::Windows::Foundation::TypedEventHandler<S, A>).
+ * @tparam Traits Traits class controlling what happens when a handler throws an exception.
+ *                The Traits::on_handler_exception static method is called with std::current_exception()
+ *                and must return bool: true to remove the handler from future invocations, false to keep it.
+ *                Defaults to swallow_event_errors_traits, which logs and swallows all exceptions.
+ * @details Thread safety is inherited from winrt::event<T>.
+ *          Handlers that throw and are marked for removal (by returning true from on_handler_exception)
+ *          will not receive any further invocations after the current one completes.
+ *          Usage example:
+ * @code
+ *         // Crash-resistant (default): exceptions are logged and swallowed; all handlers are invoked
+ *         wil::winrt_event<winrt::Windows::Foundation::TypedEventHandler<IFoo, IBar>> MyEvent;
+ *
+ *         // RPC-resilient: disconnected remote handlers are automatically removed
+ *         wil::winrt_event<winrt::Windows::Foundation::TypedEventHandler<IFoo, IBar>,
+ *                          wil::rpc_resilient_event_errors_traits> MyRpcEvent;
+ *
+ *         // Same behavior as winrt::event - first exception propagates, remaining handlers skipped:
+ *         wil::winrt_event<winrt::Windows::Foundation::TypedEventHandler<IFoo, IBar>,
+ *                          wil::propagate_event_errors_traits> MyStrictEvent;
+ *
+ *         // Custom traits for telemetry, logging, etc.:
+ *         struct my_telemetry_traits {
+ *             static bool on_handler_exception(std::exception_ptr ep) noexcept { ... return false; }
+ *         };
+ *         wil::winrt_event<winrt::Windows::Foundation::EventHandler<int>, my_telemetry_traits> MyEvent;
+ * @endcode
+ */
+template <typename T, typename Traits = swallow_event_errors_traits>
+struct winrt_event
+{
+    winrt::event_token operator()(T const& handler)
+    {
+        // The lambda needs both the event (to call remove) and its own token.
+        // Token is only available after add() returns, so we store it in a shared slot
+        // filled in after registration. We hold a weak_ptr to the event to safely handle
+        // the case where winrt_event is destroyed between invocations.
+        auto tokenSlot = std::make_shared<winrt::event_token>();
+        std::weak_ptr<winrt::event<T>> weakEvent{m_event};
+        winrt::event_token token = m_event->add([handler, tokenSlot, weakEvent](auto&&... args) {
+            try
+            {
+                handler(std::forward<decltype(args)>(args)...);
+            }
+            catch (...)
+            {
+                if (Traits::on_handler_exception(std::current_exception()))
+                {
+                    if (auto e = weakEvent.lock())
+                    {
+                        e->remove(*tokenSlot);
+                    }
+                }
+            }
+        });
+        *tokenSlot = token;
+        return token;
+    }
+
+    void operator()(winrt::event_token const& token) noexcept
+    {
+        m_event->remove(token);
+    }
+
+    template <typename... TArgs>
+    void invoke(TArgs&&... args)
+    {
+        (*m_event)(std::forward<TArgs>(args)...);
+    }
+
+private:
+    // shared_ptr enables the handler lambdas to hold a weak_ptr for safe self-removal
+    std::shared_ptr<winrt::event<T>> m_event = std::make_shared<winrt::event<T>>();
+};
+
 #endif // !defined(__WIL_CPPWINRT_AUTHORING_INCLUDED_FOUNDATION) && defined(WINRT_Windows_Foundation_H)
 
 #if (!defined(__WIL_CPPWINRT_AUTHORING_INCLUDED_XAML_DATA) && (defined(WINRT_Microsoft_UI_Xaml_Data_H) || defined(WINRT_Windows_UI_Xaml_Data_H))) || \
