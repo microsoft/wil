@@ -127,7 +127,7 @@ TEST_CASE("FileSystemTests::VerifyRemoveDirectoryRecursiveDoesNotTraverseWithout
     subFolderHandle.reset();
 }
 
-TEST_CASE("FileSystemTests::VerifyRemoveDirectoryRecursiveCanDeleteReadOnlyFiles", "[filesystem]")
+TEST_CASE("FileSystemTests::VerifyRemoveDirectoryRecursiveCanDeleteReadOnlyFilesAndDirectories", "[filesystem]")
 {
     auto CreateRelativePath = [](PCWSTR root, PCWSTR name) {
         wil::unique_hlocal_string path;
@@ -140,37 +140,54 @@ TEST_CASE("FileSystemTests::VerifyRemoveDirectoryRecursiveCanDeleteReadOnlyFiles
         REQUIRE(fileHandle);
     };
 
+    auto CreateReadOnlyDirectory = [](PCWSTR path) {
+        REQUIRE(::CreateDirectoryW(path, nullptr));
+        DWORD directoryAttr = ::GetFileAttributesW(path);
+        REQUIRE(::SetFileAttributesW(path, directoryAttr | FILE_ATTRIBUTE_READONLY));
+    };
+
     wil::unique_cotaskmem_string tempPath;
     REQUIRE_SUCCEEDED(wil::ExpandEnvironmentStringsW(LR"(%TEMP%)", tempPath));
     const auto basePath = CreateRelativePath(tempPath.get(), L"FileSystemTests");
     REQUIRE_SUCCEEDED(wil::CreateDirectoryDeepNoThrow(basePath.get()));
 
     auto scopeGuard = wil::scope_exit([&] {
-        wil::RemoveDirectoryRecursiveNoThrow(basePath.get(), wil::RemoveDirectoryOptions::RemoveReadOnly);
+        wil::RemoveDirectoryRecursiveNoThrow(
+            basePath.get(), wil::RemoveDirectoryOptions::RemoveReadOnlyFile | wil::RemoveDirectoryOptions::RemoveReadOnlyDirectory);
     });
 
     // Create a reparse point and a target folder that shouldn't get deleted
     auto folderToDelete = CreateRelativePath(basePath.get(), L"folderToDelete");
     REQUIRE(::CreateDirectoryW(folderToDelete.get(), nullptr));
 
-    auto topLevelReadOnly = CreateRelativePath(folderToDelete.get(), L"topLevelReadOnly.txt");
-    CreateReadOnlyFile(topLevelReadOnly.get());
+    auto topLevelReadOnlyDirectory = CreateRelativePath(folderToDelete.get(), L"topLevelReadOnly");
+    CreateReadOnlyDirectory(topLevelReadOnlyDirectory.get());
+
+    auto topLevelReadOnlyFile = CreateRelativePath(folderToDelete.get(), L"topLevelReadOnly.txt");
+    CreateReadOnlyFile(topLevelReadOnlyFile.get());
 
     auto subLevel = CreateRelativePath(folderToDelete.get(), L"subLevel");
     REQUIRE(::CreateDirectoryW(subLevel.get(), nullptr));
 
-    auto subLevelReadOnly = CreateRelativePath(subLevel.get(), L"subLevelReadOnly.txt");
-    CreateReadOnlyFile(subLevelReadOnly.get());
+    auto subLevelReadOnlyDirectory = CreateRelativePath(subLevel.get(), L"subLevelReadOnly");
+    CreateReadOnlyDirectory(subLevelReadOnlyDirectory.get());
 
-    // Delete will fail without the RemoveReadOnlyFlag
+    auto subLevelReadOnlyFile = CreateRelativePath(subLevel.get(), L"subLevelReadOnly.txt");
+    CreateReadOnlyFile(subLevelReadOnlyFile.get());
+
+    // Delete will fail without the RemoveReadOnlyFile | RemoveReadOnlyDirectory flags
     REQUIRE_FAILED(wil::RemoveDirectoryRecursiveNoThrow(folderToDelete.get()));
-    REQUIRE_SUCCEEDED(wil::RemoveDirectoryRecursiveNoThrow(folderToDelete.get(), wil::RemoveDirectoryOptions::RemoveReadOnly));
+    REQUIRE_SUCCEEDED(
+        wil::RemoveDirectoryRecursiveNoThrow(
+            folderToDelete.get(), wil::RemoveDirectoryOptions::RemoveReadOnlyFile | wil::RemoveDirectoryOptions::RemoveReadOnlyDirectory));
 
     // Verify all files have been deleted
-    REQUIRE_FALSE(FileExists(subLevelReadOnly.get()));
+    REQUIRE_FALSE(FileExists(subLevelReadOnlyFile.get()));
+    REQUIRE_FALSE(DirectoryExists(subLevelReadOnlyDirectory.get()));
     REQUIRE_FALSE(DirectoryExists(subLevel.get()));
 
-    REQUIRE_FALSE(FileExists(topLevelReadOnly.get()));
+    REQUIRE_FALSE(FileExists(topLevelReadOnlyFile.get()));
+    REQUIRE_FALSE(DirectoryExists(topLevelReadOnlyDirectory.get()));
     REQUIRE_FALSE(DirectoryExists(folderToDelete.get()));
 }
 
