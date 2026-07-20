@@ -922,16 +922,16 @@ private:
 // Error-policy driven forms of com_ptr
 
 #ifdef WIL_ENABLE_EXCEPTIONS
-//! COM pointer, errors throw exceptions (see @ref com_ptr_t for details)
+//! COM pointer, errors throw exceptions (see @ref wil::com_ptr_t for details)
 template <typename T>
 using com_ptr = com_ptr_t<T, err_exception_policy>;
 #endif
 
-//! COM pointer, errors return error codes (see @ref com_ptr_t for details)
+//! COM pointer, errors return error codes (see @ref wil::com_ptr_t for details)
 template <typename T>
 using com_ptr_nothrow = com_ptr_t<T, err_returncode_policy>;
 
-//! COM pointer, errors fail-fast (see @ref com_ptr_t for details)
+//! COM pointer, errors fail-fast (see @ref wil::com_ptr_t for details)
 template <typename T>
 using com_ptr_failfast = com_ptr_t<T, err_failfast_policy>;
 
@@ -1223,7 +1223,7 @@ inline bool operator<=(TLeft* left, const com_ptr_t<TRight, ErrRight>& right) WI
 //! forwarding reference template that can be used as an input com pointer.  That input com pointer is allowed to be any of:
 //! * Raw Pointer:  `T* com_raw_ptr(T* ptr)`
 //! * Wil com_ptr:  `T* com_raw_ptr(const wil::com_ptr_t<T, err>& ptr)`
-//! * WRL ComPtr:   `T* com_raw_ptr(const ::Microsoft::WRL::ComPtr<T>& ptr)`
+//! * WRL ComPtr:   `T* com_raw_ptr(const Microsoft::WRL::ComPtr<T>& ptr)`
 //! * C++/CX hat:   `IInspectable* com_raw_ptr(Platform::Object^ ptr)`
 //!
 //! Which in turn allows code like the following to be written:
@@ -1794,13 +1794,15 @@ inline U^ cx_dynamic_cast(T&& ptrSource) WI_NOEXCEPT
 
 #if (NTDDI_VERSION >= NTDDI_WINBLUE)
 #ifdef WIL_ENABLE_EXCEPTIONS
-//! Agile reference to a COM interface, errors throw exceptions (see @ref com_ptr_t and @ref com_agile_query for details)
+//! Agile reference to a COM interface, errors throw exceptions (see @ref wil::com_ptr_t and @ref wil::com_agile_query for
+//! details)
 using com_agile_ref = com_ptr<IAgileReference>;
 #endif
-//! Agile reference to a COM interface, errors return error codes (see @ref com_ptr_t and @ref com_agile_query_nothrow for
-//! details)
+//! Agile reference to a COM interface, errors return error codes (see @ref wil::com_ptr_t and @ref wil::com_agile_query_nothrow
+//! for details)
 using com_agile_ref_nothrow = com_ptr_nothrow<IAgileReference>;
-//! Agile reference to a COM interface, errors fail fast (see @ref com_ptr_t and @ref com_agile_query_failfast for details)
+//! Agile reference to a COM interface, errors fail fast (see @ref wil::com_ptr_t and @ref wil::com_agile_query_failfast for
+//! details)
 using com_agile_ref_failfast = com_ptr_failfast<IAgileReference>;
 
 //! @name Create agile reference helpers
@@ -1913,12 +1915,14 @@ namespace details
 } // namespace details
 
 #ifdef WIL_ENABLE_EXCEPTIONS
-//! Weak reference to a COM interface, errors throw exceptions (see @ref com_ptr_t and @ref com_weak_query for details)
+//! Weak reference to a COM interface, errors throw exceptions (see @ref wil::com_ptr_t and @ref wil::com_weak_query for details)
 using com_weak_ref = com_ptr<IWeakReference>;
 #endif
-//! Weak reference to a COM interface, errors return error codes (see @ref com_ptr_t and @ref com_weak_query_nothrow for details)
+//! Weak reference to a COM interface, errors return error codes (see @ref wil::com_ptr_t and @ref wil::com_weak_query_nothrow
+//! for details)
 using com_weak_ref_nothrow = com_ptr_nothrow<IWeakReference>;
-//! Weak reference to a COM interface, errors fail fast (see @ref com_ptr_t and @ref com_weak_query_failfast for details)
+//! Weak reference to a COM interface, errors fail fast (see @ref wil::com_ptr_t and @ref wil::com_weak_query_failfast for
+//! details)
 using com_weak_ref_failfast = com_ptr_failfast<IWeakReference>;
 
 //! @name Create weak reference helpers
@@ -2008,6 +2012,10 @@ HRESULT com_weak_copy_nothrow(T&& ptrSource, _COM_Outptr_result_maybenull_ IWeak
 
 #pragma region COM Object Helpers
 
+//! Returns whether the given COM object is agile (that is, whether it implements `IAgileObject`).
+//! @tparam T A raw interface pointer, any wil `com_ptr`, or a WRL `ComPtr`.
+//! @param ptrSource The object to test.
+//! @return `true` if the object implements `IAgileObject`, `false` otherwise.
 template <typename T>
 inline bool is_agile(T&& ptrSource)
 {
@@ -3058,7 +3066,9 @@ public:
         m_stream.reset();
     }
 
+    //! Move constructor; transfers the saved stream position.
     stream_position_saver(stream_position_saver&&) = default;
+    //! Move assignment operator; transfers the saved stream position.
     stream_position_saver& operator=(stream_position_saver&&) = default;
 
     stream_position_saver(const stream_position_saver&) = delete;
@@ -3082,6 +3092,8 @@ namespace details
 } // namespace details
 /// @endcond
 
+//! Unique RAII type that clears an object's site by calling `IObjectWithSite::SetSite(nullptr)` on destruction, breaking
+//! the site cycle.
 using unique_set_site_null_call = wil::unique_com_call<IObjectWithSite, decltype(details::SetSiteNull), details::SetSiteNull>;
 
 /** RAII support for managing the site chain. This function sets the site pointer on an object and return an object
@@ -3378,6 +3390,9 @@ template <typename err_policy>
 class com_timeout_t
 {
 public:
+    //! Establishes the call timeout on the current thread for this object's lifetime.
+    //! @param timeoutInMilliseconds The per-call timeout, in milliseconds, after which blocked cross-apartment calls are
+    //! canceled.
     com_timeout_t(DWORD timeoutInMilliseconds) : m_threadId(GetCurrentThreadId())
     {
         const HRESULT cancelEnablementResult = CoEnableCallCancellation(nullptr);
@@ -3397,6 +3412,7 @@ public:
         }
     }
 
+    //! Returns whether the timeout was successfully established (the underlying threadpool timer was created).
     operator bool() const noexcept
     {
         // All construction calls must succeed to provide us with a non-null m_timer value.
@@ -3433,14 +3449,14 @@ private:
 // Error-policy driven forms of com_timeout
 
 #ifdef WIL_ENABLE_EXCEPTIONS
-//! COM timeout, errors throw exceptions (see @ref com_timeout_t for details)
+//! COM timeout, errors throw exceptions (see @ref wil::com_timeout_t for details)
 using com_timeout = com_timeout_t<err_exception_policy>;
 #endif
 
-//! COM timeout, errors return error codes (see @ref com_timeout_t for details)
+//! COM timeout, errors return error codes (see @ref wil::com_timeout_t for details)
 using com_timeout_nothrow = com_timeout_t<err_returncode_policy>;
 
-//! COM timeout, errors fail-fast (see @ref com_timeout_t for details)
+//! COM timeout, errors fail-fast (see @ref wil::com_timeout_t for details)
 using com_timeout_failfast = com_timeout_t<err_failfast_policy>;
 
 #endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
