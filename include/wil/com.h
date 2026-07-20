@@ -922,16 +922,16 @@ private:
 // Error-policy driven forms of com_ptr
 
 #ifdef WIL_ENABLE_EXCEPTIONS
-//! COM pointer, errors throw exceptions (see @ref wil::com_ptr_t for details)
+//! COM pointer, errors throw exceptions (see @ref com_ptr_t for details)
 template <typename T>
 using com_ptr = com_ptr_t<T, err_exception_policy>;
 #endif
 
-//! COM pointer, errors return error codes (see @ref wil::com_ptr_t for details)
+//! COM pointer, errors return error codes (see @ref com_ptr_t for details)
 template <typename T>
 using com_ptr_nothrow = com_ptr_t<T, err_returncode_policy>;
 
-//! COM pointer, errors fail-fast (see @ref wil::com_ptr_t for details)
+//! COM pointer, errors fail-fast (see @ref com_ptr_t for details)
 template <typename T>
 using com_ptr_failfast = com_ptr_t<T, err_failfast_policy>;
 
@@ -1794,15 +1794,13 @@ inline U^ cx_dynamic_cast(T&& ptrSource) WI_NOEXCEPT
 
 #if (NTDDI_VERSION >= NTDDI_WINBLUE)
 #ifdef WIL_ENABLE_EXCEPTIONS
-//! Agile reference to a COM interface, errors throw exceptions (see @ref wil::com_ptr_t and @ref wil::com_agile_query for
-//! details)
+//! Agile reference to a COM interface, errors throw exceptions (see @ref com_ptr_t and @ref com_agile_query for details)
 using com_agile_ref = com_ptr<IAgileReference>;
 #endif
-//! Agile reference to a COM interface, errors return error codes (see @ref wil::com_ptr_t and @ref wil::com_agile_query_nothrow
-//! for details)
-using com_agile_ref_nothrow = com_ptr_nothrow<IAgileReference>;
-//! Agile reference to a COM interface, errors fail fast (see @ref wil::com_ptr_t and @ref wil::com_agile_query_failfast for
+//! Agile reference to a COM interface, errors return error codes (see @ref com_ptr_t and @ref com_agile_query_nothrow for
 //! details)
+using com_agile_ref_nothrow = com_ptr_nothrow<IAgileReference>;
+//! Agile reference to a COM interface, errors fail fast (see @ref com_ptr_t and @ref com_agile_query_failfast for details)
 using com_agile_ref_failfast = com_ptr_failfast<IAgileReference>;
 
 //! @name Create agile reference helpers
@@ -1915,14 +1913,12 @@ namespace details
 } // namespace details
 
 #ifdef WIL_ENABLE_EXCEPTIONS
-//! Weak reference to a COM interface, errors throw exceptions (see @ref wil::com_ptr_t and @ref wil::com_weak_query for details)
+//! Weak reference to a COM interface, errors throw exceptions (see @ref com_ptr_t and @ref com_weak_query for details)
 using com_weak_ref = com_ptr<IWeakReference>;
 #endif
-//! Weak reference to a COM interface, errors return error codes (see @ref wil::com_ptr_t and @ref wil::com_weak_query_nothrow
-//! for details)
+//! Weak reference to a COM interface, errors return error codes (see @ref com_ptr_t and @ref com_weak_query_nothrow for details)
 using com_weak_ref_nothrow = com_ptr_nothrow<IWeakReference>;
-//! Weak reference to a COM interface, errors fail fast (see @ref wil::com_ptr_t and @ref wil::com_weak_query_failfast for
-//! details)
+//! Weak reference to a COM interface, errors fail fast (see @ref com_ptr_t and @ref com_weak_query_failfast for details)
 using com_weak_ref_failfast = com_ptr_failfast<IWeakReference>;
 
 //! @name Create weak reference helpers
@@ -3449,14 +3445,14 @@ private:
 // Error-policy driven forms of com_timeout
 
 #ifdef WIL_ENABLE_EXCEPTIONS
-//! COM timeout, errors throw exceptions (see @ref wil::com_timeout_t for details)
+//! COM timeout, errors throw exceptions (see @ref com_timeout_t for details)
 using com_timeout = com_timeout_t<err_exception_policy>;
 #endif
 
-//! COM timeout, errors return error codes (see @ref wil::com_timeout_t for details)
+//! COM timeout, errors return error codes (see @ref com_timeout_t for details)
 using com_timeout_nothrow = com_timeout_t<err_returncode_policy>;
 
-//! COM timeout, errors fail-fast (see @ref wil::com_timeout_t for details)
+//! COM timeout, errors fail-fast (see @ref com_timeout_t for details)
 using com_timeout_failfast = com_timeout_t<err_failfast_policy>;
 
 #endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
