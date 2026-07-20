@@ -3062,13 +3062,13 @@ public:
         m_stream.reset();
     }
 
-    //! Move constructor; transfers the saved stream position.
+    /// @cond
     stream_position_saver(stream_position_saver&&) = default;
-    //! Move assignment operator; transfers the saved stream position.
     stream_position_saver& operator=(stream_position_saver&&) = default;
 
     stream_position_saver(const stream_position_saver&) = delete;
     void operator=(const stream_position_saver&) = delete;
+    /// @endcond
 
 private:
     com_ptr<IStream> m_stream;
