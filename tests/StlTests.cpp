@@ -152,6 +152,26 @@ TEST_CASE("StlTests::TestZWStringView literal", "[stl][zwstring_view]")
     }
 }
 
+TEST_CASE("StlTests::TestBSTR literal", "[stl][bstr]")
+{
+#if __WI_LIBCPP_STD_VER >= 20
+    SECTION("Literal creates a valid BSTR")
+    {
+        const auto literal = L"foo"_bstr;
+        const BSTR value = literal;
+        REQUIRE(value != nullptr);
+        REQUIRE(SysStringLen(value) == 3);
+        REQUIRE(SysStringLen(L"zot"_bstr) == 3);
+        REQUIRE(std::wstring_view(value) == L"foo");
+
+        constexpr auto empty_literal = L""_bstr;
+        REQUIRE(SysStringLen(empty_literal) == 0);
+        REQUIRE(empty_literal != nullptr);
+        REQUIRE(wcslen(empty_literal) == 0);
+    }
+#endif
+}
+
 TEST_CASE("StlTests::TestZStringView literal", "[stl][zstring_view]")
 {
 

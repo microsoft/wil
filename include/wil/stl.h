@@ -276,8 +276,55 @@ inline auto str_raw_ptr(basic_zstring_view<TChar> str)
     return str.c_str();
 }
 
+namespace details
+{
+    template <std::size_t N>
+    struct wchar_literal_storage
+    {
+        static constexpr const std::size_t size = N;
+        wchar_t value[N];
+        constexpr wchar_literal_storage(const wchar_t (&str)[N]) WI_NOEXCEPT
+        {
+            std::copy_n(str, N, value);
+        }
+    };
+
+    template <std::size_t N>
+    wchar_literal_storage(const wchar_t (&)[N]) -> wchar_literal_storage<N>;
+} // namespace details
+
 inline namespace literals
 {
+#if __WI_LIBCPP_STD_VER >= 20
+    template <wil::details::wchar_literal_storage Str>
+    struct bstr_storage_t
+    {
+        uint32_t sizeBytes = static_cast<uint32_t>((Str.size - 1) * sizeof(wchar_t));
+        decltype(Str) string{Str};
+    };
+
+    /**
+        A statically-allocated, BSTR-shaped literal: a length-prefixed wide string whose data pointer is a valid
+        BSTR (usable with SysStringLen, SysStringByteLen, wcslen). No heap allocation; size is the literal's exact
+        length. Lifetime is tied to the literal object itself.
+
+        Example:
+            void Use(BSTR);
+            Use(L"foo"_bstr);
+    */
+    template <wil::details::wchar_literal_storage Lit>
+    WI_NODISCARD constexpr auto operator""_bstr() WI_NOEXCEPT
+    {
+        constexpr static const bstr_storage_t<Lit> storage{};
+        static_assert(sizeof(storage.sizeBytes) == 4);
+        static_assert(offsetof(decltype(storage), sizeBytes) == 0);
+        static_assert(offsetof(decltype(storage), string) == sizeof(uint32_t));
+        static_assert(offsetof(decltype(storage), string.value) == sizeof(uint32_t));
+        return const_cast<wchar_t*>(storage.string.value);
+    }
+
+#endif // __WI_LIBCPP_STD_VER >= 20
+
     constexpr zstring_view operator""_zv(const char* str, std::size_t len) noexcept
     {
         return {str, len};
