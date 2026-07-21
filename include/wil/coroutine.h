@@ -188,9 +188,9 @@ template <typename T>
 struct com_task;
 } // namespace wil
 
-/// @cond
 namespace wil::details::coro
 {
+/// @cond
 // task and com_task are convertible to each other.  However, not
 // all consumers of this header have COM enabled.  Support for saving
 // COM thread-local error information and restoring it on the resuming
@@ -598,18 +598,32 @@ struct agile_awaiter
         return promise->client_await_resume();
     }
 };
+/// @endcond
 
+/** Shared awaiter interface inherited by @ref wil::task and @ref wil::com_task.
+You never name or instantiate this type directly; it exists solely so that both task types share the same interface.
+@note This type exists in the `wil::details` namespace and is therefore not meant for explicit consumption. It is documented for
+      the sole purpose of providing documentation for the various public members exposed by the task types. */
 template <typename T>
 struct task_base
 {
+    //! Returns an awaitable that resumes the caller on an arbitrary thread.
+    //! This matches @ref wil::task's default, so it is used mainly on a @ref wil::com_task to override same-apartment resumption
+    //! for a single `co_await`.
+    //! @return An awaitable for the task's result that completes on an arbitrary thread.
     auto resume_any_thread() && noexcept
     {
         return agile_awaiter<T>{wistd::move(promise)};
     }
 
-    // You must #include <ole2.h> before <wil/coroutine.h> to enable apartment-aware awaiting.
+    //! Returns an awaitable that resumes the caller in the same COM apartment that was current when the await began.
+    //! This matches @ref wil::com_task's default, so it is used mainly on a @ref wil::task to override arbitrary-thread
+    //! resumption for a single `co_await`.
+    //! @note You must `#include <ole2.h>` before `<wil/coroutine.h>` to enable apartment-aware awaiting.
+    //! @return An awaitable for the task's result that completes in the same COM apartment as the awaiter.
     auto resume_same_apartment() && noexcept;
 
+    /// @cond
     // Compiler error message metaprogramming: Tell people that they
     // need to use std::move() if they try to co_await an lvalue.
     struct cannot_await_lvalue_use_std_move
@@ -618,11 +632,21 @@ struct task_base
         {
         }
     };
+    /// @endcond
+
+    //! Deleted: a task must be awaited as an rvalue, not an lvalue.
+    //! Awaiting an lvalue is rejected at compile time; use `co_await wistd::move(t)`. (Awaiting consumes the task, which is why
+    //! the task types are move-only.)
     cannot_await_lvalue_use_std_move operator co_await() & = delete;
 
-    // You must #include <synchapi.h> (usually via <windows.h>) to enable synchronous waiting.
+    //! Synchronously waits for the task to complete and returns its result.
+    //! Blocks the calling thread (the usual caveats about synchronously waiting on an STA thread apply) and must be called on an
+    //! rvalue: `wistd::move(t).get()`.
+    //! @note You must `#include <synchapi.h>` (usually via `<windows.h>`) to enable synchronous waiting.
+    //! @return The value produced by the coroutine (or `void`).
     decltype(auto) get() &&;
 
+    /// @cond
 protected:
     task_base(task_promise<T>* initial = nullptr) noexcept : promise(initial)
     {
@@ -634,6 +658,7 @@ protected:
         static_cast<task_base&>(*this) = wistd::move(other);
         return *self;
     }
+    /// @endcond
 
 private:
     promise_ptr<T> promise;
@@ -641,15 +666,48 @@ private:
     static void __stdcall wake_by_address(void* completed);
 };
 } // namespace wil::details::coro
-/// @endcond
 
 namespace wil
 {
 // Must write out both classes separately
 // Cannot use deduction guides with alias template type prior to C++20.
+/** An awaitable type, whose `co_await` resumes on an arbitrary thread by default.
+A move-only awaitable object that can be awaited at most once; `co_await` takes ownership, so an lvalue must be moved in
+(`co_await wistd::move(t)`).
+
+By default, awaiting a `wil::task` resumes on an arbitrary thread. Override this before the `co_await` with
+@ref resume_same_apartment() (resume in the COM apartment that was current when the await began), or change the default by
+converting to @ref com_task. Wait synchronously with @ref get().
+
+The task cannot be cancelled, and an unobserved exception from an abandoned coroutine (its task destroyed without ever being
+awaited) is fatal. `wil::task` supplements PPL and C++/WinRT rather than replacing them.
+~~~
+// A coroutine that produces a value and (by default) resumes its awaiter on an arbitrary thread.
+wil::task<wil::unique_cotaskmem_string> GetNameAsync()
+{
+    co_await resume_background();
+    wil::unique_cotaskmem_string name;
+    THROW_IF_FAILED(GetNameSlow(&name));
+    co_return name;
+}
+
+winrt::IAsyncAction UpdateNameAsync()
+{
+    auto name = co_await GetNameAsync(); // resumes on an arbitrary thread
+    name = co_await GetNameAsync().resume_same_apartment(); // resumes in the original COM apartment
+    name = co_await wil::com_task(GetNameAsync()); // convert to a wil::com_task; same as calling resume_same_apartment
+
+    auto task = GetNameAsync();
+    // name = co_await task; <--- Compile error: cannot co_await an lvalue
+    name = co_await wistd::move(task); // OKAY: co_await takes ownership of the task
+}
+~~~
+@note Synchronous waiting with `get()` requires including `<synchapi.h>` (usually via `<windows.h>`) before `<wil/coroutine.h>`.
+@tparam T The task's result type; may be `void`, a reference, or any copyable, movable, or move-only object. */
 template <typename T>
 struct task : details::coro::task_base<T>
 {
+    /// @cond
     using base = details::coro::task_base<T>;
     // Constructing from task_promise<T>* cannot be explicit because get_return_object relies on implicit conversion.
     task(details::coro::task_promise<T>* initial = nullptr) noexcept : base(initial)
@@ -664,16 +722,50 @@ struct task : details::coro::task_base<T>
     }
 
     using base::operator co_await;
+    /// @endcond
 
+    //! Awaits the task, resuming the caller on an arbitrary thread (shorthand for `resume_any_thread()`).
     auto operator co_await() && noexcept
     {
         return wistd::move(*this).resume_any_thread();
     }
 };
 
+/** An awaitable type, whose `co_await` resumes in the same COM apartment by default.
+A move-only awaitable object that can be awaited at most once; `co_await` takes ownership, so an lvalue must be moved in
+(`co_await wistd::move(t)`).
+
+By default, awaiting a `wil::com_task` resumes in the COM apartment that was current when the await began (particularly convenient
+for ASTA/STA work). Override this before the `co_await` with @ref resume_any_thread() (resume on an arbitrary thread), or change
+the default by converting to @ref task. Wait synchronously with @ref get().
+
+The task cannot be cancelled, and an unobserved exception from an abandoned coroutine (its task destroyed without ever being
+awaited) is fatal. `wil::com_task` supplements PPL and C++/WinRT rather than replacing them.
+~~~
+// A coroutine that produces a value and (by default) resumes its awaiter in the COM apartment that awaited it.
+wil::com_task<winrt::hstring> GetGreetingAsync()
+{
+    co_await resume_background();
+    co_return L"Hello!"; // even though work ran off-thread, the awaiter resumes in its original apartment by default
+}
+
+winrt::IAsyncAction UpdateGreetingAsync()
+{
+    auto greeting = co_await GetGreetingAsync(); // resumes in the original COM apartment
+    greeting = co_await GetGreetingAsync().resume_any_thread(); // resumes on an arbitrary thread
+    greeting = co_await wil::task(GetGreetingAsync()); // convert to a wil::task; same as calling resume_any_thread
+
+    auto task = GetGreetingAsync();
+    // greeting = co_await task; <--- Compile error: cannot co_await an lvalue
+    greeting = co_await wistd::move(task); // OKAY: co_await takes ownership of the task
+}
+~~~
+@note Same-apartment resumption requires including COM headers (e.g. `<ole2.h>`) before `<wil/coroutine.h>`.
+@tparam T The task's result type; may be `void`, a reference, or any copyable, movable, or move-only object. */
 template <typename T>
 struct com_task : details::coro::task_base<T>
 {
+    /// @cond
     using base = details::coro::task_base<T>;
     // Constructing from task_promise<T>* cannot be explicit because get_return_object relies on implicit conversion.
     com_task(details::coro::task_promise<T>* initial = nullptr) noexcept : base(initial)
@@ -688,7 +780,9 @@ struct com_task : details::coro::task_base<T>
     }
 
     using base::operator co_await;
+    /// @endcond
 
+    //! Awaits the task, resuming the caller in the same COM apartment (shorthand for `resume_same_apartment()`).
     auto operator co_await() && noexcept
     {
         // You must #include <ole2.h> before <wil/coroutine.h> to enable non-agile awaiting.
@@ -696,12 +790,15 @@ struct com_task : details::coro::task_base<T>
     }
 };
 
+/// @cond
 template <typename T>
 task(com_task<T>&&) -> task<T>;
 template <typename T>
 com_task(task<T>&&) -> com_task<T>;
+/// @endcond
 } // namespace wil
 
+/// @cond
 template <typename T, typename... Args>
 struct __WI_COROUTINE_NAMESPACE::coroutine_traits<wil::task<T>, Args...>
 {
@@ -713,6 +810,7 @@ struct __WI_COROUTINE_NAMESPACE::coroutine_traits<wil::com_task<T>, Args...>
 {
     using promise_type = wil::details::coro::task_promise<T>;
 };
+/// @endcond
 
 #endif // __WIL_COROUTINE_INCLUDED
 
