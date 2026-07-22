@@ -104,14 +104,17 @@ struct dispatcher_handler
 
 namespace wil
 {
-//! Resumes coroutine execution on the thread associated with the dispatcher, or throws
-//! an exception (from an arbitrary thread) if unable. Supported dispatchers are
-//! Windows.System.DispatcherQueue, Microsoft.System.DispatcherQueue,
-//! Microsoft.UI.Dispatching.DispatcherQueue, and Windows.UI.Core.CoreDispatcher,
-//! but you must include the corresponding <winrt/Namespace.h> header before including
-//! wil/cppwinrt_helpers.h. It is okay to include wil/cppwinrt_helpers.h multiple times:
-//! support will be enabled for any winrt/Namespace.h headers that were included since
-//! the previous inclusion of wil/cppwinrt_headers.h.
+//! Returns an awaitable that resumes the current coroutine on the thread associated with `dispatcher`.
+//! Awaiting the result suspends the coroutine and reschedules it onto `dispatcher`; if the work item can't be scheduled or is
+//! dropped, the `co_await` throws (resuming on an arbitrary thread). Supported dispatchers are `Windows.System.DispatcherQueue`,
+//! `Microsoft.System.DispatcherQueue`, `Microsoft.UI.Dispatching.DispatcherQueue`, and `Windows.UI.Core.CoreDispatcher`.
+//! @tparam Dispatcher The dispatcher type; support for it is enabled by including the matching `winrt/*.h` header (see note).
+//! @param dispatcher The dispatcher whose thread the coroutine should resume on.
+//! @param priority The scheduling priority for the resumption; defaults to the dispatcher's `Normal` priority.
+//! @return An awaitable that resumes the coroutine on `dispatcher`'s thread.
+//! @note Include the corresponding `<winrt/Namespace.h>` header before `<wil/cppwinrt_helpers.h>` to enable support for a given
+//!       dispatcher. You may include `<wil/cppwinrt_helpers.h>` multiple times; support is enabled for any `winrt/Namespace.h`
+//!       headers included since the previous inclusion.
 template <typename Dispatcher>
 [[nodiscard]] auto resume_foreground(
     Dispatcher const& dispatcher,
@@ -291,9 +294,11 @@ namespace details
 } // namespace details
 /// @endcond
 
-/** Converts C++ / WinRT vectors, iterators, and iterables to std::vector by requesting the
-collection's data in bulk. This can be more efficient in terms of IPC cost than iteratively
-processing the collection.
+/** Converts a C++/WinRT vector, iterator, or iterable to a `std::vector` by requesting the collection's data in bulk.
+Fetching the data in bulk can be more efficient in terms of IPC cost than iteratively processing the collection. Works with
+`IVector<T>`, `IVectorView<T>`, `IIterable<T>`, `IIterator<T>`, and any type or interface that C++/WinRT projects those onto
+(`PropertySet`, `IMap<T,K>`, and so on). Iterable-only types are fetched in chunks of 64. Given an iterator, the returned vector
+holds the iterator's current element and everything after it.
 @code
 winrt::IVector<winrt::hstring> collection = GetCollection();
 std::vector<winrt::hstring> allData = wil::to_vector(collection); // read all data from collection
@@ -302,11 +307,10 @@ for (winrt::hstring const& item : allData)
     // use item
 }
 @endcode
-Can be used for IVector<T>, IVectorView<T>, IIterable<T>, IIterator<T>, and any type or
-interface that C++/WinRT projects those interfaces for (PropertySet, IMap<T,K>, etc.)
-Iterable-only types fetch content in units of 64. When used with an iterator, the returned
-vector contains the iterator's current position and any others after it.
-*/
+@tparam TSrc The C++/WinRT collection or iterator type to read from.
+@param src The collection or iterator to copy elements out of.
+@return A `std::vector` of the collection's element type containing the requested elements.
+@note Throws a `winrt::hresult_error` (for example `hresult_changed_state`) if the collection changes during the bulk read. */
 template <typename TSrc>
 auto to_vector(TSrc const& src)
 {
@@ -365,12 +369,12 @@ auto to_vector(TSrc const& src)
 
 namespace wil
 {
-#if defined(NTDDI_VERSION) && (NTDDI_VERSION >= NTDDI_WIN10_CU)
-//! The following methods require that you include both <winrt/Windows.UI.h>
-//! <Windows.UI.Interop.h> before including wil/cppwinrt_helpers.h, and that NTDDI_VERSION
-//! is at least NTDDI_WIN10_CU. It is okay to include wil/cppwinrt_helpers.h multiple times:
-//! support will be enabled for any headers that were included since the previous inclusion
-//! of wil/cppwinrt_headers.h.
+#if (defined(NTDDI_VERSION) && (NTDDI_VERSION >= NTDDI_WIN10_CU)) || defined(WIL_DOXYGEN)
+//! Returns the `Windows.UI.WindowId` for a Win32 HWND.
+//! @param hwnd The window handle to convert.
+//! @return The `winrt::Windows::UI::WindowId` identifying `hwnd`.
+//! @note Requires including `<winrt/Windows.UI.h>` and `<Windows.UI.Interop.h>` before `<wil/cppwinrt_helpers.h>`, with
+//!       `NTDDI_VERSION` at least `NTDDI_WIN10_CU`. Throws a `winrt::hresult_error` on failure.
 inline winrt::Windows::UI::WindowId GetWindowIdFromWindow(HWND hwnd)
 {
     ABI::Windows::UI::WindowId abiWindowId;
@@ -378,6 +382,11 @@ inline winrt::Windows::UI::WindowId GetWindowIdFromWindow(HWND hwnd)
     return winrt::Windows::UI::WindowId{abiWindowId.Value};
 }
 
+//! Returns the Win32 HWND for a `Windows.UI.WindowId`.
+//! @param windowId The window id to convert.
+//! @return The `HWND` identified by `windowId`.
+//! @note Requires including `<winrt/Windows.UI.h>` and `<Windows.UI.Interop.h>` before `<wil/cppwinrt_helpers.h>`, with
+//!       `NTDDI_VERSION` at least `NTDDI_WIN10_CU`. Throws a `winrt::hresult_error` on failure.
 inline HWND GetWindowFromWindowId(winrt::Windows::UI::WindowId windowId)
 {
     HWND hwnd;

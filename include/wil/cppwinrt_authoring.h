@@ -44,36 +44,55 @@ namespace details
 } // namespace details
 /// @endcond
 
+/** A read-only C++/WinRT property backed by single-threaded (non-atomic) storage.
+Wraps a value of type `T` and exposes it as a read-only property on a C++/WinRT runtime class: `operator()` returns the value (the
+getter C++/WinRT calls), and no public call-style setter is exposed. Set the value from within your implementation with
+`operator=`. For a property that callers can also set, use @ref single_threaded_rw_property instead.
+~~~
+struct MyClass : MyClassT<MyClass>
+{
+    wil::single_threaded_property<int> Answer{42}; // a read-only Answer property
+
+    void Recompute()
+    {
+        Answer = 43; // set internally with operator=; Answer(43) intentionally does not compile
+    }
+};
+~~~
+@tparam T The property's value type. */
 template <typename T>
 struct single_threaded_property
     : std::conditional_t<std::is_scalar_v<T> || std::is_final_v<T>, wil::details::single_threaded_property_storage<T>, T>
 {
     single_threaded_property() = default;
+    //! Constructs the property, forwarding the arguments to initialize the underlying value.
+    //! @tparam TArgs Constructor argument types for `T` (or its storage).
+    //! @param value Arguments used to initialize the property's value.
     template <typename... TArgs>
     single_threaded_property(TArgs&&... value) : base_type(std::forward<TArgs>(value)...)
     {
     }
 
+    /// @cond
     using base_type =
         std::conditional_t<std::is_scalar_v<T> || std::is_final_v<T>, wil::details::single_threaded_property_storage<T>, T>;
+    /// @endcond
 
+    //! Returns the current property value.
+    //! This is the getter C++/WinRT invokes for the projected property.
+    //! @return A copy of the current value.
     T operator()() const
     {
         return *this;
     }
 
-    // This is the only setter exposed. We don't expose `operator()(Q&& q)`,
-    // since that is what C++/WinRT uses to implement public setters. Since
-    // single_threaded_property is intended for readonly properties, we
-    // don't want to expose that.
-    //
-    // To set the value of this property *internally* (within your
-    // implementation), use this `operator=`:
-    //
-    //     MyProperty = 42;
-    //     // MyProperty(42); // won't work
-    //
-    // For settable properties, use single_threaded_rw_property<T> instead.
+    //! Sets the property value from within your implementation.
+    //! This is the only exposed setter; there is deliberately no call-style `operator()(Q&&)` setter, because C++/WinRT uses that
+    //! form to expose *public* setters and this type models a read-only property. Write `MyProperty = 42;` (not
+    //! `MyProperty(42)`). For a publicly settable property, use @ref single_threaded_rw_property.
+    //! @tparam Q The assigned value type.
+    //! @param q The new value to store.
+    //! @return A reference to this property.
     template <typename Q>
     auto& operator=(Q&& q)
     {
@@ -82,10 +101,26 @@ struct single_threaded_property
     }
 };
 
+/** A read-write C++/WinRT property backed by single-threaded (non-atomic) storage.
+Wraps a value of type `T` and exposes it as a read-write property on a C++/WinRT runtime class: `operator()` with no argument gets
+the value, `operator()(value)` sets it (the public setter C++/WinRT calls), and `operator=` sets it from within your
+implementation. For a read-only property, use @ref single_threaded_property instead.
+~~~
+struct MyClass : MyClassT<MyClass>
+{
+    wil::single_threaded_rw_property<winrt::hstring> Title{L"Untitled"}; // a read-write Title property
+};
+~~~
+@tparam T The property's value type. */
 template <typename T>
 struct single_threaded_rw_property : single_threaded_property<T>
 {
+    /// @cond
     using base_type = single_threaded_property<T>;
+    /// @endcond
+    //! Constructs the property, forwarding the arguments to initialize the underlying value.
+    //! @tparam TArgs Constructor argument types for `T`.
+    //! @param value Arguments used to initialize the property's value.
     template <typename... TArgs>
     single_threaded_rw_property(TArgs&&... value) : base_type(std::forward<TArgs>(value)...)
     {
@@ -94,6 +129,10 @@ struct single_threaded_rw_property : single_threaded_property<T>
     using base_type::operator();
 
     // needed in lieu of deducing-this
+    //! Sets the property value; this is the public setter C++/WinRT invokes when a caller assigns the property.
+    //! @tparam Q The assigned value type.
+    //! @param q The new value to store.
+    //! @return A reference to this property.
     template <typename Q>
     auto& operator()(Q&& q)
     {
@@ -101,6 +140,10 @@ struct single_threaded_rw_property : single_threaded_property<T>
     }
 
     // needed in lieu of deducing-this
+    //! Sets the property value from within your implementation (for example `Title = L"Home";`).
+    //! @tparam Q The assigned value type.
+    //! @param q The new value to store.
+    //! @return A reference to this property.
     template <typename Q>
     auto& operator=(Q&& q)
     {
@@ -117,9 +160,25 @@ struct single_threaded_rw_property : single_threaded_property<T>
 #define __WIL_CPPWINRT_AUTHORING_INCLUDED_ICLASSFACTORY
 /// @endcond
 
+/** A COM class factory (`IClassFactory`) that creates instances of a C++/WinRT (`winrt::implements`) class.
+Creates instances of `T` with `winrt::make_self<T>`, and implements `LockServer` against the C++/WinRT module lock so the host
+module stays loaded while the factory is locked. Hand it to whatever needs an `IClassFactory` (for example
+`CoRegisterClassObject`, or a `DllGetClassObject` implementation); @ref register_com_server wraps the `CoRegisterClassObject` case
+for you.
+@tparam T The C++/WinRT class the factory creates.
+@tparam Rest Additional C++/WinRT `implements` markers for the factory (not interfaces to implement), appended to its
+             `winrt::implements` base. For example @ref register_com_server passes `winrt::no_module_lock` so the factory object
+             itself holds no module lock. */
 template <typename T, typename... Rest>
 struct class_factory : winrt::implements<class_factory<T, Rest...>, IClassFactory, winrt::no_weak_ref, Rest...>
 {
+    //! Creates an instance of `T` and returns the requested interface.
+    //! Implements `IClassFactory::CreateInstance`. Aggregation is not supported, so a non-null `outer` fails with
+    //! `CLASS_E_NOAGGREGATION`.
+    //! @param outer The aggregating object's controlling `IUnknown`; must be null, since aggregation is unsupported.
+    //! @param iid Interface to return in `result`.
+    //! @param result Receives the requested interface on success, or null on failure.
+    //! @return `S_OK` on success; `CLASS_E_NOAGGREGATION` if `outer` is non-null; otherwise a failure `HRESULT`.
     HRESULT __stdcall CreateInstance(IUnknown* outer, GUID const& iid, void** result) noexcept final
     try
     {
@@ -136,6 +195,10 @@ struct class_factory : winrt::implements<class_factory<T, Rest...>, IClassFactor
     }
     CATCH_RETURN()
 
+    //! Increments or decrements the C++/WinRT module lock to keep the host module loaded.
+    //! Implements `IClassFactory::LockServer`.
+    //! @param lock `TRUE` to take a module lock, `FALSE` to release one.
+    //! @return `S_OK` - this function cannot fail.
     HRESULT __stdcall LockServer(BOOL lock) noexcept final
     try
     {
@@ -161,6 +224,15 @@ struct class_factory : winrt::implements<class_factory<T, Rest...>, IClassFactor
 #define __WIL_CPPWINRT_AUTHORING_INCLUDED_COM_SERVER
 /// @endcond
 
+/** Registers a C++/WinRT class as a COM class object for an out-of-process server, returning an RAII un-registration cookie.
+Creates a @ref class_factory for `T` and registers it with `CoRegisterClassObject`. The returned cookie unregisters the class
+object when it is destroyed, so keep it alive for as long as the class should remain creatable.
+@tparam T The C++/WinRT class to register.
+@param guid The CLSID to register the class under.
+@param context The `CLSCTX` execution context; defaults to `CLSCTX_LOCAL_SERVER`.
+@param flags The `REGCLS` registration flags; defaults to `REGCLS_MULTIPLEUSE`.
+@return A `wil::unique_com_class_object_cookie` that unregisters the class object when destroyed.
+@note Throws a `winrt::hresult_error` if registration fails. */
 template <typename T>
 WI_NODISCARD_REASON("The class is unregistered when the returned value is destructed")
 unique_com_class_object_cookie
@@ -172,6 +244,15 @@ unique_com_class_object_cookie
     return registration;
 }
 
+/** Registers several C++/WinRT classes as COM class objects at once, returning a `std::vector` of RAII un-registration cookies.
+Registers each class in `Ts...` under the matching CLSID in the `guids` array. Keep the returned cookies alive for as long as the
+classes should remain creatable.
+@tparam Ts The C++/WinRT classes to register, in the same order as `guids`.
+@param guids The CLSIDs to register the classes under, one per class in `Ts`.
+@param context The `CLSCTX` execution context; defaults to `CLSCTX_LOCAL_SERVER`.
+@param flags The `REGCLS` registration flags; defaults to `REGCLS_MULTIPLEUSE`.
+@return A `std::vector` of `wil::unique_com_class_object_cookie`, one per registered class.
+@note Throws a `winrt::hresult_error` if any registration fails. */
 template <typename... Ts>
 WI_NODISCARD_REASON("The classes are unregistered when the returned value is destructed")
 std::vector<unique_com_class_object_cookie> register_com_server(
@@ -287,21 +368,31 @@ namespace details
 template <typename T, typename Xaml_Data_PropertyChangedEventHandler = wil::details::Xaml_Data_PropertyChangedEventHandler, typename Xaml_Data_PropertyChangedEventArgs = wil::details::Xaml_Data_PropertyChangedEventArgs>
 struct notify_property_changed_base
 {
+    /// @cond
     using Type = T;
+    /// @endcond
+
+    //! Registers a handler for the `INotifyPropertyChanged.PropertyChanged` event.
+    //! @param value The handler to add.
+    //! @return An `event_token` identifying the registration, for later removal with the token overload.
     auto PropertyChanged(Xaml_Data_PropertyChangedEventHandler const& value)
     {
         return m_propertyChanged.add(value);
     }
 
+    //! Unregisters a previously registered `PropertyChanged` handler.
+    //! @param token The token returned when the handler was registered.
     void PropertyChanged(winrt::event_token const& token)
     {
         m_propertyChanged.remove(token);
     }
 
+    /// @cond
     Type& self()
     {
         return *static_cast<Type*>(this);
     }
+    /// @endcond
 
     /**
      * @brief Raises a property change notification event
@@ -325,8 +416,10 @@ struct notify_property_changed_base
         return m_propertyChanged(self(), Xaml_Data_PropertyChangedEventArgs{name});
     }
 
+    /// @cond
 protected:
     winrt::event<Xaml_Data_PropertyChangedEventHandler> m_propertyChanged;
+    /// @endcond
 };
 
 /**
@@ -338,16 +431,27 @@ protected:
 template <typename T, typename Xaml_Data_PropertyChangedEventHandler = wil::details::Xaml_Data_PropertyChangedEventHandler, typename Xaml_Data_PropertyChangedEventArgs = wil::details::Xaml_Data_PropertyChangedEventArgs>
 struct single_threaded_notifying_property : single_threaded_rw_property<T>
 {
+    /// @cond
     using Type = T;
     using base_type = single_threaded_rw_property<T>;
+    /// @endcond
     using base_type::operator();
 
+    //! Sets the property value and raises a change notification if the value changed.
+    //! This is the public C++/WinRT setter.
+    //! @tparam Q The assigned value type.
+    //! @param q The new value to store.
+    //! @return A reference to this property.
     template <typename Q>
     auto& operator()(Q&& q)
     {
         return *this = std::forward<Q>(q);
     }
 
+    //! Sets the property value and raises a change notification if the value changed.
+    //! @tparam Q The assigned value type.
+    //! @param q The new value to store.
+    //! @return A reference to this property.
     template <typename Q>
     auto& operator=(Q&& q)
     {
@@ -362,6 +466,23 @@ struct single_threaded_notifying_property : single_threaded_rw_property<T>
         return *this;
     }
 
+    //! Constructs a notifying property bound to its owner's `PropertyChanged` event.
+    //! Usually invoked for you by the `INIT_NOTIFYING_PROPERTY` macro rather than directly.
+    //! ~~~
+    //! struct MyPage : MyPageT<MyPage>, wil::notify_property_changed_base<MyPage>
+    //! {
+    //!     wil::single_threaded_notifying_property<int> Value;
+    //!
+    //!     // INIT_NOTIFYING_PROPERTY binds Value to this type's PropertyChanged event and names it "Value",
+    //!     // expanding to Value(&m_propertyChanged, *this, L"Value", 42):
+    //!     MyPage() : INIT_NOTIFYING_PROPERTY(Value, 42) { }
+    //! };
+    //! ~~~
+    //! @tparam TArgs Argument types used to initialize the property's value.
+    //! @param npc The owner's `PropertyChanged` event to raise when the value changes.
+    //! @param sender The object reported as the sender of the change notification (typically the owning control).
+    //! @param name The property name reported in the change notification.
+    //! @param args Arguments used to initialize the property's value.
     template <typename... TArgs>
     single_threaded_notifying_property(
         winrt::event<Xaml_Data_PropertyChangedEventHandler>* npc,
@@ -372,8 +493,12 @@ struct single_threaded_notifying_property : single_threaded_rw_property<T>
     {
     }
 
+    //! Copy-constructs the property, including its value and change-notification binding.
     single_threaded_notifying_property(const single_threaded_notifying_property&) = default;
+    //! Move-constructs the property from another instance.
     single_threaded_notifying_property(single_threaded_notifying_property&&) = default;
+    //! Returns the property name reported in change notifications.
+    //! @return The property name, as a `std::wstring_view` valid for the lifetime of this property.
     std::wstring_view Name() const noexcept
     {
         return m_name;
