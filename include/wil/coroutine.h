@@ -677,9 +677,8 @@ A move-only awaitable object that can be awaited at most once; `co_await` takes 
 
 By default, awaiting a `wil::task` resumes on an arbitrary thread. Override this before the `co_await` with
 @ref resume_same_apartment() to resume in the COM apartment that was current when the await began:
-`co_await task_function().resume_same_apartment()`.
-Or change the default by converting to @ref com_task: `co_await wil::com_task(task_function())`
-Wait synchronously with @ref get(): `co_await task_function().get()`.
+`co_await task_function().resume_same_apartment()`. Or change the default by converting to @ref com_task:
+`co_await wil::com_task(task_function())`. Wait synchronously with @ref get(): `co_await task_function().get()`.
 
 The task cannot be cancelled, and an unobserved exception from an abandoned coroutine (its task destroyed without ever being
 awaited) is ignored. `wil::task` supplements PPL and C++/WinRT rather than replacing them.
@@ -734,15 +733,16 @@ struct task : details::coro::task_base<T>
 };
 
 /** An awaitable type, whose `co_await` resumes in the same COM apartment by default.
-A move-only awaitable object that can be awaited at most once; `co_await` takes ownership, so an lvalue must be moved in
+A move-only awaitable object that can be awaited at most once; `co_await` takes ownership, so an lvalue must be moved from
 (`co_await wistd::move(t)`).
 
 By default, awaiting a `wil::com_task` resumes in the COM apartment that was current when the await began (particularly convenient
-for ASTA/STA work). Override this before the `co_await` with @ref resume_any_thread() (resume on an arbitrary thread), or change
-the default by converting to @ref task. Wait synchronously with @ref get().
+for ASTA/STA work). Override this before the `co_await` with @ref resume_any_thread() to resume on an arbitrary thread:
+`co_await com_task_function().resume_any_thread()`. Or change the default by converting to @ref task:
+`co_await wil::task(com_task_function())`. Wait synchronously with @ref get(): `co_await com_task_function().get()`.
 
 The task cannot be cancelled, and an unobserved exception from an abandoned coroutine (its task destroyed without ever being
-awaited) is fatal. `wil::com_task` supplements PPL and C++/WinRT rather than replacing them.
+awaited) is ignored. `wil::com_task` supplements PPL and C++/WinRT rather than replacing them.
 ~~~
 // A coroutine that produces a value and (by default) resumes its awaiter in the COM apartment that awaited it.
 wil::com_task<winrt::hstring> GetGreetingAsync()
