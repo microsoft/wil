@@ -172,13 +172,8 @@ for you.
 template <typename T, typename... Rest>
 struct class_factory : winrt::implements<class_factory<T, Rest...>, IClassFactory, winrt::no_weak_ref, Rest...>
 {
-    //! Creates an instance of `T` and returns the requested interface.
-    //! Implements `IClassFactory::CreateInstance`. Aggregation is not supported, so a non-null `outer` fails with
-    //! `CLASS_E_NOAGGREGATION`.
-    //! @param outer The aggregating object's controlling `IUnknown`; must be null, since aggregation is unsupported.
-    //! @param iid Interface to return in `result`.
-    //! @param result Receives the requested interface on success, or null on failure.
-    //! @return `S_OK` on success; `CLASS_E_NOAGGREGATION` if `outer` is non-null; otherwise a failure `HRESULT`.
+    /// @cond
+    // IClassFactory::CreateInstance; invoked by COM, not called directly by clients.
     HRESULT __stdcall CreateInstance(IUnknown* outer, GUID const& iid, void** result) noexcept final
     try
     {
@@ -195,10 +190,7 @@ struct class_factory : winrt::implements<class_factory<T, Rest...>, IClassFactor
     }
     CATCH_RETURN()
 
-    //! Increments or decrements the C++/WinRT module lock to keep the host module loaded.
-    //! Implements `IClassFactory::LockServer`.
-    //! @param lock `TRUE` to take a module lock, `FALSE` to release one.
-    //! @return `S_OK` - this function cannot fail.
+    // IClassFactory::LockServer; invoked by COM, not called directly by clients.
     HRESULT __stdcall LockServer(BOOL lock) noexcept final
     try
     {
@@ -214,6 +206,7 @@ struct class_factory : winrt::implements<class_factory<T, Rest...>, IClassFactor
         return S_OK;
     }
     CATCH_RETURN()
+    /// @endcond
 };
 
 #endif // !defined(__WIL_CPPWINRT_AUTHORING_INCLUDED_ICLASSFACTORY) && defined(__IClassFactory_INTERFACE_DEFINED__)
