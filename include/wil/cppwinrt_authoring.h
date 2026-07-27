@@ -166,9 +166,9 @@ module stays loaded while the factory is locked. Hand it to whatever needs an `I
 `CoRegisterClassObject`, or a `DllGetClassObject` implementation); @ref register_com_server wraps the `CoRegisterClassObject` case
 for you.
 @tparam T The C++/WinRT class the factory creates.
-@tparam Rest Additional C++/WinRT `implements` markers for the factory (not interfaces to implement), appended to its
-             `winrt::implements` base. For example @ref register_com_server passes `winrt::no_module_lock` so the factory object
-             itself holds no module lock. */
+@tparam Rest Additional C++/WinRT `implements` markers for the factory, appended to its `winrt::implements` base, typically
+markers rather than interfaces to implement. For example @ref register_com_server passes `winrt::no_module_lock` so the factory
+object itself holds no module lock. */
 template <typename T, typename... Rest>
 struct class_factory : winrt::implements<class_factory<T, Rest...>, IClassFactory, winrt::no_weak_ref, Rest...>
 {
