@@ -63,26 +63,29 @@ namespace reg
     }
 
     // Access rights for opening registry keys. See https://learn.microsoft.com/en-us/windows/win32/sysinfo/registry-key-security-and-access-rights.
-    enum class key_access
+    // The named values map directly to their corresponding REGSAM access masks, so callers who need an access right not
+    // covered by a named value can supply a raw mask directly, for example key_access{KEY_QUERY_VALUE | KEY_SET_VALUE}.
+    enum class key_access : DWORD
     {
-        // Open key for reading.
-        read,
+        // Open key for reading. Equivalent to KEY_READ.
+        read = KEY_READ,
 
         // Open key for writing. Equivalent to KEY_WRITE.
-        write,
+        write = KEY_WRITE,
 
         // Open key for reading and writing. Equivalent to KEY_ALL_ACCESS.
-        readwrite,
+        readwrite = KEY_ALL_ACCESS,
 
-        // Open key for reading from 64-bit registry.
-        read64,
+        // Open key for reading from 64-bit registry. Equivalent to KEY_READ | KEY_WOW64_64KEY.
+        read64 = KEY_READ | KEY_WOW64_64KEY,
 
         // Open key for writing from 64-bit registry. Equivalent to KEY_WRITE | KEY_WOW64_64KEY.
-        write64,
+        write64 = KEY_WRITE | KEY_WOW64_64KEY,
 
-        // Open key for reading and writing from 64-bit registry. Equivalent to KEY_ALL_ACCESS.
-        readwrite64,
+        // Open key for reading and writing from 64-bit registry. Equivalent to KEY_ALL_ACCESS | KEY_WOW64_64KEY.
+        readwrite64 = KEY_ALL_ACCESS | KEY_WOW64_64KEY,
     };
+    DEFINE_ENUM_FLAG_OPERATORS(key_access);
 
     /// @cond
     namespace reg_view_details
@@ -111,23 +114,7 @@ namespace reg
 
         constexpr DWORD get_access_flags(key_access access) WI_NOEXCEPT
         {
-            switch (access)
-            {
-            case key_access::read:
-                return KEY_READ;
-            case key_access::write:
-                return KEY_WRITE;
-            case key_access::readwrite:
-                return KEY_ALL_ACCESS;
-            case key_access::read64:
-                return KEY_READ | KEY_WOW64_64KEY;
-            case key_access::write64:
-                return KEY_WRITE | KEY_WOW64_64KEY;
-            case key_access::readwrite64:
-                return KEY_ALL_ACCESS | KEY_WOW64_64KEY;
-            }
-            FAIL_FAST();
-            RESULT_NORETURN_RESULT(0);
+            return static_cast<DWORD>(access);
         }
 
         /**
