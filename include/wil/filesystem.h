@@ -33,14 +33,22 @@
 namespace wil
 {
 //! Determines if a path is an extended length path that can be used to access paths longer than MAX_PATH.
+//! @param path The path to inspect.
+//! @return `true` if `path` begins with the `\\?\` extended-length prefix; otherwise `false`.
 inline bool is_extended_length_path(_In_ PCWSTR path)
 {
     return wcsncmp(path, L"\\\\?\\", 4) == 0;
 }
 
 #if (_WIN32_WINNT >= _WIN32_WINNT_WIN7)
-//! Find the last segment of a path. Matches the behavior of shlwapi!PathFindFileNameW()
-//! note, does not support streams being specified like PathFindFileNameW(), is that a bug or a feature?
+//! Finds the last segment of a path.
+//! Returns a pointer just past the last backslash in `path`, ignoring a single trailing backslash (which is kept as part of the
+//! returned segment), so `C:\dir\file` yields `file` while `C:\dir\sub\` yields `sub\`. If `path` has no backslash (apart from a
+//! possible trailing one), for example `file` or `file\`, the result points to its null terminator.
+//! @param path The path to inspect.
+//! @return A pointer within `path` to the start of its final segment (or its null terminator, as described above).
+//! @note Only backslashes are recognized as path separators; forward slashes and the drive-letter colon are not, so a
+//! drive-relative path such as `C:file` yields a pointer to the null terminator rather than to `file`.
 inline PCWSTR find_last_path_segment(_In_ PCWSTR path)
 {
     auto const pathLength = wcslen(path);
@@ -61,14 +69,20 @@ inline PCWSTR find_last_path_segment(_In_ PCWSTR path)
 }
 #endif
 
-//! Determine if the file name is one of the special "." or ".." names.
+//! Determines if the file name is one of the special "." or ".." names.
+//! @param fileName The file name to test.
+//! @return `true` if `fileName` is exactly `.` or `..`; otherwise `false`.
 inline bool path_is_dot_or_dotdot(_In_ PCWSTR fileName)
 {
     return ((fileName[0] == L'.') && ((fileName[1] == L'\0') || ((fileName[1] == L'.') && (fileName[2] == L'\0'))));
 }
 
-//! Returns the drive number, if it has one. Returns true if there is a drive number, false otherwise. Supports regular and
-//! extended length paths.
+//! Extracts the zero-based drive number from a path, if it has one.
+//! On success `driveNumber` receives the zero-based drive index, where `0` is `A:`, `1` is `B:`, and so on.
+//! @param path The path to inspect.
+//! @param driveNumber Receives the zero-based drive number, or `-1` when `path` has no drive letter.
+//! @return `true` if `path` has a drive letter; otherwise `false`.
+//! @note Supports both regular and `\\?\` extended-length paths.
 inline bool try_get_drive_letter_number(_In_ PCWSTR path, _Out_ int* driveNumber)
 {
     if (path[0] == L'\\' && path[1] == L'\\' && path[2] == L'?' && path[3] == L'\\')
@@ -96,10 +110,16 @@ inline bool try_get_drive_letter_number(_In_ PCWSTR path, _Out_ int* driveNumber
 
 // PathCch.h APIs are only in desktop API for now.
 
-// Compute the substring in the input value that is the parent folder path.
-// returns:
-//      true + parentPathLength - path has a parent starting at the beginning path and of parentPathLength length.
-//      false, no parent path, the input is a root path.
+//! Computes the length of the leading portion of `path` that is its parent directory.
+//! The parent directory is the prefix of `path`, from its start up to (but not including) the final segment, so it includes the
+//! separating backslash. A single trailing backslash is ignored, so both `C:\foo\bar` and `C:\foo\bar\` yield `C:\foo\`, while a
+//! single segment such as `C:\foo` yields the root `C:\`. A parent is reported only for a rooted path (drive-letter, UNC, or
+//! root-relative); the function returns `false` and sets the length to 0 for a bare root such as `C:\`, and likewise for any
+//! relative path such as `foo\bar` (even though `foo` is its parent).
+//! @param path The path to inspect.
+//! @param parentPathLength Receives the length, in characters, of the parent-directory prefix (which begins at `path`) or 0 when
+//! there is no parent.
+//! @return `true` if `path` is a rooted path that has a parent directory; otherwise `false` (a bare root, or a relative path).
 inline bool try_get_parent_path_range(_In_ PCWSTR path, _Out_ size_t* parentPathLength)
 {
     *parentPathLength = 0;
@@ -114,8 +134,10 @@ inline bool try_get_parent_path_range(_In_ PCWSTR path, _Out_ size_t* parentPath
     return hasParent;
 }
 
-// Creates directories for the specified path, creating parent paths
-// as needed.
+//! Creates the specified directory along with any missing parent directories, as needed.
+//! @param path The directory to create; missing intermediate directories are created as well.
+//! @return `S_OK` on success (including when the directory already exists), or a failure `HRESULT` from an underlying call to
+//! `CreateDirectoryW`.
 inline HRESULT CreateDirectoryDeepNoThrow(PCWSTR path) WI_NOEXCEPT
 {
     if (::CreateDirectoryW(path, nullptr) == FALSE)
@@ -149,15 +171,23 @@ inline HRESULT CreateDirectoryDeepNoThrow(PCWSTR path) WI_NOEXCEPT
 }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
+//! Creates a directory along with any missing parent directories, throwing on failure.
+//! The exception-based counterpart to @ref CreateDirectoryDeepNoThrow; see that function for details.
+//! @param path The directory to create, together with any missing intermediate directories.
 inline void CreateDirectoryDeep(PCWSTR path)
 {
     THROW_IF_FAILED(CreateDirectoryDeepNoThrow(path));
 }
 #endif // WIL_ENABLE_EXCEPTIONS
 
-//! A strongly typed version of the Win32 API GetFullPathNameW.
-//! Return a path in an allocated buffer for handling long paths.
-//! Optionally return the pointer to the file name part.
+//! A strongly typed version of the Win32 API `GetFullPathNameW`.
+//! Returns the path in an allocated buffer so it can handle long paths, and optionally returns a pointer to the file-name part.
+//! @tparam string_type The string type that receives the result.
+//! @tparam stackBufferLength Size, in characters, of the initial on-stack buffer; a larger buffer is heap-allocated if needed.
+//! @param file The path to expand to a fully qualified form.
+//! @param path Receives the fully qualified path.
+//! @param filePart Optional. If non-null, receives a pointer, within `path`, to the start of the file-name component.
+//! @return `S_OK` on success, otherwise a failure `HRESULT`
 template <typename string_type, size_t stackBufferLength = 256>
 HRESULT GetFullPathNameW(PCWSTR file, string_type& path, _Outptr_opt_ PCWSTR* filePart = nullptr)
 {
@@ -183,9 +213,9 @@ HRESULT GetFullPathNameW(PCWSTR file, string_type& path, _Outptr_opt_ PCWSTR* fi
 }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
-//! A strongly typed version of the Win32 API of GetFullPathNameW.
-//! Return a path in an allocated buffer for handling long paths.
-//! Optionally return the pointer to the file name part.
+//! A strongly typed version of the Win32 API `GetFullPathNameW` that returns the fully qualified path, throwing on failure.
+//! The exception-based counterpart to @ref wil::GetFullPathNameW(PCWSTR,string_type&,PCWSTR*) "the non-throwing overload"; see
+//! that overload for details.
 template <typename string_type = wil::unique_cotaskmem_string, size_t stackBufferLength = 256>
 string_type GetFullPathNameW(PCWSTR file, _Outptr_opt_ PCWSTR* filePart = nullptr)
 {
@@ -195,11 +225,12 @@ string_type GetFullPathNameW(PCWSTR file, _Outptr_opt_ PCWSTR* filePart = nullpt
 }
 #endif
 
+//! Options controlling @ref wil::RemoveDirectoryRecursiveNoThrow and @ref wil::RemoveDirectoryRecursive.
 enum class RemoveDirectoryOptions
 {
-    None = 0,
-    KeepRootDirectory = 0x1,
-    RemoveReadOnly = 0x2,
+    None = 0,                //!< Recursively delete the directory and all of its contents (the default).
+    KeepRootDirectory = 0x1, //!< Delete the directory's contents but leave the (now empty) root directory in place.
+    RemoveReadOnly = 0x2,    //!< Clear read-only attribute on files that may otherwise block deletion
 };
 DEFINE_ENUM_FLAG_OPERATORS(RemoveDirectoryOptions);
 
@@ -218,7 +249,10 @@ namespace details
 } // namespace details
 /// @endcond
 
-// Retrieve a handle to a directory only if it is safe to recurse into.
+//! Returns a handle to a directory only when it is safe to recurse into it during a recursive walk or delete.
+//! Recursion is safe only when `path` names a real directory that is not a name surrogate (symbolic link, mount point) and whose
+//! reparse tag, if any, permits traversal; otherwise an empty handle is returned. Primarily an implementation detail of
+//! @ref RemoveDirectoryRecursiveNoThrow.
 inline wil::unique_hfile TryCreateFileCanRecurseIntoDirectory(
     PCWSTR path, PWIN32_FIND_DATAW fileFindData, DWORD access = GENERIC_READ | /*DELETE*/ 0x00010000L, DWORD share = FILE_SHARE_READ)
 {
@@ -246,8 +280,18 @@ inline wil::unique_hfile TryCreateFileCanRecurseIntoDirectory(
     return result;
 }
 
-// If inputPath is a non-normalized name be sure to pass an extended length form to ensure
-// it can be addressed and deleted.
+//! Recursively deletes a directory and everything beneath it.
+//! Deletes every file and subdirectory under `inputPath`, then `inputPath` itself unless
+//! @ref RemoveDirectoryOptions::KeepRootDirectory is specified. Directory reparse points (symbolic links, mount points) are
+//! deleted without being traversed, so the operation stays within the target tree. Child paths are converted to extended-length
+//! `\\?\` form for you, so deep or long descendants are handled automatically. Pass `inputPath` itself in extended-length form
+//! when it may exceed `MAX_PATH` characters or is a non-normalized name.
+//! @param inputPath The root directory to delete.
+//! @param options Flags controlling the delete.
+//! @param deleteHandle Optional handle to `inputPath`, already opened with delete access. When supplied, `inputPath` is removed
+//! through this handle instead of by its path, which closes a time-of-check/time-of-use (TOCTOU) window. Used primarily by this
+//! function's internal recursion.
+//! @return `S_OK` on success, or a failure `HRESULT`
 inline HRESULT RemoveDirectoryRecursiveNoThrow(
     PCWSTR inputPath, RemoveDirectoryOptions options = RemoveDirectoryOptions::None, HANDLE deleteHandle = INVALID_HANDLE_VALUE) WI_NOEXCEPT
 {
@@ -385,43 +429,57 @@ inline HRESULT RemoveDirectoryRecursiveNoThrow(
 }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
+//! Recursively deletes a directory and everything beneath it, throwing on failure.
+//! The exception-based counterpart to @ref RemoveDirectoryRecursiveNoThrow; see that function for details.
+//! @param path The root directory to delete.
+//! @param options Flags controlling the delete.
 inline void RemoveDirectoryRecursive(PCWSTR path, RemoveDirectoryOptions options = RemoveDirectoryOptions::None)
 {
     THROW_IF_FAILED(RemoveDirectoryRecursiveNoThrow(path, options));
 }
 #endif // WIL_ENABLE_EXCEPTIONS
 
-// Range based for that supports Win32 structures that use NextEntryOffset as the basis of traversing
-// a result buffer that contains data. This is used in the following FileIO calls:
-// FileStreamInfo, FILE_STREAM_INFO
-// FileIdBothDirectoryInfo, FILE_ID_BOTH_DIR_INFO
-// FileFullDirectoryInfo, FILE_FULL_DIR_INFO
-// FileIdExtdDirectoryInfo, FILE_ID_EXTD_DIR_INFO
-// ReadDirectoryChangesW, FILE_NOTIFY_INFORMATION
-
+//! Range and forward iterator over a Win32 buffer whose elements are chained by a `NextEntryOffset` field.
+//! Several Win32 APIs fill a single buffer with variable-length elements, each storing the byte offset to the next element in a
+//! `NextEntryOffset` member (0 marks the last element). This type walks that chain and also acts as its own range, so it can be
+//! used directly in a range-based `for` loop. Applicable element types include `FILE_STREAM_INFO`, `FILE_ID_BOTH_DIR_INFO`,
+//! `FILE_FULL_DIR_INFO`, `FILE_ID_EXTD_DIR_INFO`, and `FILE_NOTIFY_INFORMATION`. Obtain one from
+//! @ref create_next_entry_offset_iterator.
+//! ~~~
+//! // FILE_STREAM_INFO elements (a file's data streams) are chained by NextEntryOffset.
+//! auto streams = wil::GetFileInfo<FileStreamInfo>(fileHandle);
+//! for (auto const& stream : wil::create_next_entry_offset_iterator(streams.get()))
+//! {
+//!     // StreamName is counted by StreamNameLength (in bytes) and is not null-terminated.
+//!     std::wstring_view name{stream.StreamName, stream.StreamNameLength / sizeof(WCHAR)};
+//!     totalStreamBytes += stream.StreamSize.QuadPart;
+//! }
+//! ~~~
+//! @tparam T The element type stored in the buffer; it must expose a `NextEntryOffset` member.
 template <typename T>
 struct next_entry_offset_iterator
 {
     // Fulfill std::iterator_traits requirements
-    using difference_type = ptrdiff_t;
-    using value_type = T;
-    using pointer = const T*;
-    using reference = const T&;
+    using difference_type = ptrdiff_t; //!< Signed distance between two iterators.
+    using value_type = T;              //!< The type of the elements the iterator refers to.
+    using pointer = const T*;          //!< Pointer to a (const) element.
+    using reference = const T&;        //!< Reference to a (const) element.
 #if WIL_USE_STL
-    using iterator_category = ::std::forward_iterator_tag;
+    using iterator_category = ::std::forward_iterator_tag; //!< Type satisfies LegacyForwardIterator requirements.
 #endif
 
+    //! Constructs an iterator over the elements starting at `iterable`, or an end iterator when `iterable` is null/not specified.
     next_entry_offset_iterator(T* iterable = __nullptr) : current_(iterable)
     {
     }
 
-    // range based for requires operator!=, operator++ and operator* to do its work
-    // on the type returned from begin() and end(), provide those here.
+    //! Returns `true` when the two iterators refer to different elements
     WI_NODISCARD bool operator!=(const next_entry_offset_iterator& other) const
     {
         return current_ != other.current_;
     }
 
+    //! Pre-increment: advances to the next element in the chain (or to the end when the current element is the last).
     next_entry_offset_iterator& operator++()
     {
         current_ = (current_->NextEntryOffset != 0)
@@ -430,6 +488,7 @@ struct next_entry_offset_iterator
         return *this;
     }
 
+    //! Post-increment: advances to the next element, returning an unmodified copy of `this`.
     next_entry_offset_iterator operator++(int)
     {
         auto copy = *this;
@@ -437,27 +496,35 @@ struct next_entry_offset_iterator
         return copy;
     }
 
+    //! Returns a reference to the current element.
     WI_NODISCARD reference operator*() const WI_NOEXCEPT
     {
         return *current_;
     }
+    //! Returns a pointer to the current element.
     WI_NODISCARD pointer operator->() const WI_NOEXCEPT
     {
         return current_;
     }
 
+    //! Returns a copy of this iterator, enabling range-based `for`.
     next_entry_offset_iterator<T> begin()
     {
         return *this;
     }
+    //! Returns the past-the-end iterator, enabling range based `for`.
     next_entry_offset_iterator<T> end()
     {
         return next_entry_offset_iterator<T>();
     }
 
-    T* current_;
+    T* current_; //!< Pointer to the current element, or null for the end iterator.
 };
 
+//! Creates a @ref next_entry_offset_iterator over the `NextEntryOffset`-chained range beginning at `p`.
+//! @tparam T The element type; it must expose a `NextEntryOffset` member.
+//! @param p Pointer to the first element in the buffer.
+//! @return A @ref next_entry_offset_iterator that can be used directly in a range-based `for` loop.
 template <typename T>
 next_entry_offset_iterator<T> create_next_entry_offset_iterator(T* p)
 {
@@ -465,38 +532,43 @@ next_entry_offset_iterator<T> create_next_entry_offset_iterator(T* p)
 }
 
 #pragma region Folder Watcher
-// Example use in exception based code:
-// auto watcher = wil::make_folder_watcher(folder.Path().c_str(), true, wil::allChangeEvents, []()
-//     {
-//         // respond
-//     });
-//
-// Example use in result code based code:
-// wil::unique_folder_watcher watcher;
-// THROW_IF_FAILED(watcher.create(folder, true, wil::allChangeEvents, []()
-//     {
-//         // respond
-//     }));
-
+//! Identifies the kind of change reported to a @ref wil::folder_change_reader_t callback.
 enum class FolderChangeEvent : DWORD
 {
-    ChangesLost = 0, // requires special handling, reset state as events were lost
+    //! The change buffer overflowed and events were lost; the callback should resynchronize its own state.
+    ChangesLost = 0,
+    //! A file or subdirectory was added.
     Added = FILE_ACTION_ADDED,
+    //! A file or subdirectory was removed.
     Removed = FILE_ACTION_REMOVED,
+    //! A file or subdirectory was modified.
+    //! This is delivered for a change to one of the watched non-name properties (attributes, size, last-write time, or the
+    //! security descriptor), as selected by the @ref wil::FolderChangeEvents flags the watcher was created with.
     Modified = FILE_ACTION_MODIFIED,
+    //! A file or subdirectory was renamed; the reported name is the old one.
     RenameOldName = FILE_ACTION_RENAMED_OLD_NAME,
+    //! A file or subdirectory was renamed; the reported name is the new one.
     RenameNewName = FILE_ACTION_RENAMED_NEW_NAME,
 };
 
+//! Flags selecting which categories of change a folder watcher or reader is notified about.
 enum class FolderChangeEvents : DWORD
 {
+    //! Do not report any changes.
     None = 0,
+    //! Creation, deletion, or renaming of a file.
     FileName = FILE_NOTIFY_CHANGE_FILE_NAME,
+    //! Creation, deletion, or renaming of a subdirectory.
     DirectoryName = FILE_NOTIFY_CHANGE_DIR_NAME,
+    //! Changes to a file or directory's attributes.
     Attributes = FILE_NOTIFY_CHANGE_ATTRIBUTES,
+    //! Changes to a file's size (reported when flushed to disk).
     FileSize = FILE_NOTIFY_CHANGE_SIZE,
+    //! Changes to a file's last-write time (reported when flushed to disk).
     LastWriteTime = FILE_NOTIFY_CHANGE_LAST_WRITE,
+    //! Changes to a security descriptor (ACL).
     Security = FILE_NOTIFY_CHANGE_SECURITY,
+    //! Every change category above.
     All = FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME | FILE_NOTIFY_CHANGE_ATTRIBUTES | FILE_NOTIFY_CHANGE_SIZE |
           FILE_NOTIFY_CHANGE_LAST_WRITE | FILE_NOTIFY_CHANGE_SECURITY
 };
@@ -526,26 +598,34 @@ namespace details
 } // namespace details
 /// @endcond
 
+//! Watches a directory and invokes a callback on each change, without reporting what changed.
+//! This template is the implementation behind the folder-watcher aliases and is not meant to be used directly: obtain one from
+//! @ref make_folder_watcher or @ref make_folder_watcher_nothrow, held in a @ref unique_folder_watcher or
+//! @ref unique_folder_watcher_nothrow. Use @ref make_folder_change_reader or @ref make_folder_change_reader_nothrow when the
+//! specific change and affected file name are needed.
 template <typename storage_t, typename err_policy = err_exception_policy>
 class folder_watcher_t : public storage_t
 {
 public:
-    // forward all base class constructors...
+    //! Forwards constructor arguments to the underlying storage.
     template <typename... args_t>
     explicit folder_watcher_t(args_t&&... args) WI_NOEXCEPT : storage_t(wistd::forward<args_t>(args)...)
     {
     }
 
-    // HRESULT or void error handling...
+    //! The result type of @ref create.
     typedef typename err_policy::result result;
 
-    // Exception-based constructors
+    //! Constructs the watcher and immediately starts watching by calling @ref create.
+    //! @note Available only under the throwing and fail-fast policies.
     folder_watcher_t(PCWSTR folderToWatch, bool isRecursive, FolderChangeEvents filter, wistd::function<void()>&& callback)
     {
         static_assert(wistd::is_same<void, result>::value, "this constructor requires exceptions; use the create method");
         create(folderToWatch, isRecursive, filter, wistd::move(callback));
     }
 
+    //! Starts watching `folderToWatch`, invoking `callback` for each change matching `filter` (see @ref FolderChangeEvents).
+    //! Prefer @ref make_folder_watcher / @ref make_folder_watcher_nothrow, which call this for you.
     result create(PCWSTR folderToWatch, bool isRecursive, FolderChangeEvents filter, wistd::function<void()>&& callback)
     {
         return err_policy::HResult(create_common(folderToWatch, isRecursive, filter, wistd::move(callback)));
@@ -582,8 +662,25 @@ private:
     }
 };
 
+//! A @ref folder_watcher_t that reports failures through an `HRESULT`.
 typedef unique_any_t<folder_watcher_t<details::unique_storage<details::folder_watcher_state_resource_policy>, err_returncode_policy>> unique_folder_watcher_nothrow;
 
+//! Creates a @ref unique_folder_watcher_nothrow watching `folderToWatch`, returning it by value.
+//! Test the returned object for validity before relying on it; failures are not propagated.
+//! ~~~
+//! auto watcher = wil::make_folder_watcher_nothrow(folderPath, true, wil::FolderChangeEvents::All, [] {
+//!     // Respond to a change
+//! });
+//! if (!watcher)
+//! {
+//!     // Handle errors
+//! }
+//! ~~~
+//! @param folderToWatch Path of the directory to watch.
+//! @param isRecursive `true` to also watch all subdirectories; `false` to watch only `folderToWatch` itself.
+//! @param filter The categories of change to report.
+//! @param callback Invoked (with no arguments) on a thread-pool thread each time a matching change occurs.
+//! @return A @ref unique_folder_watcher_nothrow that evaluates to `false` (empty) if the watch could not be started.
 inline unique_folder_watcher_nothrow make_folder_watcher_nothrow(
     PCWSTR folderToWatch, bool isRecursive, FolderChangeEvents filter, wistd::function<void()>&& callback) WI_NOEXCEPT
 {
@@ -593,8 +690,12 @@ inline unique_folder_watcher_nothrow make_folder_watcher_nothrow(
 }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
+//! A @ref folder_watcher_t that throws on failure.
 typedef unique_any_t<folder_watcher_t<details::unique_storage<details::folder_watcher_state_resource_policy>, err_exception_policy>> unique_folder_watcher;
 
+//! Creates a @ref unique_folder_watcher watching `folderToWatch`, throwing on failure.
+//! The exception-based counterpart to @ref make_folder_watcher_nothrow; see that function for details.
+//! @note Because this function throws on failure, the returned watcher is always valid and need not be tested for validity.
 inline unique_folder_watcher make_folder_watcher(
     PCWSTR folderToWatch, bool isRecursive, FolderChangeEvents filter, wistd::function<void()>&& callback)
 {
@@ -605,29 +706,6 @@ inline unique_folder_watcher make_folder_watcher(
 #pragma endregion
 
 #pragma region Folder Reader
-
-// Example use for throwing:
-// auto reader = wil::make_folder_change_reader(folder.Path().c_str(), true, wil::FolderChangeEvents::All,
-//     [](wil::FolderChangeEvent event, PCWSTR fileName)
-//     {
-//          switch (event)
-//          {
-//          case wil::FolderChangeEvent::ChangesLost: break;
-//          case wil::FolderChangeEvent::Added:    break;
-//          case wil::FolderChangeEvent::Removed:  break;
-//          case wil::FolderChangeEvent::Modified: break;
-//          case wil::FolderChangeEvent::RenamedOldName: break;
-//          case wil::FolderChangeEvent::RenamedNewName: break;
-//      });
-//
-// Example use for non throwing:
-// wil::unique_folder_change_reader_nothrow reader;
-// THROW_IF_FAILED(reader.create(folder, true, wil::FolderChangeEvents::All,
-//     [](wil::FolderChangeEvent event, PCWSTR fileName)
-//     {
-//         // handle changes
-//     }));
-//
 
 /// @cond
 namespace details
@@ -724,20 +802,25 @@ namespace details
 } // namespace details
 /// @endcond
 
+//! Watches a directory and invokes a callback with the specific change and affected file name for each event.
+//! This class is the implementation behind the folder-change-reader aliases and is not meant to be used directly: obtain one from
+//! @ref make_folder_change_reader or @ref make_folder_change_reader_nothrow, held in a @ref unique_folder_change_reader or
+//! @ref unique_folder_change_reader_nothrow. Each change is reported as a @ref FolderChangeEvent with the affected file name.
 template <typename storage_t, typename err_policy = err_exception_policy>
 class folder_change_reader_t : public storage_t
 {
 public:
-    // forward all base class constructors...
+    //! Forwards constructor arguments to the underlying storage.
     template <typename... args_t>
     explicit folder_change_reader_t(args_t&&... args) WI_NOEXCEPT : storage_t(wistd::forward<args_t>(args)...)
     {
     }
 
-    // HRESULT or void error handling...
+    //! The result type of @ref create.
     typedef typename err_policy::result result;
 
-    // Exception-based constructors
+    //! Constructs the reader and immediately starts watching by calling @ref create.
+    //! @note Available only under the throwing and fail-fast policies.
     folder_change_reader_t(
         PCWSTR folderToWatch, bool isRecursive, FolderChangeEvents filter, wistd::function<void(FolderChangeEvent, PCWSTR)>&& callback)
     {
@@ -745,11 +828,14 @@ public:
         create(folderToWatch, isRecursive, filter, wistd::move(callback));
     }
 
+    //! Starts watching `folderToWatch`, invoking `callback` for each change matching `filter` (see @ref FolderChangeEvents).
+    //! Prefer @ref make_folder_change_reader / @ref make_folder_change_reader_nothrow, which call this for you.
     result create(PCWSTR folderToWatch, bool isRecursive, FolderChangeEvents filter, wistd::function<void(FolderChangeEvent, PCWSTR)>&& callback)
     {
         return err_policy::HResult(create_common(folderToWatch, isRecursive, filter, wistd::move(callback)));
     }
 
+    //! Returns a reference to the handle of the directory being watched.
     wil::unique_hfile& folder_handle()
     {
         return this->get()->m_folderHandle;
@@ -823,8 +909,27 @@ private:
     }
 };
 
+//! A @ref folder_change_reader_t that reports failures through an `HRESULT` (usable without exceptions).
 typedef unique_any_t<folder_change_reader_t<details::unique_storage<details::folder_change_reader_state_resource_policy>, err_returncode_policy>> unique_folder_change_reader_nothrow;
 
+//! Creates a @ref unique_folder_change_reader_nothrow watching `folderToWatch`, returning it by value.
+//! Test the returned object for validity before relying on it; failures are not propagated.
+//! ~~~
+//! auto reader = wil::make_folder_change_reader_nothrow(folderPath, true, wil::FolderChangeEvents::All,
+//!     [](wil::FolderChangeEvent event, PCWSTR fileName) {
+//!         // Respond to the change
+//!     });
+//! if (!reader)
+//! {
+//!     // Handle errors
+//! }
+//! ~~~
+//! @param folderToWatch Path of the directory to watch.
+//! @param isRecursive `true` to also watch all subdirectories; `false` to watch only `folderToWatch` itself.
+//! @param filter The categories of change to report.
+//! @param callback Invoked on a thread-pool thread for each change, receiving the @ref FolderChangeEvent and the affected file
+//! name relative to `folderToWatch`, or null for @ref FolderChangeEvent::ChangesLost.
+//! @return A @ref unique_folder_change_reader_nothrow that evaluates to `false` (empty) if the watch could not be started.
 inline unique_folder_change_reader_nothrow make_folder_change_reader_nothrow(
     PCWSTR folderToWatch, bool isRecursive, FolderChangeEvents filter, wistd::function<void(FolderChangeEvent, PCWSTR)>&& callback) WI_NOEXCEPT
 {
@@ -834,8 +939,12 @@ inline unique_folder_change_reader_nothrow make_folder_change_reader_nothrow(
 }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
+//! A @ref folder_change_reader_t that throws on failure.
 typedef unique_any_t<folder_change_reader_t<details::unique_storage<details::folder_change_reader_state_resource_policy>, err_exception_policy>> unique_folder_change_reader;
 
+//! Creates a @ref unique_folder_change_reader watching `folderToWatch`, throwing on failure.
+//! The exception-based counterpart to @ref make_folder_change_reader_nothrow; see that function for details.
+//! @note Because this function throws on failure, the returned watcher is always valid and need not be tested for validity
 inline unique_folder_change_reader make_folder_change_reader(
     PCWSTR folderToWatch, bool isRecursive, FolderChangeEvents filter, wistd::function<void(FolderChangeEvent, PCWSTR)>&& callback)
 {
@@ -844,26 +953,34 @@ inline unique_folder_change_reader make_folder_change_reader(
 #endif // WIL_ENABLE_EXCEPTIONS
 #pragma endregion
 
-//! Dos and VolumeGuid paths are always extended length paths with the \\?\ prefix.
+//! Selects the volume-name form of the path returned by @ref wil::GetFinalPathNameByHandleW.
+//! DOS and volume-GUID paths are always extended-length paths carrying the `\\?\` prefix.
 enum class VolumePrefix
 {
-    Dos = VOLUME_NAME_DOS,         // Extended Dos Device path form, e.g. \\?\C:\Users\Chris\AppData\Local\Temp\wil8C31.tmp
-    VolumeGuid = VOLUME_NAME_GUID, // \\?\Volume{588fb606-b95b-4eae-b3cb-1e49861aaf18}\Users\Chris\AppData\Local\Temp\wil8C31.tmp
-    // The following are special paths which can't be used with Win32 APIs, but are useful in other scenarios.
-    None = VOLUME_NAME_NONE, // Path without the volume root, e.g. \Users\Chris\AppData\Local\Temp\wil8C31.tmp
-    NtObjectName = VOLUME_NAME_NT, // Unique name used by Object Manager, e.g. \Device\HarddiskVolume4\Users\Chris\AppData\Local\Temp\wil8C31.tmp
+    Dos = VOLUME_NAME_DOS,         //!< Extended DOS device path, e.g. `\\?\C:\Users\...`.
+    VolumeGuid = VOLUME_NAME_GUID, //!< Volume GUID path, e.g. `\\?\Volume{GUID}\Users\...`.
+    None = VOLUME_NAME_NONE,       //!< Path from the volume root, with no drive or volume prefix, e.g. `\Users\...`.
+    NtObjectName = VOLUME_NAME_NT, //!< Object Manager name, e.g. `\Device\HarddiskVolumeN\Users\...`; not usable with Win32 APIs.
 };
+//! Selects the form of the path returned by @ref wil::GetFinalPathNameByHandleW.
 enum class PathOptions
 {
-    Normalized = FILE_NAME_NORMALIZED,
-    Opened = FILE_NAME_OPENED,
+    Normalized = FILE_NAME_NORMALIZED, //!< Return the normalized path (the default).
+    Opened = FILE_NAME_OPENED,         //!< Return the path in the form originally used to open the file.
 };
 DEFINE_ENUM_FLAG_OPERATORS(PathOptions);
 
-/**  A strongly typed version of the Win32 API GetFinalPathNameByHandleW.
-Get the full path name in different forms
-Use this instead + VolumePrefix::None instead of GetFileInformationByHandleEx(FileNameInfo) to
-get that path form. */
+//! A strongly typed version of the Win32 API `GetFinalPathNameByHandleW`.
+//! Returns the final path of an open file in an allocated buffer, in the form selected by `volumePrefix` and `options`. Passing
+//! `VolumePrefix::None` is the strongly typed way to obtain the form otherwise produced by
+//! `GetFileInformationByHandleEx(FileNameInfo)`.
+//! @tparam string_type The WIL string type that receives the result, for example @ref wil::unique_cotaskmem_string.
+//! @tparam stackBufferLength Size, in characters, of the initial on-stack buffer; a larger buffer is heap-allocated if needed.
+//! @param fileHandle Handle to the open file whose final path to retrieve.
+//! @param path Receives the final path in the requested form.
+//! @param volumePrefix Selects the volume-name form of the result. Defaults to `VolumePrefix::Dos`.
+//! @param options Selects the path form. Defaults to `PathOptions::Normalized`.
+//! @return `S_OK` on success, or a failure `HRESULT`
 template <typename string_type, size_t stackBufferLength = 256>
 HRESULT GetFinalPathNameByHandleW(
     HANDLE fileHandle,
@@ -886,9 +1003,10 @@ HRESULT GetFinalPathNameByHandleW(
 }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
-/** A strongly typed version of the Win32 API GetFinalPathNameByHandleW.
-Get the full path name in different forms. Use this + VolumePrefix::None
-instead of GetFileInformationByHandleEx(FileNameInfo) to get that path form. */
+//! A strongly typed version of the Win32 API `GetFinalPathNameByHandleW` that returns the final path, throwing on failure.
+//! The exception-based counterpart to
+//! @ref wil::GetFinalPathNameByHandleW(HANDLE, string_type&, wil::VolumePrefix, wil::PathOptions) "the non-throwing overload";
+//! see that overload for details.
 template <typename string_type = wil::unique_cotaskmem_string, size_t stackBufferLength = 256>
 string_type GetFinalPathNameByHandleW(
     HANDLE fileHandle, wil::VolumePrefix volumePrefix = wil::VolumePrefix::Dos, wil::PathOptions options = wil::PathOptions::Normalized)
@@ -899,8 +1017,12 @@ string_type GetFinalPathNameByHandleW(
 }
 #endif
 
-//! A strongly typed version of the Win32 API of GetCurrentDirectoryW.
-//! Return a path in an allocated buffer for handling long paths.
+//! A strongly typed version of the Win32 API `GetCurrentDirectoryW`.
+//! Returns the current directory in an allocated buffer so it can handle long paths.
+//! @tparam string_type The WIL string type that receives the result, for example @ref wil::unique_cotaskmem_string.
+//! @tparam stackBufferLength Size, in characters, of the initial on-stack buffer; a larger buffer is heap-allocated if needed.
+//! @param path Receives the current directory.
+//! @return `S_OK` on success, or a failure `HRESULT` from the underlying `GetCurrentDirectoryW` or the allocation.
 template <typename string_type, size_t stackBufferLength = 256>
 HRESULT GetCurrentDirectoryW(string_type& path)
 {
@@ -918,8 +1040,9 @@ HRESULT GetCurrentDirectoryW(string_type& path)
 }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
-//! A strongly typed version of the Win32 API of GetCurrentDirectoryW.
-//! Return a path in an allocated buffer for handling long paths.
+//! A strongly typed version of the Win32 API `GetCurrentDirectoryW` that returns the current directory, throwing on failure.
+//! The exception-based counterpart to @ref wil::GetCurrentDirectoryW(string_type&) "the non-throwing overload"; see that overload
+//! for details.
 template <typename string_type = wil::unique_cotaskmem_string, size_t stackBufferLength = 256>
 string_type GetCurrentDirectoryW()
 {
@@ -1033,12 +1156,16 @@ namespace details
 } // namespace details
 /// @endcond
 
-/** Get file information for a variable sized structure, returns an HRESULT.
+/** Get file information for a variable-sized structure.
 ~~~
 wistd::unique_ptr<FILE_NAME_INFO> fileNameInfo;
 RETURN_IF_FAILED(GetFileInfoNoThrow<FileNameInfo>(fileHandle, fileNameInfo));
 ~~~
-*/
+@tparam infoClass The `FILE_INFO_BY_HANDLE_CLASS` selecting which information to retrieve. This overload is enabled only for
+classes that map to a variable-sized structure; classes with a fixed-sized structure select a separate overload.
+@param fileHandle Handle to the file to query.
+@param result Receives an owning pointer to the newly allocated information structure.
+@return `S_OK` on success, or a failure `HRESULT`. */
 template <FILE_INFO_BY_HANDLE_CLASS infoClass, typename wistd::enable_if<!details::MapInfoClassToInfoStruct<infoClass>::isFixed, int>::type = 0>
 HRESULT GetFileInfoNoThrow(HANDLE fileHandle, wistd::unique_ptr<typename details::MapInfoClassToInfoStruct<infoClass>::type>& result) WI_NOEXCEPT
 {
@@ -1059,12 +1186,16 @@ HRESULT GetFileInfoNoThrow(HANDLE fileHandle, wistd::unique_ptr<typename details
     return S_OK;
 }
 
-/** Get file information for a fixed sized structure, returns an HRESULT.
+/** Get file information for a fixed-sized structure.
 ~~~
 FILE_BASIC_INFO fileBasicInfo;
 RETURN_IF_FAILED(GetFileInfoNoThrow<FileBasicInfo>(fileHandle, &fileBasicInfo));
 ~~~
-*/
+@tparam infoClass The `FILE_INFO_BY_HANDLE_CLASS` selecting which information to retrieve. This overload is enabled only for
+classes that map to a fixed-sized structure; classes with a variable-sized structure select a separate overload.
+@param fileHandle Handle to the file to query.
+@param result Points to the caller-provided structure that receives the information.
+@return `S_OK` on success, or a failure `HRESULT`. */
 template <FILE_INFO_BY_HANDLE_CLASS infoClass, typename wistd::enable_if<details::MapInfoClassToInfoStruct<infoClass>::isFixed, int>::type = 0>
 HRESULT GetFileInfoNoThrow(HANDLE fileHandle, _Out_ typename details::MapInfoClassToInfoStruct<infoClass>::type* result) WI_NOEXCEPT
 {
@@ -1075,8 +1206,13 @@ HRESULT GetFileInfoNoThrow(HANDLE fileHandle, _Out_ typename details::MapInfoCla
     return S_OK;
 }
 
-// Verifies that the given file path is not a hard or a soft link. If the file is present at the path, returns
-// a handle to it without delete permissions to block an attacker from swapping the file.
+//! Opens an existing file only if it is neither a symbolic link nor a hard link.
+//! On success `fileHandle` receives a handle opened without delete access, preventing the file from being replaced while the
+//! handle is held. This closes a time-of-check/time-of-use (TOCTOU) window.
+//! @param path The file to open and validate.
+//! @param fileHandle Receives the opened handle on success.
+//! @return `S_OK` if `path` is a normal, non-linked file; `HRESULT_FROM_WIN32(ERROR_BAD_PATHNAME)` if it is a soft or hard link;
+//! otherwise a failure `HRESULT` from the underlying filesystem APIs.
 inline HRESULT CreateFileAndEnsureNotLinked(PCWSTR path, wil::unique_hfile& fileHandle)
 {
     // Open handles to the original path and to the final path and compare each file's information
@@ -1106,11 +1242,8 @@ inline HRESULT CreateFileAndEnsureNotLinked(PCWSTR path, wil::unique_hfile& file
 }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
-/** Get file information for a fixed sized structure, throws on failure.
-~~~
-auto fileBasicInfo = GetFileInfo<FileBasicInfo>(fileHandle);
-~~~
-*/
+/** Get file information for a fixed-sized structure, returning it by value and throwing on failure.
+The exception-based counterpart to @ref wil::GetFileInfoNoThrow; see that function for details. */
 template <FILE_INFO_BY_HANDLE_CLASS infoClass, typename wistd::enable_if<details::MapInfoClassToInfoStruct<infoClass>::isFixed, int>::type = 0>
 typename details::MapInfoClassToInfoStruct<infoClass>::type GetFileInfo(HANDLE fileHandle)
 {
@@ -1119,11 +1252,8 @@ typename details::MapInfoClassToInfoStruct<infoClass>::type GetFileInfo(HANDLE f
     return result;
 }
 
-/** Get file information for a variable sized structure, throws on failure.
-~~~
-auto fileBasicInfo = GetFileInfo<FileNameInfo>(fileHandle);
-~~~
-*/
+/** Get file information for a variable-sized structure, returning an owning pointer and throwing on failure.
+The exception-based counterpart to @ref wil::GetFileInfoNoThrow; see that function for details. */
 template <FILE_INFO_BY_HANDLE_CLASS infoClass, typename wistd::enable_if<!details::MapInfoClassToInfoStruct<infoClass>::isFixed, int>::type = 0>
 wistd::unique_ptr<typename details::MapInfoClassToInfoStruct<infoClass>::type> GetFileInfo(HANDLE fileHandle)
 {
@@ -1135,21 +1265,52 @@ wistd::unique_ptr<typename details::MapInfoClassToInfoStruct<infoClass>::type> G
 // Helpers to make the CreateFileW API easier to use.
 // https://learn.microsoft.com/windows/win32/api/fileapi/nf-fileapi-createfilew
 
+//! A file handle paired with the `GetLastError()` value captured when the file was opened.
+//! Returned by the non-throwing `try_*` file helpers (such as @ref try_open_file and @ref try_create_new_file) so a caller can
+//! examine both the handle and the error code even when the open fails. It is intended to be consumed with a structured binding.
+//! ~~~
+//! auto [file, error] = wil::try_open_or_create_file(path);
+//! if (!file)
+//! {
+//!     // The open failed; 'error' holds the reason.
+//! }
+//! else if (error == ERROR_ALREADY_EXISTS)
+//! {
+//!     // Success: opened an existing file.
+//! }
+//! else
+//! {
+//!     // Success: created a new file.
+//! }
+//! ~~~
+//! @note Test the file handle for validity (for example in a boolean expression) to determine success; do not treat a non-zero
+//! `last_error` as failure, since some open dispositions report a non-zero code even when they succeed.
 struct file_and_error_result
 {
+    //! Constructs the result from a raw file handle and an error code.
+    //! Used by the various file open/create helpers.
     file_and_error_result(HANDLE file_handle, DWORD error) : file(file_handle), last_error(error)
     {
     }
 
+    //! The opened file handle; empty (invalid) when the open failed.
     wil::unique_hfile file;
+    //! The `GetLastError()` value captured immediately after `CreateFileW` returns.
+    //! For example, `CREATE_ALWAYS` and `OPEN_ALWAYS` report `ERROR_ALREADY_EXISTS` (not `ERROR_SUCCESS`) when the file already
+    //! existed, despite succeeding and returning a valid file handle.
     DWORD last_error{};
 };
 
-/** Non-throwing open existing using OPEN_EXISTING, returns handle and error code.
+/** Opens an existing file using `OPEN_EXISTING`.
 ~~~
 auto [handle, error] = wil::try_open_file(filePath.c_str());
 ~~~
-*/
+@param path The path of the file to open.
+@param dwDesiredAccess The requested access rights, passed as `CreateFileW`'s `dwDesiredAccess` (e.g. `GENERIC_READ`).
+@param dwShareMode The sharing mode, passed as `CreateFileW`'s `dwShareMode` (e.g. `FILE_SHARE_READ`).
+@param dwFlagsAndAttributes The flags and attributes, passed as `CreateFileW`'s `dwFlagsAndAttributes`.
+@param inheritHandle Whether the returned handle may be inherited by child processes.
+@return A @ref file_and_error_result holding the resulting file handle and error code. */
 inline file_and_error_result try_open_file(
     PCWSTR path,
     DWORD dwDesiredAccess = GENERIC_READ,
@@ -1163,11 +1324,8 @@ inline file_and_error_result try_open_file(
     return {handle, ::GetLastError()};
 }
 
-/** open existing using OPEN_EXISTING, throws on error.
-~~~
-auto handle = wil::open_file(filePath.c_str());
-~~~
-*/
+/** Opens an existing file using `OPEN_EXISTING`, throwing on failure.
+The exception-based counterpart to @ref try_open_file; see that function for details. */
 inline wil::unique_hfile open_file(
     PCWSTR path,
     DWORD dwDesiredAccess = GENERIC_READ,
@@ -1194,11 +1352,19 @@ namespace details
 } // namespace details
 /// @endcond
 
-/** create using CREATE_NEW, returns handle and error code.
+/** Creates a new file using `CREATE_NEW`.
 ~~~
 auto [handle, error] = wil::try_create_new_file(filePath.c_str());
 ~~~
-*/
+@param path The path of the file to create.
+@param dwDesiredAccess The requested access rights, passed as `CreateFileW`'s `dwDesiredAccess`.
+@param dwShareMode The sharing mode, passed as `CreateFileW`'s `dwShareMode` (e.g. `FILE_SHARE_READ`).
+@param lpSecurityAttributes Optional `SECURITY_ATTRIBUTES`, or null for the defaults, passed as `CreateFileW`'s
+`lpSecurityAttributes`.
+@param dwFlagsAndAttributes The flags and attributes, passed as `CreateFileW`'s `dwFlagsAndAttributes`.
+@param hTemplateFile Optional handle to a template file supplying attributes for the new file, or null, passed as `CreateFileW`'s
+`hTemplateFile`.
+@return A @ref file_and_error_result holding the resulting file handle and error code. */
 inline file_and_error_result try_create_new_file(
     PCWSTR path,
     DWORD dwDesiredAccess = GENERIC_READ | GENERIC_WRITE,
@@ -1210,11 +1376,19 @@ inline file_and_error_result try_create_new_file(
     return details::create_file<CREATE_NEW>(path, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwFlagsAndAttributes, hTemplateFile);
 }
 
-/** create using OPEN_ALWAYS, returns handle and error code.
+/** Opens or creates a file using `OPEN_ALWAYS`.
 ~~~
 auto [handle, error] = wil::try_open_or_create_file(filePath.c_str());
 ~~~
-*/
+@param path The path of the file to open or create.
+@param dwDesiredAccess The requested access rights, passed as `CreateFileW`'s `dwDesiredAccess`.
+@param dwShareMode The sharing mode, passed as `CreateFileW`'s `dwShareMode` (e.g. `FILE_SHARE_READ`).
+@param lpSecurityAttributes Optional `SECURITY_ATTRIBUTES`, or null for the defaults, passed as `CreateFileW`'s
+`lpSecurityAttributes`.
+@param dwFlagsAndAttributes The flags and attributes, passed as `CreateFileW`'s `dwFlagsAndAttributes`.
+@param hTemplateFile Optional handle to a template file supplying attributes for creating the file if it doesn't already exist, or
+null, passed as `CreateFileW`'s `hTemplateFile`.
+@return A @ref file_and_error_result holding the resulting file handle and error code. */
 inline file_and_error_result try_open_or_create_file(
     PCWSTR path,
     DWORD dwDesiredAccess = GENERIC_READ | GENERIC_WRITE,
@@ -1226,11 +1400,19 @@ inline file_and_error_result try_open_or_create_file(
     return details::create_file<OPEN_ALWAYS>(path, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwFlagsAndAttributes, hTemplateFile);
 }
 
-/** create using CREATE_ALWAYS, returns handle and error code.
+/** Creates a new file or truncates an existing one using `CREATE_ALWAYS`.
 ~~~
 auto [handle, error] = wil::try_open_or_truncate_existing_file(filePath.c_str());
 ~~~
-*/
+@param path The path of the file to open or create.
+@param dwDesiredAccess The requested access rights, passed as `CreateFileW`'s `dwDesiredAccess`.
+@param dwShareMode The sharing mode, passed as `CreateFileW`'s `dwShareMode` (e.g. `FILE_SHARE_READ`).
+@param lpSecurityAttributes Optional `SECURITY_ATTRIBUTES`, or null for the defaults, passed as `CreateFileW`'s
+`lpSecurityAttributes`.
+@param dwFlagsAndAttributes The flags and attributes, passed as `CreateFileW`'s `dwFlagsAndAttributes`.
+@param hTemplateFile Optional handle to a template file supplying attributes for the created or overwritten file, or null, passed
+as `CreateFileW`'s `hTemplateFile`.
+@return A @ref file_and_error_result holding the resulting file handle and error code. */
 inline file_and_error_result try_open_or_truncate_existing_file(
     PCWSTR path,
     DWORD dwDesiredAccess = GENERIC_READ | GENERIC_WRITE,
@@ -1242,11 +1424,19 @@ inline file_and_error_result try_open_or_truncate_existing_file(
     return details::create_file<CREATE_ALWAYS>(path, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwFlagsAndAttributes, hTemplateFile);
 }
 
-/** create using TRUNCATE_EXISTING, returns handle and error code.
+/** Opens and truncates an existing file using `TRUNCATE_EXISTING`.
 ~~~
 auto [handle, error] = wil::try_truncate_existing_file(filePath.c_str());
 ~~~
-*/
+@param path The path of the file to open.
+@param dwDesiredAccess The requested access rights, passed as `CreateFileW`'s `dwDesiredAccess`.
+@param dwShareMode The sharing mode, passed as `CreateFileW`'s `dwShareMode` (e.g. `FILE_SHARE_READ`).
+@param lpSecurityAttributes Optional `SECURITY_ATTRIBUTES`, or null for the defaults, passed as `CreateFileW`'s
+`lpSecurityAttributes`.
+@param dwFlagsAndAttributes The flags and attributes, passed as `CreateFileW`'s `dwFlagsAndAttributes`.
+@param hTemplateFile Optional template-file handle, passed as `CreateFileW`'s `hTemplateFile`; this is always ignored because
+`TRUNCATE_EXISTING` only opens an existing file.
+@return A @ref file_and_error_result holding the resulting file handle and error code. */
 inline file_and_error_result try_truncate_existing_file(
     PCWSTR path,
     DWORD dwDesiredAccess = GENERIC_READ | GENERIC_WRITE | GENERIC_WRITE,
@@ -1259,11 +1449,8 @@ inline file_and_error_result try_truncate_existing_file(
         path, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwFlagsAndAttributes, hTemplateFile);
 }
 
-/** create using CREATE_NEW, returns the file handle, throws on error.
-~~~
-auto handle = wil::create_new_file(filePath.c_str());
-~~~
-*/
+/** Creates a new file using `CREATE_NEW`, throwing on failure.
+The exception-based counterpart to @ref try_create_new_file; see that function for details. */
 inline wil::unique_hfile create_new_file(
     PCWSTR path,
     DWORD dwDesiredAccess = GENERIC_READ | GENERIC_WRITE,
@@ -1277,11 +1464,8 @@ inline wil::unique_hfile create_new_file(
     return wistd::move(result.file);
 }
 
-/** create using OPEN_ALWAYS, returns the file handle, throws on error.
-~~~
-auto handle = wil::open_or_create_file(filePath.c_str());
-~~~
-*/
+/** Opens or creates a file using `OPEN_ALWAYS`, throwing on failure.
+The exception-based counterpart to @ref try_open_or_create_file; see that function for details. */
 inline wil::unique_hfile open_or_create_file(
     PCWSTR path,
     DWORD dwDesiredAccess = GENERIC_READ | GENERIC_WRITE,
@@ -1295,11 +1479,8 @@ inline wil::unique_hfile open_or_create_file(
     return wistd::move(result.file);
 }
 
-/** create using CREATE_ALWAYS, returns the file handle, throws on error.
-~~~
-auto handle = wil::open_or_truncate_existing_file(filePath.c_str());
-~~~
-*/
+/** Creates a new file or truncates an existing one using `CREATE_ALWAYS`, throwing on failure.
+The exception-based counterpart to @ref try_open_or_truncate_existing_file; see that function for details. */
 inline wil::unique_hfile open_or_truncate_existing_file(
     PCWSTR path,
     DWORD dwDesiredAccess = GENERIC_READ | GENERIC_WRITE,
@@ -1314,11 +1495,8 @@ inline wil::unique_hfile open_or_truncate_existing_file(
     return wistd::move(result.file);
 }
 
-/** create using TRUNCATE_EXISTING, returns the file handle, throws on error.
-~~~
-auto handle = wil::truncate_existing_file(filePath.c_str());
-~~~
-*/
+/** Opens and truncates an existing file using `TRUNCATE_EXISTING`, throwing on failure.
+The exception-based counterpart to @ref try_truncate_existing_file; see that function for details. */
 inline wil::unique_hfile truncate_existing_file(
     PCWSTR path,
     DWORD dwDesiredAccess = GENERIC_READ | GENERIC_WRITE,
@@ -1338,11 +1516,19 @@ inline wil::unique_hfile truncate_existing_file(
 } // namespace wil
 
 #ifndef WIL_NO_FILE_TYPE_OPERATORS
+//! Returns whether two `FILE_ID_128` values are byte-for-byte identical.
+//! @param left The first value to compare.
+//! @param right The second value to compare.
+//! @return `true` if `left` and `right` are identical; otherwise `false`.
 inline bool operator==(const FILE_ID_128& left, const FILE_ID_128& right)
 {
     return memcmp(&left, &right, sizeof(left)) == 0;
 }
 
+//! Returns whether two `FILE_ID_128` values differ.
+//! @param left The first value to compare.
+//! @param right The second value to compare.
+//! @return `true` if `left` and `right` are not identical; otherwise `false`.
 inline bool operator!=(const FILE_ID_128& left, const FILE_ID_128& right)
 {
     return !operator==(left, right);
