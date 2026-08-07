@@ -792,7 +792,8 @@ namespace network
         default:
             // if not AF_INET or AF_INET6, and families don't match
             // then just raw memcmp the largest field of the union (v6)
-            return ::memcmp(&lhs.m_sockaddr.Ipv6, &rhs.m_sockaddr.Ipv6, sizeof(SOCKADDR_IN6)) < 0;
+            const auto comparison{::memcmp(&lhs.m_sockaddr.Ipv6, &rhs.m_sockaddr.Ipv6, sizeof(SOCKADDR_IN6))};
+            return comparison < 0 ? -1 : (comparison > 0 ? 1 : 0);
         }
     }
 
