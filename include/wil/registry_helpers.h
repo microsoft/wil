@@ -84,6 +84,15 @@ namespace reg
 
         // Open key for reading and writing from 64-bit registry. Equivalent to KEY_ALL_ACCESS | KEY_WOW64_64KEY.
         readwrite64 = KEY_ALL_ACCESS | KEY_WOW64_64KEY,
+
+        // Open key for reading from 32-bit registry. Equivalent to KEY_READ | KEY_WOW64_32KEY.
+        read32 = KEY_READ | KEY_WOW64_32KEY,
+
+        // Open key for writing from 32-bit registry. Equivalent to KEY_WRITE | KEY_WOW64_32KEY.
+        write32 = KEY_WRITE | KEY_WOW64_32KEY,
+
+        // Open key for reading and writing from 32-bit registry. Equivalent to KEY_ALL_ACCESS | KEY_WOW64_32KEY.
+        readwrite32 = KEY_ALL_ACCESS | KEY_WOW64_32KEY,
     };
     DEFINE_ENUM_FLAG_OPERATORS(key_access);
 
