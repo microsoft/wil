@@ -26,6 +26,7 @@ jobs:
     outputs:
       pr-ref: ${{ steps.pr.outputs.ref }}
       pr-sha: ${{ steps.pr.outputs.sha }}
+      pr-repo: ${{ steps.pr.outputs.repo }}
       has-changes: ${{ steps.format.outputs.has-changes }}
 
     steps:
@@ -41,6 +42,7 @@ jobs:
             });
             core.setOutput('ref', pr.data.head.ref);
             core.setOutput('sha', pr.data.head.sha);
+            core.setOutput('repo', pr.data.head.repo.full_name);
             return pr.data.head.ref;
 
       - name: Checkout base repository
@@ -51,8 +53,8 @@ jobs:
       - name: Fetch PR branch
         shell: cmd
         run: |
-          git fetch origin ${{ steps.pr.outputs.ref }}
-          git checkout ${{ steps.pr.outputs.ref }}
+          git fetch origin pull/${{ github.event.issue.number }}/head:pr-head
+          git checkout pr-head
 
       - name: Run clang-format
         id: format
@@ -98,10 +100,12 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Fetch PR branch
+        env:
+          PR_NUMBER: ${{ github.event.issue.number }}
         shell: cmd
         run: |
-          git fetch origin ${{ needs.format-code.outputs.pr-ref }}
-          git checkout ${{ needs.format-code.outputs.pr-ref }}
+          git fetch origin pull/%PR_NUMBER%/head:pr-head
+          git checkout pr-head
 
       - name: Download patch
         uses: actions/download-artifact@v4
@@ -115,15 +119,28 @@ jobs:
           del format-changes.patch
 
       - name: Commit and push changes
-        shell: cmd
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_REPO: ${{ needs.format-code.outputs.pr-repo }}
+          PR_REF: ${{ needs.format-code.outputs.pr-ref }}
+        shell: pwsh
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           git commit -m "Run clang-format on PR changes"
-          git push origin HEAD:${{ needs.format-code.outputs.pr-ref }}
+          
+          # Try to push to fork repo (works if maintainer edits allowed)
+          git push https://x-access-token:$env:GITHUB_TOKEN@github.com/$env:PR_REPO HEAD:$env:PR_REF
 
-  # Job 3: Comment on PR with results
+  # Job 3: Run CI workflow
+  run-ci:
+    needs: apply-changes
+    uses: ./.github/workflows/ci.yml
+    with:
+      pr_number: ${{ github.event.issue.number }}
+
+  # Job 4: Comment on PR with results
   comment-result:
     needs: [format-code, apply-changes]
     if: always() && needs.format-code.result != 'cancelled'

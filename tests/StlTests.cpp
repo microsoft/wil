@@ -64,6 +64,20 @@ struct CustomNoncopyableString
     }
 };
 
+TEST_CASE("StlTests::TestBstrAllocator", "[stl][bstr][string_view]")
+{
+    std::wstring_view stlStringView_empty;
+    const wil::unique_bstr bstrEmpty{wil::make_bstr_nothrow(stlStringView_empty)};
+    REQUIRE(bstrEmpty.get() != nullptr);
+    REQUIRE(wcslen(bstrEmpty.get()) == 0);
+
+    std::wstring_view stlStringView_fromLiteral{L"abc"};
+    const wil::unique_bstr bstrFromLiteral{wil::make_bstr_nothrow(stlStringView_fromLiteral)};
+    REQUIRE(bstrFromLiteral.get() != nullptr);
+    REQUIRE(wcslen(bstrFromLiteral.get()) == 3);
+    REQUIRE(CompareStringOrdinal(bstrFromLiteral.get(), -1, L"abc", -1, FALSE) == CSTR_EQUAL);
+};
+
 TEST_CASE("StlTests::TestZStringView", "[stl][zstring_view]")
 {
     // Test empty cases
@@ -136,6 +150,26 @@ TEST_CASE("StlTests::TestZWStringView literal", "[stl][zwstring_view]")
         REQUIRE(str[0] == L'H');
         REQUIRE(str[12] == L'!');
     }
+}
+
+TEST_CASE("StlTests::TestBSTR literal", "[stl][bstr]")
+{
+#if __WI_LIBCPP_STD_VER >= 20
+    SECTION("Literal creates a valid BSTR")
+    {
+        const auto literal = L"foo"_bstr;
+        const BSTR value = literal;
+        REQUIRE(value != nullptr);
+        REQUIRE(SysStringLen(value) == 3);
+        REQUIRE(SysStringLen(L"zot"_bstr) == 3);
+        REQUIRE(std::wstring_view(value) == L"foo");
+
+        constexpr auto empty_literal = L""_bstr;
+        REQUIRE(SysStringLen(empty_literal) == 0);
+        REQUIRE(empty_literal != nullptr);
+        REQUIRE(wcslen(empty_literal) == 0);
+    }
+#endif
 }
 
 TEST_CASE("StlTests::TestZStringView literal", "[stl][zstring_view]")

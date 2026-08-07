@@ -31,24 +31,37 @@
 
 namespace wil
 {
-// Determine if apartment variables are supported in the current process context.
-// Prior to build 22365, the APIs needed to create apartment variables (e.g. RoGetApartmentIdentifier)
-// failed for unpackaged processes. For MS people, see http://task.ms/31861017 for details.
-// APIs needed to implement apartment variables did not work in non-packaged processes.
+//! Determines whether apartment variables are supported in the current process context.
+//! Prior to Windows build 22365 the APIs needed to create apartment variables (for example `RoGetApartmentIdentifier`) did not
+//! work in unpackaged processes, so this returns `false` there.
+//! @return `true` if apartment variables can be used in the current process, `false` otherwise.
 inline bool are_apartment_variables_supported()
 {
     unsigned long long apartmentId{};
     return RoGetApartmentIdentifier(&apartmentId) != HRESULT_FROM_WIN32(ERROR_API_UNAVAILABLE);
 }
 
-// COM will implicitly rundown the apartment registration when it invokes a handler
-// and blocks calling unregister when executing the callback. So be careful to release()
-// this when callback is invoked to avoid a double free of the cookie.
+//! Unique RAII wrapper for an apartment-shutdown registration cookie; unregisters via `RoUnregisterForApartmentShutdown`.
+//! ~~~
+//! // Register an apartment-shutdown observer; the cookie unregisters automatically when this goes out of scope.
+//! wil::unique_apartment_shutdown_registration registration;
+//! unsigned long long apartmentId{};
+//! THROW_IF_FAILED(RoRegisterForApartmentShutdown(observer.get(), &apartmentId, registration.put()));
+//!
+//! // Inside the observer's IApartmentShutdown::OnUninitialize callback, release the cookie (see the note below):
+//! registration.release();
+//! ~~~
+//! @note COM implicitly runs down the registration when it invokes the shutdown handler and does not allow calling unregister
+//!       from within that callback, so `release()` this in the handler to avoid a double-free of the cookie.
 using unique_apartment_shutdown_registration =
     unique_any<APARTMENT_SHUTDOWN_REGISTRATION_COOKIE, decltype(&::RoUnregisterForApartmentShutdown), ::RoUnregisterForApartmentShutdown>;
 
+//! Default implementation of the platform primitives used by @ref wil::apartment_variable.
+//! Provides apartment identity, apartment-shutdown registration, and COM initialization.
 struct apartment_variable_platform
 {
+    //! Gets the identifier of the current COM apartment. Fail-fasts on failure.
+    //! @return The current apartment's identifier.
     static unsigned long long GetApartmentId()
     {
         unsigned long long apartmentId{};
@@ -56,6 +69,9 @@ struct apartment_variable_platform
         return apartmentId;
     }
 
+    //! Registers an apartment-shutdown observer. Throws on failure.
+    //! @param observer The observer to notify when the current apartment shuts down.
+    //! @return A @ref shutdown_type RAII registration that unregisters the observer on destruction.
     static auto RegisterForApartmentShutdown(IApartmentShutdown* observer)
     {
         unsigned long long id{};
@@ -64,29 +80,39 @@ struct apartment_variable_platform
         return cookie;
     }
 
+    //! Unregisters a previously registered apartment-shutdown observer. Fail-fasts on failure.
+    //! @param cookie The registration cookie returned by @ref RegisterForApartmentShutdown.
     static void UnRegisterForApartmentShutdown(APARTMENT_SHUTDOWN_REGISTRATION_COOKIE cookie)
     {
         FAIL_FAST_IF_FAILED(RoUnregisterForApartmentShutdown(cookie));
     }
 
+    //! Initializes COM on the calling thread.
+    //! @param coinitFlags `COINIT` flags to pass to `CoInitializeEx`; defaults to `COINIT_MULTITHREADED` (`0`).
+    //! @return An RAII object that uninitializes COM on destruction.
     static auto CoInitializeEx(DWORD coinitFlags = 0 /*COINIT_MULTITHREADED*/)
     {
         return wil::CoInitializeEx(coinitFlags);
     }
 
-    // disable the test hook
+    //! Test hook: the delay, in milliseconds, injected before asynchronous apartment rundown to exercise race conditions.
+    //! This platform sets it to `INFINITE`, which disables the hook.
     inline static constexpr unsigned long AsyncRundownDelayForTestingRaces = INFINITE;
 
+    //! The RAII registration type returned by @ref RegisterForApartmentShutdown; unregisters on destruction.
     using shutdown_type = wil::unique_apartment_shutdown_registration;
 };
 
+//! Controls what happens when destroying an @ref wil::apartment_variable would leak its backing storage.
 enum class apartment_variable_leak_action
 {
-    fail_fast,
-    ignore
+    fail_fast, //!< Fail-fast if the storage would be leaked. This is the default and catches misuse in DLLs.
+    ignore     //!< Silently accept the leak; use this for apartment variables in `.exe`s, where the leak is expected.
 };
 
-// "pins" the current module in memory by incrementing the module reference count and leaking that.
+//! "Pins" the current module in memory by incrementing its module reference count and intentionally leaking that reference.
+//! Use this to keep a DLL loaded when it hosts apartment variables whose backing storage may otherwise outlive the module (see
+//! @ref wil::apartment_variable and its fail-fast notes).
 inline void ensure_module_stays_loaded()
 {
     static INIT_ONCE s_initLeakModule{}; // avoiding magic statics
@@ -422,64 +448,96 @@ namespace details
 } // namespace details
 /// @endcond
 
-// Apartment variables enable storing COM objects safely in globals
-// (objects with static storage duration) by creating a unique copy
-// in each apartment and managing their lifetime based on apartment rundown
-// notifications.
-// They can also be used for automatic or dynamic storage duration but those
-// cases are less common.
-// This type is also useful for storing references to apartment affine objects.
-//
-// Note, that apartment variables hosted in a COM DLL need to integrate with
-// the DllCanUnloadNow() function to include the ref counts contributed by
-// C++ WinRT objects. This is automatic for DLLs that host C++ WinRT objects
-// but WRL projects will need to be updated to call winrt::get_module_lock().
+/** A variable whose value is stored per COM apartment, so COM objects can be held safely in globals.
+Apartment variables store a unique copy of `T` in each apartment and manage its lifetime based on apartment-rundown notifications,
+which lets you keep COM objects in globals (objects with static storage duration) safely. They can also be used for automatic or
+dynamic storage duration, but those cases are less common. This type is also useful for storing references to apartment-affine
+objects.
 
+~~~
+// A per-apartment cache stored safely in a global.
+wil::apartment_variable<winrt::com_ptr<IMyService>> g_service;
+
+winrt::com_ptr<IMyService> GetService()
+{
+    // Constructed once per apartment on first use; destroyed when the apartment runs down.
+    return g_service.get_or_create([] { return CreateServiceForThisApartment(); });
+}
+~~~
+
+Apartment variables hosted in a COM DLL need to integrate with the DLL's `DllCanUnloadNow()` so that the reference counts
+contributed by C++/WinRT objects are included. This is automatic for DLLs that host C++/WinRT objects, but WRL projects need to be
+updated to call `winrt::get_module_lock()`:
+~~~
+// Example implementation of a WRL DLL's DllCanUnloadNow
+HRESULT __stdcall DllCanUnloadNow()
+{
+    // Keep the DLL loaded while WRL objects OR C++/WinRT objects (including apartment variables) are outstanding.
+    const bool wrlInUse = Microsoft::WRL::Module<Microsoft::WRL::InProc>::GetModule().GetObjectCount() > 0;
+    return (wrlInUse || winrt::get_module_lock()) ? S_FALSE : S_OK;
+}
+~~~
+@tparam T The type stored, one copy per apartment.
+@tparam leak_action Whether to fail-fast (the default) or ignore if the backing storage would be leaked when the variable is
+        destroyed. See @ref apartment_variable_leak_action.
+@tparam test_hook Internal testing seam for the platform primitives; defaults to @ref apartment_variable_platform and should be
+        left unchanged for normal consumers. */
 template <typename T, apartment_variable_leak_action leak_action = apartment_variable_leak_action::fail_fast, typename test_hook = wil::apartment_variable_platform>
 struct apartment_variable : details::apartment_variable_base<leak_action, test_hook>
 {
+    /// @cond
     using base = details::apartment_variable_base<leak_action, test_hook>;
+    /// @endcond
 
     constexpr apartment_variable() = default;
 
-    // Get current value or throw if no value has been set.
+    //! Gets the current apartment's value, throwing a WIL exception (`E_NOT_SET`) if no value has been set.
+    //! @return A reference to the current apartment's value.
     T& get_existing()
     {
         return std::any_cast<T&>(base::get_existing());
     }
 
-    // Get current value or default-construct one on demand.
+    //! Gets the current apartment's value, default-constructing it on first use.
+    //! @return A reference to the current apartment's value.
     T& get_or_create()
     {
         return std::any_cast<T&>(base::get_or_create(details::any_maker<T>()));
     }
 
-    // Get current value or custom-construct one on demand.
+    //! Gets the current apartment's value, constructing it with `f` on first use.
+    //! @tparam F A callable returning a `T` (or something convertible to it).
+    //! @param f Invoked to construct the value the first time it is needed in the current apartment.
+    //! @return A reference to the current apartment's value.
     template <typename F>
     T& get_or_create(F&& f)
     {
         return std::any_cast<T&>(base::get_or_create(details::any_maker<T>(std::forward<F>(f))));
     }
 
-    // get pointer to current value or nullptr if no value has been set
+    //! Gets a pointer to the current apartment's value.
+    //! @return A pointer to the current apartment's value, or `nullptr` if no value has been set.
     T* get_if()
     {
         return std::any_cast<T>(base::get_if());
     }
 
-    // replace or create the current value, fail fasts if the value is not already stored
+    //! Replaces the current apartment's value; fail-fasts if no value is currently stored.
+    //! @tparam V The type of the value to store (convertible to `T`).
+    //! @param value The new value to store for the current apartment.
     template <typename V>
     void set(V&& value)
     {
         return base::set(std::forward<V>(value));
     }
 
-    // Clear the value in the current apartment.
+    //! Clears (destroys) the value in the current apartment.
     using base::clear;
 
-    // Asynchronously clear the value in all apartments it is present in.
+    //! Asynchronously clears the value in every apartment in which it is present.
     using base::clear_all_apartments_async;
 
+    /// @cond
     // For testing only.
     // 1) To observe the state of the storage in the debugger assign this to
     // a temporary variable (const&) and watch its contents.
@@ -487,6 +545,7 @@ struct apartment_variable : details::apartment_variable_base<leak_action, test_h
     using base::storage;
     // For testing only. The number of variables in the current apartment.
     using base::current_apartment_variable_count;
+    /// @endcond
 };
 } // namespace wil
 

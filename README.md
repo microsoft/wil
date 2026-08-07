@@ -226,8 +226,12 @@ There are a few different ways to format your code:
 
 > **Important!** Git integration with `clang-format` is only available through the LLVM distribution.
 You can install LLVM through their [GibHub releases page](https://github.com/llvm/llvm-project/releases), via `winget install llvm.llvm`, or through the package manager of your choice.
+The `clang-format.exe` that ships with Visual Studio does **not** include the `git-clang-format` wrapper, so a separate LLVM install is required for the `git` integration.
+Make sure the LLVM `bin` directory (e.g., `C:\Program Files\LLVM\bin`) is on your `PATH`; otherwise `git clang-format` fails with `git: 'clang-format' is not a git command`.
 
 > **Important!** The use of `git clang-format` additionally requires Python to be installed and available on your `PATH`.
+The `git-clang-format` script specifically invokes `python3`, so an executable named `python3` (not just `python`) must be resolvable on your `PATH`.
+On Windows, also disable the Microsoft Store `python3` App Execution Alias (Settings > Apps > Advanced app settings > App execution aliases) so that `python3` resolves to your real Python installation.
 
 The simplest way to format just your changes is to use `clang-format`'s `git` integration.
 You have the option to do this continuously as you make changes, or at the very end when you're ready to submit a PR.
