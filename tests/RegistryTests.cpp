@@ -2349,6 +2349,43 @@ TEST_CASE("BasicRegistryTests::string types", "[registry]")
 #endif
     }
 
+    SECTION("strings set_value with std::wstring lvalue: with opened key")
+    {
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
+
+        // verify non-const std::wstring lvalue works with set_value (issue #624)
+        std::wstring stringValue{L"wstring lvalue test"};
+        wil::reg::set_value(hkey.get(), stringValueName, stringValue);
+        auto result = wil::reg::get_value<std::wstring>(hkey.get(), stringValueName);
+        REQUIRE(result == stringValue);
+
+        // verify const std::wstring lvalue also works
+        const std::wstring constStringValue{L"const wstring test"};
+        wil::reg::set_value(hkey.get(), stringValueName, constStringValue);
+        result = wil::reg::get_value<std::wstring>(hkey.get(), stringValueName);
+        REQUIRE(result == constStringValue);
+
+        // verify empty std::wstring
+        std::wstring emptyValue;
+        wil::reg::set_value(hkey.get(), stringValueName, emptyValue);
+        result = wil::reg::get_value<std::wstring>(hkey.get(), stringValueName);
+        REQUIRE(result.empty());
+    }
+
+    SECTION("strings set_value with std::wstring lvalue: with string key")
+    {
+        std::wstring stringValue{L"wstring lvalue subkey test"};
+        wil::reg::set_value(HKEY_CURRENT_USER, testSubkey, stringValueName, stringValue);
+        auto result = wil::reg::get_value<std::wstring>(HKEY_CURRENT_USER, testSubkey, stringValueName);
+        REQUIRE(result == stringValue);
+
+        const std::wstring constStringValue{L"const wstring subkey test"};
+        wil::reg::set_value(HKEY_CURRENT_USER, testSubkey, stringValueName, constStringValue);
+        result = wil::reg::get_value<std::wstring>(HKEY_CURRENT_USER, testSubkey, stringValueName);
+        REQUIRE(result == constStringValue);
+    }
+
 #if defined(__cpp_lib_optional)
     SECTION("strings set_value_string/try_get_value_string: with open key")
     {
