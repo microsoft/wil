@@ -377,73 +377,91 @@ namespace details_abi
     template <typename T>
     class ThreadLocalStorage
     {
+        struct Node
+        {
+            Node* next{nullptr};
+            DWORD threadId = 0xffffffffU;
+            T value{};
+        };
+
+        struct Bucket
+        {
+            wil::srwlock lock;
+            Node* head{nullptr};
+
+            ~Bucket() WI_NOEXCEPT
+            {
+                // Cleanup in a loop rather than recursively
+                while (head)
+                {
+                    auto tmp = head;
+                    head = tmp->next;
+                    tmp->~Node();
+                    details::FreeProcessHeap(tmp);
+                }
+            }
+        };
+
+        Bucket m_hashArray[13]{};
+
     public:
         ThreadLocalStorage(const ThreadLocalStorage&) = delete;
         ThreadLocalStorage& operator=(const ThreadLocalStorage&) = delete;
 
         ThreadLocalStorage() = default;
-
-        ~ThreadLocalStorage() WI_NOEXCEPT
-        {
-            for (auto& entry : m_hashArray)
-            {
-                Node* pNode = entry;
-                while (pNode != nullptr)
-                {
-                    auto pCurrent = pNode;
-#pragma warning(push)
-#pragma warning(disable : 6001) // https://github.com/microsoft/wil/issues/164
-                    pNode = pNode->pNext;
-#pragma warning(pop)
-                    pCurrent->~Node();
-                    ::HeapFree(::GetProcessHeap(), 0, pCurrent);
-                }
-                entry = nullptr;
-            }
-        }
+        ~ThreadLocalStorage() WI_NOEXCEPT = default;
 
         // Note: Can return nullptr even when (shouldAllocate == true) upon allocation failure
         T* GetLocal(bool shouldAllocate = false) WI_NOEXCEPT
         {
+            // Get the current thread ID
             DWORD const threadId = ::GetCurrentThreadId();
+
+            // Determine the appropriate bucket for this thread
             size_t const index = ((threadId >> 2) % ARRAYSIZE(m_hashArray)); // Reduce hash collisions; thread IDs are even.
-            for (auto pNode = m_hashArray[index]; pNode != nullptr; pNode = pNode->pNext)
+            Bucket& bucket = m_hashArray[index];
+
+            // Lock the bucket and search for an existing entry
+            {
+                auto lock = bucket.lock.lock_shared();
+                for (auto pNode = bucket.head; pNode != nullptr; pNode = pNode->next)
+                {
+                    if (pNode->threadId == threadId)
+                    {
+                        return &pNode->value;
+                    }
+                }
+            }
+
+            if (!shouldAllocate)
+            {
+                return nullptr;
+            }
+
+            // No entry for us, make a new one and insert it at the head
+            void* newNodeStore = details::ProcessHeapAlloc(0, sizeof(Node));
+            if (!newNodeStore)
+            {
+                return nullptr;
+            }
+            auto node = new (newNodeStore) Node{nullptr, threadId};
+
+            // Look again and insert the new node
+            auto lock = bucket.lock.lock_exclusive();
+            for (auto pNode = bucket.head; pNode != nullptr; pNode = pNode->next)
             {
                 if (pNode->threadId == threadId)
                 {
+                    node->~Node();
+                    details::FreeProcessHeap(node);
                     return &pNode->value;
                 }
             }
 
-            if (shouldAllocate)
-            {
-                if (auto pNewRaw = details::ProcessHeapAlloc(0, sizeof(Node)))
-                {
-                    auto pNew = new (pNewRaw) Node{threadId};
-
-                    Node* pFirst;
-                    do
-                    {
-                        pFirst = m_hashArray[index];
-                        pNew->pNext = pFirst;
-                    } while (::InterlockedCompareExchangePointer(reinterpret_cast<PVOID volatile*>(m_hashArray + index), pNew, pFirst) !=
-                             pFirst);
-
-                    return &pNew->value;
-                }
-            }
-            return nullptr;
+            node->next = bucket.head;
+            bucket.head = node;
+            return &bucket.head->value;
         }
-
-    private:
-        struct Node
-        {
-            DWORD threadId = 0xffffffffU;
-            Node* pNext = nullptr;
-            T value{};
-        };
-
-        Node* volatile m_hashArray[10]{};
     };
 
     struct ThreadLocalFailureInfo
