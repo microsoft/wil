@@ -10,8 +10,10 @@
 #include <winrt/Windows.ApplicationModel.Activation.h>
 #include <wil/cppwinrt_helpers.h>
 #include <winrt/Windows.System.h>
-#include <wil/cppwinrt_helpers.h> // NOLINT(readability-duplicate-include) Verify can include a second time to unlock more features
+#include <winrt/Windows.Storage.Streams.h>
+#include <wil/cppwinrt_helpers.h> // Verify can include a second time to unlock more features
 #include <wil/stl.h>
+#include <memorybuffer.h>
 
 using namespace winrt::Windows::ApplicationModel::Activation;
 
@@ -209,6 +211,44 @@ TEST_CASE("CppWinRTTests::VectorToVector", "[cppwinrt]")
 
     winrt::clear_factory_cache();
     winrt::uninit_apartment();
+}
+
+TEST_CASE("CppWinRTTests::BufferToArrayView", "[cppwinrt]")
+{
+    std::array<int32_t, 2> testData = { 314159265, 27182818 };
+    auto testDataByteStart = reinterpret_cast<uint8_t*>(testData.data());
+
+    // Create a buffer with capacity for our testData, length for one of the int32_t's.
+    auto buffer = winrt::Windows::Storage::Streams::Buffer(sizeof(testData));
+    buffer.Length(sizeof(int32_t));
+
+    // Get a Capacity-based int view and set the test data.
+    {
+        auto view = wil::to_array_view_for_capacity<int32_t>(buffer);
+        REQUIRE(view.size() == testData.size());
+        std::copy(view.begin(), view.end(), testData.begin());
+    }
+    // Get a Length-based byte view and confirm that the four bytes match the first four
+    // bytes of our test data.
+    {
+        auto view = wil::to_array_view(buffer);
+        REQUIRE(view.size() == sizeof(int32_t));
+        REQUIRE(view == winrt::array_view(testDataByteStart, sizeof(int32_t)));
+    }
+    // Create an IMemoryBuffer around the Buffer. This uses the Buffer's Capacity as the MemoryBuffer size.
+    auto mbuffer = winrt::Windows::Storage::Streams::Buffer::CreateMemoryBufferOverIBuffer(buffer);
+    // Verify that the buffer is the test data as int32_t.
+    {
+        auto view = wil::to_array_view<int32_t>(mbuffer);
+        REQUIRE(view.size() == testData.size());
+        REQUIRE(view == winrt::array_view(testData));
+    }
+    // Verify that the buffer reference gives us the test data as uint8_t.
+    {
+        auto view = wil::to_array_view(mbuffer.CreateReference());
+        REQUIRE(view.size() == sizeof(testData));
+        REQUIRE(view == winrt::array_view(testDataByteStart, sizeof(testData)));
+    }
 }
 
 TEST_CASE("CppWinRTTests::WilToCppWinRTExceptionTranslationTest", "[cppwinrt]")
