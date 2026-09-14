@@ -27,9 +27,6 @@
 #ifndef WI_STL_FAIL_FAST_IF
 #define WI_STL_FAIL_FAST_IF FAIL_FAST_IF
 #endif
-#ifndef WI_STL_FAIL_FAST_IF_NULL
-#define WI_STL_FAIL_FAST_IF_NULL FAIL_FAST_IF_NULL
-#endif
 /// @endcond
 
 #if defined(WIL_ENABLE_EXCEPTIONS)
@@ -171,9 +168,6 @@ class basic_zstring_view;
     at an internal empty string. The nested char_traits alias keeps the resulting basic_zstring_view derived from the
     same std::basic_string_view specialization as the nullable form.
 
-    @note basic_zstring_view publicly inherits from std::basic_string_view. A caller can explicitly cast to a mutable
-    base reference and assign a view with null data, bypassing the policy. Avoid mutating the object through a base
-    reference.
 */
 template <typename TChar, typename Traits = std::char_traits<TChar>>
 struct nonnull_zstring_view_traits
@@ -182,6 +176,7 @@ struct nonnull_zstring_view_traits
     static constexpr bool empty_strings_are_non_null = true;
 };
 
+/// @cond
 namespace details
 {
     template <typename TChar, typename Traits, typename = void>
@@ -192,7 +187,7 @@ namespace details
     };
 
     template <typename TChar, typename Traits>
-    struct zstring_view_traits<TChar, Traits, std::void_t<decltype(Traits::empty_strings_are_non_null)>>
+    struct zstring_view_traits<TChar, Traits, std::void_t<decltype(Traits::empty_strings_are_non_null), typename Traits::char_traits>>
     {
         static constexpr bool empty_strings_are_non_null = Traits::empty_strings_are_non_null;
         using char_traits = typename Traits::char_traits;
@@ -211,6 +206,7 @@ namespace details
     template <typename TChar>
     inline constexpr TChar zstring_view_empty_storage[1]{TChar()};
 } // namespace details
+/// @endcond
 
 /**
     zstring_view. A zstring_view is identical to a std::string_view except it is always nul-terminated (unless empty).
@@ -223,6 +219,10 @@ namespace details
     * contains() is available before C++23 through a compatibility implementation.
     * nonnull_zstring_view uses a traits policy so its constructors produce non-null data(), including after default
       construction.
+
+    @note basic_zstring_view publicly inherits from std::basic_string_view. A caller can explicitly cast any
+    basic_zstring_view variant to a mutable base reference and assign data that is null or not nul-terminated. Avoid
+    mutating the object through a base reference.
 */
 template <class TChar, class Traits>
 class basic_zstring_view : public std::basic_string_view<TChar, typename details::zstring_view_traits<TChar, Traits>::char_traits>
@@ -261,21 +261,9 @@ public:
     constexpr basic_zstring_view(const basic_zstring_view&) noexcept = default;
     constexpr basic_zstring_view& operator=(const basic_zstring_view&) noexcept = default;
 
-    constexpr basic_zstring_view(const TChar* pStringData, size_type stringLength) noexcept :
-        BaseType(require_non_null(pStringData), stringLength)
+    constexpr basic_zstring_view(const TChar* pStringData, size_type stringLength) noexcept : BaseType(pStringData, stringLength)
     {
-        if constexpr (ZStringViewTraits::empty_strings_are_non_null)
-        {
-            // The test harness records fail-fast and returns, so do not dereference a rejected null pointer afterward.
-            if ((pStringData != nullptr) && (pStringData[stringLength] != 0))
-            {
-                WI_STL_FAIL_FAST_IF(true);
-            }
-        }
-        else if (pStringData[stringLength] != 0)
-        {
-            WI_STL_FAIL_FAST_IF(true);
-        }
+        validate_pointer_and_terminator();
     }
 
     template <size_t stringArrayLength>
@@ -284,14 +272,14 @@ public:
     {
     }
 
-    template <typename T = Traits, std::enable_if_t<details::zstring_view_traits<TChar, T>::empty_strings_are_non_null, int> = 0>
     basic_zstring_view(std::nullptr_t) = delete;
 
     // Construct from nul-terminated char ptr. To prevent this from overshadowing array construction,
     // we disable this constructor if the value is an array (including string literal).
     template <typename TPtr, std::enable_if_t<std::is_convertible<TPtr, const TChar*>::value && !std::is_array<TPtr>::value>* = nullptr>
-    constexpr basic_zstring_view(TPtr&& pStr) noexcept : BaseType(require_non_null(std::forward<TPtr>(pStr)))
+    constexpr basic_zstring_view(TPtr&& pStr) noexcept : BaseType(view_from_pointer(std::forward<TPtr>(pStr)))
     {
+        validate_pointer();
     }
 
     constexpr basic_zstring_view(const std::basic_string<TChar>& str) noexcept : BaseType(&str[0], str.size())
@@ -303,8 +291,9 @@ public:
         std::enable_if_t<
             has_c_str<TSrc>::value && has_size<TSrc>::value && std::is_same_v<typename TSrc::value_type, TChar> &&
             !details::is_basic_zstring_view<std::decay_t<TSrc>>::value>* = nullptr>
-    constexpr basic_zstring_view(TSrc const& src) noexcept : BaseType(require_non_null(src.c_str()), src.size())
+    constexpr basic_zstring_view(TSrc const& src) noexcept : BaseType(src.c_str(), src.size())
     {
+        validate_pointer();
     }
 
     template <
@@ -312,16 +301,16 @@ public:
         std::enable_if_t<
             has_c_str<TSrc>::value && !has_size<TSrc>::value && std::is_same_v<typename TSrc::value_type, TChar> &&
             !details::is_basic_zstring_view<std::decay_t<TSrc>>::value>* = nullptr>
-    constexpr basic_zstring_view(TSrc const& src) noexcept : BaseType(require_non_null(src.c_str()))
+    constexpr basic_zstring_view(TSrc const& src) noexcept : BaseType(view_from_pointer(src.c_str()))
     {
+        validate_pointer();
     }
 
     template <
         typename OtherTraits,
         std::enable_if_t<
             !std::is_same_v<Traits, OtherTraits> && std::is_same_v<BaseType, typename basic_zstring_view<TChar, OtherTraits>::BaseType> &&
-                (!ZStringViewTraits::empty_strings_are_non_null || details::zstring_view_traits<TChar, OtherTraits>::empty_strings_are_non_null),
-            int> = 0>
+            (!ZStringViewTraits::empty_strings_are_non_null || details::zstring_view_traits<TChar, OtherTraits>::empty_strings_are_non_null)>* = nullptr>
     constexpr basic_zstring_view(const basic_zstring_view<TChar, OtherTraits>& other) noexcept :
         BaseType(other.data(), other.size())
     {
@@ -331,17 +320,36 @@ public:
         typename OtherTraits,
         std::enable_if_t<
             !std::is_same_v<Traits, OtherTraits> && std::is_same_v<BaseType, typename basic_zstring_view<TChar, OtherTraits>::BaseType> &&
-                ZStringViewTraits::empty_strings_are_non_null && !details::zstring_view_traits<TChar, OtherTraits>::empty_strings_are_non_null,
-            long> = 0>
+            ZStringViewTraits::empty_strings_are_non_null && !details::zstring_view_traits<TChar, OtherTraits>::empty_strings_are_non_null>* = nullptr>
     explicit constexpr basic_zstring_view(const basic_zstring_view<TChar, OtherTraits>& other) noexcept :
-        BaseType(require_non_null(other.data()), other.size())
+        BaseType(other.data(), other.size())
     {
+        validate_pointer();
     }
+
+    template <typename OtherTraits, std::enable_if_t<!std::is_same_v<BaseType, typename basic_zstring_view<TChar, OtherTraits>::BaseType>>* = nullptr>
+    basic_zstring_view(const basic_zstring_view<TChar, OtherTraits>&) = delete;
 
     template <
         typename OtherTraits,
-        std::enable_if_t<!std::is_same_v<Traits, OtherTraits> && !std::is_same_v<BaseType, typename basic_zstring_view<TChar, OtherTraits>::BaseType>, short> = 0>
-    basic_zstring_view(const basic_zstring_view<TChar, OtherTraits>&) = delete;
+        std::enable_if_t<!std::is_same_v<Traits, OtherTraits> && std::is_same_v<BaseType, typename basic_zstring_view<TChar, OtherTraits>::BaseType>>* = nullptr>
+    constexpr basic_zstring_view& operator=(const basic_zstring_view<TChar, OtherTraits>& other) noexcept
+    {
+        const auto data = other.data();
+        if constexpr (ZStringViewTraits::empty_strings_are_non_null && !details::zstring_view_traits<TChar, OtherTraits>::empty_strings_are_non_null)
+        {
+            if (data == nullptr)
+            {
+                WI_STL_FAIL_FAST_IF(data == nullptr);
+                return *this;
+            }
+        }
+        BaseType::operator=(BaseType(data, other.size()));
+        return *this;
+    }
+
+    template <typename OtherTraits, std::enable_if_t<!std::is_same_v<BaseType, typename basic_zstring_view<TChar, OtherTraits>::BaseType>>* = nullptr>
+    basic_zstring_view& operator=(const basic_zstring_view<TChar, OtherTraits>&) = delete;
 
     // basic_string_view [] precondition won't let us read view[view.size()]; so we define our own.
     WI_NODISCARD constexpr const TChar& operator[](size_type idx) const noexcept
@@ -352,10 +360,7 @@ public:
 
     WI_NODISCARD constexpr const TChar* c_str() const noexcept
     {
-        if constexpr (ZStringViewTraits::empty_strings_are_non_null)
-        {
-            WI_ASSERT(this->data() != nullptr);
-        }
+        WI_ASSERT(!ZStringViewTraits::empty_strings_are_non_null || (this->data() != nullptr));
         WI_ASSERT(this->data() == nullptr || this->data()[this->size()] == 0);
         return this->data();
     }
@@ -403,17 +408,21 @@ private:
         }
     }
 
-    static constexpr const TChar* require_non_null(const TChar* value) noexcept
+    static constexpr BaseType view_from_pointer(const TChar* value) noexcept
     {
-        if constexpr (ZStringViewTraits::empty_strings_are_non_null)
-        {
-            value = WI_STL_FAIL_FAST_IF_NULL(value);
-            if (value == nullptr)
-            {
-                return &details::zstring_view_empty_storage<TChar>[0];
-            }
-        }
-        return value;
+        return BaseType(value, value == nullptr ? 0 : BaseType::traits_type::length(value));
+    }
+
+    constexpr void validate_pointer() const noexcept
+    {
+        WI_STL_FAIL_FAST_IF(this->data() == nullptr);
+    }
+
+    constexpr void validate_pointer_and_terminator() const noexcept
+    {
+        const auto ptr = this->data();
+        const auto len = this->size();
+        WI_STL_FAIL_FAST_IF((ptr == nullptr) || (ptr[len] != 0));
     }
 
     // Bounds-checked version of char_traits::length, like strnlen. Requires that the input contains a null terminator.

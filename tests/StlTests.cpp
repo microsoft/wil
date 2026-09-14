@@ -351,9 +351,12 @@ TEST_CASE("StlTests::TestNonNullZStringView", "[stl][zstring_view][nonnull]")
         STATIC_REQUIRE(sizeof(nonnull_type) == sizeof(nullable_type));
         STATIC_REQUIRE(std::is_trivially_copyable_v<nonnull_type>);
         STATIC_REQUIRE(!std::is_constructible_v<nonnull_type, std::nullptr_t>);
+        STATIC_REQUIRE(!std::is_constructible_v<nullable_type, std::nullptr_t>);
         STATIC_REQUIRE(std::is_convertible_v<nonnull_type, nullable_type>);
         STATIC_REQUIRE(!std::is_convertible_v<nullable_type, nonnull_type>);
         STATIC_REQUIRE(std::is_constructible_v<nonnull_type, nullable_type>);
+        STATIC_REQUIRE(std::is_assignable_v<nullable_type&, nonnull_type>);
+        STATIC_REQUIRE(std::is_assignable_v<nonnull_type&, nullable_type>);
 
         REQUIRE(nullableDefault.data() == nullptr);
         REQUIRE(nonnullDefault.data() != nullptr);
@@ -377,11 +380,30 @@ TEST_CASE("StlTests::TestNonNullZStringView", "[stl][zstring_view][nonnull]")
         REQUIRE(checked.data() == nullable.data());
         REQUIRE(checked.size() == nullable.size());
 
+        nullable_type assigned;
+        assigned = fromLiteral;
+        REQUIRE(assigned.data() == fromLiteral.data());
+        REQUIRE(assigned.size() == fromLiteral.size());
+
+        nonnull_type checkedAssignment;
+        REQUIRE(&(checkedAssignment = nullable) == &checkedAssignment);
+        REQUIRE(checkedAssignment.data() == nullable.data());
+        REQUIRE(checkedAssignment.size() == nullable.size());
+
+        nonnull_type unchangedAfterRejectedAssignment{text};
+        const auto originalData = unchangedAfterRejectedAssignment.data();
+        const auto originalSize = unchangedAfterRejectedAssignment.size();
+        REQUIRE_ERROR(unchangedAfterRejectedAssignment = nullableDefault);
+        REQUIRE(unchangedAfterRejectedAssignment.data() == originalData);
+        REQUIRE(unchangedAfterRejectedAssignment.size() == originalSize);
+
         auto emptyTail = nonnullDefault.substr();
         REQUIRE(emptyTail.data() != nullptr);
         REQUIRE(emptyTail.empty());
 
         const char_type* nullPointer = nullptr;
+        REQUIRE_ERROR((nullable_type{nullPointer}));
+        REQUIRE_ERROR((nullable_type{nullPointer, 0}));
         REQUIRE_ERROR((nonnull_type{nullPointer}));
         REQUIRE_ERROR((nonnull_type{nullPointer, 0}));
         REQUIRE_ERROR((nonnull_type{nullableDefault}));
@@ -401,6 +423,24 @@ TEST_CASE("StlTests::TestNonNullZStringView", "[stl][zstring_view][nonnull]")
     STATIC_REQUIRE(!std::is_constructible_v<wil::zstring_view, custom_nullable>);
     STATIC_REQUIRE(!std::is_constructible_v<custom_nonnull, wil::zstring_view>);
     STATIC_REQUIRE(!std::is_constructible_v<wil::nonnull_zstring_view, custom_nullable>);
+    STATIC_REQUIRE(!std::is_assignable_v<wil::zstring_view&, custom_nullable>);
+    STATIC_REQUIRE(!std::is_assignable_v<custom_nonnull&, wil::zstring_view>);
+    STATIC_REQUIRE(!std::is_assignable_v<wil::nonnull_zstring_view&, custom_nullable>);
+}
+
+TEST_CASE("StlTests::TestZStringView partial policy detection", "[stl][zstring_view]")
+{
+    struct partial_policy
+    {
+        enum
+        {
+            empty_strings_are_non_null = true
+        };
+    };
+
+    using traits = wil::details::zstring_view_traits<char, partial_policy>;
+    STATIC_REQUIRE(!traits::empty_strings_are_non_null);
+    STATIC_REQUIRE(std::is_same_v<traits::char_traits, partial_policy>);
 }
 
 #endif
