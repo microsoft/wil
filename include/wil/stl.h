@@ -261,7 +261,8 @@ public:
     constexpr basic_zstring_view(const basic_zstring_view&) noexcept = default;
     constexpr basic_zstring_view& operator=(const basic_zstring_view&) noexcept = default;
 
-    constexpr basic_zstring_view(const TChar* pStringData, size_type stringLength) noexcept : BaseType(pStringData, stringLength)
+    constexpr basic_zstring_view(const TChar* pStringData, size_type stringLength) noexcept :
+        BaseType(view_from_pointer(pStringData, stringLength))
     {
         validate_pointer_and_terminator();
     }
@@ -291,7 +292,7 @@ public:
         std::enable_if_t<
             has_c_str<TSrc>::value && has_size<TSrc>::value && std::is_same_v<typename TSrc::value_type, TChar> &&
             !details::is_basic_zstring_view<std::decay_t<TSrc>>::value>* = nullptr>
-    constexpr basic_zstring_view(TSrc const& src) noexcept : BaseType(src.c_str(), src.size())
+    constexpr basic_zstring_view(TSrc const& src) noexcept : BaseType(view_from_pointer(src.c_str(), src.size()))
     {
         validate_pointer();
     }
@@ -322,7 +323,7 @@ public:
             !std::is_same_v<Traits, OtherTraits> && std::is_same_v<BaseType, typename basic_zstring_view<TChar, OtherTraits>::BaseType> &&
             ZStringViewTraits::empty_strings_are_non_null && !details::zstring_view_traits<TChar, OtherTraits>::empty_strings_are_non_null>* = nullptr>
     explicit constexpr basic_zstring_view(const basic_zstring_view<TChar, OtherTraits>& other) noexcept :
-        BaseType(other.data(), other.size())
+        BaseType(view_from_pointer(other.data(), other.size()))
     {
         validate_pointer();
     }
@@ -410,19 +411,53 @@ private:
 
     static constexpr BaseType view_from_pointer(const TChar* value) noexcept
     {
-        return BaseType(value, value == nullptr ? 0 : BaseType::traits_type::length(value));
+        if constexpr (ZStringViewTraits::empty_strings_are_non_null)
+        {
+            return BaseType(value, value == nullptr ? 0 : BaseType::traits_type::length(value));
+        }
+        else
+        {
+            return BaseType(value);
+        }
+    }
+
+    static constexpr BaseType view_from_pointer(const TChar* value, size_type length) noexcept
+    {
+        if constexpr (ZStringViewTraits::empty_strings_are_non_null)
+        {
+            // Let constructor-body validation report null without first passing an invalid range to the base.
+            return BaseType(value, value == nullptr ? 0 : length);
+        }
+        else
+        {
+            return BaseType(value, length);
+        }
     }
 
     constexpr void validate_pointer() const noexcept
     {
-        WI_STL_FAIL_FAST_IF(this->data() == nullptr);
+        if constexpr (ZStringViewTraits::empty_strings_are_non_null)
+        {
+            WI_STL_FAIL_FAST_IF(this->data() == nullptr);
+        }
     }
 
     constexpr void validate_pointer_and_terminator() const noexcept
     {
         const auto ptr = this->data();
         const auto len = this->size();
-        WI_STL_FAIL_FAST_IF((ptr == nullptr) || (ptr[len] != 0));
+        if constexpr (ZStringViewTraits::empty_strings_are_non_null)
+        {
+            WI_STL_FAIL_FAST_IF((ptr == nullptr) || (ptr[len] != 0));
+        }
+        else
+        {
+            // Preserve nullable preconditions; the guard also keeps valid construction constexpr.
+            if (ptr[len] != 0)
+            {
+                WI_STL_FAIL_FAST_IF(ptr[len] != 0);
+            }
+        }
     }
 
     // Bounds-checked version of char_traits::length, like strnlen. Requires that the input contains a null terminator.

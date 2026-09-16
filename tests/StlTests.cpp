@@ -402,10 +402,9 @@ TEST_CASE("StlTests::TestNonNullZStringView", "[stl][zstring_view][nonnull]")
         REQUIRE(emptyTail.empty());
 
         const char_type* nullPointer = nullptr;
-        REQUIRE_ERROR((nullable_type{nullPointer}));
-        REQUIRE_ERROR((nullable_type{nullPointer, 0}));
         REQUIRE_ERROR((nonnull_type{nullPointer}));
         REQUIRE_ERROR((nonnull_type{nullPointer, 0}));
+        REQUIRE_ERROR((nonnull_type{nullPointer, 1}));
         REQUIRE_ERROR((nonnull_type{nullableDefault}));
     };
 
@@ -426,6 +425,125 @@ TEST_CASE("StlTests::TestNonNullZStringView", "[stl][zstring_view][nonnull]")
     STATIC_REQUIRE(!std::is_assignable_v<wil::zstring_view&, custom_nullable>);
     STATIC_REQUIRE(!std::is_assignable_v<custom_nonnull&, wil::zstring_view>);
     STATIC_REQUIRE(!std::is_assignable_v<wil::nonnull_zstring_view&, custom_nullable>);
+}
+
+TEST_CASE("StlTests::ZStringView string-like null inputs", "[stl][zstring_view]")
+{
+    const auto test = [](auto nullableDefault, auto nonnullDefault, auto text) {
+        using nullable_type = decltype(nullableDefault);
+        using nonnull_type = decltype(nonnullDefault);
+        using char_type = typename nullable_type::value_type;
+
+        struct sized_string
+        {
+            using value_type = char_type;
+            const char_type* data;
+            size_t length;
+
+            constexpr const char_type* c_str() const noexcept
+            {
+                return data;
+            }
+
+            constexpr size_t size() const noexcept
+            {
+                return length;
+            }
+        };
+
+        const sized_string emptyString{nullptr, 0};
+        const nullable_type nullable{emptyString};
+        REQUIRE(nullable.data() == nullptr);
+        REQUIRE(nullable.size() == 0);
+        REQUIRE(nullable.c_str() == nullptr);
+        REQUIRE_ERROR((nonnull_type{emptyString}));
+        REQUIRE_ERROR((nonnull_type{sized_string{nullptr, 1}}));
+
+        const nullable_type copy{nullable};
+        REQUIRE(copy.data() == nullptr);
+        REQUIRE(copy.size() == 0);
+
+        nullable_type assigned{text};
+        assigned = nullable;
+        REQUIRE(assigned.data() == nullptr);
+        REQUIRE(assigned.size() == 0);
+        REQUIRE_ERROR((nonnull_type{nullable}));
+
+        nonnull_type destination{text};
+        const auto originalData = destination.data();
+        const auto originalSize = destination.size();
+        REQUIRE_ERROR(destination = nullable);
+        REQUIRE(destination.data() == originalData);
+        REQUIRE(destination.size() == originalSize);
+
+        const char_type emptyBuffer[]{char_type()};
+        const sized_string bufferedEmptyString{emptyBuffer, 0};
+        const nullable_type bufferedNullable{bufferedEmptyString};
+        const nonnull_type bufferedNonnull{bufferedEmptyString};
+        REQUIRE(bufferedNullable.data() == emptyBuffer);
+        REQUIRE(bufferedNullable.empty());
+        REQUIRE(bufferedNonnull.data() == emptyBuffer);
+        REQUIRE(bufferedNonnull.empty());
+
+        struct path_like
+        {
+            using value_type = char_type;
+            constexpr const char_type* c_str() const noexcept
+            {
+                return nullptr;
+            }
+        };
+        REQUIRE_ERROR((nonnull_type{path_like{}}));
+    };
+
+    test(wil::zstring_view{}, wil::nonnull_zstring_view{}, "hello");
+    test(wil::zwstring_view{}, wil::nonnull_zwstring_view{}, L"hello");
+}
+
+TEST_CASE("StlTests::ZStringView zero-length buffer validation", "[stl][zstring_view]")
+{
+    const auto test = [](auto defaultView) {
+        using view_type = decltype(defaultView);
+        using char_type = typename view_type::value_type;
+
+        const char_type emptyBuffer[]{char_type()};
+        const view_type empty{emptyBuffer, 0};
+        REQUIRE(empty.data() == emptyBuffer);
+        REQUIRE(empty.size() == 0);
+        REQUIRE(empty.c_str()[0] == char_type());
+
+        const char_type nonemptyBuffer[]{static_cast<char_type>('x'), char_type()};
+        REQUIRE_ERROR((view_type{nonemptyBuffer, 0}));
+    };
+
+    test(wil::zstring_view{});
+    test(wil::zwstring_view{});
+    test(wil::nonnull_zstring_view{});
+    test(wil::nonnull_zwstring_view{});
+}
+
+TEST_CASE("StlTests::ZStringView constexpr pointer-length construction", "[stl][zstring_view]")
+{
+    const auto test = [](auto defaultView) {
+        using view_type = decltype(defaultView);
+        using char_type = typename view_type::value_type;
+        static constexpr char_type buffer[]{static_cast<char_type>('a'), static_cast<char_type>('b'), char_type()};
+
+        constexpr view_type view{buffer, 2};
+        STATIC_REQUIRE(view.data() == buffer);
+        STATIC_REQUIRE(view.size() == 2);
+
+        constexpr auto tail = view.substr(1);
+        STATIC_REQUIRE(tail.data() == buffer + 1);
+        STATIC_REQUIRE(tail.size() == 1);
+
+        constexpr view_type empty{buffer + 2, 0};
+        STATIC_REQUIRE(empty.data() == buffer + 2);
+        STATIC_REQUIRE(empty.empty());
+    };
+
+    test(wil::zstring_view{});
+    test(wil::zwstring_view{});
 }
 
 TEST_CASE("StlTests::TestZStringView partial policy detection", "[stl][zstring_view]")
