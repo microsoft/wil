@@ -334,3 +334,4 @@ ASALocalRun/
 
 # CMake/Build output
 build/
+_codeql_detected_source_root

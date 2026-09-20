@@ -13,6 +13,40 @@
 #include <wil/winrt.h>
 #include <wil/resource.h>
 
+#if defined(WIL_ENABLE_EXCEPTIONS)
+// File-scope traits used by WinrtEventCustomTraits; counters are thread_local to avoid
+// inter-test interference when tests run on the same thread sequentially.
+namespace
+{
+thread_local int g_counting_swallowed = 0;
+thread_local int g_counting_removed = 0;
+
+struct counting_event_errors_traits
+{
+    static bool on_handler_exception(std::exception_ptr ep) noexcept
+    {
+        try
+        {
+            std::rethrow_exception(ep);
+        }
+        catch (winrt::hresult_error const& e)
+        {
+            if (e.code() == E_ABORT)
+            {
+                ++g_counting_removed;
+                return true; // Remove handler
+            }
+        }
+        catch (...)
+        {
+        }
+        ++g_counting_swallowed;
+        return false; // Keep handler
+    }
+};
+} // namespace
+#endif
+
 struct my_async_status : winrt::implements<my_async_status, winrt::Windows::Foundation::IAsyncInfo>
 {
     wil::single_threaded_property<winrt::Windows::Foundation::AsyncStatus> Status{winrt::Windows::Foundation::AsyncStatus::Started};
@@ -265,6 +299,222 @@ TEST_CASE("CppWinRTAuthoringTests::EventsAndCppWinRt", "[property]")
     REQUIRE(invoked == true);
     test.Closed(token);
 }
+
+TEST_CASE("CppWinRTAuthoringTests::WinrtEvent", "[winrt_event]")
+{
+    // Basic smoke test: register, invoke, unregister
+    struct Test
+    {
+        wil::winrt_event<winrt::Windows::Foundation::EventHandler<int>> MyEvent;
+    } test;
+
+    int value = 0;
+    auto token = test.MyEvent([&](const winrt::Windows::Foundation::IInspectable&, int args) {
+        value = args;
+    });
+    test.MyEvent.invoke(nullptr, 42);
+    REQUIRE(value == 42);
+    test.MyEvent(token);
+}
+
+#if defined(WIL_ENABLE_EXCEPTIONS)
+TEST_CASE("CppWinRTAuthoringTests::WinrtEventSwallowExceptions", "[winrt_event]")
+{
+    // Default (swallow) traits: all handlers are called even if some throw, exceptions are logged
+    struct Test
+    {
+        wil::winrt_event<winrt::Windows::Foundation::EventHandler<int>> MyEvent;
+    } test;
+
+    witest::TestFailureCache failures;
+    int callCount = 0;
+
+    // First handler throws
+    auto token1 = test.MyEvent([&](const winrt::Windows::Foundation::IInspectable&, int) {
+        ++callCount;
+        throw winrt::hresult_not_implemented{};
+    });
+
+    // Second handler should still be called
+    auto token2 = test.MyEvent([&](const winrt::Windows::Foundation::IInspectable&, int args) {
+        ++callCount;
+        REQUIRE(args == 42);
+    });
+
+    // invoke() must not throw even though first handler throws
+    REQUIRE_NOTHROW(test.MyEvent.invoke(nullptr, 42));
+
+    // Both handlers must have been called
+    REQUIRE(callCount == 2);
+
+    // Exception must have been logged (caught, not leaked)
+    REQUIRE(failures.size() == 1);
+    REQUIRE(failures[0].hr == E_NOTIMPL);
+
+    // Handlers are kept after a non-removal exception
+    callCount = 0;
+    failures.clear();
+    REQUIRE_NOTHROW(test.MyEvent.invoke(nullptr, 42));
+    REQUIRE(callCount == 2); // Both still registered
+
+    test.MyEvent(token1);
+    test.MyEvent(token2);
+}
+
+TEST_CASE("CppWinRTAuthoringTests::WinrtEventPropagateExceptions", "[winrt_event]")
+{
+    // Propagate traits: first exception propagates and remaining handlers are skipped
+    struct Test
+    {
+        wil::winrt_event<winrt::Windows::Foundation::EventHandler<int>, wil::propagate_event_errors_traits> MyEvent;
+    } test;
+
+    int callCount = 0;
+
+    auto token1 = test.MyEvent([&](const winrt::Windows::Foundation::IInspectable&, int) {
+        ++callCount;
+        throw winrt::hresult_not_implemented{};
+    });
+
+    // This handler should NOT be called because the first one throws
+    auto token2 = test.MyEvent([&](const winrt::Windows::Foundation::IInspectable&, int) {
+        ++callCount;
+    });
+
+    // invoke() must throw
+    REQUIRE_THROWS_AS(test.MyEvent.invoke(nullptr, 42), winrt::hresult_not_implemented);
+
+    // Only the first handler ran
+    REQUIRE(callCount == 1);
+
+    test.MyEvent(token1);
+    test.MyEvent(token2);
+}
+
+TEST_CASE("CppWinRTAuthoringTests::WinrtEventTypedDelegate", "[winrt_event]")
+{
+    // winrt_event works with TypedEventHandler delegates
+    struct Test
+    {
+        wil::winrt_event<winrt::Windows::Foundation::TypedEventHandler<winrt::Windows::Foundation::IInspectable, int>> MyEvent;
+    } test;
+
+    int value = 0;
+    auto token = test.MyEvent([&](const winrt::Windows::Foundation::IInspectable&, int args) {
+        value = args;
+    });
+    test.MyEvent.invoke(nullptr, 99);
+    REQUIRE(value == 99);
+    test.MyEvent(token);
+}
+
+TEST_CASE("CppWinRTAuthoringTests::WinrtEventRpcResilienceRemovesBrokenHandler", "[winrt_event]")
+{
+    // rpc_resilient_event_errors_traits: RPC disconnection errors cause handler removal
+    struct Test
+    {
+        wil::winrt_event<winrt::Windows::Foundation::EventHandler<int>, wil::rpc_resilient_event_errors_traits> MyEvent;
+    } test;
+
+    witest::TestFailureCache failures;
+    int callCount = 0;
+
+    // Handler that throws RPC_E_DISCONNECTED (simulates a broken remote subscriber)
+    auto token1 = test.MyEvent([&](const winrt::Windows::Foundation::IInspectable&, int) {
+        ++callCount;
+        throw winrt::hresult_error{RPC_E_DISCONNECTED};
+    });
+
+    // A healthy handler that should always be called
+    auto token2 = test.MyEvent([&](const winrt::Windows::Foundation::IInspectable&, int) {
+        ++callCount;
+    });
+
+    // First invoke: both handlers run; broken one throws but is caught, not leaked
+    REQUIRE_NOTHROW(test.MyEvent.invoke(nullptr, 42));
+    REQUIRE(callCount == 2);
+    REQUIRE(!failures.empty()); // RPC error was logged
+
+    failures.clear();
+    callCount = 0;
+
+    // Second invoke: broken handler was removed; only token2 runs
+    REQUIRE_NOTHROW(test.MyEvent.invoke(nullptr, 42));
+    REQUIRE(callCount == 1);   // Only healthy handler called
+    REQUIRE(failures.empty()); // No more errors
+
+    test.MyEvent(token2);
+    // token1 was already removed by the resilience mechanism; removing again is a no-op
+    test.MyEvent(token1);
+}
+
+TEST_CASE("CppWinRTAuthoringTests::WinrtEventRpcResilienceKeepsHandlerOnNonRpcError", "[winrt_event]")
+{
+    // rpc_resilient_event_errors_traits: non-RPC errors are logged but handler is kept
+    struct Test
+    {
+        wil::winrt_event<winrt::Windows::Foundation::EventHandler<int>, wil::rpc_resilient_event_errors_traits> MyEvent;
+    } test;
+
+    witest::TestFailureCache failures;
+    int callCount = 0;
+
+    // Handler that throws a non-RPC error
+    auto token1 = test.MyEvent([&](const winrt::Windows::Foundation::IInspectable&, int) {
+        ++callCount;
+        throw winrt::hresult_not_implemented{};
+    });
+
+    // First invoke: exception caught, logged, handler kept
+    REQUIRE_NOTHROW(test.MyEvent.invoke(nullptr, 42));
+    REQUIRE(callCount == 1);
+    REQUIRE(failures.size() == 1);
+    REQUIRE(failures[0].hr == E_NOTIMPL);
+
+    failures.clear();
+    callCount = 0;
+
+    // Second invoke: handler was NOT removed (not an RPC error)
+    REQUIRE_NOTHROW(test.MyEvent.invoke(nullptr, 42));
+    REQUIRE(callCount == 1); // Handler still registered
+    REQUIRE(failures.size() == 1);
+
+    test.MyEvent(token1);
+}
+
+TEST_CASE("CppWinRTAuthoringTests::WinrtEventCustomTraits", "[winrt_event]")
+{
+    // Custom traits: verify the trait interface (on_handler_exception returning bool)
+    // counting_event_errors_traits: removes handlers that throw E_ABORT; swallows everything else
+    g_counting_swallowed = 0;
+    g_counting_removed = 0;
+
+    struct Test
+    {
+        wil::winrt_event<winrt::Windows::Foundation::EventHandler<int>, counting_event_errors_traits> MyEvent;
+    } test;
+
+    // Handler that throws E_ABORT → should be removed
+    auto token1 = test.MyEvent([](const winrt::Windows::Foundation::IInspectable&, int) {
+        throw winrt::hresult_error{E_ABORT};
+    });
+    // Handler that throws something else → should be kept
+    auto token2 = test.MyEvent([](const winrt::Windows::Foundation::IInspectable&, int) {
+        throw winrt::hresult_error{E_FAIL};
+    });
+
+    REQUIRE_NOTHROW(test.MyEvent.invoke(nullptr, 1));
+    REQUIRE(g_counting_removed == 1);
+    REQUIRE(g_counting_swallowed == 1);
+
+    // Second invoke: token1 was removed, only token2 runs
+    REQUIRE_NOTHROW(test.MyEvent.invoke(nullptr, 2));
+    REQUIRE(g_counting_removed == 1);   // No new removals
+    REQUIRE(g_counting_swallowed == 2); // One more swallow from token2
+
+    test.MyEvent(token2);
+}
+#endif // WIL_ENABLE_EXCEPTIONS
 
 #include <winrt/Windows.UI.Xaml.Hosting.h>
 
