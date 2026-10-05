@@ -148,6 +148,11 @@ static void FlagsMacrosNonStatic(T none, T one, T two, T three, T four)
     eval = one;
     WI_ToggleAllFlags(MDEC(eval), MDEC(one | two));
     REQUIRE(eval == two);
+
+    REQUIRE(WI_MaskFlag(MDEC(one | two | three), MDEC(two)) == (one | three));
+    REQUIRE(WI_MaskAllFlags(MDEC(one | two | three), MDEC(two | three)) == one);
+    REQUIRE(WI_RaiseFlag(MDEC(one | three), MDEC(two)) == (one | two | three));
+    REQUIRE(WI_RaiseAllFlag(MDEC(one), MDEC(two | three)) == (one | two | three));
 }
 
 enum class EClassTest
