@@ -22,7 +22,7 @@ target_sources(witest.cpplatest PRIVATE
     ${DOWNLEVEL_SOURCES}
     ${WINRT_SOURCES}
     ${WIN11_DESKTOP_SOURCES}
-    ${CPP20_SOURCES}
+    ${COROUTINE_SOURCES}
     )
 
 # For things like intellisense in VS code and making clang-tidy not take an excruciatingly long time, only use this
