@@ -229,10 +229,10 @@ TEST_CASE("NetworkingTests::Verifying_constructors", "[networking]")
 
         SOCKADDR_IN6 v6_test_sockaddr{};
         v6_test_sockaddr.sin6_family = AF_INET6;
-        // these raw value are in network byte order
+        // the port and flow info are in network byte order; the scope id is in host byte order
         v6_test_sockaddr.sin6_port = htons(TestPort);
         v6_test_sockaddr.sin6_flowinfo = htonl(ULONG_MAX - 1);
-        v6_test_sockaddr.sin6_scope_id = htonl(ULONG_MAX - 1);
+        v6_test_sockaddr.sin6_scope_id = ULONG_MAX - 1;
         memcpy(&v6_test_sockaddr.sin6_addr, &Test_linklocal_in6_addr, sizeof(in6_addr));
 
         socket_address v6_addr{reinterpret_cast<sockaddr*>(&v6_test_sockaddr), sizeof(v6_test_sockaddr)};
@@ -278,10 +278,10 @@ TEST_CASE("NetworkingTests::Verifying_constructors", "[networking]")
     {
         SOCKADDR_IN6 v6_test_sockaddr{};
         v6_test_sockaddr.sin6_family = AF_INET6;
-        // these raw value are in network byte order
+        // the port and flow info are in network byte order; the scope id is in host byte order
         v6_test_sockaddr.sin6_port = htons(TestPort);
         v6_test_sockaddr.sin6_flowinfo = htonl(ULONG_MAX - 1);
-        v6_test_sockaddr.sin6_scope_id = htonl(ULONG_MAX - 1);
+        v6_test_sockaddr.sin6_scope_id = ULONG_MAX - 1;
         memcpy(&v6_test_sockaddr.sin6_addr, &Test_linklocal_in6_addr, sizeof(in6_addr));
 
         socket_address v6_addr{&v6_test_sockaddr};
@@ -329,10 +329,10 @@ TEST_CASE("NetworkingTests::Verifying_constructors", "[networking]")
 
         SOCKADDR_IN6 v6_test_sockaddr{};
         v6_test_sockaddr.sin6_family = AF_INET6;
-        // these raw value are in network byte order
+        // the port and flow info are in network byte order; the scope id is in host byte order
         v6_test_sockaddr.sin6_port = htons(TestPort);
         v6_test_sockaddr.sin6_flowinfo = htonl(ULONG_MAX - 1);
-        v6_test_sockaddr.sin6_scope_id = htonl(ULONG_MAX - 1);
+        v6_test_sockaddr.sin6_scope_id = ULONG_MAX - 1;
         memcpy(&v6_test_sockaddr.sin6_addr, &Test_linklocal_in6_addr, sizeof(in6_addr));
 
         SOCKADDR_INET v6_inet_addr{};
@@ -387,10 +387,10 @@ TEST_CASE("NetworkingTests::Verifying_constructors", "[networking]")
 
         SOCKADDR_IN6 v6_test_sockaddr{};
         v6_test_sockaddr.sin6_family = AF_INET6;
-        // these raw value are in network byte order
+        // the port and flow info are in network byte order; the scope id is in host byte order
         v6_test_sockaddr.sin6_port = htons(TestPort);
         v6_test_sockaddr.sin6_flowinfo = htonl(ULONG_MAX - 1);
-        v6_test_sockaddr.sin6_scope_id = htonl(ULONG_MAX - 1);
+        v6_test_sockaddr.sin6_scope_id = ULONG_MAX - 1;
         memcpy(&v6_test_sockaddr.sin6_addr, &Test_linklocal_in6_addr, sizeof(in6_addr));
 
         SOCKET_ADDRESS v6_socketaddress{};
@@ -1581,10 +1581,10 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
 
         SOCKADDR_IN6 v6_test_sockaddr{};
         v6_test_sockaddr.sin6_family = AF_INET6;
-        // these raw values are in network byte order
+        // the port and flow info are in network byte order; the scope id is in host byte order
         v6_test_sockaddr.sin6_port = htons(TestPort);
         v6_test_sockaddr.sin6_flowinfo = htonl(123456);
-        v6_test_sockaddr.sin6_scope_id = htonl(234567);
+        v6_test_sockaddr.sin6_scope_id = 234567;
         memcpy(&v6_test_sockaddr.sin6_addr, &Test_linklocal_in6_addr, sizeof(in6_addr));
 
         wil::network::socket_address v6_addr{&v6_test_sockaddr};
@@ -1605,9 +1605,9 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         REQUIRE(v6_addr.sockaddr_in6()->sin6_flowinfo == htonl(345678));
 
         v6_addr.set_scope_id(456789);
-        // should be stored in network-byte-order
+        // should be stored in host-byte-order
         REQUIRE(v6_addr.scope_id() == 456789);
-        REQUIRE(v6_addr.sockaddr_in6()->sin6_scope_id == htonl(456789));
+        REQUIRE(v6_addr.sockaddr_in6()->sin6_scope_id == 456789);
     }
 
     SECTION("verify swap")
@@ -1629,10 +1629,10 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
 
         SOCKADDR_IN6 v6_test_sockaddr{};
         v6_test_sockaddr.sin6_family = AF_INET6;
-        // these raw values are in network byte order
+        // the port and flow info are in network byte order; the scope id is in host byte order
         v6_test_sockaddr.sin6_port = htons(TestPort);
         v6_test_sockaddr.sin6_flowinfo = htonl(123456);
-        v6_test_sockaddr.sin6_scope_id = htonl(234567);
+        v6_test_sockaddr.sin6_scope_id = 234567;
         memcpy(&v6_test_sockaddr.sin6_addr, &Test_linklocal_in6_addr, sizeof(in6_addr));
 
         wil::network::socket_address v6_addr{&v6_test_sockaddr};
@@ -1692,6 +1692,119 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         (void)dual_mode_string;
 #endif
     }
+}
+
+TEST_CASE("NetworkingTests::Verifying_reset_complete_address", "[networking]")
+{
+    InitTestAddresses();
+    auto wsa_startup_tracking = wil::network::WSAStartup_nothrow();
+    REQUIRE(static_cast<bool>(wsa_startup_tracking));
+
+    struct TestAddress
+    {
+        PCWSTR address;
+        PCSTR char_address;
+        ADDRESS_FAMILY family;
+        USHORT port;
+        ULONG scope_id;
+    };
+    const TestAddress test_addresses[] = {
+        {Test_in_addr_string, Test_in_addr_char_string, AF_INET, 0, 0},
+        {L"1.1.1.1:12345", "1.1.1.1:12345", AF_INET, TestPort, 0},
+        {L"1.1.1.1:65535", "1.1.1.1:65535", AF_INET, USHRT_MAX, 0},
+        {Test_linklocal_in6_addr_string, "fe80::1:1:1111:2222", AF_INET6, 0, 0},
+        {L"[fe80::1:1:1111:2222]:12345", "[fe80::1:1:1111:2222]:12345", AF_INET6, TestPort, 0},
+        {L"fe80::1:1:1111:2222%42", "fe80::1:1:1111:2222%42", AF_INET6, 0, 42},
+        {L"[fe80::1:1:1111:2222%42]:12345", "[fe80::1:1:1111:2222%42]:12345", AF_INET6, TestPort, 42},
+        {L"[fe80::1:1:1111:2222%42]:65535", "[fe80::1:1:1111:2222%42]:65535", AF_INET6, USHRT_MAX, 42},
+    };
+    const ADDRESS_FAMILY initial_families[] = {AF_UNSPEC, AF_INET, AF_INET6};
+
+    const auto VerifyAddresses = [&](auto reset_address) {
+        for (const auto& test_address : test_addresses)
+        {
+            for (const auto initial_family : initial_families)
+            {
+                INFO(test_address.char_address);
+                INFO(initial_family);
+                wil::network::socket_address address{initial_family};
+                if (initial_family != AF_UNSPEC)
+                {
+                    address.set_address_loopback();
+                    address.set_port(TestPort + 1);
+                }
+                if (initial_family == AF_INET6)
+                {
+                    address.set_scope_id(43);
+                    address.set_flow_info(123456);
+                }
+
+                reset_address(address, test_address);
+                REQUIRE(address.family() == test_address.family);
+                REQUIRE(address.port() == test_address.port);
+                REQUIRE(address.scope_id() == test_address.scope_id);
+                REQUIRE(address.flow_info() == 0);
+                REQUIRE(address.address_type() == NlatUnicast);
+                REQUIRE(!address.is_address_loopback());
+                REQUIRE(address.is_address_linklocal() == (test_address.family == AF_INET6));
+
+                SOCKADDR_INET expected_address{};
+                expected_address.si_family = test_address.family;
+                if (test_address.family == AF_INET)
+                {
+                    expected_address.Ipv4.sin_addr = Test_in_addr;
+                    expected_address.Ipv4.sin_port = htons(test_address.port);
+                    REQUIRE(wil::network::equals(*address.in_addr(), Test_in_addr));
+                }
+                else
+                {
+                    expected_address.Ipv6.sin6_addr = Test_linklocal_in6_addr;
+                    expected_address.Ipv6.sin6_port = htons(test_address.port);
+                    expected_address.Ipv6.sin6_scope_id = test_address.scope_id;
+                    REQUIRE(wil::network::equals(*address.in6_addr(), Test_linklocal_in6_addr));
+                }
+                REQUIRE(0 == memcmp(address.sockaddr_inet(), &expected_address, sizeof(expected_address)));
+
+                wil::network::socket_address_wstring address_string{};
+                REQUIRE(SUCCEEDED(address.format_complete_address_nothrow(address_string)));
+                REQUIRE(0 == wcscmp(address_string, test_address.address));
+
+                wil::network::socket_address_string address_char_string{};
+                REQUIRE(SUCCEEDED(address.format_complete_address_nothrow(address_char_string)));
+                REQUIRE(0 == strcmp(address_char_string, test_address.char_address));
+            }
+        }
+    };
+
+    SECTION("verify reset_complete_address_nothrow PCWSTR")
+    {
+        VerifyAddresses([](wil::network::socket_address& address, const TestAddress& test_address) {
+            REQUIRE(address.reset_complete_address_nothrow(test_address.address) == S_OK);
+        });
+    }
+
+    SECTION("verify reset_complete_address_nothrow PCSTR")
+    {
+        VerifyAddresses([](wil::network::socket_address& address, const TestAddress& test_address) {
+            REQUIRE(address.reset_complete_address_nothrow(test_address.char_address) == S_OK);
+        });
+    }
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+    SECTION("verify reset_complete_address PCWSTR")
+    {
+        VerifyAddresses([](wil::network::socket_address& address, const TestAddress& test_address) {
+            address.reset_complete_address(test_address.address);
+        });
+    }
+
+    SECTION("verify reset_complete_address PCSTR")
+    {
+        VerifyAddresses([](wil::network::socket_address& address, const TestAddress& test_address) {
+            address.reset_complete_address(test_address.char_address);
+        });
+    }
+#endif
 }
 
 TEST_CASE("NetworkingTests::Verifying_failure_paths", "[networking]")
@@ -1768,6 +1881,80 @@ TEST_CASE("NetworkingTests::Verifying_failure_paths", "[networking]")
         }
         REQUIRE(exception_thrown);
 #endif
+    }
+
+    SECTION("verify reset_complete_address bad-address-string failure path")
+    {
+        const struct
+        {
+            PCWSTR address;
+            PCSTR char_address;
+        } invalid_addresses[] = {
+            {L"abcdefg", "abcdefg"},
+            {L"1.1.1.1:65536", "1.1.1.1:65536"},
+            {L"[fe80::1:1:1111:2222%42]:65536", "[fe80::1:1:1111:2222%42]:65536"},
+            {L"fe80::1:1:1111:2222%invalid", "fe80::1:1:1111:2222%invalid"},
+        };
+
+        for (const auto& invalid_address : invalid_addresses)
+        {
+            INFO(invalid_address.char_address);
+            wil::network::socket_address test_address{&Test_linklocal_in6_addr, TestPort};
+            test_address.set_scope_id(42);
+            test_address.set_flow_info(123456);
+            const auto original_address = test_address;
+            const wil::network::socket_address empty_address;
+
+            const auto ResetAndVerifyFailure = [&](auto reset_address) {
+                REQUIRE(reset_address() == HRESULT_FROM_WIN32(WSAEINVAL));
+                REQUIRE(0 == memcmp(test_address.sockaddr_inet(), empty_address.sockaddr_inet(), test_address.size()));
+                test_address = original_address;
+            };
+
+            ResetAndVerifyFailure([&] {
+                return test_address.reset_complete_address_nothrow(invalid_address.address);
+            });
+            ResetAndVerifyFailure([&] {
+                return test_address.reset_complete_address_nothrow(invalid_address.char_address);
+            });
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+            bool exception_thrown = false;
+            try
+            {
+                test_address.reset_complete_address(invalid_address.address);
+            }
+            catch (const wil::ResultException& e)
+            {
+                REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(WSAEINVAL));
+                exception_thrown = true;
+            }
+            catch (...)
+            {
+                REQUIRE(false);
+            }
+            REQUIRE(exception_thrown);
+            REQUIRE(0 == memcmp(test_address.sockaddr_inet(), empty_address.sockaddr_inet(), test_address.size()));
+
+            test_address = original_address;
+            exception_thrown = false;
+            try
+            {
+                test_address.reset_complete_address(invalid_address.char_address);
+            }
+            catch (const wil::ResultException& e)
+            {
+                REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(WSAEINVAL));
+                exception_thrown = true;
+            }
+            catch (...)
+            {
+                REQUIRE(false);
+            }
+            REQUIRE(exception_thrown);
+            REQUIRE(0 == memcmp(test_address.sockaddr_inet(), empty_address.sockaddr_inet(), test_address.size()));
+#endif
+        }
     }
 
     SECTION("verify format_address_nothrow AF_UNSPEC")

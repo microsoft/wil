@@ -131,6 +131,7 @@ namespace network
     //
     // note that the address and port fields of TCPIP sockaddr* types were designed to be encoded in network-byte order
     // - hence the common use of "host-to-network" and "network-to-host" APIs, e.g. htons(), htonl(), ntohs(), ntohl()
+    // - the IPv6 scope id is stored in host-byte order
     //
     // Socket APIs that accept a socket address will accept 2 fields:
     // - the sockaddr* (the address of the derived sockaddr type, cast down to a sockaddr*)
@@ -206,11 +207,23 @@ namespace network
         void reset_address(SOCKET s);
         void reset_address(PCWSTR address);
         void reset_address(PCSTR address);
+
+        // resets all fields of the sockaddr based on the string representation of the address
+        // including the port and scope id if present
+        // requires WSAStartup; resets to AF_UNSPEC if parsing fails
+        void reset_complete_address(PCWSTR address);
+        void reset_complete_address(PCSTR address);
 #endif
 
         WI_NODISCARD HRESULT reset_address_nothrow(SOCKET s) WI_NOEXCEPT;
         WI_NODISCARD HRESULT reset_address_nothrow(PCWSTR address) WI_NOEXCEPT;
         WI_NODISCARD HRESULT reset_address_nothrow(PCSTR address) WI_NOEXCEPT;
+
+        // resets all fields of the sockaddr based on the string representation of the address
+        // including the port and scope id if present
+        // requires WSAStartup; resets to AF_UNSPEC if parsing fails
+        WI_NODISCARD HRESULT reset_complete_address_nothrow(PCWSTR address) WI_NOEXCEPT;
+        WI_NODISCARD HRESULT reset_complete_address_nothrow(PCSTR address) WI_NOEXCEPT;
 
         void set_port(USHORT port) WI_NOEXCEPT;
         void set_scope_id(ULONG scopeId) WI_NOEXCEPT;
@@ -943,7 +956,7 @@ namespace network
 
         if (family() == AF_INET6)
         {
-            m_sockaddr.Ipv6.sin6_scope_id = ::htonl(scopeId);
+            m_sockaddr.Ipv6.sin6_scope_id = scopeId;
         }
     }
 
@@ -1035,6 +1048,18 @@ namespace network
     {
         THROW_IF_FAILED(reset_address_nothrow(address));
     }
+
+    // resets all fields of the sockaddr based on the string representation of the address
+    // including the port and scope id if present
+    inline void socket_address::reset_complete_address(PCWSTR address)
+    {
+        THROW_IF_FAILED(reset_complete_address_nothrow(address));
+    }
+
+    inline void socket_address::reset_complete_address(PCSTR address)
+    {
+        THROW_IF_FAILED(reset_complete_address_nothrow(address));
+    }
 #endif
 
     inline HRESULT socket_address::reset_address_nothrow(SOCKET s) WI_NOEXCEPT
@@ -1096,6 +1121,52 @@ namespace network
         reset();
         return E_INVALIDARG;
     }
+
+    inline HRESULT socket_address::reset_complete_address_nothrow(PCWSTR address) WI_NOEXCEPT
+    {
+        reset(AF_INET);
+
+        INT address_length = size();
+        if (::WSAStringToAddressW(const_cast<PWSTR>(address), AF_INET, nullptr, sockaddr(), &address_length) == 0)
+        {
+            return S_OK;
+        }
+
+        reset(AF_INET6);
+        address_length = size();
+        if (::WSAStringToAddressW(const_cast<PWSTR>(address), AF_INET6, nullptr, sockaddr(), &address_length) == 0)
+        {
+            return S_OK;
+        }
+
+        const auto error = ::WSAGetLastError();
+        reset();
+        RETURN_WIN32(error);
+    }
+    // the Winsock headers require having set this #define to access ANSI-string versions of the Winsock API
+#if defined(_WINSOCK_DEPRECATED_NO_WARNINGS)
+    inline HRESULT socket_address::reset_complete_address_nothrow(PCSTR address) WI_NOEXCEPT
+    {
+        reset(AF_INET);
+
+        INT address_length = size();
+        if (::WSAStringToAddressA(const_cast<PSTR>(address), AF_INET, nullptr, sockaddr(), &address_length) == 0)
+        {
+            return S_OK;
+        }
+
+        reset(AF_INET6);
+        address_length = size();
+        if (::WSAStringToAddressA(const_cast<PSTR>(address), AF_INET6, nullptr, sockaddr(), &address_length) == 0)
+        {
+            return S_OK;
+        }
+
+        const auto error = ::WSAGetLastError();
+        reset();
+        RETURN_WIN32(error);
+    }
+#endif
 
     inline HRESULT socket_address::format_address_nothrow(socket_address_wstring& address) const WI_NOEXCEPT
     {
@@ -1253,7 +1324,7 @@ namespace network
         case AF_INET:
             return 0;
         case AF_INET6:
-            return ::ntohl(m_sockaddr.Ipv6.sin6_scope_id);
+            return m_sockaddr.Ipv6.sin6_scope_id;
         default:
             WI_ASSERT_MSG(false, "Unknown address family");
             return 0;
