@@ -59,6 +59,7 @@ if (MSVC AND "${CMAKE_BUILD_TYPE}" STREQUAL "RelWithDebInfo")
 endif()
 
 set(COMMON_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/ChronoTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/CommonTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ComTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/FileSystemTests.cpp

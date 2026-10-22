@@ -17,6 +17,7 @@
 #include "wistd_memory.h"
 
 #if WIL_USE_STL
+#include "chrono.h"
 #include <iterator>
 #endif
 
@@ -3313,6 +3314,14 @@ public:
         return wil::handle_wait(storage_t::get(), dwMilliseconds, bAlertable);
     }
 
+#if WIL_USE_STL && !defined(WIL_NO_CHRONO)
+    template <typename Rep, typename Period>
+    bool wait(std::chrono::duration<Rep, Period> timeout, BOOL bAlertable = FALSE) const WI_NOEXCEPT
+    {
+        return wait(wil::to_dword_ms_failfast(timeout), bAlertable);
+    }
+#endif
+
     // Tries to create a named event -- returns false if unable to do so (gle may still be inspected with return=false)
     bool try_create(EventOptions options, PCWSTR name, _In_opt_ LPSECURITY_ATTRIBUTES securityAttributes = nullptr, _Out_opt_ bool* alreadyExists = nullptr)
     {
@@ -3487,6 +3496,14 @@ public:
 
         return true;
     }
+
+#if WIL_USE_STL && !defined(WIL_NO_CHRONO)
+    template <typename Rep, typename Period>
+    bool wait(std::chrono::duration<Rep, Period> timeout) WI_NOEXCEPT
+    {
+        return wait(wil::to_dword_ms_failfast(timeout));
+    }
+#endif
 
     bool wait() WI_NOEXCEPT
     {
