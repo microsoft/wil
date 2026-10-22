@@ -96,20 +96,28 @@ set(WIN11_DESKTOP_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/WinVerifyTrustTest.cpp
     )
 
-# Source files that require C++20
-set(CPP20_SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/CoroutineTests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/CppWinRT20Tests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/CppWinRTAuthoringTests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/CppWinRTTests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/app.manifest
-    )
+# Clang explicitly disables coroutine support when targeting the Windows ABI for x86
+set(HAS_COROUTINE_SUPPORT ON)
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_COMPILER_ARCHITECTURE_ID STREQUAL "X86")
+    set(HAS_COROUTINE_SUPPORT OFF)
+endif()
+
+set(COROUTINE_SOURCES "")
+if (HAS_COROUTINE_SUPPORT)
+    set(COROUTINE_SOURCES
+        ${CMAKE_CURRENT_SOURCE_DIR}/CoroutineTests.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/CppWinRT20Tests.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/CppWinRTAuthoringTests.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/CppWinRTTests.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/app.manifest
+        )
+endif()
 
 # It appears as though Clang has some issues with exception handling inside of coroutines, which causes issues when
 # trying to run the ComApartmentVariableTests.cpp tests, so disable on Clang for now
 if (NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    set(CPP20_SOURCES
-        ${CPP20_SOURCES}
+    set(COROUTINE_SOURCES
+        ${COROUTINE_SOURCES}
         ${CMAKE_CURRENT_SOURCE_DIR}/ComApartmentVariableTests.cpp
         )
 endif()
@@ -147,17 +155,20 @@ link_libraries(witest.main)
 
 add_subdirectory(app)
 add_subdirectory(cpplatest)
-add_subdirectory(cppwinrt-notifiable-server-lock)
 add_subdirectory(noexcept)
 add_subdirectory(normal)
 add_subdirectory(win7)
 
 add_test(NAME app COMMAND $<TARGET_FILE:witest.app>)
 add_test(NAME cpplatest COMMAND $<TARGET_FILE:witest.cpplatest>)
-add_test(NAME cppwinrt-notifiable-server-lock COMMAND $<TARGET_FILE:witest.cppwinrt-notifiable-server-lock>)
 add_test(NAME noexcept COMMAND $<TARGET_FILE:witest.noexcept>)
 add_test(NAME normal COMMAND $<TARGET_FILE:witest>)
 add_test(NAME win7 COMMAND $<TARGET_FILE:witest.win7>)
+
+if (HAS_COROUTINE_SUPPORT)
+    add_subdirectory(cppwinrt-notifiable-server-lock)
+    add_test(NAME cppwinrt-notifiable-server-lock COMMAND $<TARGET_FILE:witest.cppwinrt-notifiable-server-lock>)
+endif()
 
 if (${WIL_ENABLE_ASAN})
     add_subdirectory(sanitize-address)
