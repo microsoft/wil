@@ -37,13 +37,18 @@ Do **not** rewrite comments purely for style, and do not document private/intern
 - **Brief = first sentence, on its own line.** `JAVADOC_AUTOBRIEF` makes the first sentence (up to the first period) the brief.
   Keep it on its own physical line; start the detailed description on the next line. An explicit `@brief` is rarely needed.
 - **Wrap at 130 columns.** This matches `.clang-format` (`ColumnLimit: 130`) and applies to comment text too.
-- **Public API only.** `EXTRACT_ALL = NO` and `EXTRACT_PRIVATE = NO`, so private members and undocumented internals are not
-  emitted. Focus documentation on the public surface; don't add Doxygen tags to private helpers expecting them to appear in the
-  output.
+- **Public API only — but protected members still emit.** `EXTRACT_ALL = NO` and `EXTRACT_PRIVATE = NO`, so private members and
+  undocumented internals are not emitted. Focus documentation on the public surface; don't add Doxygen tags to private helpers
+  expecting them to appear in the output. Note that `EXTRACT_PROTECTED` is **not** set in `docs/Doxyfile`, so it defaults to
+  `YES` — protected members *are* emitted and *do* warn when undocumented. Either document a protected member or wrap just the
+  protected section in `/// @cond` … `/// @endcond`; private members need no such guard.
 - **Hide internal `details` namespaces.** WIL's implementation details live in namespaces named `details` (and similarly named
   variants such as `details_abi`). These must not emit documentation — wrap the entire namespace in a `/// @cond` … `/// @endcond`
   pair (note the `///` marker used for these structural tags) so Doxygen skips its contents. Put `/// @cond` on its own line
-  immediately before the namespace and `/// @endcond` immediately after its closing brace. See the example below.
+  immediately before the namespace and `/// @endcond` immediately after its closing brace. See the example below. **Exception:**
+  occasionally a `details` type is the natural host for members shared by public types (e.g. a common base whose methods the
+  public types inherit). You may document that one type even though it lives in `details` — add a `@note` stating it is internal
+  and not for direct use, and still `/// @cond` its own protected/private plumbing so only the shared public members show.
 - **Add a usage example when the call pattern is non-obvious.** Include a short `~~~` fenced example for functions whose correct
   use isn't clear from the signature alone — e.g. callback or functor contracts (what the callback must do and return), paired or
   multi-step call sequences, RAII helpers whose placement or lifetime matters, round-trip or reverse operations, or subtle
@@ -51,7 +56,10 @@ Do **not** rewrite comments purely for style, and do not document private/intern
   Doxygen fenced code blocks are delimited with `~~~` (any matching run of three or more tildes); inside `//!` banners, prefix
   each example line with `//!`.
 - **Cross-references.** Link to other entities with `@ref <name>` and `@see`, and group related members with `@ingroup <group>`
-  (for example `@ingroup outparam`).
+  (for example `@ingroup outparam`). Prefer `@ref func()` (with the parentheses) when linking a function — the `()` delimits the
+  name, so a trailing comma, period, or closing paren won't break the link, unlike a bare `@ref name`. Backticked code such as
+  `get()` never becomes a link; use `@ref get()` when you want one. A `@ref` on a derived type resolves members it inherits from
+  a base.
 - **Namespaces.** Public entities live under `wil::`; STL-mirroring pieces live under `wistd::`.
 - **Prefer a `PREDEFINED` macro over a per-guard escape; use `WIL_DOXYGEN` only when needed.** Doxygen evaluates `#if` guards
   against `docs/Doxyfile`'s `PREDEFINED` list, which already forces many conditions true in docs — e.g.
@@ -65,6 +73,18 @@ Do **not** rewrite comments purely for style, and do not document private/intern
 - **Macros are expanded for docs.** Several macros are expanded when generating documentation (`WI_NOEXCEPT` → `noexcept`,
   `WI_NODISCARD` → `[[nodiscard]]`, and others in `docs/Doxyfile`'s `PREDEFINED`), so document the logical signature rather than
   the macro-heavy source.
+- **Deleted members render but never warn.** Doxygen emits `= delete`d member functions (they show as a row in the output) but
+  does *not* warn when they are undocumented — so "deleted means hidden" is false. Document a deleted overload when the deletion
+  itself is the contract (e.g. an `operator co_await() &` deleted to reject awaiting an lvalue); otherwise it appears as a bare
+  `= delete` with no explanation.
+- **Keep every comment self-contained.** Doxygen reorders members (alphabetically) in the output, so a comment must stand on its
+  own: never refer to declaration order ("the previous overload", "as above") or write "behaves like X, except…". Restate the
+  relevant behavior on each entity even if it repeats a sibling.
+- **Backtick `#include`s and header names in comment text.** A bare `#include` in a comment triggers an "explicit link request to
+  'include' could not be resolved" warning, and a bare `<foo.h>` is parsed as an HTML tag and dropped from the output. Write the
+  whole thing as code: `#include <ole2.h>` and `<wil/coroutine.h>`.
+- **Keep comment text ASCII.** Don't paste em dashes (—), ellipses (…), smart quotes, or arrows into `.h` comment text; use `-`,
+  `;`, `:`, `...`, or plain quotes. (This applies to the header comments only — Markdown docs like this file may use them.)
 
 ## Correction checklist
 
@@ -80,13 +100,18 @@ When adding or fixing comments, verify:
 6. **Cross-references resolve** — `@ref`/`@see` targets exist and are spelled correctly.
 7. **The description still matches behavior** after any signature or behavior change.
 8. **Lines wrap at 130 columns** and the comment marker style matches the surrounding code.
-9. **No documentation is added to private/internal members** unless they are intentionally part of the documented surface.
+9. **No documentation is added to private members**, but **protected members are documented or `@cond`-hidden** (they emit and
+   warn by default), unless intentionally part of the documented surface.
 10. **Internal `details`/`details_*` namespaces are wrapped in `/// @cond` … `/// @endcond`** so their contents are excluded from
     the generated documentation.
 11. **Conditionally-compiled public declarations are visible in docs** — the guard is either already satisfied by `PREDEFINED`
     or ORs in `|| defined(WIL_DOXYGEN)` (reserved for conditions `PREDEFINED` can't cover, like the header-wrapper guards).
 12. **Non-obvious functions carry a `~~~` usage example** — anything with a callback contract, a paired/multi-step call sequence,
     or subtle ownership/buffer semantics shows how to call it; trivial helpers do not.
+13. **Comment text is plain ASCII and `#include`s/header names are backticked** — no em dashes, ellipses, or smart quotes in
+    header comments, and `#include <foo.h>` / `<foo.h>` are written as code spans so Doxygen doesn't mangle them.
+14. **Each comment stands on its own** — no references to declaration order or "same as the previous overload", since Doxygen
+    reorders members in the output.
 
 ## Validating changes
 
