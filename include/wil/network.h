@@ -274,7 +274,9 @@ namespace network
         }
 
     private:
-        SOCKADDR_INET m_sockaddr{};
+        // value-initialization zeroes every byte of the SOCKADDR_INET union, unlike {} which some compilers
+        // (e.g. clang) treat as initializing only the first union member (SOCKADDR_IN), leaving the tail uninitialized
+        SOCKADDR_INET m_sockaddr = SOCKADDR_INET();
     };
 
     // When using dual-mode sockets, one might need to connect to a target IPv4 address.

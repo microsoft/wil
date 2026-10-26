@@ -141,6 +141,7 @@ target_link_libraries(witest.main
         ntdll.lib
         dbghelp.lib
         ws2_32.lib
+        iphlpapi.lib
     )
 
 link_libraries(witest.main)
