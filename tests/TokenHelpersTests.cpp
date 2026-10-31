@@ -280,14 +280,58 @@ TEST_CASE("TokenHelpersTests::StaticSid", "[token_helpers]")
     REQUIRE(*GetSidSubAuthority(staticSid.get(), 1) == DOMAIN_ALIAS_RID_GUESTS);
 }
 
-#ifdef _HAS_CXX20
+#if __WI_LIBCPP_STD_VER >= 20
+namespace
+{
+template <typename Owner, typename Group>
+constexpr bool accepts_sd_sids =
+    requires(const Owner& owner, const Group& group, const decltype(wil::make_allow_ace(GENERIC_READ, wil::make_static_nt_sid(18)))& ace) {
+        wil::make_self_relative_sd(owner, group, ace);
+    };
+
+template <bool DenyFirst>
+constexpr bool accepts_constexpr_ace_order = requires {
+    typename wistd::integral_constant<
+        uint8_t,
+        wil::make_self_relative_sd(
+            wil::make_static_nt_sid(18),
+            wil::no_sid,
+            DenyFirst ? wil::make_deny_ace(GENERIC_WRITE, wil::make_static_nt_sid(7)) : wil::make_allow_ace(GENERIC_READ, wil::make_static_nt_sid(11)),
+            DenyFirst ? wil::make_allow_ace(GENERIC_READ, wil::make_static_nt_sid(11)) : wil::make_deny_ace(GENERIC_WRITE, wil::make_static_nt_sid(7)))
+            .data[0]>;
+};
+
+#ifdef __WIL_HAS_CLASS_NTTP
+template <wil::details::fixed_string S>
+constexpr bool accepts_constexpr_sid_string =
+    requires { typename wistd::integral_constant<BYTE, wil::details::parse_sid_string<S>().Revision>; };
+#endif
+} // namespace
+
+TEST_CASE("TokenHelpersTests::SelfRelativeSD_TypeSafety", "[token_helpers]")
+{
+    using sid_t = decltype(wil::make_static_nt_sid(18));
+    using owner_t = decltype(wil::sd_owner(wil::make_static_nt_sid(18)));
+    using group_t = decltype(wil::sd_group(wil::make_static_nt_sid(18)));
+    static_assert(accepts_sd_sids<sid_t, sid_t>);
+    static_assert(accepts_sd_sids<owner_t, group_t>);
+    static_assert(accepts_sd_sids<owner_t, wil::details::no_sid_t>);
+    static_assert(!accepts_sd_sids<group_t, owner_t>);
+    static_assert(!accepts_sd_sids<group_t, sid_t>);
+    static_assert(!accepts_sd_sids<sid_t, owner_t>);
+}
+
+TEST_CASE("TokenHelpersTests::SelfRelativeSD_ConstexprAceOrder", "[token_helpers]")
+{
+    static_assert(accepts_constexpr_ace_order<true>);
+    static_assert(!accepts_constexpr_ace_order<false>);
+}
+
 TEST_CASE("TokenHelpersTests::SelfRelativeSD_BasicAllowAce", "[token_helpers]")
 {
     auto ownerSid = wil::make_static_nt_sid(SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS);
     auto sd = wil::make_self_relative_sd(
-        ownerSid,
-        wil::no_sid,
-        wil::make_allow_ace(GENERIC_READ, wil::make_static_nt_sid(SECURITY_AUTHENTICATED_USER_RID)));
+        ownerSid, wil::no_sid, wil::make_allow_ace(GENERIC_READ, wil::make_static_nt_sid(SECURITY_AUTHENTICATED_USER_RID)));
 
     REQUIRE(IsValidSecurityDescriptor(sd.get()));
 
@@ -424,6 +468,77 @@ TEST_CASE("TokenHelpersTests::SelfRelativeSD_OwnerGroupHelpers", "[token_helpers
 }
 
 #ifdef __WIL_HAS_CLASS_NTTP
+TEST_CASE("TokenHelpersTests::SelfRelativeSD_ConstexprStringValidation", "[token_helpers]")
+{
+    static_assert(accepts_constexpr_sid_string<"S-1-5-18">);
+    static_assert(!accepts_constexpr_sid_string<"X-1-5-18">);
+    static_assert(!accepts_constexpr_sid_string<"S-2-5-18">);
+    static_assert(!accepts_constexpr_sid_string<"S-257-5-18">);
+    static_assert(!accepts_constexpr_sid_string<"S-1x-5-18">);
+    static_assert(!accepts_constexpr_sid_string<"S-1--18">);
+    static_assert(!accepts_constexpr_sid_string<"S-1-5-">);
+    static_assert(!accepts_constexpr_sid_string<"S-1-5-18x">);
+    static_assert(!accepts_constexpr_sid_string<"S-1-281474976710656-18">);
+    static_assert(!accepts_constexpr_sid_string<"S-1-18446744073709551616-18">);
+    static_assert(!accepts_constexpr_sid_string<"S-1-5-4294967296">);
+}
+
+TEST_CASE("TokenHelpersTests::SelfRelativeSD_StringSidRuntimeMask", "[token_helpers]")
+{
+    const uint32_t mask = (GetCurrentProcessId() & 1) ? GENERIC_READ : GENERIC_WRITE;
+    const uint8_t flags = (GetCurrentProcessId() & 1) ? CONTAINER_INHERIT_ACE : OBJECT_INHERIT_ACE;
+    auto sd = wil::make_self_relative_sd(
+        wil::sd_owner<"S-1-5-18">(),
+        wil::no_sid,
+        wil::make_deny_ace<"S-1-5-7">(flags, mask),
+        wil::make_deny_ace<"S-1-5-7">(mask),
+        wil::make_allow_ace<"S-1-5-11">(flags, mask),
+        wil::make_allow_ace<"S-1-5-11">(mask));
+    REQUIRE(IsValidSecurityDescriptor(sd.get()));
+    BOOL present = FALSE;
+    BOOL defaulted = FALSE;
+    PACL dacl = nullptr;
+    REQUIRE(GetSecurityDescriptorDacl(sd.get(), &present, &dacl, &defaulted));
+    REQUIRE(present);
+    REQUIRE(dacl != nullptr);
+    for (DWORD i = 0; i < 4; ++i)
+    {
+        void* ace = nullptr;
+        REQUIRE(GetAce(dacl, i, &ace));
+        const auto allowedAce = static_cast<ACCESS_ALLOWED_ACE*>(ace);
+        REQUIRE(allowedAce->Mask == mask);
+        REQUIRE(allowedAce->Header.AceFlags == ((i % 2 == 0) ? flags : 0));
+    }
+}
+
+TEST_CASE("TokenHelpersTests::SelfRelativeSD_StringSidBounds", "[token_helpers]")
+{
+    constexpr auto sid = wil::make_static_sid<"s-1-281474976710655-4294967295">();
+    auto mutableSid = sid;
+    REQUIRE(IsValidSid(mutableSid.get()));
+    REQUIRE(*GetSidSubAuthority(mutableSid.get(), 0) == MAXDWORD);
+    for (const auto value : GetSidIdentifierAuthority(mutableSid.get())->Value)
+    {
+        REQUIRE(value == 0xFF);
+    }
+}
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+TEST_CASE("TokenHelpersTests::SelfRelativeSD_InvalidStringSid", "[token_helpers]")
+{
+    REQUIRE_THROWS(wil::details::parse_sid_string<"X-1-5-18">());
+    REQUIRE_THROWS(wil::details::parse_sid_string<"S-2-5-18">());
+    REQUIRE_THROWS(wil::details::parse_sid_string<"S-257-5-18">());
+    REQUIRE_THROWS(wil::details::parse_sid_string<"S-1x-5-18">());
+    REQUIRE_THROWS(wil::details::parse_sid_string<"S-1--18">());
+    REQUIRE_THROWS(wil::details::parse_sid_string<"S-1-5-">());
+    REQUIRE_THROWS(wil::details::parse_sid_string<"S-1-5-18x">());
+    REQUIRE_THROWS(wil::details::parse_sid_string<"S-1-281474976710656-18">());
+    REQUIRE_THROWS(wil::details::parse_sid_string<"S-1-18446744073709551616-18">());
+    REQUIRE_THROWS(wil::details::parse_sid_string<"S-1-5-4294967296">());
+}
+#endif
+
 TEST_CASE("TokenHelpersTests::SelfRelativeSD_StringSid", "[token_helpers]")
 {
     // Parse SID from string literal at compile time
@@ -437,9 +552,9 @@ TEST_CASE("TokenHelpersTests::SelfRelativeSD_StringSid", "[token_helpers]")
 
     // Use string SIDs in make_self_relative_sd via sd_owner
     auto sd = wil::make_self_relative_sd(
-        wil::sd_owner(wil::make_static_sid<"S-1-5-32-544">()),   // BUILTIN\Administrators
+        wil::sd_owner(wil::make_static_sid<"S-1-5-32-544">()), // BUILTIN\Administrators
         wil::sd_group(wil::no_sid),
-        wil::make_allow_ace(GENERIC_READ, wil::make_static_sid<"S-1-5-11">()));  // Authenticated Users
+        wil::make_allow_ace(GENERIC_READ, wil::make_static_sid<"S-1-5-11">())); // Authenticated Users
 
     REQUIRE(IsValidSecurityDescriptor(sd.get()));
 
@@ -465,10 +580,10 @@ TEST_CASE("TokenHelpersTests::SelfRelativeSD_AllStringSyntax", "[token_helpers]"
 {
     // Full SD using only string-based SIDs — the most compact form
     constexpr auto sd = wil::make_self_relative_sd(
-        wil::sd_owner<"S-1-5-32-544">(),                     // BUILTIN\Administrators
-        wil::sd_group<"S-1-5-32-545">(),                     // BUILTIN\Users
-        wil::make_deny_ace<"S-1-5-7">(GENERIC_WRITE),        // deny ANONYMOUS LOGON
-        wil::make_allow_ace<"S-1-5-11">(GENERIC_READ));       // allow Authenticated Users
+        wil::sd_owner<"S-1-5-32-544">(),                // BUILTIN\Administrators
+        wil::sd_group<"S-1-5-32-545">(),                // BUILTIN\Users
+        wil::make_deny_ace<"S-1-5-7">(GENERIC_WRITE),   // deny ANONYMOUS LOGON
+        wil::make_allow_ace<"S-1-5-11">(GENERIC_READ)); // allow Authenticated Users
 
     auto mutableSd = sd;
     REQUIRE(IsValidSecurityDescriptor(mutableSd.get()));
@@ -502,7 +617,23 @@ TEST_CASE("TokenHelpersTests::SelfRelativeSD_AllStringSyntax", "[token_helpers]"
 }
 #endif // __WIL_HAS_CLASS_NTTP
 
-#endif // _HAS_CXX20
+TEST_CASE("TokenHelpersTests::SelfRelativeSD_InvalidAceOrder", "[token_helpers]")
+{
+    const auto invalidOrder = [] {
+        return wil::make_self_relative_sd(
+            wil::make_static_nt_sid(SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS),
+            wil::no_sid,
+            wil::make_allow_ace(GENERIC_READ, wil::make_static_nt_sid(SECURITY_AUTHENTICATED_USER_RID)),
+            wil::make_deny_ace(GENERIC_WRITE, wil::make_static_nt_sid(SECURITY_ANONYMOUS_LOGON_RID)));
+    };
+#ifdef WIL_ENABLE_EXCEPTIONS
+    REQUIRE_THROWS(invalidOrder());
+#else
+    REQUIRE_ERROR(invalidOrder());
+#endif
+}
+
+#endif // __WI_LIBCPP_STD_VER >= 20
 
 #if (_WIN32_WINNT >= _WIN32_WINNT_WIN8)
 TEST_CASE("TokenHelpersTests::TestMembership", "[token_helpers]")

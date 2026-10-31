@@ -1,6 +1,8 @@
 
 add_executable(witest.noexcept)
 
+target_compile_features(witest.noexcept PRIVATE cxx_std_20)
+
 target_precompile_headers(witest.noexcept PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../pch.h)
 
 # Turn off exceptions for this test
