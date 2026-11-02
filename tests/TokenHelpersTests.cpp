@@ -294,8 +294,8 @@ constexpr bool accepts_constexpr_ace_order = requires {
     typename wistd::integral_constant<
         uint8_t,
         wil::make_self_relative_sd(
-            wil::make_static_nt_sid(18),
-            wil::no_sid,
+            wil::sd_owner(wil::make_static_nt_sid(18)),
+            wil::sd_group(wil::no_sid),
             DenyFirst ? wil::make_deny_ace(GENERIC_WRITE, wil::make_static_nt_sid(7)) : wil::make_allow_ace(GENERIC_READ, wil::make_static_nt_sid(11)),
             DenyFirst ? wil::make_allow_ace(GENERIC_READ, wil::make_static_nt_sid(11)) : wil::make_deny_ace(GENERIC_WRITE, wil::make_static_nt_sid(7)))
             .data[0]>;
@@ -313,12 +313,20 @@ TEST_CASE("TokenHelpersTests::SelfRelativeSD_TypeSafety", "[token_helpers]")
     using sid_t = decltype(wil::make_static_nt_sid(18));
     using owner_t = decltype(wil::sd_owner(wil::make_static_nt_sid(18)));
     using group_t = decltype(wil::sd_group(wil::make_static_nt_sid(18)));
-    static_assert(accepts_sd_sids<sid_t, sid_t>);
+    using no_owner_t = decltype(wil::sd_owner(wil::no_sid));
+    using no_group_t = decltype(wil::sd_group(wil::no_sid));
     static_assert(accepts_sd_sids<owner_t, group_t>);
-    static_assert(accepts_sd_sids<owner_t, wil::details::no_sid_t>);
+    static_assert(accepts_sd_sids<owner_t, no_group_t>);
+    static_assert(accepts_sd_sids<no_owner_t, group_t>);
+    static_assert(accepts_sd_sids<no_owner_t, no_group_t>);
+    static_assert(!accepts_sd_sids<sid_t, group_t>);
+    static_assert(!accepts_sd_sids<owner_t, sid_t>);
+    static_assert(!accepts_sd_sids<sid_t, sid_t>);
+    static_assert(!accepts_sd_sids<wil::details::no_sid_t, group_t>);
+    static_assert(!accepts_sd_sids<owner_t, wil::details::no_sid_t>);
     static_assert(!accepts_sd_sids<group_t, owner_t>);
-    static_assert(!accepts_sd_sids<group_t, sid_t>);
-    static_assert(!accepts_sd_sids<sid_t, owner_t>);
+    static_assert(!accepts_sd_sids<group_t, group_t>);
+    static_assert(!accepts_sd_sids<owner_t, owner_t>);
 }
 
 TEST_CASE("TokenHelpersTests::SelfRelativeSD_ConstexprAceOrder", "[token_helpers]")
@@ -331,7 +339,9 @@ TEST_CASE("TokenHelpersTests::SelfRelativeSD_BasicAllowAce", "[token_helpers]")
 {
     auto ownerSid = wil::make_static_nt_sid(SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS);
     auto sd = wil::make_self_relative_sd(
-        ownerSid, wil::no_sid, wil::make_allow_ace(GENERIC_READ, wil::make_static_nt_sid(SECURITY_AUTHENTICATED_USER_RID)));
+        wil::sd_owner(ownerSid),
+        wil::sd_group(wil::no_sid),
+        wil::make_allow_ace(GENERIC_READ, wil::make_static_nt_sid(SECURITY_AUTHENTICATED_USER_RID)));
 
     REQUIRE(IsValidSecurityDescriptor(sd.get()));
 
@@ -369,8 +379,8 @@ TEST_CASE("TokenHelpersTests::SelfRelativeSD_BasicAllowAce", "[token_helpers]")
 TEST_CASE("TokenHelpersTests::SelfRelativeSD_DenyAndAllowAces", "[token_helpers]")
 {
     auto sd = wil::make_self_relative_sd(
-        wil::make_static_nt_sid(SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS),
-        wil::make_static_nt_sid(SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_USERS),
+        wil::sd_owner(wil::make_static_nt_sid(SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS)),
+        wil::sd_group(wil::make_static_nt_sid(SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_USERS)),
         wil::make_deny_ace(GENERIC_WRITE, wil::make_static_nt_sid(SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_GUESTS)),
         wil::make_allow_ace(GENERIC_READ | GENERIC_WRITE, wil::make_static_nt_sid(SECURITY_AUTHENTICATED_USER_RID)));
 
@@ -407,8 +417,8 @@ TEST_CASE("TokenHelpersTests::SelfRelativeSD_DenyAndAllowAces", "[token_helpers]
 TEST_CASE("TokenHelpersTests::SelfRelativeSD_InheritanceFlags", "[token_helpers]")
 {
     auto sd = wil::make_self_relative_sd(
-        wil::make_static_nt_sid(SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS),
-        wil::no_sid,
+        wil::sd_owner(wil::make_static_nt_sid(SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS)),
+        wil::sd_group(wil::no_sid),
         wil::make_allow_ace(
             static_cast<uint8_t>(CONTAINER_INHERIT_ACE | OBJECT_INHERIT_ACE),
             GENERIC_READ,
@@ -499,7 +509,7 @@ TEST_CASE("TokenHelpersTests::SelfRelativeSD_StringSidRuntimeMask", "[token_help
     const uint8_t flags = (GetCurrentProcessId() & 1) ? CONTAINER_INHERIT_ACE : OBJECT_INHERIT_ACE;
     auto sd = wil::make_self_relative_sd(
         wil::sd_owner<"S-1-5-18">(),
-        wil::no_sid,
+        wil::sd_group(wil::no_sid),
         wil::make_deny_ace<"S-1-5-7">(flags, mask),
         wil::make_deny_ace<"S-1-5-7">(mask),
         wil::make_allow_ace<"S-1-5-11">(flags, mask),
@@ -635,7 +645,10 @@ TEST_CASE("TokenHelpersTests::SelfRelativeSD_AclMatchesWin32", "[token_helpers]"
     constexpr uint8_t denyFlags = CONTAINER_INHERIT_ACE;
     constexpr uint8_t allowFlags = OBJECT_INHERIT_ACE;
     auto sd = wil::make_self_relative_sd(
-        wil::no_sid, wil::no_sid, wil::make_deny_ace(denyFlags, GENERIC_WRITE, denySid), wil::make_allow_ace(allowFlags, GENERIC_READ, allowSid));
+        wil::sd_owner(wil::no_sid),
+        wil::sd_group(wil::no_sid),
+        wil::make_deny_ace(denyFlags, GENERIC_WRITE, denySid),
+        wil::make_allow_ace(allowFlags, GENERIC_READ, allowSid));
     REQUIRE(IsValidSecurityDescriptor(sd.get()));
 
     alignas(DWORD) BYTE expected[256]{};
@@ -661,8 +674,8 @@ TEST_CASE("TokenHelpersTests::SelfRelativeSD_AclMatchesWin32", "[token_helpers]"
 TEST_CASE("TokenHelpersTests::SelfRelativeSD_AllDenyAces", "[token_helpers]")
 {
     auto sd = wil::make_self_relative_sd(
-        wil::no_sid,
-        wil::no_sid,
+        wil::sd_owner(wil::no_sid),
+        wil::sd_group(wil::no_sid),
         wil::make_deny_ace(GENERIC_WRITE, wil::make_static_nt_sid(SECURITY_ANONYMOUS_LOGON_RID)),
         wil::make_deny_ace(GENERIC_READ, wil::make_static_nt_sid(SECURITY_AUTHENTICATED_USER_RID)));
     REQUIRE(IsValidSecurityDescriptor(sd.get()));
@@ -679,8 +692,8 @@ TEST_CASE("TokenHelpersTests::SelfRelativeSD_InvalidAceOrder", "[token_helpers]"
 {
     const auto invalidOrder = [] {
         return wil::make_self_relative_sd(
-            wil::make_static_nt_sid(SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS),
-            wil::no_sid,
+            wil::sd_owner(wil::make_static_nt_sid(SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS)),
+            wil::sd_group(wil::no_sid),
             wil::make_allow_ace(GENERIC_READ, wil::make_static_nt_sid(SECURITY_AUTHENTICATED_USER_RID)),
             wil::make_deny_ace(GENERIC_WRITE, wil::make_static_nt_sid(SECURITY_ANONYMOUS_LOGON_RID)));
     };

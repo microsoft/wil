@@ -858,7 +858,7 @@ namespace details
     };
 
     template <typename T>
-    struct is_sd_owner : is_sd_sid<T>
+    struct is_sd_owner : wistd::false_type
     {
     };
     template <typename T>
@@ -867,7 +867,7 @@ namespace details
     };
 
     template <typename T>
-    struct is_sd_group : is_sd_sid<T>
+    struct is_sd_group : wistd::false_type
     {
     };
     template <typename T>
@@ -920,7 +920,7 @@ namespace details
 } // namespace details
 /// @endcond
 
-//! Sentinel value for omitting the group SID in make_self_relative_sd.
+//! Sentinel value for omitting an owner or group SID through sd_owner() or sd_group().
 inline constexpr details::no_sid_t no_sid{};
 
 #ifdef __WIL_HAS_CLASS_NTTP
@@ -950,7 +950,7 @@ consteval auto make_static_sid() noexcept
 }
 #endif // __WIL_HAS_CLASS_NTTP
 
-//! Tags a SID as the owner for use with make_self_relative_sd.
+//! Tags a SID (or no_sid) as the owner for use with make_self_relative_sd.
 template <typename T>
     requires(details::is_sd_sid<T>::value)
 constexpr auto sd_owner(const T& sid) noexcept
@@ -1061,7 +1061,8 @@ that can be passed directly to any Win32 API accepting PSECURITY_DESCRIPTOR.
 
 Deny ACEs must precede allow ACEs in the parameter list. Invalid ordering rejects constant evaluation;
 runtime calls throw when exceptions are enabled and fail fast otherwise.
-Pass wil::no_sid to omit the group SID.
+Owner and group arguments require sd_owner() and sd_group() tags, respectively.
+To omit either SID, wrap wil::no_sid with the corresponding helper.
 
 @code
 constexpr auto sd = wil::make_self_relative_sd(
@@ -1072,8 +1073,8 @@ constexpr auto sd = wil::make_self_relative_sd(
         wil::make_static_nt_sid(SECURITY_AUTHENTICATED_USER_RID)));
 @endcode
 
-@param owner The owner SID (a static_sid_t, sd_owner_t, or no_sid).
-@param group The group SID (a static_sid_t, sd_group_t, or no_sid).
+@param owner A SID or no_sid tagged with sd_owner().
+@param group A SID or no_sid tagged with sd_group().
 @param aces One or more ACEs built with make_allow_ace or make_deny_ace.
 @return A static_security_descriptor_t containing a valid self-relative SECURITY_DESCRIPTOR.
 */
