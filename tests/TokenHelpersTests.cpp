@@ -304,7 +304,7 @@ constexpr bool accepts_constexpr_ace_order = requires {
 #ifdef __WIL_HAS_CLASS_NTTP
 template <wil::details::fixed_string S>
 constexpr bool accepts_constexpr_sid_string =
-    requires { typename wistd::integral_constant<BYTE, wil::details::parse_sid_string<S>().Revision>; };
+    requires { typename wistd::integral_constant<BYTE, wil::details::static_sid_t<1>::template from_string<S>().Revision>; };
 #endif
 } // namespace
 
@@ -483,6 +483,16 @@ TEST_CASE("TokenHelpersTests::SelfRelativeSD_ConstexprStringValidation", "[token
     static_assert(!accepts_constexpr_sid_string<"S-1-5-4294967296">);
 }
 
+TEST_CASE("TokenHelpersTests::SelfRelativeSD_SidFromString", "[token_helpers]")
+{
+    using sid_t = decltype(wil::make_static_nt_sid(SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS));
+    constexpr auto parsed = sid_t::from_string<"S-1-5-32-544">();
+    auto mutableSid = parsed;
+    auto expected = wil::make_static_nt_sid(SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS);
+    REQUIRE(IsValidSid(mutableSid.get()));
+    REQUIRE(EqualSid(mutableSid.get(), expected.get()));
+}
+
 TEST_CASE("TokenHelpersTests::SelfRelativeSD_StringSidRuntimeMask", "[token_helpers]")
 {
     const uint32_t mask = (GetCurrentProcessId() & 1) ? GENERIC_READ : GENERIC_WRITE;
@@ -526,16 +536,17 @@ TEST_CASE("TokenHelpersTests::SelfRelativeSD_StringSidBounds", "[token_helpers]"
 #ifdef WIL_ENABLE_EXCEPTIONS
 TEST_CASE("TokenHelpersTests::SelfRelativeSD_InvalidStringSid", "[token_helpers]")
 {
-    REQUIRE_THROWS(wil::details::parse_sid_string<"X-1-5-18">());
-    REQUIRE_THROWS(wil::details::parse_sid_string<"S-2-5-18">());
-    REQUIRE_THROWS(wil::details::parse_sid_string<"S-257-5-18">());
-    REQUIRE_THROWS(wil::details::parse_sid_string<"S-1x-5-18">());
-    REQUIRE_THROWS(wil::details::parse_sid_string<"S-1--18">());
-    REQUIRE_THROWS(wil::details::parse_sid_string<"S-1-5-">());
-    REQUIRE_THROWS(wil::details::parse_sid_string<"S-1-5-18x">());
-    REQUIRE_THROWS(wil::details::parse_sid_string<"S-1-281474976710656-18">());
-    REQUIRE_THROWS(wil::details::parse_sid_string<"S-1-18446744073709551616-18">());
-    REQUIRE_THROWS(wil::details::parse_sid_string<"S-1-5-4294967296">());
+    using sid_t = decltype(wil::make_static_nt_sid(SECURITY_LOCAL_SYSTEM_RID));
+    REQUIRE_THROWS(sid_t::from_string<"X-1-5-18">());
+    REQUIRE_THROWS(sid_t::from_string<"S-2-5-18">());
+    REQUIRE_THROWS(sid_t::from_string<"S-257-5-18">());
+    REQUIRE_THROWS(sid_t::from_string<"S-1x-5-18">());
+    REQUIRE_THROWS(sid_t::from_string<"S-1--18">());
+    REQUIRE_THROWS(sid_t::from_string<"S-1-5-">());
+    REQUIRE_THROWS(sid_t::from_string<"S-1-5-18x">());
+    REQUIRE_THROWS(sid_t::from_string<"S-1-281474976710656-18">());
+    REQUIRE_THROWS(sid_t::from_string<"S-1-18446744073709551616-18">());
+    REQUIRE_THROWS(sid_t::from_string<"S-1-5-4294967296">());
 }
 #endif
 
@@ -616,6 +627,53 @@ TEST_CASE("TokenHelpersTests::SelfRelativeSD_AllStringSyntax", "[token_helpers]"
     REQUIRE(static_cast<ACCESS_ALLOWED_ACE*>(pAce)->Header.AceType == ACCESS_ALLOWED_ACE_TYPE);
 }
 #endif // __WIL_HAS_CLASS_NTTP
+
+TEST_CASE("TokenHelpersTests::SelfRelativeSD_AclMatchesWin32", "[token_helpers]")
+{
+    auto denySid = wil::make_static_nt_sid(SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_GUESTS);
+    auto allowSid = wil::make_static_nt_sid(SECURITY_AUTHENTICATED_USER_RID);
+    constexpr uint8_t denyFlags = CONTAINER_INHERIT_ACE;
+    constexpr uint8_t allowFlags = OBJECT_INHERIT_ACE;
+    auto sd = wil::make_self_relative_sd(
+        wil::no_sid, wil::no_sid, wil::make_deny_ace(denyFlags, GENERIC_WRITE, denySid), wil::make_allow_ace(allowFlags, GENERIC_READ, allowSid));
+    REQUIRE(IsValidSecurityDescriptor(sd.get()));
+
+    alignas(DWORD) BYTE expected[256]{};
+    auto expectedAcl = reinterpret_cast<PACL>(expected);
+    const auto expectedSize = static_cast<DWORD>(
+        sizeof(ACL) + offsetof(ACCESS_DENIED_ACE, SidStart) + GetLengthSid(denySid.get()) +
+        offsetof(ACCESS_ALLOWED_ACE, SidStart) + GetLengthSid(allowSid.get()));
+    REQUIRE(expectedSize <= sizeof(expected));
+    REQUIRE(InitializeAcl(expectedAcl, expectedSize, ACL_REVISION));
+    REQUIRE(AddAccessDeniedAceEx(expectedAcl, ACL_REVISION, denyFlags, GENERIC_WRITE, denySid.get()));
+    REQUIRE(AddAccessAllowedAceEx(expectedAcl, ACL_REVISION, allowFlags, GENERIC_READ, allowSid.get()));
+
+    BOOL present = FALSE;
+    BOOL defaulted = FALSE;
+    PACL actualAcl = nullptr;
+    REQUIRE(GetSecurityDescriptorDacl(sd.get(), &present, &actualAcl, &defaulted));
+    REQUIRE(present);
+    REQUIRE(actualAcl != nullptr);
+    REQUIRE(actualAcl->AclSize == expectedSize);
+    REQUIRE(memcmp(actualAcl, expectedAcl, expectedSize) == 0);
+}
+
+TEST_CASE("TokenHelpersTests::SelfRelativeSD_AllDenyAces", "[token_helpers]")
+{
+    auto sd = wil::make_self_relative_sd(
+        wil::no_sid,
+        wil::no_sid,
+        wil::make_deny_ace(GENERIC_WRITE, wil::make_static_nt_sid(SECURITY_ANONYMOUS_LOGON_RID)),
+        wil::make_deny_ace(GENERIC_READ, wil::make_static_nt_sid(SECURITY_AUTHENTICATED_USER_RID)));
+    REQUIRE(IsValidSecurityDescriptor(sd.get()));
+    BOOL present = FALSE;
+    BOOL defaulted = FALSE;
+    PACL dacl = nullptr;
+    REQUIRE(GetSecurityDescriptorDacl(sd.get(), &present, &dacl, &defaulted));
+    REQUIRE(present);
+    REQUIRE(dacl != nullptr);
+    REQUIRE(dacl->AceCount == 2);
+}
 
 TEST_CASE("TokenHelpersTests::SelfRelativeSD_InvalidAceOrder", "[token_helpers]")
 {

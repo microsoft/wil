@@ -544,9 +544,54 @@ inline unique_token_reverter run_as_self()
 }
 #endif // WIL_ENABLE_EXCEPTIONS
 
+#if __WI_LIBCPP_STD_VER >= 20
+// Clang reports class-type template arguments through an extension probe.
+#if defined(__cpp_consteval) && __cpp_consteval >= 201811L
+#if defined(__cpp_nontype_template_args) && __cpp_nontype_template_args >= 201911L
+#define __WIL_HAS_CLASS_NTTP 1
+#elif defined(__clang__)
+#if __has_extension(cxx_generalized_nttp)
+#define __WIL_HAS_CLASS_NTTP 1
+#endif
+#endif
+#endif
+#endif
+
 /// @cond
 namespace details
 {
+#ifdef __WIL_HAS_CLASS_NTTP
+    // Fixed-size string for use as a non-type template parameter (C++20).
+    template <size_t N>
+    struct fixed_string
+    {
+        char data[N]{};
+
+        constexpr fixed_string(const char (&str)[N]) noexcept
+        {
+            for (size_t i = 0; i < N; ++i)
+            {
+                data[i] = str[i];
+            }
+        }
+
+        static constexpr size_t length = N - 1;
+
+        constexpr size_t count(char value) const noexcept
+        {
+            size_t result = 0;
+            for (size_t i = 0; i < length; ++i)
+            {
+                if (data[i] == value)
+                {
+                    ++result;
+                }
+            }
+            return result;
+        }
+    };
+#endif
+
     template <size_t AuthorityCount>
     struct static_sid_t
     {
@@ -556,6 +601,11 @@ namespace details
         DWORD SubAuthority[AuthorityCount];
 
         static constexpr size_t byte_size = offsetof(SID, SubAuthority) + (sizeof(DWORD) * AuthorityCount);
+
+#ifdef __WIL_HAS_CLASS_NTTP
+        template <fixed_string S>
+        static constexpr static_sid_t from_string();
+#endif
 
         PSID get() noexcept
         {
@@ -612,17 +662,6 @@ constexpr auto make_static_nt_sid(Ts&&... subAuthorities)
 
 #if __WI_LIBCPP_STD_VER >= 20
 
-// Clang reports class-type template arguments through an extension probe.
-#if defined(__cpp_consteval) && __cpp_consteval >= 201811L
-#if defined(__cpp_nontype_template_args) && __cpp_nontype_template_args >= 201911L
-#define __WIL_HAS_CLASS_NTTP 1
-#elif defined(__clang__)
-#if __has_extension(cxx_generalized_nttp)
-#define __WIL_HAS_CLASS_NTTP 1
-#endif
-#endif
-#endif
-
 /// @cond
 namespace details
 {
@@ -640,36 +679,6 @@ namespace details
     }
 
 #ifdef __WIL_HAS_CLASS_NTTP
-    // Fixed-size string for use as a non-type template parameter (C++20).
-    template <size_t N>
-    struct fixed_string
-    {
-        char data[N]{};
-
-        constexpr fixed_string(const char (&str)[N]) noexcept
-        {
-            for (size_t i = 0; i < N; ++i)
-            {
-                data[i] = str[i];
-            }
-        }
-
-        static constexpr size_t length = N - 1;
-
-        constexpr size_t count(char value) const noexcept
-        {
-            size_t result = 0;
-            for (size_t i = 0; i < length; ++i)
-            {
-                if (data[i] == value)
-                {
-                    ++result;
-                }
-            }
-            return result;
-        }
-    };
-
     // Parse an unsigned decimal integer from a string starting at pos, advancing pos past the digits.
     template <typename UInt>
     constexpr UInt parse_uint(const char* str, size_t len, size_t& pos)
@@ -688,17 +697,14 @@ namespace details
         return value;
     }
 
-    // Parse a SID string "S-1-{authority}-{sub1}-{sub2}-..." into a static_sid_t.
+    template <size_t AuthorityCount>
     template <fixed_string S>
-    constexpr auto parse_sid_string()
+    constexpr static_sid_t<AuthorityCount> static_sid_t<AuthorityCount>::from_string()
     {
-        // "S-R-IA" has 2 dashes; each sub-authority adds one more.
-        constexpr size_t dashCount = S.count('-');
-        static_assert(dashCount >= 2, "SID string must contain a revision and identifier authority");
-        constexpr size_t subAuthCount = (dashCount >= 2) ? dashCount - 2 : 0;
-        static_assert(subAuthCount <= SID_MAX_SUB_AUTHORITIES, "too many sub authorities in SID string");
+        static_assert(AuthorityCount <= SID_MAX_SUB_AUTHORITIES, "too many sub authorities in SID string");
+        static_assert(S.count('-') == AuthorityCount + 2, "SID string sub authority count does not match the SID type");
 
-        static_sid_t<subAuthCount> result{};
+        static_sid_t result{};
         check_sd_input(S.length >= 2 && (S.data[0] == 'S' || S.data[0] == 's') && S.data[1] == '-', "SID string must start with S-");
         size_t pos = 2;
 
@@ -718,10 +724,10 @@ namespace details
         result.IdentifierAuthority.Value[1] = static_cast<BYTE>((authority >> 32) & 0xFF);
         result.IdentifierAuthority.Value[0] = static_cast<BYTE>((authority >> 40) & 0xFF);
 
-        result.SubAuthorityCount = static_cast<uint8_t>(subAuthCount);
+        result.SubAuthorityCount = static_cast<uint8_t>(AuthorityCount);
 
         // Sub-authorities
-        for (size_t i = 0; i < subAuthCount; ++i)
+        for (size_t i = 0; i < AuthorityCount; ++i)
         {
             check_sd_input(pos < S.length && S.data[pos] == '-', "expected a separator in SID string");
             ++pos;
@@ -893,14 +899,18 @@ namespace details
     // Runtime/constexpr check: deny ACEs must precede allow ACEs in the variadic pack.
     constexpr bool deny_before_allow_check(const uint8_t* types, size_t count) noexcept
     {
-        bool seenAllow = false;
-        for (size_t i = 0; i < count; ++i)
+        size_t i = 0;
+        for (; i < count; ++i)
         {
             if (types[i] == ACCESS_ALLOWED_ACE_TYPE)
             {
-                seenAllow = true;
+                ++i;
+                break;
             }
-            else if (types[i] == ACCESS_DENIED_ACE_TYPE && seenAllow)
+        }
+        for (; i < count; ++i)
+        {
+            if (types[i] == ACCESS_DENIED_ACE_TYPE)
             {
                 return false; // deny after allow
             }
@@ -929,7 +939,14 @@ auto sd = wil::make_self_relative_sd(
 template <details::fixed_string S>
 consteval auto make_static_sid() noexcept
 {
-    return details::parse_sid_string<S>();
+    // "S-R-IA" has two dashes; each sub-authority adds one more.
+    constexpr size_t dashCount = S.count('-');
+    static_assert(dashCount >= 2, "SID string must contain a revision and identifier authority");
+    static_assert(dashCount <= SID_MAX_SUB_AUTHORITIES + 2, "too many sub authorities in SID string");
+    if constexpr (dashCount >= 2 && dashCount <= SID_MAX_SUB_AUTHORITIES + 2)
+    {
+        return details::static_sid_t<dashCount - 2>::template from_string<S>();
+    }
 }
 #endif // __WIL_HAS_CLASS_NTTP
 
