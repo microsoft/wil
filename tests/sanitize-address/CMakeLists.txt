@@ -46,7 +46,7 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 else()
     # Using exceptions; we can compile all of the C++/WinRT tests
     set(EXTRA_SOURCES
-        ${CPP20_SOURCES}
+        ${COROUTINE_SOURCES}
         )
 endif()
 

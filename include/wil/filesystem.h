@@ -140,33 +140,41 @@ inline bool try_get_parent_path_range(_In_ PCWSTR path, _Out_ size_t* parentPath
 //! `CreateDirectoryW`.
 inline HRESULT CreateDirectoryDeepNoThrow(PCWSTR path) WI_NOEXCEPT
 {
-    if (::CreateDirectoryW(path, nullptr) == FALSE)
+    if (::CreateDirectoryW(path, nullptr))
     {
-        DWORD lastError = ::GetLastError();
-        if (lastError == ERROR_PATH_NOT_FOUND)
+        return S_OK;
+    }
+
+    auto err = ::GetLastError();
+    if (err == ERROR_PATH_NOT_FOUND)
+    {
+        size_t parentLength{};
+        if (try_get_parent_path_range(path, &parentLength))
         {
-            size_t parentLength{};
-            if (try_get_parent_path_range(path, &parentLength))
+            wistd::unique_ptr<wchar_t[]> parent(new (std::nothrow) wchar_t[parentLength + 1]);
+            RETURN_IF_NULL_ALLOC(parent.get());
+            RETURN_IF_FAILED(StringCchCopyNW(parent.get(), parentLength + 1, path, parentLength));
+            RETURN_IF_FAILED(CreateDirectoryDeepNoThrow(parent.get())); // recurs
+            if (::CreateDirectoryW(path, nullptr))
             {
-                wistd::unique_ptr<wchar_t[]> parent(new (std::nothrow) wchar_t[parentLength + 1]);
-                RETURN_IF_NULL_ALLOC(parent.get());
-                RETURN_IF_FAILED(StringCchCopyNW(parent.get(), parentLength + 1, path, parentLength));
-                RETURN_IF_FAILED(CreateDirectoryDeepNoThrow(parent.get())); // recurs
+                return S_OK;
             }
-            if (::CreateDirectoryW(path, nullptr) == FALSE)
-            {
-                lastError = ::GetLastError();
-                if (lastError != ERROR_ALREADY_EXISTS)
-                {
-                    RETURN_WIN32(lastError);
-                }
-            }
-        }
-        else if (lastError != ERROR_ALREADY_EXISTS)
-        {
-            RETURN_WIN32(lastError);
+
+            err = ::GetLastError();
         }
     }
+
+    if (err != ERROR_ALREADY_EXISTS)
+    {
+        RETURN_WIN32(err);
+    }
+
+    DWORD attributes = ::GetFileAttributesW(path);
+    if ((attributes == INVALID_FILE_ATTRIBUTES) || !WI_IsFlagSet(attributes, FILE_ATTRIBUTE_DIRECTORY))
+    {
+        RETURN_WIN32(err);
+    }
+
     return S_OK;
 }
 
