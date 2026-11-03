@@ -264,7 +264,7 @@ public:
     constexpr basic_zstring_view(const TChar* pStringData, size_type stringLength) noexcept :
         BaseType(view_from_pointer(pStringData, stringLength))
     {
-        validate_pointer_and_terminator();
+        validate_null_termination();
     }
 
     template <size_t stringArrayLength>
@@ -280,7 +280,6 @@ public:
     template <typename TPtr, std::enable_if_t<std::is_convertible<TPtr, const TChar*>::value && !std::is_array<TPtr>::value>* = nullptr>
     constexpr basic_zstring_view(TPtr&& pStr) noexcept : BaseType(view_from_pointer(std::forward<TPtr>(pStr)))
     {
-        validate_pointer();
     }
 
     constexpr basic_zstring_view(const std::basic_string<TChar>& str) noexcept : BaseType(&str[0], str.size())
@@ -294,7 +293,6 @@ public:
             !details::is_basic_zstring_view<std::decay_t<TSrc>>::value>* = nullptr>
     constexpr basic_zstring_view(TSrc const& src) noexcept : BaseType(view_from_pointer(src.c_str(), src.size()))
     {
-        validate_pointer();
     }
 
     template <
@@ -304,7 +302,6 @@ public:
             !details::is_basic_zstring_view<std::decay_t<TSrc>>::value>* = nullptr>
     constexpr basic_zstring_view(TSrc const& src) noexcept : BaseType(view_from_pointer(src.c_str()))
     {
-        validate_pointer();
     }
 
     template <
@@ -325,7 +322,6 @@ public:
     explicit constexpr basic_zstring_view(const basic_zstring_view<TChar, OtherTraits>& other) noexcept :
         BaseType(view_from_pointer(other.data(), other.size()))
     {
-        validate_pointer();
     }
 
     template <typename OtherTraits, std::enable_if_t<!std::is_same_v<BaseType, typename basic_zstring_view<TChar, OtherTraits>::BaseType>>* = nullptr>
@@ -336,16 +332,17 @@ public:
         std::enable_if_t<!std::is_same_v<Traits, OtherTraits> && std::is_same_v<BaseType, typename basic_zstring_view<TChar, OtherTraits>::BaseType>>* = nullptr>
     constexpr basic_zstring_view& operator=(const basic_zstring_view<TChar, OtherTraits>& other) noexcept
     {
-        const auto data = other.data();
         if constexpr (ZStringViewTraits::empty_strings_are_non_null && !details::zstring_view_traits<TChar, OtherTraits>::empty_strings_are_non_null)
         {
+            const auto data = other.data();
             if (data == nullptr)
             {
                 WI_STL_FAIL_FAST_IF(data == nullptr);
+                // Leave *this unchanged when the test hook suppresses fail-fast.
                 return *this;
             }
         }
-        BaseType::operator=(BaseType(data, other.size()));
+        BaseType::operator=(other);
         return *this;
     }
 
@@ -411,8 +408,10 @@ private:
 
     static constexpr BaseType view_from_pointer(const TChar* value) noexcept
     {
+        validate_pointer(value);
         if constexpr (ZStringViewTraits::empty_strings_are_non_null)
         {
+            // Use a zero-length view when the test hook suppresses fail-fast for null input.
             return BaseType(value, value == nullptr ? 0 : BaseType::traits_type::length(value));
         }
         else
@@ -423,9 +422,9 @@ private:
 
     static constexpr BaseType view_from_pointer(const TChar* value, size_type length) noexcept
     {
+        validate_pointer(value);
         if constexpr (ZStringViewTraits::empty_strings_are_non_null)
         {
-            // Let constructor-body validation report null without first passing an invalid range to the base.
             return BaseType(value, value == nullptr ? 0 : length);
         }
         else
@@ -434,21 +433,22 @@ private:
         }
     }
 
-    constexpr void validate_pointer() const noexcept
+    static constexpr void validate_pointer(const TChar* value) noexcept
     {
         if constexpr (ZStringViewTraits::empty_strings_are_non_null)
         {
-            WI_STL_FAIL_FAST_IF(this->data() == nullptr);
+            WI_STL_FAIL_FAST_IF(value == nullptr);
         }
     }
 
-    constexpr void validate_pointer_and_terminator() const noexcept
+    constexpr void validate_null_termination() const noexcept
     {
         const auto ptr = this->data();
         const auto len = this->size();
         if constexpr (ZStringViewTraits::empty_strings_are_non_null)
         {
-            WI_STL_FAIL_FAST_IF((ptr == nullptr) || (ptr[len] != 0));
+            // Avoid dereferencing a null pointer when the test hook suppresses fail-fast.
+            WI_STL_FAIL_FAST_IF((ptr != nullptr) && (ptr[len] != 0));
         }
         else
         {
