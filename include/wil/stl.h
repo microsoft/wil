@@ -425,6 +425,7 @@ private:
         validate_pointer(value);
         if constexpr (ZStringViewTraits::empty_strings_are_non_null)
         {
+            // Use a zero-length view when the test hook suppresses fail-fast for null input.
             return BaseType(value, value == nullptr ? 0 : length);
         }
         else
