@@ -59,8 +59,6 @@ namespace details
         static constexpr TOKEN_INFORMATION_CLASS infoClass = TokenDefaultDacl;
         static constexpr bool FixedSize = false;
     };
-    // TOKEN_GROUPS is also returned by TokenRestrictedSids, TokenLogonSid, TokenCapabilities and
-    // TokenDeviceGroups; it maps to TokenGroups here. See the TODO above.
     template <>
     struct MapTokenStructToInfoClass<TOKEN_GROUPS>
     {
