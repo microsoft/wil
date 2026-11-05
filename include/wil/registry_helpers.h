@@ -63,20 +63,38 @@ namespace reg
     }
 
     // Access rights for opening registry keys. See https://learn.microsoft.com/en-us/windows/win32/sysinfo/registry-key-security-and-access-rights.
-    enum class key_access
+    // The named values map directly to their corresponding REGSAM access masks, so callers who need an access right not
+    // covered by a named value can supply a raw mask directly, for example key_access{KEY_QUERY_VALUE | KEY_SET_VALUE}.
+    enum class key_access : DWORD
     {
-        // Open key for reading.
-        read,
+        // Open key for reading. Equivalent to KEY_READ.
+        read = KEY_READ,
+
+        // Open key for writing. Equivalent to KEY_WRITE.
+        write = KEY_WRITE,
 
         // Open key for reading and writing. Equivalent to KEY_ALL_ACCESS.
-        readwrite,
+        readwrite = KEY_ALL_ACCESS,
 
-        // Open key for reading from 64-bit registry.
-        read64,
+        // Open key for reading from 64-bit registry. Equivalent to KEY_READ | KEY_WOW64_64KEY.
+        read64 = KEY_READ | KEY_WOW64_64KEY,
 
-        // Open key for reading and writing from 64-bit registry. Equivalent to KEY_ALL_ACCESS.
-        readwrite64,
+        // Open key for writing from 64-bit registry. Equivalent to KEY_WRITE | KEY_WOW64_64KEY.
+        write64 = KEY_WRITE | KEY_WOW64_64KEY,
+
+        // Open key for reading and writing from 64-bit registry. Equivalent to KEY_ALL_ACCESS | KEY_WOW64_64KEY.
+        readwrite64 = KEY_ALL_ACCESS | KEY_WOW64_64KEY,
+
+        // Open key for reading from 32-bit registry. Equivalent to KEY_READ | KEY_WOW64_32KEY.
+        read32 = KEY_READ | KEY_WOW64_32KEY,
+
+        // Open key for writing from 32-bit registry. Equivalent to KEY_WRITE | KEY_WOW64_32KEY.
+        write32 = KEY_WRITE | KEY_WOW64_32KEY,
+
+        // Open key for reading and writing from 32-bit registry. Equivalent to KEY_ALL_ACCESS | KEY_WOW64_32KEY.
+        readwrite32 = KEY_ALL_ACCESS | KEY_WOW64_32KEY,
     };
+    DEFINE_ENUM_FLAG_OPERATORS(key_access);
 
     /// @cond
     namespace reg_view_details
@@ -105,19 +123,7 @@ namespace reg
 
         constexpr DWORD get_access_flags(key_access access) WI_NOEXCEPT
         {
-            switch (access)
-            {
-            case key_access::read:
-                return KEY_READ;
-            case key_access::readwrite:
-                return KEY_ALL_ACCESS;
-            case key_access::read64:
-                return KEY_READ | KEY_WOW64_64KEY;
-            case key_access::readwrite64:
-                return KEY_ALL_ACCESS | KEY_WOW64_64KEY;
-            }
-            FAIL_FAST();
-            RESULT_NORETURN_RESULT(0);
+            return static_cast<DWORD>(access);
         }
 
         /**
@@ -915,10 +921,17 @@ namespace reg
                 static_assert(!wistd::is_same_v<T, T>, "Unsupported type for get_value_type");
             }
 
-            template <typename T = void>
-            DWORD set_value_type() WI_NOEXCEPT
+            template <typename T>
+            struct set_value_type_t
             {
                 static_assert(!wistd::is_same_v<T, T>, "Unsupported type for set_value_type");
+            };
+
+            // Applies remove_cv_t so callers don't have to strip cv-qualifiers from the deduced type
+            template <typename T = void>
+            constexpr DWORD set_value_type() WI_NOEXCEPT
+            {
+                return set_value_type_t<wistd::remove_cv_t<T>>::value;
             }
 
             template <>
@@ -927,10 +940,10 @@ namespace reg
                 return get_value_flags_from_value_type(REG_DWORD);
             }
             template <>
-            constexpr DWORD set_value_type<int32_t>() WI_NOEXCEPT
+            struct set_value_type_t<int32_t>
             {
-                return REG_DWORD;
-            }
+                static constexpr DWORD value = REG_DWORD;
+            };
 
             template <>
             constexpr DWORD get_value_type<uint32_t>() WI_NOEXCEPT
@@ -938,10 +951,10 @@ namespace reg
                 return get_value_flags_from_value_type(REG_DWORD);
             }
             template <>
-            constexpr DWORD set_value_type<uint32_t>() WI_NOEXCEPT
+            struct set_value_type_t<uint32_t>
             {
-                return REG_DWORD;
-            }
+                static constexpr DWORD value = REG_DWORD;
+            };
 
             template <>
             constexpr DWORD get_value_type<long>() WI_NOEXCEPT
@@ -949,10 +962,10 @@ namespace reg
                 return get_value_flags_from_value_type(REG_DWORD);
             }
             template <>
-            constexpr DWORD set_value_type<long>() WI_NOEXCEPT
+            struct set_value_type_t<long>
             {
-                return REG_DWORD;
-            }
+                static constexpr DWORD value = REG_DWORD;
+            };
 
             template <>
             constexpr DWORD get_value_type<unsigned long>() WI_NOEXCEPT
@@ -960,10 +973,10 @@ namespace reg
                 return get_value_flags_from_value_type(REG_DWORD);
             }
             template <>
-            constexpr DWORD set_value_type<unsigned long>() WI_NOEXCEPT
+            struct set_value_type_t<unsigned long>
             {
-                return REG_DWORD;
-            }
+                static constexpr DWORD value = REG_DWORD;
+            };
 
             template <>
             constexpr DWORD get_value_type<int64_t>() WI_NOEXCEPT
@@ -971,10 +984,10 @@ namespace reg
                 return get_value_flags_from_value_type(REG_QWORD);
             }
             template <>
-            constexpr DWORD set_value_type<int64_t>() WI_NOEXCEPT
+            struct set_value_type_t<int64_t>
             {
-                return REG_QWORD;
-            }
+                static constexpr DWORD value = REG_QWORD;
+            };
 
             template <>
             constexpr DWORD get_value_type<uint64_t>() WI_NOEXCEPT
@@ -982,10 +995,10 @@ namespace reg
                 return get_value_flags_from_value_type(REG_QWORD);
             }
             template <>
-            constexpr DWORD set_value_type<uint64_t>() WI_NOEXCEPT
+            struct set_value_type_t<uint64_t>
             {
-                return REG_QWORD;
-            }
+                static constexpr DWORD value = REG_QWORD;
+            };
 
             template <>
             constexpr DWORD get_value_type<PCWSTR>() WI_NOEXCEPT
@@ -993,10 +1006,10 @@ namespace reg
                 return get_value_flags_from_value_type(REG_SZ);
             }
             template <>
-            constexpr DWORD set_value_type<PCWSTR>() WI_NOEXCEPT
+            struct set_value_type_t<PCWSTR>
             {
-                return REG_SZ;
-            }
+                static constexpr DWORD value = REG_SZ;
+            };
 
 #if (WIL_USE_STL && defined(WIL_ENABLE_EXCEPTIONS)) || defined(WIL_DOXYGEN)
             template <>
@@ -1006,10 +1019,10 @@ namespace reg
             }
 
             template <>
-            constexpr DWORD set_value_type<const ::std::wstring>() WI_NOEXCEPT
+            struct set_value_type_t<::std::wstring>
             {
-                return REG_SZ;
-            }
+                static constexpr DWORD value = REG_SZ;
+            };
 #endif
 
 #if defined(__WIL_OLEAUTO_H_)
@@ -1025,16 +1038,16 @@ namespace reg
             }
 
             template <>
-            constexpr DWORD set_value_type<const BSTR>() WI_NOEXCEPT
+            struct set_value_type_t<BSTR>
             {
-                return REG_SZ;
-            }
+                static constexpr DWORD value = REG_SZ;
+            };
 
             template <>
-            constexpr DWORD set_value_type<const ::wil::unique_bstr>() WI_NOEXCEPT
+            struct set_value_type_t<::wil::unique_bstr>
             {
-                return REG_SZ;
-            }
+                static constexpr DWORD value = REG_SZ;
+            };
 #endif // #if defined(__WIL_OLEAUTO_H_)
 
 #if defined(__WIL_OLEAUTO_H_STL)
@@ -1046,10 +1059,10 @@ namespace reg
             }
 
             template <>
-            constexpr DWORD set_value_type<const ::wil::shared_bstr>() WI_NOEXCEPT
+            struct set_value_type_t<::wil::shared_bstr>
             {
-                return REG_SZ;
-            }
+                static constexpr DWORD value = REG_SZ;
+            };
 #endif // #if defined(__WIL_OLEAUTO_H_STL)
 
 #if defined(__WIL_OBJBASE_H_)
@@ -1060,10 +1073,10 @@ namespace reg
             }
 
             template <>
-            constexpr DWORD set_value_type<const ::wil::unique_cotaskmem_string>() WI_NOEXCEPT
+            struct set_value_type_t<::wil::unique_cotaskmem_string>
             {
-                return REG_SZ;
-            }
+                static constexpr DWORD value = REG_SZ;
+            };
 #endif // defined(__WIL_OBJBASE_H_)
 
 #if defined(__WIL_OBJBASE_H_STL)
@@ -1074,10 +1087,10 @@ namespace reg
             }
 
             template <>
-            constexpr DWORD set_value_type<const ::wil::shared_cotaskmem_string>() WI_NOEXCEPT
+            struct set_value_type_t<::wil::shared_cotaskmem_string>
             {
-                return REG_SZ;
-            }
+                static constexpr DWORD value = REG_SZ;
+            };
 #endif // #if defined(__WIL_OBJBASE_H_STL)
         } // namespace reg_value_type_info
 
@@ -1128,6 +1141,11 @@ namespace reg
             typename err_policy::result delete_value(_In_opt_ PCWSTR value_name) const
             {
                 return err_policy::HResult(HRESULT_FROM_WIN32(::RegDeleteValueW(m_key, value_name)));
+            }
+
+            typename err_policy::result delete_value(_In_opt_ PCWSTR subKey, _In_opt_ PCWSTR value_name) const
+            {
+                return err_policy::HResult(HRESULT_FROM_WIN32(::RegDeleteKeyValueW(m_key, subKey, value_name)));
             }
 
             template <typename R>
@@ -1867,6 +1885,11 @@ namespace reg
             {
                 m_data.m_index = 0;
                 m_last_error = m_data.enumerate_current_index();
+            }
+
+            if (FAILED(m_last_error))
+            {
+                m_data.make_end_iterator();
             }
         }
 

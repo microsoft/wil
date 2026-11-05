@@ -46,7 +46,7 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 else()
     # Using exceptions; we can compile all of the C++/WinRT tests
     set(EXTRA_SOURCES
-        ${CPP20_SOURCES}
+        ${COROUTINE_SOURCES}
         )
 endif()
 
@@ -54,6 +54,7 @@ target_compile_definitions(witest.asan PRIVATE
     # Since we link with Catch2, which is pre-built
     -D_DISABLE_VECTOR_ANNOTATION
     -D_DISABLE_STRING_ANNOTATION
+    -D_DISABLE_OPTIONAL_ANNOTATION
     )
 
 target_sources(witest.asan PUBLIC

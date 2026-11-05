@@ -548,8 +548,8 @@ namespace details
         static constexpr unsigned long long value = flag;
     };
 } // namespace details
-} // namespace wil
 /// @endcond
+} // namespace wil
 
 //! Returns the unsigned type of the same width and numeric value as the given enum
 #define WI_EnumValue(val) static_cast<::wil::integral_from_enum<decltype(val)>>(val)
@@ -680,8 +680,10 @@ doing it with global function pointers and header initialization allows a runtim
 #error linker pragma must include g_header_init variation
 #endif
 
+/// @cond
 // Keep the misspelled name for backward compatibility.
 #define WI_HEADER_INITITALIZATION_FUNCTION(name, fn) WI_HEADER_INITIALIZATION_FUNCTION(name, fn)
+/// @endcond
 
 /** All Windows Implementation Library classes and functions are located within the "wil" namespace.
 The 'wil' namespace is an intentionally short name as the intent is for code to be able to reference
@@ -809,6 +811,7 @@ _Post_satisfies_(return == static_cast<bool>(val)) constexpr bool verify_bool(co
     return static_cast<bool>(val);
 }
 
+/// @cond
 template <typename T, __R_ENABLE_IF_IS_NOT_CLASS(T)>
 constexpr bool verify_bool(T /*val*/) WI_NOEXCEPT
 {
@@ -833,6 +836,7 @@ _Post_satisfies_(return == (val != 0)) constexpr bool verify_bool<unsigned char>
 {
     return (val != 0);
 }
+/// @endcond
 
 /** Verify that `val` is a Win32 BOOL value.
 Other types (including other logical bool expressions) will generate an intentional compilation error.  Note that this will
@@ -1033,7 +1037,10 @@ void doit(const T& val)
 This will invoke the first overload if a type `T` satisfies both `condition_a<T>` and `condition_b<T>`.
 */
 template <int N>
-struct priority_tag : priority_tag<N - 1>
+struct priority_tag
+#ifndef WIL_DOXYGEN
+    : priority_tag<N - 1>
+#endif
 {
 };
 

@@ -64,6 +64,20 @@ struct CustomNoncopyableString
     }
 };
 
+TEST_CASE("StlTests::TestBstrAllocator", "[stl][bstr][string_view]")
+{
+    std::wstring_view stlStringView_empty;
+    const wil::unique_bstr bstrEmpty{wil::make_bstr_nothrow(stlStringView_empty)};
+    REQUIRE(bstrEmpty.get() != nullptr);
+    REQUIRE(wcslen(bstrEmpty.get()) == 0);
+
+    std::wstring_view stlStringView_fromLiteral{L"abc"};
+    const wil::unique_bstr bstrFromLiteral{wil::make_bstr_nothrow(stlStringView_fromLiteral)};
+    REQUIRE(bstrFromLiteral.get() != nullptr);
+    REQUIRE(wcslen(bstrFromLiteral.get()) == 3);
+    REQUIRE(CompareStringOrdinal(bstrFromLiteral.get(), -1, L"abc", -1, FALSE) == CSTR_EQUAL);
+};
+
 TEST_CASE("StlTests::TestZStringView", "[stl][zstring_view]")
 {
     // Test empty cases
@@ -136,6 +150,26 @@ TEST_CASE("StlTests::TestZWStringView literal", "[stl][zwstring_view]")
         REQUIRE(str[0] == L'H');
         REQUIRE(str[12] == L'!');
     }
+}
+
+TEST_CASE("StlTests::TestBSTR literal", "[stl][bstr]")
+{
+#if __WI_LIBCPP_STD_VER >= 20
+    SECTION("Literal creates a valid BSTR")
+    {
+        const auto literal = L"foo"_bstr;
+        const BSTR value = literal;
+        REQUIRE(value != nullptr);
+        REQUIRE(SysStringLen(value) == 3);
+        REQUIRE(SysStringLen(L"zot"_bstr) == 3);
+        REQUIRE(std::wstring_view(value) == L"foo");
+
+        constexpr auto empty_literal = L""_bstr;
+        REQUIRE(SysStringLen(empty_literal) == 0);
+        REQUIRE(empty_literal != nullptr);
+        REQUIRE(wcslen(empty_literal) == 0);
+    }
+#endif
 }
 
 TEST_CASE("StlTests::TestZStringView literal", "[stl][zstring_view]")
@@ -243,6 +277,53 @@ TEST_CASE("StlTests::TestZWStringView", "[stl][zstring_view]")
     };
     string_with_c_str fake_path{};
     REQUIRE(wil::zwstring_view(fake_path) == L"hello");
+}
+
+TEST_CASE("StlTests::TestZStringView substr and contains", "[stl][zstring_view]")
+{
+    const auto test = [](auto value, auto expectedTail, auto prefix, auto missing, auto presentChar, auto missingChar) {
+        using zstring_view_type = decltype(value);
+        using char_type = typename zstring_view_type::value_type;
+        using string_view_type = std::basic_string_view<char_type>;
+
+        STATIC_REQUIRE(std::is_same_v<decltype(value.substr()), zstring_view_type>);
+        STATIC_REQUIRE(std::is_same_v<decltype(value.substr(0, 1)), string_view_type>);
+
+        const auto tail = value.substr(7);
+        REQUIRE(tail == expectedTail);
+        REQUIRE(tail.c_str()[tail.size()] == char_type{});
+
+        const auto whole = value.substr();
+        REQUIRE(whole == value);
+        REQUIRE(whole.data() == value.data());
+
+        const auto end = value.substr(value.size());
+        REQUIRE(end.empty());
+        REQUIRE(end.data() == value.data() + value.size());
+        REQUIRE(end.c_str()[0] == char_type{});
+
+        const auto slice = value.substr(0, 5);
+        REQUIRE(slice == prefix);
+
+        REQUIRE(value.contains(prefix));
+        REQUIRE(!value.contains(missing));
+        REQUIRE(value.contains(presentChar));
+        REQUIRE(!value.contains(missingChar));
+        REQUIRE(value.contains(value));
+
+        zstring_view_type empty;
+        const auto emptyTail = empty.substr();
+        REQUIRE(emptyTail.empty());
+        REQUIRE(emptyTail.data() == nullptr);
+        REQUIRE(empty.contains(string_view_type{}));
+        REQUIRE(!empty.contains(presentChar));
+
+        REQUIRE_THROWS_AS(value.substr(value.size() + 1), std::out_of_range);
+        REQUIRE_THROWS_AS(value.substr(value.size() + 1, 1), std::out_of_range);
+    };
+
+    test(wil::zstring_view{"Hello, World!"}, wil::zstring_view{"World!"}, "Hello", "missing", 'W', 'x');
+    test(wil::zwstring_view{L"Hello, World!"}, wil::zwstring_view{L"World!"}, L"Hello", L"missing", L'W', L'x');
 }
 
 #endif

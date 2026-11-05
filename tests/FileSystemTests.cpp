@@ -83,6 +83,19 @@ TEST_CASE("FileSystemTests::CreateDirectory", "[filesystem]")
     REQUIRE_SUCCEEDED(PathCchAppend(absoluteTestPath4, ARRAYSIZE(absoluteTestPath4), testPath4));
     REQUIRE(DirectoryExists(absoluteTestPath4));
 
+    PCWSTR filePath = L"file";
+    wchar_t absoluteFilePath[MAX_PATH];
+    REQUIRE_SUCCEEDED(StringCchCopyW(absoluteFilePath, ARRAYSIZE(absoluteFilePath), basePath));
+    REQUIRE_SUCCEEDED(PathCchAppend(absoluteFilePath, ARRAYSIZE(absoluteFilePath), filePath));
+
+    HANDLE fileHandle = CreateFileW(absoluteFilePath, GENERIC_WRITE, 0, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);
+    REQUIRE(fileHandle != INVALID_HANDLE_VALUE);
+    CloseHandle(fileHandle);
+
+    REQUIRE(HRESULT_FROM_WIN32(ERROR_ALREADY_EXISTS) == wil::CreateDirectoryDeepNoThrow(absoluteFilePath));
+    REQUIRE_FALSE(DirectoryExists(absoluteFilePath));
+    REQUIRE(FileExists(absoluteFilePath));
+
     REQUIRE_SUCCEEDED(wil::RemoveDirectoryRecursiveNoThrow(absoluteTestPath3, wil::RemoveDirectoryOptions::KeepRootDirectory));
     REQUIRE(DirectoryExists(absoluteTestPath3));
     REQUIRE_FALSE(DirectoryExists(absoluteTestPath4));

@@ -288,6 +288,140 @@ namespace details
             return {};
         }
     }
+
+    // Number of elements to prefetch per GetMany call. Aim for ~2KB blocks, clamped to [1, 128].
+    constexpr uint32_t batched_block_size(size_t element_size) noexcept
+    {
+        return static_cast<uint32_t>(std::clamp<size_t>(size_t{2048} / (element_size ? element_size : 1), 1, 128));
+    }
+
+    // Refills a block from an IIterator via GetMany. The iterator carries its own cursor, so each
+    // call just pulls the next run of elements; a short (or empty) block means exhaustion.
+    template <typename Iterator>
+    struct batched_iterator_source
+    {
+        using value_type = decltype(std::declval<Iterator>().Current());
+
+        uint32_t fill(winrt::array_view<value_type> block)
+        {
+            return m_iterator.GetMany(block);
+        }
+
+        Iterator m_iterator{};
+    };
+
+    // Refills a block from an indexed (GetAt-capable) collection via GetMany, tracking the running
+    // start index. A short (or empty) block means exhaustion, so no end-index or Size() is needed.
+    template <typename Collection>
+    struct batched_indexed_source
+    {
+        using value_type = decltype(std::declval<Collection>().GetAt(0));
+
+        uint32_t fill(winrt::array_view<value_type> block)
+        {
+            uint32_t const fetched = m_collection.GetMany(m_start, block);
+            m_start += fetched;
+            return fetched;
+        }
+
+        Collection m_collection{};
+        uint32_t m_start{0};
+    };
+
+    // Single-pass input iterator that batches a source via GetMany into a small buffer and yields
+    // from it, so range-for crosses the ABI once per block instead of once per element. The two
+    // shapes (IIterator vs indexed collection) differ only in how a block is refilled, which the
+    // Source policy supplies. A block shorter than the buffer signals the last block; a full block
+    // is followed by one more refill (which returns empty at the boundary), matching to_vector.
+    template <typename Source>
+    struct batched_iterator
+    {
+        using value_type = typename Source::value_type;
+        using iterator_category = std::input_iterator_tag;
+        using difference_type = std::ptrdiff_t;
+        using pointer = value_type const*;
+        using reference = value_type const&;
+
+        static constexpr uint32_t buffer_capacity = batched_block_size(sizeof(value_type));
+
+        batched_iterator() = default; // default-constructed is the end sentinel (m_size == 0)
+
+        explicit batched_iterator(Source source) : m_source(std::move(source))
+        {
+            fill();
+        }
+
+        reference operator*() const noexcept
+        {
+            return m_buffer[m_index];
+        }
+
+        pointer operator->() const noexcept
+        {
+            return std::addressof(m_buffer[m_index]);
+        }
+
+        batched_iterator& operator++()
+        {
+            if (++m_index == m_size)
+            {
+                // A full block might have more behind it; a short block was the last one.
+                if (m_size == buffer_capacity)
+                {
+                    fill();
+                }
+                else
+                {
+                    m_size = 0;
+                }
+            }
+
+            return *this;
+        }
+
+        bool operator==(batched_iterator const& other) const noexcept
+        {
+            return (m_size == 0) && (other.m_size == 0);
+        }
+
+        bool operator!=(batched_iterator const& other) const noexcept
+        {
+            return !(*this == other);
+        }
+
+    private:
+        void fill()
+        {
+            m_index = 0;
+            m_size = m_source.fill(m_buffer);
+        }
+
+        Source m_source{};
+        std::array<value_type, buffer_capacity> m_buffer{};
+        uint32_t m_size{0};
+        uint32_t m_index{0};
+    };
+
+    template <typename Source>
+    struct batched_view
+    {
+        explicit batched_view(Source source) : m_source(std::move(source))
+        {
+        }
+
+        batched_iterator<Source> begin()
+        {
+            return batched_iterator<Source>{std::move(m_source)};
+        }
+
+        batched_iterator<Source> end() const noexcept
+        {
+            return {};
+        }
+
+    private:
+        Source m_source;
+    };
 } // namespace details
 /// @endcond
 
@@ -349,8 +483,217 @@ auto to_vector(TSrc const& src)
         return to_vector(src.First());
     }
 }
+
+/** Adapts a C++/WinRT collection for range-for so that elements are prefetched in blocks via
+GetMany instead of one ABI round-trip per element. On a cross-process or heavily-marshaled
+collection the per-element crossings are the dominant cost, so batching them cuts that cost to
+roughly one crossing per block.
+@code
+winrt::IVector<winrt::hstring> collection = GetCollection();
+for (winrt::hstring const& item : wil::batched_range(collection))
+{
+    // use item
+}
+@endcode
+Works for IVector<T>, IVectorView<T>, IIterable<T>, IIterator<T>, and any type or interface that
+C++/WinRT projects those interfaces for (PropertySet, IMap<K,V>, etc.). Indexed collections (those
+exposing GetAt) prefetch blocks with GetMany(index, ...); iterable-only collections buffer through
+IIterator::GetMany. Either way the block prefetch stops once GetMany returns a short block.
+
+The traversal is single-pass and buffering: a yielded element outlives the step that produced it,
+matching the observable behavior of wil::to_vector(collection). The returned range and its
+iterators keep the collection alive for the duration of the loop.
+*/
+template <typename TSrc>
+auto batched_range(TSrc src)
+{
+    if constexpr (details::is_winrt_vector_like<TSrc>::value)
+    {
+        return details::batched_view<details::batched_indexed_source<TSrc>>{{std::move(src), 0}};
+    }
+    else if constexpr (details::is_winrt_iterator_like<TSrc>::value)
+    {
+        return details::batched_view<details::batched_iterator_source<TSrc>>{{std::move(src)}};
+    }
+    else
+    {
+        using Iterator = decltype(src.First());
+        return details::batched_view<details::batched_iterator_source<Iterator>>{{src.First()}};
+    }
+}
 } // namespace wil
 #endif
+
+#if (defined(WINRT_Windows_Foundation_H) && !defined(__WIL_CPPWINRT_WINDOWS_FOUNDATION_HELPERS)) || defined(WIL_DOXYGEN)
+#define __WIL_CPPWINRT_WINDOWS_FOUNDATION_HELPERS
+namespace wil
+{
+/// @cond
+namespace details
+{
+    // Shared base for a ready-made, already-settled async object. It fires the Completed handler
+    // inline (no coroutine frame, no mutex) and exposes the IAsyncInfo surface. A settled object is
+    // either Completed (m_error == S_OK) or Error (m_error is a failure HRESULT).
+    template <typename Derived, typename AsyncInterface, typename CompletedHandler>
+    struct ready_async_base : winrt::implements<Derived, AsyncInterface, winrt::Windows::Foundation::IAsyncInfo>
+    {
+        ready_async_base() = default;
+
+        explicit ready_async_base(winrt::hresult error) noexcept : m_error(error)
+        {
+        }
+
+        void Completed(CompletedHandler const& handler)
+        {
+            // Match the coroutine promise contract: Completed may be assigned at most once.
+            if (std::exchange(m_completed_assigned, true))
+            {
+                throw winrt::hresult_illegal_delegate_assignment();
+            }
+
+            if (handler)
+            {
+                handler(static_cast<Derived*>(this)->get_strong().template as<AsyncInterface>(), Status());
+            }
+        }
+
+        CompletedHandler Completed() const noexcept
+        {
+            return {nullptr};
+        }
+
+        uint32_t Id() const noexcept
+        {
+            return 1;
+        }
+
+        winrt::Windows::Foundation::AsyncStatus Status() const noexcept
+        {
+            return (m_error < 0) ? winrt::Windows::Foundation::AsyncStatus::Error : winrt::Windows::Foundation::AsyncStatus::Completed;
+        }
+
+        winrt::hresult ErrorCode() const noexcept
+        {
+            return m_error;
+        }
+
+        void Cancel() const noexcept
+        {
+        }
+
+        void Close() const noexcept
+        {
+        }
+
+    protected:
+        winrt::hresult m_error{};
+
+    private:
+        bool m_completed_assigned{false};
+    };
+
+    // Result storage initializer for the error path, which never reads the value (GetResults throws
+    // first). For projected WinRT object types (IInspectable/IUnknown-derived) a null handle avoids
+    // default-activating the runtimeclass; other types (scalars, WinRT structs, hstring) get a cheap
+    // value-init. Mirrors wil::details::empty<T>, redefined here because that lives under the
+    // Collections guard while this block only requires Windows.Foundation.
+    template <typename T>
+    T ready_empty_result() noexcept
+    {
+        if constexpr (std::is_base_of_v<winrt::Windows::Foundation::IUnknown, T>)
+        {
+            return nullptr;
+        }
+        else
+        {
+            return T{};
+        }
+    }
+
+    template <typename TResult>
+    struct ready_async_operation
+        : ready_async_base<ready_async_operation<TResult>, winrt::Windows::Foundation::IAsyncOperation<TResult>, winrt::Windows::Foundation::AsyncOperationCompletedHandler<TResult>>
+    {
+        using base =
+            ready_async_base<ready_async_operation<TResult>, winrt::Windows::Foundation::IAsyncOperation<TResult>, winrt::Windows::Foundation::AsyncOperationCompletedHandler<TResult>>;
+
+        explicit ready_async_operation(TResult value) : m_result(std::move(value))
+        {
+        }
+
+        explicit ready_async_operation(winrt::hresult error) : base(error)
+        {
+        }
+
+        TResult GetResults()
+        {
+            winrt::check_hresult(this->m_error);
+            return m_result;
+        }
+
+    private:
+        TResult m_result{ready_empty_result<TResult>()};
+    };
+
+    struct ready_async_action
+        : ready_async_base<ready_async_action, winrt::Windows::Foundation::IAsyncAction, winrt::Windows::Foundation::AsyncActionCompletedHandler>
+    {
+        using base =
+            ready_async_base<ready_async_action, winrt::Windows::Foundation::IAsyncAction, winrt::Windows::Foundation::AsyncActionCompletedHandler>;
+
+        ready_async_action() = default;
+
+        explicit ready_async_action(winrt::hresult error) : base(error)
+        {
+        }
+
+        void GetResults()
+        {
+            winrt::check_hresult(this->m_error);
+        }
+    };
+} // namespace details
+/// @endcond
+
+/** Returns an IAsyncOperation<T> already in the Completed state carrying @p value, with no
+coroutine frame. `co_await`, `.get()`, and a `Completed` handler all complete synchronously.
+@code
+winrt::Windows::Foundation::IAsyncOperation<int32_t> GetCachedValue()
+{
+    if (m_haveValue)
+    {
+        return wil::already_complete(m_value); // no coroutine frame for the already-known answer
+    }
+    return ComputeValueAsync();
+}
+@endcode
+*/
+template <typename TResult>
+winrt::Windows::Foundation::IAsyncOperation<std::decay_t<TResult>> already_complete(TResult&& value)
+{
+    return winrt::make<details::ready_async_operation<std::decay_t<TResult>>>(std::forward<TResult>(value));
+}
+
+//! Returns an IAsyncAction already in the Completed state, with no coroutine frame.
+inline winrt::Windows::Foundation::IAsyncAction already_complete()
+{
+    return winrt::make<details::ready_async_action>();
+}
+
+//! Returns an IAsyncAction already in the Error state carrying @p error; GetResults() throws it.
+inline winrt::Windows::Foundation::IAsyncAction already_failed(winrt::hresult error)
+{
+    return winrt::make<details::ready_async_action>(error);
+}
+
+//! Returns an IAsyncOperation<T> already in the Error state carrying @p error; GetResults() throws it.
+template <typename TResult>
+winrt::Windows::Foundation::IAsyncOperation<TResult> already_failed(winrt::hresult error)
+{
+    return winrt::make<details::ready_async_operation<TResult>>(error);
+}
+} // namespace wil
+#endif // __WIL_CPPWINRT_WINDOWS_FOUNDATION_HELPERS
 
 #if (defined(WINRT_Windows_UI_H) && defined(_WINDOWS_UI_INTEROP_H_) && !defined(__WIL_CPPWINRT_WINDOWS_UI_INTEROP_HELPERS)) || \
     defined(WIL_DOXYGEN)

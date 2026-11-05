@@ -558,6 +558,82 @@ TEST_CASE("BasicRegistryTests::Open", "[registry]")
         REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
         REQUIRE(wil::reg::is_registry_not_found(hr));
     }
+    SECTION("key_access::write with opened key")
+    {
+        constexpr auto* subSubKey = L"subkey";
+
+        // create the key hierarchy with full access
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
+        wil::unique_hkey subkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(hkey.get(), subSubKey, subkey, wil::reg::key_access::readwrite));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(subkey.get(), dwordValueName, test_dword_two));
+        subkey.reset();
+
+        // open with write access
+        wil::unique_hkey write_key;
+        REQUIRE_SUCCEEDED(wil::reg::open_unique_key_nothrow(hkey.get(), subSubKey, write_key, wil::reg::key_access::write));
+
+        // write should succeed
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(write_key.get(), dwordValueName, test_dword_three));
+
+        // read should fail with access denied — proves this is KEY_WRITE, not KEY_ALL_ACCESS
+        DWORD result{};
+        auto hr = wil::reg::get_value_dword_nothrow(write_key.get(), dwordValueName, &result);
+        REQUIRE(hr == E_ACCESSDENIED);
+    }
+    SECTION("key_access::write with string key")
+    {
+        // create the key with full access and write a test value
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(hkey.get(), dwordValueName, test_dword_two));
+        hkey.reset();
+
+        // open with write access
+        wil::unique_hkey write_key;
+        REQUIRE_SUCCEEDED(wil::reg::open_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, write_key, wil::reg::key_access::write));
+
+        // write should succeed
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(write_key.get(), dwordValueName, test_dword_three));
+
+        // read should fail with access denied
+        DWORD result{};
+        auto hr = wil::reg::get_value_dword_nothrow(write_key.get(), dwordValueName, &result);
+        REQUIRE(hr == E_ACCESSDENIED);
+    }
+    SECTION("key_access::write with create_unique_key_nothrow")
+    {
+        // create with write access
+        wil::unique_hkey write_key;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, write_key, wil::reg::key_access::write));
+
+        // write should succeed
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(write_key.get(), dwordValueName, test_dword_two));
+
+        // read should fail with access denied
+        DWORD result{};
+        auto hr = wil::reg::get_value_dword_nothrow(write_key.get(), dwordValueName, &result);
+        REQUIRE(hr == E_ACCESSDENIED);
+    }
+    SECTION("get_access_flags maps key_access values correctly")
+    {
+        // verify the constexpr flag mapping is correct for all key_access values
+        static_assert(wil::reg::reg_view_details::get_access_flags(wil::reg::key_access::read) == KEY_READ, "read must map to KEY_READ");
+        static_assert(wil::reg::reg_view_details::get_access_flags(wil::reg::key_access::write) == KEY_WRITE, "write must map to KEY_WRITE");
+        static_assert(
+            wil::reg::reg_view_details::get_access_flags(wil::reg::key_access::readwrite) == KEY_ALL_ACCESS,
+            "readwrite must map to KEY_ALL_ACCESS");
+        static_assert(
+            wil::reg::reg_view_details::get_access_flags(wil::reg::key_access::read64) == (KEY_READ | KEY_WOW64_64KEY),
+            "read64 must map to KEY_READ | KEY_WOW64_64KEY");
+        static_assert(
+            wil::reg::reg_view_details::get_access_flags(wil::reg::key_access::write64) == (KEY_WRITE | KEY_WOW64_64KEY),
+            "write64 must map to KEY_WRITE | KEY_WOW64_64KEY");
+        static_assert(
+            wil::reg::reg_view_details::get_access_flags(wil::reg::key_access::readwrite64) == (KEY_ALL_ACCESS | KEY_WOW64_64KEY),
+            "readwrite64 must map to KEY_ALL_ACCESS | KEY_WOW64_64KEY");
+    }
     SECTION("get_child_key_count_nothrow, get_child_value_count_nothrow")
     {
         wil::unique_hkey hkey;
@@ -1251,6 +1327,83 @@ using NoThrowTypesToTest = std::tuple<DwordFns, GenericDwordFns, QwordFns, Gener
 using ThrowingTypesToTest = std::tuple<DwordFns, GenericDwordFns, QwordFns, GenericQwordFns>;
 #endif // defined(WIL_ENABLE_EXCEPTIONS)
 } // namespace
+
+TEST_CASE("BasicRegistryTests::delete_value_and_tree", "[registry]")
+{
+    const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
+    if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+    {
+        REQUIRE_SUCCEEDED(deleteHr);
+    }
+
+    SECTION("delete_value_nothrow: from an open key")
+    {
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(hkey.get(), dwordValueName, test_dword_two));
+
+        DWORD result{};
+        REQUIRE_SUCCEEDED(wil::reg::get_value_dword_nothrow(hkey.get(), dwordValueName, &result));
+        REQUIRE(result == test_dword_two);
+
+        REQUIRE_SUCCEEDED(wil::reg::delete_value_nothrow(hkey.get(), dwordValueName));
+        // the value should now be gone
+        REQUIRE(wil::reg::get_value_dword_nothrow(hkey.get(), dwordValueName, &result) == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
+        // deleting a value that doesn't exist returns not-found
+        REQUIRE(wil::reg::delete_value_nothrow(hkey.get(), dwordValueName) == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
+    }
+
+    SECTION("delete_value_nothrow: via subkey path")
+    {
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, test_dword_two));
+
+        DWORD result{};
+        REQUIRE_SUCCEEDED(wil::reg::get_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, &result));
+        REQUIRE(result == test_dword_two);
+
+        REQUIRE_SUCCEEDED(wil::reg::delete_value_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName));
+        REQUIRE(
+            wil::reg::get_value_dword_nothrow(HKEY_CURRENT_USER, testSubkey, dwordValueName, &result) ==
+            HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
+    }
+
+    SECTION("delete_tree_nothrow: removes subkeys and values")
+    {
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
+        wil::unique_hkey subkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(hkey.get(), L"child", subkey, wil::reg::key_access::readwrite));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(subkey.get(), dwordValueName, test_dword_two));
+
+        REQUIRE_SUCCEEDED(wil::reg::delete_tree_nothrow(HKEY_CURRENT_USER, testSubkey));
+        wil::unique_hkey opened;
+        REQUIRE(wil::reg::open_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, opened) == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
+
+        // deleting a tree that doesn't exist succeeds (is_registry_not_found is swallowed)
+        REQUIRE_SUCCEEDED(wil::reg::delete_tree_nothrow(HKEY_CURRENT_USER, testSubkey));
+    }
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+    SECTION("delete_value/delete_tree: throwing variants")
+    {
+        wil::unique_hkey hkey{wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access::readwrite)};
+        wil::reg::set_value_dword(hkey.get(), dwordValueName, test_dword_two);
+        wil::reg::set_value_dword(HKEY_CURRENT_USER, testSubkey, stringValueName, test_dword_three);
+
+        wil::reg::delete_value(hkey.get(), dwordValueName);
+        REQUIRE(!wil::reg::try_get_value_dword(hkey.get(), dwordValueName).has_value());
+
+        wil::reg::delete_value(HKEY_CURRENT_USER, testSubkey, stringValueName);
+        REQUIRE(!wil::reg::try_get_value_dword(HKEY_CURRENT_USER, testSubkey, stringValueName).has_value());
+
+        wil::reg::delete_tree(HKEY_CURRENT_USER, testSubkey);
+        wil::unique_hkey opened;
+        REQUIRE(wil::reg::open_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, opened) == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
+        // deleting a non-existent tree does not throw
+        wil::reg::delete_tree(HKEY_CURRENT_USER, testSubkey);
+    }
+#endif
+}
 
 TEMPLATE_LIST_TEST_CASE("BasicRegistryTests::simple types typed nothrow gets/sets", "[registry]", NoThrowTypesToTest)
 {
@@ -2194,6 +2347,43 @@ TEST_CASE("BasicRegistryTests::string types", "[registry]")
         verify_string_generic_get_value_subkey<wil::shared_cotaskmem_string>();
 #endif
 #endif
+    }
+
+    SECTION("strings set_value with std::wstring lvalue: with opened key")
+    {
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
+
+        // verify non-const std::wstring lvalue works with set_value (issue #624)
+        std::wstring stringValue{L"wstring lvalue test"};
+        wil::reg::set_value(hkey.get(), stringValueName, stringValue);
+        auto result = wil::reg::get_value<std::wstring>(hkey.get(), stringValueName);
+        REQUIRE(result == stringValue);
+
+        // verify const std::wstring lvalue also works
+        const std::wstring constStringValue{L"const wstring test"};
+        wil::reg::set_value(hkey.get(), stringValueName, constStringValue);
+        result = wil::reg::get_value<std::wstring>(hkey.get(), stringValueName);
+        REQUIRE(result == constStringValue);
+
+        // verify empty std::wstring
+        std::wstring emptyValue;
+        wil::reg::set_value(hkey.get(), stringValueName, emptyValue);
+        result = wil::reg::get_value<std::wstring>(hkey.get(), stringValueName);
+        REQUIRE(result.empty());
+    }
+
+    SECTION("strings set_value with std::wstring lvalue: with string key")
+    {
+        std::wstring stringValue{L"wstring lvalue subkey test"};
+        wil::reg::set_value(HKEY_CURRENT_USER, testSubkey, stringValueName, stringValue);
+        auto result = wil::reg::get_value<std::wstring>(HKEY_CURRENT_USER, testSubkey, stringValueName);
+        REQUIRE(result == stringValue);
+
+        const std::wstring constStringValue{L"const wstring subkey test"};
+        wil::reg::set_value(HKEY_CURRENT_USER, testSubkey, stringValueName, constStringValue);
+        result = wil::reg::get_value<std::wstring>(HKEY_CURRENT_USER, testSubkey, stringValueName);
+        REQUIRE(result == constStringValue);
     }
 
 #if defined(__cpp_lib_optional)
@@ -5470,6 +5660,13 @@ TEST_CASE("BasicRegistryTests::value_bstr_nothrow_iterator", "[registry]")
         REQUIRE(manual_iterator->at_end());
         REQUIRE(count == 4);
     }
+
+    SECTION("value_bstr_nothrow_iterator with invalid handle")
+    {
+        auto test_iterator = wil::reg::value_bstr_nothrow_iterator{(HKEY)INVALID_HANDLE_VALUE};
+        auto test_end_iterator = wil::reg::value_bstr_nothrow_iterator{};
+        REQUIRE(test_iterator == test_end_iterator);
+    }
 }
 
 TEST_CASE("BasicRegistryTests::key_bstr_nothrow_iterator", "[registry]")
@@ -5757,6 +5954,13 @@ TEST_CASE("BasicRegistryTests::key_bstr_nothrow_iterator", "[registry]")
         REQUIRE_SUCCEEDED(manual_iterator.last_error());
         REQUIRE_SUCCEEDED(manual_iterator.last_error());
         REQUIRE(count == 4);
+    }
+
+    SECTION("key_bstr_nothrow_iterator with invalid handle")
+    {
+        auto test_iterator = wil::reg::key_bstr_nothrow_iterator{(HKEY)INVALID_HANDLE_VALUE};
+        auto test_end_iterator = wil::reg::key_bstr_nothrow_iterator{};
+        REQUIRE(test_iterator == test_end_iterator);
     }
 }
 #endif
@@ -6072,6 +6276,13 @@ TEST_CASE("BasicRegistryTests::value_heap_string_nothrow_iterator", "[registry]"
         REQUIRE(manual_iterator->at_end());
         REQUIRE(count == 4);
     }
+
+    SECTION("value_heap_string_nothrow_iterator with invalid handle")
+    {
+        auto test_iterator = wil::reg::value_heap_string_nothrow_iterator{(HKEY)INVALID_HANDLE_VALUE};
+        auto test_end_iterator = wil::reg::value_heap_string_nothrow_iterator{};
+        REQUIRE(test_iterator == test_end_iterator);
+    }
 }
 
 TEST_CASE("BasicRegistryTests::key_heap_string_nothrow_iterator", "[registry]")
@@ -6357,4 +6568,63 @@ TEST_CASE("BasicRegistryTests::key_heap_string_nothrow_iterator", "[registry]")
         REQUIRE_SUCCEEDED(manual_iterator.last_error());
         REQUIRE(count == 4);
     }
+
+    SECTION("key_heap_string_nothrow_iterator with invalid handle")
+    {
+        auto test_iterator = wil::reg::key_heap_string_nothrow_iterator{(HKEY)INVALID_HANDLE_VALUE};
+        auto test_end_iterator = wil::reg::key_heap_string_nothrow_iterator{};
+        REQUIRE(test_iterator == test_end_iterator);
+    }
+}
+
+TEST_CASE("BasicRegistryTests::raw_regsam_access", "[registry]")
+{
+    const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
+    if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+    {
+        REQUIRE_SUCCEEDED(deleteHr);
+    }
+
+    // key_access values map directly to their REGSAM masks, and arbitrary masks can be composed with the flag operators.
+    static_assert(static_cast<DWORD>(wil::reg::key_access::read) == KEY_READ, "read must map to KEY_READ");
+    static_assert(static_cast<DWORD>(wil::reg::key_access::write) == KEY_WRITE, "write must map to KEY_WRITE");
+    static_assert(static_cast<DWORD>(wil::reg::key_access::readwrite) == KEY_ALL_ACCESS, "readwrite must map to KEY_ALL_ACCESS");
+    static_assert(static_cast<DWORD>(wil::reg::key_access::read64) == (KEY_READ | KEY_WOW64_64KEY), "read64 must map to KEY_READ | KEY_WOW64_64KEY");
+    static_assert(
+        static_cast<DWORD>(wil::reg::key_access::read | wil::reg::key_access::write) == (KEY_READ | KEY_WRITE),
+        "key_access values must combine with the bitwise OR operator");
+
+    SECTION("create/open with a raw REGSAM mask")
+    {
+        // create with an explicit mask that has no named key_access value
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(
+            wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access{KEY_QUERY_VALUE | KEY_SET_VALUE}));
+        REQUIRE_SUCCEEDED(wil::reg::set_value_dword_nothrow(hkey.get(), dwordValueName, test_dword_two));
+
+        // open with KEY_QUERY_VALUE only - reading works, writing is denied
+        wil::unique_hkey readonly;
+        REQUIRE_SUCCEEDED(
+            wil::reg::open_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, readonly, wil::reg::key_access{KEY_QUERY_VALUE}));
+        DWORD result{};
+        REQUIRE_SUCCEEDED(wil::reg::get_value_dword_nothrow(readonly.get(), dwordValueName, &result));
+        REQUIRE(result == test_dword_two);
+        REQUIRE(wil::reg::set_value_dword_nothrow(readonly.get(), dwordValueName, test_dword_three) == E_ACCESSDENIED);
+    }
+
+    SECTION("named key_access values still work")
+    {
+        wil::unique_hkey hkey;
+        REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
+        REQUIRE(hkey.get() != nullptr);
+    }
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+    SECTION("throwing open with a raw REGSAM mask")
+    {
+        wil::reg::set_value_dword(HKEY_CURRENT_USER, testSubkey, dwordValueName, test_dword_two);
+        const wil::unique_hkey readonly{wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey, wil::reg::key_access{KEY_QUERY_VALUE})};
+        REQUIRE(wil::reg::get_value_dword(readonly.get(), dwordValueName) == test_dword_two);
+    }
+#endif
 }

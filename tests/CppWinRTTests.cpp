@@ -776,3 +776,231 @@ TEST_CASE("CppWinRTTests::ZStringViewFromHString", "[cppwinrt]")
     winrt::hstring hstr = L"Hello";
     REQUIRE(wil::zwstring_view(hstr) == hstr);
 }
+TEST_CASE("CppWinRTTests::BatchedRangeAdapter", "[cppwinrt]")
+{
+    using namespace winrt::Windows::Foundation::Collections;
+
+    // Indexed collection spanning multiple GetMany blocks (int32 block is 128).
+    {
+        std::vector<int32_t> expected;
+        for (int32_t i = 0; i < 300; ++i)
+        {
+            expected.push_back(i);
+        }
+
+        auto vec = winrt::single_threaded_vector<int32_t>(std::vector<int32_t>(expected));
+
+        std::vector<int32_t> observed;
+        for (auto&& value : wil::batched_range(vec))
+        {
+            observed.push_back(value);
+        }
+        REQUIRE(observed == expected);
+
+        // The read-only view goes through the same indexed path.
+        observed.clear();
+        for (auto&& value : wil::batched_range(vec.GetView()))
+        {
+            observed.push_back(value);
+        }
+        REQUIRE(observed == expected);
+    }
+
+    // Exactly one element beyond a single block boundary.
+    {
+        auto vec = winrt::single_threaded_vector<int32_t>(std::vector<int32_t>(129, 7));
+        uint32_t count = 0;
+        for (auto&& value : wil::batched_range(vec))
+        {
+            REQUIRE(value == 7);
+            ++count;
+        }
+        REQUIRE(count == 129);
+    }
+
+    // Empty collection yields nothing.
+    {
+        auto vec = winrt::single_threaded_vector<int32_t>();
+        uint32_t count = 0;
+        for (auto&& value : wil::batched_range(vec))
+        {
+            (void)value;
+            ++count;
+        }
+        REQUIRE(count == 0);
+    }
+
+    // Iterable-only path (IIterable has no GetAt) buffers through IIterator::GetMany.
+    {
+        std::vector<winrt::hstring> expected = {L"a", L"b", L"c"};
+        IIterable<winrt::hstring> iterable = winrt::single_threaded_vector<winrt::hstring>(std::vector<winrt::hstring>(expected));
+
+        std::vector<winrt::hstring> observed;
+        for (auto&& value : wil::batched_range(iterable))
+        {
+            observed.push_back(value);
+        }
+        REQUIRE(observed == expected);
+    }
+
+    // Directly batching an iterator yields its current position onward.
+    {
+        auto vec = winrt::single_threaded_vector<int32_t>({1, 2, 3, 4, 5});
+        std::vector<int32_t> observed;
+        for (auto&& value : wil::batched_range(vec.First()))
+        {
+            observed.push_back(value);
+        }
+        REQUIRE(observed == std::vector<int32_t>({1, 2, 3, 4, 5}));
+    }
+
+    // Map batches over IKeyValuePair through the iterable path.
+    {
+        std::map<winrt::hstring, winrt::hstring> src{{L"kittens", L"fluffy"}, {L"puppies", L"cute"}};
+        auto map = winrt::single_threaded_map<winrt::hstring, winrt::hstring>(std::map<winrt::hstring, winrt::hstring>(src));
+        uint32_t count = 0;
+        for (auto&& pair : wil::batched_range(map))
+        {
+            REQUIRE(pair.Value() == src.at(pair.Key()));
+            ++count;
+        }
+        REQUIRE(count == src.size());
+    }
+
+    // Non-WinRT indexed shape works too, matching to_vector's duck typing.
+    {
+        uint32_t count = 0;
+        for (auto&& value : wil::batched_range(vector_like{}))
+        {
+            REQUIRE(value == vector_like{}.GetAt(0));
+            ++count;
+        }
+        REQUIRE(count == vector_like{}.Size());
+    }
+
+    // Block-boundary edge cases. For int32 the prefetch block is 128, so exercise exactly one and
+    // exactly two full blocks: the "full block implies maybe-more" rule must fetch the trailing
+    // empty block and terminate cleanly -- no infinite loop, no dropped or duplicated element.
+    for (int32_t total : {1, 127, 128, 129, 256, 257})
+    {
+        std::vector<int32_t> expected;
+        for (int32_t i = 0; i < total; ++i)
+        {
+            expected.push_back(i);
+        }
+
+        // Indexed path.
+        auto vec = winrt::single_threaded_vector<int32_t>(std::vector<int32_t>(expected));
+        std::vector<int32_t> observed;
+        for (auto&& value : wil::batched_range(vec))
+        {
+            observed.push_back(value);
+        }
+        REQUIRE(observed == expected); // exact count and in-order, so no skip/dup across seams
+
+        // Iterable-only path exercises the same boundary through IIterator::GetMany.
+        IIterable<int32_t> iterable = winrt::single_threaded_vector<int32_t>(std::vector<int32_t>(expected));
+        observed.clear();
+        for (auto&& value : wil::batched_range(iterable))
+        {
+            observed.push_back(value);
+        }
+        REQUIRE(observed == expected);
+    }
+
+    // Batching an iterator already advanced past its start yields only the remainder, matching
+    // to_vector's "current position and everything after it" contract (no re-anchor to index 0).
+    {
+        auto vec = winrt::single_threaded_vector<int32_t>({10, 20, 30, 40});
+        auto it = vec.First();
+        REQUIRE(it.Current() == 10);
+        it.MoveNext(); // now positioned at 20
+
+        std::vector<int32_t> observed;
+        for (auto&& value : wil::batched_range(it))
+        {
+            observed.push_back(value);
+        }
+        REQUIRE(observed == std::vector<int32_t>({20, 30, 40}));
+    }
+}
+
+TEST_CASE("CppWinRTTests::MakeReady", "[cppwinrt]")
+{
+    using namespace winrt;
+    using namespace winrt::Windows::Foundation;
+
+    // Completed synchronously with a value, with no coroutine frame.
+    {
+        IAsyncOperation<int32_t> op = wil::already_complete(42);
+        REQUIRE(op.Status() == AsyncStatus::Completed);
+        REQUIRE(op.ErrorCode() == 0);
+        REQUIRE(op.GetResults() == 42);
+        REQUIRE(op.get() == 42);
+    }
+
+    // co_await yields the value through the synchronous-completion path.
+    {
+        auto coro = []() -> IAsyncOperation<int32_t> {
+            co_return co_await wil::already_complete(7);
+        };
+        REQUIRE(coro().get() == 7);
+    }
+
+    // A Completed handler on an already-completed operation fires immediately.
+    {
+        auto op = wil::already_complete(5);
+        int32_t observed = 0;
+        AsyncStatus observed_status = AsyncStatus::Started;
+        op.Completed([&](IAsyncOperation<int32_t> const& sender, AsyncStatus status) {
+            observed = sender.GetResults();
+            observed_status = status;
+        });
+        REQUIRE(observed == 5);
+        REQUIRE(observed_status == AsyncStatus::Completed);
+    }
+
+    // Assigning Completed twice is illegal, matching the coroutine promise.
+    {
+        auto op = wil::already_complete(1);
+        op.Completed([](auto&&, auto&&) {});
+        REQUIRE_THROWS_AS(op.Completed([](auto&&, auto&&) {}), hresult_illegal_delegate_assignment);
+    }
+
+    // Action variant carries no result.
+    {
+        IAsyncAction action = wil::already_complete();
+        REQUIRE(action.Status() == AsyncStatus::Completed);
+        action.get();
+    }
+
+    // A non-trivial result type round-trips.
+    {
+        auto op = wil::already_complete(hstring{L"ready"});
+        REQUIRE(op.get() == L"ready");
+    }
+
+    // Failed action: Error status, GetResults/get throw the carried HRESULT.
+    {
+        IAsyncAction action = wil::already_failed(E_ACCESSDENIED);
+        REQUIRE(action.Status() == AsyncStatus::Error);
+        REQUIRE(action.ErrorCode() == E_ACCESSDENIED);
+        REQUIRE_THROWS_AS(action.get(), hresult_access_denied);
+    }
+
+    // Failed operation: GetResults throws the carried HRESULT.
+    {
+        auto op = wil::already_failed<int32_t>(E_INVALIDARG);
+        REQUIRE(op.Status() == AsyncStatus::Error);
+        REQUIRE_THROWS_AS(op.GetResults(), hresult_invalid_argument);
+    }
+
+    // Failed operation whose result is a projected runtimeclass with no default constructor: the
+    // result storage must be null-initialized (Uri{nullptr}), never activated. A plain value-init
+    // here would fail to compile, and for default-activatable classes would needlessly activate.
+    {
+        auto op = wil::already_failed<winrt::Windows::Foundation::Uri>(E_FAIL);
+        REQUIRE(op.Status() == AsyncStatus::Error);
+        REQUIRE_THROWS(op.GetResults());
+    }
+}

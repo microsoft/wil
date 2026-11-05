@@ -2034,6 +2034,8 @@ PREDEFINED             = WIL_DOXYGEN \
                          __cpp_lib_coroutine=201902L \
                          __has_include(header)=1 \
                          __cpp_lib_apply=201603L \
+                         WIL_USE_STL=1 \
+                         __cpp_lib_string_view=201803L \
 
 @INCLUDE = nosal2.doxyfile
 

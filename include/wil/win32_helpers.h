@@ -50,7 +50,9 @@
 #include "wistd_functional.h"
 #include "wistd_type_traits.h"
 
+/// @cond
 EXTERN_C IMAGE_DOS_HEADER __ImageBase;
+/// @endcond
 
 /// @cond
 namespace wistd
@@ -178,6 +180,13 @@ namespace details
 } // namespace details
 /// @endcond
 
+/** Performs an ordinal (locale-independent) comparison of two strings and returns their relative order.
+Use ordinal comparisons for resource identifiers such as filenames, registry keys, and XML node names, where a locale-sensitive
+(lexical) comparison would be incorrect. Wraps `CompareStringOrdinal`.
+@param left The first string to compare.
+@param right The second string to compare.
+@param caseInsensitive `true` to compare without regard to case; `false` for a case-sensitive comparison.
+@return A `wistd::weak_ordering` that is `less`, `equivalent`, or `greater` for `left` relative to `right`. */
 [[nodiscard]] inline wistd::weak_ordering compare_string_ordinal(std::wstring_view left, std::wstring_view right, bool caseInsensitive) WI_NOEXCEPT
 {
     switch (wil::details::CompareStringOrdinal(left, right, caseInsensitive))
@@ -195,18 +204,27 @@ namespace details
 #pragma endregion
 
 #pragma region FILETIME helpers
-// FILETIME duration values. FILETIME is in 100 nanosecond units.
+//! Common FILETIME durations, expressed in the 100-nanosecond units that `FILETIME` uses.
 namespace filetime_duration
 {
+    //! One millisecond, in 100-nanosecond units.
     long long const one_millisecond = 10000LL;
+    //! One second, in 100-nanosecond units.
     long long const one_second = 10000000LL;
+    //! One minute, in 100-nanosecond units.
     long long const one_minute = 10000000LL * 60;        // 600000000    or 600000000LL
+    //! One hour, in 100-nanosecond units.
     long long const one_hour = 10000000LL * 60 * 60;     // 36000000000  or 36000000000LL
+    //! One day, in 100-nanosecond units.
     long long const one_day = 10000000LL * 60 * 60 * 24; // 864000000000 or 864000000000LL
 }; // namespace filetime_duration
 
 namespace filetime
 {
+    /// Reinterprets a `FILETIME` as a 64-bit integer count of 100-nanosecond units.
+    /// @tparam Int64 A 64-bit integral type to return the value as; defaults to `unsigned long long`.
+    /// @param val The `FILETIME` to convert.
+    /// @return The `FILETIME` reinterpreted as a single 64-bit integer.
     template <typename Int64 = unsigned long long, wistd::enable_if_t<wistd::is_integral_v<Int64> && (sizeof(Int64) == sizeof(FILETIME)), int> = 0>
     constexpr Int64 to_int64(const FILETIME& val) WI_NOEXCEPT
     {
@@ -218,13 +236,19 @@ namespace filetime
 #endif
     }
 
+    /// @cond
     namespace details
     {
         template <typename Int>
         using select_int64 =
             wistd::conditional_t<sizeof(Int) == 8, Int, wistd::conditional_t<wistd::is_signed_v<Int>, long long, unsigned long long>>;
     }
+    /// @endcond
 
+    /// Converts an integer count of 100-nanosecond units into a `FILETIME`.
+    /// @tparam Int An integral type no larger than `FILETIME` (8 bytes).
+    /// @param val The 100-nanosecond count to convert.
+    /// @return A `FILETIME` representing the given count.
     template <typename Int, wistd::enable_if_t<wistd::is_integral_v<Int> && (sizeof(Int) <= sizeof(FILETIME)), int> = 0>
     __WI_CONSTEXPR_BIT_CAST FILETIME from_int64(Int val) WI_NOEXCEPT
     {
@@ -240,6 +264,11 @@ namespace filetime
 #endif
     }
 
+    /// Adds a 100-nanosecond delta to a `FILETIME` and returns the resulting time.
+    /// @tparam Int An integral type no larger than `FILETIME` (8 bytes).
+    /// @param baseTime The starting time.
+    /// @param delta100ns The number of 100-nanosecond units to add (negative values move backwards in time).
+    /// @return `baseTime` advanced by `delta100ns`, as a new `FILETIME`.
     template <typename Int, wistd::enable_if_t<wistd::is_integral_v<Int> && (sizeof(Int) <= sizeof(FILETIME)), int> = 0>
     __WI_CONSTEXPR_BIT_CAST FILETIME add(FILETIME const& baseTime, Int delta100ns) WI_NOEXCEPT
     {
@@ -247,11 +276,16 @@ namespace filetime
         return from_int64(to_int64<Int64>(baseTime) + delta100ns);
     }
 
+    /// Returns whether a `FILETIME` is zero (both `dwHighDateTime` and `dwLowDateTime` are 0).
+    /// @param val The `FILETIME` to test.
+    /// @return `true` if `val` is all zero, `false` otherwise.
     constexpr bool is_empty(const FILETIME& val) WI_NOEXCEPT
     {
         return (val.dwHighDateTime == 0) && (val.dwLowDateTime == 0);
     }
 
+    /// Returns the current system time (UTC) as a `FILETIME`, via `GetSystemTimeAsFileTime`.
+    /// @return The current system time.
     inline FILETIME get_system_time() WI_NOEXCEPT
     {
         FILETIME now;
@@ -311,30 +345,57 @@ namespace filetime
 #pragma endregion
 
 #pragma region RECT helpers
+/** Returns the width of a rectangle (its `right` minus `left`).
+@tparam rect_type A rectangle type with `left` and `right` members (e.g. `RECT`).
+@param rect The rectangle to measure.
+@return The width, computed as `rect.right - rect.left`. */
 template <typename rect_type>
 constexpr auto rect_width(rect_type const& rect)
 {
     return rect.right - rect.left;
 }
 
+/** Returns the height of a rectangle (its `bottom` minus `top`).
+@tparam rect_type A rectangle type with `top` and `bottom` members (e.g. `RECT`).
+@param rect The rectangle to measure.
+@return The height, computed as `rect.bottom - rect.top`. */
 template <typename rect_type>
 constexpr auto rect_height(rect_type const& rect)
 {
     return rect.bottom - rect.top;
 }
 
+/** Returns whether a rectangle is empty (encloses no area).
+@tparam rect_type A rectangle type with `left`, `top`, `right`, and `bottom` members (e.g. `RECT`).
+@param rect The rectangle to test.
+@return `true` if the rectangle is empty (`left >= right` or `top >= bottom`), `false` otherwise. */
 template <typename rect_type>
 constexpr auto rect_is_empty(rect_type const& rect)
 {
     return (rect.left >= rect.right) || (rect.top >= rect.bottom);
 }
 
+/** Returns whether a point lies within a rectangle, treating the rectangle as half-open.
+The `left` and `top` edges are inclusive while the `right` and `bottom` edges are exclusive.
+@tparam rect_type A rectangle type with `left`, `top`, `right`, and `bottom` members (e.g. `RECT`).
+@tparam point_type A point type with `x` and `y` members (e.g. `POINT`).
+@param rect The rectangle to test against.
+@param point The point to test.
+@return `true` if `point` is inside `rect`, `false` otherwise. */
 template <typename rect_type, typename point_type>
 constexpr auto rect_contains_point(rect_type const& rect, point_type const& point)
 {
     return (point.x >= rect.left) && (point.x < rect.right) && (point.y >= rect.top) && (point.y < rect.bottom);
 }
 
+/** Builds a rectangle from an origin and a size.
+@tparam rect_type A rectangle type with `left`, `top`, `right`, and `bottom` members (e.g. `RECT`).
+@tparam length_type The integral type of the coordinate and size values.
+@param x The left coordinate of the rectangle.
+@param y The top coordinate of the rectangle.
+@param width The width of the rectangle; `right` is set to `x + width`.
+@param height The height of the rectangle; `bottom` is set to `y + height`.
+@return A `rect_type` with the given origin and size. */
 template <typename rect_type, typename length_type>
 constexpr rect_type rect_from_size(length_type x, length_type y, length_type width, length_type height)
 {
@@ -347,11 +408,33 @@ constexpr rect_type rect_from_size(length_type x, length_type y, length_type wid
 }
 #pragma endregion
 
-// Use to adapt Win32 APIs that take a fixed size buffer into forms that return
-// an allocated buffer. Supports many types of string representation.
-// See comments below on the expected behavior of the callback.
-// Adjust stackBufferLength based on typical result sizes to optimize use and
-// to test the boundary cases.
+/** Adapts a Win32 API that fills a fixed-size, caller-provided buffer into one that returns an allocated string.
+Many Win32 APIs write into a fixed-size buffer and report how much space is required. This helper first tries a stack buffer of
+`stackBufferLength` characters and, if that is too small, allocates a buffer of the required size, retrying if the required size
+changes between calls. Supports any `string_type` understood by the internal `string_maker` (e.g. `wil::unique_cotaskmem_string`
+or `std::wstring`).
+~~~
+// Wrap a fixed-size Win32 API (here ::GetSystemDirectoryW) into one that returns an allocated string.
+wil::unique_cotaskmem_string dir;
+RETURN_IF_FAILED(wil::AdaptFixedSizeToAllocatedResult(dir,
+    [](PWSTR value, size_t valueLength, size_t* valueLengthNeededWithNul) -> HRESULT
+    {
+        *valueLengthNeededWithNul = ::GetSystemDirectoryW(value, static_cast<DWORD>(valueLength));
+        RETURN_LAST_ERROR_IF(*valueLengthNeededWithNul == 0);
+        if (*valueLengthNeededWithNul < valueLength)
+        {
+            (*valueLengthNeededWithNul)++; // it fit; account for the null
+        }
+        return S_OK;
+    }));
+~~~
+@tparam string_type The string type to produce the result in.
+@tparam stackBufferLength The size, in characters, of the initial stack buffer; tune it to typical result sizes.
+@param result Receives the resulting string on success.
+@param callback Invoked to fill the buffer. It is passed the buffer, the buffer length in characters, and an out pointer that it
+        must set to the number of characters needed including the null terminator. It returns an `HRESULT`, and any failure is
+        propagated to the caller.
+@return `S_OK` on success, or a failure `HRESULT` from `callback` or from allocation. */
 template <typename string_type, size_t stackBufferLength = 256>
 HRESULT AdaptFixedSizeToAllocatedResult(string_type& result, const wistd::function<HRESULT(PWSTR, size_t, size_t*)>& callback) WI_NOEXCEPT
 {
@@ -404,7 +487,7 @@ HRESULT ExpandEnvironmentStringsW(_In_ PCWSTR input, string_type& result) WI_NOE
 }
 
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM | WINAPI_PARTITION_GAMES)
-/** Searches for a specified file in a specified path using ExpandEnvironmentStringsW(); */
+/** Searches for a specified file in a specified path using SearchPathW(). */
 template <typename string_type, size_t stackBufferLength = 256>
 HRESULT SearchPathW(_In_opt_ PCWSTR path, _In_ PCWSTR fileName, _In_opt_ PCWSTR extension, string_type& result) WI_NOEXCEPT
 {
@@ -431,6 +514,15 @@ HRESULT SearchPathW(_In_opt_ PCWSTR path, _In_ PCWSTR fileName, _In_opt_ PCWSTR 
         });
 }
 
+/** Retrieves the full path of the executable image for the specified process, using `QueryFullProcessImageNameW`.
+@tparam string_type The string type to produce the result in.
+@tparam stackBufferLength The size, in characters, of the initial stack buffer.
+@param processHandle A handle to the process, opened with `PROCESS_QUERY_INFORMATION` or `PROCESS_QUERY_LIMITED_INFORMATION`
+        access.
+@param flags Passed through to `QueryFullProcessImageNameW`; `0` for the Win32 path form or `PROCESS_NAME_NATIVE` for the native
+        path form.
+@param result Receives the image path on success.
+@return `S_OK` on success, or a failure `HRESULT`. */
 template <typename string_type, size_t stackBufferLength = 256>
 HRESULT QueryFullProcessImageNameW(HANDLE processHandle, _In_ DWORD flags, string_type& result) WI_NOEXCEPT
 {
@@ -499,8 +591,8 @@ HRESULT TryGetEnvironmentVariableW(_In_ PCWSTR key, string_type& result) WI_NOEX
     return S_OK;
 }
 
-/** Retrieves the fully qualified path for the file containing the specified module loaded
-by a given process. Note GetModuleFileNameExW is a macro.*/
+/** Retrieves the fully qualified path for the file containing the specified module loaded by a given process.
+Note GetModuleFileNameExW is a macro. */
 template <typename string_type, size_t initialBufferLength = 128>
 HRESULT GetModuleFileNameExW(_In_opt_ HANDLE process, _In_opt_ HMODULE module, string_type& path) WI_NOEXCEPT
 {
@@ -542,15 +634,19 @@ HRESULT GetModuleFileNameExW(_In_opt_ HANDLE process, _In_opt_ HMODULE module, s
 }
 
 /** Retrieves the fully qualified path for the file that contains the specified module.
-The module must have been loaded by the current process. The path returned will use the
-same format that was specified when the module was loaded. Therefore, the path can be a
-long or short file name, and can have the prefix '\\?\'. */
+The module must have been loaded by the current process. The path returned will use the same format that was specified when the
+module was loaded. Therefore, the path can be a long or short file name, and can have the prefix '\\?\'. */
 template <typename string_type, size_t initialBufferLength = 128>
 HRESULT GetModuleFileNameW(HMODULE module, string_type& path) WI_NOEXCEPT
 {
     return wil::GetModuleFileNameExW<string_type, initialBufferLength>(nullptr, module, path);
 }
 
+/** Retrieves the path of the Windows system directory, using `GetSystemDirectoryW`.
+@tparam string_type The string type to produce the result in.
+@tparam stackBufferLength The size, in characters, of the initial stack buffer.
+@param result Receives the system directory path on success.
+@return `S_OK` on success, or a failure `HRESULT`. */
 template <typename string_type, size_t stackBufferLength = 256>
 HRESULT GetSystemDirectoryW(string_type& result) WI_NOEXCEPT
 {
@@ -567,6 +663,11 @@ HRESULT GetSystemDirectoryW(string_type& result) WI_NOEXCEPT
 }
 
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM | WINAPI_PARTITION_GAMES)
+/** Retrieves the path of the Windows directory, using `GetWindowsDirectoryW`.
+@tparam string_type The string type to produce the result in.
+@tparam stackBufferLength The size, in characters, of the initial stack buffer.
+@param result Receives the Windows directory path on success.
+@return `S_OK` on success, or a failure `HRESULT`. */
 template <typename string_type, size_t stackBufferLength = 256>
 HRESULT GetWindowsDirectoryW(string_type& result) WI_NOEXCEPT
 {
@@ -594,7 +695,7 @@ string_type ExpandEnvironmentStringsW(_In_ PCWSTR input)
 }
 
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM | WINAPI_PARTITION_GAMES)
-/** Searches for a specified file in a specified path using SearchPathW*/
+/** Searches for a specified file in a specified path using SearchPathW. */
 template <typename string_type = wil::unique_cotaskmem_string, size_t stackBufferLength = 256>
 string_type TrySearchPathW(_In_opt_ PCWSTR path, _In_ PCWSTR fileName, PCWSTR _In_opt_ extension)
 {
@@ -623,6 +724,12 @@ string_type TryGetEnvironmentVariableW(_In_ PCWSTR key)
     return result;
 }
 
+/** Retrieves the fully qualified path for the file that contains the specified module.
+Throws on failure. The module must have been loaded by the current process.
+@tparam string_type The string type to return; defaults to `wil::unique_cotaskmem_string`.
+@tparam initialBufferLength The size, in characters, of the initial stack buffer.
+@param module The module to query, or `nullptr` for the current process's executable.
+@return The module's fully qualified path. */
 template <typename string_type = wil::unique_cotaskmem_string, size_t initialBufferLength = 128>
 string_type GetModuleFileNameW(HMODULE module = nullptr /* current process module */)
 {
@@ -631,6 +738,13 @@ string_type GetModuleFileNameW(HMODULE module = nullptr /* current process modul
     return result;
 }
 
+/** Retrieves the fully qualified path for the file containing the specified module loaded by a given process.
+Throws on failure. Note `GetModuleFileNameExW` is a macro.
+@tparam string_type The string type to return; defaults to `wil::unique_cotaskmem_string`.
+@tparam initialBufferLength The size, in characters, of the initial stack buffer.
+@param process The process that loaded the module, or `nullptr` to use the current process.
+@param module The module to query, or `nullptr` for the process's executable.
+@return The module's fully qualified path. */
 template <typename string_type = wil::unique_cotaskmem_string, size_t initialBufferLength = 128>
 string_type GetModuleFileNameExW(HANDLE process, HMODULE module)
 {
@@ -640,6 +754,11 @@ string_type GetModuleFileNameExW(HANDLE process, HMODULE module)
 }
 
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM | WINAPI_PARTITION_GAMES)
+/** Retrieves the path of the Windows directory, using `GetWindowsDirectoryW`.
+Throws on failure.
+@tparam string_type The string type to return; defaults to `wil::unique_cotaskmem_string`.
+@tparam stackBufferLength The size, in characters, of the initial stack buffer.
+@return The Windows directory path. */
 template <typename string_type = wil::unique_cotaskmem_string, size_t stackBufferLength = 256>
 string_type GetWindowsDirectoryW()
 {
@@ -649,6 +768,11 @@ string_type GetWindowsDirectoryW()
 }
 #endif
 
+/** Retrieves the path of the Windows system directory, using `GetSystemDirectoryW`.
+Throws on failure.
+@tparam string_type The string type to return; defaults to `wil::unique_cotaskmem_string`.
+@tparam stackBufferLength The size, in characters, of the initial stack buffer.
+@return The system directory path. */
 template <typename string_type = wil::unique_cotaskmem_string, size_t stackBufferLength = 256>
 string_type GetSystemDirectoryW()
 {
@@ -657,6 +781,13 @@ string_type GetSystemDirectoryW()
     return result;
 }
 
+/** Retrieves the full path of the executable image for the specified process, using `QueryFullProcessImageNameW`.
+Throws on failure.
+@tparam string_type The string type to return; defaults to `wil::unique_cotaskmem_string`.
+@tparam stackBufferLength The size, in characters, of the initial stack buffer.
+@param processHandle A handle to the process; defaults to the current process.
+@param flags Passed through to `QueryFullProcessImageNameW`; `0` for the Win32 path form or `PROCESS_NAME_NATIVE`.
+@return The process image path. */
 template <typename string_type = wil::unique_cotaskmem_string, size_t stackBufferLength = 256>
 string_type QueryFullProcessImageNameW(HANDLE processHandle = GetCurrentProcess(), DWORD flags = 0)
 {
@@ -668,6 +799,7 @@ string_type QueryFullProcessImageNameW(HANDLE processHandle = GetCurrentProcess(
 
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
 
+/// @cond
 namespace details
 {
     // Lookup a DWORD value under HKLM\...\Image File Execution Options\<current process name>
@@ -704,8 +836,15 @@ namespace details
         return S_OK;
     }
 } // namespace details
+/// @endcond
 
 #ifdef WIL_ENABLE_EXCEPTIONS
+/** Reads a DWORD "Image File Execution Options" value for the current process.
+Throws on failure. Looks up `valueName` under `HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution
+Options\<exe>`.
+@param valueName The name of the `REG_DWORD` value to read.
+@param defaultValue The value to return when the value is not present.
+@return The configured value, or `defaultValue` if it is not set. */
 inline DWORD GetCurrentProcessExecutionOption(PCWSTR valueName, DWORD defaultValue = 0)
 {
     DWORD result{};
@@ -714,7 +853,11 @@ inline DWORD GetCurrentProcessExecutionOption(PCWSTR valueName, DWORD defaultVal
 }
 #endif // WIL_ENABLE_EXCEPTIONS
 
-// No easy return mechanism for err_returncode_policy so skipping it.
+/** Reads a DWORD "Image File Execution Options" value for the current process, returning `defaultValue` on any failure (including
+when the value is not set).
+@param valueName The name of the `REG_DWORD` value to read.
+@param defaultValue The value to return on failure or when the value is not present.
+@return The configured value, or `defaultValue`. */
 inline DWORD GetCurrentProcessExecutionOptionNoThrow(PCWSTR valueName, DWORD defaultValue = 0)
 {
     DWORD result{};
@@ -725,6 +868,10 @@ inline DWORD GetCurrentProcessExecutionOptionNoThrow(PCWSTR valueName, DWORD def
     return result;
 }
 
+/** Reads a DWORD "Image File Execution Options" value for the current process, fail-fasting on failure.
+@param valueName The name of the `REG_DWORD` value to read.
+@param defaultValue The value to return when the value is not present.
+@return The configured value, or `defaultValue` if it is not set. */
 inline DWORD GetCurrentProcessExecutionOptionFailFast(PCWSTR valueName, DWORD defaultValue = 0)
 {
     DWORD result{};
@@ -743,6 +890,7 @@ inline DWORD GetCurrentProcessExecutionOptionFailFast(PCWSTR valueName, DWORD de
 //     missing or 0 -> don't break
 //     1 -> wait for the debugger, continue execution once it is attached
 //     2 -> wait for the debugger, break here once attached.
+/// @cond
 namespace details
 {
     template <typename error_policy>
@@ -775,19 +923,29 @@ namespace details
         }
     }
 } // namespace details
+/// @endcond
 
 #ifdef WIL_ENABLE_EXCEPTIONS
+/** Waits for a debugger to attach to the current process, based on registry configuration.
+Throws on failure. When `checkRegistryConfig` is `true`, the `WaitForDebuggerPresent` `REG_DWORD` value under this process's Image
+File Execution Options key controls the behavior: missing or `0` returns immediately, `1` waits and then continues, and `2` waits
+and then breaks into the debugger. When `false`, it unconditionally waits for a debugger to attach.
+@param checkRegistryConfig `true` to honor the registry configuration, `false` to always wait. */
 inline void WaitForDebuggerPresent(bool checkRegistryConfig = true)
 {
     details::WaitForDebuggerPresent<err_exception_policy>(checkRegistryConfig);
 }
 #endif // WIL_ENABLE_EXCEPTIONS
 
+/** Like `WaitForDebuggerPresent`, but never throws (uses the error-code policy internally).
+@param checkRegistryConfig `true` to honor the registry configuration, `false` to always wait. */
 inline void WaitForDebuggerPresentNoThrow(bool checkRegistryConfig = true)
 {
     details::WaitForDebuggerPresent<err_returncode_policy>(checkRegistryConfig);
 }
 
+/** Like `WaitForDebuggerPresent`, but fail-fasts instead of throwing on failure.
+@param checkRegistryConfig `true` to honor the registry configuration, `false` to always wait. */
 inline void WaitForDebuggerPresentFailFast(bool checkRegistryConfig = true)
 {
     details::WaitForDebuggerPresent<err_failfast_policy>(checkRegistryConfig);
@@ -796,9 +954,8 @@ inline void WaitForDebuggerPresentFailFast(bool checkRegistryConfig = true)
 #endif // DebugBreak
 #endif // WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
 
-/** Retrieve the HINSTANCE for the current DLL or EXE using this symbol that
-the linker provides for every module. This avoids the need for a global HINSTANCE variable
-and provides access to this value for static libraries. */
+/** Retrieve the HINSTANCE for the current DLL or EXE using this symbol that the linker provides for every module.
+This avoids the need for a global HINSTANCE variable and provides access to this value for static libraries. */
 inline HINSTANCE GetModuleInstanceHandle() WI_NOEXCEPT
 {
     return reinterpret_cast<HINSTANCE>(&__ImageBase);
@@ -807,11 +964,27 @@ inline HINSTANCE GetModuleInstanceHandle() WI_NOEXCEPT
 // GetModuleHandleExW was added to the app partition in version 22000 of the SDK
 #if defined(NTDDI_WIN10_CO) ? WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_SYSTEM | WINAPI_PARTITION_GAMES) \
                             : WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM | WINAPI_PARTITION_GAMES)
-// Use this in threads that can outlive the object or API call that created them.
-// Without this COM, or the API caller, can unload the DLL, resulting in a crash.
-// It is very important that this be the first object created in the thread proc
-// as when this runs down the thread exits and no destructors of objects created before
-// it will run.
+/** Keeps the current module loaded for the lifetime of a thread that may outlive the code that created it.
+Call this at the very start of a thread procedure when the thread can outlive the object or API call that created it (for
+example a thread started from a DLL that may be unloaded): without it, COM or the API caller can unload the DLL while the thread
+is still running, resulting in a crash. It must be the first object created in the thread proc so that it is destroyed last; its
+destructor calls `FreeLibraryAndExitThread`, which exits the thread and would otherwise skip the destructors of any objects
+created before it.
+~~~
+DWORD WINAPI MyThreadProc(void*)
+{
+    // Must be the first object created in the thread proc.
+    auto moduleRef = wil::get_module_reference_for_thread();
+
+    DoWorkThatMayOutliveTheCaller();
+    return 0; // moduleRef's destructor releases the module reference and exits the thread via FreeLibraryAndExitThread.
+}
+
+// The DLL that starts the thread may be unloaded before MyThreadProc finishes; the reference above keeps it loaded.
+wil::unique_handle thread{::CreateThread(nullptr, 0, MyThreadProc, nullptr, 0, nullptr)};
+~~~
+@return A `wil::scope_exit` object that, when destroyed, calls `FreeLibraryAndExitThread` to release the module reference and
+        exit the thread. */
 [[nodiscard]] inline auto get_module_reference_for_thread() noexcept
 {
     HMODULE thisModule{};
@@ -1223,6 +1396,12 @@ inline std::basic_string<CharT> ArgvToCommandLine(RangeT&& range, ArgvToCommandL
     return result;
 }
 
+//! Overload of `ArgvToCommandLine` that accepts a C-style `argc`/`argv` pair (e.g. from `wmain`/`main`).
+//! @tparam CharT The character type of the arguments (`wchar_t` or `char`).
+//! @param argc The number of arguments in `argv`.
+//! @param argv The array of argument strings to convert.
+//! @param flags Flags that control quoting behavior. See @ref wil::ArgvToCommandLineFlags.
+//! @return A command line string equivalent to the given arguments; see the primary `ArgvToCommandLine` overload.
 template <typename CharT>
 inline std::basic_string<wistd::remove_cv_t<CharT>> ArgvToCommandLine(
     int argc, CharT* const* argv, ArgvToCommandLineFlags flags = ArgvToCommandLineFlags::None)
@@ -1232,18 +1411,17 @@ inline std::basic_string<wistd::remove_cv_t<CharT>> ArgvToCommandLine(
 #endif
 } // namespace wil
 
-// Macro for calling GetProcAddress(), with type safety for C++ clients
-// using the type information from the specified function.
-// The return value is automatically cast to match the function prototype of the input function.
-//
-// Sample usage:
-//
-// auto sendMail = GetProcAddressByFunctionDeclaration(hinstMAPI, MAPISendMailW);
-// if (sendMail)
-// {
-//    sendMail(0, 0, pmm, MAPI_USE_DEFAULT, 0);
-// }
-//  Declaration
+/** Calls `GetProcAddress` with type safety for C++ clients, using the type information from the named function.
+The return value is automatically cast to match the function prototype of the input function.
+~~~
+auto sendMail = GetProcAddressByFunctionDeclaration(hinstMAPI, MAPISendMailW);
+if (sendMail)
+{
+    sendMail(0, 0, pmm, MAPI_USE_DEFAULT, 0);
+}
+~~~
+@param hinst The module handle to look up the function in.
+@param fn The (unqualified) name of the function whose declaration supplies the type to cast to. */
 #define GetProcAddressByFunctionDeclaration(hinst, fn) (reinterpret_cast<decltype(::fn)*>(GetProcAddress(hinst, #fn)))
 
 #endif // __WIL_WIN32_HELPERS_INCLUDED
