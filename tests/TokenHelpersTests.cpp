@@ -49,6 +49,13 @@ TEST_CASE("TokenHelpersTests::VerifyGetTokenInformationNoThrow", "[token_helpers
         REQUIRE(tokenInfo != nullptr);
     }
 
+    SECTION("TOKEN_GROUPS")
+    {
+        wil::unique_tokeninfo_ptr<TOKEN_GROUPS> tokenGroups;
+        REQUIRE_SUCCEEDED(wil::get_token_information_nothrow(tokenGroups, GetCurrentProcessToken()));
+        REQUIRE(tokenGroups->GroupCount > 0);
+    }
+
     SECTION("Passing a non null token, since it a fake token there is no tokenInfo and hence should fail, code path is correct")
     {
         HANDLE faketoken = GetStdHandle(STD_INPUT_HANDLE);
@@ -210,6 +217,7 @@ TEST_CASE("TokenHelpersTests::VerifyGetTokenInformation2", "[token_helpers]")
     TestGetTokenInfoForCurrentThread<TOKEN_ACCESS_INFORMATION>();
     TestGetTokenInfoForCurrentThread<TOKEN_APPCONTAINER_INFORMATION>();
     TestGetTokenInfoForCurrentThread<TOKEN_DEFAULT_DACL>();
+    TestGetTokenInfoForCurrentThread<TOKEN_GROUPS>();
     TestGetTokenInfoForCurrentThread<TOKEN_GROUPS_AND_PRIVILEGES>();
     TestGetTokenInfoForCurrentThread<TOKEN_MANDATORY_LABEL>();
     TestGetTokenInfoForCurrentThread<TOKEN_OWNER>();
@@ -294,6 +302,7 @@ TEST_CASE("TokenHelpersTests::VerifyGetTokenInfo", "[token_helpers]")
 {
     REQUIRE_NOTHROW(wil::get_token_information<TOKEN_APPCONTAINER_INFORMATION>());
     REQUIRE_NOTHROW(wil::get_token_information<TOKEN_ELEVATION_TYPE>());
+    REQUIRE_NOTHROW(wil::get_token_information<TOKEN_GROUPS>());
     REQUIRE_NOTHROW(wil::get_token_information<TOKEN_MANDATORY_POLICY>());
     REQUIRE_NOTHROW(wil::get_token_information<TOKEN_ORIGIN>());
     REQUIRE_NOTHROW(wil::get_token_information<TOKEN_STATISTICS>());
@@ -313,6 +322,7 @@ TEST_CASE("TokenHelpersTests::VerifyGetTokenInfoFailFast", "[token_helpers]")
     // fixed size
     REQUIRE_NOTHROW(wil::get_token_information_failfast<TOKEN_APPCONTAINER_INFORMATION>());
     // variable size
+    REQUIRE_NOTHROW(wil::get_token_information_failfast<TOKEN_GROUPS>());
     REQUIRE_NOTHROW(wil::get_token_information_failfast<TOKEN_OWNER>());
 }
 

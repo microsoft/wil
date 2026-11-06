@@ -60,6 +60,12 @@ namespace details
         static constexpr bool FixedSize = false;
     };
     template <>
+    struct MapTokenStructToInfoClass<TOKEN_GROUPS>
+    {
+        static constexpr TOKEN_INFORMATION_CLASS infoClass = TokenGroups;
+        static constexpr bool FixedSize = false;
+    };
+    template <>
     struct MapTokenStructToInfoClass<TOKEN_GROUPS_AND_PRIVILEGES>
     {
         static constexpr TOKEN_INFORMATION_CLASS infoClass = TokenGroupsAndPrivileges;
