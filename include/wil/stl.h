@@ -423,15 +423,7 @@ private:
     static constexpr BaseType view_from_pointer(const TChar* value, size_type length) noexcept
     {
         validate_pointer(value);
-        if constexpr (ZStringViewTraits::empty_strings_are_non_null)
-        {
-            // Use a zero-length view when the test hook suppresses fail-fast for null input.
-            return BaseType(value, value == nullptr ? 0 : length);
-        }
-        else
-        {
-            return BaseType(value, length);
-        }
+        return BaseType(value, length);
     }
 
     static constexpr void validate_pointer(const TChar* value) noexcept

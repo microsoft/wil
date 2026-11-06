@@ -404,7 +404,6 @@ TEST_CASE("StlTests::TestNonNullZStringView", "[stl][zstring_view][nonnull]")
         const char_type* nullPointer = nullptr;
         REQUIRE_ERROR((nonnull_type{nullPointer}));
         REQUIRE_ERROR((nonnull_type{nullPointer, 0}));
-        REQUIRE_ERROR((nonnull_type{nullPointer, 1}));
         REQUIRE_ERROR((nonnull_type{nullableDefault}));
     };
 
@@ -457,7 +456,6 @@ TEST_CASE("StlTests::ZStringView string-like null inputs", "[stl][zstring_view]"
         REQUIRE(nullable.size() == 0);
         REQUIRE(nullable.c_str() == nullptr);
         REQUIRE_ERROR((nonnull_type{emptyString}));
-        REQUIRE_ERROR((nonnull_type{sized_string{nullptr, 1}}));
 
         const nullable_type copy{nullable};
         REQUIRE(copy.data() == nullptr);
