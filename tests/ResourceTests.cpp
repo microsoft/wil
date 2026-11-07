@@ -699,6 +699,20 @@ TEST_CASE("UniqueStringAndStringMakerTests::VerifyStringMakerHString", "[resourc
     });
 }
 
+#ifdef _WIN64
+TEST_CASE("UniqueStringAndStringMakerTests::VerifyHStringLengthOverflow", "[resource][string_maker]")
+{
+    // Truncating this length to UINT32 gives 3, so none of these calls can read past the end of the buffer
+    const size_t length = 0x100000003ull;
+
+    REQUIRE(!wil::make_unique_string_nothrow<wil::unique_hstring>(L"abc", length));
+
+    wil::details::string_maker<wil::unique_hstring> maker;
+    REQUIRE(maker.make(L"abc", length) == HRESULT_FROM_WIN32(ERROR_ARITHMETIC_OVERFLOW));
+    REQUIRE(maker.make(nullptr, length) == HRESULT_FROM_WIN32(ERROR_ARITHMETIC_OVERFLOW));
+}
+#endif
+
 TEST_CASE("UniqueStringAndStringMakerTests::VerifyStringMakerStdWString", "[resource][string_maker]")
 {
     wil::details::string_maker<std::wstring> maker;

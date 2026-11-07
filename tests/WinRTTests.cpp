@@ -369,6 +369,50 @@ TEST_CASE("WinRTTests::HStringComparison", "[winrt][hstring_compare]")
 }
 
 #ifdef WIL_ENABLE_EXCEPTIONS
+TEST_CASE("WinRTTests::HStringComparisonLengthOverflow", "[winrt][hstring_compare]")
+{
+    // Looks like a std::wstring to hstring_compare, but lets the test report a size larger than the buffer
+    struct fake_string
+    {
+        using size_type = size_t;
+
+        fake_string(wchar_t* value) : m_value(value)
+        {
+        }
+
+        const wchar_t* data() const
+        {
+            return m_value;
+        }
+
+        size_type size() const
+        {
+            return m_size;
+        }
+
+        const wchar_t* m_value;
+        size_type m_size = 3;
+    };
+
+    wchar_t buffer[] = L"abc";
+    fake_string str(buffer);
+    REQUIRE(wil::details::hstring_compare<false, false>::equals(str, L"abc"));
+
+    // CompareStringOrdinal would treat this length as -1 and read up to the null terminator
+    str.m_size = 0xffffffff;
+    REQUIRE(witest::DoesCodeFailFast([&] {
+        (void)wil::details::hstring_compare<false, false>::equals(str, L"abc");
+    }));
+
+#ifdef _WIN64
+    // Truncating this length to UINT32 gives 3
+    str.m_size = 0x100000003ull;
+    REQUIRE(witest::DoesCodeFailFast([&] {
+        (void)wil::details::hstring_compare<false, false>::equals(str, L"abc");
+    }));
+#endif
+}
+
 TEST_CASE("WinRTTests::HStringMapTest", "[winrt][hstring_compare]")
 {
     int nextValue = 0;

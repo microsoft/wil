@@ -5381,6 +5381,10 @@ inline unique_hstring make_unique_string_nothrow<unique_hstring>(
     {
         length = wcslen(source);
     }
+    if (length > 0xffffffffUL /*UINT32_MAX*/)
+    {
+        return unique_hstring{};
+    }
 
     unique_hstring result;
     ::WindowsCreateString(source, static_cast<UINT32>(length), &result);
@@ -5467,6 +5471,7 @@ namespace details
                 _When_((source != nullptr) && length == static_cast<size_t>(-1), _In_z_) const wchar_t* source,
             size_t length)
         {
+            RETURN_HR_IF(HRESULT_FROM_WIN32(ERROR_ARITHMETIC_OVERFLOW), length > 0xffffffffUL /*UINT32_MAX*/);
             if (source)
             {
                 RETURN_IF_FAILED(WindowsCreateString(source, static_cast<UINT32>(length), &m_value));
