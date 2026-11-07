@@ -550,9 +550,54 @@ inline unique_token_reverter run_as_self()
 }
 #endif // WIL_ENABLE_EXCEPTIONS
 
+#if __WI_LIBCPP_STD_VER >= 20
+// Clang reports class-type template arguments through an extension probe.
+#if defined(__cpp_consteval) && __cpp_consteval >= 201811L
+#if defined(__cpp_nontype_template_args) && __cpp_nontype_template_args >= 201911L
+#define __WIL_HAS_CLASS_NTTP 1
+#elif defined(__clang__)
+#if __has_extension(cxx_generalized_nttp)
+#define __WIL_HAS_CLASS_NTTP 1
+#endif
+#endif
+#endif
+#endif
+
 /// @cond
 namespace details
 {
+#ifdef __WIL_HAS_CLASS_NTTP
+    // Fixed-size string for use as a non-type template parameter (C++20).
+    template <size_t N>
+    struct fixed_string
+    {
+        char data[N]{};
+
+        constexpr fixed_string(const char (&str)[N]) noexcept
+        {
+            for (size_t i = 0; i < N; ++i)
+            {
+                data[i] = str[i];
+            }
+        }
+
+        static constexpr size_t length = N - 1;
+
+        constexpr size_t count(char value) const noexcept
+        {
+            size_t result = 0;
+            for (size_t i = 0; i < length; ++i)
+            {
+                if (data[i] == value)
+                {
+                    ++result;
+                }
+            }
+            return result;
+        }
+    };
+#endif
+
     template <size_t AuthorityCount>
     struct static_sid_t
     {
@@ -561,7 +606,14 @@ namespace details
         SID_IDENTIFIER_AUTHORITY IdentifierAuthority;
         DWORD SubAuthority[AuthorityCount];
 
-        PSID get()
+        static constexpr size_t byte_size = offsetof(SID, SubAuthority) + (sizeof(DWORD) * AuthorityCount);
+
+#ifdef __WIL_HAS_CLASS_NTTP
+        template <fixed_string S>
+        static constexpr static_sid_t from_string();
+#endif
+
+        PSID get() noexcept
         {
             return reinterpret_cast<PSID>(this);
         }
@@ -613,6 +665,498 @@ constexpr auto make_static_nt_sid(Ts&&... subAuthorities)
 {
     return make_static_sid(SECURITY_NT_AUTHORITY, wistd::forward<Ts>(subAuthorities)...);
 }
+
+#if __WI_LIBCPP_STD_VER >= 20
+
+/// @cond
+namespace details
+{
+    constexpr void check_sd_input(bool valid, const char* message)
+    {
+        if (!valid)
+        {
+#ifdef WIL_ENABLE_EXCEPTIONS
+            throw message;
+#else
+            (void)message;
+            FAIL_FAST();
+#endif
+        }
+    }
+
+#ifdef __WIL_HAS_CLASS_NTTP
+    // Parse an unsigned decimal integer from a string starting at pos, advancing pos past the digits.
+    template <typename UInt>
+    constexpr UInt parse_uint(const char* str, size_t len, size_t& pos)
+    {
+        static_assert(wistd::is_unsigned<UInt>::value, "an unsigned integer type is required");
+        check_sd_input(pos < len && str[pos] >= '0' && str[pos] <= '9', "expected an integer in SID string");
+        constexpr UInt maxValue = static_cast<UInt>(-1);
+        UInt value = 0;
+        while (pos < len && str[pos] >= '0' && str[pos] <= '9')
+        {
+            const auto digit = static_cast<UInt>(str[pos] - '0');
+            check_sd_input(value <= (maxValue - digit) / 10, "integer overflow in SID string");
+            value = static_cast<UInt>((value * 10) + digit);
+            ++pos;
+        }
+        return value;
+    }
+
+    template <size_t AuthorityCount>
+    template <fixed_string S>
+    constexpr static_sid_t<AuthorityCount> static_sid_t<AuthorityCount>::from_string()
+    {
+        static_assert(AuthorityCount <= SID_MAX_SUB_AUTHORITIES, "too many sub authorities in SID string");
+        static_assert(S.count('-') == AuthorityCount + 2, "SID string sub authority count does not match the SID type");
+
+        static_sid_t result{};
+        check_sd_input(S.length >= 2 && (S.data[0] == 'S' || S.data[0] == 's') && S.data[1] == '-', "SID string must start with S-");
+        size_t pos = 2;
+
+        result.Revision = parse_uint<BYTE>(S.data, S.length, pos);
+        check_sd_input(result.Revision == SID_REVISION, "unsupported SID revision");
+        check_sd_input(pos < S.length && S.data[pos] == '-', "expected a separator in SID string");
+        ++pos;
+
+        // Identifier authority (big-endian 6-byte value; common authorities fit in the low bytes)
+        const uint64_t authority = parse_uint<uint64_t>(S.data, S.length, pos);
+        check_sd_input(authority <= 0xFFFFFFFFFFFFULL, "identifier authority exceeds 48 bits");
+        result.IdentifierAuthority = {};
+        result.IdentifierAuthority.Value[5] = static_cast<BYTE>(authority & 0xFF);
+        result.IdentifierAuthority.Value[4] = static_cast<BYTE>((authority >> 8) & 0xFF);
+        result.IdentifierAuthority.Value[3] = static_cast<BYTE>((authority >> 16) & 0xFF);
+        result.IdentifierAuthority.Value[2] = static_cast<BYTE>((authority >> 24) & 0xFF);
+        result.IdentifierAuthority.Value[1] = static_cast<BYTE>((authority >> 32) & 0xFF);
+        result.IdentifierAuthority.Value[0] = static_cast<BYTE>((authority >> 40) & 0xFF);
+
+        result.SubAuthorityCount = static_cast<uint8_t>(AuthorityCount);
+
+        // Sub-authorities
+        for (size_t i = 0; i < AuthorityCount; ++i)
+        {
+            check_sd_input(pos < S.length && S.data[pos] == '-', "expected a separator in SID string");
+            ++pos;
+            result.SubAuthority[i] = parse_uint<DWORD>(S.data, S.length, pos);
+        }
+        check_sd_input(pos == S.length, "unexpected character in SID string");
+
+        return result;
+    }
+#endif // __WIL_HAS_CLASS_NTTP
+
+    template <typename UInt>
+    constexpr void write_integral(uint8_t* dest, size_t& offset, UInt value) noexcept
+    {
+        static_assert(wistd::is_unsigned<UInt>::value, "an unsigned integer type is required");
+        for (size_t i = 0; i < sizeof(UInt); ++i)
+        {
+            dest[offset++] = static_cast<uint8_t>((value >> (i * 8)) & 0xFF);
+        }
+    }
+
+    template <size_t N>
+    constexpr void write_sid(uint8_t* dest, size_t& offset, const static_sid_t<N>& sid) noexcept
+    {
+        write_integral(dest, offset, sid.Revision);
+        write_integral(dest, offset, sid.SubAuthorityCount);
+        for (const auto value : sid.IdentifierAuthority.Value)
+        {
+            write_integral(dest, offset, value);
+        }
+        for (size_t i = 0; i < N; ++i)
+        {
+            write_integral(dest, offset, sid.SubAuthority[i]);
+        }
+    }
+
+    // Intermediate ACE representation; write_ace emits the Win32 header, including AceSize.
+    template <size_t SubAuthorityCount>
+    struct static_ace_t
+    {
+        uint8_t AceType;
+        uint8_t AceFlags;
+        uint32_t Mask;
+        static_sid_t<SubAuthorityCount> Sid;
+
+        static constexpr size_t byte_size = offsetof(ACCESS_ALLOWED_ACE, SidStart) + static_sid_t<SubAuthorityCount>::byte_size;
+    };
+
+    template <size_t N>
+    constexpr void write_ace(uint8_t* dest, size_t& offset, const static_ace_t<N>& ace) noexcept
+    {
+        static_assert(sizeof(ACE_HEADER) == 4, "ACE header layout mismatch");
+        static_assert(offsetof(ACE_HEADER, AceType) == 0, "ACE header layout mismatch");
+        static_assert(offsetof(ACE_HEADER, AceFlags) == 1, "ACE header layout mismatch");
+        static_assert(offsetof(ACE_HEADER, AceSize) == 2, "ACE header layout mismatch");
+        static_assert(offsetof(ACCESS_ALLOWED_ACE, Mask) == sizeof(ACE_HEADER), "ACE layout mismatch");
+        static_assert(offsetof(ACCESS_DENIED_ACE, Mask) == sizeof(ACE_HEADER), "ACE layout mismatch");
+        static_assert(offsetof(ACCESS_ALLOWED_ACE, SidStart) == sizeof(ACE_HEADER) + sizeof(ACCESS_MASK), "ACE layout mismatch");
+        static_assert(offsetof(ACCESS_DENIED_ACE, SidStart) == offsetof(ACCESS_ALLOWED_ACE, SidStart), "ACE layout mismatch");
+        static_assert(static_ace_t<N>::byte_size <= UINT16_MAX, "ACE size exceeds 16 bits");
+        const auto aceSize = static_cast<uint16_t>(static_ace_t<N>::byte_size);
+        // ACE_HEADER
+        write_integral(dest, offset, ace.AceType);
+        write_integral(dest, offset, ace.AceFlags);
+        write_integral(dest, offset, aceSize);
+        // Mask
+        write_integral(dest, offset, ace.Mask);
+        // SID (replaces the SidStart DWORD in the Win32 ACE struct)
+        write_sid(dest, offset, ace.Sid);
+    }
+
+    // Sentinel type used when no group SID is desired.
+    struct no_sid_t
+    {
+        static constexpr size_t byte_size = 0;
+    };
+
+    constexpr void write_sid(uint8_t*, size_t&, const no_sid_t&) noexcept
+    {
+    }
+
+    // The result type: a fixed-size byte array that is layout-compatible with SECURITY_DESCRIPTOR_RELATIVE.
+    template <size_t TotalSize>
+    struct static_security_descriptor_t
+    {
+        alignas(uint32_t) uint8_t data[TotalSize]{};
+
+        PSECURITY_DESCRIPTOR get() noexcept
+        {
+            return reinterpret_cast<PSECURITY_DESCRIPTOR>(data);
+        }
+
+        PSECURITY_DESCRIPTOR get() const noexcept
+        {
+            // Win32 exposes only a mutable descriptor pointer; callers must not modify const storage.
+            return reinterpret_cast<PSECURITY_DESCRIPTOR>(const_cast<uint8_t*>(data));
+        }
+    };
+
+    // Tagged wrapper types for sd_owner() / sd_group() convenience helpers.
+    template <typename SidType>
+    struct sd_owner_t
+    {
+        SidType sid;
+
+        static constexpr size_t byte_size = SidType::byte_size;
+    };
+
+    template <typename SidType>
+    struct sd_group_t
+    {
+        SidType sid;
+
+        static constexpr size_t byte_size = SidType::byte_size;
+    };
+
+    template <typename T>
+    struct is_sd_sid : wistd::false_type
+    {
+    };
+    template <size_t N>
+    struct is_sd_sid<static_sid_t<N>> : wistd::true_type
+    {
+    };
+    template <>
+    struct is_sd_sid<no_sid_t> : wistd::true_type
+    {
+    };
+
+    template <typename T>
+    struct is_sd_owner : wistd::false_type
+    {
+    };
+    template <typename T>
+    struct is_sd_owner<sd_owner_t<T>> : is_sd_sid<T>
+    {
+    };
+
+    template <typename T>
+    struct is_sd_group : wistd::false_type
+    {
+    };
+    template <typename T>
+    struct is_sd_group<sd_group_t<T>> : is_sd_sid<T>
+    {
+    };
+
+    template <typename T>
+    struct is_static_ace : wistd::false_type
+    {
+    };
+    template <size_t N>
+    struct is_static_ace<static_ace_t<N>> : wistd::true_type
+    {
+    };
+
+    template <typename SidType>
+    constexpr void write_sid(uint8_t* dest, size_t& offset, const sd_owner_t<SidType>& owner) noexcept
+    {
+        write_sid(dest, offset, owner.sid);
+    }
+
+    template <typename SidType>
+    constexpr void write_sid(uint8_t* dest, size_t& offset, const sd_group_t<SidType>& group) noexcept
+    {
+        write_sid(dest, offset, group.sid);
+    }
+
+    // Runtime/constexpr check: deny ACEs must precede allow ACEs in the variadic pack.
+    constexpr bool deny_before_allow_check(const uint8_t* types, size_t count) noexcept
+    {
+        size_t i = 0;
+        for (; i < count; ++i)
+        {
+            if (types[i] == ACCESS_ALLOWED_ACE_TYPE)
+            {
+                ++i;
+                break;
+            }
+        }
+        for (; i < count; ++i)
+        {
+            if (types[i] == ACCESS_DENIED_ACE_TYPE)
+            {
+                return false; // deny after allow
+            }
+        }
+        return true;
+    }
+} // namespace details
+/// @endcond
+
+//! Sentinel value for omitting an owner or group SID through sd_owner() or sd_group().
+inline constexpr details::no_sid_t no_sid{};
+
+#ifdef __WIL_HAS_CLASS_NTTP
+/** Constructs a static SID from a SID string literal at compile time.
+The string must be in standard SID notation: "S-{revision}-{authority}-{sub1}-{sub2}-..."
+@code
+constexpr auto localSystem = wil::make_static_sid<"S-1-5-18">();
+constexpr auto admins = wil::make_static_sid<"S-1-5-32-544">();
+auto sd = wil::make_self_relative_sd(
+    wil::sd_owner(wil::make_static_sid<"S-1-5-32-544">()),
+    wil::sd_group(wil::no_sid),
+    wil::make_allow_ace(GENERIC_READ, wil::make_static_sid<"S-1-5-11">()));
+@endcode
+@return A static_sid_t with the parsed SID.
+*/
+template <details::fixed_string S>
+consteval auto make_static_sid() noexcept
+{
+    // "S-R-IA" has two dashes; each sub-authority adds one more.
+    constexpr size_t dashCount = S.count('-');
+    static_assert(dashCount >= 2, "SID string must contain a revision and identifier authority");
+    static_assert(dashCount <= SID_MAX_SUB_AUTHORITIES + 2, "too many sub authorities in SID string");
+    if constexpr (dashCount >= 2 && dashCount <= SID_MAX_SUB_AUTHORITIES + 2)
+    {
+        return details::static_sid_t<dashCount - 2>::template from_string<S>();
+    }
+}
+#endif // __WIL_HAS_CLASS_NTTP
+
+//! Tags a SID (or no_sid) as the owner for use with make_self_relative_sd.
+template <typename T>
+    requires(details::is_sd_sid<T>::value)
+constexpr auto sd_owner(const T& sid) noexcept
+{
+    return details::sd_owner_t<T>{sid};
+}
+
+//! Tags a SID (or no_sid) as the group for use with make_self_relative_sd.
+template <typename T>
+    requires(details::is_sd_sid<T>::value)
+constexpr auto sd_group(const T& sid) noexcept
+{
+    return details::sd_group_t<T>{sid};
+}
+
+#ifdef __WIL_HAS_CLASS_NTTP
+//! Tags a SID parsed from a string literal as the owner. Example: `wil::sd_owner<"S-1-5-18">()`
+template <details::fixed_string S>
+constexpr auto sd_owner() noexcept
+{
+    return sd_owner(make_static_sid<S>());
+}
+
+//! Tags a SID parsed from a string literal as the group. Example: `wil::sd_group<"S-1-5-32-545">()`
+template <details::fixed_string S>
+constexpr auto sd_group() noexcept
+{
+    return sd_group(make_static_sid<S>());
+}
+
+//! Constructs a constexpr ACCESS_ALLOWED ACE from a SID string literal.
+template <details::fixed_string S>
+constexpr auto make_allow_ace(uint32_t mask) noexcept
+{
+    return details::static_ace_t{ACCESS_ALLOWED_ACE_TYPE, uint8_t{0}, mask, make_static_sid<S>()};
+}
+
+//! Constructs a constexpr ACCESS_ALLOWED ACE with inheritance flags from a SID string literal.
+template <details::fixed_string S>
+constexpr auto make_allow_ace(uint8_t flags, uint32_t mask) noexcept
+{
+    return details::static_ace_t{ACCESS_ALLOWED_ACE_TYPE, flags, mask, make_static_sid<S>()};
+}
+
+//! Constructs a constexpr ACCESS_DENIED ACE from a SID string literal.
+template <details::fixed_string S>
+constexpr auto make_deny_ace(uint32_t mask) noexcept
+{
+    return details::static_ace_t{ACCESS_DENIED_ACE_TYPE, uint8_t{0}, mask, make_static_sid<S>()};
+}
+
+//! Constructs a constexpr ACCESS_DENIED ACE with inheritance flags from a SID string literal.
+template <details::fixed_string S>
+constexpr auto make_deny_ace(uint8_t flags, uint32_t mask) noexcept
+{
+    return details::static_ace_t{ACCESS_DENIED_ACE_TYPE, flags, mask, make_static_sid<S>()};
+}
+#endif // __WIL_HAS_CLASS_NTTP
+/** Constructs a constexpr ACCESS_ALLOWED ACE with the given access mask and SID.
+@code
+auto ace = wil::make_allow_ace(GENERIC_READ, wil::make_static_nt_sid(SECURITY_AUTHENTICATED_USER_RID));
+@endcode
+@param mask The ACCESS_MASK for this ACE.
+@param sid A static SID identifying the trustee.
+@return A static_ace_t suitable for passing to make_self_relative_sd.
+*/
+template <size_t N>
+constexpr auto make_allow_ace(ACCESS_MASK mask, const details::static_sid_t<N>& sid) noexcept
+{
+    return details::static_ace_t<N>{ACCESS_ALLOWED_ACE_TYPE, 0, mask, sid};
+}
+
+/** Constructs a constexpr ACCESS_ALLOWED ACE with inheritance flags.
+@param flags ACE inheritance flags (e.g. CONTAINER_INHERIT_ACE | OBJECT_INHERIT_ACE).
+@param mask The ACCESS_MASK for this ACE.
+@param sid A static SID identifying the trustee.
+*/
+template <size_t N>
+constexpr auto make_allow_ace(uint8_t flags, uint32_t mask, const details::static_sid_t<N>& sid) noexcept
+{
+    return details::static_ace_t<N>{ACCESS_ALLOWED_ACE_TYPE, flags, mask, sid};
+}
+
+/** Constructs a constexpr ACCESS_DENIED ACE with the given access mask and SID.
+@param mask The ACCESS_MASK for this ACE.
+@param sid A static SID identifying the trustee.
+*/
+template <size_t N>
+constexpr auto make_deny_ace(uint32_t mask, const details::static_sid_t<N>& sid) noexcept
+{
+    return details::static_ace_t<N>{ACCESS_DENIED_ACE_TYPE, 0, mask, sid};
+}
+
+/** Constructs a constexpr ACCESS_DENIED ACE with inheritance flags.
+@param flags ACE inheritance flags (e.g. CONTAINER_INHERIT_ACE | OBJECT_INHERIT_ACE).
+@param mask The ACCESS_MASK for this ACE.
+@param sid A static SID identifying the trustee.
+*/
+template <size_t N>
+constexpr auto make_deny_ace(uint8_t flags, uint32_t mask, const details::static_sid_t<N>& sid) noexcept
+{
+    return details::static_ace_t<N>{ACCESS_DENIED_ACE_TYPE, flags, mask, sid};
+}
+
+/** Constructs a constexpr self-relative SECURITY_DESCRIPTOR from an owner SID, group SID, and a set of ACEs.
+The resulting structure is a contiguous byte array laid out as a valid self-relative security descriptor
+that can be passed directly to any Win32 API accepting PSECURITY_DESCRIPTOR.
+
+Deny ACEs must precede allow ACEs in the parameter list. Invalid ordering rejects constant evaluation;
+runtime calls throw when exceptions are enabled and fail fast otherwise.
+Owner and group arguments require sd_owner() and sd_group() tags, respectively.
+To omit either SID, wrap wil::no_sid with the corresponding helper.
+
+@code
+constexpr auto sd = wil::make_self_relative_sd(
+    wil::sd_owner(wil::make_static_nt_sid(SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS)),
+    wil::sd_group(wil::no_sid),
+    wil::make_deny_ace(GENERIC_WRITE, wil::make_static_nt_sid(SECURITY_WORLD_RID)),
+    wil::make_allow_ace(GENERIC_READ | GENERIC_WRITE,
+        wil::make_static_nt_sid(SECURITY_AUTHENTICATED_USER_RID)));
+@endcode
+
+@param owner A SID or no_sid tagged with sd_owner().
+@param group A SID or no_sid tagged with sd_group().
+@param aces One or more ACEs built with make_allow_ace or make_deny_ace.
+@return A static_security_descriptor_t containing a valid self-relative SECURITY_DESCRIPTOR.
+*/
+template <typename OwnerSid, typename GroupSid, typename... Aces>
+    requires(details::is_sd_owner<OwnerSid>::value && details::is_sd_group<GroupSid>::value && (details::is_static_ace<Aces>::value && ...))
+constexpr auto make_self_relative_sd(const OwnerSid& owner, const GroupSid& group, const Aces&... aces)
+{
+    static_assert(sizeof...(aces) > 0, "at least one ACE is required");
+
+    constexpr size_t sdHeaderSize = sizeof(SECURITY_DESCRIPTOR_RELATIVE);
+    constexpr size_t aclHeaderSize = sizeof(ACL);
+    static_assert(sdHeaderSize == 20, "security descriptor header layout mismatch");
+    static_assert(offsetof(SECURITY_DESCRIPTOR_RELATIVE, Revision) == 0, "security descriptor header layout mismatch");
+    static_assert(offsetof(SECURITY_DESCRIPTOR_RELATIVE, Sbz1) == 1, "security descriptor header layout mismatch");
+    static_assert(offsetof(SECURITY_DESCRIPTOR_RELATIVE, Control) == 2, "security descriptor header layout mismatch");
+    static_assert(offsetof(SECURITY_DESCRIPTOR_RELATIVE, Owner) == 4, "security descriptor header layout mismatch");
+    static_assert(offsetof(SECURITY_DESCRIPTOR_RELATIVE, Group) == 8, "security descriptor header layout mismatch");
+    static_assert(offsetof(SECURITY_DESCRIPTOR_RELATIVE, Sacl) == 12, "security descriptor header layout mismatch");
+    static_assert(offsetof(SECURITY_DESCRIPTOR_RELATIVE, Dacl) == 16, "security descriptor header layout mismatch");
+    static_assert(aclHeaderSize == 8, "ACL header layout mismatch");
+    static_assert(offsetof(ACL, AclRevision) == 0, "ACL header layout mismatch");
+    static_assert(offsetof(ACL, Sbz1) == 1, "ACL header layout mismatch");
+    static_assert(offsetof(ACL, AclSize) == 2, "ACL header layout mismatch");
+    static_assert(offsetof(ACL, AceCount) == 4, "ACL header layout mismatch");
+    static_assert(offsetof(ACL, Sbz2) == 6, "ACL header layout mismatch");
+    constexpr size_t ownerSize = OwnerSid::byte_size;
+    constexpr size_t groupSize = GroupSid::byte_size;
+    constexpr size_t acesSize = (size_t{0} + ... + Aces::byte_size);
+    static_assert(aclHeaderSize + acesSize <= UINT16_MAX, "ACL size exceeds 16 bits");
+    static_assert(sizeof...(aces) <= UINT16_MAX, "ACE count exceeds 16 bits");
+    constexpr size_t totalSize = sdHeaderSize + ownerSize + groupSize + aclHeaderSize + acesSize;
+
+    // Deny ACEs must precede allow ACEs — will fail constexpr evaluation if violated.
+    uint8_t aceTypes[] = {aces.AceType...};
+    details::check_sd_input(details::deny_before_allow_check(aceTypes, sizeof...(aces)), "deny ACEs must precede allow ACEs");
+
+    details::static_security_descriptor_t<totalSize> result{};
+    size_t offset = 0;
+
+    // SECURITY_DESCRIPTOR_RELATIVE header
+    constexpr uint16_t control = SE_SELF_RELATIVE | SE_DACL_PRESENT;
+    constexpr uint32_t offsetOwner = (ownerSize > 0) ? static_cast<uint32_t>(sdHeaderSize) : 0;
+    constexpr uint32_t offsetGroup = (groupSize > 0) ? static_cast<uint32_t>(sdHeaderSize + ownerSize) : 0;
+    constexpr uint32_t offsetSacl = 0; // no SACL
+    constexpr uint32_t offsetDacl = static_cast<uint32_t>(sdHeaderSize + ownerSize + groupSize);
+
+    details::write_integral<uint8_t>(result.data, offset, SECURITY_DESCRIPTOR_REVISION); // Revision
+    details::write_integral<uint8_t>(result.data, offset, 0);                            // Sbz1
+    details::write_integral(result.data, offset, control);
+    details::write_integral(result.data, offset, offsetOwner);
+    details::write_integral(result.data, offset, offsetGroup);
+    details::write_integral(result.data, offset, offsetSacl);
+    details::write_integral(result.data, offset, offsetDacl);
+
+    // Owner SID
+    details::write_sid(result.data, offset, owner);
+
+    // Group SID
+    details::write_sid(result.data, offset, group);
+
+    // DACL: ACL header
+    constexpr auto aclSize = static_cast<uint16_t>(aclHeaderSize + acesSize);
+    constexpr auto aceCount = static_cast<uint16_t>(sizeof...(aces));
+    details::write_integral<uint8_t>(result.data, offset, ACL_REVISION); // AclRevision
+    details::write_integral<uint8_t>(result.data, offset, 0);            // Sbz1
+    details::write_integral(result.data, offset, aclSize);               // AclSize
+    details::write_integral(result.data, offset, aceCount);              // AceCount
+    details::write_integral<uint16_t>(result.data, offset, 0);           // Sbz2
+
+    // ACEs
+    (details::write_ace(result.data, offset, aces), ...);
+
+    return result;
+}
+
+#endif // __WI_LIBCPP_STD_VER >= 20
 
 /** Determines whether a specified security identifier (SID) is enabled in an access token.
 This function determines whether a security identifier, described by a given set of subauthorities, is enabled
