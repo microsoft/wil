@@ -212,7 +212,10 @@ namespace network
         // including the port and scope id if present
         // requires WSAStartup; resets to AF_UNSPEC if parsing fails
         void reset_complete_address(PCWSTR address);
+#if defined(_WINSOCK_DEPRECATED_NO_WARNINGS)
+        // the Winsock headers require having set this #define to access ANSI-string versions of the Winsock API
         void reset_complete_address(PCSTR address);
+#endif
 #endif
 
         WI_NODISCARD HRESULT reset_address_nothrow(SOCKET s) WI_NOEXCEPT;
@@ -223,7 +226,10 @@ namespace network
         // including the port and scope id if present
         // requires WSAStartup; resets to AF_UNSPEC if parsing fails
         WI_NODISCARD HRESULT reset_complete_address_nothrow(PCWSTR address) WI_NOEXCEPT;
+#if defined(_WINSOCK_DEPRECATED_NO_WARNINGS)
+        // the Winsock headers require having set this #define to access ANSI-string versions of the Winsock API
         WI_NODISCARD HRESULT reset_complete_address_nothrow(PCSTR address) WI_NOEXCEPT;
+#endif
 
         void set_port(USHORT port) WI_NOEXCEPT;
         void set_scope_id(ULONG scopeId) WI_NOEXCEPT;
@@ -274,8 +280,9 @@ namespace network
         }
 
     private:
-        // value-initialization zeroes every byte of the SOCKADDR_INET union, unlike {} which some compilers
-        // (e.g. clang) treat as initializing only the first union member (SOCKADDR_IN), leaving the tail uninitialized
+        // N.B. value-initialization must be used on the SOCKADDR_INET to zero then entire SOCKADDR_INET union.
+        // SOCKADDR_INET m_sockaddr{} - will perform aggregate initialization, and the only guarantee
+        // for aggregate types for unions is to initialize the first member of the union, which is a SOCKADDR_IN.
         SOCKADDR_INET m_sockaddr = SOCKADDR_INET();
     };
 
@@ -1058,10 +1065,13 @@ namespace network
         THROW_IF_FAILED(reset_complete_address_nothrow(address));
     }
 
+    // the Winsock headers require having set this #define to access ANSI-string versions of the Winsock API
+#if defined(_WINSOCK_DEPRECATED_NO_WARNINGS)
     inline void socket_address::reset_complete_address(PCSTR address)
     {
         THROW_IF_FAILED(reset_complete_address_nothrow(address));
     }
+#endif
 #endif
 
     inline HRESULT socket_address::reset_address_nothrow(SOCKET s) WI_NOEXCEPT
@@ -1145,6 +1155,7 @@ namespace network
         reset();
         RETURN_WIN32(error);
     }
+
     // the Winsock headers require having set this #define to access ANSI-string versions of the Winsock API
 #if defined(_WINSOCK_DEPRECATED_NO_WARNINGS)
     inline HRESULT socket_address::reset_complete_address_nothrow(PCSTR address) WI_NOEXCEPT
