@@ -379,8 +379,8 @@ namespace reg
                 return E_NOTIMPL;
             }
 
-            // resized_buffer_size_bytes returns the number of writable bytes resize_buffer_bytes allocates for a requested byte size.
-            // this can be less than the requested size: string types allocate whole WCHARs, dropping an odd trailing byte.
+            // resized_buffer_size_bytes returns the number of writable bytes resize_buffer_bytes allocates for a requested byte
+            // size. this can be less than the requested size: string types allocate whole WCHARs, dropping an odd trailing byte.
             // callers must advertise only this size to the registry read API, otherwise it can write past the buffer.
             template <typename T>
             constexpr DWORD resized_buffer_size_bytes(DWORD requestedBytes) WI_NOEXCEPT

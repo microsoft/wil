@@ -6666,26 +6666,24 @@ void verify_odd_size_string_growing_during_read(
     DWORD mismatchedAdvertisedBytes = 0;
     DWORD mismatchedExpectedBytes = 0;
     witest::detoured_thread_function<&::RegGetValueW> detour;
-    REQUIRE_SUCCEEDED(
-        detour.reset([&](HKEY key, PCWSTR subkey, PCWSTR valueName, DWORD flags, DWORD* type, void* data, DWORD* dataBytes) -> LSTATUS {
-            ++callCount;
-            if (callCount == 2)
+    REQUIRE_SUCCEEDED(detour.reset([&](HKEY key, PCWSTR subkey, PCWSTR valueName, DWORD flags, DWORD* type, void* data, DWORD* dataBytes) -> LSTATUS {
+        ++callCount;
+        if (callCount == 2)
+        {
+            ::RegSetValueExW(hkey.get(), oddSizeStringValueName, 0, valueType, reinterpret_cast<const BYTE*>(valueData), oddSizeGrownBytes);
+        }
+        if (data)
+        {
+            ++buffersChecked;
+            const DWORD expectedBytes = expectedAdvertisedBytes(result, callCount);
+            if ((expectedBytes != skipAdvertisedBytesCheck) && (*dataBytes != expectedBytes) && (mismatchedAdvertisedBytes == 0))
             {
-                ::RegSetValueExW(
-                    hkey.get(), oddSizeStringValueName, 0, valueType, reinterpret_cast<const BYTE*>(valueData), oddSizeGrownBytes);
+                mismatchedAdvertisedBytes = *dataBytes;
+                mismatchedExpectedBytes = expectedBytes;
             }
-            if (data)
-            {
-                ++buffersChecked;
-                const DWORD expectedBytes = expectedAdvertisedBytes(result, callCount);
-                if ((expectedBytes != skipAdvertisedBytesCheck) && (*dataBytes != expectedBytes) && (mismatchedAdvertisedBytes == 0))
-                {
-                    mismatchedAdvertisedBytes = *dataBytes;
-                    mismatchedExpectedBytes = expectedBytes;
-                }
-            }
-            return ::RegGetValueW(key, subkey, valueName, flags, type, data, dataBytes);
-        }));
+        }
+        return ::RegGetValueW(key, subkey, valueName, flags, type, data, dataBytes);
+    }));
 
     REQUIRE_SUCCEEDED(getValue(hkey.get(), result));
     REQUIRE(callCount > 2);
