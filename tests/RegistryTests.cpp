@@ -6628,3 +6628,270 @@ TEST_CASE("BasicRegistryTests::raw_regsam_access", "[registry]")
     }
 #endif
 }
+
+namespace
+{
+// RegSetValueExW accepts an odd byte count for REG_SZ. RegGetValueW reports that size plus room for a null (23 -> 25),
+// but string types can only allocate whole WCHARs for that request (24 bytes). The expanded-string readers accept REG_SZ
+// too, so they see the same odd sizes; a stored REG_EXPAND_SZ is reported at its expanded (even) size.
+constexpr auto* oddSizeStringValueName = L"OddSizeStringValue";
+constexpr wchar_t oddSizeStringData[] = L"abcdefghijklm";
+constexpr DWORD oddSizeShortBytes = 23; // 11 WCHARs + 1 byte
+constexpr DWORD oddSizeGrownBytes = 25; // 12 WCHARs + 1 byte
+constexpr PCWSTR oddSizeExpectedResult = L"abcdefghijkl";
+
+// REG_MULTI_SZ data whose odd-sized prefixes end mid-WCHAR in the last string: 23 bytes is "abcd\0efgh\0i" + 1 byte,
+// 25 bytes is "abcd\0efgh\0ij" + 1 byte. Its readers use byte buffers, which allocate exactly the bytes requested.
+constexpr wchar_t oddSizeMultiStringData[] = L"abcd\0efgh\0ijklm";
+// RegGetValueW drops the odd trailing byte and double-null-terminates the result (28 bytes, including the implicit null)
+constexpr wchar_t oddSizeMultiStringExpectedResult[] = L"abcd\0efgh\0ij\0";
+
+// the public multi-string readers allocate their byte buffer internally, where the detour can't observe its size
+constexpr DWORD skipAdvertisedBytesCheck = MAXDWORD;
+
+// Grows an odd-sized REG_SZ, REG_EXPAND_SZ, or REG_MULTI_SZ between WIL's size query and its read, verifying WIL
+// advertises exactly the bytes it allocated: RegGetValueW copies up to the advertised size before it returns ERROR_MORE_DATA.
+template <typename T, typename GetFn, typename ExpectedBytesFn>
+void verify_odd_size_string_growing_during_read(
+    DWORD valueType, T& result, GetFn&& getValue, ExpectedBytesFn&& expectedAdvertisedBytes, const wchar_t* valueData = oddSizeStringData)
+{
+    wil::unique_hkey hkey;
+    REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
+    REQUIRE(
+        ERROR_SUCCESS ==
+        ::RegSetValueExW(hkey.get(), oddSizeStringValueName, 0, valueType, reinterpret_cast<const BYTE*>(valueData), oddSizeShortBytes));
+
+    uint32_t callCount = 0;
+    uint32_t buffersChecked = 0;
+    DWORD mismatchedAdvertisedBytes = 0;
+    DWORD mismatchedExpectedBytes = 0;
+    witest::detoured_thread_function<&::RegGetValueW> detour;
+    REQUIRE_SUCCEEDED(detour.reset([&](HKEY key, PCWSTR subkey, PCWSTR valueName, DWORD flags, DWORD* type, void* data, DWORD* dataBytes) -> LSTATUS {
+        ++callCount;
+        if (callCount == 2)
+        {
+            ::RegSetValueExW(hkey.get(), oddSizeStringValueName, 0, valueType, reinterpret_cast<const BYTE*>(valueData), oddSizeGrownBytes);
+        }
+        if (data)
+        {
+            ++buffersChecked;
+            const DWORD expectedBytes = expectedAdvertisedBytes(result, callCount);
+            if ((expectedBytes != skipAdvertisedBytesCheck) && (*dataBytes != expectedBytes) && (mismatchedAdvertisedBytes == 0))
+            {
+                mismatchedAdvertisedBytes = *dataBytes;
+                mismatchedExpectedBytes = expectedBytes;
+            }
+        }
+        return ::RegGetValueW(key, subkey, valueName, flags, type, data, dataBytes);
+    }));
+
+    REQUIRE_SUCCEEDED(getValue(hkey.get(), result));
+    REQUIRE(callCount > 2);
+    REQUIRE(buffersChecked > 0);
+    REQUIRE(mismatchedAdvertisedBytes == mismatchedExpectedBytes);
+}
+} // namespace
+
+TEST_CASE("BasicRegistryTests::odd_size_string_growing_during_read", "[registry]")
+{
+    const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
+    if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+    {
+        REQUIRE_SUCCEEDED(deleteHr);
+    }
+
+#if defined(__WIL_OLEAUTO_H_)
+    SECTION("unique_bstr")
+    {
+        wil::unique_bstr result;
+        verify_odd_size_string_growing_during_read(
+            REG_SZ,
+            result,
+            [](HKEY key, wil::unique_bstr& output) {
+                return wil::reg::get_value_string_nothrow(key, oddSizeStringValueName, output);
+            },
+            [](const wil::unique_bstr& value, uint32_t) -> DWORD {
+                // the BSTR's characters plus its null terminator
+                return value ? ::SysStringByteLen(value.get()) + sizeof(WCHAR) : 0;
+            });
+        REQUIRE(0 == wcscmp(result.get(), oddSizeExpectedResult));
+    }
+
+    SECTION("unique_bstr expanded string")
+    {
+        for (const DWORD storedType : {REG_SZ, REG_EXPAND_SZ})
+        {
+            INFO("stored type " << storedType);
+            wil::unique_bstr result;
+            verify_odd_size_string_growing_during_read(
+                storedType,
+                result,
+                [](HKEY key, wil::unique_bstr& output) {
+                    return wil::reg::get_value_expanded_string_nothrow(key, oddSizeStringValueName, output);
+                },
+                [](const wil::unique_bstr& value, uint32_t) -> DWORD {
+                    return value ? ::SysStringByteLen(value.get()) + sizeof(WCHAR) : 0;
+                });
+            REQUIRE(0 == wcscmp(result.get(), oddSizeExpectedResult));
+        }
+    }
+#endif
+
+#if defined(__WIL_OBJBASE_H_)
+    SECTION("unique_cotaskmem_string")
+    {
+        wil::com_ptr_nothrow<IMalloc> malloc;
+        REQUIRE_SUCCEEDED(::CoGetMalloc(1, &malloc));
+
+        wil::unique_cotaskmem_string result;
+        verify_odd_size_string_growing_during_read(
+            REG_SZ,
+            result,
+            [](HKEY key, wil::unique_cotaskmem_string& output) {
+                return wil::reg::get_value_string_nothrow(key, oddSizeStringValueName, output);
+            },
+            [&](const wil::unique_cotaskmem_string& value, uint32_t) -> DWORD {
+                return value ? static_cast<DWORD>(malloc->GetSize(value.get())) : 0;
+            });
+        REQUIRE(0 == wcscmp(result.get(), oddSizeExpectedResult));
+    }
+
+    SECTION("unique_cotaskmem_string expanded string")
+    {
+        wil::com_ptr_nothrow<IMalloc> malloc;
+        REQUIRE_SUCCEEDED(::CoGetMalloc(1, &malloc));
+
+        for (const DWORD storedType : {REG_SZ, REG_EXPAND_SZ})
+        {
+            INFO("stored type " << storedType);
+            wil::unique_cotaskmem_string result;
+            verify_odd_size_string_growing_during_read(
+                storedType,
+                result,
+                [](HKEY key, wil::unique_cotaskmem_string& output) {
+                    return wil::reg::get_value_expanded_string_nothrow(key, oddSizeStringValueName, output);
+                },
+                [&](const wil::unique_cotaskmem_string& value, uint32_t) -> DWORD {
+                    return value ? static_cast<DWORD>(malloc->GetSize(value.get())) : 0;
+                });
+            REQUIRE(0 == wcscmp(result.get(), oddSizeExpectedResult));
+        }
+    }
+#endif
+
+#if defined(WIL_ENABLE_EXCEPTIONS)
+    SECTION("std::wstring")
+    {
+        std::wstring result;
+        verify_odd_size_string_growing_during_read(
+            REG_SZ,
+            result,
+            [](HKEY key, std::wstring& output) {
+                // reg_view reads directly into the caller's string, so the detour can observe its buffer
+                wil::reg::reg_view_details::reg_view{key}.get_value(nullptr, oddSizeStringValueName, output);
+                return S_OK;
+            },
+            [](const std::wstring& value, uint32_t callNumber) -> DWORD {
+                // the first call advertises the empty string's null slot; after a resize, the null slot is not advertised
+                return static_cast<DWORD>((callNumber == 1 ? value.size() + 1 : value.size()) * sizeof(wchar_t));
+            });
+        REQUIRE(result == oddSizeExpectedResult);
+    }
+
+    SECTION("std::wstring expanded string")
+    {
+        for (const DWORD storedType : {REG_SZ, REG_EXPAND_SZ})
+        {
+            INFO("stored type " << storedType);
+            std::wstring result;
+            verify_odd_size_string_growing_during_read(
+                storedType,
+                result,
+                [](HKEY key, std::wstring& output) {
+                    // the same reg_view call wil::reg::get_value_expanded_string makes, reading directly into the caller's string
+                    wil::reg::reg_view_details::reg_view{key}.get_value(nullptr, oddSizeStringValueName, output, REG_EXPAND_SZ);
+                    return S_OK;
+                },
+                [](const std::wstring& value, uint32_t callNumber) -> DWORD {
+                    return static_cast<DWORD>((callNumber == 1 ? value.size() + 1 : value.size()) * sizeof(wchar_t));
+                });
+            REQUIRE(result == oddSizeExpectedResult);
+        }
+    }
+
+    SECTION("std::vector<uint8_t> multistring")
+    {
+        std::vector<uint8_t> result;
+        verify_odd_size_string_growing_during_read(
+            REG_MULTI_SZ,
+            result,
+            [](HKEY key, std::vector<uint8_t>& output) {
+                // the same reg_view call wil::reg::get_value_multistring makes through get_value_binary
+                wil::reg::reg_view_details::reg_view{key}.get_value(nullptr, oddSizeStringValueName, output, REG_MULTI_SZ);
+                return S_OK;
+            },
+            [](const std::vector<uint8_t>& value, uint32_t) -> DWORD {
+                return static_cast<DWORD>(value.size());
+            },
+            oddSizeMultiStringData);
+        REQUIRE(result.size() == sizeof(oddSizeMultiStringExpectedResult));
+        REQUIRE(0 == memcmp(result.data(), oddSizeMultiStringExpectedResult, sizeof(oddSizeMultiStringExpectedResult)));
+    }
+
+    SECTION("std::vector<std::wstring> multistring")
+    {
+        std::vector<std::wstring> result;
+        verify_odd_size_string_growing_during_read(
+            REG_MULTI_SZ,
+            result,
+            [](HKEY key, std::vector<std::wstring>& output) {
+                output = wil::reg::get_value_multistring(key, oddSizeStringValueName);
+                return S_OK;
+            },
+            [](const std::vector<std::wstring>&, uint32_t) -> DWORD {
+                return skipAdvertisedBytesCheck;
+            },
+            oddSizeMultiStringData);
+        REQUIRE(result == std::vector<std::wstring>{L"abcd", L"efgh", L"ij"});
+    }
+#endif
+
+#if defined(__WIL_OBJBASE_H_)
+    SECTION("unique_cotaskmem_array_ptr<uint8_t> multistring")
+    {
+        wil::unique_cotaskmem_array_ptr<uint8_t> result;
+        verify_odd_size_string_growing_during_read(
+            REG_MULTI_SZ,
+            result,
+            [](HKEY key, wil::unique_cotaskmem_array_ptr<uint8_t>& output) {
+                // the same call wil::reg::get_value_multistring_nothrow makes
+                return wil::reg::get_value_binary_nothrow(key, oddSizeStringValueName, REG_MULTI_SZ, output);
+            },
+            [](const wil::unique_cotaskmem_array_ptr<uint8_t>& value, uint32_t) -> DWORD {
+                return static_cast<DWORD>(value.size());
+            },
+            oddSizeMultiStringData);
+        REQUIRE(result.size() == sizeof(oddSizeMultiStringExpectedResult));
+        REQUIRE(0 == memcmp(result.get(), oddSizeMultiStringExpectedResult, sizeof(oddSizeMultiStringExpectedResult)));
+    }
+
+    SECTION("unique_cotaskmem_array_ptr<unique_cotaskmem_string> multistring")
+    {
+        wil::unique_cotaskmem_array_ptr<wil::unique_cotaskmem_string> result;
+        verify_odd_size_string_growing_during_read(
+            REG_MULTI_SZ,
+            result,
+            [](HKEY key, wil::unique_cotaskmem_array_ptr<wil::unique_cotaskmem_string>& output) {
+                return wil::reg::get_value_multistring_nothrow(key, oddSizeStringValueName, output);
+            },
+            [](const wil::unique_cotaskmem_array_ptr<wil::unique_cotaskmem_string>&, uint32_t) -> DWORD {
+                return skipAdvertisedBytesCheck;
+            },
+            oddSizeMultiStringData);
+        REQUIRE(result.size() == 3);
+        REQUIRE(0 == wcscmp(result[0], L"abcd"));
+        REQUIRE(0 == wcscmp(result[1], L"efgh"));
+        REQUIRE(0 == wcscmp(result[2], L"ij"));
+    }
+#endif
+}

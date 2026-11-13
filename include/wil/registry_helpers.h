@@ -379,6 +379,19 @@ namespace reg
                 return E_NOTIMPL;
             }
 
+            // resized_buffer_size_bytes returns the number of writable bytes resize_buffer_bytes allocates for a requested byte
+            // size. this can be less than the requested size: string types allocate whole WCHARs, dropping an odd trailing byte.
+            // callers must advertise only this size to the registry read API, otherwise it can write past the buffer.
+            template <typename T>
+            constexpr DWORD resized_buffer_size_bytes(DWORD requestedBytes) WI_NOEXCEPT
+            {
+                return requestedBytes;
+            }
+            constexpr DWORD resized_wchar_buffer_size_bytes(DWORD requestedBytes) WI_NOEXCEPT
+            {
+                return requestedBytes - (requestedBytes % sizeof(wchar_t));
+            }
+
             // supports_trim_buffer is used to determine if the input buffer to read a registry value must be trimmed
             // after the registry read API has successfully written into the supplied buffer
             // note that currently only std::wstring requires this as it cannot have embedded nulls
@@ -589,6 +602,11 @@ namespace reg
                 return S_OK;
             }
             CATCH_RETURN();
+            template <>
+            constexpr DWORD resized_buffer_size_bytes<::std::wstring>(DWORD requestedBytes) WI_NOEXCEPT
+            {
+                return resized_wchar_buffer_size_bytes(requestedBytes);
+            }
 
             template <>
             constexpr bool supports_trim_buffer<::std::wstring>() WI_NOEXCEPT
@@ -692,6 +710,11 @@ namespace reg
                 string = new_bstr;
                 return S_OK;
             }
+            template <>
+            constexpr DWORD resized_buffer_size_bytes<BSTR>(DWORD requestedBytes) WI_NOEXCEPT
+            {
+                return resized_wchar_buffer_size_bytes(requestedBytes);
+            }
 
             inline void* get_buffer(const ::wil::unique_bstr& value) WI_NOEXCEPT
             {
@@ -738,6 +761,11 @@ namespace reg
                 // if succeeded in creating a new BSTR, move ownership of the new BSTR into string
                 string.reset(temp_bstr);
                 return S_OK;
+            }
+            template <>
+            constexpr DWORD resized_buffer_size_bytes<::wil::unique_bstr>(DWORD requestedBytes) WI_NOEXCEPT
+            {
+                return resized_wchar_buffer_size_bytes(requestedBytes);
             }
 #endif // #if defined(__WIL_OLEAUTO_H_)
 
@@ -788,6 +816,11 @@ namespace reg
                 string.reset(temp_bstr);
                 return S_OK;
             }
+            template <>
+            constexpr DWORD resized_buffer_size_bytes<::wil::shared_bstr>(DWORD requestedBytes) WI_NOEXCEPT
+            {
+                return resized_wchar_buffer_size_bytes(requestedBytes);
+            }
 #endif // #if defined(__WIL_OLEAUTO_H_STL)
 
 #if defined(__WIL_OBJBASE_H_)
@@ -819,6 +852,11 @@ namespace reg
 
                 string = ::wistd::move(new_string);
                 return S_OK;
+            }
+            template <>
+            constexpr DWORD resized_buffer_size_bytes<::wil::unique_cotaskmem_string>(DWORD requestedBytes) WI_NOEXCEPT
+            {
+                return resized_wchar_buffer_size_bytes(requestedBytes);
             }
 
             inline void* get_buffer(const ::wil::unique_cotaskmem_array_ptr<uint8_t>& value) WI_NOEXCEPT
@@ -881,6 +919,11 @@ namespace reg
                 string = ::wistd::move(new_string);
                 return S_OK;
             }
+            template <>
+            constexpr DWORD resized_buffer_size_bytes<::wil::shared_cotaskmem_string>(DWORD requestedBytes) WI_NOEXCEPT
+            {
+                return resized_wchar_buffer_size_bytes(requestedBytes);
+            }
 #endif // #if defined(__WIL_OBJBASE_H_STL)
 
             inline void* get_buffer(const ::wil::unique_process_heap_string& value) WI_NOEXCEPT
@@ -911,6 +954,11 @@ namespace reg
 
                 string = ::wistd::move(new_string);
                 return S_OK;
+            }
+            template <>
+            constexpr DWORD resized_buffer_size_bytes<::wil::unique_process_heap_string>(DWORD requestedBytes) WI_NOEXCEPT
+            {
+                return resized_wchar_buffer_size_bytes(requestedBytes);
             }
 
             // constexpr expressions to determining the get* and set* registry value types
@@ -1280,7 +1328,8 @@ namespace reg
                             }
 
                             // if it resize succeeds, continue the for loop to try again
-                            bytes_allocated = data_size_bytes;
+                            // advertise only the bytes actually allocated, which can be less than data_size_bytes
+                            bytes_allocated = reg_value_type_info::resized_buffer_size_bytes<R>(data_size_bytes);
                             continue;
                         }
 
