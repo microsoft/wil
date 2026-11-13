@@ -970,6 +970,42 @@ namespace reg
         return ::wil::reg::set_value_expanded_string_nothrow(key, nullptr, value_name, data);
     }
 
+    /**
+     * @brief Writes a REG_MULTI_SZ value from an array of null-terminated strings
+     * @param key An open or well-known registry key
+     * @param subkey The name of the subkey to append to `key`.
+     *        If `nullptr`, then `key` is used without modification.
+     * @param value_name The name of the registry value whose data is to be updated.
+     *        Can be nullptr to write to the unnamed default registry value.
+     * @param data An array of `count` null-terminated strings to write to the specified registry value.
+     *        Each string is marshaled into a contiguous null-terminator-delimited multi-sz string.
+     * @param count The number of strings in `data`
+     * @return HRESULT error code indicating success or failure (does not throw C++ exceptions)
+     */
+    inline HRESULT set_value_multistring_nothrow(
+        HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, _In_reads_(count) const PCWSTR* data, size_t count) WI_NOEXCEPT
+    {
+        ::wil::unique_process_heap_ptr<wchar_t> buffer;
+        DWORD bufferSizeBytes = 0;
+        RETURN_IF_FAILED(reg_view_details::get_multistring_from_strings_nothrow(data, count, buffer, &bufferSizeBytes));
+        return HRESULT_FROM_WIN32(::RegSetKeyValueW(key, subkey, value_name, REG_MULTI_SZ, buffer.get(), bufferSizeBytes));
+    }
+
+    /**
+     * @brief Writes a REG_MULTI_SZ value from an array of null-terminated strings
+     * @param key An open or well-known registry key
+     * @param value_name The name of the registry value whose data is to be updated.
+     *        Can be nullptr to write to the unnamed default registry value.
+     * @param data An array of `count` null-terminated strings to write to the specified registry value.
+     *        Each string is marshaled into a contiguous null-terminator-delimited multi-sz string.
+     * @param count The number of strings in `data`
+     * @return HRESULT error code indicating success or failure (does not throw C++ exceptions)
+     */
+    inline HRESULT set_value_multistring_nothrow(HKEY key, _In_opt_ PCWSTR value_name, _In_reads_(count) const PCWSTR* data, size_t count) WI_NOEXCEPT
+    {
+        return ::wil::reg::set_value_multistring_nothrow(key, nullptr, value_name, data, count);
+    }
+
 #if defined(__WIL_OBJBASE_H_) || defined(WIL_DOXYGEN)
     /**
      * @brief Writes raw bytes into a registry value under a specified key of the specified type
