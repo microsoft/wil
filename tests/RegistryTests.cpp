@@ -6640,17 +6640,26 @@ constexpr DWORD oddSizeShortBytes = 23; // 11 WCHARs + 1 byte
 constexpr DWORD oddSizeGrownBytes = 25; // 12 WCHARs + 1 byte
 constexpr PCWSTR oddSizeExpectedResult = L"abcdefghijkl";
 
-// Grows an odd-sized REG_SZ or REG_EXPAND_SZ between WIL's size query and its read, verifying WIL advertises exactly
-// the bytes it allocated: RegGetValueW copies up to the advertised size before it returns ERROR_MORE_DATA.
+// REG_MULTI_SZ data whose odd-sized prefixes end mid-WCHAR in the last string: 23 bytes is "abcd\0efgh\0i" + 1 byte,
+// 25 bytes is "abcd\0efgh\0ij" + 1 byte. Its readers use byte buffers, which allocate exactly the bytes requested.
+constexpr wchar_t oddSizeMultiStringData[] = L"abcd\0efgh\0ijklm";
+// RegGetValueW drops the odd trailing byte and double-null-terminates the result (28 bytes, including the implicit null)
+constexpr wchar_t oddSizeMultiStringExpectedResult[] = L"abcd\0efgh\0ij\0";
+
+// the public multi-string readers allocate their byte buffer internally, where the detour can't observe its size
+constexpr DWORD skipAdvertisedBytesCheck = MAXDWORD;
+
+// Grows an odd-sized REG_SZ, REG_EXPAND_SZ, or REG_MULTI_SZ between WIL's size query and its read, verifying WIL
+// advertises exactly the bytes it allocated: RegGetValueW copies up to the advertised size before it returns ERROR_MORE_DATA.
 template <typename T, typename GetFn, typename ExpectedBytesFn>
-void verify_odd_size_string_growing_during_read(DWORD valueType, T& result, GetFn&& getValue, ExpectedBytesFn&& expectedAdvertisedBytes)
+void verify_odd_size_string_growing_during_read(
+    DWORD valueType, T& result, GetFn&& getValue, ExpectedBytesFn&& expectedAdvertisedBytes, const wchar_t* valueData = oddSizeStringData)
 {
     wil::unique_hkey hkey;
     REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
     REQUIRE(
         ERROR_SUCCESS ==
-        ::RegSetValueExW(
-            hkey.get(), oddSizeStringValueName, 0, valueType, reinterpret_cast<const BYTE*>(oddSizeStringData), oddSizeShortBytes));
+        ::RegSetValueExW(hkey.get(), oddSizeStringValueName, 0, valueType, reinterpret_cast<const BYTE*>(valueData), oddSizeShortBytes));
 
     uint32_t callCount = 0;
     uint32_t buffersChecked = 0;
@@ -6663,13 +6672,13 @@ void verify_odd_size_string_growing_during_read(DWORD valueType, T& result, GetF
             if (callCount == 2)
             {
                 ::RegSetValueExW(
-                    hkey.get(), oddSizeStringValueName, 0, valueType, reinterpret_cast<const BYTE*>(oddSizeStringData), oddSizeGrownBytes);
+                    hkey.get(), oddSizeStringValueName, 0, valueType, reinterpret_cast<const BYTE*>(valueData), oddSizeGrownBytes);
             }
             if (data)
             {
                 ++buffersChecked;
                 const DWORD expectedBytes = expectedAdvertisedBytes(result, callCount);
-                if ((*dataBytes != expectedBytes) && (mismatchedAdvertisedBytes == 0))
+                if ((expectedBytes != skipAdvertisedBytesCheck) && (*dataBytes != expectedBytes) && (mismatchedAdvertisedBytes == 0))
                 {
                     mismatchedAdvertisedBytes = *dataBytes;
                     mismatchedExpectedBytes = expectedBytes;
@@ -6810,6 +6819,81 @@ TEST_CASE("BasicRegistryTests::odd_size_string_growing_during_read", "[registry]
                 });
             REQUIRE(result == oddSizeExpectedResult);
         }
+    }
+
+    SECTION("std::vector<uint8_t> multistring")
+    {
+        std::vector<uint8_t> result;
+        verify_odd_size_string_growing_during_read(
+            REG_MULTI_SZ,
+            result,
+            [](HKEY key, std::vector<uint8_t>& output) {
+                // the same reg_view call wil::reg::get_value_multistring makes through get_value_binary
+                wil::reg::reg_view_details::reg_view{key}.get_value(nullptr, oddSizeStringValueName, output, REG_MULTI_SZ);
+                return S_OK;
+            },
+            [](const std::vector<uint8_t>& value, uint32_t) -> DWORD {
+                return static_cast<DWORD>(value.size());
+            },
+            oddSizeMultiStringData);
+        REQUIRE(result.size() == sizeof(oddSizeMultiStringExpectedResult));
+        REQUIRE(0 == memcmp(result.data(), oddSizeMultiStringExpectedResult, sizeof(oddSizeMultiStringExpectedResult)));
+    }
+
+    SECTION("std::vector<std::wstring> multistring")
+    {
+        std::vector<std::wstring> result;
+        verify_odd_size_string_growing_during_read(
+            REG_MULTI_SZ,
+            result,
+            [](HKEY key, std::vector<std::wstring>& output) {
+                output = wil::reg::get_value_multistring(key, oddSizeStringValueName);
+                return S_OK;
+            },
+            [](const std::vector<std::wstring>&, uint32_t) -> DWORD {
+                return skipAdvertisedBytesCheck;
+            },
+            oddSizeMultiStringData);
+        REQUIRE(result == std::vector<std::wstring>{L"abcd", L"efgh", L"ij"});
+    }
+#endif
+
+#if defined(__WIL_OBJBASE_H_)
+    SECTION("unique_cotaskmem_array_ptr<uint8_t> multistring")
+    {
+        wil::unique_cotaskmem_array_ptr<uint8_t> result;
+        verify_odd_size_string_growing_during_read(
+            REG_MULTI_SZ,
+            result,
+            [](HKEY key, wil::unique_cotaskmem_array_ptr<uint8_t>& output) {
+                // the same call wil::reg::get_value_multistring_nothrow makes
+                return wil::reg::get_value_binary_nothrow(key, oddSizeStringValueName, REG_MULTI_SZ, output);
+            },
+            [](const wil::unique_cotaskmem_array_ptr<uint8_t>& value, uint32_t) -> DWORD {
+                return static_cast<DWORD>(value.size());
+            },
+            oddSizeMultiStringData);
+        REQUIRE(result.size() == sizeof(oddSizeMultiStringExpectedResult));
+        REQUIRE(0 == memcmp(result.get(), oddSizeMultiStringExpectedResult, sizeof(oddSizeMultiStringExpectedResult)));
+    }
+
+    SECTION("unique_cotaskmem_array_ptr<unique_cotaskmem_string> multistring")
+    {
+        wil::unique_cotaskmem_array_ptr<wil::unique_cotaskmem_string> result;
+        verify_odd_size_string_growing_during_read(
+            REG_MULTI_SZ,
+            result,
+            [](HKEY key, wil::unique_cotaskmem_array_ptr<wil::unique_cotaskmem_string>& output) {
+                return wil::reg::get_value_multistring_nothrow(key, oddSizeStringValueName, output);
+            },
+            [](const wil::unique_cotaskmem_array_ptr<wil::unique_cotaskmem_string>&, uint32_t) -> DWORD {
+                return skipAdvertisedBytesCheck;
+            },
+            oddSizeMultiStringData);
+        REQUIRE(result.size() == 3);
+        REQUIRE(0 == wcscmp(result[0], L"abcd"));
+        REQUIRE(0 == wcscmp(result[1], L"efgh"));
+        REQUIRE(0 == wcscmp(result[2], L"ij"));
     }
 #endif
 }
