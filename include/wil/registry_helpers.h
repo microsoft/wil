@@ -379,9 +379,10 @@ namespace reg
                 return E_NOTIMPL;
             }
 
-            // resized_buffer_size_bytes returns the number of writable bytes resize_buffer_bytes allocates for a requested byte
-            // size. this can be less than the requested size: string types allocate whole WCHARs, dropping an odd trailing byte.
-            // callers must advertise only this size to the registry read API, otherwise it can write past the buffer.
+            // resized_buffer_size_bytes returns the byte size to pass to resize_buffer_bytes so it allocates (and the registry
+            // read API is told about) at least the requested bytes. string types allocate whole WCHARs, so an odd request is
+            // rounded up: rounding down could advertise fewer bytes than RegGetValueW requires and retry forever. returns a
+            // value less than requestedBytes if rounding up overflows a DWORD.
             template <typename T>
             constexpr DWORD resized_buffer_size_bytes(DWORD requestedBytes) WI_NOEXCEPT
             {
@@ -389,7 +390,7 @@ namespace reg
             }
             constexpr DWORD resized_wchar_buffer_size_bytes(DWORD requestedBytes) WI_NOEXCEPT
             {
-                return requestedBytes - (requestedBytes % sizeof(wchar_t));
+                return requestedBytes + static_cast<DWORD>(requestedBytes % sizeof(wchar_t));
             }
 
             // supports_trim_buffer is used to determine if the input buffer to read a registry value must be trimmed
@@ -1319,8 +1320,16 @@ namespace reg
                              (data_size_bytes > 0));
                         if (shouldReallocate)
                         {
+                            // string types allocate whole WCHARs: round an odd size up so the buffer we advertise
+                            // is never smaller than what RegGetValueW asked for
+                            const DWORD bytes_to_allocate = reg_value_type_info::resized_buffer_size_bytes<R>(data_size_bytes);
+                            if (bytes_to_allocate < data_size_bytes)
+                            {
+                                return get_value_with_type_policy::HResult(HRESULT_FROM_WIN32(ERROR_ARITHMETIC_OVERFLOW));
+                            }
+
                             // verify if resize_buffer succeeded allocation
-                            const auto resize_buffer_hr = reg_value_type_info::resize_buffer_bytes(return_value, data_size_bytes);
+                            const auto resize_buffer_hr = reg_value_type_info::resize_buffer_bytes(return_value, bytes_to_allocate);
                             if (FAILED(resize_buffer_hr))
                             {
                                 // if resize fails, return this error back to the caller
@@ -1328,8 +1337,8 @@ namespace reg
                             }
 
                             // if it resize succeeds, continue the for loop to try again
-                            // advertise only the bytes actually allocated, which can be less than data_size_bytes
-                            bytes_allocated = reg_value_type_info::resized_buffer_size_bytes<R>(data_size_bytes);
+                            // advertise exactly the bytes allocated
+                            bytes_allocated = bytes_to_allocate;
                             continue;
                         }
 

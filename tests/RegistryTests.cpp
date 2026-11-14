@@ -6632,19 +6632,20 @@ TEST_CASE("BasicRegistryTests::raw_regsam_access", "[registry]")
 namespace
 {
 // RegSetValueExW accepts an odd byte count for REG_SZ. RegGetValueW reports that size plus room for a null (23 -> 25),
-// but string types can only allocate whole WCHARs for that request (24 bytes). The expanded-string readers accept REG_SZ
-// too, so they see the same odd sizes; a stored REG_EXPAND_SZ is reported at its expanded (even) size.
+// but string types can only allocate whole WCHARs, so they round that request up (26 bytes). The value then grows past
+// that buffer (29 -> 31) to force another resize. The expanded-string readers accept REG_SZ too, so they see the same
+// odd sizes; this growing REG_EXPAND_SZ is reported at its expanded (even) size.
 constexpr auto* oddSizeStringValueName = L"OddSizeStringValue";
-constexpr wchar_t oddSizeStringData[] = L"abcdefghijklm";
+constexpr wchar_t oddSizeStringData[] = L"abcdefghijklmnop";
 constexpr DWORD oddSizeShortBytes = 23; // 11 WCHARs + 1 byte
-constexpr DWORD oddSizeGrownBytes = 25; // 12 WCHARs + 1 byte
-constexpr PCWSTR oddSizeExpectedResult = L"abcdefghijkl";
+constexpr DWORD oddSizeGrownBytes = 29; // 14 WCHARs + 1 byte
+constexpr PCWSTR oddSizeExpectedResult = L"abcdefghijklmn";
 
 // REG_MULTI_SZ data whose odd-sized prefixes end mid-WCHAR in the last string: 23 bytes is "abcd\0efgh\0i" + 1 byte,
-// 25 bytes is "abcd\0efgh\0ij" + 1 byte. Its readers use byte buffers, which allocate exactly the bytes requested.
-constexpr wchar_t oddSizeMultiStringData[] = L"abcd\0efgh\0ijklm";
-// RegGetValueW drops the odd trailing byte and double-null-terminates the result (28 bytes, including the implicit null)
-constexpr wchar_t oddSizeMultiStringExpectedResult[] = L"abcd\0efgh\0ij\0";
+// 29 bytes is "abcd\0efgh\0ijkl" + 1 byte. Its readers use byte buffers, which allocate exactly the bytes requested.
+constexpr wchar_t oddSizeMultiStringData[] = L"abcd\0efgh\0ijklmnop";
+// RegGetValueW drops the odd trailing byte and double-null-terminates the result (32 bytes, including the implicit null)
+constexpr wchar_t oddSizeMultiStringExpectedResult[] = L"abcd\0efgh\0ijkl\0";
 
 // the public multi-string readers allocate their byte buffer internally, where the detour can't observe its size
 constexpr DWORD skipAdvertisedBytesCheck = MAXDWORD;
@@ -6852,7 +6853,7 @@ TEST_CASE("BasicRegistryTests::odd_size_string_growing_during_read", "[registry]
                 return skipAdvertisedBytesCheck;
             },
             oddSizeMultiStringData);
-        REQUIRE(result == std::vector<std::wstring>{L"abcd", L"efgh", L"ij"});
+        REQUIRE(result == std::vector<std::wstring>{L"abcd", L"efgh", L"ijkl"});
     }
 #endif
 
@@ -6891,7 +6892,318 @@ TEST_CASE("BasicRegistryTests::odd_size_string_growing_during_read", "[registry]
         REQUIRE(result.size() == 3);
         REQUIRE(0 == wcscmp(result[0], L"abcd"));
         REQUIRE(0 == wcscmp(result[1], L"efgh"));
-        REQUIRE(0 == wcscmp(result[2], L"ij"));
+        REQUIRE(0 == wcscmp(result[2], L"ijkl"));
+    }
+#endif
+}
+
+namespace
+{
+// Some stable odd-sized REG_EXPAND_SZ values make RegGetValueW report the same odd size on every expanded read, even when
+// given that size rounded down to whole WCHARs (7 bytes here: "ab", a null, and one byte of 'x'). Rounding the request down
+// would retry forever, so string types must round an odd request up.
+constexpr auto* oddSizeStableExpandValueName = L"OddSizeStableExpandValue";
+constexpr wchar_t oddSizeStableExpandData[] = L"ab\0x";
+constexpr DWORD oddSizeStableExpandBytes = 7;
+constexpr uint32_t oddSizeStableMaxReadCalls = 10;
+
+template <typename T, typename GetFn>
+void verify_odd_size_stable_expanded_read(T& result, GetFn&& getValue)
+{
+    wil::unique_hkey hkey;
+    REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
+    REQUIRE(
+        ERROR_SUCCESS ==
+        ::RegSetValueExW(
+            hkey.get(), oddSizeStableExpandValueName, 0, REG_EXPAND_SZ, reinterpret_cast<const BYTE*>(oddSizeStableExpandData), oddSizeStableExpandBytes));
+
+    uint32_t callCount = 0;
+    witest::detoured_thread_function<&::RegGetValueW> detour;
+    REQUIRE_SUCCEEDED(
+        detour.reset([&](HKEY key, PCWSTR subkey, PCWSTR valueName, DWORD flags, DWORD* type, void* data, DWORD* dataBytes) -> LSTATUS {
+            // fail instead of hanging if the read never converges
+            if (++callCount > oddSizeStableMaxReadCalls)
+            {
+                return ERROR_INVALID_DATA;
+            }
+            return ::RegGetValueW(key, subkey, valueName, flags, type, data, dataBytes);
+        }));
+
+    REQUIRE_SUCCEEDED(getValue(hkey.get(), result));
+    REQUIRE(callCount <= oddSizeStableMaxReadCalls);
+}
+} // namespace
+
+TEST_CASE("BasicRegistryTests::odd_size_stable_expanded_string_read", "[registry]")
+{
+    const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
+    if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+    {
+        REQUIRE_SUCCEEDED(deleteHr);
+    }
+
+#if defined(__WIL_OLEAUTO_H_)
+    SECTION("unique_bstr")
+    {
+        wil::unique_bstr result;
+        verify_odd_size_stable_expanded_read(result, [](HKEY key, wil::unique_bstr& output) {
+            return wil::reg::get_value_expanded_string_nothrow(key, oddSizeStableExpandValueName, output);
+        });
+        REQUIRE(0 == wcscmp(result.get(), L"ab"));
+    }
+#endif
+
+#if defined(__WIL_OBJBASE_H_)
+    SECTION("unique_cotaskmem_string")
+    {
+        wil::unique_cotaskmem_string result;
+        verify_odd_size_stable_expanded_read(result, [](HKEY key, wil::unique_cotaskmem_string& output) {
+            return wil::reg::get_value_expanded_string_nothrow(key, oddSizeStableExpandValueName, output);
+        });
+        REQUIRE(0 == wcscmp(result.get(), L"ab"));
+    }
+#endif
+
+#if defined(WIL_ENABLE_EXCEPTIONS)
+    SECTION("std::wstring")
+    {
+        std::wstring result;
+        verify_odd_size_stable_expanded_read(result, [](HKEY key, std::wstring& output) {
+            output = wil::reg::get_value_expanded_string(key, oddSizeStableExpandValueName);
+            return S_OK;
+        });
+        REQUIRE(result == L"ab");
+    }
+#endif
+}
+namespace
+{
+// A stable REG_SZ with an odd byte count (25 bytes: 12 WCHARs plus the low byte of 'm'). RegGetValueW must be given room
+// for all 25 bytes, but the returned string must contain only the 12 whole WCHARs: the trailing partial WCHAR is dropped.
+constexpr auto* oddSizeTrailingByteValueName = L"OddSizeTrailingByteValue";
+constexpr wchar_t oddSizeTrailingByteData[] = L"abcdefghijklmnop";
+constexpr DWORD oddSizeTrailingByteStoredBytes = 25;
+constexpr wchar_t oddSizeTrailingByteExpected[] = L"abcdefghijkl";
+constexpr size_t oddSizeTrailingByteExpectedLength = ARRAYSIZE(oddSizeTrailingByteExpected) - 1;
+constexpr uint32_t oddSizeTrailingByteMaxReadCalls = 10;
+
+template <typename T, typename GetFn, typename DataFn, typename LengthFn>
+void verify_odd_size_string_drops_trailing_byte(T& result, GetFn&& getValue, DataFn&& data, LengthFn&& length)
+{
+    wil::unique_hkey hkey;
+    REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey, wil::reg::key_access::readwrite));
+    REQUIRE(
+        ERROR_SUCCESS ==
+        ::RegSetValueExW(
+            hkey.get(), oddSizeTrailingByteValueName, 0, REG_SZ, reinterpret_cast<const BYTE*>(oddSizeTrailingByteData), oddSizeTrailingByteStoredBytes));
+
+    uint32_t callCount = 0;
+    DWORD successfulReadAdvertisedBytes = 0;
+    witest::detoured_thread_function<&::RegGetValueW> detour;
+    REQUIRE_SUCCEEDED(detour.reset(
+        [&](HKEY key, PCWSTR subkey, PCWSTR valueName, DWORD flags, DWORD* type, void* buffer, DWORD* dataBytes) -> LSTATUS {
+            // fail instead of hanging if the read never converges
+            if (++callCount > oddSizeTrailingByteMaxReadCalls)
+            {
+                return ERROR_INVALID_DATA;
+            }
+            const DWORD advertisedBytes = dataBytes ? *dataBytes : 0;
+            const auto status = ::RegGetValueW(key, subkey, valueName, flags, type, buffer, dataBytes);
+            if ((status == ERROR_SUCCESS) && buffer)
+            {
+                successfulReadAdvertisedBytes = advertisedBytes;
+            }
+            return status;
+        }));
+
+    REQUIRE_SUCCEEDED(getValue(hkey.get(), result));
+    // the read that succeeded had room for every stored byte, including the odd trailing byte
+    REQUIRE(successfulReadAdvertisedBytes >= oddSizeTrailingByteStoredBytes);
+    // but only the whole WCHARs are returned
+    REQUIRE(length(result) == oddSizeTrailingByteExpectedLength);
+    const wchar_t* const resultData = data(result);
+    REQUIRE(resultData != nullptr);
+    REQUIRE(0 == memcmp(resultData, oddSizeTrailingByteExpected, sizeof(oddSizeTrailingByteExpected)));
+}
+} // namespace
+
+TEST_CASE("BasicRegistryTests::odd_size_string_drops_trailing_byte", "[registry]")
+{
+    const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
+    if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+    {
+        REQUIRE_SUCCEEDED(deleteHr);
+    }
+
+    SECTION("WCHAR array")
+    {
+        WCHAR result[ARRAYSIZE(oddSizeTrailingByteData)]{};
+        verify_odd_size_string_drops_trailing_byte(
+            result,
+            [](HKEY key, WCHAR(&output)[ARRAYSIZE(oddSizeTrailingByteData)]) {
+                return wil::reg::get_value_string_nothrow(key, oddSizeTrailingByteValueName, output);
+            },
+            [](const WCHAR* value) {
+                return value;
+            },
+            [](const WCHAR* value) {
+                return wcslen(value);
+            });
+    }
+
+    SECTION("WCHAR array expanded string")
+    {
+        WCHAR result[ARRAYSIZE(oddSizeTrailingByteData)]{};
+        verify_odd_size_string_drops_trailing_byte(
+            result,
+            [](HKEY key, WCHAR(&output)[ARRAYSIZE(oddSizeTrailingByteData)]) {
+                return wil::reg::get_value_expanded_string_nothrow(key, oddSizeTrailingByteValueName, output);
+            },
+            [](const WCHAR* value) {
+                return value;
+            },
+            [](const WCHAR* value) {
+                return wcslen(value);
+            });
+    }
+
+#if defined(__WIL_OLEAUTO_H_)
+    SECTION("unique_bstr")
+    {
+        wil::unique_bstr result;
+        verify_odd_size_string_drops_trailing_byte(
+            result,
+            [](HKEY key, wil::unique_bstr& output) {
+                return wil::reg::get_value_string_nothrow(key, oddSizeTrailingByteValueName, output);
+            },
+            [](const wil::unique_bstr& value) {
+                return static_cast<const wchar_t*>(value.get());
+            },
+            [](const wil::unique_bstr& value) {
+                return static_cast<size_t>(::SysStringLen(value.get()));
+            });
+    }
+
+    SECTION("unique_bstr expanded string")
+    {
+        wil::unique_bstr result;
+        verify_odd_size_string_drops_trailing_byte(
+            result,
+            [](HKEY key, wil::unique_bstr& output) {
+                return wil::reg::get_value_expanded_string_nothrow(key, oddSizeTrailingByteValueName, output);
+            },
+            [](const wil::unique_bstr& value) {
+                return static_cast<const wchar_t*>(value.get());
+            },
+            [](const wil::unique_bstr& value) {
+                return static_cast<size_t>(::SysStringLen(value.get()));
+            });
+    }
+#endif
+
+#if defined(__WIL_OLEAUTO_H_STL)
+    SECTION("shared_bstr")
+    {
+        wil::shared_bstr result;
+        verify_odd_size_string_drops_trailing_byte(
+            result,
+            [](HKEY key, wil::shared_bstr& output) {
+                return wil::reg::get_value_string_nothrow(key, oddSizeTrailingByteValueName, output);
+            },
+            [](const wil::shared_bstr& value) {
+                return static_cast<const wchar_t*>(value.get());
+            },
+            [](const wil::shared_bstr& value) {
+                return static_cast<size_t>(::SysStringLen(value.get()));
+            });
+    }
+#endif
+
+#if defined(__WIL_OBJBASE_H_)
+    SECTION("unique_cotaskmem_string")
+    {
+        wil::unique_cotaskmem_string result;
+        verify_odd_size_string_drops_trailing_byte(
+            result,
+            [](HKEY key, wil::unique_cotaskmem_string& output) {
+                return wil::reg::get_value_string_nothrow(key, oddSizeTrailingByteValueName, output);
+            },
+            [](const wil::unique_cotaskmem_string& value) {
+                return static_cast<const wchar_t*>(value.get());
+            },
+            [](const wil::unique_cotaskmem_string& value) {
+                return wcslen(value.get());
+            });
+    }
+
+    SECTION("unique_cotaskmem_string expanded string")
+    {
+        wil::unique_cotaskmem_string result;
+        verify_odd_size_string_drops_trailing_byte(
+            result,
+            [](HKEY key, wil::unique_cotaskmem_string& output) {
+                return wil::reg::get_value_expanded_string_nothrow(key, oddSizeTrailingByteValueName, output);
+            },
+            [](const wil::unique_cotaskmem_string& value) {
+                return static_cast<const wchar_t*>(value.get());
+            },
+            [](const wil::unique_cotaskmem_string& value) {
+                return wcslen(value.get());
+            });
+    }
+#endif
+
+#if defined(__WIL_OBJBASE_H_STL)
+    SECTION("shared_cotaskmem_string")
+    {
+        wil::shared_cotaskmem_string result;
+        verify_odd_size_string_drops_trailing_byte(
+            result,
+            [](HKEY key, wil::shared_cotaskmem_string& output) {
+                return wil::reg::get_value_string_nothrow(key, oddSizeTrailingByteValueName, output);
+            },
+            [](const wil::shared_cotaskmem_string& value) {
+                return static_cast<const wchar_t*>(value.get());
+            },
+            [](const wil::shared_cotaskmem_string& value) {
+                return wcslen(value.get());
+            });
+    }
+#endif
+
+#if defined(WIL_ENABLE_EXCEPTIONS)
+    SECTION("std::wstring")
+    {
+        std::wstring result;
+        verify_odd_size_string_drops_trailing_byte(
+            result,
+            [](HKEY key, std::wstring& output) {
+                output = wil::reg::get_value_string(key, oddSizeTrailingByteValueName);
+                return S_OK;
+            },
+            [](const std::wstring& value) {
+                return value.c_str();
+            },
+            [](const std::wstring& value) {
+                return value.size();
+            });
+    }
+
+    SECTION("std::wstring expanded string")
+    {
+        std::wstring result;
+        verify_odd_size_string_drops_trailing_byte(
+            result,
+            [](HKEY key, std::wstring& output) {
+                output = wil::reg::get_value_expanded_string(key, oddSizeTrailingByteValueName);
+                return S_OK;
+            },
+            [](const std::wstring& value) {
+                return value.c_str();
+            },
+            [](const std::wstring& value) {
+                return value.size();
+            });
     }
 #endif
 }
