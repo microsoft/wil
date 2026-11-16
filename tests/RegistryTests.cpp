@@ -15,6 +15,1999 @@
 #include "common.h"
 
 constexpr auto* testSubkey = L"Software\\Microsoft\\BasicRegistryTest";
+
+namespace
+{
+struct appended_multi_layout
+{
+    const char* id;
+    size_t nullWidth;
+    std::vector<BYTE> bytes;
+    DWORD queryBytes;
+    std::vector<BYTE> nativeBytes;
+    std::vector<std::wstring> expected;
+};
+
+std::vector<appended_multi_layout> appended_multi_layouts()
+{
+    const std::vector<BYTE> prefix{'a', 0, 'b', 0, 'c', 0, 0, 0, 'd', 0, 'e', 0, 'f', 0, 0, 0};
+    const auto append = [&](std::initializer_list<BYTE> tail) {
+        auto bytes = prefix;
+        bytes.insert(bytes.end(), tail);
+        return bytes;
+    };
+    // These fixtures model native query/read extents separately from the current walker's terminal-marker policy.
+    // A lone byte cannot be skipped to realign: N1 completes A, not a WCHAR separator (C3N1 yields Aghi); N2 shifts code units.
+    // C1's found terminator is the last marker, so A is omitted; missing-terminator fixtures gain meaningful native nulls.
+    return {
+        {"P", 0, append({0x41}), 21, append({0, 0}), {L"abc", L"def"}},
+        {"old-double", 0, append({0, 0, 0x41}), 23, append({0, 0, 0x41}), {L"abc", L"def"}},
+        {"C1N1", 1, append({0x41, 0}), 22, append({0x41, 0, 0, 0}), {L"abc", L"def"}},
+        {"C1N2", 2, append({0x41, 0, 0}), 23, append({0x41, 0, 0, 0}), {L"abc", L"def"}},
+        {"C3N1", 1, append({0x41, 0, 'g', 0, 'h', 0, 'i', 0, 0, 0, 0, 0}), 32,
+            append({0x41, 0, 'g', 0, 'h', 0, 'i', 0, 0, 0, 0, 0}), {L"abc", L"def", L"Aghi"}},
+        {"C3N2", 2, append({0x41, 0, 0, 'g', 0, 'h', 0, 'i', 0, 0, 0, 0, 0}), 33,
+            append({0x41, 0, 0, 'g', 0, 'h', 0, 'i', 0, 0, 0, 0, 0}), {L"abc", L"def", L"\x0041\x6700\x6800\x6900"}}};
+}
+
+void verify_appended_multi_bytes(const BYTE* bytes, size_t count, const appended_multi_layout& layout)
+{
+    REQUIRE(bytes != nullptr);
+    REQUIRE(count == layout.nativeBytes.size());
+    REQUIRE(memcmp(bytes, layout.nativeBytes.data(), count) == 0);
+}
+
+void verify_appended_multi_string(PCWSTR data, size_t length, const std::wstring& expected)
+{
+    REQUIRE(data != nullptr);
+    REQUIRE(length == expected.size());
+    REQUIRE(data[length] == L'\0');
+    REQUIRE(::wcsnlen(data, length + 1) == length);
+    REQUIRE(wmemcmp(data, expected.data(), length) == 0);
+}
+} // namespace
+
+//----------------------------------------------------------------------------------------------------------------------
+// BasicRegistryTests::three_parser_multi_appended_null
+// Coverage: REG_MULTI_SZ appended-byte/null layouts via native RegGetValueW and whole-WCHAR walking;
+// CoTaskMem named/generic nothrow parsers and raw named/reg_view readers are OBJBASE-gated.
+// STL plus exceptions enables vector get/try, generic get/try and raw reg_view reads;
+// compare native byte extents, element contents and owned terminators without byte realignment.
+//----------------------------------------------------------------------------------------------------------------------
+TEST_CASE("BasicRegistryTests::three_parser_multi_appended_null", "[registry][registry-three-parser]")
+{
+    for (const auto& layout : appended_multi_layouts())
+    {
+        for (size_t route = 0; route < 11; ++route)
+        {
+#if !WIL_USE_STL || !defined(WIL_ENABLE_EXCEPTIONS)
+            if (route >= 6)
+            {
+                continue;
+            }
+#endif
+#if !defined(__WIL_OBJBASE_H_)
+            if (route >= 1 && route <= 4)
+            {
+                continue;
+            }
+#endif
+            constexpr const char* routes[]{"native", "cotaskmem-named", "cotaskmem-generic", "raw-named", "raw-view",
+                                          "whole-wchar-parser", "get", "try", "generic-get", "generic-try", "vector-raw-view"};
+            DYNAMIC_SECTION(layout.id << " / N=" << layout.nullWidth << " / " << routes[route])
+            {
+                wil::unique_hkey key;
+                REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(
+                    HKEY_CURRENT_USER, testSubkey, key, wil::reg::key_access::readwrite));
+                constexpr PCWSTR name = L"AppendedMultiNull";
+                auto deleteValue = wil::scope_exit([&] { ::RegDeleteValueW(key.get(), name); });
+                REQUIRE(ERROR_SUCCESS == ::RegSetValueExW(
+                    key.get(), name, 0, REG_MULTI_SZ, layout.bytes.data(), static_cast<DWORD>(layout.bytes.size())));
+                BYTE stored[64]{};
+                DWORD storedSize = sizeof(stored), storedType = REG_NONE;
+                REQUIRE(ERROR_SUCCESS == ::RegQueryValueExW(key.get(), name, nullptr, &storedType, stored, &storedSize));
+                REQUIRE(storedType == REG_MULTI_SZ);
+                REQUIRE(storedSize == layout.bytes.size());
+                REQUIRE(memcmp(stored, layout.bytes.data(), storedSize) == 0);
+                if (route == 0 || route == 5)
+                {
+                    DWORD size = 0, type = REG_NONE;
+                    REQUIRE(ERROR_SUCCESS == ::RegGetValueW(key.get(), nullptr, name, RRF_RT_REG_MULTI_SZ, &type, nullptr, &size));
+                    REQUIRE(type == REG_MULTI_SZ);
+                    REQUIRE(size == layout.queryBytes);
+                    wchar_t native[32];
+                    memset(native, 0xcc, sizeof(native));
+                    size = sizeof(native);
+                    REQUIRE(ERROR_SUCCESS == ::RegGetValueW(
+                        key.get(), nullptr, name, RRF_RT_REG_MULTI_SZ, &type, native, &size));
+                    REQUIRE(type == REG_MULTI_SZ);
+                    REQUIRE(size <= sizeof(native));
+                    verify_appended_multi_bytes(reinterpret_cast<const BYTE*>(native), size, layout);
+                    if (route == 5)
+                    {
+                        size_t count = 0;
+                        wil::reg::reg_view_details::walk_multistring(native + 0, native + size / sizeof(wchar_t),
+                            [&](const wchar_t* first, const wchar_t* last) -> bool {
+                                REQUIRE(count < layout.expected.size());
+                                REQUIRE(first >= native);
+                                REQUIRE(last >= first);
+                                REQUIRE(last < native + size / sizeof(wchar_t));
+                                verify_appended_multi_string(first, static_cast<size_t>(last - first), layout.expected[count++]);
+                                return true;
+                            });
+                        REQUIRE(count == layout.expected.size());
+                    }
+                }
+#if defined(__WIL_OBJBASE_H_)
+                else if (route == 1 || route == 2)
+                {
+                    wil::unique_cotaskmem_array_ptr<wil::unique_cotaskmem_string> value;
+                    REQUIRE_SUCCEEDED(route == 1 ? wil::reg::get_value_multistring_nothrow(key.get(), name, value) :
+                                                  wil::reg::get_value_nothrow(key.get(), name, value));
+                    REQUIRE(value.get() != nullptr);
+                    REQUIRE(value.size() == layout.expected.size());
+                    for (size_t i = 0; i < value.size(); ++i)
+                    {
+                        const auto length = layout.expected[i].size();
+                        verify_appended_multi_string(value[i], length, layout.expected[i]);
+                        REQUIRE(wcslen(value[i]) == length);
+                    }
+                }
+                else if (route == 3 || route == 4)
+                {
+                    wil::unique_cotaskmem_array_ptr<BYTE> value;
+                    REQUIRE_SUCCEEDED(route == 3 ? wil::reg::get_value_binary_nothrow(key.get(), name, REG_MULTI_SZ, value) :
+                        wil::reg::reg_view_details::reg_view_nothrow{key.get()}.get_value(nullptr, name, value, REG_MULTI_SZ));
+                    verify_appended_multi_bytes(value.get(), value.size(), layout);
+                }
+#endif
+#if WIL_USE_STL && defined(WIL_ENABLE_EXCEPTIONS)
+                else if (route == 10)
+                {
+                    std::vector<BYTE> value;
+                    REQUIRE_SUCCEEDED(wil::reg::reg_view_details::reg_view_nothrow{key.get()}.get_value(
+                        nullptr, name, value, REG_MULTI_SZ));
+                    verify_appended_multi_bytes(value.data(), value.size(), layout);
+                }
+                else
+                {
+                    std::vector<std::wstring> value;
+                    if (route == 6)
+                    {
+                        value = wil::reg::get_value_multistring(key.get(), name);
+                    }
+                    else if (route == 8)
+                    {
+                        value = wil::reg::get_value<std::vector<std::wstring>>(key.get(), name);
+                    }
+                    else
+                    {
+                        auto optional = route == 7 ? wil::reg::try_get_value_multistring(key.get(), name) :
+                            wil::reg::try_get_value<std::vector<std::wstring>>(key.get(), name);
+                        REQUIRE(optional.has_value());
+                        value = std::move(*optional);
+                    }
+                    REQUIRE(value.data() != nullptr);
+                    REQUIRE(value.size() == layout.expected.size());
+                    for (size_t i = 0; i < value.size(); ++i)
+                    {
+                        verify_appended_multi_string(value[i].c_str(), value[i].size(), layout.expected[i]);
+                    }
+                }
+#endif
+            }
+        }
+    }
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// BasicRegistryTests::walk_multistring_callback
+// Coverage: walk_multistring passes exact REG_MULTI_SZ element bounds to a stateful, move-only callback;
+// false stops at the first or middle element without later callbacks, while all-true traversal visits every element.
+//----------------------------------------------------------------------------------------------------------------------
+TEST_CASE("BasicRegistryTests::walk_multistring_callback", "[registry]")
+{
+    // Returning false stops the entire walk, not just the current callback.
+    constexpr wchar_t strings[] = L"one\0two\0three\0";
+    const wchar_t* const starts[] = {strings, strings + 4, strings + 8};
+    constexpr size_t lengths[] = {3, 3, 5};
+    for (size_t stopAfter : {1u, 2u, 4u})
+    {
+        DYNAMIC_SECTION("stop after " << stopAfter)
+        {
+            size_t calls = 0;
+            auto callback = [ownedCalls = std::make_unique<size_t>(0), &calls, &starts, &lengths, stopAfter](
+                                const wchar_t* first, const wchar_t* last) mutable -> bool {
+                REQUIRE(calls < std::size(starts));
+                REQUIRE(*ownedCalls == calls);
+                REQUIRE(first == starts[calls]);
+                REQUIRE(last == starts[calls] + lengths[calls]);
+                ++*ownedCalls;
+                ++calls;
+                return calls != stopAfter;
+            };
+            wil::reg::reg_view_details::walk_multistring(std::begin(strings), std::end(strings), std::move(callback));
+            REQUIRE(calls == (stopAfter < std::size(starts) ? stopAfter : std::size(starts)));
+        }
+    }
+}
+
+namespace
+{
+// Supply a bounded, stable value without modifying a registry key.
+void registry_allocation_value(
+    witest::detoured_thread_function<&::RegGetValueW>& detour, const wchar_t* value, DWORD bytes)
+{
+    REQUIRE_SUCCEEDED(detour.reset([=](HKEY, PCWSTR, PCWSTR, DWORD, DWORD*, void* data, DWORD* size) -> LSTATUS {
+        const auto capacity = *size;
+        *size = bytes;
+        if (!data)
+        {
+            return ERROR_SUCCESS;
+        }
+        if (capacity < bytes)
+        {
+            return ERROR_MORE_DATA;
+        }
+        memcpy(data, value, bytes);
+        return ERROR_SUCCESS;
+    }));
+}
+
+#if defined(__WIL_OBJBASE_H_)
+void registry_multistring_allocation_failure(size_t failAt, bool empty = false)
+{
+    // OOM propagates with empty output, no partial success, and cleanup of every preceding allocation, even for empty input.
+    constexpr wchar_t strings[] = L"one\0two\0three\0";
+    constexpr wchar_t emptyStrings[] = L"\0";
+    witest::detoured_thread_function<&::RegGetValueW> read;
+    registry_allocation_value(read, empty ? emptyStrings : strings, empty ? sizeof(emptyStrings) : sizeof(strings));
+    size_t calls = 0;
+    size_t frees = 0;
+    std::array<void*, 8> allocations{};
+    bool active = false;
+    witest::detoured_thread_function<&::CoTaskMemAlloc> allocate;
+    witest::detoured_thread_function<&::CoTaskMemFree> release;
+    REQUIRE_SUCCEEDED(allocate.reset([&](size_t bytes) -> void* {
+        if (!active)
+        {
+            return ::CoTaskMemAlloc(bytes);
+        }
+        ++calls;
+        if (calls == failAt)
+        {
+            return nullptr;
+        }
+        auto value = ::CoTaskMemAlloc(bytes);
+        if (calls <= allocations.size())
+        {
+            allocations[calls - 1] = value;
+        }
+        return value;
+    }));
+    REQUIRE_SUCCEEDED(release.reset([&](void* value) {
+        if (value)
+        {
+            for (auto& allocation : allocations)
+            {
+                if (allocation == value)
+                {
+                    allocation = nullptr;
+                    ++frees;
+                    break;
+                }
+            }
+        }
+        ::CoTaskMemFree(value);
+    }));
+    wil::unique_cotaskmem_array_ptr<wil::unique_cotaskmem_string> result;
+    active = true;
+    const auto hr = wil::reg::get_value_multistring_nothrow(HKEY_CURRENT_USER, L"allocation-test", result);
+    active = false;
+    const bool outputEmpty = result.empty() && !result;
+    result.reset();
+    REQUIRE(hr == E_OUTOFMEMORY);
+    REQUIRE(outputEmpty);
+    REQUIRE(calls == failAt);
+    REQUIRE(frees == failAt - 1);
+}
+#endif
+} // namespace
+
+#if defined(__WIL_OBJBASE_H_)
+//----------------------------------------------------------------------------------------------------------------------
+// BasicRegistryTests::allocation_multistring_array_oom
+// Coverage: OBJBASE-gated get_value_multistring_nothrow rejects REG_MULTI_SZ pointer-array allocation OOM;
+// leaves empty output, stops allocating and frees all preceding storage.
+//----------------------------------------------------------------------------------------------------------------------
+TEST_CASE("BasicRegistryTests::allocation_multistring_array_oom", "[registry][registry-allocation]")
+{
+    registry_multistring_allocation_failure(2);
+}
+//----------------------------------------------------------------------------------------------------------------------
+// BasicRegistryTests::allocation_multistring_first_oom
+// Coverage: OBJBASE-gated get_value_multistring_nothrow rejects first REG_MULTI_SZ string allocation OOM;
+// leaves empty output, stops allocating and frees all preceding storage.
+//----------------------------------------------------------------------------------------------------------------------
+TEST_CASE("BasicRegistryTests::allocation_multistring_first_oom", "[registry][registry-allocation]")
+{
+    registry_multistring_allocation_failure(3);
+}
+//----------------------------------------------------------------------------------------------------------------------
+// BasicRegistryTests::allocation_multistring_middle_oom
+// Coverage: OBJBASE-gated get_value_multistring_nothrow rejects middle REG_MULTI_SZ string allocation OOM;
+// leaves empty output, stops allocating and frees the array, raw buffer and earlier string.
+//----------------------------------------------------------------------------------------------------------------------
+TEST_CASE("BasicRegistryTests::allocation_multistring_middle_oom", "[registry][registry-allocation]")
+{
+    registry_multistring_allocation_failure(4);
+}
+//----------------------------------------------------------------------------------------------------------------------
+// BasicRegistryTests::allocation_multistring_last_oom
+// Coverage: OBJBASE-gated get_value_multistring_nothrow rejects last REG_MULTI_SZ string allocation OOM;
+// leaves empty output, stops allocating and frees the array, raw buffer and earlier strings.
+//----------------------------------------------------------------------------------------------------------------------
+TEST_CASE("BasicRegistryTests::allocation_multistring_last_oom", "[registry][registry-allocation]")
+{
+    registry_multistring_allocation_failure(5);
+}
+//----------------------------------------------------------------------------------------------------------------------
+// BasicRegistryTests::allocation_multistring_empty_oom
+// Coverage: OBJBASE-gated get_value_multistring_nothrow rejects array or empty-string allocation OOM for empty MULTI;
+// leaves empty output, stops allocating and frees all preceding storage.
+//----------------------------------------------------------------------------------------------------------------------
+TEST_CASE("BasicRegistryTests::allocation_multistring_empty_oom", "[registry][registry-allocation]")
+{
+    for (size_t failure : {2u, 3u})
+    {
+        DYNAMIC_SECTION("allocation " << failure)
+        {
+            registry_multistring_allocation_failure(failure, true);
+        }
+    }
+}
+//----------------------------------------------------------------------------------------------------------------------
+// BasicRegistryTests::allocation_multistring_empty_success
+// Coverage: OBJBASE-gated CoTaskMem MULTI conversion returns one allocated empty string for a short null extent;
+// a longer extent with no complete strings succeeds with an empty, null array.
+//----------------------------------------------------------------------------------------------------------------------
+TEST_CASE("BasicRegistryTests::allocation_multistring_empty_success", "[registry][registry-allocation]")
+{
+    SECTION("short extent produces one empty string")
+    {
+        constexpr wchar_t data[] = L"\0";
+        wil::unique_cotaskmem_array_ptr<wil::unique_cotaskmem_string> result;
+        REQUIRE_SUCCEEDED(wil::reg::reg_view_details::get_cotaskmemstring_array_from_multistring_nothrow(
+            std::begin(data), std::end(data), result));
+        REQUIRE(result);
+        REQUIRE(result.size() == 1);
+        REQUIRE(result[0]);
+        REQUIRE(result[0][0] == L'\0');
+    }
+    SECTION("no complete strings is a successful empty array")
+    {
+        constexpr wchar_t data[] = {L'a', L'b', L'c'};
+        wil::unique_cotaskmem_array_ptr<wil::unique_cotaskmem_string> result;
+        REQUIRE_SUCCEEDED(wil::reg::reg_view_details::get_cotaskmemstring_array_from_multistring_nothrow(
+            std::begin(data), std::end(data), result));
+        REQUIRE(result.empty());
+        REQUIRE_FALSE(result);
+    }
+}
+#endif
+
+#if defined(__WIL_OLEAUTO_H_)
+//----------------------------------------------------------------------------------------------------------------------
+// BasicRegistryTests::allocation_raw_bstr_growth
+// Coverage: OLEAUTO-gated get_value_string_nothrow grows a preexisting BSTR through its raw BSTR slot;
+// successful replacement frees the old allocation once, while payload OOM preserves its pointer until cleanup.
+//----------------------------------------------------------------------------------------------------------------------
+TEST_CASE("BasicRegistryTests::allocation_raw_bstr_growth", "[registry][registry-allocation]")
+{
+    for (bool fail : {false, true})
+    {
+        DYNAMIC_SECTION("replacement failure " << fail)
+        {
+            wil::unique_bstr result(::SysAllocStringLen(L"x", 1));
+            REQUIRE(result);
+            const auto original = result.get();
+            size_t oldFrees = 0;
+            size_t newFrees = 0;
+            BSTR replacement = nullptr;
+            bool active = false;
+            witest::detoured_thread_function<&::SysFreeString> release;
+            REQUIRE_SUCCEEDED(release.reset([&](BSTR value) {
+                oldFrees += value == original;
+                newFrees += value && value == replacement;
+                ::SysFreeString(value);
+            }));
+            // Recover the baseline's leaked original even when a REQUIRE fails.
+            auto cleanup = wil::scope_exit([&] {
+                result.reset();
+                if (!oldFrees)
+                {
+                    ::SysFreeString(original);
+                }
+            });
+            witest::detoured_thread_function<&::SysAllocStringLen> allocate;
+            REQUIRE_SUCCEEDED(allocate.reset([&](const OLECHAR* value, UINT length) -> BSTR {
+                if (active && fail)
+                {
+                    return nullptr;
+                }
+                auto allocated = ::SysAllocStringLen(value, length);
+                if (active)
+                {
+                    replacement = allocated;
+                }
+                return allocated;
+            }));
+            witest::detoured_thread_function<&::RegGetValueW> read;
+            constexpr wchar_t value[] = L"longer value";
+            registry_allocation_value(read, value, sizeof(value));
+            active = true;
+            const auto hr = wil::reg::get_value_string_nothrow(HKEY_CURRENT_USER, L"allocation-test", result);
+            active = false;
+            if (fail)
+            {
+                REQUIRE(hr == E_OUTOFMEMORY);
+                REQUIRE(result.get() == original);
+                REQUIRE(oldFrees == 0);
+            }
+            else
+            {
+                REQUIRE(hr == S_OK);
+                REQUIRE(result);
+                REQUIRE(::SysStringLen(result.get()) == ARRAYSIZE(value) - 1);
+                REQUIRE(wmemcmp(result.get(), value, ARRAYSIZE(value)) == 0);
+                REQUIRE(oldFrees == 1);
+                REQUIRE(newFrees == 0);
+            }
+            result.reset();
+            REQUIRE(oldFrees == 1);
+            REQUIRE(newFrees == (fail ? 0u : 1u));
+        }
+    }
+}
+#endif
+
+#if defined(WIL_ENABLE_EXCEPTIONS) && defined(__WIL_OLEAUTO_H_STL) && defined(__WIL_OBJBASE_H_STL)
+namespace
+{
+template <typename Shared, typename Unique>
+void registry_shared_allocation_failure()
+{
+    Unique original;
+    REQUIRE_SUCCEEDED(wil::reg::reg_view_details::reg_value_type_info::resize_buffer_bytes(original, 8));
+    Shared result(std::move(original));
+    auto alias = result;
+    const auto old = result.get();
+    bool armed = false;
+    bool active = false;
+    size_t failures = 0;
+    size_t payloadFrees = 0;
+    void* payload = nullptr;
+    witest::detoured_thread_function<static_cast<void* (*)(size_t)>(&::operator new)> controlBlock;
+    REQUIRE_SUCCEEDED(controlBlock.reset([&](size_t bytes) -> void* {
+        if (armed)
+        {
+            armed = false;
+            ++failures;
+            throw std::bad_alloc();
+        }
+        return ::operator new(bytes);
+    }));
+    witest::detoured_thread_function<&::SysAllocStringLen> bstrAllocate;
+    witest::detoured_thread_function<&::CoTaskMemAlloc> taskAllocate;
+    witest::detoured_thread_function<&::SysFreeString> bstrFree;
+    witest::detoured_thread_function<&::CoTaskMemFree> taskFree;
+    REQUIRE_SUCCEEDED(bstrAllocate.reset([&](const OLECHAR* value, UINT length) -> BSTR {
+        auto allocated = ::SysAllocStringLen(value, length);
+        if (active)
+        {
+            payload = allocated;
+            armed = allocated != nullptr;
+        }
+        return allocated;
+    }));
+    REQUIRE_SUCCEEDED(taskAllocate.reset([&](size_t bytes) -> void* {
+        auto allocated = ::CoTaskMemAlloc(bytes);
+        if (active)
+        {
+            payload = allocated;
+            armed = allocated != nullptr;
+        }
+        return allocated;
+    }));
+    REQUIRE_SUCCEEDED(bstrFree.reset([&](BSTR value) {
+        payloadFrees += value && value == payload;
+        ::SysFreeString(value);
+    }));
+    REQUIRE_SUCCEEDED(taskFree.reset([&](void* value) {
+        payloadFrees += value && value == payload;
+        ::CoTaskMemFree(value);
+    }));
+    active = true;
+    const auto hr = wil::reg::reg_view_details::reg_value_type_info::resize_buffer_bytes(result, 32);
+    active = false;
+    REQUIRE(hr == E_OUTOFMEMORY);
+    REQUIRE(failures == 1);
+    REQUIRE(payload != nullptr);
+    REQUIRE(payloadFrees == 1);
+    REQUIRE(result.get() == old);
+    REQUIRE(alias.get() == old);
+    REQUIRE(result.use_count() == 2);
+}
+} // namespace
+
+//----------------------------------------------------------------------------------------------------------------------
+// BasicRegistryTests::allocation_shared_bstr_resize_oom
+// Coverage: Exception-enabled only, with OLEAUTO/OBJBASE shared adapters: direct shared BSTR resize catches
+// control-block bad_alloc as OOM, frees the replacement and preserves the original owner and alias.
+//----------------------------------------------------------------------------------------------------------------------
+TEST_CASE("BasicRegistryTests::allocation_shared_bstr_resize_oom", "[registry][registry-allocation]")
+{
+    registry_shared_allocation_failure<wil::shared_bstr, wil::unique_bstr>();
+}
+//----------------------------------------------------------------------------------------------------------------------
+// BasicRegistryTests::allocation_shared_cotaskmem_resize_oom
+// Coverage: Exception-enabled only, with OLEAUTO/OBJBASE shared adapters: direct shared CoTaskMem resize catches
+// control-block bad_alloc as OOM, frees the replacement and preserves the original owner and alias.
+//----------------------------------------------------------------------------------------------------------------------
+TEST_CASE("BasicRegistryTests::allocation_shared_cotaskmem_resize_oom", "[registry][registry-allocation]")
+{
+    registry_shared_allocation_failure<wil::shared_cotaskmem_string, wil::unique_cotaskmem_string>();
+}
+//----------------------------------------------------------------------------------------------------------------------
+// BasicRegistryTests::allocation_shared_bstr_named_oom
+// Coverage: Exception-enabled only, with OLEAUTO/OBJBASE shared adapters: named get_value_string_nothrow catches
+// initial shared BSTR control-block allocation failure as OOM and leaves the empty output null.
+//----------------------------------------------------------------------------------------------------------------------
+TEST_CASE("BasicRegistryTests::allocation_shared_bstr_named_oom", "[registry][registry-allocation]")
+{
+    wil::shared_bstr result;
+    bool armed = false;
+    size_t failures = 0;
+    witest::detoured_thread_function<static_cast<void* (*)(size_t)>(&::operator new)> allocate;
+    REQUIRE_SUCCEEDED(allocate.reset([&](size_t bytes) -> void* {
+        if (armed)
+        {
+            armed = false;
+            ++failures;
+            throw std::bad_alloc();
+        }
+        return ::operator new(bytes);
+    }));
+    armed = true;
+    const auto hr = wil::reg::get_value_string_nothrow(HKEY_CURRENT_USER, L"allocation-test", result);
+    REQUIRE(hr == E_OUTOFMEMORY);
+    REQUIRE(failures == 1);
+    REQUIRE_FALSE(result);
+}
+#endif
+
+namespace
+{
+constexpr DWORD threeParserTypes[]{REG_SZ, REG_EXPAND_SZ, REG_MULTI_SZ};
+constexpr const char* threeParserNames[]{"REG_SZ", "REG_EXPAND_SZ", "REG_MULTI_SZ"};
+constexpr PCWSTR threeParserValue = L"ThreeParserValue";
+constexpr PCWSTR threeParserEnvironment = L"WIL_THREE_PARSER_TEST";
+
+struct registry_string_payload
+{
+    // Raw byte extent is independent of stored WCHAR terminators; expected holds scalar or MULTI element semantics.
+    std::vector<BYTE> bytes;
+    std::vector<std::wstring> expected;
+    std::wstring ownedScalar;
+};
+
+struct registry_string_scenario
+{
+    const char* name;
+    std::array<registry_string_payload, 3> payload;
+    bool growValue = false;
+    bool growEnvironment = false;
+};
+
+registry_string_payload registry_payload(const wchar_t* data, DWORD bytes, std::initializer_list<std::wstring> expected)
+{
+    const auto* first = reinterpret_cast<const BYTE*>(data);
+    return {{first, first + bytes}, expected, expected.size() ? *expected.begin() : std::wstring{}};
+}
+
+std::vector<registry_string_scenario> registry_string_scenarios()
+{
+    const auto single = [](const wchar_t* data, DWORD bytes, PCWSTR expected) {
+        return registry_payload(data, bytes, {expected});
+    };
+    const auto scenario = [&](const char* name, const wchar_t* data, DWORD bytes, PCWSTR expected,
+                              const wchar_t* multiData, DWORD multiBytes, std::initializer_list<std::wstring> multiExpected) {
+        return registry_string_scenario{name, {single(data, bytes, expected), single(data, bytes, expected),
+                                               registry_payload(multiData, multiBytes, multiExpected)}};
+    };
+    // Add one payload definition with expected scalar/MULTI outputs; each scenario covers REG_SZ, REG_EXPAND_SZ and REG_MULTI_SZ.
+    // Normal/noexcept routes use explicit feature guards: only supported adapters compile, not every API in noexcept.
+    // MULTI nulls separate elements; the current walker omits a string whose terminator is the range's last WCHAR.
+    std::vector<registry_string_scenario> cases{
+        scenario("empty-zero", L"", 0, L"", L"", 0, {L""}),
+        scenario("empty-one-byte", L"", 1, L"", L"", 1, {L""}),
+        scenario("empty-terminated", L"", 2, L"", L"\0", 4, {L""}),
+        scenario("missing-terminator-even", L"abc", 6, L"abc", L"abc\0def", 14, {L"abc", L"def"}),
+        scenario("missing-terminator-odd", L"abcx", 7, L"abc", L"abc\0defx", 15, {L"abc", L"def"}),
+        scenario("embedded-null", L"abc\0def", 16, L"abc", L"abc\0\0def\0", 20, {L"abc", L"", L"def"}),
+        scenario("aligned-null-trailing-byte", L"abc\0A", 9, L"abc", L"abc\0def\0A", 17, {L"abc", L"def"}),
+        scenario("aligned-double-null-trailing-byte", L"abc\0A", 9, L"abc", L"abc\0def\0\0A", 19, {L"abc", L"def"}),
+        scenario("stable-odd", L"ab\0x", 7, L"ab", L"abc\0def\0\0A", 19, {L"abc", L"def"}),
+        scenario("value-growth-odd", L"abcdefghijklmnop", 29, L"abcdefghijklmn",
+                 L"abcd\0efgh\0ijklmnop", 29, {L"abcd", L"efgh", L"ijkl"})};
+    cases.back().growValue = true;
+    // BSTR retains embedded nulls; the other scalar adapters expose the first string.
+    cases[5].payload[0].ownedScalar.assign(L"abc\0def", 7);
+    cases[5].payload[1].ownedScalar.assign(L"abc\0def", 7);
+    std::wstring large(4096, L'z');
+    auto largeBytes = static_cast<DWORD>((large.size() + 1) * sizeof(wchar_t));
+    cases.push_back({"large", {registry_payload(large.c_str(), largeBytes, {large}),
+                              registry_payload(large.c_str(), largeBytes, {large}),
+                              registry_payload(large.c_str(), largeBytes, {large})}});
+    constexpr wchar_t token[] = L"%WIL_THREE_PARSER_TEST%";
+    constexpr wchar_t oddToken[] = L"%WIL_THREE_PARSER_TEST%\0A";
+    const std::wstring expanded(256, L'e');
+    for (bool odd : {false, true})
+    {
+        cases.push_back({odd ? "environment-odd-trailing" : "environment-substitution",
+                         {single(odd ? oddToken : token, odd ? sizeof(oddToken) - 3 : sizeof(token), token),
+                          registry_payload(odd ? oddToken : token, odd ? sizeof(oddToken) - 3 : sizeof(token), {expanded}),
+                          registry_payload(odd ? oddToken : token, odd ? sizeof(oddToken) - 3 : sizeof(token), {token})}});
+    }
+    cases.push_back({"environment-growth",
+                     {single(token, sizeof(token), token), registry_payload(token, sizeof(token), {expanded}),
+                      registry_payload(token, sizeof(token), {token})}, false, true});
+    return cases;
+}
+
+// Process-local environment mutation and thread-local detours are restored before leaving each leaf.
+template <typename Fn>
+void with_registry_string_scenario(const registry_string_scenario& scenario, size_t parser, Fn read)
+{
+    const auto& payload = scenario.payload[parser];
+    wil::unique_hkey key;
+    REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, key, wil::reg::key_access::readwrite));
+    wchar_t oldEnvironment[512]{};
+    ::SetLastError(ERROR_SUCCESS);
+    const auto oldLength = ::GetEnvironmentVariableW(threeParserEnvironment, oldEnvironment, ARRAYSIZE(oldEnvironment));
+    const bool hadEnvironment = oldLength != 0 || ::GetLastError() != ERROR_ENVVAR_NOT_FOUND;
+    REQUIRE(oldLength < ARRAYSIZE(oldEnvironment));
+    auto restoreEnvironment = wil::scope_exit([&] {
+        ::SetEnvironmentVariableW(threeParserEnvironment, hadEnvironment ? oldEnvironment : nullptr);
+    });
+    const std::wstring expanded(256, L'e');
+    REQUIRE(::SetEnvironmentVariableW(threeParserEnvironment, scenario.growEnvironment ? L"e" : expanded.c_str()));
+    const DWORD initialBytes = scenario.growValue ? 23 : static_cast<DWORD>(payload.bytes.size());
+    REQUIRE(ERROR_SUCCESS == ::RegSetValueExW(key.get(), threeParserValue, 0, threeParserTypes[parser], payload.bytes.data(), initialBytes));
+    uint32_t calls = 0;
+    uint32_t moreData = 0;
+    bool mutationFailed = false;
+    witest::detoured_thread_function<&::RegGetValueW> detour;
+    REQUIRE_SUCCEEDED(detour.reset([&](HKEY hkey, PCWSTR subkey, PCWSTR name, DWORD flags, DWORD* type, void* data, DWORD* bytes) -> LSTATUS {
+        // Bound nonconverging read retries so a regression fails rather than hangs.
+        if (++calls > 16)
+        {
+            return ERROR_INVALID_DATA;
+        }
+        if (calls == 2 && scenario.growValue)
+        {
+            mutationFailed = ERROR_SUCCESS != ::RegSetValueExW(
+                key.get(), threeParserValue, 0, threeParserTypes[parser], payload.bytes.data(), static_cast<DWORD>(payload.bytes.size()));
+        }
+        if (calls == 2 && scenario.growEnvironment)
+        {
+            mutationFailed = !::SetEnvironmentVariableW(threeParserEnvironment, expanded.c_str());
+        }
+        const auto status = ::RegGetValueW(hkey, subkey, name, flags, type, data, bytes);
+        moreData += status == ERROR_MORE_DATA;
+        return status;
+    }));
+    read(key.get(), payload);
+    REQUIRE_FALSE(mutationFailed);
+    REQUIRE(calls > 0);
+    REQUIRE(calls <= 16);
+    if (scenario.growValue || (scenario.growEnvironment && parser == 1))
+    {
+        REQUIRE(calls >= 3);
+        REQUIRE(moreData > 0);
+    }
+}
+
+void verify_registry_owned_string(PCWSTR data, const std::wstring& expected)
+{
+    // Establish nonnull and owned end-null (c_str()[size()] for wstring) before any unbounded read.
+    // Bounded wcsnlen and end-null checks prove more than content equality alone.
+    REQUIRE(data != nullptr);
+    REQUIRE(data[expected.size()] == L'\0');
+    REQUIRE(::wcsnlen(data, expected.size() + 1) == expected.size());
+    REQUIRE(wmemcmp(data, expected.c_str(), expected.size()) == 0);
+}
+
+void verify_registry_bstr(PCWSTR data, size_t length, const registry_string_payload& payload)
+{
+    REQUIRE(length == payload.ownedScalar.size());
+    if (!data && payload.bytes.empty())
+    {
+        return;
+    }
+    REQUIRE(data != nullptr);
+    REQUIRE(data[length] == L'\0');
+    REQUIRE(wmemcmp(data, payload.ownedScalar.c_str(), length) == 0);
+    REQUIRE(::wcsnlen(data, length + 1) == payload.expected.front().size());
+}
+
+template <typename T>
+void verify_registry_string_result(const T& value, const registry_string_payload& payload)
+{
+    // A zero-byte successful read may leave pointer-based adapters null; no dereference is permitted then.
+    if (!value && payload.bytes.empty())
+    {
+        REQUIRE(payload.expected.front().empty());
+        return;
+    }
+    verify_registry_owned_string(value.get(), payload.expected.front());
+}
+
+#if defined(__WIL_OLEAUTO_H_)
+void verify_registry_string_result(const wil::unique_bstr& value, const registry_string_payload& payload)
+{
+    verify_registry_bstr(value.get(), ::SysStringLen(value.get()), payload);
+}
+#endif
+#if defined(__WIL_OLEAUTO_H_STL)
+void verify_registry_string_result(const wil::shared_bstr& value, const registry_string_payload& payload)
+{
+    verify_registry_bstr(value.get(), ::SysStringLen(value.get()), payload);
+}
+#endif
+#if WIL_USE_STL && defined(WIL_ENABLE_EXCEPTIONS)
+void verify_registry_string_result(const std::wstring& value, const registry_string_payload& payload)
+{
+    REQUIRE(value.c_str()[value.size()] == L'\0');
+    REQUIRE(value.size() == payload.expected.front().size());
+    REQUIRE(value == payload.expected.front());
+}
+#endif
+
+template <typename T, bool Named, bool PublicTry = false>
+HRESULT registry_scalar_read(HKEY key, size_t parser, size_t route, T& value)
+{
+    if (route == 0 || route == 5)
+    {
+        return wil::reg::reg_view_details::reg_view_nothrow{key}.get_value(
+            nullptr, threeParserValue, value, threeParserTypes[parser]);
+    }
+    if constexpr (Named)
+    {
+        if (route == 1)
+        {
+            return parser == 0 ? wil::reg::get_value_string_nothrow(key, threeParserValue, value) :
+                                 wil::reg::get_value_expanded_string_nothrow(key, threeParserValue, value);
+        }
+        if (route == 2)
+        {
+            return wil::reg::get_value_nothrow(key, threeParserValue, value);
+        }
+    }
+#if defined(WIL_ENABLE_EXCEPTIONS)
+    if constexpr (!Named && std::is_same_v<T, std::wstring>)
+    {
+        if (route == 2)
+        {
+            return wil::reg::get_value_nothrow(key, threeParserValue, &value);
+        }
+    }
+    if (route == 3)
+    {
+        if constexpr (Named || std::is_same_v<T, std::wstring>)
+        {
+            value = parser == 0 ? wil::reg::get_value_string<T>(key, threeParserValue) :
+                                  wil::reg::get_value_expanded_string<T>(key, threeParserValue);
+        }
+        else
+        {
+            wil::reg::reg_view_details::reg_view{key}.get_value(nullptr, threeParserValue, value, threeParserTypes[parser]);
+        }
+    }
+    if (route == 4)
+    {
+        auto result = wil::reg::reg_view_details::reg_view{key}.template try_get_value<T>(
+            nullptr, threeParserValue, threeParserTypes[parser]);
+        if (!result)
+        {
+            return HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND);
+        }
+        value = std::move(*result);
+    }
+    if constexpr (PublicTry)
+    {
+        if (route == 6 || route == 7)
+        {
+            auto result = route == 7 ? wil::reg::try_get_value<T>(key, threeParserValue) :
+                (parser == 0 ? wil::reg::try_get_value_string<T>(key, threeParserValue) :
+                               wil::reg::try_get_value_expanded_string<T>(key, threeParserValue));
+            if (!result)
+            {
+                return HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND);
+            }
+            value = std::move(*result);
+        }
+    }
+#endif
+    return S_OK;
+}
+
+constexpr const char* registryScalarRoutes[]{"view", "named", "generic", "get", "view-try", "view-preallocated", "try", "generic-try"};
+
+template <bool Named, bool PublicTry = false>
+bool registry_scalar_route_supported(size_t parser, size_t route)
+{
+    if ((!Named && (route == 1 || (route == 2 && !PublicTry))) || (parser != 0 && (route == 2 || route == 7)) ||
+        (!PublicTry && route >= 6))
+    {
+        return false;
+    }
+#if !defined(WIL_ENABLE_EXCEPTIONS)
+    if (route == 3 || route == 4 || route >= 6)
+    {
+        return false;
+    }
+#endif
+    return true;
+}
+
+template <typename T, bool Named = true, bool PublicTry = false>
+void registry_scalar_scenarios(const registry_string_scenario& scenario, size_t parser, const char* adapter)
+{
+    for (size_t route = 0; route < ARRAYSIZE(registryScalarRoutes); ++route)
+    {
+        if (!registry_scalar_route_supported<Named, PublicTry>(parser, route))
+        {
+            continue;
+        }
+        DYNAMIC_SECTION(scenario.name << " / " << threeParserNames[parser] << " / " << adapter << " / " << registryScalarRoutes[route])
+        {
+            with_registry_string_scenario(scenario, parser, [&](HKEY key, const registry_string_payload& payload) {
+                T value{};
+                if (route == 5)
+                {
+                    REQUIRE_SUCCEEDED(wil::reg::reg_view_details::reg_value_type_info::resize_buffer_bytes(value, 8));
+                }
+                REQUIRE_SUCCEEDED((registry_scalar_read<T, Named, PublicTry>(key, parser, route, value)));
+                verify_registry_string_result(value, payload);
+            });
+        }
+    }
+}
+
+#if defined(__WIL_OBJBASE_H_)
+void verify_registry_multi_result(
+    const wil::unique_cotaskmem_array_ptr<wil::unique_cotaskmem_string>& value, const registry_string_payload& payload)
+{
+    REQUIRE(value.size() == payload.expected.size());
+    if (!payload.expected.empty())
+    {
+        REQUIRE(value.get() != nullptr);
+    }
+    for (size_t i = 0; i < value.size(); ++i)
+    {
+        verify_registry_owned_string(value[i], payload.expected[i]);
+    }
+}
+#endif
+#if WIL_USE_STL && defined(WIL_ENABLE_EXCEPTIONS)
+void verify_registry_multi_result(const std::vector<std::wstring>& value, const registry_string_payload& payload)
+{
+    REQUIRE(value.size() == payload.expected.size());
+    for (size_t i = 0; i < value.size(); ++i)
+    {
+        REQUIRE(value[i].c_str()[value[i].size()] == L'\0');
+        REQUIRE(value[i].size() == payload.expected[i].size());
+        REQUIRE(value[i] == payload.expected[i]);
+    }
+}
+#endif
+} // namespace
+
+//----------------------------------------------------------------------------------------------------------------------
+// BasicRegistryTests::three_parser_payloads
+// Coverage: REG_SZ/EXPAND_SZ scalars and MULTI_SZ elements: empty, odd/missing/embedded nulls, large values,
+// substitution and value/environment growth; verify contents, lengths and owned terminators.
+// reg_view/named/generic nothrow reads use process heap, OLEAUTO BSTR and OBJBASE CoTaskMem, including raw BSTR;
+// shared/wstring/vector and get/try routes require exceptions and their STL guards.
+//----------------------------------------------------------------------------------------------------------------------
+TEST_CASE("BasicRegistryTests::three_parser_payloads", "[registry][registry-three-parser]")
+{
+    const auto cases = registry_string_scenarios();
+    // Use unique DYNAMIC_SECTION identities by scenario/payload ID, type, adapter and route, not byte length (two can be 19).
+    // Repeated SECTION identities in a loop can silently skip iterations.
+    for (const auto& scenario : cases)
+    {
+        for (size_t parser = 0; parser < ARRAYSIZE(threeParserTypes); ++parser)
+        {
+            if (parser < 2)
+            {
+#if defined(__WIL_OLEAUTO_H_)
+                registry_scalar_scenarios<wil::unique_bstr>(scenario, parser, "unique_bstr");
+                for (size_t route = 0; route < (parser == 0 ? 5u : 2u); ++route)
+                {
+#if !defined(WIL_ENABLE_EXCEPTIONS)
+                    if (route >= 3)
+                    {
+                        continue;
+                    }
+#endif
+                    constexpr const char* routes[]{"view", "view-preallocated", "generic-nothrow", "generic-get", "generic-try"};
+                    DYNAMIC_SECTION(scenario.name << " / " << threeParserNames[parser] << " / raw_bstr / " <<
+                        routes[route])
+                    {
+                        with_registry_string_scenario(scenario, parser, [&](HKEY key, const registry_string_payload& payload) {
+                            BSTR value = route == 1 ? ::SysAllocStringLen(L"old", 3) : nullptr;
+                            auto cleanup = wil::scope_exit([&] { ::SysFreeString(value); });
+                            if (route == 1)
+                            {
+                                REQUIRE(value != nullptr);
+                            }
+                            if (route < 2)
+                            {
+                                REQUIRE_SUCCEEDED(wil::reg::reg_view_details::reg_view_nothrow{key}.get_value(
+                                    nullptr, threeParserValue, value, threeParserTypes[parser]));
+                            }
+                            else if (route == 2)
+                            {
+                                REQUIRE_SUCCEEDED(wil::reg::get_value_nothrow(key, threeParserValue, &value));
+                            }
+#if defined(WIL_ENABLE_EXCEPTIONS)
+                            else if (route == 3)
+                            {
+                                value = wil::reg::get_value<BSTR>(key, threeParserValue);
+                            }
+                            else
+                            {
+                                auto result = wil::reg::try_get_value<BSTR>(key, threeParserValue);
+                                REQUIRE(result.has_value());
+                                value = *result;
+                            }
+#endif
+                            verify_registry_bstr(value, ::SysStringLen(value), payload);
+                        });
+                    }
+                }
+#endif
+#if defined(__WIL_OLEAUTO_H_STL)
+                registry_scalar_scenarios<wil::shared_bstr, true, true>(scenario, parser, "shared_bstr");
+#endif
+#if defined(__WIL_OBJBASE_H_)
+                registry_scalar_scenarios<wil::unique_cotaskmem_string>(scenario, parser, "unique_cotaskmem");
+#endif
+#if defined(__WIL_OBJBASE_H_STL)
+                registry_scalar_scenarios<wil::shared_cotaskmem_string, true, true>(scenario, parser, "shared_cotaskmem");
+#endif
+                registry_scalar_scenarios<wil::unique_process_heap_string, false>(scenario, parser, "process_heap");
+#if WIL_USE_STL && defined(WIL_ENABLE_EXCEPTIONS)
+                registry_scalar_scenarios<std::wstring, false, true>(scenario, parser, "wstring");
+#endif
+            }
+            else
+            {
+#if defined(__WIL_OBJBASE_H_)
+                for (bool generic : {false, true})
+                {
+                    DYNAMIC_SECTION(scenario.name << " / REG_MULTI_SZ / cotaskmem_array / " << (generic ? "generic" : "named"))
+                    {
+                        with_registry_string_scenario(scenario, parser, [&](HKEY key, const registry_string_payload& payload) {
+                            wil::unique_cotaskmem_array_ptr<wil::unique_cotaskmem_string> value;
+                            REQUIRE_SUCCEEDED(generic ? wil::reg::get_value_nothrow(key, threeParserValue, value) :
+                                                        wil::reg::get_value_multistring_nothrow(key, threeParserValue, value));
+                            verify_registry_multi_result(value, payload);
+                        });
+                    }
+                }
+#endif
+#if WIL_USE_STL && defined(WIL_ENABLE_EXCEPTIONS)
+                for (size_t route = 0; route < 4; ++route)
+                {
+                    constexpr const char* routes[]{"get", "try", "generic-get", "generic-try"};
+                    DYNAMIC_SECTION(scenario.name << " / REG_MULTI_SZ / wstring_vector / " << routes[route])
+                    {
+                        with_registry_string_scenario(scenario, parser, [&](HKEY key, const registry_string_payload& payload) {
+                            std::vector<std::wstring> value;
+                            if (route == 0)
+                            {
+                                value = wil::reg::get_value_multistring(key, threeParserValue);
+                            }
+                            else if (route == 2)
+                            {
+                                value = wil::reg::get_value<std::vector<std::wstring>>(key, threeParserValue);
+                            }
+                            else
+                            {
+                                auto result = route == 1 ? wil::reg::try_get_value_multistring(key, threeParserValue) :
+                                                           wil::reg::try_get_value<std::vector<std::wstring>>(key, threeParserValue);
+                                REQUIRE(result.has_value());
+                                value = std::move(*result);
+                            }
+                            verify_registry_multi_result(value, payload);
+                        });
+                    }
+                }
+#endif
+            }
+        }
+    }
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// BasicRegistryTests::three_parser_raw_and_fixed
+// Coverage: SZ/EXPAND/MULTI scenario byte extents match native RegGetValueW via OBJBASE CoTaskMem named/reg_view
+// readers and exception-enabled STL byte-vector reg_view reads, including malformed data and growth retries.
+// Fixed WCHAR named SZ/EXPAND and explicit reg_view arrays verify native bytes without allocation or growth retries.
+//----------------------------------------------------------------------------------------------------------------------
+TEST_CASE("BasicRegistryTests::three_parser_raw_and_fixed", "[registry][registry-three-parser]")
+{
+    const auto cases = registry_string_scenarios();
+    for (const auto& scenario : cases)
+    {
+        for (size_t parser = 0; parser < ARRAYSIZE(threeParserTypes); ++parser)
+        {
+            const auto verifyRaw = [&](HKEY key, const BYTE* bytes, size_t count) {
+                std::array<BYTE, 16384> native{};
+                DWORD nativeSize = static_cast<DWORD>(native.size());
+                DWORD storedType = REG_NONE;
+                REQUIRE(ERROR_SUCCESS == ::RegGetValueW(key, nullptr, threeParserValue,
+                    wil::reg::reg_view_details::get_value_flags_from_value_type(threeParserTypes[parser]),
+                    &storedType, native.data(), &nativeSize));
+                REQUIRE(storedType == (parser == 1 ? REG_SZ : threeParserTypes[parser]));
+                REQUIRE(count == nativeSize);
+                if (count)
+                {
+                    REQUIRE(bytes != nullptr);
+                    REQUIRE(memcmp(bytes, native.data(), count) == 0);
+                }
+            };
+#if defined(__WIL_OBJBASE_H_)
+            for (bool named : {false, true})
+            {
+                DYNAMIC_SECTION(scenario.name << " / " << threeParserNames[parser] << " / cotaskmem_bytes / " << (named ? "raw-named" : "raw-view"))
+                {
+                    with_registry_string_scenario(scenario, parser, [&](HKEY key, const registry_string_payload&) {
+                        wil::unique_cotaskmem_array_ptr<BYTE> value;
+                        REQUIRE_SUCCEEDED(named ? wil::reg::get_value_binary_nothrow(key, threeParserValue, threeParserTypes[parser], value) :
+                            wil::reg::reg_view_details::reg_view_nothrow{key}.get_value(nullptr, threeParserValue, value, threeParserTypes[parser]));
+                        verifyRaw(key, value.get(), value.size());
+                    });
+                }
+            }
+#endif
+#if WIL_USE_STL && defined(WIL_ENABLE_EXCEPTIONS)
+            DYNAMIC_SECTION(scenario.name << " / " << threeParserNames[parser] << " / vector_bytes / raw-view")
+            {
+                with_registry_string_scenario(scenario, parser, [&](HKEY key, const registry_string_payload&) {
+                    std::vector<BYTE> value;
+                    REQUIRE_SUCCEEDED(wil::reg::reg_view_details::reg_view_nothrow{key}.get_value(
+                        nullptr, threeParserValue, value, threeParserTypes[parser]));
+                    verifyRaw(key, value.data(), value.size());
+                });
+            }
+#endif
+            // Fixed arrays delegate native termination, and never allocate/retry after MORE_DATA.
+            if (!scenario.growValue && !scenario.growEnvironment)
+            {
+                for (bool named : {false, true})
+                {
+                    if (named && parser == 2)
+                    {
+                        continue;
+                    }
+                    DYNAMIC_SECTION(scenario.name << " / " << threeParserNames[parser] << " / fixed_array / " << (named ? "named" : "view"))
+                    {
+                        with_registry_string_scenario(scenario, parser, [&](HKEY key, const registry_string_payload& payload) {
+                            wchar_t value[8192]{};
+                            DWORD requiredBytes = 0;
+                            REQUIRE_SUCCEEDED(named ?
+                                (parser == 0 ? wil::reg::get_value_string_nothrow(key, threeParserValue, value, &requiredBytes) :
+                                               wil::reg::get_value_expanded_string_nothrow(key, threeParserValue, value, &requiredBytes)) :
+                                wil::reg::reg_view_details::reg_view_nothrow{key}.get_value_char_array(
+                                    nullptr, threeParserValue, value, threeParserTypes[parser], &requiredBytes));
+                            REQUIRE(requiredBytes <= sizeof(value));
+                            verifyRaw(key, reinterpret_cast<const BYTE*>(value), requiredBytes);
+                            if (parser < 2)
+                            {
+                                verify_registry_owned_string(value, payload.expected.front());
+                            }
+                        });
+                    }
+                }
+            }
+        }
+    }
+}
+
+namespace
+{
+// Valid output owners and preallocation stay outside the owned-thread read/resize telemetry phase.
+// Count/refuse active overflow allocations independently of payload-OOM arming; otherwise zero attempts could be vacuous.
+template <typename T, bool Named = true, bool PublicTry = false>
+void registry_scalar_failures(size_t parser, const char* adapter)
+{
+    for (const char* failure : {"payload-oom", "extreme-overflow", "retry-error"})
+    {
+        for (size_t route = 0; route < ARRAYSIZE(registryScalarRoutes); ++route)
+        {
+            if (!registry_scalar_route_supported<Named, PublicTry>(parser, route))
+            {
+                continue;
+            }
+            DYNAMIC_SECTION(failure << " / " << threeParserNames[parser] << " / " << adapter << " / " << registryScalarRoutes[route])
+            {
+                const bool overflow = strcmp(failure, "extreme-overflow") == 0;
+                const bool retryError = strcmp(failure, "retry-error") == 0;
+                size_t readCalls = 0;
+                size_t allocations = 0;
+                bool active = false;
+                bool readPhase = false;
+                bool armed = false;
+                bool injected = false;
+                witest::detoured_thread_function<&::RegGetValueW> read;
+                REQUIRE_SUCCEEDED(read.reset([&](HKEY, PCWSTR, PCWSTR, DWORD, DWORD*, void*, DWORD* bytes) -> LSTATUS {
+                    readPhase = true;
+                    ++readCalls;
+                    if (readCalls > 16)
+                    {
+                        return ERROR_INVALID_DATA;
+                    }
+                    *bytes = overflow ? MAXDWORD : 32;
+                    armed = !overflow && !retryError;
+                    return retryError && readCalls > 1 ? ERROR_ACCESS_DENIED : ERROR_MORE_DATA;
+                }));
+                // Hook WIL's allocation boundary, not HeapAlloc (also used by other threads' TLS initialization).
+                witest::detoured_thread_function<&wil::details::heap_allocator::allocate> heap;
+                REQUIRE_SUCCEEDED(heap.reset([&](size_t bytes) -> void* {
+                    if (active && ((overflow && readPhase) || (armed && !injected)))
+                    {
+                        injected = true;
+                        ++allocations;
+                        return nullptr;
+                    }
+                    return wil::details::heap_allocator::allocate(bytes);
+                }));
+#if defined(__WIL_OBJBASE_H_)
+                witest::detoured_thread_function<&::CoTaskMemAlloc> task;
+                REQUIRE_SUCCEEDED(task.reset([&](size_t bytes) -> void* {
+                    if (active && ((overflow && readPhase) || (armed && !injected)))
+                    {
+                        injected = true;
+                        ++allocations;
+                        return nullptr;
+                    }
+                    return ::CoTaskMemAlloc(bytes);
+                }));
+#endif
+#if defined(__WIL_OLEAUTO_H_)
+                witest::detoured_thread_function<&::SysAllocStringLen> bstr;
+                REQUIRE_SUCCEEDED(bstr.reset([&](const OLECHAR* data, UINT length) -> BSTR {
+                    if (active && ((overflow && readPhase) || (armed && !injected)))
+                    {
+                        injected = true;
+                        ++allocations;
+                        return nullptr;
+                    }
+                    return ::SysAllocStringLen(data, length);
+                }));
+#endif
+#if defined(WIL_ENABLE_EXCEPTIONS)
+                witest::detoured_thread_function<static_cast<void* (*)(size_t)>(&::operator new)> stl;
+                REQUIRE_SUCCEEDED(stl.reset([&](size_t bytes) -> void* {
+                    if (active && ((overflow && readPhase) || (armed && !injected)))
+                    {
+                        injected = true;
+                        ++allocations;
+                        throw std::bad_alloc();
+                    }
+                    return ::operator new(bytes);
+                }));
+#endif
+                if (overflow)
+                {
+                    // A short resize probe proves the hook works before checking absence of overflow allocations.
+                    T probe{};
+                    HRESULT probeHr = S_OK;
+                    active = readPhase = true;
+#if defined(WIL_ENABLE_EXCEPTIONS)
+                    const auto probeException = wil::ResultFromException([&] {
+                        probeHr = wil::reg::reg_view_details::reg_value_type_info::resize_buffer_bytes(probe, 512);
+                    });
+                    if (FAILED(probeException))
+                    {
+                        probeHr = probeException;
+                    }
+#else
+                    probeHr = wil::reg::reg_view_details::reg_value_type_info::resize_buffer_bytes(probe, 512);
+#endif
+                    active = false;
+                    REQUIRE(probeHr == E_OUTOFMEMORY);
+                    REQUIRE(allocations == 1);
+                    REQUIRE(injected);
+                    REQUIRE_FALSE(armed);
+                    allocations = 0;
+                    injected = false;
+                    readPhase = false;
+                }
+                T value{};
+                if (route == 5)
+                {
+                    REQUIRE_SUCCEEDED(wil::reg::reg_view_details::reg_value_type_info::resize_buffer_bytes(value, 8));
+                }
+                const auto oldBuffer = wil::reg::reg_view_details::reg_value_type_info::get_buffer(value);
+#if defined(__WIL_OLEAUTO_H_)
+                auto cleanup = wil::scope_exit([&] {
+                    if constexpr (std::is_same_v<T, BSTR>)
+                    {
+                        ::SysFreeString(value);
+                    }
+                });
+#endif
+                active = true;
+                HRESULT hr = S_OK;
+#if defined(WIL_ENABLE_EXCEPTIONS)
+                const auto exceptionHr = wil::ResultFromException([&] {
+                    hr = registry_scalar_read<T, Named, PublicTry>(HKEY_CURRENT_USER, parser, route, value);
+                });
+                if (FAILED(exceptionHr))
+                {
+                    hr = exceptionHr;
+                }
+#else
+                hr = registry_scalar_read<T, Named, PublicTry>(HKEY_CURRENT_USER, parser, route, value);
+#endif
+                active = false;
+                REQUIRE(hr == (retryError ? HRESULT_FROM_WIN32(ERROR_ACCESS_DENIED) :
+                              overflow ? HRESULT_FROM_WIN32(ERROR_ARITHMETIC_OVERFLOW) : E_OUTOFMEMORY));
+                REQUIRE(readCalls == (retryError ? 2u : 1u));
+                if (overflow)
+                {
+                    REQUIRE(allocations == 0);
+                }
+                else if (!retryError)
+                {
+                    REQUIRE(allocations == 1);
+                }
+                if (route == 5 && !retryError)
+                {
+                    REQUIRE(wil::reg::reg_view_details::reg_value_type_info::get_buffer(value) == oldBuffer);
+                }
+            }
+        }
+    }
+}
+template <typename T, bool Named = true, bool PublicTry = false>
+void registry_scalar_type_rejection(size_t parser, const char* adapter)
+{
+    wil::unique_hkey key;
+    REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, key, wil::reg::key_access::readwrite));
+    for (DWORD stored : {REG_DWORD, REG_BINARY})
+    {
+        for (size_t route = 0; route < ARRAYSIZE(registryScalarRoutes); ++route)
+        {
+            if (!registry_scalar_route_supported<Named, PublicTry>(parser, route))
+            {
+                continue;
+            }
+            DYNAMIC_SECTION("type-mismatch-" << (stored == REG_DWORD ? "dword" : "binary") << " / " <<
+                threeParserNames[parser] << " / " << adapter << " / " << registryScalarRoutes[route])
+            {
+                constexpr DWORD data = 123;
+                REQUIRE(ERROR_SUCCESS == ::RegSetValueExW(key.get(), threeParserValue, 0, stored,
+                    reinterpret_cast<const BYTE*>(&data), sizeof(data)));
+                T value{};
+#if defined(__WIL_OLEAUTO_H_)
+                auto cleanup = wil::scope_exit([&] {
+                    if constexpr (std::is_same_v<T, BSTR>)
+                    {
+                        ::SysFreeString(value);
+                    }
+                });
+#endif
+                if (route == 5)
+                {
+                    REQUIRE_SUCCEEDED(wil::reg::reg_view_details::reg_value_type_info::resize_buffer_bytes(value, 8));
+                }
+                HRESULT hr = S_OK;
+#if defined(WIL_ENABLE_EXCEPTIONS)
+                const auto exceptionHr = wil::ResultFromException([&] {
+                    hr = registry_scalar_read<T, Named, PublicTry>(key.get(), parser, route, value);
+                });
+                if (FAILED(exceptionHr))
+                {
+                    hr = exceptionHr;
+                }
+#else
+                hr = registry_scalar_read<T, Named, PublicTry>(key.get(), parser, route, value);
+#endif
+                REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
+            }
+        }
+    }
+}
+} // namespace
+
+//----------------------------------------------------------------------------------------------------------------------
+// BasicRegistryTests::three_parser_failure_paths
+// Coverage: SZ/EXPAND scalar reg_view/named/generic reads reject payload OOM, rounded-size overflow and denied
+// read retries; calibrated allocator hooks verify overflow skips allocation and failed growth preserves owners.
+// OBJBASE-gated MULTI parsers and raw SZ/EXPAND/MULTI byte readers reject OOM or denied retries.
+// OLEAUTO/OBJBASE gate owners; shared/wstring and get/try routes require exceptions and their STL guards.
+//----------------------------------------------------------------------------------------------------------------------
+TEST_CASE("BasicRegistryTests::three_parser_failure_paths", "[registry][registry-three-parser]")
+{
+    for (size_t parser = 0; parser < 2; ++parser)
+    {
+#if defined(__WIL_OLEAUTO_H_)
+        registry_scalar_failures<wil::unique_bstr>(parser, "unique_bstr");
+        registry_scalar_failures<BSTR, false>(parser, "raw_bstr");
+#endif
+#if defined(__WIL_OLEAUTO_H_STL)
+        registry_scalar_failures<wil::shared_bstr, true, true>(parser, "shared_bstr");
+#endif
+#if defined(__WIL_OBJBASE_H_)
+        registry_scalar_failures<wil::unique_cotaskmem_string>(parser, "unique_cotaskmem");
+#endif
+#if defined(__WIL_OBJBASE_H_STL)
+        registry_scalar_failures<wil::shared_cotaskmem_string, true, true>(parser, "shared_cotaskmem");
+#endif
+        registry_scalar_failures<wil::unique_process_heap_string, false>(parser, "process_heap");
+#if WIL_USE_STL && defined(WIL_ENABLE_EXCEPTIONS)
+        registry_scalar_failures<std::wstring, false, true>(parser, "wstring");
+#endif
+    }
+#if defined(__WIL_OBJBASE_H_)
+    for (const char* failure : {"payload-oom", "extreme-overflow", "retry-error"})
+    {
+        for (size_t parser = 0; parser < ARRAYSIZE(threeParserTypes); ++parser)
+        {
+            for (size_t route = 0; route < (parser == 2 ? 4u : 2u); ++route)
+            {
+                const bool parsed = route >= 2;
+                const bool generic = route % 2 != 0;
+                const char* name = parsed ? (generic ? "generic" : "named") : (generic ? "raw-view" : "raw-named");
+                DYNAMIC_SECTION(failure << " / " << threeParserNames[parser] << " / " <<
+                    (parsed ? "cotaskmem_array" : "cotaskmem_bytes") << " / " << name)
+                {
+                    const bool extreme = strcmp(failure, "extreme-overflow") == 0;
+                    const bool retry = strcmp(failure, "retry-error") == 0;
+                    size_t reads = 0;
+                    size_t allocations = 0;
+                    size_t requestedBytes = 0;
+                    bool active = false;
+                    witest::detoured_thread_function<&::RegGetValueW> read;
+                    REQUIRE_SUCCEEDED(read.reset([&](HKEY, PCWSTR, PCWSTR, DWORD, DWORD*, void*, DWORD* bytes) -> LSTATUS {
+                        *bytes = extreme ? MAXDWORD : 32;
+                        return ++reads > 1 && retry ? ERROR_ACCESS_DENIED : ERROR_MORE_DATA;
+                    }));
+                    witest::detoured_thread_function<&::CoTaskMemAlloc> task;
+                    REQUIRE_SUCCEEDED(task.reset([&](size_t bytes) -> void* {
+                        if (active)
+                        {
+                            ++allocations;
+                            requestedBytes = bytes;
+                            if (!retry || bytes >= 16384)
+                            {
+                                return nullptr;
+                            }
+                        }
+                        return ::CoTaskMemAlloc(bytes);
+                    }));
+                    wil::unique_cotaskmem_array_ptr<wil::unique_cotaskmem_string> value;
+                    wil::unique_cotaskmem_array_ptr<BYTE> raw;
+                    active = true;
+                    const auto hr = parsed ?
+                        (generic ? wil::reg::get_value_nothrow(HKEY_CURRENT_USER, threeParserValue, value) :
+                                   wil::reg::get_value_multistring_nothrow(HKEY_CURRENT_USER, threeParserValue, value)) :
+                        (generic ? wil::reg::reg_view_details::reg_view_nothrow{HKEY_CURRENT_USER}.get_value(
+                                       nullptr, threeParserValue, raw, threeParserTypes[parser]) :
+                                   wil::reg::get_value_binary_nothrow(HKEY_CURRENT_USER, threeParserValue, threeParserTypes[parser], raw));
+                    active = false;
+                    REQUIRE(hr == (retry ? HRESULT_FROM_WIN32(ERROR_ACCESS_DENIED) : E_OUTOFMEMORY));
+                    REQUIRE(reads == (retry ? 2u : 1u));
+                    REQUIRE(allocations == 1);
+                    REQUIRE(requestedBytes == (extreme ? MAXDWORD : 32u));
+                    REQUIRE(value.empty());
+                }
+            }
+        }
+    }
+#endif
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// BasicRegistryTests::three_parser_stored_types
+// Coverage: SZ/EXPAND scalar and MULTI parsers reject stored DWORD/BINARY through supported named/generic/view
+// routes; explicit process-heap/fixed-array views check accepted SZ/EXPAND/MULTI combinations and mismatches.
+// Explicit ANY reads BINARY as raw scalar bytes, not typed parsing; OBJBASE/OLEAUTO gate owning adapters,
+// while shared/STL and get/try routes require exceptions.
+//----------------------------------------------------------------------------------------------------------------------
+TEST_CASE("BasicRegistryTests::three_parser_stored_types", "[registry][registry-three-parser]")
+{
+    for (size_t parser = 0; parser < 2; ++parser)
+    {
+#if defined(__WIL_OLEAUTO_H_)
+        registry_scalar_type_rejection<wil::unique_bstr>(parser, "unique_bstr");
+        registry_scalar_type_rejection<BSTR, false>(parser, "raw_bstr");
+#endif
+#if defined(__WIL_OLEAUTO_H_STL)
+        registry_scalar_type_rejection<wil::shared_bstr, true, true>(parser, "shared_bstr");
+#endif
+#if defined(__WIL_OBJBASE_H_)
+        registry_scalar_type_rejection<wil::unique_cotaskmem_string>(parser, "unique_cotaskmem");
+#endif
+#if defined(__WIL_OBJBASE_H_STL)
+        registry_scalar_type_rejection<wil::shared_cotaskmem_string, true, true>(parser, "shared_cotaskmem");
+#endif
+        registry_scalar_type_rejection<wil::unique_process_heap_string, false>(parser, "process_heap");
+#if WIL_USE_STL && defined(WIL_ENABLE_EXCEPTIONS)
+        registry_scalar_type_rejection<std::wstring, false, true>(parser, "wstring");
+#endif
+    }
+    wil::unique_hkey key;
+    REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, key, wil::reg::key_access::readwrite));
+    for (DWORD stored : {REG_DWORD, REG_BINARY})
+    {
+        for (size_t route = 0; route < 6; ++route)
+        {
+#if !defined(WIL_ENABLE_EXCEPTIONS)
+            if (route >= 2)
+            {
+                continue;
+            }
+#endif
+            const char* adapter = route < 2 ? "cotaskmem_array" : "wstring_vector";
+            constexpr const char* routes[]{"named", "generic", "get", "try", "generic-get", "generic-try"};
+            DYNAMIC_SECTION("type-mismatch-" << (stored == REG_DWORD ? "dword" : "binary") <<
+                " / REG_MULTI_SZ / " << adapter << " / " << routes[route])
+            {
+                constexpr DWORD data = 123;
+                REQUIRE(ERROR_SUCCESS == ::RegSetValueExW(key.get(), threeParserValue, 0, stored,
+                    reinterpret_cast<const BYTE*>(&data), sizeof(data)));
+                HRESULT hr = S_OK;
+#if defined(__WIL_OBJBASE_H_)
+                if (route < 2)
+                {
+                    wil::unique_cotaskmem_array_ptr<wil::unique_cotaskmem_string> value;
+                    hr = route == 0 ? wil::reg::get_value_multistring_nothrow(key.get(), threeParserValue, value) :
+                                      wil::reg::get_value_nothrow(key.get(), threeParserValue, value);
+                }
+#endif
+#if WIL_USE_STL && defined(WIL_ENABLE_EXCEPTIONS)
+                if (route >= 2)
+                {
+                    hr = wil::ResultFromException([&] {
+                        if (route == 2)
+                        {
+                            wil::reg::get_value_multistring(key.get(), threeParserValue);
+                        }
+                        else if (route == 3)
+                        {
+                            wil::reg::try_get_value_multistring(key.get(), threeParserValue);
+                        }
+                        else if (route == 4)
+                        {
+                            wil::reg::get_value<std::vector<std::wstring>>(key.get(), threeParserValue);
+                        }
+                        else
+                        {
+                            wil::reg::try_get_value<std::vector<std::wstring>>(key.get(), threeParserValue);
+                        }
+                    });
+                }
+#endif
+                REQUIRE(hr == HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE));
+            }
+        }
+    }
+    for (DWORD stored : {REG_SZ, REG_EXPAND_SZ, REG_MULTI_SZ, REG_DWORD, REG_BINARY})
+    {
+        for (size_t parser = 0; parser < ARRAYSIZE(threeParserTypes); ++parser)
+        {
+            DYNAMIC_SECTION("stored=" << stored << " / " << threeParserNames[parser] << " / typed-rejection")
+            {
+                constexpr wchar_t data[] = L"abc\0";
+                REQUIRE(ERROR_SUCCESS == ::RegSetValueExW(key.get(), threeParserValue, 0, stored,
+                    reinterpret_cast<const BYTE*>(data), stored == REG_DWORD ? sizeof(DWORD) : sizeof(data)));
+                const bool supported = parser < 2 ? stored == REG_SZ || stored == REG_EXPAND_SZ : stored == REG_MULTI_SZ;
+                const auto expected = supported ? S_OK : HRESULT_FROM_WIN32(ERROR_UNSUPPORTED_TYPE);
+                wil::unique_process_heap_string scalar;
+                REQUIRE(wil::reg::reg_view_details::reg_view_nothrow{key.get()}.get_value(
+                    nullptr, threeParserValue, scalar, threeParserTypes[parser]) == expected);
+                if (supported && parser < 2)
+                {
+                    verify_registry_owned_string(scalar.get(), L"abc");
+                }
+                wchar_t fixed[16]{};
+                DWORD required = 0;
+                REQUIRE(wil::reg::reg_view_details::reg_view_nothrow{key.get()}.get_value_char_array(
+                    nullptr, threeParserValue, fixed, threeParserTypes[parser], &required) == expected);
+#if defined(__WIL_OBJBASE_H_)
+                if (parser == 2)
+                {
+                    wil::unique_cotaskmem_array_ptr<wil::unique_cotaskmem_string> multi;
+                    REQUIRE(wil::reg::get_value_multistring_nothrow(key.get(), threeParserValue, multi) == expected);
+                    if (supported)
+                    {
+                        REQUIRE(multi.size() == 1);
+                        verify_registry_owned_string(multi[0], L"abc");
+                    }
+                }
+#endif
+#if WIL_USE_STL && defined(WIL_ENABLE_EXCEPTIONS)
+                if (parser == 2)
+                {
+                    HRESULT hr = S_OK;
+                    const auto exceptionHr = wil::ResultFromException([&] {
+                        const auto result = wil::reg::try_get_value_multistring(key.get(), threeParserValue);
+                        if (!result)
+                        {
+                            hr = HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND);
+                        }
+                    });
+                    REQUIRE((FAILED(exceptionHr) ? exceptionHr : hr) == expected);
+                }
+#endif
+            }
+        }
+    }
+    SECTION("explicit ANY is raw selection, not typed rejection")
+    {
+        constexpr wchar_t binary[] = L"abc";
+        REQUIRE(ERROR_SUCCESS == ::RegSetValueExW(key.get(), threeParserValue, 0, REG_BINARY,
+            reinterpret_cast<const BYTE*>(binary), sizeof(binary)));
+        wil::unique_process_heap_string value;
+        REQUIRE_SUCCEEDED(wil::reg::reg_view_details::reg_view_nothrow{key.get()}.get_value(
+            nullptr, threeParserValue, value, RRF_RT_ANY | RRF_NOEXPAND));
+        verify_registry_owned_string(value.get(), L"abc");
+    }
+}
+
+#if defined(WIL_ENABLE_EXCEPTIONS) && defined(__WIL_OLEAUTO_H_STL) && defined(__WIL_OBJBASE_H_STL)
+namespace
+{
+template <typename T>
+void registry_shared_parser_controlblock_oom(size_t parser, const char* adapter)
+{
+    for (size_t route = 0; route < ARRAYSIZE(registryScalarRoutes); ++route)
+    {
+        if (!registry_scalar_route_supported<true, true>(parser, route))
+        {
+            continue;
+        }
+        // Named literal BSTR uses the existing control block's raw BSTR slot; its initial addressof OOM has a separate test.
+        if (std::is_same_v<T, wil::shared_bstr> && parser == 0 && route == 1)
+        {
+            continue;
+        }
+        DYNAMIC_SECTION("controlblock-oom / " << threeParserNames[parser] << " / " << adapter << " / " << registryScalarRoutes[route])
+        {
+            T value{};
+            if (route == 5)
+            {
+                REQUIRE_SUCCEEDED(wil::reg::reg_view_details::reg_value_type_info::resize_buffer_bytes(value, 8));
+            }
+            auto alias = value;
+            const auto old = value.get();
+            bool active = false;
+            bool armed = false;
+            size_t failures = 0;
+            size_t frees = 0;
+            void* payload = nullptr;
+            bool recordedPayload = false;
+            witest::detoured_thread_function<static_cast<void* (*)(size_t)>(&::operator new)> control;
+            REQUIRE_SUCCEEDED(control.reset([&](size_t bytes) -> void* {
+                if (armed)
+                {
+                    armed = false;
+                    ++failures;
+                    throw std::bad_alloc();
+                }
+                return ::operator new(bytes);
+            }));
+            witest::detoured_thread_function<&::CoTaskMemAlloc> task;
+            REQUIRE_SUCCEEDED(task.reset([&](size_t bytes) -> void* {
+                auto allocated = ::CoTaskMemAlloc(bytes);
+                if (active && !recordedPayload)
+                {
+                    recordedPayload = true;
+                    payload = allocated;
+                    armed = allocated != nullptr;
+                }
+                return allocated;
+            }));
+            witest::detoured_thread_function<&::SysAllocStringLen> bstr;
+            REQUIRE_SUCCEEDED(bstr.reset([&](const OLECHAR* data, UINT length) -> BSTR {
+                auto allocated = ::SysAllocStringLen(data, length);
+                if (active && !recordedPayload)
+                {
+                    recordedPayload = true;
+                    payload = allocated;
+                    armed = allocated != nullptr;
+                }
+                return allocated;
+            }));
+            witest::detoured_thread_function<&::CoTaskMemFree> taskFree;
+            REQUIRE_SUCCEEDED(taskFree.reset([&](void* ptr) {
+                if (ptr && ptr == payload)
+                {
+                    ++frees;
+                    payload = nullptr;
+                }
+                ::CoTaskMemFree(ptr);
+            }));
+            witest::detoured_thread_function<&::SysFreeString> bstrFree;
+            REQUIRE_SUCCEEDED(bstrFree.reset([&](BSTR ptr) {
+                if (ptr && ptr == payload)
+                {
+                    ++frees;
+                    payload = nullptr;
+                }
+                ::SysFreeString(ptr);
+            }));
+            witest::detoured_thread_function<&::RegGetValueW> read;
+            constexpr wchar_t data[] = L"replacement value";
+            registry_allocation_value(read, data, sizeof(data));
+            HRESULT hr = S_OK;
+            active = true;
+            const auto exceptionHr = wil::ResultFromException([&] {
+                hr = registry_scalar_read<T, true, true>(HKEY_CURRENT_USER, parser, route, value);
+            });
+            active = false;
+            REQUIRE((FAILED(exceptionHr) ? exceptionHr : hr) == E_OUTOFMEMORY);
+            REQUIRE(failures == 1);
+            REQUIRE(frees == 1);
+            REQUIRE(value.get() == old);
+            REQUIRE(alias.get() == old);
+        }
+    }
+}
+} // namespace
+
+//----------------------------------------------------------------------------------------------------------------------
+// BasicRegistryTests::three_parser_shared_controlblock
+// Coverage: Exception-enabled only, with OLEAUTO/OBJBASE shared adapters: SZ/EXPAND shared BSTR/CoTaskMem
+// reg_view, named/generic and get/try reads map injected control-block bad_alloc to OOM, free replacements
+// and preserve old owners/aliases; named literal BSTR's separate initial addressof path is excluded.
+//----------------------------------------------------------------------------------------------------------------------
+TEST_CASE("BasicRegistryTests::three_parser_shared_controlblock", "[registry][registry-three-parser]")
+{
+    for (size_t parser = 0; parser < 2; ++parser)
+    {
+        registry_shared_parser_controlblock_oom<wil::shared_bstr>(parser, "shared_bstr");
+        registry_shared_parser_controlblock_oom<wil::shared_cotaskmem_string>(parser, "shared_cotaskmem");
+    }
+}
+#endif
+
+#if WIL_USE_STL && defined(WIL_ENABLE_EXCEPTIONS)
+//----------------------------------------------------------------------------------------------------------------------
+// BasicRegistryTests::three_parser_vector_failures
+// Coverage: Exception-enabled STL only: raw byte-vector reg_view reads of SZ/EXPAND/MULTI and MULTI vector
+// named/generic get/try reads reject payload OOM and denied retries with empty parsed output.
+// Extreme byte requests distinguish preallocation capacity rejection from representable, injected allocation OOM.
+//----------------------------------------------------------------------------------------------------------------------
+TEST_CASE("BasicRegistryTests::three_parser_vector_failures", "[registry][registry-three-parser]")
+{
+    // Capacity rejection precedes allocation; only representable MAXDWORD requests exercise injected payload OOM.
+    for (const char* failure : {"payload-oom", "extreme-overflow", "retry-error"})
+    {
+        for (size_t parser = 0; parser < ARRAYSIZE(threeParserTypes); ++parser)
+        {
+            for (size_t route = 0; route < 5; ++route)
+            {
+                if (parser != 2 && route != 4)
+                {
+                    continue;
+                }
+                constexpr const char* routes[]{"get", "try", "generic-get", "generic-try", "raw-view"};
+                const char* adapter = route == 4 ? "vector_bytes" : "wstring_vector";
+                DYNAMIC_SECTION(failure << " / " << threeParserNames[parser] << " / " << adapter << " / " << routes[route])
+                {
+                    const bool extreme = strcmp(failure, "extreme-overflow") == 0;
+                    const bool retry = strcmp(failure, "retry-error") == 0;
+                    const bool withinCapacity = static_cast<size_t>(MAXDWORD) <= std::vector<BYTE>{}.max_size();
+                    bool active = false;
+                    bool armed = false;
+                    size_t reads = 0;
+                    size_t failures = 0;
+                    size_t refusedBytes = 0;
+                    witest::detoured_thread_function<&::RegGetValueW> read;
+                    REQUIRE_SUCCEEDED(read.reset([&](HKEY, PCWSTR, PCWSTR, DWORD, DWORD*, void*, DWORD* bytes) -> LSTATUS {
+                        if (++reads > 16)
+                        {
+                            return ERROR_INVALID_DATA;
+                        }
+                        *bytes = extreme ? MAXDWORD : 32;
+                        armed = !retry && (!extreme || withinCapacity);
+                        return reads > 1 && retry ? ERROR_ACCESS_DENIED : ERROR_MORE_DATA;
+                    }));
+                    witest::detoured_thread_function<static_cast<void* (*)(size_t)>(&::operator new)> allocate;
+                    REQUIRE_SUCCEEDED(allocate.reset([&](size_t bytes) -> void* {
+                        if (active && (armed || (extreme && bytes >= static_cast<size_t>(MAXDWORD))))
+                        {
+                            armed = false;
+                            ++failures;
+                            refusedBytes = bytes;
+                            throw std::bad_alloc();
+                        }
+                        return ::operator new(bytes);
+                    }));
+                    std::vector<BYTE> raw;
+                    std::vector<std::wstring> strings;
+                    HRESULT hr = S_OK;
+                    active = true;
+                    const auto exceptionHr = wil::ResultFromException([&] {
+                        if (route == 4)
+                        {
+                            hr = wil::reg::reg_view_details::reg_view_nothrow{HKEY_CURRENT_USER}.get_value(
+                                nullptr, threeParserValue, raw, threeParserTypes[parser]);
+                        }
+                        else if (route == 0 || route == 2)
+                        {
+                            strings = route == 0 ? wil::reg::get_value_multistring(HKEY_CURRENT_USER, threeParserValue) :
+                                wil::reg::get_value<std::vector<std::wstring>>(HKEY_CURRENT_USER, threeParserValue);
+                        }
+                        else
+                        {
+                            auto result = route == 1 ? wil::reg::try_get_value_multistring(HKEY_CURRENT_USER, threeParserValue) :
+                                wil::reg::try_get_value<std::vector<std::wstring>>(HKEY_CURRENT_USER, threeParserValue);
+                            if (!result)
+                            {
+                                hr = HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND);
+                            }
+                        }
+                    });
+                    active = false;
+                    REQUIRE((FAILED(exceptionHr) ? exceptionHr : hr) ==
+                        (retry ? HRESULT_FROM_WIN32(ERROR_ACCESS_DENIED) :
+                         extreme && !withinCapacity ? HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION) : E_OUTOFMEMORY));
+                    REQUIRE(failures == (retry || (extreme && !withinCapacity) ? 0u : 1u));
+                    if (extreme && withinCapacity)
+                    {
+                        // The STL allocator adds alignment/debug bookkeeping to the requested byte extent.
+                        REQUIRE(refusedBytes >= MAXDWORD);
+                        REQUIRE(refusedBytes - MAXDWORD < 1024);
+                    }
+                    REQUIRE(reads == (retry ? 2u : 1u));
+                    REQUIRE(strings.empty());
+                }
+            }
+        }
+    }
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// BasicRegistryTests::three_parser_vector_parse_failures
+// Coverage: Exception-enabled STL only: MULTI vector named/generic get/try reads inject post-read OOM at vector
+// storage, first/middle/last long string storage and empty-element vector storage, calibrated by returned pointers.
+// Failures produce no partial or missing-value result, free all storage and stop later calibrated parse allocations.
+//----------------------------------------------------------------------------------------------------------------------
+TEST_CASE("BasicRegistryTests::three_parser_vector_parse_failures", "[registry][registry-three-parser]")
+{
+    // Post-read vector/element OOM is distinct from raw-buffer OOM; failure must leave empty output and unwind all storage.
+    constexpr const char* stages[]{"element-allocation-array", "element-allocation-first",
+        "element-allocation-middle", "element-allocation-last", "element-allocation-empty-array"};
+    constexpr const char* routes[]{"get", "try", "generic-get", "generic-try"};
+    constexpr size_t lengths[]{128, 256, 512};
+    std::vector<wchar_t> payload;
+    std::vector<wchar_t> firstPayload(lengths[0], L'a');
+    firstPayload.insert(firstPayload.end(), 2, L'\0');
+    for (size_t element = 0; element < ARRAYSIZE(lengths); ++element)
+    {
+        payload.insert(payload.end(), lengths[element], static_cast<wchar_t>(L'a' + element));
+        payload.push_back(L'\0');
+    }
+    payload.push_back(L'\0');
+    constexpr wchar_t emptyPayload[]{L'\0', L'\0'};
+
+    for (size_t stage = 0; stage < ARRAYSIZE(stages); ++stage)
+    {
+        for (size_t route = 0; route < ARRAYSIZE(routes); ++route)
+        {
+            DYNAMIC_SECTION(stages[stage] << " / REG_MULTI_SZ / wstring_vector / " << routes[route])
+            {
+                struct allocation_record
+                {
+                    void* pointer;
+                    size_t bytes;
+                    bool afterRead;
+                    bool freed;
+                };
+                std::array<allocation_record, 64> records{};
+                size_t recordCount = 0;
+                bool recordOverflow = false;
+                bool active = false;
+                bool inject = false;
+                bool missing = false;
+                bool wrongFlags = false;
+                size_t reads = 0;
+                size_t successfulReads = 0;
+                size_t failures = 0;
+                size_t allocationsAfterFailure = 0;
+                std::array<size_t, 4> allocationBytes{};
+                std::array<size_t, 4> stageAttempts{};
+                const wchar_t* source = firstPayload.data();
+                DWORD sourceBytes = static_cast<DWORD>(firstPayload.size() * sizeof(wchar_t));
+                witest::detoured_thread_function<&::RegGetValueW> read;
+                REQUIRE_SUCCEEDED(read.reset([&](HKEY, PCWSTR, PCWSTR, DWORD flags, DWORD*, void* data, DWORD* bytes) -> LSTATUS {
+                    wrongFlags |= !(flags & RRF_RT_REG_MULTI_SZ);
+                    if (++reads > 16)
+                    {
+                        return ERROR_INVALID_DATA;
+                    }
+                    const auto capacity = *bytes;
+                    *bytes = sourceBytes;
+                    if (!data || capacity < sourceBytes)
+                    {
+                        return ERROR_MORE_DATA;
+                    }
+                    memcpy(data, source, sourceBytes);
+                    ++successfulReads;
+                    return ERROR_SUCCESS;
+                }));
+                // Capture actual public-read allocations without allocating telemetry storage on the owned thread.
+                witest::detoured_thread_function<static_cast<void* (*)(size_t)>(&::operator new)> allocate;
+                REQUIRE_SUCCEEDED(allocate.reset([&](size_t bytes) -> void* {
+                    if (active && inject && successfulReads)
+                    {
+                        for (size_t index = 0; index < allocationBytes.size(); ++index)
+                        {
+                            if (bytes == allocationBytes[index])
+                            {
+                                ++stageAttempts[index];
+                                allocationsAfterFailure += failures != 0;
+                            }
+                        }
+                        if (!failures && bytes == allocationBytes[stage == 4 ? 0 : stage])
+                        {
+                            ++failures;
+                            throw std::bad_alloc();
+                        }
+                    }
+                    void* const pointer = ::operator new(bytes);
+                    if (active)
+                    {
+                        if (recordCount < records.size())
+                        {
+                            records[recordCount++] = {pointer, bytes, successfulReads != 0, false};
+                        }
+                        else
+                        {
+                            recordOverflow = true;
+                        }
+                    }
+                    return pointer;
+                }));
+                witest::detoured_thread_function<static_cast<void (*)(void*)>(&::operator delete)> release;
+                REQUIRE_SUCCEEDED(release.reset([&](void* pointer) {
+                    if (active)
+                    {
+                        for (size_t index = recordCount; index > 0; --index)
+                        {
+                            auto& record = records[index - 1];
+                            if (record.pointer == pointer && !record.freed)
+                            {
+                                record.freed = true;
+                                break;
+                            }
+                        }
+                    }
+                    ::operator delete(pointer);
+                }));
+                const auto invoke = [&]() -> std::vector<std::wstring> {
+                    if (route == 0 || route == 2)
+                    {
+                        return route == 0 ? wil::reg::get_value_multistring(HKEY_CURRENT_USER, threeParserValue) :
+                            wil::reg::get_value<std::vector<std::wstring>>(HKEY_CURRENT_USER, threeParserValue);
+                    }
+                    auto result = route == 1 ? wil::reg::try_get_value_multistring(HKEY_CURRENT_USER, threeParserValue) :
+                        wil::reg::try_get_value<std::vector<std::wstring>>(HKEY_CURRENT_USER, threeParserValue);
+                    missing = !result;
+                    return result ? std::move(*result) : std::vector<std::wstring>{};
+                };
+                const auto allocationSize = [&](const void* pointer) {
+                    for (size_t index = recordCount; index > 0; --index)
+                    {
+                        const auto& record = records[index - 1];
+                        if (record.pointer == pointer && record.afterRead && !record.freed)
+                        {
+                            return record.bytes;
+                        }
+                    }
+                    return size_t{};
+                };
+                // Calibrate by returned storage identity, not the STL's unspecified allocation ordering or SSO.
+                for (bool firstOnly : {true, false})
+                {
+                    recordCount = reads = successfulReads = 0;
+                    source = firstOnly ? firstPayload.data() : payload.data();
+                    sourceBytes = static_cast<DWORD>((firstOnly ? firstPayload.size() : payload.size()) * sizeof(wchar_t));
+                    std::vector<std::wstring> strings;
+                    active = true;
+                    const auto hr = wil::ResultFromException([&] { strings = invoke(); });
+                    active = false;
+                    REQUIRE_SUCCEEDED(hr);
+                    REQUIRE_FALSE(missing);
+                    REQUIRE_FALSE(recordOverflow);
+                    REQUIRE_FALSE(wrongFlags);
+                    REQUIRE(reads == 2);
+                    REQUIRE(successfulReads == 1);
+                    REQUIRE(strings.size() == (firstOnly ? 1u : 3u));
+                    for (size_t element = 0; element < strings.size(); ++element)
+                    {
+                        REQUIRE(strings[element].size() == lengths[element]);
+                        REQUIRE(strings[element].data() != nullptr);
+                        REQUIRE(strings[element].data()[lengths[element]] == L'\0');
+                        REQUIRE(std::all_of(strings[element].begin(), strings[element].end(),
+                            [element](wchar_t ch) { return ch == static_cast<wchar_t>(L'a' + element); }));
+                    }
+                    if (firstOnly)
+                    {
+                        allocationBytes[0] = allocationSize(strings.data());
+                    }
+                    else
+                    {
+                        for (size_t element = 0; element < strings.size(); ++element)
+                        {
+                            allocationBytes[element + 1] = allocationSize(strings[element].data());
+                        }
+                        size_t initialStorageAttempts = 0;
+                        for (size_t index = 0; index < recordCount; ++index)
+                        {
+                            initialStorageAttempts += records[index].afterRead && records[index].bytes == allocationBytes[0];
+                        }
+                        REQUIRE(initialStorageAttempts == 1);
+                    }
+                }
+                for (size_t index = 0; index < allocationBytes.size(); ++index)
+                {
+                    REQUIRE(allocationBytes[index] != 0);
+                    for (size_t other = 0; other < index; ++other)
+                    {
+                        REQUIRE(allocationBytes[index] != allocationBytes[other]);
+                    }
+                }
+                recordCount = reads = successfulReads = 0;
+                source = stage == 4 ? emptyPayload : payload.data();
+                sourceBytes = stage == 4 ? sizeof(emptyPayload) : static_cast<DWORD>(payload.size() * sizeof(wchar_t));
+                std::vector<std::wstring> strings;
+                inject = active = true;
+                const auto hr = wil::ResultFromException([&] { strings = invoke(); });
+                active = false;
+                REQUIRE(hr == E_OUTOFMEMORY);
+                REQUIRE_FALSE(missing);
+                REQUIRE(strings.empty());
+                REQUIRE_FALSE(recordOverflow);
+                REQUIRE_FALSE(wrongFlags);
+                REQUIRE(reads == 2);
+                REQUIRE(successfulReads == 1);
+                REQUIRE(failures == 1);
+                REQUIRE(allocationsAfterFailure == 0);
+                REQUIRE(stageAttempts[stage == 4 ? 0 : stage] == 1);
+                for (size_t element = 1; element < stageAttempts.size(); ++element)
+                {
+                    REQUIRE(stageAttempts[element] == (stage < 4 && element <= stage ? 1u : 0u));
+                }
+                for (size_t index = 0; index < recordCount; ++index)
+                {
+                    REQUIRE(records[index].freed);
+                }
+            }
+        }
+    }
+}
+#endif
+
 constexpr auto* dwordValueName = L"MyDwordValue";
 constexpr auto* qwordValueName = L"MyQwordValue";
 constexpr auto* stringValueName = L"MyStringValue";
@@ -329,11 +2322,13 @@ static void VerifyThrowsHr(HRESULT hr, const std::function<void()>& fn)
 }
 #endif
 
-// NOTE: these tests contain the code used in the documentation.
-//
-// They don't assert much: they simply validate that the code in the
-// documentation works.
 #if defined(WIL_ENABLE_EXCEPTIONS)
+//----------------------------------------------------------------------------------------------------------------------
+// BasicRegistryTests::ExampleUsage
+// Coverage: Exception-enabled only: exercises documentation examples for key open/create, DWORD/SZ get/set
+// and optional try_get, including nothrow calls; lightly validates writes, child counts and registry error helpers.
+// Also exercises last-write-time retrieval; these are usage examples rather than exhaustive assertions.
+//----------------------------------------------------------------------------------------------------------------------
 TEST_CASE("BasicRegistryTests::ExampleUsage", "[registry]")
 {
     // These examples use the explicit registry key, to make the usage more
@@ -458,6 +2453,12 @@ TEST_CASE("BasicRegistryTests::ExampleUsage", "[registry]")
 }
 #endif // defined(WIL_ENABLE_EXCEPTIONS)
 
+//----------------------------------------------------------------------------------------------------------------------
+// BasicRegistryTests::Open
+// Coverage: Unique key open/create by handle or subkey path verifies DWORD/QWORD reads, read/write permissions,
+// missing-key errors, access-flag mappings and child key/value counts through nothrow APIs.
+// Shared HKEY cases use WINREG_STL guards; throwing open/create/get and count cases require exceptions.
+//----------------------------------------------------------------------------------------------------------------------
 TEST_CASE("BasicRegistryTests::Open", "[registry]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
@@ -1328,6 +3329,12 @@ using ThrowingTypesToTest = std::tuple<DwordFns, GenericDwordFns, QwordFns, Gene
 #endif // defined(WIL_ENABLE_EXCEPTIONS)
 } // namespace
 
+//----------------------------------------------------------------------------------------------------------------------
+// BasicRegistryTests::delete_value_and_tree
+// Coverage: Nothrow value deletion by handle/path removes DWORD values and reports missing values;
+// tree deletion removes descendants and tolerates missing trees.
+// Exception-enabled delete_value/delete_tree and optional DWORD reads verify the corresponding removal behavior.
+//----------------------------------------------------------------------------------------------------------------------
 TEST_CASE("BasicRegistryTests::delete_value_and_tree", "[registry]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
@@ -1405,6 +3412,11 @@ TEST_CASE("BasicRegistryTests::delete_value_and_tree", "[registry]")
 #endif
 }
 
+//----------------------------------------------------------------------------------------------------------------------
+// BasicRegistryTests::simple types typed nothrow gets/sets
+// Coverage: Named and generic DWORD/QWORD nothrow get/set cases by open HKEY or subkey path;
+// round-trip zero/one/max values, reused outputs and default names, plus missing-value and wrong-type errors.
+//----------------------------------------------------------------------------------------------------------------------
 TEMPLATE_LIST_TEST_CASE("BasicRegistryTests::simple types typed nothrow gets/sets", "[registry]", NoThrowTypesToTest)
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
@@ -1491,6 +3503,12 @@ TEMPLATE_LIST_TEST_CASE("BasicRegistryTests::simple types typed nothrow gets/set
 }
 
 #if defined(WIL_ENABLE_EXCEPTIONS)
+//----------------------------------------------------------------------------------------------------------------------
+// BasicRegistryTests::simple types typed gets/sets/try_gets
+// Coverage: Exception-enabled only: named/generic DWORD, QWORD and vector<wstring> MULTI get/set cases
+// round-trip values and default names by HKEY/path, and reject missing values or wrong stored types.
+// Optional try_get cases return values/nullopt for present/missing data but still throw for type mismatches.
+//----------------------------------------------------------------------------------------------------------------------
 TEMPLATE_LIST_TEST_CASE("BasicRegistryTests::simple types typed gets/sets/try_gets", "[registry]", ThrowingTypesToTest)
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
@@ -1630,6 +3648,12 @@ TEMPLATE_LIST_TEST_CASE("BasicRegistryTests::simple types typed gets/sets/try_ge
 #endif // defined(WIL_ENABLE_EXCEPTIONS)
 
 #if defined(WIL_ENABLE_EXCEPTIONS)
+//----------------------------------------------------------------------------------------------------------------------
+// BasicRegistryTests::wstrings
+// Coverage: Exception-enabled only: REG_SZ wstring generic nothrow and named get reads handle zero-byte
+// and unterminated values by HKEY/path; fixed WCHAR named nothrow reads verify default names, required byte sizes,
+// small-buffer errors, missing values and rejection of stored DWORD data.
+//----------------------------------------------------------------------------------------------------------------------
 TEST_CASE("BasicRegistryTests::wstrings", "[registry]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
@@ -2105,6 +4129,12 @@ void verify_try_string_generic_get_value_subkey()
 #endif
 } // namespace
 
+//----------------------------------------------------------------------------------------------------------------------
+// BasicRegistryTests::string types
+// Coverage: REG_SZ named/generic get/set and nothrow calls by HKEY/path verify empty/normal/default values,
+// output reuse, missing values and DWORD mismatches with fixed WCHAR and OLEAUTO/OBJBASE BSTR/CoTaskMem owners.
+// Shared owners, wstring get/set lvalues and get/optional try_get cases require exceptions and their STL guards.
+//----------------------------------------------------------------------------------------------------------------------
 TEST_CASE("BasicRegistryTests::string types", "[registry]")
 {
     SECTION("set_value_string_nothrow/get_value_string_nothrow: with opened key")
@@ -2467,6 +4497,12 @@ TEST_CASE("BasicRegistryTests::string types", "[registry]")
 #endif
 }
 
+//----------------------------------------------------------------------------------------------------------------------
+// BasicRegistryTests::expanded_wstring
+// Coverage: REG_EXPAND_SZ named nothrow get/set by HKEY/path uses fixed WCHAR arrays, compared with
+// ExpandEnvironmentStringsW for empty/literal/environment values and default names; checks required byte sizes,
+// small-buffer errors, missing values and DWORD type rejection.
+//----------------------------------------------------------------------------------------------------------------------
 TEST_CASE("BasicRegistryTests::expanded_wstring", "[registry]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
@@ -2876,6 +4912,12 @@ void verify_try_expanded_string_subkey()
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS)
 } // namespace
 
+//----------------------------------------------------------------------------------------------------------------------
+// BasicRegistryTests::expanded_string
+// Coverage: REG_EXPAND_SZ named get/set by HKEY/path compares owning strings with ExpandEnvironmentStringsW;
+// nothrow cases verify output reuse, defaults, missing values and DWORD mismatches.
+// OLEAUTO guards select BSTR/CoTaskMem cases; shared owners and wstring get/optional try_get require exceptions.
+//----------------------------------------------------------------------------------------------------------------------
 TEST_CASE("BasicRegistryTests::expanded_string", "[registry]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
@@ -2995,6 +5037,12 @@ TEST_CASE("BasicRegistryTests::expanded_string", "[registry]")
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS)
 }
 
+//----------------------------------------------------------------------------------------------------------------------
+// BasicRegistryTests::multi-strings
+// Coverage: REG_MULTI_SZ named/generic readers handle empty, odd-byte, unterminated and embedded-null layouts;
+// OBJBASE CoTaskMem nothrow cases also check output reuse and default names by HKEY/path.
+// Exception-enabled vector get and optional try_get cases verify parsed elements and empty-array write semantics.
+//----------------------------------------------------------------------------------------------------------------------
 TEST_CASE("BasicRegistryTests::multi-strings", "[registry]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
@@ -3405,6 +5453,12 @@ void verify_try_byte_vector(
 #endif // #if defined(__cpp_lib_optional)
 } // namespace
 
+//----------------------------------------------------------------------------------------------------------------------
+// BasicRegistryTests::vector-bytes
+// Coverage: Exception-enabled only: binary named get/optional try_get into vector<BYTE> and nothrow CoTaskMem
+// reads by HKEY/path round-trip REG_BINARY buffers, defaults and reused outputs; reject missing/wrong types
+// and read stored DWORD bytes when explicitly requested as REG_DWORD.
+//----------------------------------------------------------------------------------------------------------------------
 TEST_CASE("BasicRegistryTests::vector-bytes", "[registry]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
@@ -3501,6 +5555,11 @@ TEST_CASE("BasicRegistryTests::vector-bytes", "[registry]")
 #endif
 
 #if defined(__WIL_OBJBASE_H_)
+//----------------------------------------------------------------------------------------------------------------------
+// BasicRegistryTests::cotaskmem_array-bytes
+// Coverage: OBJBASE-gated binary named nothrow get/set by HKEY/path round-trips CoTaskMem byte arrays,
+// empty/default values and reused outputs; checks missing/type errors and explicitly selected DWORD bytes.
+//----------------------------------------------------------------------------------------------------------------------
 TEST_CASE("BasicRegistryTests::cotaskmem_array-bytes", "[registry]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
@@ -3542,6 +5601,12 @@ TEST_CASE("BasicRegistryTests::cotaskmem_array-bytes", "[registry]")
 #endif // #if defined(__WIL_OBJBASE_H_)
 
 #if defined(WIL_ENABLE_EXCEPTIONS)
+//----------------------------------------------------------------------------------------------------------------------
+// BasicRegistryTests::value_iterator
+// Coverage: Exception-enabled STL value_iterator enumerates wstring names and DWORD/QWORD/SZ type metadata;
+// checks empty/single/many values, copy/assignment, dereference/increment, name resizing and maximum lengths
+// through algorithms and range-for loops, without parsing value payloads.
+//----------------------------------------------------------------------------------------------------------------------
 TEST_CASE("BasicRegistryTests::value_iterator", "[registry]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
@@ -3870,6 +5935,12 @@ TEST_CASE("BasicRegistryTests::value_iterator", "[registry]")
     }
 }
 
+//----------------------------------------------------------------------------------------------------------------------
+// BasicRegistryTests::key_iterator
+// Coverage: Exception-enabled STL key_iterator enumerates subkey names for empty/single/many keys;
+// verifies copy/assignment, dereference/increment, resizing and maximum names via algorithms and range-for loops.
+// Counting also uses WINREG_STL-gated shared HKEYs; empty subkey names do not create another child.
+//----------------------------------------------------------------------------------------------------------------------
 TEST_CASE("BasicRegistryTests::key_iterator", "[registry]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
@@ -4128,6 +6199,12 @@ TEST_CASE("BasicRegistryTests::key_iterator", "[registry]")
 }
 
 #if defined(__WIL_OLEAUTO_H_)
+//----------------------------------------------------------------------------------------------------------------------
+// BasicRegistryTests::value_bstr_iterator
+// Coverage: Exception-enabled OLEAUTO value_bstr_iterator enumerates BSTR names and DWORD/QWORD/SZ types;
+// checks empty/single/many values, copy/assignment, dereference/increment, BSTR length and maximum-name resizing
+// through algorithms and range-for loops, without parsing value payloads.
+//----------------------------------------------------------------------------------------------------------------------
 TEST_CASE("BasicRegistryTests::value_bstr_iterator", "[registry]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
@@ -4442,6 +6519,12 @@ TEST_CASE("BasicRegistryTests::value_bstr_iterator", "[registry]")
     }
 }
 
+//----------------------------------------------------------------------------------------------------------------------
+// BasicRegistryTests::key_bstr_iterator
+// Coverage: Exception-enabled OLEAUTO key_bstr_iterator enumerates BSTR subkey names for empty/single/many keys;
+// checks copy/assignment, dereference/increment, lengths, resizing and maximum names via algorithms/range-for.
+// Counting also uses WINREG_STL-gated shared HKEYs; empty subkey names do not create another child.
+//----------------------------------------------------------------------------------------------------------------------
 TEST_CASE("BasicRegistryTests::key_bstr_iterator", "[registry]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
@@ -4738,6 +6821,12 @@ TEST_CASE("BasicRegistryTests::key_bstr_iterator", "[registry]")
 }
 #endif
 
+//----------------------------------------------------------------------------------------------------------------------
+// BasicRegistryTests::value_heap_string_iterator
+// Coverage: Exception-enabled only: value_heap_string_iterator enumerates process-heap names and DWORD/QWORD/SZ
+// type metadata; checks empty/single/many values, copies, assignment, dereference/increment and maximum-name
+// resizing through algorithms/range-for loops, without parsing value payloads.
+//----------------------------------------------------------------------------------------------------------------------
 TEST_CASE("BasicRegistryTests::value_heap_string_iterator", "[registry]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
@@ -5050,6 +7139,12 @@ TEST_CASE("BasicRegistryTests::value_heap_string_iterator", "[registry]")
     }
 }
 
+//----------------------------------------------------------------------------------------------------------------------
+// BasicRegistryTests::key_heap_string_iterator
+// Coverage: Exception-enabled only: key_heap_string_iterator enumerates process-heap subkey names;
+// checks empty/single/many keys, copies, assignment, dereference/increment, resizing and maximum-name lengths
+// via algorithms/range-for; counting also uses WINREG_STL-gated shared HKEYs.
+//----------------------------------------------------------------------------------------------------------------------
 TEST_CASE("BasicRegistryTests::key_heap_string_iterator", "[registry]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
@@ -5345,6 +7440,12 @@ TEST_CASE("BasicRegistryTests::key_heap_string_iterator", "[registry]")
 #endif // #if defined(WIL_ENABLE_EXCEPTIONS)
 
 #if defined(__WIL_OLEAUTO_H_)
+//----------------------------------------------------------------------------------------------------------------------
+// BasicRegistryTests::value_bstr_nothrow_iterator
+// Coverage: OLEAUTO-gated nothrow value enumeration checks BSTR names and DWORD/QWORD/SZ type metadata;
+// verifies copies, assignment, dereference, maximum-name resizing, move_next/last_error and manual/range loops.
+// Empty keys and invalid handles compare at end; no value payload parsing is exercised.
+//----------------------------------------------------------------------------------------------------------------------
 TEST_CASE("BasicRegistryTests::value_bstr_nothrow_iterator", "[registry]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
@@ -5669,6 +7770,12 @@ TEST_CASE("BasicRegistryTests::value_bstr_nothrow_iterator", "[registry]")
     }
 }
 
+//----------------------------------------------------------------------------------------------------------------------
+// BasicRegistryTests::key_bstr_nothrow_iterator
+// Coverage: OLEAUTO-gated nothrow subkey enumeration checks BSTR name lengths and maximum-name resizing;
+// verifies copies, assignment, dereference, move_next/last_error and algorithm/manual/range iteration.
+// Empty keys and invalid handles compare at end; empty subkey names do not create another child.
+//----------------------------------------------------------------------------------------------------------------------
 TEST_CASE("BasicRegistryTests::key_bstr_nothrow_iterator", "[registry]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
@@ -5964,6 +8071,12 @@ TEST_CASE("BasicRegistryTests::key_bstr_nothrow_iterator", "[registry]")
     }
 }
 #endif
+//----------------------------------------------------------------------------------------------------------------------
+// BasicRegistryTests::value_heap_string_nothrow_iterator
+// Coverage: Nothrow value enumeration checks process-heap names and DWORD/QWORD/SZ type metadata;
+// verifies copies, assignment, dereference, maximum-name resizing, move_next/last_error and manual/range loops.
+// Empty keys and invalid handles compare at end; no value payload parsing is exercised.
+//----------------------------------------------------------------------------------------------------------------------
 TEST_CASE("BasicRegistryTests::value_heap_string_nothrow_iterator", "[registry]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
@@ -6285,6 +8398,12 @@ TEST_CASE("BasicRegistryTests::value_heap_string_nothrow_iterator", "[registry]"
     }
 }
 
+//----------------------------------------------------------------------------------------------------------------------
+// BasicRegistryTests::key_heap_string_nothrow_iterator
+// Coverage: Nothrow subkey enumeration checks process-heap name lengths and maximum-name resizing;
+// verifies copies, assignment, dereference, move_next/last_error and algorithm/manual/range iteration.
+// Empty keys and invalid handles compare at end; empty subkey names do not create another child.
+//----------------------------------------------------------------------------------------------------------------------
 TEST_CASE("BasicRegistryTests::key_heap_string_nothrow_iterator", "[registry]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
@@ -6577,6 +8696,12 @@ TEST_CASE("BasicRegistryTests::key_heap_string_nothrow_iterator", "[registry]")
     }
 }
 
+//----------------------------------------------------------------------------------------------------------------------
+// BasicRegistryTests::raw_regsam_access
+// Coverage: Access-mask mappings and bitwise composition support raw REGSAM key open/create;
+// nothrow DWORD reads succeed with QUERY_VALUE while writes are denied, and named access values still work.
+// Exception-enabled raw-mask open/get verifies the same read permission.
+//----------------------------------------------------------------------------------------------------------------------
 TEST_CASE("BasicRegistryTests::raw_regsam_access", "[registry]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
@@ -6693,6 +8818,13 @@ void verify_odd_size_string_growing_during_read(
 }
 } // namespace
 
+//----------------------------------------------------------------------------------------------------------------------
+// BasicRegistryTests::odd_size_string_growing_during_read
+// Coverage: Odd-byte SZ/EXPAND/MULTI growth between query/read forces retries; direct scalar/raw buffers advertise
+// their allocated byte capacities, while MULTI parsers separately verify final elements.
+// OLEAUTO BSTR and OBJBASE CoTaskMem use named nothrow reads; exception-enabled wstring/byte-vector reg_view
+// and MULTI vector get cases verify trimmed scalar contents or raw/parsed MULTI results.
+//----------------------------------------------------------------------------------------------------------------------
 TEST_CASE("BasicRegistryTests::odd_size_string_growing_during_read", "[registry]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
@@ -6899,9 +9031,7 @@ TEST_CASE("BasicRegistryTests::odd_size_string_growing_during_read", "[registry]
 
 namespace
 {
-// Some stable odd-sized REG_EXPAND_SZ values make RegGetValueW report the same odd size on every expanded read, even when
-// given that size rounded down to whole WCHARs (7 bytes here: "ab", a null, and one byte of 'x'). Rounding the request down
-// would retry forever, so string types must round an odd request up.
+// RegGetValueW cb is bytes; whole-WCHAR read capacity rounds up, since rounding down can cause nonconverging odd-size reads.
 constexpr auto* oddSizeStableExpandValueName = L"OddSizeStableExpandValue";
 constexpr wchar_t oddSizeStableExpandData[] = L"ab\0x";
 constexpr DWORD oddSizeStableExpandBytes = 7;
@@ -6934,6 +9064,11 @@ void verify_odd_size_stable_expanded_read(T& result, GetFn&& getValue)
 }
 } // namespace
 
+//----------------------------------------------------------------------------------------------------------------------
+// BasicRegistryTests::odd_size_stable_expanded_string_read
+// Coverage: Stable odd-byte REG_EXPAND_SZ reads converge within a bounded call count and return trimmed content;
+// named nothrow readers use OLEAUTO BSTR/OBJBASE CoTaskMem, with named wstring get only when exceptions are enabled.
+//----------------------------------------------------------------------------------------------------------------------
 TEST_CASE("BasicRegistryTests::odd_size_stable_expanded_string_read", "[registry]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
@@ -6978,8 +9113,7 @@ TEST_CASE("BasicRegistryTests::odd_size_stable_expanded_string_read", "[registry
 }
 namespace
 {
-// A stable REG_SZ with an odd byte count (25 bytes: 12 WCHARs plus the low byte of 'm'). RegGetValueW must be given room
-// for all 25 bytes, but the returned string must contain only the 12 whole WCHARs: the trailing partial WCHAR is dropped.
+// Read capacity covers the full byte extent, but an incomplete final WCHAR is not owned string content.
 constexpr auto* oddSizeTrailingByteValueName = L"OddSizeTrailingByteValue";
 constexpr wchar_t oddSizeTrailingByteData[] = L"abcdefghijklmnop";
 constexpr DWORD oddSizeTrailingByteStoredBytes = 25;
@@ -7027,6 +9161,249 @@ void verify_odd_size_string_drops_trailing_byte(T& result, GetFn&& getValue, Dat
 }
 } // namespace
 
+namespace
+{
+constexpr auto* malformedStringValueName = L"AlignedNullTrailingByte";
+constexpr BYTE malformedStringBytes[]{'a', 0, 'b', 0, 'c', 0, 0, 0, 0x41};
+
+wil::unique_hkey create_malformed_string_key(DWORD type)
+{
+    wil::unique_hkey key;
+    REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, key, wil::reg::key_access::readwrite));
+    REQUIRE(
+        ERROR_SUCCESS ==
+        ::RegSetValueExW(key.get(), malformedStringValueName, 0, type, malformedStringBytes, sizeof(malformedStringBytes)));
+    return key;
+}
+
+template <typename T, typename DataFn, typename LengthFn>
+void verify_aligned_null_trailing_byte(T& result, DataFn data, LengthFn length)
+{
+    for (const DWORD type : {REG_SZ, REG_EXPAND_SZ})
+    {
+        INFO("registry type = " << type);
+        const auto key = create_malformed_string_key(type);
+        const wil::reg::reg_view_details::reg_view_nothrow view{key.get()};
+        REQUIRE_SUCCEEDED(view.get_value(nullptr, malformedStringValueName, result, type));
+        const auto* buffer = data(result);
+        REQUIRE(buffer != nullptr);
+        const size_t count = length(result);
+        // Owned-buffer invariant, separate from the native byte characterization below.
+        REQUIRE(buffer[count] == L'\0');
+        REQUIRE(count == 3);
+        REQUIRE(::wcsnlen(buffer, count + 1) == count);
+        REQUIRE(0 == memcmp(buffer, L"abc", 3 * sizeof(wchar_t)));
+        REQUIRE(buffer[3] == L'\0');
+    }
+}
+} // namespace
+
+//----------------------------------------------------------------------------------------------------------------------
+// BasicRegistryTests::malformed_string_aligned_null_trailing_byte
+// Coverage: SZ/EXPAND aligned-null plus partial-WCHAR bytes distinguish native RegGetValueW characterization
+// from reg_view_nothrow owned length/end-null checks: process heap and OLEAUTO/OBJBASE unique/shared strings.
+// Shared owners and STL wstring require exceptions; guarded named get/try and preallocated cases verify content
+// and termination without claiming universal native byte normalization.
+//----------------------------------------------------------------------------------------------------------------------
+TEST_CASE("BasicRegistryTests::malformed_string_aligned_null_trailing_byte", "[registry]")
+{
+    // RegGetValueW can keep cb unchanged and leave a nonzero trailing byte after an aligned null.
+    // Native byte behavior does not establish WIL's owned-buffer end-null invariant.
+    SECTION("RegGetValueW byte characterization")
+    {
+        for (const DWORD type : {REG_SZ, REG_EXPAND_SZ})
+        {
+            const auto key = create_malformed_string_key(type);
+            WCHAR buffer[8];
+            for (auto& character : buffer)
+            {
+                character = 0xcccc;
+            }
+            DWORD bytes = sizeof(buffer);
+            DWORD returnedType = 0;
+            const auto status = ::RegGetValueW(
+                key.get(),
+                nullptr,
+                malformedStringValueName,
+                wil::reg::reg_view_details::get_value_flags_from_value_type(type),
+                &returnedType,
+                buffer,
+                &bytes);
+            INFO("stored type = " << type << "; returned type = " << returnedType << "; returned bytes = " << bytes
+                 << "; trailing WCHAR = " << static_cast<unsigned int>(buffer[4]));
+            REQUIRE(status == ERROR_SUCCESS);
+            REQUIRE(buffer[3] == L'\0');
+            REQUIRE(0 == memcmp(buffer, L"abc", 3 * sizeof(wchar_t)));
+        }
+    }
+#if defined(__WIL_OLEAUTO_H_)
+    SECTION("unique_bstr")
+    {
+        wil::unique_bstr value;
+        verify_aligned_null_trailing_byte(
+            value,
+            [](const auto& v) { return v.get(); },
+            [](const auto& v) { return ::SysStringLen(v.get()); });
+    }
+    SECTION("preallocated BSTR")
+    {
+        wil::unique_bstr value{::SysAllocStringLen(nullptr, 4)};
+        REQUIRE(value != nullptr);
+        verify_aligned_null_trailing_byte(
+            value,
+            [](const auto& v) { return v.get(); },
+            [](const auto& v) { return ::SysStringLen(v.get()); });
+    }
+#endif
+#if defined(__WIL_OLEAUTO_H_STL)
+    SECTION("shared_bstr")
+    {
+        wil::shared_bstr value;
+        verify_aligned_null_trailing_byte(
+            value,
+            [](const auto& v) { return v.get(); },
+            [](const auto& v) { return ::SysStringLen(v.get()); });
+    }
+#endif
+#if defined(__WIL_OBJBASE_H_)
+    SECTION("unique_cotaskmem_string")
+    {
+        wil::unique_cotaskmem_string value;
+        verify_aligned_null_trailing_byte(
+            value,
+            [](const auto& v) { return v.get(); },
+            [](const auto&) { return 3u; });
+    }
+#endif
+#if defined(__WIL_OBJBASE_H_STL)
+    SECTION("shared_cotaskmem_string")
+    {
+        wil::shared_cotaskmem_string value;
+        verify_aligned_null_trailing_byte(
+            value,
+            [](const auto& v) { return v.get(); },
+            [](const auto&) { return 3u; });
+    }
+#endif
+    SECTION("unique_process_heap_string")
+    {
+        wil::unique_process_heap_string value;
+        verify_aligned_null_trailing_byte(
+            value,
+            [](const auto& v) { return v.get(); },
+            [](const auto&) { return 3u; });
+    }
+#if WIL_USE_STL && defined(WIL_ENABLE_EXCEPTIONS)
+    SECTION("std::wstring")
+    {
+        std::wstring value;
+        verify_aligned_null_trailing_byte(
+            value,
+            [](const auto& v) { return v.c_str(); },
+            [](const auto& v) { return v.size(); });
+    }
+    SECTION("preallocated std::wstring")
+    {
+        std::wstring value(4, L'x');
+        verify_aligned_null_trailing_byte(
+            value,
+            [](const auto& v) { return v.c_str(); },
+            [](const auto& v) { return v.size(); });
+    }
+    SECTION("try_get_value_string")
+    {
+        const auto key = create_malformed_string_key(REG_SZ);
+        const auto value = wil::reg::try_get_value_string(key.get(), malformedStringValueName);
+        REQUIRE(value.has_value());
+        REQUIRE(value->c_str()[value->size()] == L'\0');
+        REQUIRE(*value == L"abc");
+    }
+    SECTION("get_value_string")
+    {
+        const auto key = create_malformed_string_key(REG_SZ);
+        const auto value = wil::reg::get_value_string(key.get(), malformedStringValueName);
+        REQUIRE(value.c_str()[value.size()] == L'\0');
+        REQUIRE(value == L"abc");
+    }
+    SECTION("get_value_expanded_string")
+    {
+        const auto key = create_malformed_string_key(REG_EXPAND_SZ);
+        const auto value = wil::reg::get_value_expanded_string(key.get(), malformedStringValueName);
+        REQUIRE(value.c_str()[value.size()] == L'\0');
+        REQUIRE(value == L"abc");
+    }
+#endif
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// BasicRegistryTests::malformed_multistring_aligned_null_trailing_byte
+// Coverage: REG_MULTI_SZ single/double-null endings followed by a partial WCHAR yield two terminated elements;
+// OBJBASE named CoTaskMem nothrow reads verify bounded lengths/content, while exception-enabled STL vector
+// named get/try reads verify both distinct payloads and owned element terminators.
+//----------------------------------------------------------------------------------------------------------------------
+TEST_CASE("BasicRegistryTests::malformed_multistring_aligned_null_trailing_byte", "[registry]")
+{
+    // First string has an aligned null; the second has no final double null, followed by a nonzero partial WCHAR.
+    const BYTE missingDoubleNull[]{'a', 0, 'b', 0, 'c', 0, 0, 0, 'd', 0, 'e', 0, 'f', 0, 0, 0, 0x41};
+    const BYTE doubleNull[]{'a', 0, 'b', 0, 'c', 0, 0, 0, 'd', 0, 'e', 0, 'f', 0, 0, 0, 0, 0, 0x41};
+    for (const auto& bytes : {wil::make_range(missingDoubleNull, sizeof(missingDoubleNull)), wil::make_range(doubleNull, sizeof(doubleNull))})
+    {
+        DYNAMIC_SECTION("stored bytes = " << (bytes.end() - bytes.begin()))
+        {
+            INFO("stored bytes = " << (bytes.end() - bytes.begin()));
+            const auto key = create_malformed_string_key(REG_MULTI_SZ);
+            REQUIRE(
+                ERROR_SUCCESS ==
+                ::RegSetValueExW(
+                    key.get(), malformedStringValueName, 0, REG_MULTI_SZ, bytes.begin(), static_cast<DWORD>(bytes.end() - bytes.begin())));
+#if defined(__WIL_OBJBASE_H_)
+            SECTION("get_value_multistring_nothrow")
+            {
+                wil::unique_cotaskmem_array_ptr<wil::unique_cotaskmem_string> value;
+                REQUIRE_SUCCEEDED(wil::reg::get_value_multistring_nothrow(key.get(), malformedStringValueName, value));
+                REQUIRE(value.size() == 2);
+                for (size_t i = 0; i < value.size(); ++i)
+                {
+                    REQUIRE(value[i] != nullptr);
+                    REQUIRE(value[i][3] == L'\0');
+                    REQUIRE(::wcsnlen(value[i], 4) == 3);
+                    REQUIRE(0 == memcmp(value[i], i == 0 ? L"abc" : L"def", 3 * sizeof(wchar_t)));
+                }
+            }
+#endif
+#if WIL_USE_STL && defined(WIL_ENABLE_EXCEPTIONS)
+            SECTION("get_value_multistring")
+            {
+                const auto value = wil::reg::get_value_multistring(key.get(), malformedStringValueName);
+                REQUIRE(value.size() == 2);
+                for (size_t i = 0; i < value.size(); ++i)
+                {
+                    REQUIRE(value[i].c_str()[value[i].size()] == L'\0');
+                    REQUIRE(value[i] == (i == 0 ? L"abc" : L"def"));
+                }
+            }
+            SECTION("try_get_value_multistring")
+            {
+                const auto value = wil::reg::try_get_value_multistring(key.get(), malformedStringValueName);
+                REQUIRE(value.has_value());
+                REQUIRE(value->size() == 2);
+                for (size_t i = 0; i < value->size(); ++i)
+                {
+                    REQUIRE((*value)[i].c_str()[(*value)[i].size()] == L'\0');
+                    REQUIRE((*value)[i] == (i == 0 ? L"abc" : L"def"));
+                }
+            }
+#endif
+        }
+    }
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// BasicRegistryTests::odd_size_string_drops_trailing_byte
+// Coverage: REG_SZ odd-byte reads have capacity for all stored bytes but return only complete WCHAR content;
+// literal/expanded named nothrow reads use fixed WCHAR, OLEAUTO BSTR and OBJBASE CoTaskMem.
+// Shared literal readers and named wstring literal/expanded get cases require exceptions and their adapter guards.
+//----------------------------------------------------------------------------------------------------------------------
 TEST_CASE("BasicRegistryTests::odd_size_string_drops_trailing_byte", "[registry]")
 {
     const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));

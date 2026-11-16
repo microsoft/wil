@@ -131,11 +131,11 @@ namespace reg
          * @tparam InputIt An iterator type that reference a container that holds wchar_t characters to translate into individual
          *         strings
          * @tparam Fn A callback function to be called each time a string is found - given the [begin, end] iterators referencing
-         *         the found string
-         * @param first An iterator referencing to the beginning of the target container (like a std::begin iterator)
+         *         the found string. Returns bool: true to continue, false to stop the entire walk immediately
+         * @param first Beginning of a valid, nonempty contiguous range, stable during callbacks
          * @param last An iterator referencing one-past-the-end of the target container (like a std::end iterator)
          * @param func A callback function to be called each time a string is found - given the [begin, end] iterators referencing
-         *             the found string
+         *             the found string. Passed by value; callback state must remain thread-confined during the walk
          */
         template <class InputIt, class Fn>
         void walk_multistring(const InputIt& first, const InputIt& last, Fn func)
@@ -159,7 +159,10 @@ namespace reg
                     if (next != last_null)
                     {
                         // call the function provided with the [begin, end] pair referencing a string found
-                        func(current, next);
+                        if (!func(current, next))
+                        {
+                            return;
+                        }
                     }
                     current = next + 1;
                 }
@@ -226,8 +229,9 @@ namespace reg
             }
 
             ::std::vector<::std::wstring> strings;
-            walk_multistring(first, last, [&](const InputIt& string_first, const InputIt& string_last) {
+            walk_multistring(first, last, [&](const InputIt& string_first, const InputIt& string_last) -> bool {
                 strings.emplace_back(string_first, string_last);
+                return true;
             });
             return strings;
         }
@@ -282,71 +286,66 @@ namespace reg
          * @param last An iterator referencing one-past-the-end of the target container (like a std::end iterator)
          * @param cotaskmem_array The [out] wil::unique_cotaskmem_array_ptr<wil::unique_cotaskmem_string> to contain the array of
          *         strings. A wil::unique_cotaskmem_array_ptr<wil::unique_cotaskmem_string> of the extracted strings from the
-         *         input container of wchar_t characters. An empty wil::unique_cotaskmem_array_ptr should be translated as out-of
-         *         memory as there should always be at least one wil::unique_cotaskmem_string
+         *         input container of wchar_t characters. Cleared on allocation failure.
+         * @return S_OK on success, including an empty parsed array; E_OUTOFMEMORY on allocation failure
          */
         template <class InputIt>
-        void get_cotaskmemstring_array_from_multistring_nothrow(
+        HRESULT get_cotaskmemstring_array_from_multistring_nothrow(
             const InputIt& first, const InputIt& last, ::wil::unique_cotaskmem_array_ptr<::wil::unique_cotaskmem_string>& cotaskmem_array) WI_NOEXCEPT
         {
-            if (last - first < 3)
-            {
-                // it doesn't have the required 2 terminating null characters - return an empty string
-                *cotaskmem_array.addressof() = static_cast<PWSTR*>(::CoTaskMemAlloc(sizeof(PWSTR) * 1));
-                if (cotaskmem_array)
-                {
-                    auto new_string = ::wil::make_cotaskmem_string_nothrow(L"");
-                    if (new_string)
-                    {
-                        *cotaskmem_array.size_address() = 1;
-                        cotaskmem_array[0] = new_string.release();
-                    }
-                    else
-                    {
-                        // oom will return an empty array
-                        cotaskmem_array.reset();
-                    }
-                }
-                else
-                {
-                    // oom will return an empty array
-                    cotaskmem_array.reset();
-                }
-                return;
-            }
-
-            // we must first count the # of strings for the array
+            // Build in temporary ownership; an OOM must leave no partial output.
+            cotaskmem_array.reset();
+            ::wil::unique_cotaskmem_array_ptr<::wil::unique_cotaskmem_string> strings;
+            const bool short_input = last - first < 3;
             size_t arraySize = 0;
-            walk_multistring(first, last, [&](const InputIt&, const InputIt&) {
-                ++arraySize;
-            });
-
-            // allocate the array size necessary to hold all the unique_cotaskmem_strings
-            *cotaskmem_array.addressof() = static_cast<PWSTR*>(::CoTaskMemAlloc(sizeof(PWSTR) * arraySize));
-            if (!cotaskmem_array)
+            if (short_input)
             {
-                // oom will return an empty array
-                cotaskmem_array.reset();
-                return;
+                arraySize = 1;
+            }
+            else
+            {
+                walk_multistring(first, last, [&](const InputIt&, const InputIt&) -> bool {
+                    ++arraySize;
+                    return true;
+                });
+            }
+            if (arraySize == 0)
+            {
+                return S_OK;
             }
 
-            *cotaskmem_array.size_address() = arraySize;
-            ZeroMemory(cotaskmem_array.data(), sizeof(PWSTR) * arraySize);
-
-            size_t arrayOffset = 0;
-            walk_multistring(first, last, [&](const InputIt& string_first, const InputIt& string_last) {
-                FAIL_FAST_IF(arrayOffset >= arraySize);
-                const auto stringSize = string_last - string_first;
-                auto new_string = ::wil::make_cotaskmem_string_nothrow(&(*string_first), stringSize);
-                if (!new_string)
-                {
-                    // oom will return an empty array
-                    cotaskmem_array.reset();
-                    return;
-                }
-                cotaskmem_array[arrayOffset] = new_string.release();
-                ++arrayOffset;
-            });
+            *strings.addressof() = static_cast<PWSTR*>(::CoTaskMemAlloc(sizeof(PWSTR) * arraySize));
+            RETURN_IF_NULL_ALLOC(strings.get());
+            ZeroMemory(strings.data(), sizeof(PWSTR) * arraySize);
+            *strings.size_address() = arraySize;
+            if (short_input)
+            {
+                // Preserve the short-input convention: one empty string.
+                auto new_string = ::wil::make_cotaskmem_string_nothrow(L"");
+                RETURN_IF_NULL_ALLOC(new_string.get());
+                strings[0] = new_string.release();
+            }
+            else
+            {
+                size_t arrayOffset = 0;
+                bool allocation_failed = false;
+                walk_multistring(first, last, [&](const InputIt& string_first, const InputIt& string_last) -> bool {
+                    FAIL_FAST_IF(arrayOffset >= arraySize);
+                    const auto stringSize = string_last - string_first;
+                    auto new_string = ::wil::make_cotaskmem_string_nothrow(&(*string_first), stringSize);
+                    if (!new_string)
+                    {
+                        allocation_failed = true;
+                        return false;
+                    }
+                    strings[arrayOffset] = new_string.release();
+                    ++arrayOffset;
+                    return true;
+                });
+                RETURN_HR_IF(E_OUTOFMEMORY, allocation_failed);
+            }
+            cotaskmem_array = ::wistd::move(strings);
+            return S_OK;
         }
 #endif // #if defined(__WIL_OBJBASE_H_)
 
@@ -679,19 +678,13 @@ namespace reg
                 const DWORD original_string_length = string == nullptr ? 0 : ::SysStringLen(string);
 
                 // SysStringLen doesn't count the null-terminator, but our buffer size does
-                const bool original_string_length_too_small = (original_string_length + 1) < byteSize / sizeof(WCHAR);
-                if (original_string_length_too_small)
-                {
-                    // pass a null BSTR value because SysAllocStringLen will copy the contents of the original BSTR,
-                    // but in this case it's not long enough to copy the new length to be allocated
-                    string = nullptr;
-                }
-
+                const bool original_string_length_too_small = (original_string_length + 1) < (byteSize / sizeof(WCHAR));
                 // convert bytes to length (number of WCHAR's)
                 DWORD length_to_alloc = byteSize / sizeof(WCHAR);
                 // SysAllocStringLen adds a null, so subtract a wchar_t from the input length
                 length_to_alloc = length_to_alloc > 0 ? length_to_alloc - 1 : length_to_alloc;
-                const BSTR new_bstr{::SysAllocStringLen(string, length_to_alloc)};
+                // A short source cannot be passed to SysAllocStringLen. Keep its owner intact until allocation succeeds.
+                const BSTR new_bstr{::SysAllocStringLen(original_string_length_too_small ? nullptr : original_string, length_to_alloc)};
                 RETURN_IF_NULL_ALLOC(new_bstr);
 
                 // copy back the original BSTR if it was too small for SysAllocStringLen
@@ -705,7 +698,7 @@ namespace reg
                 // if not transferring ownership, the caller will still own the original BSTR
                 if (transferringOwnership)
                 {
-                    ::SysFreeString(string);
+                    ::SysFreeString(original_string);
                 }
 
                 string = new_bstr;
@@ -806,16 +799,20 @@ namespace reg
             }
             inline HRESULT resize_buffer_bytes(::wil::shared_bstr& string, DWORD byteSize) WI_NOEXCEPT
             {
-                BSTR temp_bstr = string.get();
+                // Callers serialize mutations of shared buffers. Failed shared allocation preserves the old owner.
+                try
+                {
+                    BSTR temp_bstr = string.get();
 
-                // not transferring ownership of the BSTR within 'string' to resize_buffer_bytes()
-                // resize_buffer_bytes() will overwrite temp_bstr with a newly-allocated BSTR
-                constexpr bool transferringOwnership = false;
-                RETURN_IF_FAILED(resize_buffer_bytes(temp_bstr, byteSize, transferringOwnership));
+                    // The old allocation remains owned by string; acquire the replacement before allocating shared ownership.
+                    constexpr bool transferringOwnership = false;
+                    RETURN_IF_FAILED(resize_buffer_bytes(temp_bstr, byteSize, transferringOwnership));
 
-                // if succeeded in creating a new BSTR, move ownership of the new BSTR into string
-                string.reset(temp_bstr);
-                return S_OK;
+                    ::wil::unique_bstr new_string(temp_bstr);
+                    string = ::wistd::move(new_string);
+                    return S_OK;
+                }
+                CATCH_RETURN();
             }
             template <>
             constexpr DWORD resized_buffer_size_bytes<::wil::shared_bstr>(DWORD requestedBytes) WI_NOEXCEPT
@@ -910,15 +907,20 @@ namespace reg
             }
             inline HRESULT resize_buffer_bytes(::wil::shared_cotaskmem_string& string, DWORD byteSize) WI_NOEXCEPT
             {
-                // convert bytes to length (number of WCHAR's)
-                size_t length = byteSize / sizeof(WCHAR);
-                // ::wil::make_unique_string_nothrow adds one to the length when it allocates, so subtracting 1 from the input length
-                length = length > 0 ? length - 1 : length;
-                auto new_string = ::wil::make_unique_string_nothrow<::wil::unique_cotaskmem_string>(string.get(), length);
-                RETURN_IF_NULL_ALLOC(new_string.get());
+                // Own the replacement through any throwing control-block allocation; leave the old owner on failure.
+                try
+                {
+                    // convert bytes to length (number of WCHAR's)
+                    size_t length = byteSize / sizeof(WCHAR);
+                    // ::wil::make_unique_string_nothrow adds one to the length when it allocates, so subtracting 1 from the input length
+                    length = length > 0 ? length - 1 : length;
+                    auto new_string = ::wil::make_unique_string_nothrow<::wil::unique_cotaskmem_string>(string.get(), length);
+                    RETURN_IF_NULL_ALLOC(new_string.get());
 
-                string = ::wistd::move(new_string);
-                return S_OK;
+                    string = ::wistd::move(new_string);
+                    return S_OK;
+                }
+                CATCH_RETURN();
             }
             template <>
             constexpr DWORD resized_buffer_size_bytes<::wil::shared_cotaskmem_string>(DWORD requestedBytes) WI_NOEXCEPT
