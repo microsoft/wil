@@ -617,13 +617,31 @@ registry_string_payload registry_payload(const wchar_t* data, DWORD bytes, std::
 
 std::vector<registry_string_scenario> registry_string_scenarios()
 {
+    constexpr wchar_t c_embeddedNull[] = L"abc\0def";
+    constexpr wchar_t c_embeddedOddNonzeroTail[] = L"abc\0defA";
+    constexpr wchar_t c_trailingNull[] = L"ab\0";
+    constexpr DWORD c_orphanBytes = 1;
+    constexpr DWORD c_embeddedOddBytes = sizeof(c_embeddedNull) - c_orphanBytes;
+    const std::wstring c_embeddedExpected{c_embeddedNull, ARRAYSIZE(c_embeddedNull) - 1};
+    const std::wstring c_trailingNullExpected{c_trailingNull, ARRAYSIZE(c_trailingNull) - 1};
     const auto single = [](const wchar_t* data, DWORD bytes, PCWSTR expected) {
         return registry_payload(data, bytes, {expected});
     };
-    const auto scenario = [&](const char* name, const wchar_t* data, DWORD bytes, PCWSTR expected,
-                              const wchar_t* multiData, DWORD multiBytes, std::initializer_list<std::wstring> multiExpected) {
-        return registry_string_scenario{name, {single(data, bytes, expected), single(data, bytes, expected),
-                                               registry_payload(multiData, multiBytes, multiExpected)}};
+    const auto scenario = [&](const char* name,
+                              const wchar_t* data,
+                              DWORD bytes,
+                              const std::wstring& expectedBstr,
+                              const wchar_t* multiData,
+                              DWORD multiBytes,
+                              std::initializer_list<std::wstring> multiExpected) {
+        auto value = registry_string_scenario{
+            name,
+            {single(data, bytes, expectedBstr.c_str()),
+             single(data, bytes, expectedBstr.c_str()),
+             registry_payload(multiData, multiBytes, multiExpected)}};
+        value.payload[0].ownedScalar = expectedBstr;
+        value.payload[1].ownedScalar = expectedBstr;
+        return value;
     };
     // Add one payload definition with expected scalar/MULTI outputs; each scenario covers REG_SZ, REG_EXPAND_SZ and REG_MULTI_SZ.
     // Normal/noexcept routes use explicit feature guards: only supported adapters compile, not every API in noexcept.
@@ -631,19 +649,27 @@ std::vector<registry_string_scenario> registry_string_scenarios()
     std::vector<registry_string_scenario> cases{
         scenario("empty-zero", L"", 0, L"", L"", 0, {L""}),
         scenario("empty-one-byte", L"", 1, L"", L"", 1, {L""}),
+        scenario("orphan-nonzero-byte", L"A", c_orphanBytes, L"", L"A", c_orphanBytes, {L""}),
         scenario("empty-terminated", L"", 2, L"", L"\0", 4, {L""}),
         scenario("missing-terminator-even", L"abc", 6, L"abc", L"abc\0def", 14, {L"abc", L"def"}),
         scenario("missing-terminator-odd", L"abcx", 7, L"abc", L"abc\0defx", 15, {L"abc", L"def"}),
-        scenario("embedded-null", L"abc\0def", 16, L"abc", L"abc\0\0def\0", 20, {L"abc", L"", L"def"}),
+        scenario("embedded-null", c_embeddedNull, sizeof(c_embeddedNull), c_embeddedExpected, L"abc\0\0def\0", 20, {L"abc", L"", L"def"}),
+        scenario("embedded-null-odd-zero-tail", c_embeddedNull, c_embeddedOddBytes, c_embeddedExpected, c_embeddedNull, c_embeddedOddBytes, {L"abc", L"def"}),
+        scenario(
+            "embedded-null-odd-nonzero-tail",
+            c_embeddedOddNonzeroTail,
+            c_embeddedOddBytes,
+            c_embeddedExpected,
+            c_embeddedOddNonzeroTail,
+            c_embeddedOddBytes,
+            {L"abc", L"def"}),
+        scenario(
+            "multiple-full-trailing-nulls", c_trailingNull, sizeof(c_trailingNull), c_trailingNullExpected, c_trailingNull, sizeof(c_trailingNull), {L"ab"}),
         scenario("aligned-null-trailing-byte", L"abc\0A", 9, L"abc", L"abc\0def\0A", 17, {L"abc", L"def"}),
         scenario("aligned-double-null-trailing-byte", L"abc\0A", 9, L"abc", L"abc\0def\0\0A", 19, {L"abc", L"def"}),
         scenario("stable-odd", L"ab\0x", 7, L"ab", L"abc\0def\0\0A", 19, {L"abc", L"def"}),
-        scenario("value-growth-odd", L"abcdefghijklmnop", 29, L"abcdefghijklmn",
-                 L"abcd\0efgh\0ijklmnop", 29, {L"abcd", L"efgh", L"ijkl"})};
+        scenario("value-growth-odd", L"abcdefghijklmnop", 29, L"abcdefghijklmn", L"abcd\0efgh\0ijklmnop", 29, {L"abcd", L"efgh", L"ijkl"})};
     cases.back().growValue = true;
-    // BSTR retains embedded nulls; the other scalar adapters expose the first string.
-    cases[5].payload[0].ownedScalar.assign(L"abc\0def", 7);
-    cases[5].payload[1].ownedScalar.assign(L"abc\0def", 7);
     std::wstring large(4096, L'z');
     auto largeBytes = static_cast<DWORD>((large.size() + 1) * sizeof(wchar_t));
     cases.push_back({"large", {registry_payload(large.c_str(), largeBytes, {large}),
@@ -728,9 +754,12 @@ void verify_registry_owned_string(PCWSTR data, const std::wstring& expected)
     REQUIRE(wmemcmp(data, expected.c_str(), expected.size()) == 0);
 }
 
-void verify_registry_bstr(PCWSTR data, size_t length, const registry_string_payload& payload)
+// Borrows a BSTR (or null for empty output); ownedScalar retains all counted UTF-16 characters.
+void verify_registry_bstr(_In_opt_ BSTR data, const registry_string_payload& payload)
 {
+    const auto length = ::SysStringLen(data);
     REQUIRE(length == payload.ownedScalar.size());
+    REQUIRE(::SysStringByteLen(data) == payload.ownedScalar.size() * sizeof(WCHAR));
     if (!data && payload.bytes.empty())
     {
         return;
@@ -756,13 +785,13 @@ void verify_registry_string_result(const T& value, const registry_string_payload
 #if defined(__WIL_OLEAUTO_H_)
 void verify_registry_string_result(const wil::unique_bstr& value, const registry_string_payload& payload)
 {
-    verify_registry_bstr(value.get(), ::SysStringLen(value.get()), payload);
+    verify_registry_bstr(value.get(), payload);
 }
 #endif
 #if defined(__WIL_OLEAUTO_H_STL)
 void verify_registry_string_result(const wil::shared_bstr& value, const registry_string_payload& payload)
 {
-    verify_registry_bstr(value.get(), ::SysStringLen(value.get()), payload);
+    verify_registry_bstr(value.get(), payload);
 }
 #endif
 #if WIL_USE_STL && defined(WIL_ENABLE_EXCEPTIONS)
@@ -974,7 +1003,7 @@ TEST_CASE("BasicRegistryTests::three_parser_payloads", "[registry][registry-thre
                                 value = *result;
                             }
 #endif
-                            verify_registry_bstr(value, ::SysStringLen(value), payload);
+                            verify_registry_bstr(value, payload);
                         });
                     }
                 }
@@ -2157,8 +2186,14 @@ bool AreStringsEqual(const std::wstring& lhs, const std::wstring& rhs) noexcept
     return lhs == rhs;
 }
 
+// Compares caller-owned storage against a counted UTF-16 expectation, including embedded NULs.
 static bool AreStringsEqual(const wil::unique_bstr& lhs, const std::wstring& rhs) noexcept
 {
+    if (SysStringByteLen(lhs.get()) != rhs.length() * sizeof(WCHAR))
+    {
+        printf("String byte lengths don't match: BSTR %u, wstring %zu\n", SysStringByteLen(lhs.get()), rhs.length() * sizeof(WCHAR));
+        return false;
+    }
     if (!lhs && rhs.empty())
     {
         return true;
@@ -2168,12 +2203,18 @@ static bool AreStringsEqual(const wil::unique_bstr& lhs, const std::wstring& rhs
         printf("String lengths don't match: BSTR (%ws) %u, wstring (%ws) %zu\n", lhs.get(), SysStringLen(lhs.get()), rhs.c_str(), rhs.length());
         return false;
     }
-    return (0 == wcscmp(lhs.get(), rhs.c_str()));
+    return lhs && (lhs.get()[rhs.length()] == L'\0') && (0 == wmemcmp(lhs.get(), rhs.data(), rhs.length()));
 }
 
 #if defined(__WIL_OLEAUTO_H_STL)
+// Compares caller-owned storage against a counted UTF-16 expectation, including embedded NULs.
 static bool AreStringsEqual(const wil::shared_bstr& lhs, const std::wstring& rhs) noexcept
 {
+    if (SysStringByteLen(lhs.get()) != rhs.length() * sizeof(WCHAR))
+    {
+        printf("String byte lengths don't match: BSTR %u, wstring %zu\n", SysStringByteLen(lhs.get()), rhs.length() * sizeof(WCHAR));
+        return false;
+    }
     if (!lhs && rhs.empty())
     {
         return true;
@@ -2183,7 +2224,7 @@ static bool AreStringsEqual(const wil::shared_bstr& lhs, const std::wstring& rhs
         printf("String lengths don't match: BSTR (%ws) %u, wstring (%ws) %zu\n", lhs.get(), SysStringLen(lhs.get()), rhs.c_str(), rhs.length());
         return false;
     }
-    return (0 == wcscmp(lhs.get(), rhs.c_str()));
+    return lhs && (lhs.get()[rhs.length()] == L'\0') && (0 == wmemcmp(lhs.get(), rhs.data(), rhs.length()));
 }
 #endif
 
@@ -2396,6 +2437,12 @@ TEST_CASE("BasicRegistryTests::ExampleUsage", "[registry]")
         // Templated version
         std::ignore = wil::reg::get_value<std::wstring>(
             HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes", L"CurrentTheme");
+
+        // --- validation, not included in documentation ---
+        const std::wstring expected{test_null_terminated_string};
+        wil::reg::set_value_string(HKEY_CURRENT_USER, testSubkey, stringValueName, expected.c_str());
+        THROW_IF_FAILED(wil::reg::get_value_string_nothrow(HKEY_CURRENT_USER, testSubkey, stringValueName, bstr));
+        REQUIRE(AreStringsEqual(bstr, expected));
     }
 #endif // defined(__cpp_lib_optional)
 
@@ -6236,12 +6283,12 @@ TEST_CASE("BasicRegistryTests::value_bstr_iterator", "[registry]")
         // both ways to access the iterator data
         auto test_iterator = wil::reg::value_bstr_iterator(hkey.get());
         REQUIRE(test_iterator == wil::reg::value_bstr_iterator(hkey.get()));
-        REQUIRE(0 == wcscmp((*test_iterator).name.get(), test_enum_valueName1));
-        REQUIRE(0 == wcscmp(test_iterator->name.get(), test_enum_valueName1));
+        REQUIRE(AreStringsEqual((*test_iterator).name, test_enum_valueName1));
+        REQUIRE(AreStringsEqual(test_iterator->name, test_enum_valueName1));
         auto test_iterator_copy = test_iterator;
         REQUIRE(test_iterator_copy == wil::reg::value_bstr_iterator(hkey.get()));
-        REQUIRE(0 == wcscmp((*test_iterator_copy).name.get(), test_enum_valueName1));
-        REQUIRE(0 == wcscmp(test_iterator_copy->name.get(), test_enum_valueName1));
+        REQUIRE(AreStringsEqual((*test_iterator_copy).name, test_enum_valueName1));
+        REQUIRE(AreStringsEqual(test_iterator_copy->name, test_enum_valueName1));
         ++test_iterator;
         REQUIRE(test_iterator == wil::reg::value_bstr_iterator{});
         test_iterator_copy = test_iterator;
@@ -6250,12 +6297,12 @@ TEST_CASE("BasicRegistryTests::value_bstr_iterator", "[registry]")
         test_iterator = wil::reg::value_bstr_iterator(hkey.get());
         REQUIRE(test_iterator != wil::reg::value_bstr_iterator{});
         REQUIRE(test_iterator == wil::reg::value_bstr_iterator(hkey.get()));
-        REQUIRE(0 == wcscmp((*test_iterator).name.get(), test_enum_valueName1));
-        REQUIRE(0 == wcscmp(test_iterator->name.get(), test_enum_valueName1));
+        REQUIRE(AreStringsEqual((*test_iterator).name, test_enum_valueName1));
+        REQUIRE(AreStringsEqual(test_iterator->name, test_enum_valueName1));
         test_iterator_copy = test_iterator;
         REQUIRE(test_iterator_copy == wil::reg::value_bstr_iterator(hkey.get()));
-        REQUIRE(0 == wcscmp((*test_iterator_copy).name.get(), test_enum_valueName1));
-        REQUIRE(0 == wcscmp(test_iterator_copy->name.get(), test_enum_valueName1));
+        REQUIRE(AreStringsEqual((*test_iterator_copy).name, test_enum_valueName1));
+        REQUIRE(AreStringsEqual(test_iterator_copy->name, test_enum_valueName1));
         ++test_iterator;
         REQUIRE(test_iterator == wil::reg::value_bstr_iterator{});
         test_iterator_copy = test_iterator;
@@ -6264,11 +6311,11 @@ TEST_CASE("BasicRegistryTests::value_bstr_iterator", "[registry]")
         const wil::unique_hkey hkey2{wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey)};
         test_iterator = wil::reg::value_bstr_iterator(hkey2.get());
         REQUIRE(test_iterator != wil::reg::value_bstr_iterator{});
-        REQUIRE(0 == wcscmp((*test_iterator).name.get(), test_enum_valueName1));
-        REQUIRE(0 == wcscmp(test_iterator->name.get(), test_enum_valueName1));
+        REQUIRE(AreStringsEqual((*test_iterator).name, test_enum_valueName1));
+        REQUIRE(AreStringsEqual(test_iterator->name, test_enum_valueName1));
         test_iterator_copy = test_iterator;
-        REQUIRE(0 == wcscmp((*test_iterator_copy).name.get(), test_enum_valueName1));
-        REQUIRE(0 == wcscmp(test_iterator_copy->name.get(), test_enum_valueName1));
+        REQUIRE(AreStringsEqual((*test_iterator_copy).name, test_enum_valueName1));
+        REQUIRE(AreStringsEqual(test_iterator_copy->name, test_enum_valueName1));
         test_iterator += 1;
         REQUIRE(test_iterator == wil::reg::value_bstr_iterator{});
         test_iterator_copy = test_iterator;
@@ -6293,7 +6340,7 @@ TEST_CASE("BasicRegistryTests::value_bstr_iterator", "[registry]")
             auto stringLength = wcslen(nameAndType.name.get());
             REQUIRE(stringLength == SysStringLen(nameAndType.name.get()));
             REQUIRE(stringLength == wcslen(enumTestNames[count]));
-            REQUIRE(0 == wcscmp(nameAndType.name.get(), enumTestNames[count]));
+            REQUIRE(AreStringsEqual(nameAndType.name, enumTestNames[count]));
             ++count;
         });
         REQUIRE(count == std::size(enumTestNames));
@@ -6303,7 +6350,7 @@ TEST_CASE("BasicRegistryTests::value_bstr_iterator", "[registry]")
             auto stringLength = wcslen(nameAndType.name.get());
             REQUIRE(stringLength == SysStringLen(nameAndType.name.get()));
             REQUIRE(stringLength == wcslen(enumTestNames[count]));
-            REQUIRE(0 == wcscmp(nameAndType.name.get(), enumTestNames[count]));
+            REQUIRE(AreStringsEqual(nameAndType.name, enumTestNames[count]));
             ++count;
         });
         REQUIRE(count == std::size(enumTestNames));
@@ -6313,7 +6360,7 @@ TEST_CASE("BasicRegistryTests::value_bstr_iterator", "[registry]")
             auto stringLength = wcslen(nameAndType.name.get());
             REQUIRE(stringLength == SysStringLen(nameAndType.name.get()));
             REQUIRE(stringLength == wcslen(enumTestNames[count]));
-            REQUIRE(0 == wcscmp(nameAndType.name.get(), enumTestNames[count]));
+            REQUIRE(AreStringsEqual(nameAndType.name, enumTestNames[count]));
             ++count;
         });
         REQUIRE(count == std::size(enumTestNames));
@@ -6338,11 +6385,11 @@ TEST_CASE("BasicRegistryTests::value_bstr_iterator", "[registry]")
         auto iterate_values = wil::reg::value_bstr_iterator{write_hkey.get()};
         const auto& half_length_value = *iterate_values;
         REQUIRE(half_length == SysStringLen(half_length_value.name.get()));
-        REQUIRE(0 == wcscmp(half_length_value.name.get(), half_length_name.get()));
+        REQUIRE(AreStringsEqual(half_length_value.name, half_length_name.get()));
         ++iterate_values;
         const auto& full_length_value = *iterate_values;
         REQUIRE(full_length == SysStringLen(full_length_value.name.get()));
-        REQUIRE(0 == wcscmp(full_length_value.name.get(), full_length_name.get()));
+        REQUIRE(AreStringsEqual(full_length_value.name, full_length_name.get()));
         ++iterate_values;
         REQUIRE(iterate_values == wil::reg::value_bstr_iterator{});
     }
@@ -6361,19 +6408,19 @@ TEST_CASE("BasicRegistryTests::value_bstr_iterator", "[registry]")
             switch (count)
             {
             case 1:
-                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName1));
+                REQUIRE(AreStringsEqual(value_data.name, test_enum_valueName1));
                 REQUIRE(value_data.type == REG_DWORD);
                 break;
             case 2:
-                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName2));
+                REQUIRE(AreStringsEqual(value_data.name, test_enum_valueName2));
                 REQUIRE(value_data.type == REG_DWORD);
                 break;
             case 3:
-                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName3));
+                REQUIRE(AreStringsEqual(value_data.name, test_enum_valueName3));
                 REQUIRE(value_data.type == REG_QWORD);
                 break;
             case 4:
-                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName4));
+                REQUIRE(AreStringsEqual(value_data.name, test_enum_valueName4));
                 REQUIRE(value_data.type == REG_SZ);
                 break;
             default:
@@ -6390,19 +6437,19 @@ TEST_CASE("BasicRegistryTests::value_bstr_iterator", "[registry]")
             switch (count)
             {
             case 1:
-                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName1));
+                REQUIRE(AreStringsEqual(value_data.name, test_enum_valueName1));
                 REQUIRE(value_data.type == REG_DWORD);
                 break;
             case 2:
-                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName2));
+                REQUIRE(AreStringsEqual(value_data.name, test_enum_valueName2));
                 REQUIRE(value_data.type == REG_DWORD);
                 break;
             case 3:
-                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName3));
+                REQUIRE(AreStringsEqual(value_data.name, test_enum_valueName3));
                 REQUIRE(value_data.type == REG_QWORD);
                 break;
             case 4:
-                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName4));
+                REQUIRE(AreStringsEqual(value_data.name, test_enum_valueName4));
                 REQUIRE(value_data.type == REG_SZ);
                 break;
             default:
@@ -6415,7 +6462,7 @@ TEST_CASE("BasicRegistryTests::value_bstr_iterator", "[registry]")
             wil::reg::value_bstr_iterator(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey).get()),
             wil::reg::value_bstr_iterator{},
             [&](const auto& value_data) {
-                return (0 == wcscmp(value_data.name.get(), test_enum_valueName1)) && (value_data.type == REG_DWORD);
+                return (AreStringsEqual(value_data.name, test_enum_valueName1)) && (value_data.type == REG_DWORD);
             });
         REQUIRE(std_count == 1);
 
@@ -6423,7 +6470,7 @@ TEST_CASE("BasicRegistryTests::value_bstr_iterator", "[registry]")
             wil::reg::value_bstr_iterator(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey).get()),
             wil::reg::value_bstr_iterator{},
             [&](const auto& value_data) {
-                return (0 == wcscmp(value_data.name.get(), test_enum_valueName2)) && (value_data.type == REG_DWORD);
+                return (AreStringsEqual(value_data.name, test_enum_valueName2)) && (value_data.type == REG_DWORD);
             });
         REQUIRE(std_count == 1);
 
@@ -6431,7 +6478,7 @@ TEST_CASE("BasicRegistryTests::value_bstr_iterator", "[registry]")
             wil::reg::value_bstr_iterator(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey).get()),
             wil::reg::value_bstr_iterator{},
             [&](const auto& value_data) {
-                return (0 == wcscmp(value_data.name.get(), test_enum_valueName3)) && (value_data.type == REG_QWORD);
+                return (AreStringsEqual(value_data.name, test_enum_valueName3)) && (value_data.type == REG_QWORD);
             });
         REQUIRE(std_count == 1);
 
@@ -6439,7 +6486,7 @@ TEST_CASE("BasicRegistryTests::value_bstr_iterator", "[registry]")
             wil::reg::value_bstr_iterator(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey).get()),
             wil::reg::value_bstr_iterator{},
             [&](const auto& value_data) {
-                return (0 == wcscmp(value_data.name.get(), test_enum_valueName4)) && (value_data.type == REG_SZ);
+                return (AreStringsEqual(value_data.name, test_enum_valueName4)) && (value_data.type == REG_SZ);
             });
         REQUIRE(std_count == 1);
 
@@ -6447,7 +6494,7 @@ TEST_CASE("BasicRegistryTests::value_bstr_iterator", "[registry]")
             wil::reg::value_bstr_iterator(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey).get()),
             wil::reg::value_bstr_iterator{},
             [&](const auto& value_data) {
-                return (0 == wcscmp(value_data.name.get(), L"xyz"));
+                return (AreStringsEqual(value_data.name, L"xyz"));
             });
         REQUIRE(std_count == 0);
     }
@@ -6467,19 +6514,19 @@ TEST_CASE("BasicRegistryTests::value_bstr_iterator", "[registry]")
             switch (count)
             {
             case 1:
-                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName1));
+                REQUIRE(AreStringsEqual(value_data.name, test_enum_valueName1));
                 REQUIRE(value_data.type == REG_DWORD);
                 break;
             case 2:
-                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName2));
+                REQUIRE(AreStringsEqual(value_data.name, test_enum_valueName2));
                 REQUIRE(value_data.type == REG_DWORD);
                 break;
             case 3:
-                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName3));
+                REQUIRE(AreStringsEqual(value_data.name, test_enum_valueName3));
                 REQUIRE(value_data.type == REG_QWORD);
                 break;
             case 4:
-                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName4));
+                REQUIRE(AreStringsEqual(value_data.name, test_enum_valueName4));
                 REQUIRE(value_data.type == REG_SZ);
                 break;
             default:
@@ -6496,19 +6543,19 @@ TEST_CASE("BasicRegistryTests::value_bstr_iterator", "[registry]")
             switch (count)
             {
             case 1:
-                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName1));
+                REQUIRE(AreStringsEqual(value_data.name, test_enum_valueName1));
                 REQUIRE(value_data.type == REG_DWORD);
                 break;
             case 2:
-                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName2));
+                REQUIRE(AreStringsEqual(value_data.name, test_enum_valueName2));
                 REQUIRE(value_data.type == REG_DWORD);
                 break;
             case 3:
-                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName3));
+                REQUIRE(AreStringsEqual(value_data.name, test_enum_valueName3));
                 REQUIRE(value_data.type == REG_QWORD);
                 break;
             case 4:
-                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName4));
+                REQUIRE(AreStringsEqual(value_data.name, test_enum_valueName4));
                 REQUIRE(value_data.type == REG_SZ);
                 break;
             default:
@@ -6557,12 +6604,12 @@ TEST_CASE("BasicRegistryTests::key_bstr_iterator", "[registry]")
 
         auto test_iterator = wil::reg::key_bstr_iterator(hkey.get());
         REQUIRE(test_iterator == wil::reg::key_bstr_iterator(hkey.get()));
-        REQUIRE(0 == wcscmp((*test_iterator).name.get(), test_enum_KeyName1));
-        REQUIRE(0 == wcscmp(test_iterator->name.get(), test_enum_KeyName1));
+        REQUIRE(AreStringsEqual((*test_iterator).name, test_enum_KeyName1));
+        REQUIRE(AreStringsEqual(test_iterator->name, test_enum_KeyName1));
         auto test_iterator_copy = test_iterator;
         REQUIRE(test_iterator_copy == wil::reg::key_bstr_iterator(hkey.get()));
-        REQUIRE(0 == wcscmp((*test_iterator_copy).name.get(), test_enum_KeyName1));
-        REQUIRE(0 == wcscmp(test_iterator_copy->name.get(), test_enum_KeyName1));
+        REQUIRE(AreStringsEqual((*test_iterator_copy).name, test_enum_KeyName1));
+        REQUIRE(AreStringsEqual(test_iterator_copy->name, test_enum_KeyName1));
         ++test_iterator;
         REQUIRE(test_iterator == key_end);
         REQUIRE(test_iterator == wil::reg::key_bstr_iterator{});
@@ -6573,12 +6620,12 @@ TEST_CASE("BasicRegistryTests::key_bstr_iterator", "[registry]")
         test_iterator = wil::reg::key_bstr_iterator(hkey.get());
         REQUIRE(test_iterator != wil::reg::key_bstr_iterator{});
         REQUIRE(test_iterator == wil::reg::key_bstr_iterator(hkey.get()));
-        REQUIRE(0 == wcscmp((*test_iterator).name.get(), test_enum_KeyName1));
-        REQUIRE(0 == wcscmp(test_iterator->name.get(), test_enum_KeyName1));
+        REQUIRE(AreStringsEqual((*test_iterator).name, test_enum_KeyName1));
+        REQUIRE(AreStringsEqual(test_iterator->name, test_enum_KeyName1));
         test_iterator_copy = test_iterator;
         REQUIRE(test_iterator_copy == wil::reg::key_bstr_iterator(hkey.get()));
-        REQUIRE(0 == wcscmp((*test_iterator_copy).name.get(), test_enum_KeyName1));
-        REQUIRE(0 == wcscmp(test_iterator_copy->name.get(), test_enum_KeyName1));
+        REQUIRE(AreStringsEqual((*test_iterator_copy).name, test_enum_KeyName1));
+        REQUIRE(AreStringsEqual(test_iterator_copy->name, test_enum_KeyName1));
         ++test_iterator;
         REQUIRE(test_iterator == key_end);
         REQUIRE(test_iterator == wil::reg::key_bstr_iterator{});
@@ -6589,11 +6636,11 @@ TEST_CASE("BasicRegistryTests::key_bstr_iterator", "[registry]")
         const wil::unique_hkey hkey2{wil::reg::create_unique_key(HKEY_CURRENT_USER, testSubkey)};
         test_iterator = wil::reg::key_bstr_iterator(hkey2.get());
         REQUIRE(test_iterator != wil::reg::key_bstr_iterator{});
-        REQUIRE(0 == wcscmp((*test_iterator).name.get(), test_enum_KeyName1));
-        REQUIRE(0 == wcscmp(test_iterator->name.get(), test_enum_KeyName1));
+        REQUIRE(AreStringsEqual((*test_iterator).name, test_enum_KeyName1));
+        REQUIRE(AreStringsEqual(test_iterator->name, test_enum_KeyName1));
         test_iterator_copy = test_iterator;
-        REQUIRE(0 == wcscmp((*test_iterator_copy).name.get(), test_enum_KeyName1));
-        REQUIRE(0 == wcscmp(test_iterator_copy->name.get(), test_enum_KeyName1));
+        REQUIRE(AreStringsEqual((*test_iterator_copy).name, test_enum_KeyName1));
+        REQUIRE(AreStringsEqual(test_iterator_copy->name, test_enum_KeyName1));
         test_iterator += 1;
         REQUIRE(test_iterator == wil::reg::key_bstr_iterator{});
         test_iterator_copy = test_iterator;
@@ -6618,7 +6665,7 @@ TEST_CASE("BasicRegistryTests::key_bstr_iterator", "[registry]")
             auto stringLength = wcslen(keyInfo.name.get());
             REQUIRE(stringLength == ::SysStringLen(keyInfo.name.get()));
             REQUIRE(stringLength == wcslen(enumTestNames[count]));
-            REQUIRE(0 == wcscmp(keyInfo.name.get(), enumTestNames[count]));
+            REQUIRE(AreStringsEqual(keyInfo.name, enumTestNames[count]));
             ++count;
         });
         REQUIRE(count == std::size(enumTestNames) - 1); // cannot create the last key as its name is empty
@@ -6628,7 +6675,7 @@ TEST_CASE("BasicRegistryTests::key_bstr_iterator", "[registry]")
             auto stringLength = wcslen(keyInfo.name.get());
             REQUIRE(stringLength == ::SysStringLen(keyInfo.name.get()));
             REQUIRE(stringLength == wcslen(enumTestNames[count]));
-            REQUIRE(0 == wcscmp(keyInfo.name.get(), enumTestNames[count]));
+            REQUIRE(AreStringsEqual(keyInfo.name, enumTestNames[count]));
             ++count;
         });
         REQUIRE(count == std::size(enumTestNames) - 1); // cannot create the last key as its name is empty
@@ -6638,7 +6685,7 @@ TEST_CASE("BasicRegistryTests::key_bstr_iterator", "[registry]")
             auto stringLength = wcslen(keyInfo.name.get());
             REQUIRE(stringLength == ::SysStringLen(keyInfo.name.get()));
             REQUIRE(stringLength == wcslen(enumTestNames[count]));
-            REQUIRE(0 == wcscmp(keyInfo.name.get(), enumTestNames[count]));
+            REQUIRE(AreStringsEqual(keyInfo.name, enumTestNames[count]));
             ++count;
         });
         REQUIRE(count == std::size(enumTestNames) - 1); // cannot create the last key as its name is empty
@@ -6663,11 +6710,11 @@ TEST_CASE("BasicRegistryTests::key_bstr_iterator", "[registry]")
         auto iterate_keys = wil::reg::key_bstr_iterator{write_hkey.get()};
         const auto& half_length_key = *iterate_keys;
         REQUIRE(half_length == SysStringLen(half_length_key.name.get()));
-        REQUIRE(0 == wcscmp(half_length_key.name.get(), half_length_name.get()));
+        REQUIRE(AreStringsEqual(half_length_key.name, half_length_name.get()));
         ++iterate_keys;
         const auto& full_length_key = *iterate_keys;
         REQUIRE(full_length == SysStringLen(full_length_key.name.get()));
-        REQUIRE(0 == wcscmp(full_length_key.name.get(), full_length_name.get()));
+        REQUIRE(AreStringsEqual(full_length_key.name, full_length_name.get()));
         ++iterate_keys;
         REQUIRE(iterate_keys == wil::reg::key_bstr_iterator{});
     }
@@ -6686,16 +6733,16 @@ TEST_CASE("BasicRegistryTests::key_bstr_iterator", "[registry]")
             switch (count)
             {
             case 1:
-                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName1));
+                REQUIRE(AreStringsEqual(key_data.name, test_enum_KeyName1));
                 break;
             case 2:
-                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName2));
+                REQUIRE(AreStringsEqual(key_data.name, test_enum_KeyName2));
                 break;
             case 3:
-                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName3));
+                REQUIRE(AreStringsEqual(key_data.name, test_enum_KeyName3));
                 break;
             case 4:
-                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName4));
+                REQUIRE(AreStringsEqual(key_data.name, test_enum_KeyName4));
                 break;
             default:
                 FAIL();
@@ -6707,7 +6754,7 @@ TEST_CASE("BasicRegistryTests::key_bstr_iterator", "[registry]")
             wil::reg::key_bstr_iterator(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey).get()),
             wil::reg::key_bstr_iterator{},
             [](const auto& test_data) {
-                return 0 == wcscmp(test_data.name.get(), test_enum_KeyName1);
+                return AreStringsEqual(test_data.name, test_enum_KeyName1);
             });
         REQUIRE(std_count == 1);
 
@@ -6715,7 +6762,7 @@ TEST_CASE("BasicRegistryTests::key_bstr_iterator", "[registry]")
             wil::reg::key_bstr_iterator(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey).get()),
             wil::reg::key_bstr_iterator{},
             [](const auto& test_data) {
-                return 0 == wcscmp(test_data.name.get(), test_enum_KeyName2);
+                return AreStringsEqual(test_data.name, test_enum_KeyName2);
             });
         REQUIRE(std_count == 1);
 
@@ -6723,7 +6770,7 @@ TEST_CASE("BasicRegistryTests::key_bstr_iterator", "[registry]")
             wil::reg::key_bstr_iterator(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey).get()),
             wil::reg::key_bstr_iterator{},
             [](const auto& test_data) {
-                return 0 == wcscmp(test_data.name.get(), test_enum_KeyName3);
+                return AreStringsEqual(test_data.name, test_enum_KeyName3);
             });
         REQUIRE(std_count == 1);
 
@@ -6731,7 +6778,7 @@ TEST_CASE("BasicRegistryTests::key_bstr_iterator", "[registry]")
             wil::reg::key_bstr_iterator(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey).get()),
             wil::reg::key_bstr_iterator{},
             [](const auto& test_data) {
-                return 0 == wcscmp(test_data.name.get(), test_enum_KeyName4);
+                return AreStringsEqual(test_data.name, test_enum_KeyName4);
             });
         REQUIRE(std_count == 1);
 
@@ -6739,7 +6786,7 @@ TEST_CASE("BasicRegistryTests::key_bstr_iterator", "[registry]")
             wil::reg::key_bstr_iterator(wil::reg::open_unique_key(HKEY_CURRENT_USER, testSubkey).get()),
             wil::reg::key_bstr_iterator{},
             [](const auto& test_data) {
-                return 0 == wcscmp(test_data.name.get(), L"xyz");
+                return AreStringsEqual(test_data.name, L"xyz");
             });
         REQUIRE(std_count == 0);
 
@@ -6749,7 +6796,7 @@ TEST_CASE("BasicRegistryTests::key_bstr_iterator", "[registry]")
             wil::reg::key_bstr_iterator(wil::reg::open_shared_key(HKEY_CURRENT_USER, testSubkey).get()),
             wil::reg::key_bstr_iterator{},
             [](const auto& test_data) {
-                return 0 == wcscmp(test_data.name.get(), test_enum_KeyName1);
+                return AreStringsEqual(test_data.name, test_enum_KeyName1);
             });
         REQUIRE(std_count == 1);
 
@@ -6757,7 +6804,7 @@ TEST_CASE("BasicRegistryTests::key_bstr_iterator", "[registry]")
             wil::reg::key_bstr_iterator(wil::reg::open_shared_key(HKEY_CURRENT_USER, testSubkey).get()),
             wil::reg::key_bstr_iterator{},
             [](const auto& test_data) {
-                return 0 == wcscmp(test_data.name.get(), test_enum_KeyName2);
+                return AreStringsEqual(test_data.name, test_enum_KeyName2);
             });
         REQUIRE(std_count == 1);
 
@@ -6765,7 +6812,7 @@ TEST_CASE("BasicRegistryTests::key_bstr_iterator", "[registry]")
             wil::reg::key_bstr_iterator(wil::reg::open_shared_key(HKEY_CURRENT_USER, testSubkey).get()),
             wil::reg::key_bstr_iterator{},
             [](const auto& test_data) {
-                return 0 == wcscmp(test_data.name.get(), test_enum_KeyName3);
+                return AreStringsEqual(test_data.name, test_enum_KeyName3);
             });
         REQUIRE(std_count == 1);
 
@@ -6773,7 +6820,7 @@ TEST_CASE("BasicRegistryTests::key_bstr_iterator", "[registry]")
             wil::reg::key_bstr_iterator(wil::reg::open_shared_key(HKEY_CURRENT_USER, testSubkey).get()),
             wil::reg::key_bstr_iterator{},
             [](const auto& test_data) {
-                return 0 == wcscmp(test_data.name.get(), test_enum_KeyName4);
+                return AreStringsEqual(test_data.name, test_enum_KeyName4);
             });
         REQUIRE(std_count == 1);
 
@@ -6781,7 +6828,7 @@ TEST_CASE("BasicRegistryTests::key_bstr_iterator", "[registry]")
             wil::reg::key_bstr_iterator(wil::reg::open_shared_key(HKEY_CURRENT_USER, testSubkey).get()),
             wil::reg::key_bstr_iterator{},
             [](const auto& test_data) {
-                return 0 == wcscmp(test_data.name.get(), L"xyz");
+                return AreStringsEqual(test_data.name, L"xyz");
             });
         REQUIRE(std_count == 0);
 #endif // #if defined(__WIL_WINREG_STL)
@@ -6802,16 +6849,16 @@ TEST_CASE("BasicRegistryTests::key_bstr_iterator", "[registry]")
             switch (count)
             {
             case 1:
-                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName1));
+                REQUIRE(AreStringsEqual(key_data.name, test_enum_KeyName1));
                 break;
             case 2:
-                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName2));
+                REQUIRE(AreStringsEqual(key_data.name, test_enum_KeyName2));
                 break;
             case 3:
-                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName3));
+                REQUIRE(AreStringsEqual(key_data.name, test_enum_KeyName3));
                 break;
             case 4:
-                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName4));
+                REQUIRE(AreStringsEqual(key_data.name, test_enum_KeyName4));
                 break;
             default:
                 FAIL();
@@ -7483,12 +7530,12 @@ TEST_CASE("BasicRegistryTests::value_bstr_nothrow_iterator", "[registry]")
         // both ways to access the iterator data
         auto test_iterator = wil::reg::value_bstr_nothrow_iterator(hkey.get());
         REQUIRE(test_iterator == wil::reg::value_bstr_nothrow_iterator(hkey.get()));
-        REQUIRE(0 == wcscmp((*test_iterator).name.get(), test_enum_valueName1));
-        REQUIRE(0 == wcscmp(test_iterator->name.get(), test_enum_valueName1));
+        REQUIRE(AreStringsEqual((*test_iterator).name, test_enum_valueName1));
+        REQUIRE(AreStringsEqual(test_iterator->name, test_enum_valueName1));
         auto test_iterator_copy = test_iterator;
         REQUIRE(test_iterator_copy == wil::reg::value_bstr_nothrow_iterator(hkey.get()));
-        REQUIRE(0 == wcscmp((*test_iterator_copy).name.get(), test_enum_valueName1));
-        REQUIRE(0 == wcscmp(test_iterator_copy->name.get(), test_enum_valueName1));
+        REQUIRE(AreStringsEqual((*test_iterator_copy).name, test_enum_valueName1));
+        REQUIRE(AreStringsEqual(test_iterator_copy->name, test_enum_valueName1));
         REQUIRE_SUCCEEDED(test_iterator.move_next());
         REQUIRE_SUCCEEDED(test_iterator.last_error());
         REQUIRE(test_iterator.at_end());
@@ -7500,13 +7547,13 @@ TEST_CASE("BasicRegistryTests::value_bstr_nothrow_iterator", "[registry]")
         test_iterator = wil::reg::value_bstr_nothrow_iterator(hkey.get());
         REQUIRE(test_iterator != wil::reg::value_bstr_nothrow_iterator{});
         REQUIRE(test_iterator == wil::reg::value_bstr_nothrow_iterator(hkey.get()));
-        REQUIRE(0 == wcscmp((*test_iterator).name.get(), test_enum_valueName1));
-        REQUIRE(0 == wcscmp(test_iterator->name.get(), test_enum_valueName1));
+        REQUIRE(AreStringsEqual((*test_iterator).name, test_enum_valueName1));
+        REQUIRE(AreStringsEqual(test_iterator->name, test_enum_valueName1));
         REQUIRE(!test_iterator.at_end());
         test_iterator_copy = test_iterator;
         REQUIRE(test_iterator_copy == wil::reg::value_bstr_nothrow_iterator(hkey.get()));
-        REQUIRE(0 == wcscmp((*test_iterator_copy).name.get(), test_enum_valueName1));
-        REQUIRE(0 == wcscmp(test_iterator_copy->name.get(), test_enum_valueName1));
+        REQUIRE(AreStringsEqual((*test_iterator_copy).name, test_enum_valueName1));
+        REQUIRE(AreStringsEqual(test_iterator_copy->name, test_enum_valueName1));
         REQUIRE(!test_iterator_copy.at_end());
         REQUIRE_SUCCEEDED(test_iterator.move_next());
         REQUIRE_SUCCEEDED(test_iterator.last_error());
@@ -7519,12 +7566,12 @@ TEST_CASE("BasicRegistryTests::value_bstr_nothrow_iterator", "[registry]")
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey2));
         test_iterator = wil::reg::value_bstr_nothrow_iterator(hkey2.get());
         REQUIRE(test_iterator != wil::reg::value_bstr_nothrow_iterator{});
-        REQUIRE(0 == wcscmp((*test_iterator).name.get(), test_enum_valueName1));
-        REQUIRE(0 == wcscmp(test_iterator->name.get(), test_enum_valueName1));
+        REQUIRE(AreStringsEqual((*test_iterator).name, test_enum_valueName1));
+        REQUIRE(AreStringsEqual(test_iterator->name, test_enum_valueName1));
         REQUIRE(!test_iterator.at_end());
         test_iterator_copy = test_iterator;
-        REQUIRE(0 == wcscmp((*test_iterator_copy).name.get(), test_enum_valueName1));
-        REQUIRE(0 == wcscmp(test_iterator_copy->name.get(), test_enum_valueName1));
+        REQUIRE(AreStringsEqual((*test_iterator_copy).name, test_enum_valueName1));
+        REQUIRE(AreStringsEqual(test_iterator_copy->name, test_enum_valueName1));
         REQUIRE(!test_iterator_copy.at_end());
         REQUIRE_SUCCEEDED(test_iterator.move_next());
         REQUIRE_SUCCEEDED(test_iterator.last_error());
@@ -7554,7 +7601,7 @@ TEST_CASE("BasicRegistryTests::value_bstr_nothrow_iterator", "[registry]")
             auto stringLength = wcslen(nameAndType.name.get());
             REQUIRE(stringLength == SysStringLen(nameAndType.name.get()));
             REQUIRE(stringLength == wcslen(enumTestNames[count]));
-            REQUIRE(0 == wcscmp(nameAndType.name.get(), enumTestNames[count]));
+            REQUIRE(AreStringsEqual(nameAndType.name, enumTestNames[count]));
             ++count;
         });
         REQUIRE_SUCCEEDED(begin.last_error());
@@ -7565,7 +7612,7 @@ TEST_CASE("BasicRegistryTests::value_bstr_nothrow_iterator", "[registry]")
             auto stringLength = wcslen(nameAndType.name.get());
             REQUIRE(stringLength == SysStringLen(nameAndType.name.get()));
             REQUIRE(stringLength == wcslen(enumTestNames[count]));
-            REQUIRE(0 == wcscmp(nameAndType.name.get(), enumTestNames[count]));
+            REQUIRE(AreStringsEqual(nameAndType.name, enumTestNames[count]));
             ++count;
         });
         REQUIRE_SUCCEEDED(begin.last_error());
@@ -7576,7 +7623,7 @@ TEST_CASE("BasicRegistryTests::value_bstr_nothrow_iterator", "[registry]")
             auto stringLength = wcslen(nameAndType.name.get());
             REQUIRE(stringLength == SysStringLen(nameAndType.name.get()));
             REQUIRE(stringLength == wcslen(enumTestNames[count]));
-            REQUIRE(0 == wcscmp(nameAndType.name.get(), enumTestNames[count]));
+            REQUIRE(AreStringsEqual(nameAndType.name, enumTestNames[count]));
             ++count;
         });
         REQUIRE_SUCCEEDED(begin.last_error());
@@ -7604,12 +7651,12 @@ TEST_CASE("BasicRegistryTests::value_bstr_nothrow_iterator", "[registry]")
         REQUIRE_SUCCEEDED(iterate_values.last_error());
         const auto& half_length_value = *iterate_values;
         REQUIRE(half_length == SysStringLen(half_length_value.name.get()));
-        REQUIRE(0 == wcscmp(half_length_value.name.get(), half_length_name.get()));
+        REQUIRE(AreStringsEqual(half_length_value.name, half_length_name.get()));
         ++iterate_values;
         REQUIRE_SUCCEEDED(iterate_values.last_error());
         const auto& full_length_value = *iterate_values;
         REQUIRE(full_length == SysStringLen(full_length_value.name.get()));
-        REQUIRE(0 == wcscmp(full_length_value.name.get(), full_length_name.get()));
+        REQUIRE(AreStringsEqual(full_length_value.name, full_length_name.get()));
         ++iterate_values;
         REQUIRE(iterate_values == wil::reg::value_bstr_nothrow_iterator{});
     }
@@ -7636,19 +7683,19 @@ TEST_CASE("BasicRegistryTests::value_bstr_nothrow_iterator", "[registry]")
             switch (count)
             {
             case 1:
-                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName1));
+                REQUIRE(AreStringsEqual(value_data.name, test_enum_valueName1));
                 REQUIRE(value_data.type == REG_DWORD);
                 break;
             case 2:
-                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName2));
+                REQUIRE(AreStringsEqual(value_data.name, test_enum_valueName2));
                 REQUIRE(value_data.type == REG_DWORD);
                 break;
             case 3:
-                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName3));
+                REQUIRE(AreStringsEqual(value_data.name, test_enum_valueName3));
                 REQUIRE(value_data.type == REG_QWORD);
                 break;
             case 4:
-                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName4));
+                REQUIRE(AreStringsEqual(value_data.name, test_enum_valueName4));
                 REQUIRE(value_data.type == REG_SZ);
                 break;
             default:
@@ -7671,19 +7718,19 @@ TEST_CASE("BasicRegistryTests::value_bstr_nothrow_iterator", "[registry]")
             switch (count)
             {
             case 1:
-                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName1));
+                REQUIRE(AreStringsEqual(value_data.name, test_enum_valueName1));
                 REQUIRE(value_data.type == REG_DWORD);
                 break;
             case 2:
-                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName2));
+                REQUIRE(AreStringsEqual(value_data.name, test_enum_valueName2));
                 REQUIRE(value_data.type == REG_DWORD);
                 break;
             case 3:
-                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName3));
+                REQUIRE(AreStringsEqual(value_data.name, test_enum_valueName3));
                 REQUIRE(value_data.type == REG_QWORD);
                 break;
             case 4:
-                REQUIRE(0 == wcscmp(value_data.name.get(), test_enum_valueName4));
+                REQUIRE(AreStringsEqual(value_data.name, test_enum_valueName4));
                 REQUIRE(value_data.type == REG_SZ);
                 break;
             default:
@@ -7702,19 +7749,19 @@ TEST_CASE("BasicRegistryTests::value_bstr_nothrow_iterator", "[registry]")
             switch (count)
             {
             case 1:
-                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_valueName1));
+                REQUIRE(AreStringsEqual(manual_iterator->name, test_enum_valueName1));
                 REQUIRE(manual_iterator->type == REG_DWORD);
                 break;
             case 2:
-                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_valueName2));
+                REQUIRE(AreStringsEqual(manual_iterator->name, test_enum_valueName2));
                 REQUIRE(manual_iterator->type == REG_DWORD);
                 break;
             case 3:
-                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_valueName3));
+                REQUIRE(AreStringsEqual(manual_iterator->name, test_enum_valueName3));
                 REQUIRE(manual_iterator->type == REG_QWORD);
                 break;
             case 4:
-                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_valueName4));
+                REQUIRE(AreStringsEqual(manual_iterator->name, test_enum_valueName4));
                 REQUIRE(manual_iterator->type == REG_SZ);
                 break;
             default:
@@ -7737,19 +7784,19 @@ TEST_CASE("BasicRegistryTests::value_bstr_nothrow_iterator", "[registry]")
             switch (count)
             {
             case 1:
-                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_valueName1));
+                REQUIRE(AreStringsEqual(manual_iterator->name, test_enum_valueName1));
                 REQUIRE(manual_iterator->type == REG_DWORD);
                 break;
             case 2:
-                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_valueName2));
+                REQUIRE(AreStringsEqual(manual_iterator->name, test_enum_valueName2));
                 REQUIRE(manual_iterator->type == REG_DWORD);
                 break;
             case 3:
-                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_valueName3));
+                REQUIRE(AreStringsEqual(manual_iterator->name, test_enum_valueName3));
                 REQUIRE(manual_iterator->type == REG_QWORD);
                 break;
             case 4:
-                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_valueName4));
+                REQUIRE(AreStringsEqual(manual_iterator->name, test_enum_valueName4));
                 REQUIRE(manual_iterator->type == REG_SZ);
                 break;
             default:
@@ -7812,12 +7859,12 @@ TEST_CASE("BasicRegistryTests::key_bstr_nothrow_iterator", "[registry]")
 
         auto key_iterator = wil::reg::key_bstr_nothrow_iterator(hkey.get());
         REQUIRE(key_iterator == wil::reg::key_bstr_nothrow_iterator(hkey.get()));
-        REQUIRE(0 == wcscmp((*key_iterator).name.get(), test_enum_KeyName1));
-        REQUIRE(0 == wcscmp(key_iterator->name.get(), test_enum_KeyName1));
+        REQUIRE(AreStringsEqual((*key_iterator).name, test_enum_KeyName1));
+        REQUIRE(AreStringsEqual(key_iterator->name, test_enum_KeyName1));
         auto key_iterator_copy = key_iterator;
         REQUIRE(key_iterator_copy == wil::reg::key_bstr_nothrow_iterator(hkey.get()));
-        REQUIRE(0 == wcscmp((*key_iterator_copy).name.get(), test_enum_KeyName1));
-        REQUIRE(0 == wcscmp(key_iterator_copy->name.get(), test_enum_KeyName1));
+        REQUIRE(AreStringsEqual((*key_iterator_copy).name, test_enum_KeyName1));
+        REQUIRE(AreStringsEqual(key_iterator_copy->name, test_enum_KeyName1));
         REQUIRE_SUCCEEDED(key_iterator.move_next());
         REQUIRE_SUCCEEDED(key_iterator.last_error());
         REQUIRE(key_iterator == key_end);
@@ -7829,12 +7876,12 @@ TEST_CASE("BasicRegistryTests::key_bstr_nothrow_iterator", "[registry]")
         key_iterator = wil::reg::key_bstr_nothrow_iterator(hkey.get());
         REQUIRE(key_iterator != wil::reg::key_bstr_nothrow_iterator{});
         REQUIRE(key_iterator == wil::reg::key_bstr_nothrow_iterator(hkey.get()));
-        REQUIRE(0 == wcscmp((*key_iterator).name.get(), test_enum_KeyName1));
-        REQUIRE(0 == wcscmp(key_iterator->name.get(), test_enum_KeyName1));
+        REQUIRE(AreStringsEqual((*key_iterator).name, test_enum_KeyName1));
+        REQUIRE(AreStringsEqual(key_iterator->name, test_enum_KeyName1));
         key_iterator_copy = key_iterator;
         REQUIRE(key_iterator_copy == wil::reg::key_bstr_nothrow_iterator(hkey.get()));
-        REQUIRE(0 == wcscmp((*key_iterator_copy).name.get(), test_enum_KeyName1));
-        REQUIRE(0 == wcscmp(key_iterator_copy->name.get(), test_enum_KeyName1));
+        REQUIRE(AreStringsEqual((*key_iterator_copy).name, test_enum_KeyName1));
+        REQUIRE(AreStringsEqual(key_iterator_copy->name, test_enum_KeyName1));
         REQUIRE_SUCCEEDED(key_iterator.move_next());
         REQUIRE_SUCCEEDED(key_iterator.last_error());
         REQUIRE(key_iterator == key_end);
@@ -7847,11 +7894,11 @@ TEST_CASE("BasicRegistryTests::key_bstr_nothrow_iterator", "[registry]")
         REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, hkey2));
         key_iterator = wil::reg::key_bstr_nothrow_iterator(hkey2.get());
         REQUIRE(key_iterator != wil::reg::key_bstr_nothrow_iterator{});
-        REQUIRE(0 == wcscmp((*key_iterator).name.get(), test_enum_KeyName1));
-        REQUIRE(0 == wcscmp(key_iterator->name.get(), test_enum_KeyName1));
+        REQUIRE(AreStringsEqual((*key_iterator).name, test_enum_KeyName1));
+        REQUIRE(AreStringsEqual(key_iterator->name, test_enum_KeyName1));
         key_iterator_copy = key_iterator;
-        REQUIRE(0 == wcscmp((*key_iterator_copy).name.get(), test_enum_KeyName1));
-        REQUIRE(0 == wcscmp(key_iterator_copy->name.get(), test_enum_KeyName1));
+        REQUIRE(AreStringsEqual((*key_iterator_copy).name, test_enum_KeyName1));
+        REQUIRE(AreStringsEqual(key_iterator_copy->name, test_enum_KeyName1));
         REQUIRE_SUCCEEDED(key_iterator.move_next());
         REQUIRE_SUCCEEDED(key_iterator.last_error());
         REQUIRE(key_iterator == wil::reg::key_bstr_nothrow_iterator{});
@@ -7879,7 +7926,7 @@ TEST_CASE("BasicRegistryTests::key_bstr_nothrow_iterator", "[registry]")
             auto stringLength = wcslen(keyInfo.name.get());
             REQUIRE(stringLength == ::SysStringLen(keyInfo.name.get()));
             REQUIRE(stringLength == wcslen(enumTestNames[count]));
-            REQUIRE(0 == wcscmp(keyInfo.name.get(), enumTestNames[count]));
+            REQUIRE(AreStringsEqual(keyInfo.name, enumTestNames[count]));
             ++count;
         });
         REQUIRE_SUCCEEDED(begin.last_error());
@@ -7890,7 +7937,7 @@ TEST_CASE("BasicRegistryTests::key_bstr_nothrow_iterator", "[registry]")
             auto stringLength = wcslen(keyInfo.name.get());
             REQUIRE(stringLength == ::SysStringLen(keyInfo.name.get()));
             REQUIRE(stringLength == wcslen(enumTestNames[count]));
-            REQUIRE(0 == wcscmp(keyInfo.name.get(), enumTestNames[count]));
+            REQUIRE(AreStringsEqual(keyInfo.name, enumTestNames[count]));
             ++count;
         });
         REQUIRE_SUCCEEDED(begin.last_error());
@@ -7901,7 +7948,7 @@ TEST_CASE("BasicRegistryTests::key_bstr_nothrow_iterator", "[registry]")
             auto stringLength = wcslen(keyInfo.name.get());
             REQUIRE(stringLength == ::SysStringLen(keyInfo.name.get()));
             REQUIRE(stringLength == wcslen(enumTestNames[count]));
-            REQUIRE(0 == wcscmp(keyInfo.name.get(), enumTestNames[count]));
+            REQUIRE(AreStringsEqual(keyInfo.name, enumTestNames[count]));
             ++count;
         });
         REQUIRE_SUCCEEDED(begin.last_error());
@@ -7930,12 +7977,12 @@ TEST_CASE("BasicRegistryTests::key_bstr_nothrow_iterator", "[registry]")
         REQUIRE_SUCCEEDED(iterate_keys.last_error());
         const auto& half_length_key = *iterate_keys;
         REQUIRE(half_length == SysStringLen(half_length_key.name.get()));
-        REQUIRE(0 == wcscmp(half_length_key.name.get(), half_length_name.get()));
+        REQUIRE(AreStringsEqual(half_length_key.name, half_length_name.get()));
         ++iterate_keys;
         REQUIRE_SUCCEEDED(iterate_keys.last_error());
         const auto& full_length_key = *iterate_keys;
         REQUIRE(full_length == SysStringLen(full_length_key.name.get()));
-        REQUIRE(0 == wcscmp(full_length_key.name.get(), full_length_name.get()));
+        REQUIRE(AreStringsEqual(full_length_key.name, full_length_name.get()));
         ++iterate_keys;
         REQUIRE(iterate_keys == wil::reg::key_bstr_nothrow_iterator{});
     }
@@ -7959,16 +8006,16 @@ TEST_CASE("BasicRegistryTests::key_bstr_nothrow_iterator", "[registry]")
             switch (count)
             {
             case 1:
-                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName1));
+                REQUIRE(AreStringsEqual(key_data.name, test_enum_KeyName1));
                 break;
             case 2:
-                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName2));
+                REQUIRE(AreStringsEqual(key_data.name, test_enum_KeyName2));
                 break;
             case 3:
-                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName3));
+                REQUIRE(AreStringsEqual(key_data.name, test_enum_KeyName3));
                 break;
             case 4:
-                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName4));
+                REQUIRE(AreStringsEqual(key_data.name, test_enum_KeyName4));
                 break;
             default:
                 FAIL();
@@ -7985,16 +8032,16 @@ TEST_CASE("BasicRegistryTests::key_bstr_nothrow_iterator", "[registry]")
             switch (count)
             {
             case 1:
-                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName1));
+                REQUIRE(AreStringsEqual(key_data.name, test_enum_KeyName1));
                 break;
             case 2:
-                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName2));
+                REQUIRE(AreStringsEqual(key_data.name, test_enum_KeyName2));
                 break;
             case 3:
-                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName3));
+                REQUIRE(AreStringsEqual(key_data.name, test_enum_KeyName3));
                 break;
             case 4:
-                REQUIRE(0 == wcscmp(key_data.name.get(), test_enum_KeyName4));
+                REQUIRE(AreStringsEqual(key_data.name, test_enum_KeyName4));
                 break;
             default:
                 FAIL();
@@ -8012,16 +8059,16 @@ TEST_CASE("BasicRegistryTests::key_bstr_nothrow_iterator", "[registry]")
             switch (count)
             {
             case 1:
-                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_KeyName1));
+                REQUIRE(AreStringsEqual(manual_iterator->name, test_enum_KeyName1));
                 break;
             case 2:
-                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_KeyName2));
+                REQUIRE(AreStringsEqual(manual_iterator->name, test_enum_KeyName2));
                 break;
             case 3:
-                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_KeyName3));
+                REQUIRE(AreStringsEqual(manual_iterator->name, test_enum_KeyName3));
                 break;
             case 4:
-                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_KeyName4));
+                REQUIRE(AreStringsEqual(manual_iterator->name, test_enum_KeyName4));
                 break;
             default:
                 FAIL();
@@ -8043,16 +8090,16 @@ TEST_CASE("BasicRegistryTests::key_bstr_nothrow_iterator", "[registry]")
             switch (count)
             {
             case 1:
-                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_KeyName1));
+                REQUIRE(AreStringsEqual(manual_iterator->name, test_enum_KeyName1));
                 break;
             case 2:
-                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_KeyName2));
+                REQUIRE(AreStringsEqual(manual_iterator->name, test_enum_KeyName2));
                 break;
             case 3:
-                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_KeyName3));
+                REQUIRE(AreStringsEqual(manual_iterator->name, test_enum_KeyName3));
                 break;
             case 4:
-                REQUIRE(0 == wcscmp(manual_iterator->name.get(), test_enum_KeyName4));
+                REQUIRE(AreStringsEqual(manual_iterator->name, test_enum_KeyName4));
                 break;
             default:
                 FAIL();
@@ -8847,7 +8894,7 @@ TEST_CASE("BasicRegistryTests::odd_size_string_growing_during_read", "[registry]
                 // the BSTR's characters plus its null terminator
                 return value ? ::SysStringByteLen(value.get()) + sizeof(WCHAR) : 0;
             });
-        REQUIRE(0 == wcscmp(result.get(), oddSizeExpectedResult));
+        REQUIRE(AreStringsEqual(result, oddSizeExpectedResult));
     }
 
     SECTION("unique_bstr expanded string")
@@ -8865,7 +8912,25 @@ TEST_CASE("BasicRegistryTests::odd_size_string_growing_during_read", "[registry]
                 [](const wil::unique_bstr& value, uint32_t) -> DWORD {
                     return value ? ::SysStringByteLen(value.get()) + sizeof(WCHAR) : 0;
                 });
-            REQUIRE(0 == wcscmp(result.get(), oddSizeExpectedResult));
+            REQUIRE(AreStringsEqual(result, oddSizeExpectedResult));
+        }
+    }
+    SECTION("unique_bstr expanded string")
+    {
+        for (const DWORD storedType : {REG_SZ, REG_EXPAND_SZ})
+        {
+            INFO("stored type " << storedType);
+            wil::unique_bstr result;
+            verify_odd_size_string_growing_during_read(
+                storedType,
+                result,
+                [](HKEY key, wil::unique_bstr& output) {
+                    return wil::reg::get_value_expanded_string_nothrow(key, oddSizeStringValueName, output);
+                },
+                [](const wil::unique_bstr& value, uint32_t) -> DWORD {
+                    return value ? ::SysStringByteLen(value.get()) + sizeof(WCHAR) : 0;
+                });
+            REQUIRE(AreStringsEqual(result, oddSizeExpectedResult));
         }
     }
 #endif
@@ -9084,7 +9149,7 @@ TEST_CASE("BasicRegistryTests::odd_size_stable_expanded_string_read", "[registry
         verify_odd_size_stable_expanded_read(result, [](HKEY key, wil::unique_bstr& output) {
             return wil::reg::get_value_expanded_string_nothrow(key, oddSizeStableExpandValueName, output);
         });
-        REQUIRE(0 == wcscmp(result.get(), L"ab"));
+        REQUIRE(AreStringsEqual(result, L"ab"));
     }
 #endif
 
@@ -9461,6 +9526,21 @@ TEST_CASE("BasicRegistryTests::odd_size_string_drops_trailing_byte", "[registry]
             });
     }
 
+    SECTION("unique_bstr expanded string")
+    {
+        wil::unique_bstr result;
+        verify_odd_size_string_drops_trailing_byte(
+            result,
+            [](HKEY key, wil::unique_bstr& output) {
+                return wil::reg::get_value_expanded_string_nothrow(key, oddSizeTrailingByteValueName, output);
+            },
+            [](const wil::unique_bstr& value) {
+                return static_cast<const wchar_t*>(value.get());
+            },
+            [](const wil::unique_bstr& value) {
+                return static_cast<size_t>(::SysStringLen(value.get()));
+            });
+    }
     SECTION("unique_bstr expanded string")
     {
         wil::unique_bstr result;
