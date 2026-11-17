@@ -9424,6 +9424,115 @@ TEST_CASE("BasicRegistryTests::malformed_string_aligned_null_trailing_byte", "[r
 #endif
 }
 
+namespace
+{
+constexpr auto* embeddedNullTrailingByteValueName = L"EmbeddedNullTrailingByte";
+const std::vector<BYTE> embeddedNullTrailingBytes{'h', 0, 'i', 0, 0, 0, '!'};
+
+wil::unique_hkey create_embedded_null_trailing_byte_key(DWORD type)
+{
+    wil::unique_hkey key;
+    REQUIRE_SUCCEEDED(wil::reg::create_unique_key_nothrow(HKEY_CURRENT_USER, testSubkey, key, wil::reg::key_access::readwrite));
+    REQUIRE(
+        ERROR_SUCCESS == set_value_exact_bytes(
+                             key.get(),
+                             embeddedNullTrailingByteValueName,
+                             type,
+                             embeddedNullTrailingBytes,
+                             static_cast<DWORD>(embeddedNullTrailingBytes.size())));
+    return key;
+}
+} // namespace
+
+//----------------------------------------------------------------------------------------------------------------------
+// BasicRegistryTests::odd_size_string_embedded_null_trailing_byte
+// Coverage: a REG_SZ/REG_EXPAND_SZ value of L"hi", an aligned null, and one extra byte is stored as exactly 7 bytes;
+// RegGetValueW advertises 9 bytes, rejects a 6-byte buffer, and successfully returns all 7 raw bytes (an odd count,
+// including the extra byte) for 7- to 10-byte buffers. WIL string readers return "hi" with an owned end null.
+//----------------------------------------------------------------------------------------------------------------------
+TEST_CASE("BasicRegistryTests::odd_size_string_embedded_null_trailing_byte", "[registry]")
+{
+    const auto deleteHr = HRESULT_FROM_WIN32(::RegDeleteTreeW(HKEY_CURRENT_USER, testSubkey));
+    if (deleteHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+    {
+        REQUIRE_SUCCEEDED(deleteHr);
+    }
+    const auto storedBytes = static_cast<DWORD>(embeddedNullTrailingBytes.size());
+
+    for (const DWORD type : {REG_SZ, REG_EXPAND_SZ})
+    {
+        INFO("registry type = " << type);
+        const auto key = create_embedded_null_trailing_byte_key(type);
+        const DWORD flags = type == REG_SZ ? RRF_RT_REG_SZ : (RRF_RT_REG_EXPAND_SZ | RRF_NOEXPAND);
+
+        BYTE stored[16];
+        memset(stored, 0xcc, sizeof(stored));
+        DWORD bytes = sizeof(stored);
+        DWORD returnedType = REG_NONE;
+        REQUIRE(ERROR_SUCCESS == ::RegQueryValueExW(key.get(), embeddedNullTrailingByteValueName, nullptr, &returnedType, stored, &bytes));
+        REQUIRE(returnedType == type);
+        REQUIRE(bytes == storedBytes);
+        REQUIRE(0 == memcmp(stored, embeddedNullTrailingBytes.data(), storedBytes));
+
+        bytes = 0;
+        REQUIRE(ERROR_SUCCESS == ::RegGetValueW(key.get(), nullptr, embeddedNullTrailingByteValueName, flags, &returnedType, nullptr, &bytes));
+        REQUIRE(bytes == storedBytes + sizeof(wchar_t));
+
+        for (DWORD capacity = storedBytes - 1; capacity <= storedBytes + 3; ++capacity)
+        {
+            INFO("buffer bytes = " << capacity);
+            BYTE buffer[16];
+            memset(buffer, 0xcc, sizeof(buffer));
+            bytes = capacity;
+            const auto status =
+                ::RegGetValueW(key.get(), nullptr, embeddedNullTrailingByteValueName, flags, &returnedType, buffer, &bytes);
+            if (capacity < storedBytes)
+            {
+                REQUIRE(status == ERROR_MORE_DATA);
+                REQUIRE(bytes == storedBytes + sizeof(wchar_t));
+                REQUIRE(buffer[0] == 0xcc);
+                continue;
+            }
+            REQUIRE(status == ERROR_SUCCESS);
+            REQUIRE(returnedType == type);
+            REQUIRE(bytes == storedBytes);
+            REQUIRE(0 == memcmp(buffer, embeddedNullTrailingBytes.data(), storedBytes));
+            for (DWORD index = storedBytes; index < sizeof(buffer); ++index)
+            {
+                REQUIRE(buffer[index] == 0xcc);
+            }
+        }
+
+#if defined(__WIL_OLEAUTO_H_)
+        {
+            wil::unique_bstr value;
+            REQUIRE_SUCCEEDED(
+                type == REG_SZ ? wil::reg::get_value_string_nothrow(key.get(), embeddedNullTrailingByteValueName, value)
+                               : wil::reg::get_value_expanded_string_nothrow(key.get(), embeddedNullTrailingByteValueName, value));
+            REQUIRE(AreStringsEqual(value, L"hi"));
+        }
+#endif
+#if defined(__WIL_OBJBASE_H_)
+        {
+            wil::unique_cotaskmem_string value;
+            REQUIRE_SUCCEEDED(
+                type == REG_SZ ? wil::reg::get_value_string_nothrow(key.get(), embeddedNullTrailingByteValueName, value)
+                               : wil::reg::get_value_expanded_string_nothrow(key.get(), embeddedNullTrailingByteValueName, value));
+            REQUIRE(value != nullptr);
+            REQUIRE(0 == wcscmp(value.get(), L"hi"));
+        }
+#endif
+#if WIL_USE_STL && defined(WIL_ENABLE_EXCEPTIONS)
+        {
+            const auto value = type == REG_SZ ? wil::reg::get_value_string(key.get(), embeddedNullTrailingByteValueName)
+                                              : wil::reg::get_value_expanded_string(key.get(), embeddedNullTrailingByteValueName);
+            REQUIRE(value.c_str()[value.size()] == L'\0');
+            REQUIRE(value == L"hi");
+        }
+#endif
+    }
+}
+
 //----------------------------------------------------------------------------------------------------------------------
 // BasicRegistryTests::malformed_multistring_aligned_null_trailing_byte
 // Coverage: REG_MULTI_SZ single/double-null endings followed by a partial WCHAR yield two terminated elements;
