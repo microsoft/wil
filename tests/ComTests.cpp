@@ -706,6 +706,7 @@ template <typename T, typename U, typename = wistd::enable_if_t<!wistd::is_same_
 static T* cast_object(U*)
 {
     FAIL_FAST();
+#pragma warning(suppress : 4702)
     return nullptr; // Because we define 'RESULT_NORETURN' to nothing for other tests
 }
 
