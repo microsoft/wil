@@ -18,6 +18,15 @@ constexpr auto* testSubkey = L"Software\\Microsoft\\BasicRegistryTest";
 
 namespace
 {
+// RegSetValueExW stores an extra WCHAR for even-sized, unterminated string data when the WCHAR past cbData is NUL.
+// Write from a copy padded with a nonzero WCHAR so the stored extent is exactly the requested bytes.
+LSTATUS set_value_exact_bytes(HKEY key, PCWSTR name, DWORD type, const std::vector<BYTE>& data, DWORD bytes)
+{
+    std::vector<BYTE> padded(data.begin(), data.begin() + bytes);
+    padded.insert(padded.end(), {0xFF, 0xFF});
+    return ::RegSetValueExW(key, name, 0, type, padded.data(), bytes);
+}
+
 struct appended_multi_layout
 {
     const char* id;
@@ -101,8 +110,8 @@ TEST_CASE("BasicRegistryTests::three_parser_multi_appended_null", "[registry][re
                     HKEY_CURRENT_USER, testSubkey, key, wil::reg::key_access::readwrite));
                 constexpr PCWSTR name = L"AppendedMultiNull";
                 auto deleteValue = wil::scope_exit([&] { ::RegDeleteValueW(key.get(), name); });
-                REQUIRE(ERROR_SUCCESS == ::RegSetValueExW(
-                    key.get(), name, 0, REG_MULTI_SZ, layout.bytes.data(), static_cast<DWORD>(layout.bytes.size())));
+                REQUIRE(ERROR_SUCCESS == set_value_exact_bytes(
+                    key.get(), name, REG_MULTI_SZ, layout.bytes, static_cast<DWORD>(layout.bytes.size())));
                 BYTE stored[64]{};
                 DWORD storedSize = sizeof(stored), storedType = REG_NONE;
                 REQUIRE(ERROR_SUCCESS == ::RegQueryValueExW(key.get(), name, nullptr, &storedType, stored, &storedSize));
@@ -709,7 +718,7 @@ void with_registry_string_scenario(const registry_string_scenario& scenario, siz
     const std::wstring expanded(256, L'e');
     REQUIRE(::SetEnvironmentVariableW(threeParserEnvironment, scenario.growEnvironment ? L"e" : expanded.c_str()));
     const DWORD initialBytes = scenario.growValue ? 23 : static_cast<DWORD>(payload.bytes.size());
-    REQUIRE(ERROR_SUCCESS == ::RegSetValueExW(key.get(), threeParserValue, 0, threeParserTypes[parser], payload.bytes.data(), initialBytes));
+    REQUIRE(ERROR_SUCCESS == set_value_exact_bytes(key.get(), threeParserValue, threeParserTypes[parser], payload.bytes, initialBytes));
     uint32_t calls = 0;
     uint32_t moreData = 0;
     bool mutationFailed = false;
@@ -722,8 +731,8 @@ void with_registry_string_scenario(const registry_string_scenario& scenario, siz
         }
         if (calls == 2 && scenario.growValue)
         {
-            mutationFailed = ERROR_SUCCESS != ::RegSetValueExW(
-                key.get(), threeParserValue, 0, threeParserTypes[parser], payload.bytes.data(), static_cast<DWORD>(payload.bytes.size()));
+            mutationFailed = ERROR_SUCCESS != set_value_exact_bytes(key.get(), threeParserValue, threeParserTypes[parser],
+                                                                    payload.bytes, static_cast<DWORD>(payload.bytes.size()));
         }
         if (calls == 2 && scenario.growEnvironment)
         {
@@ -1876,7 +1885,12 @@ TEST_CASE("BasicRegistryTests::three_parser_vector_parse_failures", "[registry][
                     }
                     const auto capacity = *bytes;
                     *bytes = sourceBytes;
-                    if (!data || capacity < sourceBytes)
+                    // Match the real RegGetValueW: a size-only query (null data) succeeds.
+                    if (!data)
+                    {
+                        return ERROR_SUCCESS;
+                    }
+                    if (capacity < sourceBytes)
                     {
                         return ERROR_MORE_DATA;
                     }
@@ -1917,8 +1931,7 @@ TEST_CASE("BasicRegistryTests::three_parser_vector_parse_failures", "[registry][
                     }
                     return pointer;
                 }));
-                witest::detoured_thread_function<static_cast<void (*)(void*)>(&::operator delete)> release;
-                REQUIRE_SUCCEEDED(release.reset([&](void* pointer) {
+                const auto markFreed = [&](void* pointer) {
                     if (active)
                     {
                         for (size_t index = recordCount; index > 0; --index)
@@ -1931,7 +1944,18 @@ TEST_CASE("BasicRegistryTests::three_parser_vector_parse_failures", "[registry][
                             }
                         }
                     }
+                };
+                // std::allocator frees through sized delete. The debug CRT forwards it to unsized delete, but ASan's
+                // replacement does not, so observe both overloads (a forwarded free finds no unfreed record twice).
+                witest::detoured_thread_function<static_cast<void (*)(void*)>(&::operator delete)> release;
+                REQUIRE_SUCCEEDED(release.reset([&](void* pointer) {
+                    markFreed(pointer);
                     ::operator delete(pointer);
+                }));
+                witest::detoured_thread_function<static_cast<void (*)(void*, size_t)>(&::operator delete)> releaseSized;
+                REQUIRE_SUCCEEDED(releaseSized.reset([&](void* pointer, size_t bytes) {
+                    markFreed(pointer);
+                    ::operator delete(pointer, bytes);
                 }));
                 const auto invoke = [&]() -> std::vector<std::wstring> {
                     if (route == 0 || route == 2)
