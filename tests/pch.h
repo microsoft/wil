@@ -11,7 +11,7 @@ extern "C" __declspec(noreturn) void __fastfail(unsigned int);
 // attribute is present, leading to (1) compiler warnings for unreachable code, and (2) the same 'int 3' instructions in liu of
 // something like returning from the function. To work around this, we replace direct calls to the '__fastfail' intrinsic with an
 // indirect call through a function pointer that the compiler can't (easily) see through.
-inline void(*g_fastfail)(int) = [](int code) {
+inline void (*g_fastfail)(int) = [](int code) {
     __fastfail(code);
 };
 
