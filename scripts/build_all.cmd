@@ -5,8 +5,8 @@ setlocal EnableDelayedExpansion
 set BUILD_ROOT=%~dp0\..\build
 
 if NOT defined Platform (
-    echo ERROR: The build_all.cmd script must be run from a Visual Studio command window
-    exit /B 1
+    call "%~dp0call-vcvars.cmd"
+    if errorlevel 1 exit /B 1
 )
 
 set COMPILERS=clang msvc

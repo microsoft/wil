@@ -3,6 +3,7 @@ setlocal
 setlocal EnableDelayedExpansion
 
 :: Globals
+set "SCRIPT_ROOT=%~dp0"
 set BUILD_ROOT=%~dp0\..\build
 
 goto :init
@@ -159,6 +160,33 @@ goto :init
 
     if "%BUILD_TYPE%"=="" set BUILD_TYPE=debug
 
+    if not defined Platform (
+        call "%SCRIPT_ROOT%call-vcvars.cmd"
+        if errorlevel 1 exit /B 1
+    )
+
+    for %%t in (cmake nuget) do (
+        where %%t > NUL 2>&1
+        if errorlevel 1 (
+            echo ERROR: Required tool %%t is not on PATH. Install the build prerequisites before running init.cmd.
+            exit /B 1
+        )
+    )
+    if %COMPILER%==clang (
+        where clang-cl > NUL 2>&1
+        if errorlevel 1 (
+            echo ERROR: clang-cl is not on PATH. Install LLVM or select --compiler msvc.
+            exit /B 1
+        )
+    )
+    if %GENERATOR%==ninja (
+        where ninja > NUL 2>&1
+        if errorlevel 1 (
+            echo ERROR: ninja is not on PATH. Install Ninja or select --generator msbuild.
+            exit /B 1
+        )
+    )
+
     if "%VCPKG_ROOT_PATH%"=="" (
         :: First check for %VCPKG_ROOT% variable
         if defined VCPKG_ROOT (
@@ -178,6 +206,10 @@ goto :init
     if "%VCPKG_ROOT_PATH%"=="" (
         echo ERROR: Unable to locate the root path of your local vcpkg installation.
         :: TODO: Better messaging
+        exit /B 1
+    )
+    if not exist "%VCPKG_ROOT_PATH%\scripts\buildsystems\vcpkg.cmake" (
+        echo ERROR: vcpkg toolchain file not found under "%VCPKG_ROOT_PATH%".
         exit /B 1
     )
 
