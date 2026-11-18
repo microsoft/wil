@@ -536,6 +536,22 @@ void registry_shared_allocation_failure()
         payloadFrees += value && value == payload;
         ::CoTaskMemFree(value);
     }));
+    //------------------------------------------------------------------------------------------------------------------
+    // Why RoClearError() is called here:
+    // When resize_buffer_bytes fails, CATCH_RETURN logs the failure through WIL's failure callbacks. One of those,
+    // wil::details::RaiseRoOriginateOnWilExceptions (result_originate.h), calls GetRestrictedErrorInfo. If an earlier
+    // test left a restricted error on this thread, it calls IRestrictedErrorInfo::GetErrorDetails, which returns
+    // freshly allocated description BSTRs that are released through SysFreeString when the wil::unique_bstr locals
+    // go out of scope.
+    // combase allocates those BSTRs with APIs this test does not hook, and the heap can hand back the exact address
+    // of the payload that WIL just freed. The SysFreeString hook then counts that unrelated free as a second free
+    // of the payload, so payloadFrees == 2 even though WIL freed the payload exactly once. Reproduced under ASAN in
+    // the full [registry] suite; the second free's stack was RaiseRoOriginateOnWilExceptions freeing an
+    // "The handle is invalid..." description at the reused payload address.
+    // Clearing the thread's restricted error before arming keeps GetErrorDetails from running inside the measured
+    // window. payloadFrees == 1 remains exact, so a genuine double free of the payload is still detected.
+    //------------------------------------------------------------------------------------------------------------------
+    ::RoClearError();
     active = true;
     const auto hr = wil::reg::reg_view_details::reg_value_type_info::resize_buffer_bytes(result, 32);
     active = false;
@@ -676,6 +692,7 @@ std::vector<registry_string_scenario> registry_string_scenarios()
             "multiple-full-trailing-nulls", c_trailingNull, sizeof(c_trailingNull), c_trailingNullExpected, c_trailingNull, sizeof(c_trailingNull), {L"ab"}),
         scenario("aligned-null-trailing-byte", L"abc\0A", 9, L"abc", L"abc\0def\0A", 17, {L"abc", L"def"}),
         scenario("aligned-double-null-trailing-byte", L"abc\0A", 9, L"abc", L"abc\0def\0\0A", 19, {L"abc", L"def"}),
+        scenario("embedded-null-aligned-null-trailing-byte", L"abc\0def\0A", 17, c_embeddedExpected, L"abc\0def\0A", 17, {L"abc", L"def"}),
         scenario("stable-odd", L"ab\0x", 7, L"ab", L"abc\0def\0\0A", 19, {L"abc", L"def"}),
         scenario("value-growth-odd", L"abcdefghijklmnop", 29, L"abcdefghijklmn", L"abcd\0efgh\0ijklmnop", 29, {L"abcd", L"efgh", L"ijkl"})};
     cases.back().growValue = true;
