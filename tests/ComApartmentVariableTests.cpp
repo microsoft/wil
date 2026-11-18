@@ -167,6 +167,39 @@ static void TestApartmentVariableGetOrCreateForms()
 }
 
 template <typename platform = wil::apartment_variable_platform>
+static void TestApartmentVariableReentrantClear()
+{
+    auto coUninit = platform::CoInitializeEx(COINIT_MULTITHREADED);
+
+    wil::apartment_variable<int, wil::apartment_variable_leak_action::fail_fast, platform> av1;
+    wil::apartment_variable<int, wil::apartment_variable_leak_action::fail_fast, platform> av2;
+    std::ignore = av1.get_or_create(fn);
+
+    REQUIRE(av2.get_or_create([&] {
+        av1.clear();
+        return 43;
+    }) == 43);
+    REQUIRE(av1.get_if() == nullptr);
+    REQUIRE(av2.get_existing() == 43);
+    REQUIRE(av2.current_apartment_variable_count() == 1);
+}
+
+template <typename platform = wil::apartment_variable_platform>
+static void TestApartmentVariableReentrantClearAndCreate()
+{
+    auto coUninit = platform::CoInitializeEx(COINIT_MULTITHREADED);
+
+    wil::apartment_variable<int, wil::apartment_variable_leak_action::fail_fast, platform> var;
+    REQUIRE(var.get_or_create([&] {
+        var.clear();
+        std::ignore = var.get_or_create(fn);
+        return 43;
+    }) == 42);
+    REQUIRE(var.get_existing() == 42);
+    REQUIRE(var.current_apartment_variable_count() == 1);
+}
+
+template <typename platform = wil::apartment_variable_platform>
 static void TestApartmentVariableLifetimes()
 {
     wil::apartment_variable<int, wil::apartment_variable_leak_action::fail_fast, platform> av1;
@@ -390,6 +423,16 @@ TEST_CASE("ComApartmentVariable::VariableLifetimes", "[com][apartment_variable]"
     RunApartmentVariableTest(TestApartmentVariableLifetimes<mock_platform>);
 }
 
+TEST_CASE("ComApartmentVariable::ReentrantClear", "[com][apartment_variable]")
+{
+    RunApartmentVariableTest(TestApartmentVariableReentrantClear<mock_platform>);
+}
+
+TEST_CASE("ComApartmentVariable::ReentrantClearAndCreate", "[com][apartment_variable]")
+{
+    RunApartmentVariableTest(TestApartmentVariableReentrantClearAndCreate<mock_platform>);
+}
+
 TEST_CASE("ComApartmentVariable::WinningApartmentAlreadyRundownRace", "[com][apartment_variable]")
 {
     RunApartmentVariableTest(TestWinningApartmentAlreadyRundownRace<mock_platform>);
@@ -414,6 +457,8 @@ TEST_CASE("ComApartmentVariable::UseRealPlatformRunAllTests", "[com][apartment_v
 
     RunApartmentVariableTest(TestApartmentVariableAllMethods);
     RunApartmentVariableTest(TestApartmentVariableGetOrCreateForms);
+    RunApartmentVariableTest(TestApartmentVariableReentrantClear);
+    RunApartmentVariableTest(TestApartmentVariableReentrantClearAndCreate);
     RunApartmentVariableTest(TestApartmentVariableLifetimes);
     RunApartmentVariableTest(TestWinningApartmentAlreadyRundownRace);
     RunApartmentVariableTest(TestLosingApartmentAlreadyRundownRace);
