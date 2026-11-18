@@ -301,11 +301,9 @@ namespace details
         template <typename T>
         std::any& get_or_create(any_maker<T>&& creator)
         {
-            apartment_variable_storage* variable_storage = nullptr;
-
             { // scope for lock
                 auto lock = winrt::slim_lock_guard(s_lock);
-                variable_storage = ensure_current_apartment_variables();
+                auto variable_storage = ensure_current_apartment_variables();
 
                 auto variable = variable_storage->variables.find(this);
                 if (variable != variable_storage->variables.end())
@@ -318,8 +316,10 @@ namespace details
             auto value = creator();
 
             auto insert_lock = winrt::slim_lock_guard(s_lock);
-            // The insertion may fail if creator() recursively caused itself to be created,
-            // in which case we return the existing object and the falsely-created one is discarded.
+            auto variable_storage = ensure_current_apartment_variables();
+
+            // Another thread in the same apartment, or creator() itself, may have raced with this insertion. In that
+            // case, we return the existing object and discard the newly created one.
             return variable_storage->variables.insert({this, std::move(value)}).first->second;
         }
 

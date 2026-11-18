@@ -249,6 +249,9 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 #ifndef RESULT_NORETURN_RESULT
 #define RESULT_NORETURN_RESULT(expr) (void)(expr);
 #endif
+#ifndef RESULT_FASTFAIL
+#define RESULT_FASTFAIL(code) __fastfail(code)
+#endif
 /// @endcond
 
 //*****************************************************************************
@@ -2592,7 +2595,7 @@ namespace details
             g_pfnRaiseFailFastException(exr, ctxt, flags);
         }
         // if not, as a best effort, we are just going to call the intrinsic.
-        __fastfail(FAST_FAIL_FATAL_APP_EXIT);
+        RESULT_FASTFAIL(FAST_FAIL_FATAL_APP_EXIT);
     }
 
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
@@ -6621,12 +6624,12 @@ namespace details
 
         __RFF_DIRECT_NORET_METHOD(void, FailFastImmediate_Unexpected)() WI_NOEXCEPT
         {
-            __fastfail(FAST_FAIL_FATAL_APP_EXIT);
+            RESULT_FASTFAIL(FAST_FAIL_FATAL_APP_EXIT);
         }
 
         __RFF_INTERNAL_NORET_METHOD(_FailFastImmediate_Unexpected)() WI_NOEXCEPT
         {
-            __fastfail(FAST_FAIL_FATAL_APP_EXIT);
+            RESULT_FASTFAIL(FAST_FAIL_FATAL_APP_EXIT);
         }
 
         _Post_satisfies_(return == hr) _When_(FAILED(hr), _Analysis_noreturn_)
