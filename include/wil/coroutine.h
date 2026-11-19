@@ -640,6 +640,79 @@ private:
 
     static void __stdcall wake_by_address(void* completed);
 };
+
+// Generic awaitable wrapper that suspends/resumes a watcher across co_await.
+// TPausable must provide:
+//   bool suspend() - called before suspension, returns true if resume() should be called
+//   void resume()  - called after resumption if suspend() returned true
+template <typename TPausable, typename TChildAwaitable>
+struct coroutine_withsuspend_awaiter
+{
+    TPausable& pausable;
+    TChildAwaitable child_awaitable;
+    bool resume_needed = false;
+
+    bool await_ready() noexcept
+    {
+        return child_awaitable.await_ready();
+    }
+
+    template <typename T>
+    auto await_suspend(T&& handle) noexcept(
+        noexcept(std::declval<TChildAwaitable>().await_suspend(std::forward<T>(handle))) && noexcept(pausable.suspend()))
+    {
+        resume_needed = pausable.suspend();
+        return child_awaitable.await_suspend(std::forward<T>(handle));
+    }
+
+    auto await_resume() noexcept(noexcept(std::declval<TChildAwaitable>().await_resume()))
+    {
+        if (resume_needed)
+        {
+            pausable.resume();
+        }
+        return child_awaitable.await_resume();
+    }
+};
+
+// Priority tags for SFINAE-based overload resolution
+struct get_awaiter_priority_fallback
+{
+};
+struct get_awaiter_priority_free_op : get_awaiter_priority_fallback
+{
+};
+struct get_awaiter_priority_member_op : get_awaiter_priority_free_op
+{
+};
+
+// Highest priority: member operator co_await
+template <typename T>
+auto get_awaiter_impl(T&& awaitable, get_awaiter_priority_member_op) -> decltype(std::forward<T>(awaitable).operator co_await())
+{
+    return std::forward<T>(awaitable).operator co_await();
+}
+
+// Second priority: free operator co_await
+template <typename T>
+auto get_awaiter_impl(T&& awaitable, get_awaiter_priority_free_op) -> decltype(operator co_await(std::forward<T>(awaitable)))
+{
+    return operator co_await(std::forward<T>(awaitable));
+}
+
+// Fallback: return the awaitable itself
+template <typename T>
+T&& get_awaiter_impl(T&& awaitable, get_awaiter_priority_fallback)
+{
+    return std::forward<T>(awaitable);
+}
+
+template <typename T>
+auto get_awaiter(T&& awaitable) -> decltype(get_awaiter_impl(std::forward<T>(awaitable), get_awaiter_priority_member_op{}))
+{
+    return get_awaiter_impl(std::forward<T>(awaitable), get_awaiter_priority_member_op{});
+}
+
 } // namespace wil::details::coro
 /// @endcond
 
@@ -700,6 +773,42 @@ template <typename T>
 task(com_task<T>&&) -> task<T>;
 template <typename T>
 com_task(task<T>&&) -> com_task<T>;
+
+/**
+ * @brief Wraps an awaitable with a suspend/resume watcher.
+ *
+ * Suspends and resumes the watcher when the coroutine is suspended and resumed.
+ * Thread-bound objects such as `ThreadFailureCache` or a WIL Activity are good candidates.
+ *
+ * @code
+ * ThreadFailureCache cache;
+ * auto result = co_await wil::with_watcher(cache, SomethingAsync());
+ * @endcode
+ *
+ * The watcher type must provide `bool suspend()` and `void resume()` methods:
+ * @code
+ * struct MyThreadWatcher {
+ *     bool suspend() {
+ *         // pause temporarily; return true if resume() should be called on coroutine resume
+ *     }
+ *     void resume() {
+ *         // resume after the coroutine resumes
+ *     }
+ * };
+ * @endcode
+ *
+ * @tparam TWatcher Type of watcher invoked on suspend/resume.
+ * @tparam TAwaitable Type of wrapped awaitable.
+ * @param watcher The watcher to suspend and resume with the coroutine.
+ * @param awaitable The awaitable to wrap.
+ */
+template <typename TWatcher, typename TAwaitable>
+auto with_watcher(TWatcher& watcher, TAwaitable&& awaitable)
+{
+    using awaiter_t = std::decay_t<decltype(details::coro::get_awaiter(std::forward<TAwaitable>(awaitable)))>;
+    return details::coro::coroutine_withsuspend_awaiter<TWatcher, awaiter_t>{watcher, std::forward<TAwaitable>(awaitable)};
+}
+
 } // namespace wil
 
 template <typename T, typename... Args>
