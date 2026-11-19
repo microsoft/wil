@@ -1223,7 +1223,7 @@ inline bool operator<=(TLeft* left, const com_ptr_t<TRight, ErrRight>& right) WI
 //! forwarding reference template that can be used as an input com pointer.  That input com pointer is allowed to be any of:
 //! * Raw Pointer:  `T* com_raw_ptr(T* ptr)`
 //! * Wil com_ptr:  `T* com_raw_ptr(const wil::com_ptr_t<T, err>& ptr)`
-//! * WRL ComPtr:   `T* com_raw_ptr(const ::Microsoft::WRL::ComPtr<T>& ptr)`
+//! * WRL ComPtr:   `T* com_raw_ptr(const Microsoft::WRL::ComPtr<T>& ptr)`
 //! * C++/CX hat:   `IInspectable* com_raw_ptr(Platform::Object^ ptr)`
 //!
 //! Which in turn allows code like the following to be written:
@@ -2008,6 +2008,10 @@ HRESULT com_weak_copy_nothrow(T&& ptrSource, _COM_Outptr_result_maybenull_ IWeak
 
 #pragma region COM Object Helpers
 
+//! Returns whether the given COM object is agile (that is, whether it implements `IAgileObject`).
+//! @tparam T A raw interface pointer, any wil `com_ptr`, or a WRL `ComPtr`.
+//! @param ptrSource The object to test.
+//! @return `true` if the object implements `IAgileObject`, `false` otherwise.
 template <typename T>
 inline bool is_agile(T&& ptrSource)
 {
@@ -3058,11 +3062,13 @@ public:
         m_stream.reset();
     }
 
+    /// @cond
     stream_position_saver(stream_position_saver&&) = default;
     stream_position_saver& operator=(stream_position_saver&&) = default;
 
     stream_position_saver(const stream_position_saver&) = delete;
     void operator=(const stream_position_saver&) = delete;
+    /// @endcond
 
 private:
     com_ptr<IStream> m_stream;
@@ -3082,6 +3088,8 @@ namespace details
 } // namespace details
 /// @endcond
 
+//! Unique RAII type that clears an object's site by calling `IObjectWithSite::SetSite(nullptr)` on destruction, breaking
+//! the site cycle.
 using unique_set_site_null_call = wil::unique_com_call<IObjectWithSite, decltype(details::SetSiteNull), details::SetSiteNull>;
 
 /** RAII support for managing the site chain. This function sets the site pointer on an object and return an object
@@ -3378,6 +3386,9 @@ template <typename err_policy>
 class com_timeout_t
 {
 public:
+    //! Establishes the call timeout on the current thread for this object's lifetime.
+    //! @param timeoutInMilliseconds The per-call timeout, in milliseconds, after which blocked cross-apartment calls are
+    //! canceled.
     com_timeout_t(DWORD timeoutInMilliseconds) : m_threadId(GetCurrentThreadId())
     {
         const HRESULT cancelEnablementResult = CoEnableCallCancellation(nullptr);
@@ -3397,6 +3408,7 @@ public:
         }
     }
 
+    //! Returns whether the timeout was successfully established (the underlying threadpool timer was created).
     operator bool() const noexcept
     {
         // All construction calls must succeed to provide us with a non-null m_timer value.
