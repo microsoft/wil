@@ -2669,12 +2669,7 @@ namespace reg
      */
     inline HRESULT get_value_string_nothrow(HKEY key, _In_opt_ PCWSTR subkey, _In_opt_ PCWSTR value_name, ::wil::shared_bstr& return_value) WI_NOEXCEPT
     {
-        try
-        {
-            // addressof() may allocate shared ownership before the registry read.
-            return ::wil::reg::get_value_nothrow(key, subkey, value_name, return_value.addressof());
-        }
-        CATCH_RETURN();
+        return ::wil::reg::get_value_nothrow(key, subkey, value_name, return_value.addressof());
     }
 
     /**
@@ -3092,7 +3087,7 @@ namespace reg
         {
             auto* const begin = reinterpret_cast<wchar_t*>(rawData.data());
             auto* const end = begin + rawData.size() / sizeof(wchar_t);
-            RETURN_IF_FAILED(::wil::reg::reg_view_details::get_cotaskmemstring_array_from_multistring_nothrow(begin, end, return_value));
+            ::wil::reg::reg_view_details::get_cotaskmemstring_array_from_multistring_nothrow(begin, end, return_value);
         }
         return S_OK;
     }
