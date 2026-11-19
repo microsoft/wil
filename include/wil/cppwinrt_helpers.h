@@ -11,6 +11,8 @@
 //! @file
 //! Helpers for common patterns and tasks when using C++/WinRT.
 
+#include "chrono.h"
+
 #ifndef __WIL_CPPWINRT_HELPERS_DEFINED
 #define __WIL_CPPWINRT_HELPERS_DEFINED
 
