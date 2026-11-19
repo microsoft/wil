@@ -224,6 +224,7 @@ inline HRESULT __stdcall ResultFromCaughtException_CppWinRt(
 
 namespace wil
 {
+/// @cond
 inline std::int32_t __stdcall winrt_to_hresult(void* returnAddress) noexcept
 {
     // C++/WinRT only gives us the return address (caller), so pass along an empty 'DiagnosticsInfo' since we don't
@@ -255,6 +256,7 @@ inline void WilInitialize_CppWinRT()
         }
     }
 }
+/// @endcond
 
 /// @cond
 namespace details
@@ -271,52 +273,65 @@ namespace details
 } // namespace details
 /// @endcond
 
-// Provides an overload of verify_hresult so that the WIL macros can recognize winrt::hresult as a valid "hresult" type.
+//! Adds `winrt::hresult` support to @ref wil::verify_hresult(T) "verify_hresult".
+//! This allows macros like `RETURN_IF_FAILED` to be used with `winrt::hresult`.
 inline long verify_hresult(winrt::hresult hr) noexcept
 {
     return hr;
 }
 
-// Provides versions of get_abi and put_abi for genericity that directly use HSTRING for convenience.
+//! Returns the raw ABI representation of a C++/WinRT projected object.
+//! This is an improvement over `winrt::get_abi` because it returns `HSTRING` rather than `void*` when passed a `winrt::hstring`.
 template <typename T>
 auto get_abi(T const& object) noexcept
 {
     return winrt::get_abi(object);
 }
 
+//! Overload of `wil::get_abi` for `winrt::hstring` which returns the underlying ABI `HSTRING`.
 inline auto get_abi(winrt::hstring const& object) noexcept
 {
     return static_cast<HSTRING>(winrt::get_abi(object));
 }
 
+//! Adds `winrt::hstring` support to @ref wil::str_raw_ptr(PCWSTR) "str_raw_ptr"; see that function for details.
 inline auto str_raw_ptr(const winrt::hstring& str) noexcept
 {
     return str.c_str();
 }
 
+//! Returns the address of a C++/WinRT object's ABI pointer, for receiving it as an out-parameter.
+//! This is an improvement over `winrt::put_abi` because it returns a pointer to `HSTRING` rather than a pointer to `void*` when
+//! passed a `winrt::hstring`.
 template <typename T>
 auto put_abi(T& object) noexcept
 {
     return winrt::put_abi(object);
 }
 
+//! Overload of `wil::put_abi` for `winrt::hstring` which returns a pointer to the underlying ABI `HSTRING`.
 inline auto put_abi(winrt::hstring& object) noexcept
 {
     return reinterpret_cast<HSTRING*>(winrt::put_abi(object));
 }
 
+//! Adds C++/WinRT support to @ref wil::com_raw_ptr(T*) "com_raw_ptr"; see that function for details.
 inline ::IUnknown* com_raw_ptr(const winrt::Windows::Foundation::IUnknown& ptr) noexcept
 {
     return static_cast<::IUnknown*>(winrt::get_abi(ptr));
 }
 
-// Needed to power wil::cx_object_from_abi that requires IInspectable
+//! Adds C++/WinRT support to @ref wil::com_raw_ptr(T*) "com_raw_ptr"; see that function for details.
 inline ::IInspectable* com_raw_ptr(const winrt::Windows::Foundation::IInspectable& ptr) noexcept
 {
     return static_cast<::IInspectable*>(winrt::get_abi(ptr));
 }
 
-// Taken from the docs.microsoft.com article
+//! Converts a raw ABI interface pointer to a C++/WinRT projected object.
+//! @tparam T The C++/WinRT projected type to convert to.
+//! @param from The interface pointer to convert from. Must not be null. The function does not take ownership of this pointer.
+//! @return A `T` that represents the same object as `from`.
+//! @note Throws a `winrt::hresult_error` if the conversion fails.
 template <typename T>
 T convert_from_abi(::IUnknown* from)
 {
@@ -325,10 +340,22 @@ T convert_from_abi(::IUnknown* from)
     return result;
 }
 
-// For obtaining an object from an interop method on the factory. Example:
-// winrt::InputPane inputPane = wil::capture_interop<winrt::InputPane>(&IInputPaneInterop::GetForWindow, hwnd);
-// If the method produces something different from the factory type:
-// winrt::IAsyncAction action = wil::capture_interop<winrt::IAsyncAction, winrt::AccountsSettingsPane>(&IAccountsSettingsPaneInterop::ShowAddAccountForWindow, hwnd);
+/** Calls an interop method on a C++/WinRT type's activation factory and returns the object it produces.
+Use this with factory interop interfaces such as `IInputPaneInterop`.
+~~~
+// Produce an object of the factory's own type:
+winrt::InputPane inputPane = wil::capture_interop<winrt::InputPane>(&IInputPaneInterop::GetForWindow, hwnd);
+
+// Produce a different type from the one whose factory exposes the interop method:
+winrt::IAsyncAction action = wil::capture_interop<winrt::IAsyncAction, winrt::AccountsSettingsPane>(
+    &IAccountsSettingsPaneInterop::ShowAddAccountForWindow, hwnd);
+~~~
+@tparam WinRTResult The C++/WinRT type to return.
+@tparam WinRTFactory The C++/WinRT type whose activation factory exposes `method`; defaults to `WinRTResult`.
+@param method Pointer to the interop interface method to call.
+@param args Arguments to forward to `method`, ahead of the capture out-parameters it fills in.
+@return The `WinRTResult` produced by `method`.
+@note Throws a `winrt::hresult_error` if the factory lookup or the interop call fails. */
 template <typename WinRTResult, typename WinRTFactory = WinRTResult, typename Interface, typename... InterfaceArgs, typename... Args>
 auto capture_interop(HRESULT (__stdcall Interface::*method)(InterfaceArgs...), Args&&... args)
 {
@@ -336,8 +363,18 @@ auto capture_interop(HRESULT (__stdcall Interface::*method)(InterfaceArgs...), A
     return winrt::capture<WinRTResult>(interop, method, std::forward<Args>(args)...);
 }
 
-// For obtaining an object from an interop method on an instance. Example:
-// winrt::UserActivitySession session = wil::capture_interop<winrt::UserActivitySession>(activity, &IUserActivityInterop::CreateSessionForWindow, hwnd);
+/** Calls an interop method on an existing C++/WinRT object and returns the object it produces.
+Use this with per-instance interop interfaces such as `IUserActivityInterop`.
+~~~
+winrt::UserActivitySession session = wil::capture_interop<winrt::UserActivitySession>(
+    activity, &IUserActivityInterop::CreateSessionForWindow, hwnd);
+~~~
+@tparam WinRTResult The C++/WinRT type to return.
+@param obj The object to query for `Interface` and call the interop method on.
+@param method Pointer to the interop interface method to call.
+@param args Arguments to forward to `method`, ahead of the capture out-parameters it fills in.
+@return The `WinRTResult` produced by `method`.
+@note Throws a `winrt::hresult_error` if the query or the interop call fails. */
 template <typename WinRTResult, typename Interface, typename... InterfaceArgs, typename... Args>
 auto capture_interop(winrt::Windows::Foundation::IUnknown const& obj, HRESULT (__stdcall Interface::*method)(InterfaceArgs...), Args&&... args)
 {
@@ -403,15 +440,18 @@ winrt::fire_and_forget ContinueBackgroundWork()
 */
 struct [[nodiscard]] winrt_module_reference
 {
+    //! Takes a reference on the host C++/WinRT module, incrementing its lock count.
     winrt_module_reference()
     {
         ++winrt::get_module_lock();
     }
 
+    //! Takes a reference on the host C++/WinRT module, incrementing its lock count.
     winrt_module_reference(winrt_module_reference const&) : winrt_module_reference()
     {
     }
 
+    //! Releases this reference, decrementing the host module's lock count.
     ~winrt_module_reference()
     {
         --winrt::get_module_lock();
@@ -462,6 +502,8 @@ struct winrt_conditionally_implements : Implements
 {
     using Implements::Implements;
 
+    /// @cond
+    // Internal override of C++/WinRT's interface lookup; invoked by the framework, not called directly by clients.
     void* find_interface(winrt::guid const& iid) const noexcept override
     {
         static_assert(sizeof...(Rest) % 2 == 0, "Extra template parameters should come in groups of two");
@@ -471,6 +513,7 @@ struct winrt_conditionally_implements : Implements
         }
         return nullptr;
     }
+    /// @endcond
 
 private:
     template <std::size_t index, typename Tuple>
