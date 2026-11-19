@@ -71,6 +71,13 @@ inline ABI::Windows::Foundation::DateTime time_t_to_DateTime(__time64_t timeT)
 /// @cond
 namespace details
 {
+    // hstring_compare tracks lengths as UINT32, so fail fast instead of silently truncating a longer string
+    inline UINT32 get_string_length(size_t length) WI_NOEXCEPT
+    {
+        FAIL_FAST_IF(length > 0xffffffffUL /*UINT32_MAX*/);
+        return static_cast<UINT32>(length);
+    }
+
     // hstring_compare is used to assist in HSTRING comparison of two potentially non-similar string types. E.g.
     // comparing a raw HSTRING with WRL's HString/HStringReference/etc. The consumer can optionally inhibit the
     // deduction of array sizes by providing 'true' for the 'InhibitStringArrays' template argument. This is
@@ -107,7 +114,7 @@ namespace details
         static wistd::enable_if_t<Enable, const wchar_t*> get_buffer(const wchar_t* str, UINT32* length) WI_NOEXCEPT
         {
             str = (str != nullptr) ? str : L"";
-            *length = static_cast<UINT32>(wcslen(str));
+            *length = get_string_length(wcslen(str));
             return str;
         }
 
@@ -118,7 +125,7 @@ namespace details
         get_buffer(StringT str, UINT32* length) WI_NOEXCEPT
         {
             str = (str != nullptr) ? str : L"";
-            *length = static_cast<UINT32>(wcslen(str));
+            *length = get_string_length(wcslen(str));
             return str;
         }
 
@@ -132,7 +139,7 @@ namespace details
         template <size_t Size, bool..., bool Enable = !InhibitStringArrays>
         static wistd::enable_if_t<Enable, const wchar_t*> get_buffer(wchar_t (&str)[Size], UINT32* length) WI_NOEXCEPT
         {
-            *length = static_cast<UINT32>(wcslen(str));
+            *length = get_string_length(wcslen(str));
             return str;
         }
 
@@ -147,7 +154,7 @@ namespace details
             const wchar_t*>
         get_buffer(const StringT& str, UINT32* length) WI_NOEXCEPT
         {
-            *length = static_cast<UINT32>(str.size());
+            *length = get_string_length(str.size());
             const wchar_t* ret = str.data();
             return ret ? ret : L"";
         }
@@ -160,6 +167,9 @@ namespace details
             UINT32 rhsLength;
             auto lhsBuffer = get_buffer(wistd::forward<LhsT>(lhs), &lhsLength);
             auto rhsBuffer = get_buffer(wistd::forward<RhsT>(rhs), &rhsLength);
+
+            // CompareStringOrdinal takes int lengths and treats -1 as null terminated
+            FAIL_FAST_IF((lhsLength > static_cast<UINT32>(INT_MAX)) || (rhsLength > static_cast<UINT32>(INT_MAX)));
 
             const auto result = ::CompareStringOrdinal(lhsBuffer, lhsLength, rhsBuffer, rhsLength, IgnoreCase ? TRUE : FALSE);
             WI_ASSERT(result != 0);
