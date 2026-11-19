@@ -378,6 +378,8 @@ namespace details
             std::vector<winrt::apartment_context> contexts;
             { // scope for lock
                 auto lock = winrt::slim_lock_guard(s_lock);
+                auto const count = s_apartmentStorage.get().size();
+                contexts.reserve(count);
                 for (auto& [id, storage] : s_apartmentStorage.get())
                 {
                     auto variable = storage.variables.find(this);
