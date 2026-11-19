@@ -197,6 +197,11 @@ generator.
 > **Note:** The `witest.app` test is significantly slower than the other tests. You can use Test Explorer or the Testing
 > tab to hide it while doing quick validation.
 
+> **Note:** The `[networking]` tests listen for inbound traffic. To prevent the Windows Defender Firewall prompt, those
+> tests add (and then remove) a firewall rule allowing inbound traffic to the test executable, which requires running the
+> tests from an elevated (administrator) prompt. When not elevated, the tests report a warning and continue, and the
+> firewall prompt may appear. GitHub-hosted CI runners already run elevated.
+
 ## Build everything
 
 If you are at the tail end of of a change, you can execute the following to get a wide range of coverage:

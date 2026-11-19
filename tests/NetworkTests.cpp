@@ -15,6 +15,10 @@
 #define WI_NETWORK_TEST
 #include <wil/network.h>
 
+#include <netfw.h>
+#include <wil/com.h>
+#include <wil/win32_helpers.h>
+
 #include "common.h"
 
 constexpr char Test_in_addr_char_string[] = "1.1.1.1";
@@ -125,6 +129,148 @@ static void InitTestAddresses()
     InitOnceExecuteOnce(&SocketTestInit, InitializeAllStrings, nullptr, nullptr);
 }
 
+// Windows Defender Firewall prompts the user the first time an application receives inbound traffic on a non-loopback
+// address. To prevent that prompt, test cases that create sockets construct this object first: it adds a firewall rule
+// allowing all inbound traffic to this test executable (by its full path), and removes that rule when destroyed.
+// The firewall APIs require administrator rights. GitHub-hosted CI runners run elevated (UAC is disabled). When not
+// elevated (e.g. a local developer run) a warning is reported and the tests continue - the firewall prompt may appear.
+class inbound_firewall_rule
+{
+public:
+    inbound_firewall_rule()
+    {
+        const HRESULT hr = add_rule();
+        if (hr == E_ACCESSDENIED)
+        {
+            WARN(
+                "Unable to add an inbound Windows Firewall rule for this test executable (E_ACCESSDENIED)"
+                " - run the tests elevated to prevent the Windows Defender Firewall prompt");
+        }
+        else if (FAILED(hr))
+        {
+            WARN(
+                "Unable to add and verify an inbound Windows Firewall rule for this test executable (HRESULT 0x"
+                << std::hex << static_cast<unsigned long>(hr) << ") - the Windows Defender Firewall prompt may appear");
+        }
+    }
+
+    ~inbound_firewall_rule() noexcept
+    {
+        if (m_rule_name)
+        {
+            LOG_IF_FAILED(with_firewall_rules([&](INetFwRules* rules) noexcept -> HRESULT {
+                RETURN_IF_FAILED(rules->Remove(m_rule_name.get()));
+                // confirm the rule is no longer returned by the firewall APIs
+                return wait_for_rule(rules, m_rule_name.get(), false);
+            }));
+        }
+    }
+
+    inbound_firewall_rule(const inbound_firewall_rule&) = delete;
+    inbound_firewall_rule& operator=(const inbound_firewall_rule&) = delete;
+
+private:
+    // polls the firewall APIs until the named rule can be queried (exists == true) or can no longer be queried (exists == false)
+    static HRESULT wait_for_rule(INetFwRules* rules, BSTR rule_name, bool exists, INetFwRule** found_rule = nullptr) noexcept
+    {
+        constexpr ULONGLONG timeout_ms = 10 * 1000;
+        const ULONGLONG start = ::GetTickCount64();
+        for (;;)
+        {
+            wil::com_ptr_nothrow<INetFwRule> rule;
+            const HRESULT hr = rules->Item(rule_name, rule.put());
+            if (exists && SUCCEEDED(hr))
+            {
+                if (found_rule)
+                {
+                    *found_rule = rule.detach();
+                }
+                return S_OK;
+            }
+            if (!exists && (hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND)))
+            {
+                return S_OK;
+            }
+            if (FAILED(hr) && (hr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND)))
+            {
+                RETURN_HR(hr);
+            }
+            RETURN_HR_IF(HRESULT_FROM_WIN32(ERROR_TIMEOUT), (::GetTickCount64() - start) > timeout_ms);
+        }
+    }
+
+    template <typename Func>
+    static HRESULT with_firewall_rules(Func&& func) noexcept
+    {
+        // only uninitialize COM if this call initialized it - the thread may already be in a different apartment
+        const HRESULT coinit_hr = ::CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+        RETURN_HR_IF(coinit_hr, FAILED(coinit_hr) && (coinit_hr != RPC_E_CHANGED_MODE));
+        const wil::unique_couninitialize_call uninitialize{SUCCEEDED(coinit_hr)};
+
+        wil::com_ptr_nothrow<INetFwPolicy2> policy;
+        RETURN_IF_FAILED(::CoCreateInstance(__uuidof(NetFwPolicy2), nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(policy.put())));
+        wil::com_ptr_nothrow<INetFwRules> rules;
+        RETURN_IF_FAILED(policy->get_Rules(rules.put()));
+        return func(rules.get());
+    }
+
+    HRESULT add_rule() noexcept
+    {
+        wil::unique_cotaskmem_string application_path;
+        RETURN_IF_FAILED(wil::GetModuleFileNameW(nullptr, application_path));
+
+        const std::wstring rule_name_string = std::wstring{L"WIL network tests - allow inbound - "} + application_path.get();
+        auto rule_name = wil::make_bstr_nothrow(rule_name_string.c_str());
+        RETURN_IF_NULL_ALLOC(rule_name);
+        const auto application_name = wil::make_bstr_nothrow(application_path.get());
+        RETURN_IF_NULL_ALLOC(application_name);
+
+        RETURN_IF_FAILED(with_firewall_rules([&](INetFwRules* rules) noexcept -> HRESULT {
+            // remove any rule left behind by a prior run of this executable that did not complete its cleanup
+            // ignoring the result as the rule should not exist
+            (void)rules->Remove(rule_name.get());
+
+            wil::com_ptr_nothrow<INetFwRule> rule;
+            RETURN_IF_FAILED(::CoCreateInstance(__uuidof(NetFwRule), nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(rule.put())));
+            RETURN_IF_FAILED(rule->put_Name(rule_name.get()));
+            RETURN_IF_FAILED(rule->put_ApplicationName(application_name.get()));
+            RETURN_IF_FAILED(rule->put_Direction(NET_FW_RULE_DIR_IN));
+            RETURN_IF_FAILED(rule->put_Action(NET_FW_ACTION_ALLOW));
+            RETURN_IF_FAILED(rule->put_Protocol(NET_FW_IP_PROTOCOL_ANY));
+            RETURN_IF_FAILED(rule->put_Profiles(NET_FW_PROFILE2_ALL));
+            RETURN_IF_FAILED(rule->put_Enabled(VARIANT_TRUE));
+            RETURN_IF_FAILED(rules->Add(rule.get()));
+            // the rule was added - the destructor must now remove it, even if the verification below fails
+            m_rule_name = wistd::move(rule_name);
+
+            // confirm the rule is returned by the firewall APIs with the expected properties
+            wil::com_ptr_nothrow<INetFwRule> added_rule;
+            RETURN_IF_FAILED(wait_for_rule(rules, m_rule_name.get(), true, added_rule.put()));
+
+            wil::unique_bstr added_application_name;
+            RETURN_IF_FAILED(added_rule->get_ApplicationName(added_application_name.put()));
+            RETURN_HR_IF(
+                E_UNEXPECTED,
+                !added_application_name ||
+                    (CSTR_EQUAL != ::CompareStringOrdinal(added_application_name.get(), -1, application_name.get(), -1, TRUE)));
+            NET_FW_RULE_DIRECTION direction{};
+            RETURN_IF_FAILED(added_rule->get_Direction(&direction));
+            RETURN_HR_IF(E_UNEXPECTED, direction != NET_FW_RULE_DIR_IN);
+            NET_FW_ACTION action{};
+            RETURN_IF_FAILED(added_rule->get_Action(&action));
+            RETURN_HR_IF(E_UNEXPECTED, action != NET_FW_ACTION_ALLOW);
+            VARIANT_BOOL enabled{};
+            RETURN_IF_FAILED(added_rule->get_Enabled(&enabled));
+            RETURN_HR_IF(E_UNEXPECTED, enabled != VARIANT_TRUE);
+            return S_OK;
+        }));
+
+        return S_OK;
+    }
+
+    wil::unique_bstr m_rule_name;
+};
+
 TEST_CASE("NetworkingTests::Verifying_wsastartup_cleanup", "[networking]")
 {
     // verify socket APIs fail without having called WSAStartup
@@ -229,10 +375,10 @@ TEST_CASE("NetworkingTests::Verifying_constructors", "[networking]")
 
         SOCKADDR_IN6 v6_test_sockaddr{};
         v6_test_sockaddr.sin6_family = AF_INET6;
-        // these raw value are in network byte order
+        // the port and flow info are in network byte order; the scope id is in host byte order
         v6_test_sockaddr.sin6_port = htons(TestPort);
         v6_test_sockaddr.sin6_flowinfo = htonl(ULONG_MAX - 1);
-        v6_test_sockaddr.sin6_scope_id = htonl(ULONG_MAX - 1);
+        v6_test_sockaddr.sin6_scope_id = ULONG_MAX - 1;
         memcpy(&v6_test_sockaddr.sin6_addr, &Test_linklocal_in6_addr, sizeof(in6_addr));
 
         socket_address v6_addr{reinterpret_cast<sockaddr*>(&v6_test_sockaddr), sizeof(v6_test_sockaddr)};
@@ -278,10 +424,10 @@ TEST_CASE("NetworkingTests::Verifying_constructors", "[networking]")
     {
         SOCKADDR_IN6 v6_test_sockaddr{};
         v6_test_sockaddr.sin6_family = AF_INET6;
-        // these raw value are in network byte order
+        // the port and flow info are in network byte order; the scope id is in host byte order
         v6_test_sockaddr.sin6_port = htons(TestPort);
         v6_test_sockaddr.sin6_flowinfo = htonl(ULONG_MAX - 1);
-        v6_test_sockaddr.sin6_scope_id = htonl(ULONG_MAX - 1);
+        v6_test_sockaddr.sin6_scope_id = ULONG_MAX - 1;
         memcpy(&v6_test_sockaddr.sin6_addr, &Test_linklocal_in6_addr, sizeof(in6_addr));
 
         socket_address v6_addr{&v6_test_sockaddr};
@@ -329,10 +475,10 @@ TEST_CASE("NetworkingTests::Verifying_constructors", "[networking]")
 
         SOCKADDR_IN6 v6_test_sockaddr{};
         v6_test_sockaddr.sin6_family = AF_INET6;
-        // these raw value are in network byte order
+        // the port and flow info are in network byte order; the scope id is in host byte order
         v6_test_sockaddr.sin6_port = htons(TestPort);
         v6_test_sockaddr.sin6_flowinfo = htonl(ULONG_MAX - 1);
-        v6_test_sockaddr.sin6_scope_id = htonl(ULONG_MAX - 1);
+        v6_test_sockaddr.sin6_scope_id = ULONG_MAX - 1;
         memcpy(&v6_test_sockaddr.sin6_addr, &Test_linklocal_in6_addr, sizeof(in6_addr));
 
         SOCKADDR_INET v6_inet_addr{};
@@ -387,10 +533,10 @@ TEST_CASE("NetworkingTests::Verifying_constructors", "[networking]")
 
         SOCKADDR_IN6 v6_test_sockaddr{};
         v6_test_sockaddr.sin6_family = AF_INET6;
-        // these raw value are in network byte order
+        // the port and flow info are in network byte order; the scope id is in host byte order
         v6_test_sockaddr.sin6_port = htons(TestPort);
         v6_test_sockaddr.sin6_flowinfo = htonl(ULONG_MAX - 1);
-        v6_test_sockaddr.sin6_scope_id = htonl(ULONG_MAX - 1);
+        v6_test_sockaddr.sin6_scope_id = ULONG_MAX - 1;
         memcpy(&v6_test_sockaddr.sin6_addr, &Test_linklocal_in6_addr, sizeof(in6_addr));
 
         SOCKET_ADDRESS v6_socketaddress{};
@@ -898,6 +1044,7 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
     wil::network::socket_address test_v6_loopback_addr_with_port{&Test_loopback_in6_addr, TestPort};
 
     // need WSAStartup called for some functions below
+    const inbound_firewall_rule firewall_rule;
     auto wsa_startup_tracking = wil::network::WSAStartup_nothrow();
     REQUIRE(static_cast<bool>(wsa_startup_tracking));
 
@@ -1581,10 +1728,10 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
 
         SOCKADDR_IN6 v6_test_sockaddr{};
         v6_test_sockaddr.sin6_family = AF_INET6;
-        // these raw values are in network byte order
+        // the port and flow info are in network byte order; the scope id is in host byte order
         v6_test_sockaddr.sin6_port = htons(TestPort);
         v6_test_sockaddr.sin6_flowinfo = htonl(123456);
-        v6_test_sockaddr.sin6_scope_id = htonl(234567);
+        v6_test_sockaddr.sin6_scope_id = 234567;
         memcpy(&v6_test_sockaddr.sin6_addr, &Test_linklocal_in6_addr, sizeof(in6_addr));
 
         wil::network::socket_address v6_addr{&v6_test_sockaddr};
@@ -1605,9 +1752,9 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
         REQUIRE(v6_addr.sockaddr_in6()->sin6_flowinfo == htonl(345678));
 
         v6_addr.set_scope_id(456789);
-        // should be stored in network-byte-order
+        // should be stored in host-byte-order
         REQUIRE(v6_addr.scope_id() == 456789);
-        REQUIRE(v6_addr.sockaddr_in6()->sin6_scope_id == htonl(456789));
+        REQUIRE(v6_addr.sockaddr_in6()->sin6_scope_id == 456789);
     }
 
     SECTION("verify swap")
@@ -1629,10 +1776,10 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
 
         SOCKADDR_IN6 v6_test_sockaddr{};
         v6_test_sockaddr.sin6_family = AF_INET6;
-        // these raw values are in network byte order
+        // the port and flow info are in network byte order; the scope id is in host byte order
         v6_test_sockaddr.sin6_port = htons(TestPort);
         v6_test_sockaddr.sin6_flowinfo = htonl(123456);
-        v6_test_sockaddr.sin6_scope_id = htonl(234567);
+        v6_test_sockaddr.sin6_scope_id = 234567;
         memcpy(&v6_test_sockaddr.sin6_addr, &Test_linklocal_in6_addr, sizeof(in6_addr));
 
         wil::network::socket_address v6_addr{&v6_test_sockaddr};
@@ -1694,9 +1841,350 @@ TEST_CASE("NetworkingTests::Verifying_set_functions", "[networking]")
     }
 }
 
+TEST_CASE("NetworkingTests::Verifying_reset_complete_address", "[networking]")
+{
+    InitTestAddresses();
+    auto wsa_startup_tracking = wil::network::WSAStartup_nothrow();
+    REQUIRE(static_cast<bool>(wsa_startup_tracking));
+
+    struct TestAddress
+    {
+        PCWSTR address;
+        PCSTR char_address;
+        ADDRESS_FAMILY family;
+        USHORT port;
+        ULONG scope_id;
+    };
+    const TestAddress test_addresses[] = {
+        {Test_in_addr_string, Test_in_addr_char_string, AF_INET, 0, 0},
+        {L"1.1.1.1:12345", "1.1.1.1:12345", AF_INET, TestPort, 0},
+        {L"1.1.1.1:65535", "1.1.1.1:65535", AF_INET, USHRT_MAX, 0},
+        {Test_linklocal_in6_addr_string, "fe80::1:1:1111:2222", AF_INET6, 0, 0},
+        {L"[fe80::1:1:1111:2222]:12345", "[fe80::1:1:1111:2222]:12345", AF_INET6, TestPort, 0},
+        {L"fe80::1:1:1111:2222%42", "fe80::1:1:1111:2222%42", AF_INET6, 0, 42},
+        {L"[fe80::1:1:1111:2222%42]:12345", "[fe80::1:1:1111:2222%42]:12345", AF_INET6, TestPort, 42},
+        {L"[fe80::1:1:1111:2222%42]:65535", "[fe80::1:1:1111:2222%42]:65535", AF_INET6, USHRT_MAX, 42},
+    };
+    const ADDRESS_FAMILY initial_families[] = {AF_UNSPEC, AF_INET, AF_INET6};
+
+    const auto VerifyAddresses = [&](auto reset_address) {
+        for (const auto& test_address : test_addresses)
+        {
+            for (const auto initial_family : initial_families)
+            {
+                INFO(test_address.char_address);
+                INFO(initial_family);
+                wil::network::socket_address address{initial_family};
+                if (initial_family != AF_UNSPEC)
+                {
+                    address.set_address_loopback();
+                    address.set_port(TestPort + 1);
+                }
+                if (initial_family == AF_INET6)
+                {
+                    address.set_scope_id(43);
+                    address.set_flow_info(123456);
+                }
+
+                reset_address(address, test_address);
+                REQUIRE(address.family() == test_address.family);
+                REQUIRE(address.port() == test_address.port);
+                REQUIRE(address.scope_id() == test_address.scope_id);
+                REQUIRE(address.flow_info() == 0);
+                REQUIRE(address.address_type() == NlatUnicast);
+                REQUIRE(!address.is_address_loopback());
+                REQUIRE(address.is_address_linklocal() == (test_address.family == AF_INET6));
+
+                SOCKADDR_INET expected_address{};
+                expected_address.si_family = test_address.family;
+                if (test_address.family == AF_INET)
+                {
+                    expected_address.Ipv4.sin_addr = Test_in_addr;
+                    expected_address.Ipv4.sin_port = htons(test_address.port);
+                    REQUIRE(wil::network::equals(*address.in_addr(), Test_in_addr));
+                }
+                else
+                {
+                    expected_address.Ipv6.sin6_addr = Test_linklocal_in6_addr;
+                    expected_address.Ipv6.sin6_port = htons(test_address.port);
+                    expected_address.Ipv6.sin6_scope_id = test_address.scope_id;
+                    REQUIRE(wil::network::equals(*address.in6_addr(), Test_linklocal_in6_addr));
+                }
+                REQUIRE(0 == memcmp(address.sockaddr_inet(), &expected_address, sizeof(expected_address)));
+
+                wil::network::socket_address_wstring address_string{};
+                REQUIRE(SUCCEEDED(address.format_complete_address_nothrow(address_string)));
+                REQUIRE(0 == wcscmp(address_string, test_address.address));
+
+                wil::network::socket_address_string address_char_string{};
+                REQUIRE(SUCCEEDED(address.format_complete_address_nothrow(address_char_string)));
+                REQUIRE(0 == strcmp(address_char_string, test_address.char_address));
+            }
+        }
+    };
+
+    SECTION("verify reset_complete_address_nothrow PCWSTR")
+    {
+        VerifyAddresses([](wil::network::socket_address& address, const TestAddress& test_address) {
+            REQUIRE(address.reset_complete_address_nothrow(test_address.address) == S_OK);
+        });
+    }
+
+    SECTION("verify reset_complete_address_nothrow PCSTR")
+    {
+        VerifyAddresses([](wil::network::socket_address& address, const TestAddress& test_address) {
+            REQUIRE(address.reset_complete_address_nothrow(test_address.char_address) == S_OK);
+        });
+    }
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+    SECTION("verify reset_complete_address PCWSTR")
+    {
+        VerifyAddresses([](wil::network::socket_address& address, const TestAddress& test_address) {
+            address.reset_complete_address(test_address.address);
+        });
+    }
+
+    SECTION("verify reset_complete_address PCSTR")
+    {
+        VerifyAddresses([](wil::network::socket_address& address, const TestAddress& test_address) {
+            address.reset_complete_address(test_address.char_address);
+        });
+    }
+#endif
+}
+
+// The OS-returned tables below require the caller to free them with FreeMibTable
+using unique_mib_unicast_table = wil::unique_any<PMIB_UNICASTIPADDRESS_TABLE, decltype(&::FreeMibTable), ::FreeMibTable>;
+
+// Proves the byte-order of the fields beyond the address itself, through OS APIs that independently produce and consume them:
+// - the port is stored in network-byte-order, set_port() and port() take and return host-byte-order
+// - the IPv6 scope id is stored in host-byte-order, set_scope_id() and scope_id() take and return host-byte-order
+//   only IPv6 link-local addresses have a non-zero scope id: the same link-local address can be assigned to multiple
+//   interfaces, so the scope id (the interface index) is required to identify the interface for that address
+// - the IPv6 flow info is stored in network-byte-order, though no OS API exposes a non-zero flow info to validate against
+TEST_CASE("NetworkingTests::Verifying_byte_order_with_os_apis", "[networking]")
+{
+    InitTestAddresses();
+    const inbound_firewall_rule firewall_rule;
+    const auto wsa_startup_tracking = wil::network::WSAStartup_nothrow();
+    REQUIRE(static_cast<bool>(wsa_startup_tracking));
+
+    // the test values must differ when byte-swapped for these tests to distinguish host-byte-order from network-byte-order
+    constexpr ULONG TestScopeId = 42;
+    REQUIRE(::htons(TestPort) != TestPort);
+    REQUIRE(::htonl(TestScopeId) != TestScopeId);
+
+    SECTION("verify against RtlIpv4StringToAddressEx and RtlIpv4AddressToStringEx")
+    {
+        IN_ADDR rtl_address{};
+        USHORT rtl_port{};
+        REQUIRE(0 == ::RtlIpv4StringToAddressExW(L"1.1.1.1:12345", TRUE, &rtl_address, &rtl_port));
+        // the port is returned in network-byte-order
+        REQUIRE(rtl_port == ::htons(TestPort));
+
+        wil::network::socket_address address{&rtl_address, TestPort};
+        REQUIRE(address.port() == TestPort);
+        REQUIRE(address.sockaddr_in()->sin_port == rtl_port);
+
+        wil::network::socket_address parsed_address;
+        REQUIRE(SUCCEEDED(parsed_address.reset_complete_address_nothrow(L"1.1.1.1:12345")));
+        REQUIRE(0 == memcmp(parsed_address.sockaddr_inet(), address.sockaddr_inet(), address.size()));
+
+        // the port is accepted in network-byte-order
+        wil::network::socket_address_wstring rtl_string{};
+        ULONG rtl_string_length = ARRAYSIZE(rtl_string);
+        REQUIRE(0 == ::RtlIpv4AddressToStringExW(address.in_addr(), address.sockaddr_in()->sin_port, rtl_string, &rtl_string_length));
+        REQUIRE(0 == wcscmp(rtl_string, L"1.1.1.1:12345"));
+
+        wil::network::socket_address_wstring wil_string{};
+        REQUIRE(SUCCEEDED(address.format_complete_address_nothrow(wil_string)));
+        REQUIRE(0 == wcscmp(wil_string, rtl_string));
+    }
+
+    SECTION("verify against RtlIpv6StringToAddressEx and RtlIpv6AddressToStringEx")
+    {
+        constexpr auto* test_string = L"[fe80::1:1:1111:2222%42]:12345";
+        IN6_ADDR rtl_address{};
+        ULONG rtl_scope_id{};
+        USHORT rtl_port{};
+        REQUIRE(0 == ::RtlIpv6StringToAddressExW(test_string, &rtl_address, &rtl_scope_id, &rtl_port));
+        // the scope id is returned in host-byte-order; the port is returned in network-byte-order
+        REQUIRE(rtl_scope_id == TestScopeId);
+        REQUIRE(rtl_port == ::htons(TestPort));
+
+        wil::network::socket_address address{&rtl_address, TestPort};
+        address.set_scope_id(TestScopeId);
+        REQUIRE(address.port() == TestPort);
+        REQUIRE(address.scope_id() == TestScopeId);
+        REQUIRE(address.sockaddr_in6()->sin6_port == rtl_port);
+        REQUIRE(address.sockaddr_in6()->sin6_scope_id == rtl_scope_id);
+
+        wil::network::socket_address parsed_address;
+        REQUIRE(SUCCEEDED(parsed_address.reset_complete_address_nothrow(test_string)));
+        REQUIRE(0 == memcmp(parsed_address.sockaddr_inet(), address.sockaddr_inet(), address.size()));
+
+        // the scope id is accepted in host-byte-order; the port is accepted in network-byte-order
+        wil::network::socket_address_wstring rtl_string{};
+        ULONG rtl_string_length = ARRAYSIZE(rtl_string);
+        REQUIRE(
+            0 == ::RtlIpv6AddressToStringExW(
+                     address.in6_addr(), address.sockaddr_in6()->sin6_scope_id, address.sockaddr_in6()->sin6_port, rtl_string, &rtl_string_length));
+        REQUIRE(0 == wcscmp(rtl_string, test_string));
+
+        wil::network::socket_address_wstring wil_string{};
+        REQUIRE(SUCCEEDED(address.format_complete_address_nothrow(wil_string)));
+        REQUIRE(0 == wcscmp(wil_string, rtl_string));
+    }
+
+    SECTION("verify against GetUnicastIpAddressTable")
+    {
+        unique_mib_unicast_table table;
+        REQUIRE(NO_ERROR == ::GetUnicastIpAddressTable(AF_UNSPEC, table.put()));
+
+        uint32_t linklocal_count = 0;
+        for (ULONG i = 0; i < table.get()->NumEntries; ++i)
+        {
+            const auto& row = table.get()->Table[i];
+            const wil::network::socket_address address{&row.Address};
+            REQUIRE(address.family() == row.Address.si_family);
+            REQUIRE(address.port() == 0);
+
+            if (address.family() == AF_INET6)
+            {
+                REQUIRE(address.flow_info() == 0);
+                // the scope id in the sockaddr is in host-byte-order, matching the separately returned SCOPE_ID
+                REQUIRE(address.scope_id() == row.ScopeId.Value);
+
+                // only IPv6 link-local addresses have a scope id: the same link-local address can be assigned to
+                // multiple interfaces, so the scope id (the interface index) is required to identify which interface
+                if (address.is_address_linklocal())
+                {
+                    ++linklocal_count;
+                    // link-local addresses are scoped to the (host-byte-order) interface index
+                    REQUIRE(address.scope_id() == row.InterfaceIndex);
+
+                    wil::network::socket_address constructed_address{address.in6_addr()};
+                    constructed_address.set_scope_id(row.InterfaceIndex);
+                    REQUIRE(0 == memcmp(constructed_address.sockaddr_in6(), &row.Address.Ipv6, sizeof(SOCKADDR_IN6)));
+                }
+                else
+                {
+                    REQUIRE(address.scope_id() == 0);
+                }
+            }
+        }
+
+        if (linklocal_count == 0)
+        {
+            WARN("No IPv6 link-local addresses were found - IPv6 scope id byte-order was not validated against GetUnicastIpAddressTable");
+        }
+    }
+
+    SECTION("verify against GetAdaptersAddresses")
+    {
+        constexpr ULONG flags = GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST | GAA_FLAG_SKIP_DNS_SERVER;
+        wil::unique_process_heap_ptr<IP_ADAPTER_ADDRESSES> adapters;
+        ULONG buffer_size = 0;
+        ULONG error = ::GetAdaptersAddresses(AF_UNSPEC, flags, nullptr, nullptr, &buffer_size);
+        while (error == ERROR_BUFFER_OVERFLOW)
+        {
+            adapters.reset(static_cast<IP_ADAPTER_ADDRESSES*>(::HeapAlloc(::GetProcessHeap(), 0, buffer_size)));
+            REQUIRE(adapters);
+            error = ::GetAdaptersAddresses(AF_UNSPEC, flags, nullptr, adapters.get(), &buffer_size);
+        }
+        REQUIRE(error == NO_ERROR);
+
+        uint32_t linklocal_count = 0;
+        for (const auto* adapter = adapters.get(); adapter; adapter = adapter->Next)
+        {
+            for (const auto* unicast = adapter->FirstUnicastAddress; unicast; unicast = unicast->Next)
+            {
+                const wil::network::socket_address address{&unicast->Address};
+                REQUIRE(address.port() == 0);
+                // only IPv6 link-local addresses have a scope id: the same link-local address can be assigned to
+                // multiple interfaces, so the scope id (the interface index) is required to identify which interface
+                if (address.family() == AF_INET6 && address.is_address_linklocal())
+                {
+                    ++linklocal_count;
+                    // the scope id in the sockaddr is in host-byte-order, matching the separately returned zone and interface index
+                    REQUIRE(address.scope_id() == adapter->ZoneIndices[ScopeLevelLink]);
+                    REQUIRE(address.scope_id() == adapter->Ipv6IfIndex);
+                }
+                else
+                {
+                    REQUIRE(address.scope_id() == 0);
+                }
+            }
+        }
+
+        if (linklocal_count == 0)
+        {
+            WARN("No IPv6 link-local addresses were found - IPv6 scope id byte-order was not validated against GetAdaptersAddresses");
+        }
+    }
+
+    SECTION("verify binding to link-local addresses with the scope id set through socket_address")
+    {
+        unique_mib_unicast_table table;
+        REQUIRE(NO_ERROR == ::GetUnicastIpAddressTable(AF_INET6, table.put()));
+
+        uint32_t linklocal_count = 0;
+        for (ULONG i = 0; i < table.get()->NumEntries; ++i)
+        {
+            const auto& row = table.get()->Table[i];
+            if (row.DadState != IpDadStatePreferred || !IN6_IS_ADDR_LINKLOCAL(&row.Address.Ipv6.sin6_addr))
+            {
+                continue;
+            }
+            ++linklocal_count;
+
+            // the scope id is required to bind to a link-local address, as the same link-local address
+            // can be assigned to multiple interfaces - the scope id (the interface index) identifies the interface
+            // set_scope_id() takes the host-byte-order interface index, so binding must succeed
+            wil::network::socket_address local_address{&row.Address.Ipv6.sin6_addr};
+            local_address.set_scope_id(row.InterfaceIndex);
+
+            wil::network::socket_address_string local_address_string{};
+            REQUIRE(SUCCEEDED(local_address.format_complete_address_nothrow(local_address_string)));
+            INFO(local_address_string);
+
+            wil::unique_socket bound_socket{::socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP)};
+            REQUIRE(bound_socket.get() != INVALID_SOCKET);
+            REQUIRE(0 == ::bind(bound_socket.get(), local_address.sockaddr(), local_address.size()));
+
+            wil::network::socket_address bound_address;
+            REQUIRE(SUCCEEDED(bound_address.reset_address_nothrow(bound_socket.get())));
+            REQUIRE(0 == memcmp(bound_address.in6_addr(), local_address.in6_addr(), sizeof(IN6_ADDR)));
+            REQUIRE(bound_address.scope_id() == row.InterfaceIndex);
+
+            // passing the network-byte-order interface index to set_scope_id() must fail to bind
+            // as it no longer identifies the interface with that link-local address
+            REQUIRE(::htonl(row.InterfaceIndex) != row.InterfaceIndex);
+            wil::network::socket_address network_order_scope_address{&row.Address.Ipv6.sin6_addr};
+            network_order_scope_address.set_scope_id(::htonl(row.InterfaceIndex));
+
+            wil::unique_socket failed_socket{::socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP)};
+            REQUIRE(failed_socket.get() != INVALID_SOCKET);
+            const auto bind_result =
+                ::bind(failed_socket.get(), network_order_scope_address.sockaddr(), network_order_scope_address.size());
+            // capture the error immediately - Catch2 reporting between REQUIREs can overwrite the thread's last error
+            const auto bind_error = ::WSAGetLastError();
+            REQUIRE(SOCKET_ERROR == bind_result);
+            REQUIRE(WSAEADDRNOTAVAIL == bind_error);
+        }
+
+        if (linklocal_count == 0)
+        {
+            WARN("No preferred IPv6 link-local addresses were found - binding with the IPv6 scope id was not validated");
+        }
+    }
+}
+
 TEST_CASE("NetworkingTests::Verifying_failure_paths", "[networking]")
 {
     InitTestAddresses();
+    const inbound_firewall_rule firewall_rule;
     auto wsa_startup_tracking = wil::network::WSAStartup_nothrow();
     REQUIRE(static_cast<bool>(wsa_startup_tracking));
 
@@ -1768,6 +2256,80 @@ TEST_CASE("NetworkingTests::Verifying_failure_paths", "[networking]")
         }
         REQUIRE(exception_thrown);
 #endif
+    }
+
+    SECTION("verify reset_complete_address bad-address-string failure path")
+    {
+        const struct
+        {
+            PCWSTR address;
+            PCSTR char_address;
+        } invalid_addresses[] = {
+            {L"abcdefg", "abcdefg"},
+            {L"1.1.1.1:65536", "1.1.1.1:65536"},
+            {L"[fe80::1:1:1111:2222%42]:65536", "[fe80::1:1:1111:2222%42]:65536"},
+            {L"fe80::1:1:1111:2222%invalid", "fe80::1:1:1111:2222%invalid"},
+        };
+
+        for (const auto& invalid_address : invalid_addresses)
+        {
+            INFO(invalid_address.char_address);
+            wil::network::socket_address test_address{&Test_linklocal_in6_addr, TestPort};
+            test_address.set_scope_id(42);
+            test_address.set_flow_info(123456);
+            const auto original_address = test_address;
+            const wil::network::socket_address empty_address;
+
+            const auto ResetAndVerifyFailure = [&](auto reset_address) {
+                REQUIRE(reset_address() == HRESULT_FROM_WIN32(WSAEINVAL));
+                REQUIRE(0 == memcmp(test_address.sockaddr_inet(), empty_address.sockaddr_inet(), test_address.size()));
+                test_address = original_address;
+            };
+
+            ResetAndVerifyFailure([&] {
+                return test_address.reset_complete_address_nothrow(invalid_address.address);
+            });
+            ResetAndVerifyFailure([&] {
+                return test_address.reset_complete_address_nothrow(invalid_address.char_address);
+            });
+
+#ifdef WIL_ENABLE_EXCEPTIONS
+            bool exception_thrown = false;
+            try
+            {
+                test_address.reset_complete_address(invalid_address.address);
+            }
+            catch (const wil::ResultException& e)
+            {
+                REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(WSAEINVAL));
+                exception_thrown = true;
+            }
+            catch (...)
+            {
+                REQUIRE(false);
+            }
+            REQUIRE(exception_thrown);
+            REQUIRE(0 == memcmp(test_address.sockaddr_inet(), empty_address.sockaddr_inet(), test_address.size()));
+
+            test_address = original_address;
+            exception_thrown = false;
+            try
+            {
+                test_address.reset_complete_address(invalid_address.char_address);
+            }
+            catch (const wil::ResultException& e)
+            {
+                REQUIRE(e.GetErrorCode() == HRESULT_FROM_WIN32(WSAEINVAL));
+                exception_thrown = true;
+            }
+            catch (...)
+            {
+                REQUIRE(false);
+            }
+            REQUIRE(exception_thrown);
+            REQUIRE(0 == memcmp(test_address.sockaddr_inet(), empty_address.sockaddr_inet(), test_address.size()));
+#endif
+        }
     }
 
     SECTION("verify format_address_nothrow AF_UNSPEC")
@@ -1889,6 +2451,7 @@ TEST_CASE("NetworkingTests::Verifying_failure_paths", "[networking]")
 
 TEST_CASE("NetworkingTests::Verifying_function_tables", "[networking]")
 {
+    const inbound_firewall_rule firewall_rule;
     using wil::network::equals;
 
     SECTION("verify winsock_extension_function_table")
